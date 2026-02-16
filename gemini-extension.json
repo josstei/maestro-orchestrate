@@ -1,6 +1,6 @@
 {
   "name": "maestro",
   "version": "1.1.1",
-  "description": "Multi-agent orchestration extension that assembles specialized dev teams for complex engineering tasks",
+  "description": "Multi-agent dev platform — 12 specialists, 4-phase orchestration, parallel dispatch, persistent sessions, and standalone review/debug/security/perf commands",
   "contextFileName": "GEMINI.md"
 }
