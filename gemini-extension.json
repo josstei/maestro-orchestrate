@@ -1,6 +1,6 @@
 {
   "name": "maestro",
   "version": "1.1.1",
-  "description": "Multi-agent dev platform — 12 specialists, 4-phase orchestration, parallel dispatch, persistent sessions, and standalone review/debug/security/perf commands",
+  "description": "Multi-agent development orchestration platform — 12 specialists, 4-phase orchestration, parallel dispatch, persistent sessions, and standalone review/debug/security/perf commands",
   "contextFileName": "GEMINI.md"
 }

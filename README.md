@@ -142,14 +142,6 @@ Maestro works out of the box with sensible defaults. To customize behavior, set 
 
 All settings are optional. The orchestrator uses the defaults shown above when a variable is not set.
 
-### Theme
-
-Maestro includes a branded dark theme with warm gold accents. After installing the extension, select it from the Gemini CLI theme picker:
-
-```
-Theme: Maestro (maestro)
-```
-
 ### Model Configuration
 
 | Role | Model | Purpose |
