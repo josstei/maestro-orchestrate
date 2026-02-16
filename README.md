@@ -35,6 +35,9 @@ Multi-agent orchestration extension for Gemini CLI. Maestro delegates work to 12
   - [Dispatch Directory Structure](#dispatch-directory-structure)
   - [Constraints](#constraints)
 - [Session State & Project Output](#session-state--project-output)
+- [Documentation](#documentation)
+  - [Usage Guide](USAGE.md)
+  - [Architecture](docs/architecture/)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
@@ -463,6 +466,14 @@ Maestro tracks orchestration progress in `.gemini/state/active-session.md` with:
 - **Token usage**: Per-agent, per-phase token consumption metrics
 
 All state files use YAML frontmatter for machine-readable metadata and Markdown body for human-readable logs.
+
+## Documentation
+
+- **[Usage Guide](USAGE.md)** — Comprehensive guide to installing, configuring, and using Maestro
+- **[System Overview](docs/architecture/system-overview.md)** — Extension entry point, component model, and configuration system
+- **[Agent System](docs/architecture/agent-system.md)** — Agent definitions, tool permissions, model assignment, and delegation
+- **[Skills & Commands](docs/architecture/skills-and-commands.md)** — Skill activation, command definitions, and protocol contracts
+- **[State Management & Scripts](docs/architecture/state-management-and-scripts.md)** — Session state, parallel dispatch, and execution infrastructure
 
 ## Troubleshooting
 
