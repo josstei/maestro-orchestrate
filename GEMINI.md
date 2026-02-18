@@ -16,8 +16,8 @@ Before any orchestration command:
 
 | Setting | envVar | Default | Applies To |
 |---------|--------|---------|------------|
-| Default Model | `MAESTRO_DEFAULT_MODEL` | _(inherit)_ | Sequential delegation (via BeforeModel hook) and parallel dispatch `--model` flag |
-| Writer Model | `MAESTRO_WRITER_MODEL` | _(inherit)_ | technical-writer delegation only (via BeforeModel hook) |
+| Default Model | `MAESTRO_DEFAULT_MODEL` | _(inherit)_ | Parallel dispatch `--model` flag only |
+| Writer Model | `MAESTRO_WRITER_MODEL` | _(inherit)_ | Parallel dispatch only (technical-writer `--model` flag) |
 | Default Temperature | `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | All agent delegation prompts |
 | Max Agent Turns | `MAESTRO_MAX_TURNS` | `25` | All agent delegation prompts |
 | Agent Timeout | `MAESTRO_AGENT_TIMEOUT` | `10` (minutes) | All agent delegation prompts |
@@ -136,7 +136,7 @@ Reserve `run_shell_command` for commands that execute programs (build, test, lin
 When constructing delegation prompts, apply settings overrides in this order:
 
 1. Start with the agent's base definition (from `agents/<name>.md` frontmatter)
-2. Model selection for sequential subagent calls is handled automatically by the `BeforeModel` hook using `MAESTRO_DEFAULT_MODEL` (or `MAESTRO_WRITER_MODEL` for technical-writer). Do not include model overrides in sequential delegation prompts — the hook manages this at load time.
+2. For parallel dispatch, model selection is applied via the `--model` CLI flag using `MAESTRO_DEFAULT_MODEL` (or `MAESTRO_WRITER_MODEL` for technical-writer). For sequential subagent calls, model selection is inherited from the main session — BeforeModel hooks cannot override the model field.
 3. Override `temperature` with `MAESTRO_DEFAULT_TEMPERATURE` if set
 4. Override `max_turns` with `MAESTRO_MAX_TURNS` if set
 5. Override `timeout_mins` with `MAESTRO_AGENT_TIMEOUT` if set
@@ -187,5 +187,5 @@ Maestro v1.2 uses Gemini CLI's hooks system for lifecycle middleware. Hooks are 
 | SessionStart | Workspace initialization |
 | BeforeAgent | Agent tracking + context injection |
 | AfterAgent | Handoff report validation |
-| BeforeModel | Per-agent model override via `MAESTRO_DEFAULT_MODEL` / `MAESTRO_WRITER_MODEL` |
+| BeforeModel | Reserved for future config overrides (model override not possible via hooks) |
 | SessionEnd | Cleanup |

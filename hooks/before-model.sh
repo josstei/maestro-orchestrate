@@ -4,39 +4,16 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$HOOK_DIR/lib/common.sh"
 
 main() {
-  INPUT=$(read_stdin)
-  SESSION_ID=$(json_get "$INPUT" "session_id")
-
-  ACTIVE_AGENT=$(get_active_agent "$SESSION_ID" 2>/dev/null || echo "")
-
-  if [ -z "$ACTIVE_AGENT" ]; then
-    echo '{}'
-    return 0
-  fi
-
-  MODEL_OVERRIDE=""
-
-  if [ "$ACTIVE_AGENT" = "technical-writer" ] && [ -n "${MAESTRO_WRITER_MODEL:-}" ]; then
-    MODEL_OVERRIDE="$MAESTRO_WRITER_MODEL"
-  elif [ -n "${MAESTRO_DEFAULT_MODEL:-}" ]; then
-    MODEL_OVERRIDE="$MAESTRO_DEFAULT_MODEL"
-  fi
-
-  if [ -n "$MODEL_OVERRIDE" ]; then
-    python3 -c "
-import json, sys
-print(json.dumps({
-    'hookSpecificOutput': {
-        'hookEventName': 'BeforeModel',
-        'llm_request': {
-            'model': sys.argv[1]
-        }
-    }
-}))
-" "$MODEL_OVERRIDE"
-  else
-    echo '{}'
-  fi
+  # BeforeModel hook — reserved for future config overrides
+  #
+  # IMPORTANT: The Gemini CLI BeforeModel hook system extracts only `config`
+  # and `contents` from hookSpecificOutput.llm_request — the `model` field
+  # is discarded by hookSystem.ts. Model overrides for sequential delegation
+  # are not possible via hooks.
+  #
+  # For parallel dispatch, model overrides work via the --model CLI flag
+  # in parallel-dispatch.sh using MAESTRO_DEFAULT_MODEL.
+  echo '{}'
 }
 
 safe_main main

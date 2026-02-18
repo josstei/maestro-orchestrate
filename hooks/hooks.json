@@ -20,7 +20,7 @@
             "type": "command",
             "command": "bash ${extensionPath}/hooks/before-model.sh",
             "name": "maestro-model-override",
-            "description": "Apply per-agent model override via MAESTRO_DEFAULT_MODEL or MAESTRO_WRITER_MODEL environment variables",
+            "description": "Reserved for future config overrides — model overrides only work via parallel dispatch --model flag",
             "timeout": 3000
           }
         ]
