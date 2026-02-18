@@ -95,6 +95,43 @@ EXTENSION_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 AGENTS_DIR="$EXTENSION_DIR/agents"
 PROJECT_ROOT="$(pwd)"
 
+run_with_timeout() {
+  local timeout_secs="$1"
+  shift
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$timeout_secs" "$@"
+    return $?
+  fi
+
+  "$@" &
+  local cmd_pid=$!
+  local cancel_file="/tmp/maestro-watchdog-$$-$cmd_pid"
+
+  (
+    sleep "$timeout_secs"
+    if [ ! -f "$cancel_file" ] && kill -0 "$cmd_pid" 2>/dev/null; then
+      echo "WARN: Process $cmd_pid timed out after ${timeout_secs}s" >&2
+      kill -TERM "$cmd_pid" 2>/dev/null
+      sleep 5
+      if kill -0 "$cmd_pid" 2>/dev/null; then
+        kill -KILL "$cmd_pid" 2>/dev/null
+      fi
+    fi
+  ) &
+  local watchdog_pid=$!
+
+  wait "$cmd_pid" 2>/dev/null
+  local exit_code=$?
+
+  touch "$cancel_file"
+  kill "$watchdog_pid" 2>/dev/null
+  wait "$watchdog_pid" 2>/dev/null
+  rm -f "$cancel_file"
+
+  return "$exit_code"
+}
+
 PIDS=()
 AGENT_NAMES=()
 START_TIME=$(date +%s)
@@ -162,23 +199,14 @@ ${PROMPT_CONTENT}"
   echo "Dispatching: $AGENT_NAME"
 
   (
-    if command -v timeout >/dev/null 2>&1; then
-      timeout "$TIMEOUT_SECS" gemini \
-        -p "$PROMPT_CONTENT" \
-        --yolo \
-        --output-format json \
-        ${MODEL_FLAGS[@]+"${MODEL_FLAGS[@]}"} \
-        > "$RESULT_JSON" \
-        2> "$RESULT_LOG"
-    else
-      gemini \
-        -p "$PROMPT_CONTENT" \
-        --yolo \
-        --output-format json \
-        ${MODEL_FLAGS[@]+"${MODEL_FLAGS[@]}"} \
-        > "$RESULT_JSON" \
-        2> "$RESULT_LOG"
-    fi
+    export MAESTRO_CURRENT_AGENT="$AGENT_NAME"
+    run_with_timeout "$TIMEOUT_SECS" gemini \
+      -p "$PROMPT_CONTENT" \
+      --yolo \
+      --output-format json \
+      ${MODEL_FLAGS[@]+"${MODEL_FLAGS[@]}"} \
+      > "$RESULT_JSON" \
+      2> "$RESULT_LOG"
     echo $? > "$RESULT_EXIT"
   ) &
 
