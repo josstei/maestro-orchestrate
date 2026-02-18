@@ -54,7 +54,7 @@ respond_block() {
   local reason="$1"
   python3 - "$reason" <<'PYEOF'
 import sys, json
-print(json.dumps({"decision": "block", "reason": sys.argv[1]}))
+print(json.dumps({"decision": "deny", "reason": sys.argv[1]}))
 PYEOF
 }
 

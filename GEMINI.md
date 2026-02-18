@@ -1,7 +1,6 @@
 ---
 name: TechLead
 description: Maestro orchestrator — coordinates specialized subagent teams through structured 4-phase workflows
-model: auto
 ---
 
 # Maestro TechLead Orchestrator
@@ -20,8 +19,8 @@ Before any orchestration command:
 
 | Setting | envVar | Default | Applies To |
 |---------|--------|---------|------------|
-| Default Model | `MAESTRO_DEFAULT_MODEL` | `auto` | All agent delegation prompts (overrides frontmatter `model` field) |
-| Writer Model | `MAESTRO_WRITER_MODEL` | `auto` | technical-writer delegation only (overrides `MAESTRO_DEFAULT_MODEL`) |
+| Default Model | `MAESTRO_DEFAULT_MODEL` | _(inherit)_ | All agent delegation prompts (overrides frontmatter `model` field) |
+| Writer Model | `MAESTRO_WRITER_MODEL` | _(inherit)_ | technical-writer delegation only (overrides `MAESTRO_DEFAULT_MODEL`) |
 | Default Temperature | `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | All agent delegation prompts |
 | Max Agent Turns | `MAESTRO_MAX_TURNS` | `25` | All agent delegation prompts |
 | Agent Timeout | `MAESTRO_AGENT_TIMEOUT` | `10` (minutes) | All agent delegation prompts |
@@ -157,18 +156,18 @@ Use the path from `MAESTRO_STATE_DIR` (default: `.gemini`) as the base directory
 
 | Agent | Domain | Tools | Model |
 |-------|--------|-------|-------|
-| architect | System design, architecture | Read-only | auto |
-| api-designer | API contracts, endpoints | Read-only | auto |
-| code-reviewer | Code quality assessment | Read-only | auto |
-| coder | Feature implementation | Full access | auto |
-| data-engineer | Schema, queries, ETL | Full access | auto |
-| debugger | Bug investigation | Read + shell | auto |
-| devops-engineer | CI/CD, infrastructure | Full access | auto |
-| performance-engineer | Performance analysis | Read + shell | auto |
-| refactor | Code restructuring | Read + write | auto |
-| security-engineer | Security assessment | Read + shell | auto |
-| technical-writer | Documentation | Read + write | auto |
-| tester | Test creation, TDD | Full access | auto |
+| architect | System design, architecture | Read-only + web search | inherit |
+| api-designer | API contracts, endpoints | Read-only | inherit |
+| code-reviewer | Code quality assessment | Read-only | inherit |
+| coder | Feature implementation | Full access | inherit |
+| data-engineer | Schema, queries, ETL | Full access | inherit |
+| debugger | Bug investigation | Read + shell | inherit |
+| devops-engineer | CI/CD, infrastructure | Full access | inherit |
+| performance-engineer | Performance analysis | Read + shell | inherit |
+| refactor | Code restructuring | Read + write | inherit |
+| security-engineer | Security assessment | Read + shell | inherit |
+| technical-writer | Documentation | Read + write | inherit |
+| tester | Test creation, TDD | Full access | inherit |
 
 ## Hooks
 

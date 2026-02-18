@@ -7,7 +7,6 @@ tools:
   - glob
   - grep_search
   - google_web_search
-model: auto
 temperature: 0.3
 max_turns: 15
 timeout_mins: 5

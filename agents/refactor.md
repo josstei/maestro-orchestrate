@@ -8,7 +8,6 @@ tools:
   - grep_search
   - write_file
   - replace
-model: auto
 temperature: 0.2
 max_turns: 25
 timeout_mins: 10

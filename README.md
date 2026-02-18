@@ -1,6 +1,6 @@
 # Maestro
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/josstei/maestro-gemini/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/josstei/maestro-gemini/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://geminicli.com)
 
@@ -249,8 +249,8 @@ Maestro works out of the box with sensible defaults. To customize behavior, set 
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
-| `MAESTRO_DEFAULT_MODEL` | `gemini-3-pro-preview` | Model used by all agents unless individually overridden |
-| `MAESTRO_WRITER_MODEL` | `gemini-3-flash-preview` | Model for technical-writer agent |
+| `MAESTRO_DEFAULT_MODEL` | _(inherit)_ | Model used by all agents unless individually overridden |
+| `MAESTRO_WRITER_MODEL` | _(inherit)_ | Model for technical-writer agent |
 | `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | Temperature for all agents (0.0-1.0) |
 | `MAESTRO_MAX_TURNS` | `25` | Maximum turns per subagent execution |
 | `MAESTRO_AGENT_TIMEOUT` | `10` | Timeout in minutes per subagent |
@@ -269,10 +269,10 @@ All settings are optional. The orchestrator uses the defaults shown above when a
 
 | Role | Model | Purpose |
 |------|-------|---------|
-| Dynamic routing | `auto` | All agents — Gemini CLI selects optimal model per turn |
-| Fallback | `gemini-2.5-pro` | When dynamic routing is unavailable |
+| Inherited | _(main session model)_ | All agents inherit the model from the main Gemini CLI session |
+| Override | `MAESTRO_DEFAULT_MODEL` | Set to a specific model (e.g., `gemini-2.5-pro`) to override all agents |
 
-All agents use `model: auto` by default, enabling Gemini CLI's `ModelRouterService` for per-turn model selection. Override via `MAESTRO_DEFAULT_MODEL` or `MAESTRO_WRITER_MODEL`.
+All agents omit the `model` field by default, inheriting the main session's model selection. Override via `MAESTRO_DEFAULT_MODEL` or `MAESTRO_WRITER_MODEL` environment variables.
 
 ### Hooks
 
@@ -376,18 +376,18 @@ Maestro coordinates 12 specialized subagents:
 
 | Agent | Specialization | Tools | Model |
 |-------|---------------|-------|-------|
-| architect | System design, technology selection, component design | read, glob, search, web search | auto |
-| api-designer | REST/GraphQL endpoint design, API contracts | read, glob, search | auto |
-| coder | Feature implementation, clean code, SOLID principles | read, glob, search, write, replace, shell | auto |
-| code-reviewer | Code quality review, best practices, security | read, glob, search | auto |
-| data-engineer | Schema design, query optimization, ETL pipelines | read, glob, search, write, replace, shell | auto |
-| debugger | Root cause analysis, log analysis, execution tracing | read, glob, search, shell | auto |
-| devops-engineer | CI/CD pipelines, containerization, infrastructure | read, glob, search, write, replace, shell | auto |
-| performance-engineer | Profiling, bottleneck identification, optimization | read, glob, search, shell | auto |
-| refactor | Code modernization, technical debt, design patterns | read, glob, search, write, replace | auto |
-| security-engineer | Vulnerability assessment, OWASP, threat modeling | read, glob, search, shell | auto |
-| tester | Unit/integration/E2E tests, TDD, coverage analysis | read, glob, search, write, replace, shell | auto |
-| technical-writer | API docs, READMEs, architecture documentation | read, glob, search, write, replace | auto |
+| architect | System design, technology selection, component design | read, glob, search, web search | inherit |
+| api-designer | REST/GraphQL endpoint design, API contracts | read, glob, search | inherit |
+| coder | Feature implementation, clean code, SOLID principles | read, glob, search, write, replace, shell | inherit |
+| code-reviewer | Code quality review, best practices, security | read, glob, search | inherit |
+| data-engineer | Schema design, query optimization, ETL pipelines | read, glob, search, write, replace, shell | inherit |
+| debugger | Root cause analysis, log analysis, execution tracing | read, glob, search, shell | inherit |
+| devops-engineer | CI/CD pipelines, containerization, infrastructure | read, glob, search, write, replace, shell | inherit |
+| performance-engineer | Profiling, bottleneck identification, optimization | read, glob, search, shell | inherit |
+| refactor | Code modernization, technical debt, design patterns | read, glob, search, write, replace | inherit |
+| security-engineer | Vulnerability assessment, OWASP, threat modeling | read, glob, search, shell | inherit |
+| tester | Unit/integration/E2E tests, TDD, coverage analysis | read, glob, search, write, replace, shell | inherit |
+| technical-writer | API docs, READMEs, architecture documentation | read, glob, search, write, replace | inherit |
 
 ### Tool Access Philosophy
 

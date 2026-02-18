@@ -27,7 +27,7 @@ json.loads(sys.argv[1])
 print("PASS: Returns valid JSON")
 PYEOF
 
-echo "Test 3: No env var — state file still written from prior hook"
+echo "Test 2: No env var — state file still written from prior hook"
 unset MAESTRO_CURRENT_AGENT 2>/dev/null || true
 INPUT_NO_ENV='{"session_id":"test-790","transcript_path":"/tmp/t","cwd":"/tmp","hook_event_name":"BeforeAgent","timestamp":"2026-02-17T00:00:00Z","prompt":"Test prompt"}'
 OUTPUT=$(echo "$INPUT_NO_ENV" | bash "$HOOK" 2>/dev/null)

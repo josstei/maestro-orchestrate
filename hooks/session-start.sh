@@ -24,4 +24,4 @@ if validate_session_id "$SESSION_ID" 2>/dev/null; then
   mkdir -p "$STATE_DIR/$SESSION_ID"
 fi
 
-respond_allow "Maestro hooks initialized"
+echo '{"systemMessage":"Maestro hooks initialized"}'

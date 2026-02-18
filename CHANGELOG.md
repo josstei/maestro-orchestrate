@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Hooks-based lifecycle middleware** — 5 hook handlers for SessionStart, BeforeToolSelection, BeforeTool, BeforeAgent, AfterAgent
 - **Tool permission enforcement** — BeforeTool blocks unauthorized tool calls (primary gate); BeforeToolSelection suggests available tools (UX optimization)
-- **Dynamic model routing** — All agents switched to `model: auto` for per-turn model selection
+- **Model inheritance** — All agents use inherited model selection (omit `model` field, inheriting from main session)
 - **Agent tracking** — BeforeAgent/AfterAgent track active agent for permission enforcement in parallel dispatch
 - **Handoff report validation** — AfterAgent validates agent output includes Task Report and Downstream Context
 - **Permissions manifest** — `hooks/generate-permissions.sh` compiles agent frontmatter into permissions.json (stdlib only, no pyyaml)
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- All agents: hardcoded models to `model: auto`
+- All agents: removed hardcoded models (inherit from main session)
 - All agents: `search_file_content` to `grep_search` (canonical tool name)
 - All agents: unified Handoff Report output contract
 - `parallel-dispatch.sh`: sets `MAESTRO_CURRENT_AGENT` per spawned process

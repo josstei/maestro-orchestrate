@@ -6,7 +6,6 @@ tools:
   - read_file
   - glob
   - grep_search
-model: auto
 temperature: 0.2
 max_turns: 15
 timeout_mins: 5

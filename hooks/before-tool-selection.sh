@@ -14,7 +14,7 @@ if [ -z "$AGENT_NAME" ]; then
 fi
 
 if [ -z "$AGENT_NAME" ]; then
-  respond_allow
+  echo '{}'
   exit 0
 fi
 
@@ -22,15 +22,13 @@ PERMISSIONS=$(load_permissions)
 TOOLS=$(get_agent_tools "$PERMISSIONS" "$AGENT_NAME")
 
 if [ -z "$TOOLS" ]; then
-  respond_allow
+  echo '{}'
   exit 0
 fi
 
 python3 - "$TOOLS" <<'PYEOF'
 import sys, json
 tools = sys.argv[1].split()
-if 'complete_task' not in tools:
-    tools.append('complete_task')
 result = {
     "hookSpecificOutput": {
         "hookEventName": "BeforeToolSelection",

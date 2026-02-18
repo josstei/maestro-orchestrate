@@ -7,12 +7,22 @@ AGENTS_DIR="$PROJECT_ROOT/agents"
 
 VALID_TOOLS=(
   "read_file"
+  "list_directory"
   "glob"
   "grep_search"
   "write_file"
   "replace"
+  "read_many_files"
   "run_shell_command"
   "google_web_search"
+  "web_fetch"
+  "ask_user"
+  "save_memory"
+  "write_todos"
+  "activate_skill"
+  "get_internal_docs"
+  "enter_plan_mode"
+  "exit_plan_mode"
 )
 
 READONLY_AGENTS=("architect" "api-designer" "code-reviewer")
