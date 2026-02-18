@@ -6,13 +6,13 @@ source "$HOOK_DIR/lib/common.sh"
 main() {
   INPUT=$(read_stdin)
   SESSION_ID=$(json_get "$INPUT" "session_id")
-  STOP_HOOK_ACTIVE=$(json_get "$INPUT" "stop_hook_active")
+  STOP_HOOK_ACTIVE=$(json_get_bool "$INPUT" "stop_hook_active")
 
   AGENT_NAME=$(get_active_agent "$SESSION_ID")
 
   AGENT_NAME_LOWER=$(echo "$AGENT_NAME" | tr '[:upper:]' '[:lower:]')
   if [ -n "$AGENT_NAME" ] && [ "$AGENT_NAME_LOWER" != "techlead" ] && [ "$AGENT_NAME_LOWER" != "orchestrator" ]; then
-    STOP_HOOK_LOWER=$(echo "$STOP_HOOK_ACTIVE" | tr '[:upper:]' '[:lower:]')
+    STOP_HOOK_LOWER="$STOP_HOOK_ACTIVE"
 
     TMPFILE=$(mktemp)
     echo "$INPUT" > "$TMPFILE"

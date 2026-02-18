@@ -20,6 +20,17 @@ print(d.get(sys.argv[2], ''))
 PYEOF
 }
 
+json_get_bool() {
+  local json="$1"
+  local key="$2"
+  python3 - "$json" "$key" <<'PYEOF' 2>/dev/null || echo "false"
+import sys, json
+d = json.loads(sys.argv[1])
+v = d.get(sys.argv[2], False)
+print("true" if v else "false")
+PYEOF
+}
+
 json_get_nested() {
   local json="$1"
   shift
@@ -57,14 +68,13 @@ PYEOF
 }
 
 respond_with_context() {
-  local event="$1"
-  local context="$2"
-  python3 - "$event" "$context" <<'PYEOF'
+  local context="$1"
+  python3 - "$context" <<'PYEOF'
 import sys, json
 print(json.dumps({
+    "decision": "allow",
     "hookSpecificOutput": {
-        "hookEventName": sys.argv[1],
-        "additionalContext": sys.argv[2]
+        "additionalContext": sys.argv[1]
     }
 }))
 PYEOF

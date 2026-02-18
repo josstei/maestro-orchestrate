@@ -78,7 +78,8 @@ python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: Invalid JSON for context injectio
 import json, sys
 data = json.loads(sys.argv[1])
 hso = data.get('hookSpecificOutput', {})
-assert hso.get('hookEventName') == 'BeforeAgent', f'Expected hookEventName BeforeAgent, got {hso.get("hookEventName")}'
+assert 'hookEventName' not in hso, f'hookEventName should be removed, but found: {hso.get("hookEventName")}'
+assert data.get('decision') == 'allow', f'Expected decision allow, got {data.get("decision")}'
 ctx = hso.get('additionalContext', '')
 assert 'current_phase=phase-2-implementation' in ctx, f'Expected phase info in context, got: {ctx}'
 assert 'status=in_progress' in ctx, f'Expected status in context, got: {ctx}'
