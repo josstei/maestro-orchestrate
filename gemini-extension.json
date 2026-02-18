@@ -13,6 +13,56 @@
       "name": "Writer Model",
       "description": "Override the model for the technical-writer agent in parallel dispatch only.",
       "envVar": "MAESTRO_WRITER_MODEL"
+    },
+    {
+      "name": "Default Temperature",
+      "description": "Override the temperature for all agent delegation prompts (0.0-2.0).",
+      "envVar": "MAESTRO_DEFAULT_TEMPERATURE"
+    },
+    {
+      "name": "Max Agent Turns",
+      "description": "Maximum number of turns per agent invocation.",
+      "envVar": "MAESTRO_MAX_TURNS"
+    },
+    {
+      "name": "Agent Timeout",
+      "description": "Timeout in minutes for each agent invocation.",
+      "envVar": "MAESTRO_AGENT_TIMEOUT"
+    },
+    {
+      "name": "Disabled Agents",
+      "description": "Comma-separated list of agent names to exclude from implementation planning.",
+      "envVar": "MAESTRO_DISABLED_AGENTS"
+    },
+    {
+      "name": "Max Retries",
+      "description": "Maximum retry attempts per phase before escalating to user.",
+      "envVar": "MAESTRO_MAX_RETRIES"
+    },
+    {
+      "name": "Auto Archive",
+      "description": "Automatically archive session state on successful completion (true/false).",
+      "envVar": "MAESTRO_AUTO_ARCHIVE"
+    },
+    {
+      "name": "Validation Strictness",
+      "description": "Post-phase validation strictness level (normal/strict).",
+      "envVar": "MAESTRO_VALIDATION_STRICTNESS"
+    },
+    {
+      "name": "State Directory",
+      "description": "Base directory for session state and plans (default: .gemini).",
+      "envVar": "MAESTRO_STATE_DIR"
+    },
+    {
+      "name": "Max Concurrent",
+      "description": "Maximum agents running simultaneously in parallel dispatch (0 = unlimited).",
+      "envVar": "MAESTRO_MAX_CONCURRENT"
+    },
+    {
+      "name": "Stagger Delay",
+      "description": "Seconds between parallel agent launches.",
+      "envVar": "MAESTRO_STAGGER_DELAY"
     }
   ]
 }
