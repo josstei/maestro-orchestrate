@@ -23,7 +23,7 @@ Before executing any phases in Phase 3:
 
 ## State File Access
 
-All reads of files within `<MAESTRO_STATE_DIR>` (including parallel dispatch results) must use the dedicated state I/O script to bypass ignore patterns:
+The `read_file` tool enforces `.gitignore` patterns via `shouldIgnoreFile()`, and `.gemini/` is typically gitignored. All reads of files within `<MAESTRO_STATE_DIR>` must use the shell script to bypass this restriction:
 
 ```bash
 run_shell_command: ./scripts/read-state.sh <relative-path>
@@ -34,7 +34,7 @@ This applies to:
 - Reading individual agent `.json` output files
 - Reading `active-session.md` for state checks
 
-Never use `read_file` for paths inside `<MAESTRO_STATE_DIR>`.
+Use `write_file` directly for state writes — it does not enforce ignore patterns. Never use `read_file` for paths inside `<MAESTRO_STATE_DIR>`.
 
 ## Phase Execution Protocol
 

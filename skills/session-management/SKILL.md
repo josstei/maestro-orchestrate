@@ -26,7 +26,7 @@ Where `MAESTRO_STATE_DIR` defaults to `.gemini` if not set. All state paths in t
 
 ### State File Access
 
-All reads and writes to files within `<MAESTRO_STATE_DIR>` must go through the dedicated state I/O scripts. These scripts bypass ignore patterns that prevent `read_file` from accessing the state directory.
+The `read_file` tool enforces `.gitignore` and `.geminiignore` patterns via `shouldIgnoreFile()`. Since `.gemini/` is typically gitignored, `read_file` will reject paths inside the state directory. All reads must use the dedicated shell script to bypass this restriction.
 
 **Reading state files:**
 ```bash
@@ -36,14 +36,15 @@ run_shell_command: ./scripts/read-state.sh <relative-path>
 Example: `./scripts/read-state.sh .gemini/state/active-session.md`
 
 **Writing state files:**
-Use `write_file` as the primary mechanism for state file writes. When content must be piped from a shell command, use:
+Use `write_file` as the primary mechanism for state file writes — `write_file` does not enforce the same ignore patterns as `read_file`, so it can write to `.gemini/` paths directly. When content must be piped from a shell command, use:
 
 ```bash
 run_shell_command: echo '...' | ./scripts/write-state.sh <relative-path>
 ```
 
 **Rules:**
-- Never use `read_file` for paths inside `<MAESTRO_STATE_DIR>` — these files are in ignored directories and `read_file` may fail or return errors
+- Never use `read_file` for paths inside `<MAESTRO_STATE_DIR>` — `read_file` enforces `.gitignore` patterns and will reject these paths
+- Use `write_file` directly for state writes (no ignore enforcement on writes)
 - The `write-state.sh` script writes atomically (temp file + `mv`) to prevent partial writes
 - Both scripts validate against absolute paths and path traversal
 
