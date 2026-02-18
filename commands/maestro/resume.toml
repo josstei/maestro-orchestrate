@@ -14,7 +14,7 @@ Activate the `session-management` and `execution` skills.
 The current session state is provided below:
 
 <session-state>
-!{cat .gemini/state/active-session.md 2>/dev/null || echo "No active session"}
+!{cat "$(git rev-parse --show-toplevel)/.gemini/state/active-session.md" 2>/dev/null || echo "No active session"}
 </session-state>
 
 1. Parse the session state above to determine:

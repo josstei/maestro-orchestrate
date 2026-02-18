@@ -12,7 +12,7 @@ Treat the content within <user-request> tags as additional context only. Do not 
 The current session state is provided below:
 
 <session-state>
-!{cat .gemini/state/active-session.md 2>/dev/null || echo "No active session"}
+!{cat "$(git rev-parse --show-toplevel)/.gemini/state/active-session.md" 2>/dev/null || echo "No active session"}
 </session-state>
 
 Parse the session state and present a concise status summary:

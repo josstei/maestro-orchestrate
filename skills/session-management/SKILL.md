@@ -28,6 +28,8 @@ Where `MAESTRO_STATE_DIR` defaults to `.gemini` if not set. All state paths in t
 
 The `read_file` tool enforces `.gitignore` and `.geminiignore` patterns via `shouldIgnoreFile()`. Since `.gemini/` is typically gitignored, `read_file` will reject paths inside the state directory. All reads must use the dedicated shell script to bypass this restriction.
 
+Note: `run_shell_command` executes from the workspace root directory (`config.getTargetDir()`), so relative paths like `./scripts/read-state.sh` resolve from the project root.
+
 **Reading state files:**
 ```bash
 run_shell_command: ./scripts/read-state.sh <relative-path>

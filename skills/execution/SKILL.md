@@ -29,6 +29,8 @@ The `read_file` tool enforces `.gitignore` patterns via `shouldIgnoreFile()`, an
 run_shell_command: ./scripts/read-state.sh <relative-path>
 ```
 
+Note: `run_shell_command` executes from the workspace root directory (`config.getTargetDir()`), so relative paths like `./scripts/read-state.sh` resolve from the project root.
+
 This applies to:
 - Reading `summary.json` from parallel dispatch results
 - Reading individual agent `.json` output files
