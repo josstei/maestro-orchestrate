@@ -1238,8 +1238,8 @@ Maestro works out of the box with sensible defaults. To customize behavior, set 
 | `MAESTRO_AUTO_ARCHIVE` | `true` | Archive sessions on completion automatically |
 | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Validation mode: `strict`, `normal`, or `lenient` |
 | `MAESTRO_STATE_DIR` | `.gemini` | Directory for session state and plans |
-| `MAESTRO_MAX_CONCURRENT` | `0` (unlimited) | Max simultaneous agents in parallel dispatch |
-| `MAESTRO_STAGGER_DELAY` | `5` | Seconds between parallel agent launches |
+| `MAESTRO_MAX_CONCURRENT` | `5` | Max simultaneous agents in parallel dispatch |
+| `MAESTRO_STAGGER_DELAY` | `15` | Seconds between parallel agent launches |
 | `MAESTRO_EXECUTION_MODE` | `ask` | Phase 3 dispatch mode: `parallel`, `sequential`, or `ask` |
 
 ### Configuration Examples

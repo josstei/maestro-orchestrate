@@ -762,8 +762,8 @@ Maestro provides 13 environment variables for runtime customization:
 | `MAESTRO_AUTO_ARCHIVE` | `true` | boolean | Archive sessions on completion |
 | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | enum | `strict` / `normal` / `lenient` |
 | `MAESTRO_STATE_DIR` | `.gemini` | string | Base directory for state and plans |
-| `MAESTRO_MAX_CONCURRENT` | `0` | integer | Max simultaneous parallel agents (0=unlimited) |
-| `MAESTRO_STAGGER_DELAY` | `5` | integer | Seconds between parallel agent launches |
+| `MAESTRO_MAX_CONCURRENT` | `5` | integer | Max simultaneous parallel agents (0=unlimited) |
+| `MAESTRO_STAGGER_DELAY` | `15` | integer | Seconds between parallel agent launches |
 | `MAESTRO_EXECUTION_MODE` | `ask` | enum | `parallel` / `sequential` / `ask` |
 
 ### Configuration Resolution

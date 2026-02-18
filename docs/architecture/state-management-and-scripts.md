@@ -485,8 +485,8 @@ Dispatches multiple Gemini CLI agents concurrently as independent processes, col
 - `MAESTRO_DEFAULT_MODEL`: Override model for all agents (default: agent-specific model from frontmatter)
 - `MAESTRO_AGENT_TIMEOUT`: Timeout in minutes (default: 10)
 - `MAESTRO_CLEANUP_DISPATCH`: Remove prompt files after dispatch (default: false)
-- `MAESTRO_MAX_CONCURRENT`: Max agents running simultaneously (default: 0 = unlimited)
-- `MAESTRO_STAGGER_DELAY`: Seconds between agent launches (default: 5)
+- `MAESTRO_MAX_CONCURRENT`: Max agents running simultaneously (default: 5)
+- `MAESTRO_STAGGER_DELAY`: Seconds between agent launches (default: 15)
 
 **Execution Flow:**
 
@@ -549,7 +549,7 @@ If `MAESTRO_MAX_CONCURRENT > 0`, the script limits the number of simultaneously 
 
 **Stagger Delay:**
 
-To reduce API rate limit pressure, agents are launched with a `MAESTRO_STAGGER_DELAY` second gap between dispatches (default: 5 seconds). This delay is skipped for the final agent in the batch.
+To reduce API rate limit pressure, agents are launched with a `MAESTRO_STAGGER_DELAY` second gap between dispatches (default: 15 seconds). This delay is skipped for the final agent in the batch.
 
 **Error Handling:**
 
@@ -776,7 +776,7 @@ This summary allows the orchestrator to make batch-level decisions (proceed, ret
 
 **Timeout Enforcement:** Timeouts are enforced per-agent via the `timeout` command (if available). The orchestrator cannot dynamically adjust timeouts mid-execution.
 
-**API Rate Limits:** Dispatching many agents simultaneously can trigger API rate limits. The `MAESTRO_STAGGER_DELAY` environment variable (default: 5 seconds) spaces out agent launches to reduce pressure.
+**API Rate Limits:** Dispatching many agents simultaneously can trigger API rate limits. The `MAESTRO_STAGGER_DELAY` environment variable (default: 15 seconds) spaces out agent launches to reduce pressure.
 
 ### Fallback to Sequential
 

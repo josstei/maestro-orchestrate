@@ -33,8 +33,8 @@ Environment:
   MAESTRO_DEFAULT_MODEL      Override model for all agents
   MAESTRO_AGENT_TIMEOUT      Timeout in minutes (default: 10)
   MAESTRO_CLEANUP_DISPATCH   Remove prompt files after dispatch (default: false)
-  MAESTRO_MAX_CONCURRENT      Max agents running simultaneously (default: 0 = unlimited)
-  MAESTRO_STAGGER_DELAY       Seconds between agent launches (default: 5)
+  MAESTRO_MAX_CONCURRENT      Max agents running simultaneously (default: 5)
+  MAESTRO_STAGGER_DELAY       Seconds between agent launches (default: 15)
 EOF
   exit 1
 }
@@ -69,7 +69,7 @@ if [[ "$TIMEOUT_MINS" -gt 60 ]]; then
 fi
 TIMEOUT_SECS=$((TIMEOUT_MINS * 60))
 
-MAX_CONCURRENT="${MAESTRO_MAX_CONCURRENT:-0}"
+MAX_CONCURRENT="${MAESTRO_MAX_CONCURRENT:-5}"
 MAX_CONCURRENT="${MAX_CONCURRENT#"${MAX_CONCURRENT%%[!0]*}"}"
 [[ -z "$MAX_CONCURRENT" ]] && MAX_CONCURRENT=0
 if ! [[ "$MAX_CONCURRENT" =~ ^[0-9]+$ ]]; then
@@ -77,7 +77,7 @@ if ! [[ "$MAX_CONCURRENT" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-STAGGER_DELAY="${MAESTRO_STAGGER_DELAY:-5}"
+STAGGER_DELAY="${MAESTRO_STAGGER_DELAY:-15}"
 STAGGER_DELAY="${STAGGER_DELAY#"${STAGGER_DELAY%%[!0]*}"}"
 [[ -z "$STAGGER_DELAY" ]] && STAGGER_DELAY=0
 if ! [[ "$STAGGER_DELAY" =~ ^[0-9]+$ ]]; then
