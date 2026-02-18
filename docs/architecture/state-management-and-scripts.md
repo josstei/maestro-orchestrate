@@ -497,7 +497,7 @@ Dispatches multiple Gemini CLI agents concurrently as independent processes, col
 5. Validate prompt file size (max 1MB) and non-empty content
 6. Prepend `PROJECT ROOT` context to each prompt
 7. For each prompt file:
-   - Launch `gemini -p "$PROMPT" --yolo --output-format json` as background process (`--yolo` auto-approves all tool calls without user confirmation)
+   - Launch `gemini --approval-mode=yolo --output-format json "$PROMPT"` as background process (`--approval-mode=yolo` auto-approves all tool calls without user confirmation)
    - Redirect stdout to `results/<agent-name>.json`
    - Redirect stderr to `results/<agent-name>.log`
    - Write exit code to `results/<agent-name>.exit`
@@ -657,7 +657,7 @@ Parallel execution uses `parallel-dispatch.sh` to spawn independent `gemini` CLI
 1. Orchestrator identifies parallelizable phases (same dependency depth, no file overlap)
 2. Orchestrator writes self-contained delegation prompts to `<state_dir>/parallel/<batch-id>/prompts/`
 3. Orchestrator invokes `parallel-dispatch.sh <state_dir>/parallel/<batch-id>`
-4. Dispatch script spawns one `gemini -p <prompt> --yolo --output-format json` process per prompt file
+4. Dispatch script spawns one `gemini --approval-mode=yolo --output-format json "<prompt>"` process per prompt file
 5. All agents execute concurrently as independent processes
 6. Dispatch script waits for all processes, collects exit codes
 7. Dispatch script writes `results/summary.json` with batch status

@@ -557,7 +557,7 @@ Parallel dispatch bypasses sequential agent tool invocation:
 1. **Prompt Generation**: Orchestrator constructs complete delegation prompts for each agent in the batch
 2. **File Writing**: Prompts written to `.gemini/parallel/<batch-id>/prompts/<agent-name>.txt`
 3. **Script Invocation**: Orchestrator calls `./scripts/parallel-dispatch.sh <dispatch-dir>` via `run_shell_command`
-4. **Process Spawning**: Script reads all `.txt` files from `prompts/`, spawns one `gemini -p <file> --yolo --output-format json` process per file
+4. **Process Spawning**: Script reads all `.txt` files from `prompts/`, spawns one `gemini --approval-mode=yolo --output-format json "<file>"` process per file
 5. **Concurrent Execution**: All processes run simultaneously (subject to `MAESTRO_MAX_CONCURRENT` cap)
 6. **Result Collection**: Script waits for all processes, writes results to `.gemini/parallel/<batch-id>/results/`:
    - `<agent>.json`: Structured JSON output
@@ -706,8 +706,8 @@ Maestro enforces least-privilege tool access based on agent role:
 
 Tool permissions are defined in agent frontmatter `tools:` fields and enforced differently depending on execution mode:
 
-- **Sequential delegation** (subagent tool calls): The Gemini CLI enforces tool restrictions via registry filtering — only listed tools are registered for the subagent, making unlisted tools invisible. This is at the registry level, not policy, so `--yolo` cannot bypass it.
-- **Parallel dispatch** (`gemini -p` processes): Each process runs as the main agent with full tool access. Prompt-based enforcement (injected TOOL RESTRICTIONS blocks) provides defense-in-depth, with `--yolo` auto-approving all tool calls.
+- **Sequential delegation** (subagent tool calls): The Gemini CLI enforces tool restrictions via registry filtering — only listed tools are registered for the subagent, making unlisted tools invisible. This is at the registry level, not policy, so `--approval-mode=yolo` cannot bypass it.
+- **Parallel dispatch** (`gemini -p` processes): Each process runs as the main agent with full tool access. Prompt-based enforcement (injected TOOL RESTRICTIONS blocks) provides defense-in-depth, with `--approval-mode=yolo` auto-approving all tool calls.
 
 Agents are auto-registered as callable tools at extension load time.
 

@@ -221,11 +221,11 @@ graph TB
 
 #### Sequential Delegation
 
-When calling an agent tool (e.g., `coder(prompt: "...")`), the Gemini CLI enforces tool restrictions via tool registry filtering — only the tools listed in the agent's frontmatter are registered, making unlisted tools invisible to the model. This enforcement is at the registry level, not the policy level, so `--yolo` mode cannot bypass it.
+When calling an agent tool (e.g., `coder(prompt: "...")`), the Gemini CLI enforces tool restrictions via tool registry filtering — only the tools listed in the agent's frontmatter are registered, making unlisted tools invisible to the model. This enforcement is at the registry level, not the policy level, so `--approval-mode=yolo` mode cannot bypass it.
 
 #### Parallel Delegation
 
-For parallel dispatch (independent `gemini -p` processes), each process runs as the **main agent** — not as a subagent. The extension is loaded and agents are registered with their frontmatter `tools:` restrictions applied via ToolRegistry filtering. However, since the prompt is not dispatched via a subagent tool call, the orchestrator has no direct enforcement of which registered agent's restrictions apply to the executing prompt. Tool restrictions rely on prompt-based enforcement as defense-in-depth, and `--yolo` auto-approves all confirmation dialogs for these processes. The delegation skill injects explicit tool restriction blocks into every parallel delegation prompt:
+For parallel dispatch (independent `gemini -p` processes), each process runs as the **main agent** — not as a subagent. The extension is loaded and agents are registered with their frontmatter `tools:` restrictions applied via ToolRegistry filtering. However, since the prompt is not dispatched via a subagent tool call, the orchestrator has no direct enforcement of which registered agent's restrictions apply to the executing prompt. Tool restrictions rely on prompt-based enforcement as defense-in-depth, and `--approval-mode=yolo` auto-approves all confirmation dialogs for these processes. The delegation skill injects explicit tool restriction blocks into every parallel delegation prompt:
 
 ```
 TOOL RESTRICTIONS (MANDATORY):

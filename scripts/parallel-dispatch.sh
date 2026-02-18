@@ -201,10 +201,10 @@ ${PROMPT_CONTENT}"
   (
     export MAESTRO_CURRENT_AGENT="$AGENT_NAME"
     run_with_timeout "$TIMEOUT_SECS" gemini \
-      -p "$PROMPT_CONTENT" \
-      --yolo \
+      --approval-mode=yolo \
       --output-format json \
       ${MODEL_FLAGS[@]+"${MODEL_FLAGS[@]}"} \
+      "$PROMPT_CONTENT" \
       > "$RESULT_JSON" \
       2> "$RESULT_LOG"
     echo $? > "$RESULT_EXIT"

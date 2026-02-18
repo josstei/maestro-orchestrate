@@ -170,7 +170,7 @@ Maestro asks which execution mode to use:
 
 **Option 1: Parallel Dispatch (faster)**
 - Independent phases run as concurrent `gemini` CLI processes
-- Agents operate in autonomous mode (`--yolo`) — all tool calls are auto-approved
+- Agents operate in autonomous mode (`--approval-mode=yolo`) — all tool calls are auto-approved
 - You review results after each batch completes
 - Best for well-defined tasks with clear file ownership
 

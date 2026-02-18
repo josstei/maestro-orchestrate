@@ -196,7 +196,7 @@ Tool permissions are enforced natively via the `tools:` array in each agent's YA
 
 **Level 2: Prompt-based enforcement (defense-in-depth)**
 
-Parallel-dispatched agents run with `--yolo` (auto-approve all tool calls). As defense-in-depth alongside native enforcement, every parallel dispatch prompt **must** still include an explicit tool restriction block:
+Parallel-dispatched agents run with `--approval-mode=yolo` (auto-approve all tool calls). As defense-in-depth alongside native enforcement, every parallel dispatch prompt **must** still include an explicit tool restriction block:
 
 1. Agent Base Protocol (read `agent-base-protocol.md` from `skills/delegation/protocols/`)
 2. Filesystem Safety Protocol (read `filesystem-safety-protocol.md` from `skills/delegation/protocols/`)

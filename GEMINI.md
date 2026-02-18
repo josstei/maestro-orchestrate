@@ -90,14 +90,14 @@ Your implementation plan has [N] phases ([M] parallelizable).
 
 **Option 1: Parallel Dispatch (faster)**
 - Parallelizable phases run as concurrent `gemini` CLI processes via `scripts/parallel-dispatch.sh`
-- Agents operate in **autonomous mode (`--yolo`)**: all tool calls (file writes, shell commands, file deletions) are auto-approved without your confirmation
+- Agents operate in **autonomous mode (`--approval-mode=yolo`)**: all tool calls (file writes, shell commands, file deletions) are auto-approved without your confirmation
 - You review results after each batch completes, not during execution
 - Requires trust in the delegation prompts and tool restriction enforcement
 - Best for: well-defined tasks with clear file ownership boundaries
 
 **Option 2: Sequential Delegation (more controlled)**
 - Each phase executes one at a time via direct subagent tool invocation
-- Subagents operate within your current approval settings — if you started the session with `--yolo`, tool calls are auto-approved; otherwise, you may be prompted per-tool
+- Subagents operate within your current approval settings — if you started the session with `--approval-mode=yolo`, tool calls are auto-approved; otherwise, you may be prompted per-tool
 - You can review results and intervene between phases
 - Slower but gives you inter-phase visibility and control
 - Best for: exploratory tasks, unfamiliar codebases, sequential dependencies
@@ -115,7 +115,7 @@ Parallel execution uses `scripts/parallel-dispatch.sh` to spawn independent `gem
 **How it works:**
 1. The orchestrator writes delegation prompts to `<state_dir>/parallel/<batch-id>/prompts/`
 2. Invokes `./scripts/parallel-dispatch.sh <dispatch-dir>` via `run_shell_command`
-3. The script spawns one `gemini -p <prompt> --yolo --output-format json` process per prompt file, using `MAESTRO_DEFAULT_MODEL` as the `--model` flag when set
+3. The script spawns one `gemini --approval-mode=yolo --output-format json "<prompt>"` process per prompt file, using `MAESTRO_DEFAULT_MODEL` as the `--model` flag when set
 4. All agents execute concurrently as independent processes (subject to `MAESTRO_MAX_CONCURRENT` cap)
 5. The script collects results to `<dispatch-dir>/results/` and writes `summary.json`
 6. The orchestrator reads results and updates session state

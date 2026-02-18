@@ -421,7 +421,7 @@ The TechLead orchestrator uses `scripts/parallel-dispatch.sh` to spawn concurren
 **Dispatch flow:**
 1. The orchestrator writes self-contained delegation prompts to a dispatch directory
 2. Invokes `parallel-dispatch.sh` via shell
-3. The script spawns one `gemini -p <prompt> --yolo --output-format json` process per prompt file
+3. The script spawns one `gemini --approval-mode=yolo --output-format json "<prompt>"` process per prompt file
 4. All agents execute concurrently as independent OS processes
 5. Results are collected with exit codes, logs, and structured JSON output
 6. The orchestrator reads results and updates session state

@@ -191,7 +191,7 @@ Use the implementation plan template from `templates/implementation-plan.md`.
    - Estimated parallel wall time: [time estimate based on batch execution]
    - Estimated sequential wall time: [time estimate based on serial execution]
 
-   Note: Parallel dispatch runs agents in autonomous mode (--yolo).
+   Note: Parallel dispatch runs agents in autonomous mode (--approval-mode=yolo).
    All tool calls are auto-approved without user confirmation.
    ```
 

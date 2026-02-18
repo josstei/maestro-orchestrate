@@ -72,7 +72,7 @@ For phases at the same dependency depth with no file overlap, use shell-based pa
    ```bash
    ./scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>
    ```
-6. The script spawns one `gemini -p <prompt> --yolo --output-format json` process per prompt file
+6. The script spawns one `gemini --approval-mode=yolo --output-format json "<prompt>"` process per prompt file
 7. All agents execute concurrently as independent CLI processes
 8. The script waits for all agents, collects exit codes, and writes `results/summary.json`
 9. Read the batch summary via run_shell_command: `./scripts/read-state.sh <state_dir>/parallel/<batch-id>/results/summary.json`
