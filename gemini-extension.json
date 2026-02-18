@@ -3,12 +3,6 @@
   "version": "1.2.0",
   "description": "Multi-agent development orchestration platform — 12 specialists, 4-phase orchestration, parallel dispatch, persistent sessions, and standalone review/debug/security/perf commands",
   "contextFileName": "GEMINI.md",
-  "excludeTools": [
-    "run_shell_command(rm -rf .*)",
-    "run_shell_command(rm -rf /)",
-    "run_shell_command(curl .* \\| bash)",
-    "run_shell_command(wget .* \\| sh)"
-  ],
   "settings": [
     {
       "name": "Default Model",
