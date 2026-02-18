@@ -1,14 +1,17 @@
 ---
 name: refactor
-description: "Code modernization specialist for improving structure, eliminating technical debt, and applying design patterns"
-kind: local
+description: "Refactoring specialist for codebase modernization, structural improvements, and technical debt reduction. Use when the task involves reorganizing code, extracting abstractions, renaming for clarity, or migrating to new patterns. For example: extracting a service layer, converting callbacks to async/await, or splitting a monolithic module."
+display_name: Refactor
 tools:
   - read_file
+  - list_directory
   - glob
   - grep_search
   - write_file
   - replace
   - run_shell_command
+  - write_todos
+  - activate_skill
 temperature: 0.2
 max_turns: 25
 timeout_mins: 10

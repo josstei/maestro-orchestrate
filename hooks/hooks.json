@@ -7,47 +7,21 @@
             "type": "command",
             "command": "bash ${extensionPath}/hooks/session-start.sh",
             "name": "maestro-session-start",
-            "description": "Initialize Maestro workspace and generate permissions manifest",
+            "description": "Initialize Maestro workspace state directory for the session",
             "timeout": 15000
           }
         ]
       }
     ],
-    "BeforeToolSelection": [
+    "BeforeModel": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${extensionPath}/hooks/before-tool-selection.sh",
-            "name": "maestro-tool-selection",
-            "description": "UX optimization: suggest available tools based on active agent (NOT a security boundary)",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "BeforeTool": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${extensionPath}/hooks/before-tool.sh",
-            "name": "maestro-before-tool",
-            "description": "PRIMARY enforcement: blocks unauthorized tool calls and auto-detects subagent invocations",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "AfterTool": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${extensionPath}/hooks/after-tool.sh",
-            "name": "maestro-after-tool",
-            "description": "Clear active agent tracking when subagent tool call completes",
-            "timeout": 5000
+            "command": "bash ${extensionPath}/hooks/before-model.sh",
+            "name": "maestro-model-override",
+            "description": "Apply per-agent model override via MAESTRO_DEFAULT_MODEL or MAESTRO_WRITER_MODEL environment variables",
+            "timeout": 3000
           }
         ]
       }

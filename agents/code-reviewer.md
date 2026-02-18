@@ -1,11 +1,13 @@
 ---
 name: code-reviewer
-description: "Code quality specialist for reviewing implementations against best practices, patterns, and security standards"
-kind: local
+description: "Code review specialist for identifying bugs, security vulnerabilities, and code quality issues. Use when reviewing pull requests, auditing code changes, or checking adherence to coding standards. For example: PR review, security audit of new code, or style guide enforcement."
+display_name: Code Reviewer
 tools:
   - read_file
+  - list_directory
   - glob
   - grep_search
+  - read_many_files
 temperature: 0.2
 max_turns: 15
 timeout_mins: 5

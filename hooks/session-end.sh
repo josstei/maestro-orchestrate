@@ -15,4 +15,4 @@ if validate_session_id "$SESSION_ID" 2>/dev/null; then
   fi
 fi
 
-echo '{}'
+echo '{"systemMessage": "Maestro session ended — workspace state cleaned up"}'

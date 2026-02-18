@@ -17,8 +17,8 @@ OUTPUT=$(echo "$INPUT" | bash "$SESSION_END_HOOK" 2>/dev/null)
 python3 - "$OUTPUT" <<'PYEOF'
 import json, sys
 d = json.loads(sys.argv[1])
-assert d == {}, f'Expected empty JSON, got {d}'
-print('PASS: SessionEnd returns empty JSON')
+assert isinstance(d, dict), f'Expected a JSON object, got {d}'
+print('PASS: SessionEnd returns valid JSON')
 PYEOF
 
 if [ -d "/tmp/maestro-hooks/$TEST_SESSION" ]; then
@@ -37,7 +37,7 @@ OUTPUT2=$(echo "$INPUT2" | bash "$SESSION_END_HOOK" 2>/dev/null)
 python3 - "$OUTPUT2" <<'PYEOF'
 import json, sys
 d = json.loads(sys.argv[1])
-assert d == {}, f'Expected empty JSON, got {d}'
+assert isinstance(d, dict), f'Expected a JSON object, got {d}'
 print('PASS: SessionEnd handles missing state dir gracefully')
 PYEOF
 
@@ -47,7 +47,7 @@ OUTPUT3=$(echo "$INPUT3" | bash "$SESSION_END_HOOK" 2>/dev/null)
 python3 - "$OUTPUT3" <<'PYEOF'
 import json, sys
 d = json.loads(sys.argv[1])
-assert d == {}, f'Expected empty JSON, got {d}'
+assert isinstance(d, dict), f'Expected a JSON object, got {d}'
 print('PASS: SessionEnd rejects invalid session_id safely')
 PYEOF
 

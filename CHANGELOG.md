@@ -5,6 +5,32 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-02-18
+
+### Fixed
+
+- Fixed `search_file_content` → `grep_search` across all documentation (canonical tool name)
+- Fixed `excludeTools` patterns to use proper regex syntax instead of shell glob syntax
+- Removed redundant hook-based permission enforcement (`before-tool.sh`, `before-tool-selection.sh`, `after-tool.sh`) — native frontmatter `tools:` handles this
+- Fixed all agent definitions: added `display_name`, expanded tool access to include `grep_search`, improved descriptions
+- Removed `permissions.json` and `generate-permissions.sh` (redundant permissions manifest superseded by native enforcement)
+- Removed `validate-agent-permissions.sh` (validated against removed permissions manifest)
+
+### Added
+
+- `settings` declarations in `gemini-extension.json` for `MAESTRO_DEFAULT_MODEL` and `MAESTRO_WRITER_MODEL` environment variables
+- `BeforeModel` hook for per-agent model override via environment variables
+- `write_todos` phase progress tracking in orchestrator
+- `enter_plan_mode`/`exit_plan_mode` for read-only Phase 1-2
+- `save_memory` for cross-session knowledge persistence at Phase 4
+- `get_internal_docs` reference for self-documenting CLI capabilities
+
+### Removed
+
+- `before-tool.sh`, `before-tool-selection.sh`, `after-tool.sh` hooks (redundant with native frontmatter tool enforcement)
+- `permissions.json` and `generate-permissions.sh` (redundant permissions manifest)
+- `validate-agent-permissions.sh` (validated against removed permissions)
+
 ## [1.2.0] - 2026-02-18
 
 ### Added

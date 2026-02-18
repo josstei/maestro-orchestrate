@@ -45,10 +45,12 @@ For phases with dependencies (`blocked_by` is non-empty):
 1. Verify all blocking phases have `status: completed`
 2. Update the phase status to `in_progress` in session state
 3. Update `current_phase` in session state
-4. Delegate to the assigned agent(s) with full context
-5. Process the agent's Task Report
-6. Update session state with results (files changed, validation status, token usage)
-7. Transition phase status to `completed` or `failed`
+4. Call `write_todos` to reflect current phase progress before delegating
+5. Delegate to the assigned agent(s) with full context
+6. Process the agent's Task Report
+7. Update session state with results (files changed, validation status, token usage)
+8. Transition phase status to `completed` or `failed`
+9. Call `write_todos` to mark the phase complete after state update
 
 ### Parallel Execution
 
@@ -58,7 +60,8 @@ For phases at the same dependency depth with no file overlap, use shell-based pa
 
 1. Verify all blocking phases for every phase in the batch are completed
 2. Update all batch phases to `in_progress` simultaneously in session state
-3. Ensure the batch-specific dispatch directory exists before writing prompt files:
+3. Call `write_todos` to reflect the full batch as in-progress before dispatch
+4. Ensure the batch-specific dispatch directory exists before writing prompt files:
    ```bash
    mkdir -p <state_dir>/parallel/<batch-id>/prompts
    ```

@@ -4,9 +4,23 @@
   "description": "Multi-agent development orchestration platform — 12 specialists, 4-phase orchestration, parallel dispatch, persistent sessions, and standalone review/debug/security/perf commands",
   "contextFileName": "GEMINI.md",
   "excludeTools": [
-    "run_shell_command(rm -rf *)",
+    "run_shell_command(rm -rf .*)",
     "run_shell_command(rm -rf /)",
-    "run_shell_command(curl * | bash)",
-    "run_shell_command(wget * | sh)"
+    "run_shell_command(curl .* \\| bash)",
+    "run_shell_command(wget .* \\| sh)"
+  ],
+  "settings": [
+    {
+      "name": "Default Model",
+      "description": "Override the default model for all Maestro subagents (e.g., gemini-2.5-pro, gemini-2.5-flash)",
+      "envVar": "MAESTRO_DEFAULT_MODEL",
+      "sensitive": false
+    },
+    {
+      "name": "Writer Model",
+      "description": "Override the model specifically for the technical-writer agent",
+      "envVar": "MAESTRO_WRITER_MODEL",
+      "sensitive": false
+    }
   ]
 }

@@ -52,7 +52,7 @@ Maestro transforms Gemini CLI into a multi-agent orchestration platform. Instead
 - **Automated Planning** — Generates implementation plans with phase dependencies, agent assignments, and parallelization opportunities
 - **Parallel Execution** — Independent phases run concurrently through shell-based parallel dispatch
 - **Session Persistence** — All orchestration state tracked in YAML+Markdown files for reliable resumption
-- **Hooks-Based Tool Enforcement** — Lifecycle hooks enforce agent tool permissions at the middleware level
+- **Hooks-Based Lifecycle Middleware** — Lifecycle hooks for session init, agent tracking, model overrides, and handoff validation
 - **Least-Privilege Security** — Each subagent receives only the tools required for its role
 - **Standalone Commands** — Direct access to code review, debugging, security audit, and performance analysis without full orchestration
 - **Configurable Settings** — 13 environment-variable-driven parameters for model selection, timeouts, validation strictness, and more
@@ -276,17 +276,17 @@ All agents omit the `model` field by default, inheriting the main session's mode
 
 ### Hooks
 
-Maestro uses Gemini CLI's hooks system for lifecycle middleware:
+Maestro uses Gemini CLI's hooks system for lifecycle middleware. Tool permissions are enforced natively via agent frontmatter `tools:` declarations — hooks handle supplementary lifecycle concerns:
 
 | Hook | Purpose |
 |------|---------|
-| SessionStart | Generate permissions manifest, initialize session state |
-| BeforeToolSelection | Suggest available tools for active agent (UX hint) |
-| BeforeTool | **Primary gate**: block unauthorized tool calls per agent permissions |
+| SessionStart | Initialize session state, inject workspace context |
 | BeforeAgent | Track active agent identity, inject session context |
 | AfterAgent | Validate handoff report format, clear agent tracking |
+| BeforeModel | Apply per-agent model overrides via environment variables |
+| SessionEnd | Finalize session state, clean up tracking files |
 
-Hook handlers are in `hooks/` and registered via `hooks/hooks.json`. Permissions are compiled from agent frontmatter at session start into `hooks/permissions.json`.
+Hook handlers are in `hooks/` and registered via `hooks/hooks.json`.
 
 ## Architecture
 

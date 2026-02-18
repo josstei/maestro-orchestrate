@@ -632,7 +632,7 @@ Validates that agent tool permissions conform to the least-privilege security mo
 3. Validates that each tool is in the list of valid tools:
    - `read_file`
    - `glob`
-   - `search_file_content`
+   - `grep_search`
    - `write_file`
    - `replace`
    - `run_shell_command`

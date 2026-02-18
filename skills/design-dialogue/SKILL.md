@@ -5,7 +5,7 @@ description: Guides structured design conversations for complex engineering task
 
 # Design Dialogue Skill
 
-Activate this skill when beginning Phase 1 of Maestro orchestration. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
+Activate this skill when beginning Phase 1 of Maestro orchestration. Call `enter_plan_mode` at the start of Phase 1 to indicate that design work is in progress. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
 
 ## Question Framework
 

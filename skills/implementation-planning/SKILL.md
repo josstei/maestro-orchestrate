@@ -205,5 +205,6 @@ After writing the implementation plan:
 2. Present the dependency graph and execution strategy
 3. Highlight parallel execution opportunities
 4. Provide token budget estimates
-5. Ask if the user is ready to proceed to execution (Phase 3)
-6. Upon approval, create the session state file via the session-management skill
+5. Call `exit_plan_mode` to present the completed plan for user approval before proceeding
+6. Ask if the user is ready to proceed to execution (Phase 3)
+7. Upon approval, create the session state file via the session-management skill

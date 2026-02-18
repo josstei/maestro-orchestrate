@@ -1,9 +1,10 @@
 ---
 name: data-engineer
-description: "Database and data pipeline specialist for schema design, query optimization, and ETL implementation"
-kind: local
+description: "Data engineering specialist for schema design, query optimization, ETL pipelines, and data modeling. Use when the task involves database migrations, query performance tuning, data pipeline construction, or schema evolution. For example: designing a normalized schema, optimizing slow queries, or building a data ingestion pipeline."
+display_name: Data Engineer
 tools:
   - read_file
+  - list_directory
   - glob
   - grep_search
   - write_file

@@ -1,14 +1,17 @@
 ---
 name: tester
-description: "Testing specialist for unit/integration/E2E test creation, TDD workflows, and coverage analysis"
-kind: local
+description: "Testing specialist for unit tests, integration tests, test coverage analysis, and TDD workflows. Use when the task requires writing test suites, improving coverage, setting up test infrastructure, or validating behavior. For example: writing unit tests for a service class, setting up integration test fixtures, or creating end-to-end test scenarios."
+display_name: Tester
 tools:
   - read_file
+  - list_directory
   - glob
   - grep_search
   - write_file
   - replace
   - run_shell_command
+  - write_todos
+  - activate_skill
 temperature: 0.2
 max_turns: 25
 timeout_mins: 10

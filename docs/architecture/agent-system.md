@@ -39,7 +39,7 @@ kind: local
 tools:
   - read_file
   - glob
-  - search_file_content
+  - grep_search
   - write_file
   - replace
   - run_shell_command
@@ -61,7 +61,7 @@ timeout_mins: 10
 **tools**: Array of authorized tool names. Defines the agent's capability tier per the tool permission model. Available tools:
 - `read_file` - Read file contents
 - `glob` - Pattern-based file discovery
-- `search_file_content` - Content search across files
+- `grep_search` - Content search across files
 - `write_file` - Create new files
 - `replace` - Modify existing files
 - `run_shell_command` - Execute shell commands
@@ -149,22 +149,22 @@ The tool permission model implements least-privilege access control. Each agent 
 graph TB
     subgraph "Tier 4: Full Access"
         T4[coder, data-engineer,<br/>devops-engineer, tester]
-        T4Tools[read_file, glob, search_file_content,<br/>write_file, replace, run_shell_command]
+        T4Tools[read_file, glob, grep_search,<br/>write_file, replace, run_shell_command]
     end
 
     subgraph "Tier 3: Read + Write"
         T3[refactor, technical-writer]
-        T3Tools[read_file, glob, search_file_content,<br/>write_file, replace]
+        T3Tools[read_file, glob, grep_search,<br/>write_file, replace]
     end
 
     subgraph "Tier 2: Read + Shell"
         T2[debugger, performance-engineer,<br/>security-engineer]
-        T2Tools[read_file, glob, search_file_content,<br/>run_shell_command]
+        T2Tools[read_file, glob, grep_search,<br/>run_shell_command]
     end
 
     subgraph "Tier 1: Read-Only"
         T1[architect, api-designer,<br/>code-reviewer]
-        T1Tools[read_file, glob, search_file_content]
+        T1Tools[read_file, glob, grep_search]
     end
 
     T4 --> T4Tools
@@ -180,7 +180,7 @@ graph TB
 
 #### Tier 1: Read-Only
 
-**Authorized Tools**: `read_file`, `glob`, `search_file_content`, `google_web_search` (architect only)
+**Authorized Tools**: `read_file`, `glob`, `grep_search`, `google_web_search` (architect only)
 
 **Agents**: architect, api-designer, code-reviewer
 
@@ -190,7 +190,7 @@ graph TB
 
 #### Tier 2: Read + Shell
 
-**Authorized Tools**: `read_file`, `glob`, `search_file_content`, `run_shell_command`
+**Authorized Tools**: `read_file`, `glob`, `grep_search`, `run_shell_command`
 
 **Agents**: debugger, performance-engineer, security-engineer
 
@@ -200,7 +200,7 @@ graph TB
 
 #### Tier 3: Read + Write
 
-**Authorized Tools**: `read_file`, `glob`, `search_file_content`, `write_file`, `replace`
+**Authorized Tools**: `read_file`, `glob`, `grep_search`, `write_file`, `replace`
 
 **Agents**: refactor, technical-writer
 
@@ -210,7 +210,7 @@ graph TB
 
 #### Tier 4: Full Access
 
-**Authorized Tools**: `read_file`, `glob`, `search_file_content`, `write_file`, `replace`, `run_shell_command`
+**Authorized Tools**: `read_file`, `glob`, `grep_search`, `write_file`, `replace`, `run_shell_command`
 
 **Agents**: coder, data-engineer, devops-engineer, tester
 
@@ -246,7 +246,7 @@ This prompt-based enforcement is the only mechanism for maintaining least-privil
 
 **glob** - Universal file discovery. Enables agents to find relevant files matching patterns without exhaustive directory traversal.
 
-**search_file_content** - Universal content search. Enables agents to locate code patterns, imports, and references.
+**grep_search** - Universal content search. Enables agents to locate code patterns, imports, and references.
 
 **google_web_search** - Restricted to architect. Technology evaluation requires current information on libraries, frameworks, and ecosystem maturity.
 
@@ -788,7 +788,7 @@ kind: local
 tools:
   - read_file
   - glob
-  - search_file_content
+  - grep_search
 model: gemini-3-pro-preview
 temperature: 0.2
 max_turns: 15
@@ -802,7 +802,7 @@ Select the minimum tools required based on the agent's role:
 
 | If the agent needs to... | Include these tools |
 |--------------------------|-------------------|
-| Analyze code (read-only) | `read_file`, `glob`, `search_file_content` |
+| Analyze code (read-only) | `read_file`, `glob`, `grep_search` |
 | Run diagnostic commands | Add `run_shell_command` |
 | Modify files | Add `write_file`, `replace` |
 | Full implementation | All tools |

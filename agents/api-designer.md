@@ -1,11 +1,14 @@
 ---
 name: api-designer
-description: "API contract specialist for REST/GraphQL endpoint design, versioning, and developer experience"
-kind: local
+description: "API design specialist for endpoint design, request/response contracts, and API versioning strategies. Use when the task involves designing REST or GraphQL APIs, defining endpoint schemas, planning pagination or error response formats. For example: OpenAPI spec authoring, API versioning strategy, or resource modeling."
+display_name: API Designer
 tools:
   - read_file
+  - list_directory
   - glob
   - grep_search
+  - read_many_files
+  - ask_user
 temperature: 0.3
 max_turns: 15
 timeout_mins: 5

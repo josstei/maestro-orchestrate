@@ -649,7 +649,7 @@ Maestro enforces least-privilege tool access based on agent role:
 
 **Agents**: architect, api-designer, code-reviewer
 
-**Tools**: `read_file`, `glob`, `search_file_content`; architect additionally has `google_web_search`
+**Tools**: `read_file`, `glob`, `grep_search`; architect additionally has `google_web_search`
 
 **Rationale**: These agents perform analysis and produce recommendations. They should not modify code or execute commands. Read-only access prevents accidental changes and enforces their advisory role.
 
@@ -663,7 +663,7 @@ Maestro enforces least-privilege tool access based on agent role:
 
 **Agents**: debugger, performance-engineer, security-engineer
 
-**Tools**: `read_file`, `glob`, `search_file_content`, `run_shell_command`
+**Tools**: `read_file`, `glob`, `grep_search`, `run_shell_command`
 
 **Rationale**: Investigation tasks require running diagnostics, profiling, scanning, or debugging tools without modifying source files.
 
@@ -677,7 +677,7 @@ Maestro enforces least-privilege tool access based on agent role:
 
 **Agents**: refactor, technical-writer
 
-**Tools**: `read_file`, `glob`, `search_file_content`, `write_file`, `replace`
+**Tools**: `read_file`, `glob`, `grep_search`, `write_file`, `replace`
 
 **Rationale**: Code and documentation modifications that do not require shell execution (no builds, no tests, no deploys).
 
@@ -690,7 +690,7 @@ Maestro enforces least-privilege tool access based on agent role:
 
 **Agents**: coder, data-engineer, devops-engineer, tester
 
-**Tools**: `read_file`, `glob`, `search_file_content`, `write_file`, `replace`, `run_shell_command`
+**Tools**: `read_file`, `glob`, `grep_search`, `write_file`, `replace`, `run_shell_command`
 
 **Rationale**: Complete implementation tasks that require writing code, running builds, executing tests, and deploying infrastructure.
 

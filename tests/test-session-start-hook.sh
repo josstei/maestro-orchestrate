@@ -17,24 +17,11 @@ python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: SessionStart hook output invalid"
 import json, sys
 output = json.loads(sys.argv[1])
 assert isinstance(output, dict), "Output must be a JSON object"
-print("PASS: SessionStart hook returns valid JSON")
+assert 'systemMessage' in output, f"Expected systemMessage key, got: {output}"
+print("PASS: SessionStart hook returns valid JSON with systemMessage")
 PYEOF
 
-echo "Test 2: Permissions manifest generated"
-if [ -f "$PROJECT_ROOT/hooks/permissions.json" ]; then
-  AGENT_COUNT=$(python3 -c "import json; print(len(json.load(open('$PROJECT_ROOT/hooks/permissions.json'))))")
-  if [ "$AGENT_COUNT" -gt 0 ]; then
-    echo "PASS: Permissions manifest exists with $AGENT_COUNT agents"
-  else
-    echo "FAIL: Permissions manifest is empty"
-    exit 1
-  fi
-else
-  echo "FAIL: Permissions manifest not found"
-  exit 1
-fi
-
-echo "Test 3: Session state directory created"
+echo "Test 2: Session state directory created"
 if [ -d "$STATE_DIR/test-start-001" ]; then
   echo "PASS: Session state directory created"
 else

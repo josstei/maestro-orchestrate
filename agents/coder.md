@@ -1,14 +1,17 @@
 ---
 name: coder
-description: "Implementation specialist for writing clean, well-structured code following existing patterns and SOLID principles"
-kind: local
+description: "Implementation specialist for writing clean, well-structured code following established patterns and SOLID principles. Use when the task requires feature implementation, writing new modules, or building out functionality from specifications. For example: building a new API endpoint, implementing a service class, or writing utility functions."
+display_name: Coder
 tools:
   - read_file
+  - list_directory
   - glob
   - grep_search
   - write_file
   - replace
   - run_shell_command
+  - write_todos
+  - activate_skill
 temperature: 0.2
 max_turns: 25
 timeout_mins: 10

@@ -159,7 +159,7 @@ Parallel delegation uses `scripts/parallel-dispatch.sh` to spawn independent `ge
 For each agent in a parallel batch, write a complete prompt file to `<state_dir>/parallel/<batch-id>/prompts/<agent-name>.txt`:
 
 ```
-[Injected base protocol from protocols/agent-base-protocol.md]
+[Injected base protocol from protocols/agent-base-protocol.md and protocols/filesystem-safety-protocol.md]
 
 Task: [One-line description]
 
@@ -200,19 +200,15 @@ Prompt filenames must follow these rules:
 
 ### Tool Restriction Enforcement
 
-Maestro v1.2 enforces tool permissions at two levels:
+Maestro enforces tool permissions at two levels:
 
-**Level 1: Hooks-based enforcement (primary)**
+**Level 1: Native enforcement (primary)**
 
-The `BeforeTool` hook (`hooks/before-tool.sh`) intercepts every tool call and blocks unauthorized usage based on the agent's permissions in `hooks/permissions.json`. This works for both sequential delegation and parallel dispatch:
-- Sequential (subagent tool invocation): Agent identity auto-detected by `BeforeTool` hook when the tool name matches a known agent, and cleared by `AfterTool` hook when the subagent returns
-- Parallel (`parallel-dispatch.sh`): Agent identity set via `MAESTRO_CURRENT_AGENT` env var per spawned process
-
-The `BeforeToolSelection` hook provides a UX optimization by suggesting available tools to the model before selection, reducing wasted tool calls. This is NOT a security boundary (union aggregation can only add tools).
+Tool permissions are enforced natively via the `tools:` array in each agent's YAML frontmatter definition (`agents/<agent-name>.md`). The Gemini CLI restricts each subagent to exactly those tools listed, regardless of what the prompt requests. This works for both sequential and parallel delegation.
 
 **Level 2: Prompt-based enforcement (defense-in-depth)**
 
-Parallel-dispatched agents run with `--yolo` (auto-approve all tool calls). As defense-in-depth alongside hooks enforcement, every parallel dispatch prompt **must** still include an explicit tool restriction block:
+Parallel-dispatched agents run with `--yolo` (auto-approve all tool calls). As defense-in-depth alongside native enforcement, every parallel dispatch prompt **must** still include an explicit tool restriction block:
 
 1. Agent Base Protocol (from `protocols/agent-base-protocol.md`)
 2. Filesystem Safety Protocol (from `protocols/filesystem-safety-protocol.md`)

@@ -1,13 +1,15 @@
 ---
 name: technical-writer
-description: "Documentation specialist for API docs, READMEs, architecture documentation, and developer guides"
-kind: local
+description: "Technical writing specialist for documentation, API references, and architectural diagrams. Use when the task requires writing README files, API documentation, architecture decision records, or inline documentation. For example: writing an OpenAPI description, creating a getting-started guide, or documenting module interfaces."
+display_name: Technical Writer
 tools:
   - read_file
+  - list_directory
   - glob
   - grep_search
   - write_file
   - replace
+  - read_many_files
 temperature: 0.3
 max_turns: 15
 timeout_mins: 5
