@@ -31,6 +31,7 @@ Results:
 
 Environment:
   MAESTRO_DEFAULT_MODEL      Override model for all agents
+  MAESTRO_WRITER_MODEL       Override model for technical-writer agent only
   MAESTRO_AGENT_TIMEOUT      Timeout in minutes (default: 10)
   MAESTRO_CLEANUP_DISPATCH   Remove prompt files after dispatch (default: false)
   MAESTRO_MAX_CONCURRENT      Max agents running simultaneously (default: 0 = unlimited)
@@ -143,6 +144,7 @@ echo "========================="
 echo "Agents: ${#PROMPT_FILES[@]}"
 echo "Timeout: ${TIMEOUT_MINS} minutes"
 echo "Model: ${MAESTRO_DEFAULT_MODEL:-default}"
+[[ -n "${MAESTRO_WRITER_MODEL:-}" ]] && echo "Writer Model: $MAESTRO_WRITER_MODEL"
 echo "Max Concurrent: $CONCURRENT_DISPLAY"
 echo "Stagger Delay: ${STAGGER_DELAY}s"
 echo "Project Root: $PROJECT_ROOT"
@@ -200,10 +202,14 @@ ${PROMPT_CONTENT}"
 
   (
     export MAESTRO_CURRENT_AGENT="$AGENT_NAME"
+    AGENT_MODEL_FLAGS=("${MODEL_FLAGS[@]+"${MODEL_FLAGS[@]}"}")
+    if [[ "$NORMALIZED_NAME" == "technical-writer" ]] && [[ -n "${MAESTRO_WRITER_MODEL:-}" ]]; then
+      AGENT_MODEL_FLAGS=("-m" "$MAESTRO_WRITER_MODEL")
+    fi
     run_with_timeout "$TIMEOUT_SECS" gemini \
       --approval-mode=yolo \
       --output-format json \
-      ${MODEL_FLAGS[@]+"${MODEL_FLAGS[@]}"} \
+      ${AGENT_MODEL_FLAGS[@]+"${AGENT_MODEL_FLAGS[@]}"} \
       "$PROMPT_CONTENT" \
       > "$RESULT_JSON" \
       2> "$RESULT_LOG"
