@@ -64,7 +64,7 @@ At the start of Phase 3, call `write_todos` to populate all implementation phase
 
 Verify all deliverables. Run final validation. Archive session state. Present summary.
 
-After successful completion, call `save_memory` to persist 3-5 key facts from this orchestration to cross-session memory. Include: primary architectural patterns chosen, main interface/class names, technology stack decisions, and any established conventions. This makes future orchestration sessions context-aware of prior work.
+After successful completion, call `save_memory` to persist 3-5 key facts from this orchestration to cross-session memory. Prefix each memory entry with `[Maestro]` to distinguish orchestration-generated memories from user-written ones. Include: primary architectural patterns chosen, main interface/class names, technology stack decisions, and any established conventions. This makes future orchestration sessions context-aware of prior work.
 
 ## Execution Mode
 

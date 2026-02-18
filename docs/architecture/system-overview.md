@@ -862,7 +862,7 @@ Maestro's declarative architecture enables several customization points:
 3. Update `GEMINI.md` agent roster table
 4. Add agent to implementation-planning skill's assignment criteria
 
-No code changes required. The orchestrator dynamically reads agent definitions when constructing delegation prompts.
+No code changes required. The Gemini CLI registers all agent definitions from `agents/` at extension load time.
 
 ### Adding New Skills
 
@@ -895,3 +895,16 @@ Templates guide document generation but do not enforce strict validation. The or
 3. Restart Gemini CLI to reload context
 
 All orchestration logic lives in readable text files. No compilation or transpilation required.
+
+## Deliberate Omissions and Future Considerations
+
+### Hook Configuration
+
+- **`sequential` field**: Not needed — each hook event has a single handler. If multiple handlers per event are added in the future, add `sequential: true` to ensure ordering.
+- **`BeforeToolSelection` / `PreCompress` hooks**: Not implemented in v1.2. Evaluate for v1.3 as opportunities for tool call interception and context window management.
+- **`excludeTools` in manifest**: Agent tool restrictions rely on frontmatter `tools:` arrays enforced at the registry level. The manifest `excludeTools` field could provide defense-in-depth but is not currently used.
+
+### Skill Loading
+
+- **`@import` / `@{file}` injection**: Deliberately not used for skill loading. `activate_skill` is preferred because it provides user confirmation, proper tool-based invocation, and is the documented mechanism for non-builtin skills.
+- **Policy Engine**: Not used — hooks provide the lifecycle middleware needed for v1.2. Policy Engine is better suited for per-tool approval workflows, which Maestro does not currently require.
