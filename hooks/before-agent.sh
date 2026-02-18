@@ -10,6 +10,10 @@ main() {
   PROMPT=$(json_get "$INPUT" "prompt")
 
   AGENT_NAME="${MAESTRO_CURRENT_AGENT:-}"
+  # MAESTRO_CURRENT_AGENT is set by parallel-dispatch.sh (exported to the
+  # subprocess environment). In parallel dispatch, hooks inherit it via
+  # process.env. In sequential delegation (main session), this env var is
+  # never set — detection falls through to the delegation-pattern regex below.
 
   if [ -z "$AGENT_NAME" ]; then
     AGENT_NAME=$(python3 - "$PROMPT" <<'PYEOF' 2>/dev/null || echo ""
