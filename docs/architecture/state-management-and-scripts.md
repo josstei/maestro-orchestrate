@@ -618,7 +618,7 @@ It serves as a functional test for the parallel execution system.
 
 ## Parallel Execution System
 
-The parallel execution system allows independent phases to run concurrently via shell-based process spawning, bypassing the sequential `delegate_to_agent` tool scheduler.
+The parallel execution system allows independent phases to run concurrently via shell-based process spawning, bypassing the sequential agent tool call pattern.
 
 ### Architecture
 
@@ -744,7 +744,7 @@ This summary allows the orchestrator to make batch-level decisions (proceed, ret
 
 ### Fallback to Sequential
 
-If parallel dispatch fails (script not found, `gemini` CLI unavailable, all agents fail), the orchestrator falls back to sequential execution via `delegate_to_agent` and records the fallback in session state.
+If parallel dispatch fails (script not found, `gemini` CLI unavailable, all agents fail), the orchestrator falls back to sequential execution via direct agent tool calls and records the fallback in session state.
 
 Fallback conditions:
 - `parallel-dispatch.sh` script not found or not executable

@@ -170,7 +170,7 @@ The orchestrator layer provides:
 
 - **Phase Transition Logic**: Rules for moving between Design, Plan, Execute, and Complete phases
 - **Settings Resolution**: Environment variable parsing and default value application
-- **Delegation Rules**: When to use sequential `delegate_to_agent` vs parallel `parallel-dispatch.sh`
+- **Delegation Rules**: When to use sequential agent tool calls vs parallel `parallel-dispatch.sh`
 - **Error Handling**: Retry logic, escalation protocols, session recovery
 - **Content Writing Protocol**: Rules for using `write_file` vs shell commands
 
@@ -362,7 +362,7 @@ flowchart TD
 1. **Mode Selection**: Prompts user to choose parallel or sequential execution (unless `MAESTRO_EXECUTION_MODE` is pre-set)
 2. **Phase Iteration**: Processes phases according to dependency graph
 3. **Delegation**:
-   - **Sequential Mode**: Uses `delegate_to_agent` tool for one-at-a-time execution with standard approval flow
+   - **Sequential Mode**: Calls the agent's named tool (e.g., `coder(prompt: "...")`) for one-at-a-time execution
    - **Parallel Mode**: Writes prompts to dispatch directory, invokes `parallel-dispatch.sh` to spawn concurrent processes
 4. **State Updates**: After each phase completes, updates session state with file manifest, status, and errors
 5. **Error Handling**: Retries failed phases up to `MAESTRO_MAX_RETRIES` times before escalating to user
@@ -467,7 +467,7 @@ sequenceDiagram
 
         alt Sequential Mode
             loop Each Phase
-                TL->>Agents: delegate_to_agent(agent, prompt)
+                TL->>Agents: agent-name(prompt: "...")
                 Agents->>FS: Create/modify files
                 Agents-->>TL: Task Report
                 TL->>FS: Update session state
@@ -502,7 +502,7 @@ sequenceDiagram
 5. **Design Phase**: Orchestrator asks structured questions, presents approaches, validates sections, writes design document
 6. **Planning Phase**: Activates `implementation-planning` skill, generates plan, creates session state
 7. **Execution Phase**: Activates `execution` and `delegation` skills, prompts for mode selection
-8. **Sequential Delegation**: If sequential, uses `delegate_to_agent` tool, which loads agent definition, injects protocols, executes agent, returns result
+8. **Sequential Delegation**: If sequential, calls the agent's named tool (e.g., `coder(prompt: "...")`), which spawns the subagent with its definition, executes the task, and returns the result
 9. **Parallel Delegation**: If parallel, writes prompts to dispatch directory, invokes `parallel-dispatch.sh`, script spawns concurrent `gemini` processes, collects results
 10. **State Updates**: After each phase, orchestrator updates `active-session.md` with file manifest and status
 11. **Completion**: Final validation, archival to `archive/` subdirectories, summary presentation
@@ -552,7 +552,7 @@ Agent-specific overrides always take precedence over defaults.
 
 ### Parallel Execution Data Flow
 
-Parallel dispatch bypasses the sequential `delegate_to_agent` tool scheduler:
+Parallel dispatch bypasses sequential agent tool invocation:
 
 1. **Prompt Generation**: Orchestrator constructs complete delegation prompts for each agent in the batch
 2. **File Writing**: Prompts written to `.gemini/parallel/<batch-id>/prompts/<agent-name>.txt`
@@ -704,7 +704,7 @@ Maestro enforces least-privilege tool access based on agent role:
 
 ### Tool Enforcement
 
-Tool permissions are defined in agent frontmatter and enforced by the Gemini CLI subagent system. When the orchestrator delegates to an agent, the tool list is passed to the `delegate_to_agent` call. Attempts to use restricted tools result in errors that are logged in session state.
+Tool permissions are defined in agent frontmatter `tools:` fields and enforced by the Gemini CLI's tool registry. When an agent is loaded, only the tools listed in its frontmatter are registered — unlisted tools are invisible to the agent's model. This is enforced at the registry level, not the policy level, so it cannot be bypassed by `--yolo` mode. Agents are auto-registered as callable tools at extension load time.
 
 ## Model Configuration
 

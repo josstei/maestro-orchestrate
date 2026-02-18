@@ -83,7 +83,7 @@ The TechLead orchestrator (GEMINI.md) references agent definitions dynamically d
 3. Applying environment variable overrides to configuration parameters
 4. Constructing the delegation prompt with injected protocols and context
 
-Agents do not run as persistent processes. Each delegation spawns a fresh agent instance via `gemini delegate_to_agent` (sequential) or `scripts/parallel-dispatch.sh` (parallel).
+Agents do not run as persistent processes. Each delegation spawns a fresh agent instance via the agent's named tool call (sequential) or `scripts/parallel-dispatch.sh` (parallel). Agents are auto-registered as callable tools at extension load time — each agent in `agents/` becomes a tool matching its `name` field.
 
 ## Agent Catalog
 
@@ -221,11 +221,11 @@ graph TB
 
 #### Sequential Delegation
 
-When using `gemini delegate_to_agent`, the Gemini CLI enforces tool restrictions based on the agent definition frontmatter. Unauthorized tool calls are rejected by the CLI.
+When calling an agent tool (e.g., `coder(prompt: "...")`), the Gemini CLI enforces tool restrictions via tool registry filtering — only the tools listed in the agent's frontmatter are registered, making unlisted tools invisible to the model. This enforcement is at the registry level, not the policy level, so `--yolo` mode cannot bypass it.
 
 #### Parallel Delegation
 
-Tool permissions are enforced via native `tools:` frontmatter for sequential delegation. For parallel dispatch (independent `gemini -p` processes), tool restrictions rely on prompt-based enforcement as defense-in-depth, since headless processes don't load agent definitions. The delegation skill injects explicit tool restriction blocks into every parallel delegation prompt:
+For parallel dispatch (independent `gemini -p` processes), agents are not loaded from extension definitions — each process runs as a standalone Gemini CLI instance. Tool restrictions rely on prompt-based enforcement as defense-in-depth. The delegation skill injects explicit tool restriction blocks into every parallel delegation prompt:
 
 ```
 TOOL RESTRICTIONS (MANDATORY):
@@ -431,7 +431,7 @@ sequenceDiagram
     O->>O: Construct delegation prompt:<br/>Protocols + Context + Task + Prohibitions
 
     alt Sequential Dispatch
-        O->>A: delegate_to_agent(agent, prompt)
+        O->>A: agent-name(prompt: "...")
     else Parallel Dispatch
         O->>A: Write prompt to file
         O->>A: Execute parallel-dispatch.sh
@@ -449,16 +449,13 @@ sequenceDiagram
 
 ### Sequential Delegation
 
-The TechLead orchestrator uses `gemini delegate_to_agent` for sequential phase execution:
+The TechLead orchestrator calls the agent's named tool for sequential phase execution. Each agent in `agents/` is auto-registered as a callable tool matching its `name` field:
 
 ```
-delegate_to_agent(
-  agent: "agent-name",
-  prompt: "[constructed delegation prompt]"
-)
+agent-name(prompt: "[constructed delegation prompt]")
 ```
 
-The Gemini CLI handles subagent spawning, tool permission enforcement, and response collection. The orchestrator blocks until the agent completes or times out.
+For example, to delegate to the coder agent: `coder(prompt: "Implement the UserService...")`. The Gemini CLI handles subagent spawning, tool permission enforcement via registry filtering, and response collection. The orchestrator blocks until the agent completes or times out.
 
 #### Delegation Prompt Construction
 
@@ -502,7 +499,7 @@ This primes the agent to structure Downstream Context for maximum utility to the
 
 ### Parallel Delegation
 
-Parallel delegation uses `scripts/parallel-dispatch.sh` to execute independent phases concurrently. Instead of calling `delegate_to_agent`, the orchestrator:
+Parallel delegation uses `scripts/parallel-dispatch.sh` to execute independent phases concurrently. Instead of calling each agent's tool sequentially, the orchestrator:
 
 1. Writes complete prompt files to `<state_dir>/parallel/<batch-id>/prompts/<agent-name>.txt`
 2. Invokes `./scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>`
@@ -778,8 +775,9 @@ Link the extension and test via Gemini CLI:
 
 ```bash
 gemini extensions link .
-# Restart Gemini CLI, then test delegation:
-gemini delegate_to_agent agent=agent-name prompt="Test task description"
+# Restart Gemini CLI, then test delegation by asking the main agent:
+# "Use the agent-name agent to [test task description]"
+# The main agent will call the agent-name tool automatically.
 ```
 
 ## Best Practices
