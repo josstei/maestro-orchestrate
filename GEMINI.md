@@ -1,7 +1,7 @@
 ---
 name: TechLead
 description: Maestro orchestrator — coordinates specialized subagent teams through structured 4-phase workflows
-model: gemini-3-pro-preview
+model: auto
 ---
 
 # Maestro TechLead Orchestrator
@@ -20,8 +20,8 @@ Before any orchestration command:
 
 | Setting | envVar | Default | Applies To |
 |---------|--------|---------|------------|
-| Default Model | `MAESTRO_DEFAULT_MODEL` | `gemini-3-pro-preview` | All agent delegation prompts |
-| Writer Model | `MAESTRO_WRITER_MODEL` | `gemini-3-flash-preview` | technical-writer delegation only |
+| Default Model | `MAESTRO_DEFAULT_MODEL` | `auto` | All agent delegation prompts (overrides frontmatter `model` field) |
+| Writer Model | `MAESTRO_WRITER_MODEL` | `auto` | technical-writer delegation only (overrides `MAESTRO_DEFAULT_MODEL`) |
 | Default Temperature | `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | All agent delegation prompts |
 | Max Agent Turns | `MAESTRO_MAX_TURNS` | `25` | All agent delegation prompts |
 | Agent Timeout | `MAESTRO_AGENT_TIMEOUT` | `10` (minutes) | All agent delegation prompts |
@@ -157,15 +157,29 @@ Use the path from `MAESTRO_STATE_DIR` (default: `.gemini`) as the base directory
 
 | Agent | Domain | Tools | Model |
 |-------|--------|-------|-------|
-| architect | System design, architecture | Read-only | gemini-3-pro-preview |
-| api-designer | API contracts, endpoints | Read-only | gemini-3-pro-preview |
-| code-reviewer | Code quality assessment | Read-only | gemini-3-pro-preview |
-| coder | Feature implementation | Full access | gemini-3-pro-preview |
-| data-engineer | Schema, queries, ETL | Full access | gemini-3-pro-preview |
-| debugger | Bug investigation | Read + shell | gemini-3-pro-preview |
-| devops-engineer | CI/CD, infrastructure | Full access | gemini-3-pro-preview |
-| performance-engineer | Performance analysis | Read + shell | gemini-3-pro-preview |
-| refactor | Code restructuring | Read + write | gemini-3-pro-preview |
-| security-engineer | Security assessment | Read + shell | gemini-3-pro-preview |
-| technical-writer | Documentation | Read + write | gemini-3-flash-preview |
-| tester | Test creation, TDD | Full access | gemini-3-pro-preview |
+| architect | System design, architecture | Read-only | auto |
+| api-designer | API contracts, endpoints | Read-only | auto |
+| code-reviewer | Code quality assessment | Read-only | auto |
+| coder | Feature implementation | Full access | auto |
+| data-engineer | Schema, queries, ETL | Full access | auto |
+| debugger | Bug investigation | Read + shell | auto |
+| devops-engineer | CI/CD, infrastructure | Full access | auto |
+| performance-engineer | Performance analysis | Read + shell | auto |
+| refactor | Code restructuring | Read + write | auto |
+| security-engineer | Security assessment | Read + shell | auto |
+| technical-writer | Documentation | Read + write | auto |
+| tester | Test creation, TDD | Full access | auto |
+
+## Hooks
+
+Maestro v1.2 uses Gemini CLI's hooks system for lifecycle middleware. Hooks are registered in `hooks/hooks.json` and auto-discovered by the CLI extension loader.
+
+| Hook | Purpose | Enforcement Level |
+|------|---------|-------------------|
+| SessionStart | Generate permissions manifest, initialize state, clean stale sessions | Setup |
+| BeforeToolSelection | Suggest available tools for active agent (UX optimization) | Advisory |
+| BeforeTool | Block unauthorized tool calls per agent permissions | **Primary gate** |
+| BeforeAgent | Track active agent identity, inject session context | Tracking |
+| AfterAgent | Validate handoff report format, clear agent tracking | Validation |
+
+Tool permission enforcement uses a two-layer approach: `BeforeTool` is the primary security gate (OR-decision: any block wins), while `BeforeToolSelection` is a UX hint (union aggregation: can only add tools). Agent identity for permission lookup comes from `MAESTRO_CURRENT_AGENT` env var (parallel dispatch) or state file (sequential delegation).
