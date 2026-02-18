@@ -48,7 +48,11 @@ Activate `design-dialogue` skill. Gather requirements through structured questio
 
 Activate `implementation-planning` skill. Decompose the design into phases with agent assignments, dependency graphs, and validation criteria. Produce an approved implementation plan. Create session state via `session-management` skill.
 
-At the end of Phase 2, after the implementation plan is finalized and written to `.gemini/plans/`, call `exit_plan_mode` with the project-local plan path (`.gemini/plans/...`) to present the plan to the user for approval and switch back to write mode for execution. If the tool returns an access error, follow its error guidance to copy the file to the required location before retrying.
+At the end of Phase 2, after the implementation plan is finalized:
+
+1. **Write the plan** to `~/.gemini/tmp/plans/` — this is the only writable location during Plan Mode
+2. **Call `exit_plan_mode`** with `plan_path` set to the `~/.gemini/tmp/plans/...` path to present the plan to the user for approval and switch back to write mode
+3. **After approval**, copy the plan to `.gemini/plans/YYYY-MM-DD-<slug>-impl-plan.md` as a permanent project reference
 
 ### Phase 3: Execution
 
