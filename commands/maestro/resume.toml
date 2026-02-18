@@ -6,7 +6,13 @@ Activate the `session-management` and `execution` skills.
 
 ## Resume Protocol
 
-1. Read the session state file using `read_file` on `.gemini/state/active-session.md`, then determine:
+The current session state is provided below:
+
+<session-state>
+!{cat .gemini/state/active-session.md 2>/dev/null || echo "No active session"}
+</session-state>
+
+1. Parse the session state above to determine:
    - session_id and overall status
    - current_phase and which phases are completed
    - Any errors from previous execution
@@ -22,4 +28,4 @@ Activate the `session-management` and `execution` skills.
 5. Activate the `delegation` skill when delegating to subagents
 6. Activate the `validation` skill to verify phase outputs
 
-If no active session exists (file not found), inform the user and suggest using `/maestro:orchestrate` to start one."""
+If the session state above shows "No active session", inform the user and suggest using `/maestro:orchestrate` to start one."""

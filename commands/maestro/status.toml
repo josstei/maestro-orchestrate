@@ -4,9 +4,13 @@ prompt = """Display the current orchestration session status.
 
 ## Instructions
 
-First, read the session state file using `read_file` on `.gemini/state/active-session.md`.
+The current session state is provided below:
 
-Then parse the session state and present a concise status summary:
+<session-state>
+!{cat .gemini/state/active-session.md 2>/dev/null || echo "No active session"}
+</session-state>
+
+Parse the session state and present a concise status summary:
 
 1. **Session ID** and creation timestamp
 2. **Overall status** (in_progress, completed, failed)
@@ -20,4 +24,4 @@ Then parse the session state and present a concise status summary:
 6. **Errors**: any unresolved errors with brief descriptions
 
 This is a read-only command. Do NOT modify the session state or continue execution.
-If no active session exists (file not found), inform the user and suggest using `/maestro:orchestrate` to start one."""
+If the session state above shows "No active session", inform the user and suggest using `/maestro:orchestrate` to start one."""
