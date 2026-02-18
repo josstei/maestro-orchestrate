@@ -94,9 +94,9 @@ description = "Human-readable description"
 prompt = """Template string with {{args}} substitution"""
 ```
 
-When a user types `/maestro.orchestrate "task description"`, the CLI:
+When a user types `/maestro:orchestrate "task description"`, the CLI:
 
-1. Locates `commands/maestro.orchestrate.toml`
+1. Locates `commands/maestro:orchestrate.toml`
 2. Substitutes `{{args}}` with the user's task description
 3. Injects the templated prompt into the TechLead context
 4. Executes the TechLead orchestrator with the combined context
@@ -316,7 +316,7 @@ flowchart TD
 
 **Purpose**: Converge on an approved architectural design through structured requirements gathering
 
-**Activation**: `/maestro.orchestrate` command triggers the `design-dialogue` skill
+**Activation**: `/maestro:orchestrate` command triggers the `design-dialogue` skill
 
 **Process**:
 
@@ -395,7 +395,7 @@ flowchart TD
 - **Explicit Approval**: User must approve before advancing from Phase 1 to 2, and from Phase 2 to 3
 - **Automatic Advance**: Phase 3 to 4 transition is automatic upon completion
 - **Error Escalation**: If a phase fails after `MAESTRO_MAX_RETRIES` attempts, execution pauses and user is asked for guidance
-- **Resume Protocol**: `/maestro.resume` command can restart execution at the last failed or pending phase
+- **Resume Protocol**: `/maestro:resume` command can restart execution at the last failed or pending phase
 
 ### Error Handling
 
@@ -419,7 +419,7 @@ When retries are exhausted, the orchestrator:
 If execution is interrupted (timeout, crash, manual abort):
 
 1. Session state persists in `.gemini/state/active-session.md` with phase statuses
-2. User invokes `/maestro.resume` to restart
+2. User invokes `/maestro:resume` to restart
 3. Orchestrator presents session summary with completed/pending/failed phases
 4. Execution resumes from first pending or failed phase
 
@@ -434,7 +434,7 @@ sequenceDiagram
     participant Agents as Specialized<br/>Subagents
     participant FS as Target Project<br/>File System
 
-    User->>CLI: /maestro.orchestrate "task"
+    User->>CLI: /maestro:orchestrate "task"
     CLI->>CLI: Load gemini-extension.json
     CLI->>CLI: Read GEMINI.md context
     CLI->>CLI: Match command TOML
@@ -494,8 +494,8 @@ sequenceDiagram
 
 ### Data Flow Details
 
-1. **User Command**: User types `/maestro.orchestrate "Build a REST API"`
-2. **Extension System**: Gemini CLI loads `gemini-extension.json`, reads `GEMINI.md` as context, finds `commands/maestro.orchestrate.toml`, injects prompt template
+1. **User Command**: User types `/maestro:orchestrate "Build a REST API"`
+2. **Extension System**: Gemini CLI loads `gemini-extension.json`, reads `GEMINI.md` as context, finds `commands/maestro:orchestrate.toml`, injects prompt template
 3. **Orchestrator Activation**: TechLead persona receives combined context and begins Phase 1
 4. **Skill Activation**: Orchestrator activates `design-dialogue` skill, which injects detailed methodology
 5. **Design Phase**: Orchestrator asks structured questions, presents approaches, validates sections, writes design document
@@ -606,8 +606,8 @@ Each phase has a lifecycle:
 1. **Creation**: `session-management` skill writes initial `active-session.md` during Phase 2
 2. **Updates**: After each phase execution, orchestrator updates status, file manifest, token usage
 3. **Persistence**: All updates are atomic writes (read-modify-write)
-4. **Resumption**: `/maestro.resume` reads `active-session.md`, parses phase statuses, continues from first pending/failed
-5. **Archival**: `/maestro.archive` or automatic Phase 4 completion moves `active-session.md` to `archive/` with timestamp
+4. **Resumption**: `/maestro:resume` reads `active-session.md`, parses phase statuses, continues from first pending/failed
+5. **Archival**: `/maestro:archive` or automatic Phase 4 completion moves `active-session.md` to `archive/` with timestamp
 
 ### File Manifest Tracking
 
@@ -809,11 +809,11 @@ Maestro has no build step, no linting, and no automated test suite. Validation i
 
 1. **Link Extension**: `gemini extensions link maestro/`
 2. **Restart Gemini CLI**: Close and reopen the Gemini CLI terminal session to reload extension changes
-3. **Verify Commands**: Type `/maestro.` and verify autocomplete shows all commands
-4. **Test Orchestration**: Run `/maestro.orchestrate "simple task"` and verify all four phases execute
-5. **Test Standalone Commands**: Run `/maestro.review`, `/maestro.debug`, etc. to verify direct delegation
+3. **Verify Commands**: Type `/maestro:` and verify autocomplete shows all commands
+4. **Test Orchestration**: Run `/maestro:orchestrate "simple task"` and verify all four phases execute
+5. **Test Standalone Commands**: Run `/maestro:review`, `/maestro:debug`, etc. to verify direct delegation
 6. **Verify State Persistence**: Check `.gemini/state/active-session.md` contains expected YAML and logs
-7. **Test Resume**: Interrupt execution, run `/maestro.resume`, verify continuation from correct phase
+7. **Test Resume**: Interrupt execution, run `/maestro:resume`, verify continuation from correct phase
 
 ### Validation Criteria
 
@@ -869,7 +869,7 @@ Skills are loaded on demand, keeping base context lean.
 
 ### Adding New Commands
 
-1. Create `commands/maestro.<name>.toml` with description and prompt template
+1. Create `commands/maestro/<name>.toml` with description and prompt template
 2. Reference skills or inject files as needed in prompt
 3. Restart Gemini CLI to register new command
 

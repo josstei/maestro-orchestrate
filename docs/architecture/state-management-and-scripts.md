@@ -267,7 +267,7 @@ Sessions are archived when all phases complete successfully or when explicitly r
 **Archive Triggers:**
 
 - All phases are `completed` AND `MAESTRO_AUTO_ARCHIVE` is `true` (default)
-- User explicitly requests archival via `/maestro.archive` command
+- User explicitly requests archival via `/maestro:archive` command
 - User starts a new orchestration (previous session must be archived first)
 
 When `MAESTRO_AUTO_ARCHIVE` is `false`, the orchestrator prompts: "Session complete. Auto-archive is disabled. Would you like to archive this session?"
@@ -292,7 +292,7 @@ After archival, the orchestrator verifies:
 
 ### Session Resume Protocol
 
-Sessions can be resumed via the `/maestro.resume` command or when `/maestro.orchestrate` detects an existing active session.
+Sessions can be resumed via the `/maestro:resume` command or when `/maestro:orchestrate` detects an existing active session.
 
 **Resume Steps:**
 

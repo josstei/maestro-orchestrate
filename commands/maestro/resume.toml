@@ -4,13 +4,9 @@ prompt = """Resume the Maestro orchestration session.
 
 Activate the `session-management` and `execution` skills.
 
-## Session State
-
-@{.gemini/state/active-session.md}
-
 ## Resume Protocol
 
-1. Parse the session state above to determine:
+1. Read the session state file using `read_file` on `.gemini/state/active-session.md`, then determine:
    - session_id and overall status
    - current_phase and which phases are completed
    - Any errors from previous execution
@@ -26,4 +22,4 @@ Activate the `session-management` and `execution` skills.
 5. Activate the `delegation` skill when delegating to subagents
 6. Activate the `validation` skill to verify phase outputs
 
-If no active session exists, inform the user and suggest using `/maestro.orchestrate` to start one."""
+If no active session exists (file not found), inform the user and suggest using `/maestro:orchestrate` to start one."""

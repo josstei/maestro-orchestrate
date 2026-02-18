@@ -39,9 +39,9 @@ OUTPUT=$(echo "$INPUT_MALFORMED" | bash "$HOOK" 2>/dev/null)
 python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: Invalid JSON output for malformed report"; exit 1; }
 import json, sys
 data = json.loads(sys.argv[1])
-assert data.get("decision") == "deny", f"Expected decision=deny for malformed report, got {data.get('decision')}"
-assert "reason" in data, "Expected reason field in deny response"
-print("PASS: Malformed handoff report triggers deny/retry")
+assert data.get("decision") == "block", f"Expected decision=block for malformed report, got {data.get('decision')}"
+assert "reason" in data, "Expected reason field in block response"
+print("PASS: Malformed handoff report triggers block/retry")
 PYEOF
 
 echo "Test 3: stop_hook_active=true skips validation — allows"

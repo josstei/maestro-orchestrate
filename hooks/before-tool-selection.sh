@@ -7,11 +7,7 @@ source "$HOOK_DIR/lib/common.sh"
 INPUT=$(read_stdin)
 SESSION_ID=$(json_get "$INPUT" "session_id")
 
-AGENT_NAME="${MAESTRO_CURRENT_AGENT:-}"
-
-if [ -z "$AGENT_NAME" ]; then
-  AGENT_NAME=$(get_active_agent "$SESSION_ID")
-fi
+AGENT_NAME=$(get_active_agent "$SESSION_ID")
 
 if [ -z "$AGENT_NAME" ]; then
   echo '{}'

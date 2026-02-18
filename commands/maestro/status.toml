@@ -2,13 +2,11 @@ description = "Display the current orchestration session status"
 
 prompt = """Display the current orchestration session status.
 
-## Session State
-
-@{.gemini/state/active-session.md}
-
 ## Instructions
 
-Parse the session state above and present a concise status summary:
+First, read the session state file using `read_file` on `.gemini/state/active-session.md`.
+
+Then parse the session state and present a concise status summary:
 
 1. **Session ID** and creation timestamp
 2. **Overall status** (in_progress, completed, failed)
@@ -22,4 +20,4 @@ Parse the session state above and present a concise status summary:
 6. **Errors**: any unresolved errors with brief descriptions
 
 This is a read-only command. Do NOT modify the session state or continue execution.
-If no active session exists, inform the user and suggest using `/maestro.orchestrate` to start one."""
+If no active session exists (file not found), inform the user and suggest using `/maestro:orchestrate` to start one."""

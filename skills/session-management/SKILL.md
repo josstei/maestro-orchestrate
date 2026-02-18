@@ -205,7 +205,7 @@ After archival, verify:
 ## Resume Protocol
 
 ### When to Resume
-Resume is triggered by the `/maestro.resume` command or when `/maestro.orchestrate` detects an existing active session.
+Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestrate` detects an existing active session.
 
 ### Resume Steps
 

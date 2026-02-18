@@ -8,10 +8,7 @@ INPUT=$(read_stdin)
 SESSION_ID=$(json_get "$INPUT" "session_id")
 STOP_HOOK_ACTIVE=$(json_get "$INPUT" "stop_hook_active")
 
-AGENT_NAME="${MAESTRO_CURRENT_AGENT:-}"
-if [ -z "$AGENT_NAME" ]; then
-  AGENT_NAME=$(get_active_agent "$SESSION_ID")
-fi
+AGENT_NAME=$(get_active_agent "$SESSION_ID")
 
 STOP_HOOK_LOWER=$(echo "$STOP_HOOK_ACTIVE" | tr '[:upper:]' '[:lower:]')
 if [ -n "$AGENT_NAME" ] && [ "$STOP_HOOK_LOWER" != "true" ]; then
@@ -47,7 +44,7 @@ PYEOF
     log_hook "WARN" "AfterAgent [$AGENT_NAME]: $VALIDATION — requesting retry"
     python3 - "$REASON" <<'PYEOF'
 import sys, json
-print(json.dumps({"decision": "deny", "reason": "Handoff report validation failed: " + sys.argv[1] + ". Please include both a Task Report section and a Downstream Context section in your response."}))
+print(json.dumps({"decision": "block", "reason": "Handoff report validation failed: " + sys.argv[1] + ". Please include both a Task Report section and a Downstream Context section in your response."}))
 PYEOF
     exit 0
   else

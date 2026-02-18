@@ -68,7 +68,7 @@ The skills below are ordered by their typical activation sequence in the 4-phase
 
 **Purpose:** Conducts structured requirements gathering and architectural design conversations during Phase 1 of orchestration.
 
-**When Activated:** By `/maestro.orchestrate` when beginning a new orchestration session.
+**When Activated:** By `/maestro:orchestrate` when beginning a new orchestration session.
 
 **Key Procedures:**
 
@@ -148,7 +148,7 @@ Invoked during Phase 3 execution for every subagent delegation, both sequential 
 
 **Purpose:** Manages orchestration session state creation, updating, resumption, and archival.
 
-**When Activated:** At session creation (Phase 2 completion), during execution (continuous updates), on resume (`/maestro.resume`), and at completion (archival).
+**When Activated:** At session creation (Phase 2 completion), during execution (continuous updates), on resume (`/maestro:resume`), and at completion (archival).
 
 **Key Procedures:**
 
@@ -188,7 +188,7 @@ Invoked during Phase 3 execution after every implementation phase. Acts as a qua
 
 **Purpose:** Standalone code review methodology for structured, severity-classified code assessment.
 
-**When Activated:** By `/maestro.review` command or during Phase 3 code quality gates.
+**When Activated:** By `/maestro:review` command or during Phase 3 code quality gates.
 
 **Key Procedures:**
 
@@ -202,7 +202,7 @@ Invoked during Phase 3 execution after every implementation phase. Acts as a qua
 
 **Relationship to Workflow:**
 
-Standalone command (`/maestro.review`) or integrated into Phase 3 as a quality gate for specific phases.
+Standalone command (`/maestro:review`) or integrated into Phase 3 as a quality gate for specific phases.
 
 ## Command System
 
@@ -244,7 +244,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.orchestrate
 
-**Name:** `/maestro.orchestrate`
+**Name:** `/maestro:orchestrate`
 
 **Purpose:** Start a full Maestro orchestration for a complex engineering task, executing the complete 4-phase workflow (Design → Plan → Execute → Complete).
 
@@ -271,7 +271,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.review
 
-**Name:** `/maestro.review`
+**Name:** `/maestro:review`
 
 **Purpose:** Run a standalone code review on staged changes, last commit, or user-specified paths.
 
@@ -292,7 +292,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.status
 
-**Name:** `/maestro.status`
+**Name:** `/maestro:status`
 
 **Purpose:** Display the current orchestration session status in a concise summary.
 
@@ -310,7 +310,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.execute
 
-**Name:** `/maestro.execute`
+**Name:** `/maestro:execute`
 
 **Purpose:** Execute an existing implementation plan directly, skipping design dialogue and planning phases.
 
@@ -333,7 +333,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.resume
 
-**Name:** `/maestro.resume`
+**Name:** `/maestro:resume`
 
 **Purpose:** Resume an interrupted orchestration session from the last active or pending phase.
 
@@ -355,7 +355,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.archive
 
-**Name:** `/maestro.archive`
+**Name:** `/maestro:archive`
 
 **Purpose:** Archive the current active orchestration session, moving design document, implementation plan, and session state to archive directories.
 
@@ -377,7 +377,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.debug
 
-**Name:** `/maestro.debug`
+**Name:** `/maestro:debug`
 
 **Purpose:** Focused debugging session to investigate and diagnose an issue using systematic root cause analysis.
 
@@ -395,7 +395,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.perf-check
 
-**Name:** `/maestro.perf-check`
+**Name:** `/maestro:perf-check`
 
 **Purpose:** Run a performance analysis on specified scope to identify bottlenecks and optimization opportunities.
 
@@ -413,7 +413,7 @@ Commands can inject file content or shell command output to provide immediate co
 
 ### maestro.security-audit
 
-**Name:** `/maestro.security-audit`
+**Name:** `/maestro:security-audit`
 
 **Purpose:** Run a security assessment on specified scope using OWASP Top 10 review and STRIDE threat modeling.
 
@@ -435,21 +435,21 @@ Commands can inject file content or shell command output to provide immediate co
 
 | Command | Skills Activated | Primary Workflow Phase |
 |---------|------------------|------------------------|
-| `/maestro.orchestrate` | `design-dialogue`, `implementation-planning`, `session-management`, `execution`, `delegation`, `validation` | Phases 1-4 (full workflow) |
-| `/maestro.review` | `code-review` | Standalone |
-| `/maestro.status` | None (read-only) | Standalone |
-| `/maestro.execute` | `execution`, `delegation`, `session-management`, `validation` | Phases 2-4 (skip design) |
-| `/maestro.resume` | `session-management`, `execution`, `delegation`, `validation` | Phase 3 (resume) |
-| `/maestro.archive` | `session-management` | Phase 4 (archival) |
-| `/maestro.debug` | None | Standalone |
-| `/maestro.perf-check` | None | Standalone |
-| `/maestro.security-audit` | None | Standalone |
+| `/maestro:orchestrate` | `design-dialogue`, `implementation-planning`, `session-management`, `execution`, `delegation`, `validation` | Phases 1-4 (full workflow) |
+| `/maestro:review` | `code-review` | Standalone |
+| `/maestro:status` | None (read-only) | Standalone |
+| `/maestro:execute` | `execution`, `delegation`, `session-management`, `validation` | Phases 2-4 (skip design) |
+| `/maestro:resume` | `session-management`, `execution`, `delegation`, `validation` | Phase 3 (resume) |
+| `/maestro:archive` | `session-management` | Phase 4 (archival) |
+| `/maestro:debug` | None | Standalone |
+| `/maestro:perf-check` | None | Standalone |
+| `/maestro:security-audit` | None | Standalone |
 
 ### Flow: User Command → Skill Activation → Agent Delegation
 
 ```mermaid
 flowchart LR
-    CMD[/maestro.orchestrate] --> DD[design-dialogue]
+    CMD[/maestro:orchestrate] --> DD[design-dialogue]
     DD --> UI[User Interaction]
     CMD --> IP[implementation-planning]
     IP --> SM1[session-management]
@@ -470,8 +470,8 @@ flowchart LR
     EX --> VAL[validation]
 ```
 
-1. User invokes command via Gemini CLI: `/maestro.orchestrate "Build a TODO app"`
-2. Gemini CLI reads command definition from `commands/maestro.orchestrate.toml`
+1. User invokes command via Gemini CLI: `/maestro:orchestrate "Build a TODO app"`
+2. Gemini CLI reads command definition from `commands/maestro:orchestrate.toml`
 3. CLI interpolates `{{args}}` with user request and sends prompt to TechLead
 4. TechLead processes prompt, sees `Activate the design-dialogue skill`
 5. Gemini CLI injects `skills/design-dialogue/SKILL.md` into conversation context
@@ -599,7 +599,7 @@ The session state serves as the single source of truth for orchestration progres
 
 ### Creating a New Command
 
-1. **Create TOML file:** `commands/maestro.<command-name>.toml`
+1. **Create TOML file:** `commands/maestro/<command-name>.toml`
 2. **Define structure:**
    ```toml
    description = "Brief command purpose shown in help text"
@@ -614,10 +614,10 @@ The session state serves as the single source of truth for orchestration progres
 
    Activate the relevant-skill skill for methodology guidance."""
    ```
-3. **Test:** Restart Gemini CLI and run `/maestro.<command-name> <test-args>`
+3. **Test:** Restart Gemini CLI and run `/maestro:<command-name> <test-args>`
 
 ### Common Pitfalls
 
 - **Skill not activating:** Verify the activation text in the command prompt matches the skill's `name` field in frontmatter exactly.
 - **File injection failing:** Ensure paths in `@{}` are relative to the project root. The file must exist at runtime.
-- **Command not appearing:** Restart Gemini CLI after adding new TOML files. Verify the filename follows `maestro.<name>.toml` convention.
+- **Command not appearing:** Restart Gemini CLI after adding new TOML files. Verify the filename follows `maestro/<name>.toml` convention.
