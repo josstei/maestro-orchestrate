@@ -179,7 +179,7 @@ Each `activate_skill` call triggers a user confirmation dialog in the Gemini CLI
 | debugger | Bug investigation | Read + shell | inherit |
 | devops-engineer | CI/CD, infrastructure | Full access | inherit |
 | performance-engineer | Performance analysis | Read + shell | inherit |
-| refactor | Code restructuring | Read + write + shell | inherit |
+| refactor | Code restructuring | Read + write | inherit |
 | security-engineer | Security assessment | Read + shell | inherit |
 | technical-writer | Documentation | Read + write | inherit |
 | tester | Test creation, TDD | Full access | inherit |
