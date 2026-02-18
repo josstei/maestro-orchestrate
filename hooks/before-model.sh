@@ -8,11 +8,10 @@ main() {
   #
   # IMPORTANT: The Gemini CLI BeforeModel hook system extracts only `config`
   # and `contents` from hookSpecificOutput.llm_request — the `model` field
-  # is discarded by hookSystem.ts. Model overrides for sequential delegation
-  # are not possible via hooks.
-  #
-  # For parallel dispatch, model overrides work via the --model CLI flag
-  # in parallel-dispatch.sh using MAESTRO_DEFAULT_MODEL.
+  # is present in the translator output but dropped by hookSystem.ts's
+  # fireBeforeModelEvent return value. Model overrides for sequential delegation
+  # are not possible via hooks. For parallel dispatch, model overrides work
+  # via the --model CLI flag in parallel-dispatch.sh.
   echo '{}'
 }
 
