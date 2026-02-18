@@ -140,12 +140,16 @@ ask_user(
 ## Design Document Generation
 
 ### Output Location
-Write the completed design document to:
-`.gemini/plans/YYYY-MM-DD-<topic-slug>-design.md`
+
+The write path depends on whether Plan Mode is active:
+
+- **Plan Mode active**: Write to `~/.gemini/tmp/<project>/plans/YYYY-MM-DD-<topic-slug>-design.md` (the only writable location during Plan Mode). After `exit_plan_mode` approval in Phase 2, the orchestrator copies it to the permanent location.
+- **Plan Mode not active**: Write directly to `.gemini/plans/YYYY-MM-DD-<topic-slug>-design.md`.
 
 Where:
 - `YYYY-MM-DD` is the current date
 - `<topic-slug>` is a lowercase, hyphenated summary of the task (e.g., `user-auth-system`, `data-pipeline-refactor`)
+- `<project>` is the CLI's internal project hash (resolved automatically by `write_file`)
 
 ### Document Structure
 Use the design document template from `templates/design-document.md`.

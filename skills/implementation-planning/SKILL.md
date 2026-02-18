@@ -164,12 +164,12 @@ Include this table in every implementation plan:
 
 ### Output Location
 
-During Plan Mode, `write_file` is restricted to `~/.gemini/tmp/plans/`. Write the implementation plan there first, then copy to the project archive after approval:
+During Plan Mode, `write_file` is restricted to `.md` files within `~/.gemini/tmp/<project>/plans/` (where `<project>` is the CLI's internal project hash). Write the implementation plan there first, then copy to the project archive after approval:
 
-1. **During Plan Mode** (writable): `~/.gemini/tmp/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
+1. **During Plan Mode** (writable): `~/.gemini/tmp/<project>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
 2. **After approval** (permanent reference): `.gemini/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
 
-The `exit_plan_mode` tool validates that `plan_path` is within the `~/.gemini/tmp/plans/` directory. Always pass the tmp-directory path.
+The `exit_plan_mode` tool validates that `plan_path` is within the project's temp plans directory. Always pass the tmp-directory path.
 
 ### Document Structure
 Use the implementation plan template from `templates/implementation-plan.md`.
@@ -210,7 +210,7 @@ After writing the implementation plan:
 2. Present the dependency graph and execution strategy
 3. Highlight parallel execution opportunities
 4. Provide token budget estimates
-5. Call `exit_plan_mode` with `plan_path` set to the tmp-directory path (`~/.gemini/tmp/plans/...`) to present the plan for user approval
+5. Call `exit_plan_mode` with `plan_path` set to the tmp-directory path (`~/.gemini/tmp/<project>/plans/...`) to present the plan for user approval
 6. After approval, copy the plan to `.gemini/plans/YYYY-MM-DD-<slug>-impl-plan.md` as a permanent project reference
 7. Ask if the user is ready to proceed to execution (Phase 3)
 8. Upon approval, create the session state file via the session-management skill
