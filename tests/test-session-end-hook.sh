@@ -18,7 +18,6 @@ python3 - "$OUTPUT" <<'PYEOF'
 import json, sys
 d = json.loads(sys.argv[1])
 assert isinstance(d, dict), f'Expected a JSON object, got {d}'
-assert d.get('decision') == 'allow', f'Expected decision=allow, got {d}'
 print('PASS: SessionEnd returns valid JSON')
 PYEOF
 
@@ -39,7 +38,6 @@ python3 - "$OUTPUT2" <<'PYEOF'
 import json, sys
 d = json.loads(sys.argv[1])
 assert isinstance(d, dict), f'Expected a JSON object, got {d}'
-assert d.get('decision') == 'allow', f'Expected decision=allow, got {d}'
 print('PASS: SessionEnd handles missing state dir gracefully')
 PYEOF
 
@@ -50,7 +48,6 @@ python3 - "$OUTPUT3" <<'PYEOF'
 import json, sys
 d = json.loads(sys.argv[1])
 assert isinstance(d, dict), f'Expected a JSON object, got {d}'
-assert d.get('decision') == 'allow', f'Expected decision=allow, got {d}'
 print('PASS: SessionEnd rejects invalid session_id safely')
 PYEOF
 

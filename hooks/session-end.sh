@@ -16,7 +16,7 @@ main() {
   fi
 
   log_hook "INFO" "SessionEnd: Session ended [session=$SESSION_ID]"
-  respond_allow
+  echo '{}'
 }
 
 safe_main main

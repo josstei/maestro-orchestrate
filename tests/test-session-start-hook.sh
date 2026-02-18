@@ -17,8 +17,7 @@ python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: SessionStart hook output invalid"
 import json, sys
 output = json.loads(sys.argv[1])
 assert isinstance(output, dict), "Output must be a JSON object"
-assert output.get('decision') == 'allow', f"Expected decision=allow, got: {output}"
-print("PASS: SessionStart hook returns valid JSON with decision=allow")
+print("PASS: SessionStart hook returns valid JSON")
 PYEOF
 
 echo "Test 2: Session state directory created"
@@ -40,8 +39,7 @@ python3 - "$OUTPUT_RESUME" <<'PYEOF' || { echo "FAIL: SessionStart resume output
 import json, sys
 output = json.loads(sys.argv[1])
 assert isinstance(output, dict), "Output must be a JSON object"
-assert output.get('decision') == 'allow', f"Expected decision=allow, got: {output}"
-print("PASS: SessionStart hook fires on source=resume with decision=allow")
+print("PASS: SessionStart hook fires on source=resume with valid JSON")
 PYEOF
 
 echo "Test 4: Session state directory created for resume source"
@@ -63,8 +61,7 @@ python3 - "$OUTPUT_CLEAR" <<'PYEOF' || { echo "FAIL: SessionStart clear output i
 import json, sys
 output = json.loads(sys.argv[1])
 assert isinstance(output, dict), "Output must be a JSON object"
-assert output.get('decision') == 'allow', f"Expected decision=allow, got: {output}"
-print("PASS: SessionStart hook fires on source=clear with decision=allow")
+print("PASS: SessionStart hook fires on source=clear with valid JSON")
 PYEOF
 
 echo "Test 6: Session state directory created for clear source"
@@ -88,9 +85,9 @@ startup = json.loads(sys.argv[1])
 resume  = json.loads(sys.argv[2])
 clear   = json.loads(sys.argv[3])
 for label, output in [("startup", startup), ("resume", resume), ("clear", clear)]:
-    assert output.get('decision') == 'allow', f"Missing decision=allow in {label} output"
+    assert isinstance(output, dict), f"Output must be a JSON object for {label}"
 assert startup == resume == clear, f"Outputs differ: startup={startup} resume={resume} clear={clear}"
-print("PASS: All three sources (startup, resume, clear) produce identical decision=allow output")
+print("PASS: All three sources (startup, resume, clear) produce identical empty JSON output")
 PYEOF
 
 rm -rf "$STATE_DIR/test-start-cmp-startup" "$STATE_DIR/test-start-cmp-resume" "$STATE_DIR/test-start-cmp-clear"

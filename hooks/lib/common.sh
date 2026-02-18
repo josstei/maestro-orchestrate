@@ -61,11 +61,13 @@ PYEOF
 
 respond_with_context() {
   local context="$1"
-  python3 - "$context" <<'PYEOF'
+  local hook_event="${2:-BeforeAgent}"
+  python3 - "$context" "$hook_event" <<'PYEOF'
 import sys, json
 print(json.dumps({
     "decision": "allow",
     "hookSpecificOutput": {
+        "hookEventName": sys.argv[2],
         "additionalContext": sys.argv[1]
     }
 }))

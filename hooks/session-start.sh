@@ -20,7 +20,7 @@ main() {
     mkdir -p "$STATE_DIR/$SESSION_ID"
   fi
 
-  respond_allow
+  echo '{}'
 }
 
 safe_main main
