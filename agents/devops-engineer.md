@@ -15,6 +15,7 @@ tools:
   - write_todos
   - read_many_files
   - web_fetch
+  - ask_user
 temperature: 0.2
 max_turns: 20
 timeout_mins: 8
