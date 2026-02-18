@@ -56,7 +56,8 @@
     "glob",
     "grep_search",
     "write_file",
-    "replace"
+    "replace",
+    "run_shell_command"
   ],
   "security-engineer": [
     "read_file",

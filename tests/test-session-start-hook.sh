@@ -13,9 +13,9 @@ INPUT='{"session_id":"test-start-001","transcript_path":"/tmp/transcript","cwd":
 
 OUTPUT=$(echo "$INPUT" | bash "$HOOK" 2>/dev/null)
 
-python3 - <<PYEOF || { echo "FAIL: SessionStart hook output invalid"; exit 1; }
-import json
-output = json.loads('''${OUTPUT//\'/\\\'}''')
+python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: SessionStart hook output invalid"; exit 1; }
+import json, sys
+output = json.loads(sys.argv[1])
 assert isinstance(output, dict), "Output must be a JSON object"
 print("PASS: SessionStart hook returns valid JSON")
 PYEOF

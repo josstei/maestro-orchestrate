@@ -6,15 +6,8 @@ source "$HOOK_DIR/lib/common.sh"
 
 INPUT=$(read_stdin)
 SESSION_ID=$(json_get "$INPUT" "session_id")
-
-AGENT_NAME="${MAESTRO_CURRENT_AGENT:-}"
-
-if [ -n "$AGENT_NAME" ]; then
-  set_active_agent "$SESSION_ID" "$AGENT_NAME"
-  log_hook "INFO" "BeforeAgent: Tracking agent '$AGENT_NAME' [session=$SESSION_ID]"
-fi
-
 CWD=$(json_get "$INPUT" "cwd")
+
 SESSION_STATE="$CWD/.gemini/state/active-session.md"
 CONTEXT_PARTS=""
 

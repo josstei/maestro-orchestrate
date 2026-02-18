@@ -133,14 +133,28 @@ load_permissions() {
   fi
 }
 
+is_known_agent() {
+  local agent_name="$1"
+  local perms_file="$MAESTRO_HOOKS_DIR/permissions.json"
+  if [ ! -f "$perms_file" ]; then
+    return 1
+  fi
+  python3 - "$perms_file" "$agent_name" <<'PYEOF' 2>/dev/null
+import sys, json
+with open(sys.argv[1]) as f:
+    perms = json.load(f)
+sys.exit(0 if sys.argv[2] in perms else 1)
+PYEOF
+}
+
 get_agent_tools() {
   local permissions="$1"
   local agent_name="$2"
-  python3 - "$permissions" "$agent_name" <<'PYEOF' 2>/dev/null || echo ""
+  python3 - "$permissions" "$agent_name" <<'PYEOF' 2>/dev/null || echo "[]"
 import sys, json
 perms = json.loads(sys.argv[1])
 tools = perms.get(sys.argv[2], [])
-print(' '.join(tools))
+print(json.dumps(tools))
 PYEOF
 }
 

@@ -81,6 +81,28 @@ decision = d.get('decision', '')
 assert decision in ('block', 'deny'), f'Expected block/deny from state file, got {decision}'
 print('PASS: State file fallback works')
 PYEOF
+
+echo "Test 7: Subagent invocation auto-detected — sets active agent"
+unset MAESTRO_CURRENT_AGENT 2>/dev/null || true
+rm -rf /tmp/maestro-hooks/test-456
+INPUT_AGENT_TOOL='{"session_id":"test-456","transcript_path":"/tmp/t","cwd":"/tmp","hook_event_name":"BeforeTool","timestamp":"2026-02-17T00:00:00Z","tool_name":"coder","tool_input":{}}'
+OUTPUT=$(echo "$INPUT_AGENT_TOOL" | bash "$TOOL_HOOK" 2>/dev/null)
+python3 - "$OUTPUT" <<'PYEOF'
+import json, sys
+d = json.loads(sys.argv[1])
+decision = d.get('decision', 'allow')
+assert decision == 'allow', f'Expected allow for subagent invocation, got {decision}'
+print('PASS: Subagent invocation allowed')
+PYEOF
+
+TRACKED=$(cat /tmp/maestro-hooks/test-456/active-agent 2>/dev/null || echo "")
+if [ "$TRACKED" = "coder" ]; then
+  echo "PASS: Active agent auto-set to 'coder'"
+else
+  echo "FAIL: Expected 'coder' in active-agent, got '$TRACKED'"
+  exit 1
+fi
+
 rm -rf /tmp/maestro-hooks/test-456
 
 unset MAESTRO_CURRENT_AGENT 2>/dev/null || true

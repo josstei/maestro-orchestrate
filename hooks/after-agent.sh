@@ -6,13 +6,15 @@ source "$HOOK_DIR/lib/common.sh"
 
 INPUT=$(read_stdin)
 SESSION_ID=$(json_get "$INPUT" "session_id")
+STOP_HOOK_ACTIVE=$(json_get "$INPUT" "stop_hook_active")
 
 AGENT_NAME="${MAESTRO_CURRENT_AGENT:-}"
 if [ -z "$AGENT_NAME" ]; then
   AGENT_NAME=$(get_active_agent "$SESSION_ID")
 fi
 
-if [ -n "$AGENT_NAME" ]; then
+STOP_HOOK_LOWER=$(echo "$STOP_HOOK_ACTIVE" | tr '[:upper:]' '[:lower:]')
+if [ -n "$AGENT_NAME" ] && [ "$STOP_HOOK_LOWER" != "true" ]; then
   TMPFILE=$(mktemp)
   echo "$INPUT" > "$TMPFILE"
   VALIDATION=$(python3 - "$TMPFILE" <<'PYEOF' 2>/dev/null || echo "OK"
@@ -41,7 +43,13 @@ PYEOF
   rm -f "$TMPFILE"
 
   if [[ "$VALIDATION" == WARN:* ]]; then
-    log_hook "WARN" "AfterAgent [$AGENT_NAME]: $VALIDATION"
+    REASON="${VALIDATION#WARN: }"
+    log_hook "WARN" "AfterAgent [$AGENT_NAME]: $VALIDATION — requesting retry"
+    python3 - "$REASON" <<'PYEOF'
+import sys, json
+print(json.dumps({"decision": "deny", "reason": "Handoff report validation failed: " + sys.argv[1] + ". Please include both a Task Report section and a Downstream Context section in your response."}))
+PYEOF
+    exit 0
   else
     log_hook "INFO" "AfterAgent [$AGENT_NAME]: Handoff report validated"
   fi

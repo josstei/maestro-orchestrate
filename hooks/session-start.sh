@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "{}"' EXIT
 
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$HOOK_DIR/lib/common.sh"
@@ -24,4 +25,5 @@ if validate_session_id "$SESSION_ID" 2>/dev/null; then
   mkdir -p "$STATE_DIR/$SESSION_ID"
 fi
 
-echo '{"systemMessage":"Maestro hooks initialized"}'
+trap - EXIT
+respond_allow "Maestro hooks initialized"

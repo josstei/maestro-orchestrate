@@ -301,7 +301,7 @@ graph TB
     TL -->|Phase 3| EX[Execution]
     TL -->|Phase 4| CO[Completion]
 
-    EX -->|Sequential| DA[delegate_to_agent]
+    EX -->|Sequential| DA[Subagent Tools]
     EX -->|Parallel| PD[parallel-dispatch.sh]
 
     DA --> Agents
@@ -322,7 +322,7 @@ graph TB
 
 ### Component Model
 
-Maestro is built from seven layers, each with a distinct responsibility:
+Maestro is built from eight layers, each with a distinct responsibility:
 
 | Layer | Directory | Format | Purpose |
 |-------|-----------|--------|---------|
@@ -332,6 +332,7 @@ Maestro is built from seven layers, each with a distinct responsibility:
 | **Skills** | `skills/` | Markdown (`SKILL.md` per directory) | Reusable methodology modules activated on demand |
 | **Protocols** | `protocols/` | Markdown | Shared behavioral contracts injected into delegation prompts |
 | **Scripts** | `scripts/` | Shell | Execution infrastructure (parallel dispatch) |
+| **Hooks** | `hooks/` | JSON + Shell | Lifecycle middleware for tool enforcement, agent tracking, session init |
 | **Templates** | `templates/` | Markdown | Structure templates for generated artifacts (designs, plans, sessions) |
 
 ### Workflow Phases
@@ -384,7 +385,7 @@ Maestro coordinates 12 specialized subagents:
 | debugger | Root cause analysis, log analysis, execution tracing | read, glob, search, shell | inherit |
 | devops-engineer | CI/CD pipelines, containerization, infrastructure | read, glob, search, write, replace, shell | inherit |
 | performance-engineer | Profiling, bottleneck identification, optimization | read, glob, search, shell | inherit |
-| refactor | Code modernization, technical debt, design patterns | read, glob, search, write, replace | inherit |
+| refactor | Code modernization, technical debt, design patterns | read, glob, search, write, replace, shell | inherit |
 | security-engineer | Vulnerability assessment, OWASP, threat modeling | read, glob, search, shell | inherit |
 | tester | Unit/integration/E2E tests, TDD, coverage analysis | read, glob, search, write, replace, shell | inherit |
 | technical-writer | API docs, READMEs, architecture documentation | read, glob, search, write, replace | inherit |
@@ -393,7 +394,8 @@ Maestro coordinates 12 specialized subagents:
 
 - **Read-only agents** (architect, api-designer, code-reviewer): Produce analysis and recommendations
 - **Read + Shell agents** (debugger, performance-engineer, security-engineer): Investigate without modifying files
-- **Read + Write agents** (refactor, technical-writer): Modify code/docs without shell access
+- **Read + Write + Shell agents** (refactor): Modify code with validation capability
+- **Read + Write agents** (technical-writer): Modify docs without shell access
 - **Full access agents** (coder, data-engineer, devops-engineer, tester): Complete implementation capabilities
 
 ## Skills
@@ -416,7 +418,7 @@ Maestro 1.1.0 introduces shell-based parallel dispatch, enabling independent imp
 
 ### How It Works
 
-The TechLead orchestrator uses `scripts/parallel-dispatch.sh` to spawn concurrent Gemini CLI processes that execute independently. This bypasses the sequential `delegate_to_agent` tool scheduler, which processes one tool call at a time.
+The TechLead orchestrator uses `scripts/parallel-dispatch.sh` to spawn concurrent Gemini CLI processes that execute independently. This bypasses the sequential subagent tool invocation pattern, which processes one delegation at a time.
 
 **Dispatch flow:**
 1. The orchestrator writes self-contained delegation prompts to a dispatch directory
@@ -428,7 +430,7 @@ The TechLead orchestrator uses `scripts/parallel-dispatch.sh` to spawn concurren
 
 ### When to Use Each Mode
 
-| Use Parallel Dispatch | Use Sequential `delegate_to_agent` |
+| Use Parallel Dispatch | Use Sequential Delegation |
 |---|---|
 | Phases at the same dependency depth | Phases with shared file dependencies |
 | Non-overlapping file ownership | Phases that may need interactive clarification |

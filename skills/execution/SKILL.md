@@ -52,7 +52,7 @@ For phases with dependencies (`blocked_by` is non-empty):
 
 ### Parallel Execution
 
-For phases at the same dependency depth with no file overlap, use shell-based parallel dispatch via `scripts/parallel-dispatch.sh`. This spawns independent `gemini` CLI processes that execute concurrently, bypassing the sequential `delegate_to_agent` tool scheduler.
+For phases at the same dependency depth with no file overlap, use shell-based parallel dispatch via `scripts/parallel-dispatch.sh`. This spawns independent `gemini` CLI processes that execute concurrently, bypassing the sequential subagent tool invocation pattern.
 
 #### Parallel Dispatch Protocol
 
@@ -86,7 +86,7 @@ For phases at the same dependency depth with no file overlap, use shell-based pa
 
 #### Fallback to Sequential
 
-If parallel dispatch fails (script not found, `gemini` CLI not available in PATH, or all agents fail), fall back to sequential execution via `delegate_to_agent` and record the fallback in session state.
+If parallel dispatch fails (script not found, `gemini` CLI not available in PATH, or all agents fail), fall back to sequential execution via direct subagent tool invocation and record the fallback in session state.
 
 ### Progress Context
 

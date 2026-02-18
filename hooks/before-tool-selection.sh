@@ -19,16 +19,16 @@ if [ -z "$AGENT_NAME" ]; then
 fi
 
 PERMISSIONS=$(load_permissions)
-TOOLS=$(get_agent_tools "$PERMISSIONS" "$AGENT_NAME")
+TOOLS_JSON=$(get_agent_tools "$PERMISSIONS" "$AGENT_NAME")
 
-if [ -z "$TOOLS" ]; then
+if [ "$TOOLS_JSON" = "[]" ] || [ -z "$TOOLS_JSON" ]; then
   echo '{}'
   exit 0
 fi
 
-python3 - "$TOOLS" <<'PYEOF'
+python3 - "$TOOLS_JSON" <<'PYEOF'
 import sys, json
-tools = sys.argv[1].split()
+tools = json.loads(sys.argv[1])
 result = {
     "hookSpecificOutput": {
         "hookEventName": "BeforeToolSelection",

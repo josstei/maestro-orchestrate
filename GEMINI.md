@@ -78,12 +78,12 @@ Your implementation plan has [N] phases ([M] parallelizable).
 - Requires trust in the delegation prompts and tool restriction enforcement
 - Best for: well-defined tasks with clear file ownership boundaries
 
-**Option 2: Sequential Delegation (safer)**
-- Each phase executes one at a time via `delegate_to_agent`
-- Standard tool approval rules apply — you confirm sensitive operations
-- You can intervene between phases if results are unexpected
-- Slower but gives you full visibility and control
-- Best for: exploratory tasks, unfamiliar codebases, security-sensitive work
+**Option 2: Sequential Delegation (more controlled)**
+- Each phase executes one at a time via direct subagent tool invocation
+- Subagents still run in autonomous mode (YOLO) — tool calls are auto-approved
+- You can review results and intervene between phases
+- Slower but gives you inter-phase visibility and control
+- Best for: exploratory tasks, unfamiliar codebases, sequential dependencies
 
 Which mode would you like to use?
 
@@ -93,7 +93,7 @@ Record the user's choice in session state as `execution_mode`. When `MAESTRO_EXE
 
 ### Parallel Dispatch Details
 
-Parallel execution uses `scripts/parallel-dispatch.sh` to spawn independent `gemini` CLI processes that run concurrently. This bypasses the sequential `delegate_to_agent` tool scheduler.
+Parallel execution uses `scripts/parallel-dispatch.sh` to spawn independent `gemini` CLI processes that run concurrently. This bypasses the sequential subagent tool invocation pattern.
 
 **How it works:**
 1. The orchestrator writes delegation prompts to `<state_dir>/parallel/<batch-id>/prompts/`
@@ -108,7 +108,7 @@ Parallel execution uses `scripts/parallel-dispatch.sh` to spawn independent `gem
 - Phases that are fully self-contained (no follow-up questions needed)
 - Batch size of 2-4 agents (avoid overwhelming the system)
 
-**When to use sequential `delegate_to_agent`:**
+**When to use sequential delegation:**
 - Phases with shared file dependencies
 - Phases that may need interactive clarification
 - Single-phase execution (no benefit from parallelism)
@@ -164,7 +164,7 @@ Use the path from `MAESTRO_STATE_DIR` (default: `.gemini`) as the base directory
 | debugger | Bug investigation | Read + shell | inherit |
 | devops-engineer | CI/CD, infrastructure | Full access | inherit |
 | performance-engineer | Performance analysis | Read + shell | inherit |
-| refactor | Code restructuring | Read + write | inherit |
+| refactor | Code restructuring | Read + write + shell | inherit |
 | security-engineer | Security assessment | Read + shell | inherit |
 | technical-writer | Documentation | Read + write | inherit |
 | tester | Test creation, TDD | Full access | inherit |
@@ -177,8 +177,10 @@ Maestro v1.2 uses Gemini CLI's hooks system for lifecycle middleware. Hooks are 
 |------|---------|-------------------|
 | SessionStart | Generate permissions manifest, initialize state, clean stale sessions | Setup |
 | BeforeToolSelection | Suggest available tools for active agent (UX optimization) | Advisory |
-| BeforeTool | Block unauthorized tool calls per agent permissions | **Primary gate** |
-| BeforeAgent | Track active agent identity, inject session context | Tracking |
-| AfterAgent | Validate handoff report format, clear agent tracking | Validation |
+| BeforeTool | Block unauthorized tool calls per agent permissions; auto-detect subagent invocations and set active agent | **Primary gate** |
+| BeforeAgent | Inject session context into agent turns | Context |
+| AfterAgent | Validate handoff report format, auto-retry on malformed output | Validation |
+| AfterTool | Clear active agent tracking when subagent tool call completes | Cleanup |
+| SessionEnd | Clean up temporary state files | Cleanup |
 
-Tool permission enforcement uses a two-layer approach: `BeforeTool` is the primary security gate (OR-decision: any block wins), while `BeforeToolSelection` is a UX hint (union aggregation: can only add tools). Agent identity for permission lookup comes from `MAESTRO_CURRENT_AGENT` env var (parallel dispatch) or state file (sequential delegation).
+Tool permission enforcement uses a two-layer approach: `BeforeTool` is the primary security gate (OR-decision: any block wins), while `BeforeToolSelection` is a UX hint (union aggregation: can only add tools). Agent identity for permission lookup is managed automatically by hooks — `BeforeTool` detects subagent invocations and sets the active agent, `AfterTool` clears it when the subagent returns.

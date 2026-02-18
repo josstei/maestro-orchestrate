@@ -8,6 +8,13 @@ INPUT=$(read_stdin)
 SESSION_ID=$(json_get "$INPUT" "session_id")
 TOOL_NAME=$(json_get "$INPUT" "tool_name")
 
+if is_known_agent "$TOOL_NAME"; then
+  set_active_agent "$SESSION_ID" "$TOOL_NAME"
+  log_hook "INFO" "BeforeTool: Detected subagent invocation '$TOOL_NAME' — setting active agent [session=$SESSION_ID]"
+  respond_allow
+  exit 0
+fi
+
 AGENT_NAME="${MAESTRO_CURRENT_AGENT:-}"
 
 if [ -z "$AGENT_NAME" ]; then
