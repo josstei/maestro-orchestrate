@@ -15,20 +15,20 @@ read_stdin() {
 json_get() {
   local json="$1"
   local key="$2"
-  echo "$json" | python3 - "$key" <<'PYEOF' 2>/dev/null || echo ""
+  python3 - "$json" "$key" <<'PYEOF' 2>/dev/null || echo ""
 import sys, json
-d = json.load(sys.stdin)
-print(d.get(sys.argv[1], ''))
+d = json.loads(sys.argv[1])
+print(d.get(sys.argv[2], ''))
 PYEOF
 }
 
 json_get_nested() {
   local json="$1"
   shift
-  echo "$json" | python3 - "$@" <<'PYEOF' 2>/dev/null || echo ""
+  python3 - "$json" "$@" <<'PYEOF' 2>/dev/null || echo ""
 import sys, json
-d = json.load(sys.stdin)
-for k in sys.argv[1:]:
+d = json.loads(sys.argv[1])
+for k in sys.argv[2:]:
     if isinstance(d, dict):
         d = d.get(k, '')
     else:
@@ -136,10 +136,10 @@ load_permissions() {
 get_agent_tools() {
   local permissions="$1"
   local agent_name="$2"
-  echo "$permissions" | python3 - "$agent_name" <<'PYEOF' 2>/dev/null || echo ""
+  python3 - "$permissions" "$agent_name" <<'PYEOF' 2>/dev/null || echo ""
 import sys, json
-perms = json.load(sys.stdin)
-tools = perms.get(sys.argv[1], [])
+perms = json.loads(sys.argv[1])
+tools = perms.get(sys.argv[2], [])
 print(' '.join(tools))
 PYEOF
 }
@@ -148,11 +148,11 @@ is_tool_allowed() {
   local permissions="$1"
   local agent_name="$2"
   local tool_name="$3"
-  echo "$permissions" | python3 - "$agent_name" "$tool_name" <<'PYEOF' 2>/dev/null || echo "blocked"
+  python3 - "$permissions" "$agent_name" "$tool_name" <<'PYEOF' 2>/dev/null || echo "blocked"
 import sys, json
-perms = json.load(sys.stdin)
-agent_name = sys.argv[1]
-tool_name = sys.argv[2]
+perms = json.loads(sys.argv[1])
+agent_name = sys.argv[2]
+tool_name = sys.argv[3]
 agent_tools = perms.get(agent_name, None)
 if agent_tools is None:
     print('unknown_agent')
