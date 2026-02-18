@@ -76,7 +76,7 @@ timeout_mins: 10
 
 ### Agent Loading Mechanism
 
-The TechLead orchestrator (GEMINI.md) references agent definitions dynamically during delegation. The Gemini CLI loads agent definitions by:
+All agent definitions in `agents/` are registered as callable tools at extension load time by the Gemini CLI's `AgentRegistry.loadAgents()`. The CLI processes each agent by:
 
 1. Reading the YAML frontmatter to extract configuration
 2. Parsing the Markdown body as the agent's system prompt
@@ -504,7 +504,7 @@ Parallel delegation uses `scripts/parallel-dispatch.sh` to execute independent p
 1. Writes complete prompt files to `<state_dir>/parallel/<batch-id>/prompts/<agent-name>.txt`
 2. Invokes `./scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>`
 3. Waits for all agents in batch to complete
-4. Collects results from `<state_dir>/parallel/<batch-id>/results/<agent-name>.md`
+4. Collects results from `<state_dir>/parallel/<batch-id>/results/<agent-name>.json`
 
 #### Prompt File Requirements
 

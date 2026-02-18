@@ -579,8 +579,8 @@ All orchestration progress persists in `.gemini/state/active-session.md` with YA
 
 - `session_id`: Unique identifier
 - `task`: User's original task description
-- `design_doc`: Path to design document
-- `impl_plan`: Path to implementation plan
+- `design_document`: Path to design document
+- `implementation_plan`: Path to implementation plan
 - `current_phase`: Current phase number (1-4)
 - `execution_mode`: `parallel` or `sequential`
 - `phases`: Array of phase objects with `id`, `name`, `agent`, `status`, `files_created`, `files_modified`, `retry_count`, `errors`

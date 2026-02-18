@@ -7,14 +7,12 @@
     {
       "name": "Default Model",
       "description": "Override the model for parallel-dispatched agents (e.g., gemini-2.5-pro). Sequential subagent delegation inherits the main session model.",
-      "envVar": "MAESTRO_DEFAULT_MODEL",
-      "sensitive": false
+      "envVar": "MAESTRO_DEFAULT_MODEL"
     },
     {
       "name": "Writer Model",
       "description": "Override the model for the technical-writer agent in parallel dispatch only.",
-      "envVar": "MAESTRO_WRITER_MODEL",
-      "sensitive": false
+      "envVar": "MAESTRO_WRITER_MODEL"
     }
   ]
 }
