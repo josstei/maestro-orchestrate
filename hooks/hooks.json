@@ -1,0 +1,69 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${extensionPath}/hooks/session-start.sh",
+            "name": "maestro-session-start",
+            "description": "Initialize Maestro workspace and generate permissions manifest",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "BeforeToolSelection": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${extensionPath}/hooks/before-tool-selection.sh",
+            "name": "maestro-tool-selection",
+            "description": "UX optimization: suggest available tools based on active agent (NOT a security boundary)",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${extensionPath}/hooks/before-tool.sh",
+            "name": "maestro-before-tool",
+            "description": "PRIMARY enforcement: blocks unauthorized tool calls per agent permissions",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${extensionPath}/hooks/before-agent.sh",
+            "name": "maestro-before-agent",
+            "description": "Track active agent and inject dynamic context",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${extensionPath}/hooks/after-agent.sh",
+            "name": "maestro-after-agent",
+            "description": "Validate handoff report and clear active agent tracking",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
