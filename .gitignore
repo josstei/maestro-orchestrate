@@ -40,3 +40,5 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+hooks/permissions.json
