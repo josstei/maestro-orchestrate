@@ -148,7 +148,7 @@ is_tool_allowed() {
   local permissions="$1"
   local agent_name="$2"
   local tool_name="$3"
-  echo "$permissions" | python3 - "$agent_name" "$tool_name" <<'PYEOF' 2>/dev/null || echo "allowed"
+  echo "$permissions" | python3 - "$agent_name" "$tool_name" <<'PYEOF' 2>/dev/null || echo "blocked"
 import sys, json
 perms = json.load(sys.stdin)
 agent_name = sys.argv[1]
