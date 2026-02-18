@@ -55,17 +55,25 @@ Ask questions in this order to progressively narrow the design space:
 
 Use `ask_user` with `type: 'choice'` for structured selections:
 
-```
-ask_user(
-  question: "[Topic Area]: [Clear, specific question]",
-  type: "choice",
-  choices: [
-    "[Option A] (Recommended) — [Why this is recommended, key benefits]",
-    "[Option B] — [When this makes sense, trade-offs]",
-    "[Option C] — [When this makes sense, trade-offs]"
+```json
+{
+  "questions": [
+    {
+      "header": "[Short Label]",
+      "question": "[Topic Area]: [Clear, specific question]",
+      "type": "choice",
+      "options": [
+        { "label": "[Option A]", "description": "(Recommended) [Why this is recommended, key benefits]" },
+        { "label": "[Option B]", "description": "[When this makes sense, trade-offs]" },
+        { "label": "[Option C]", "description": "[When this makes sense, trade-offs]" }
+      ]
+    }
   ]
-)
+}
 ```
+
+- `header`: Short label (max 16 chars) displayed as a chip/tag (e.g., "Database", "Auth Method")
+- `options`: 2-4 items, each with `label` (1-5 words) and `description`
 
 Include your recommendation rationale in the question text so the user has context before choosing.
 
@@ -124,11 +132,16 @@ Present the design document in sections, validating each before proceeding. Each
 
 After each section, use `ask_user` with `type: 'yesno'` for approval:
 
-```
-ask_user(
-  question: "Does this section accurately capture our discussion? Any changes needed before I proceed to [next section name]?",
-  type: "yesno"
-)
+```json
+{
+  "questions": [
+    {
+      "header": "Approve",
+      "question": "Does this section accurately capture our discussion? Any changes needed before I proceed to [next section name]?",
+      "type": "yesno"
+    }
+  ]
+}
 ```
 
 ### Revision Protocol
