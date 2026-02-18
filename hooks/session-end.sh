@@ -15,7 +15,8 @@ main() {
     fi
   fi
 
-  echo '{"systemMessage": "Maestro session ended — workspace state cleaned up"}'
+  log_hook "INFO" "SessionEnd: Session ended [session=$SESSION_ID]"
+  respond_allow
 }
 
 safe_main main

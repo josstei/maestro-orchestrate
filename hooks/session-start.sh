@@ -20,7 +20,7 @@ main() {
     mkdir -p "$STATE_DIR/$SESSION_ID"
   fi
 
-  echo '{"systemMessage": "Maestro hooks initialized"}'
+  respond_allow
 }
 
 safe_main main
