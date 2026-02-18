@@ -5,6 +5,40 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-18
+
+### Added
+
+- **Hooks-based lifecycle middleware** — 5 hook handlers for SessionStart, BeforeToolSelection, BeforeTool, BeforeAgent, AfterAgent
+- **Tool permission enforcement** — BeforeTool blocks unauthorized tool calls (primary gate); BeforeToolSelection suggests available tools (UX optimization)
+- **Dynamic model routing** — All agents switched to `model: auto` for per-turn model selection
+- **Agent tracking** — BeforeAgent/AfterAgent track active agent for permission enforcement in parallel dispatch
+- **Handoff report validation** — AfterAgent validates agent output includes Task Report and Downstream Context
+- **Permissions manifest** — `hooks/generate-permissions.sh` compiles agent frontmatter into permissions.json (stdlib only, no pyyaml)
+- **Integration test suite** — `tests/run-all.sh` with tests for permissions, hooks, and tool enforcement
+- **macOS timeout fallback** — Cancel-file-based watchdog with SIGTERM/SIGKILL for systems without GNU `timeout`
+
+### Changed
+
+- All agents: hardcoded models to `model: auto`
+- All agents: `search_file_content` to `grep_search` (canonical tool name)
+- All agents: unified Handoff Report output contract
+- `parallel-dispatch.sh`: sets `MAESTRO_CURRENT_AGENT` per spawned process
+- `GEMINI.md`: updated agent roster, settings, and hooks documentation
+- `delegation` skill: documents hooks-based enforcement as primary, prompt-based as defense-in-depth
+
+### Fixed
+
+- Tool permission enforcement is now middleware-based (hooks) instead of prompt-only
+- macOS timeout support in parallel dispatch
+- README local development link command (`gemini extensions link .`)
+- Inconsistent agent output contracts unified
+- `validate-agent-permissions.sh` updated for grep_search
+
+### Deferred
+
+- Per-agent thinking level injection — `thinkingConfig` not supported by Gemini CLI hooks translator. Deferred to SDK migration or upstream fix.
+
 ## [1.1.1] - 2026-02-15
 
 ### Fixed
