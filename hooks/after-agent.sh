@@ -45,10 +45,8 @@ PYEOF
         log_hook "WARN" "AfterAgent [$AGENT_NAME]: Retry still malformed: $REASON — allowing to prevent infinite loop"
       else
         log_hook "WARN" "AfterAgent [$AGENT_NAME]: $VALIDATION — requesting retry"
-        python3 - "$REASON" <<'PYEOF'
-import sys, json
-print(json.dumps({"decision": "deny", "reason": "Handoff report validation failed: " + sys.argv[1] + ". Please include both a ## Task Report section and a ## Downstream Context section in your response."}))
-PYEOF
+        clear_active_agent "$SESSION_ID"
+        respond_block "Handoff report validation failed: $REASON. Please include both a ## Task Report section and a ## Downstream Context section in your response."
         return 0
       fi
     else
