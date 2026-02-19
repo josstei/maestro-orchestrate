@@ -72,7 +72,7 @@ Use `ask_user` with `type: 'choice'` for structured selections:
 }
 ```
 
-- `header`: Short label (max 16 chars) displayed as a chip/tag (e.g., "Database", "Auth Method")
+- `header`: Short label displayed as a chip/tag. Keep it <= 12 chars for cross-client compatibility (some clients enforce stricter limits than 16). Examples: `Database`, `Auth`, `Runtime`.
 - `options`: 2-4 items, each with `label` (1-5 words) and `description`
 
 Include your recommendation rationale in the question text so the user has context before choosing.
