@@ -63,7 +63,7 @@ echo ""
 
 cd "$TEST_DIR"
 
-MAESTRO_AGENT_TIMEOUT=5 "$SCRIPT_DIR/parallel-dispatch.sh" "$DISPATCH_DIR"
+MAESTRO_AGENT_TIMEOUT=5 node "$SCRIPT_DIR/parallel-dispatch.js" "$DISPATCH_DIR"
 DISPATCH_EXIT=$?
 
 echo ""
