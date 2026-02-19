@@ -122,4 +122,28 @@ else
 fi
 rm -rf "$TEMP_PROJECT_6" "$TEMP_HOME_6"
 
+echo "Test 7: Honors MAESTRO_EXTENSION_PATH for extension .env fallback"
+TEMP_PROJECT_7="$(mktemp -d)"
+TEMP_EXTENSION_7="$(mktemp -d)"
+mkdir -p "$TEMP_EXTENSION_7"
+cat > "$TEMP_EXTENSION_7/.env" <<'ENV'
+MAESTRO_STATE_DIR=.ext-path-state
+ENV
+mkdir -p "$TEMP_PROJECT_7/.ext-path-state/state"
+cat > "$TEMP_PROJECT_7/.ext-path-state/state/active-session.md" <<'STATE'
+---
+session_id: extension-path-state
+status: in_progress
+---
+extension path marker
+STATE
+OUTPUT="$(cd "$TEMP_PROJECT_7" && MAESTRO_EXTENSION_PATH="$TEMP_EXTENSION_7" bash "$SCRIPT")"
+if [[ "$OUTPUT" == *"extension path marker"* ]]; then
+  echo "PASS: MAESTRO_EXTENSION_PATH fallback applied"
+else
+  echo "FAIL: MAESTRO_EXTENSION_PATH fallback not applied"
+  exit 1
+fi
+rm -rf "$TEMP_PROJECT_7" "$TEMP_EXTENSION_7"
+
 echo "=== All read-active-session script tests passed ==="

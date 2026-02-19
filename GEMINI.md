@@ -12,7 +12,12 @@ Before any orchestration command:
 
 1. **Subagent Prerequisite**: Verify `experimental.enableAgents` is `true` in `~/.gemini/settings.json`. If not enabled, inform the user: "Maestro requires experimental subagents to be enabled. Would you like me to add `{ \"experimental\": { \"enableAgents\": true } }` to your `~/.gemini/settings.json`?" Do not proceed until subagents are confirmed enabled.
 
-2. **Settings Resolution**: Read `MAESTRO_*` environment variables and resolve configuration:
+2. **Settings Resolution**: Resolve `MAESTRO_*` settings in this precedence order:
+
+   1. Exported environment variable
+   2. Workspace `.env` (`$PWD/.env`)
+   3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
+   4. Built-in default
 
 | Setting | envVar | Default | Applies To |
 |---------|--------|---------|------------|
@@ -31,7 +36,7 @@ Before any orchestration command:
 | Extra Gemini Args | `MAESTRO_GEMINI_EXTRA_ARGS` | (none) | Forwarded to each parallel-dispatched `gemini` process (prefer Policy Engine flags such as `--policy`) |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Phase 3 dispatch: `parallel`, `sequential`, or `ask` |
 
-When an env var is unset, use the default. Log resolved non-default settings at session start for transparency.
+For script-backed settings, this precedence must match runtime behavior exactly. Log resolved non-default settings at session start for transparency.
 
 3. **Disabled Agent Check**: If `MAESTRO_DISABLED_AGENTS` is set, parse the comma-separated list and exclude those agents from the implementation planning agent selection. If a disabled agent is the only specialist for a required task domain, warn the user and suggest alternatives.
 
@@ -116,10 +121,12 @@ Parallel execution uses `scripts/parallel-dispatch.sh` to spawn independent `gem
 **How it works:**
 1. The orchestrator writes delegation prompts to `<state_dir>/parallel/<batch-id>/prompts/`
 2. Invokes `./scripts/parallel-dispatch.sh <dispatch-dir>` via `run_shell_command`
-3. The script spawns one `gemini --approval-mode=yolo --output-format json [model flags] [extra args] --prompt "<prompt>"` process per prompt file (`MAESTRO_DEFAULT_MODEL` and `MAESTRO_WRITER_MODEL` control model flags; `MAESTRO_GEMINI_EXTRA_ARGS` is appended as extra args)
-4. All agents execute concurrently as independent processes (subject to `MAESTRO_MAX_CONCURRENT` cap)
-5. The script collects results to `<dispatch-dir>/results/` and writes `summary.json`
-6. The orchestrator reads results and updates session state
+3. The script resolves dispatch settings using env → workspace `.env` → extension `.env` precedence (`MAESTRO_DEFAULT_MODEL`, `MAESTRO_WRITER_MODEL`, `MAESTRO_AGENT_TIMEOUT`, `MAESTRO_MAX_CONCURRENT`, `MAESTRO_STAGGER_DELAY`, `MAESTRO_GEMINI_EXTRA_ARGS`)
+4. The script spawns one `gemini --approval-mode=yolo --output-format json [model flags] [extra args] --prompt "<prompt>"` process per prompt file (`MAESTRO_DEFAULT_MODEL` and `MAESTRO_WRITER_MODEL` control model flags; `MAESTRO_GEMINI_EXTRA_ARGS` is appended as extra args)
+5. All agents execute concurrently as independent processes (subject to `MAESTRO_MAX_CONCURRENT` cap)
+6. The script collects results to `<dispatch-dir>/results/` and writes `summary.json`
+7. Each agent's exact exit code is persisted to `<dispatch-dir>/results/<agent>.exit` (timeout is normalized to `124`) and reflected in `summary.json`
+8. The script exits with the number of failed agents; the orchestrator reads results and updates session state
 
 If `MAESTRO_GEMINI_EXTRA_ARGS` includes `--allowed-tools`, the dispatch script emits a deprecation warning; use policy files via `--policy` instead.
 
@@ -155,10 +162,12 @@ When constructing delegation prompts, apply settings overrides in this order:
 
 ## Session State Directory
 
-Use the path from `MAESTRO_STATE_DIR` (default: `.gemini`) as the base directory for:
+Resolve `MAESTRO_STATE_DIR` using env → workspace `.env` → extension `.env` precedence (default: `.gemini`) and use it as the base directory for:
 - Session state: `<state_dir>/state/active-session.md`
 - Plans: `<state_dir>/plans/`
 - Archives: `<state_dir>/state/archive/` and `<state_dir>/plans/archive/`
+
+`/maestro:status` and `/maestro:resume` read session state through `${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/scripts/read-active-session.sh`.
 
 ## Skills Reference
 

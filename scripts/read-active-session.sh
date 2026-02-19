@@ -28,13 +28,14 @@ read_state_dir_from_env_file() {
 resolve_state_dir() {
   local state_dir="${MAESTRO_STATE_DIR:-}"
   local project_root="$1"
+  local extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"
 
   if [[ -z "$state_dir" ]]; then
     state_dir="$(read_state_dir_from_env_file "$project_root/.env" || true)"
   fi
 
   if [[ -z "$state_dir" ]]; then
-    state_dir="$(read_state_dir_from_env_file "$HOME/.gemini/extensions/maestro/.env" || true)"
+    state_dir="$(read_state_dir_from_env_file "$extension_root/.env" || true)"
   fi
 
   if [[ -z "$state_dir" ]]; then

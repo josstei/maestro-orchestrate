@@ -46,6 +46,9 @@ Manual validation is done in Gemini CLI after linking:
 - `scripts/parallel-dispatch.sh`: parallel execution contract
 - `scripts/read-active-session.sh`: session status resolution for status/resume commands
 
+Status/resume command prompts execute:
+- `${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/scripts/read-active-session.sh`
+
 ## Current Maestro Settings
 
 These are the settings surfaced by `gemini-extension.json`:
@@ -71,6 +74,12 @@ Script-only env vars used by `scripts/parallel-dispatch.sh`:
 - `MAESTRO_CLEANUP_DISPATCH=true` removes `<dispatch-dir>/prompts` after completion.
 - `MAESTRO_CURRENT_AGENT` is exported internally for hook correlation.
 
+Runtime settings precedence for script-backed behavior:
+1. Exported env var
+2. Workspace `.env` (`$PWD/.env`)
+3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
+4. Built-in default
+
 ## Parallel Dispatch Contract
 
 `scripts/parallel-dispatch.sh <dispatch-dir>` expects:
@@ -79,12 +88,15 @@ Script-only env vars used by `scripts/parallel-dispatch.sh`:
 For each prompt file it:
 - Validates agent name against `agents/*.md`
 - Prepends a project-root preamble to the prompt
+- Resolves dispatch settings via env → workspace `.env` → extension `.env` precedence
 - Spawns `gemini --approval-mode=yolo --output-format json [model flags] [extra args] --prompt "<prompt>"`
 - Writes:
   - `<dispatch-dir>/results/<agent>.json`
   - `<dispatch-dir>/results/<agent>.exit`
   - `<dispatch-dir>/results/<agent>.log`
   - `<dispatch-dir>/results/summary.json`
+- Preserves each agent's exact non-zero exit code in `<agent>.exit` and `summary.json` (timeouts are normalized to `124`)
+- Exits with the number of failed agents
 
 If `MAESTRO_GEMINI_EXTRA_ARGS` contains `--allowed-tools`, the script emits a deprecation warning and recommends `--policy`.
 
@@ -145,6 +157,8 @@ Skills:
 `bash tests/run-all.sh` covers:
 - Hook scripts (SessionStart, BeforeAgent, AfterAgent, SessionEnd)
 - Parallel dispatch argument forwarding
+- Parallel dispatch config fallback resolution (`.env` precedence)
+- Parallel dispatch exit code propagation (real non-zero codes preserved)
 - Active-session resolution script behavior
 
 Prerequisite for orchestration testing:
