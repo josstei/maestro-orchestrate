@@ -65,6 +65,11 @@
       "envVar": "MAESTRO_STAGGER_DELAY"
     },
     {
+      "name": "Extra Gemini Args",
+      "description": "Space-separated Gemini CLI flags forwarded to each parallel dispatch process (example: --sandbox --policy .gemini/policies/maestro.toml).",
+      "envVar": "MAESTRO_GEMINI_EXTRA_ARGS"
+    },
+    {
       "name": "Execution Mode",
       "description": "Phase 3 dispatch mode: 'parallel' (concurrent agents), 'sequential' (one at a time), or 'ask' (prompt each time). Default: ask.",
       "envVar": "MAESTRO_EXECUTION_MODE"

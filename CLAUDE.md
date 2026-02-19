@@ -1,12 +1,18 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides implementation guidance for working on the Maestro Gemini CLI extension in this repository.
 
 ## Project Overview
 
-Maestro is a **multi-agent orchestration extension for Gemini CLI**. It transforms the Gemini CLI into a team of 12 specialized AI subagents coordinated by a TechLead orchestrator through a structured 4-phase workflow (Design → Plan → Execute → Complete).
+Maestro is a multi-agent orchestration extension for Gemini CLI. It provides:
+- A TechLead orchestrator prompt (`GEMINI.md`)
+- Nine slash commands under `commands/maestro/*.toml`
+- Twelve local agents under `agents/*.md`
+- Seven reusable skills under `skills/*/SKILL.md`
+- Lifecycle hooks under `hooks/`
+- Parallel execution scripts under `scripts/`
 
-This is a **configuration-only project** — no compiled code, no runtime dependencies, no build step. The entire extension is defined through Markdown files (with YAML frontmatter), TOML command definitions, and JSON manifests.
+Maestro itself has no compiled runtime artifact. The extension behavior is driven by Markdown/TOML/JSON plus shell scripts.
 
 ## Development Commands
 
@@ -14,88 +20,135 @@ This is a **configuration-only project** — no compiled code, no runtime depend
 # Link extension for local development
 gemini extensions link .
 
-# Sync version from package.json to gemini-extension.json
+# Sync package version into gemini-extension.json
 npm version <patch|minor|major>
 
-# Test commands (manual, in Gemini CLI after linking)
-/maestro:orchestrate "Build a simple TODO app"
-/maestro:review
-/maestro:status
-```
-
-There is no build or lint step. Hooks integration tests are available:
-
-```bash
-# Run hooks integration tests
+# Run integration tests for hooks + dispatch scripts
 bash tests/run-all.sh
 ```
 
-End-to-end orchestration validation is manual via Gemini CLI.
+Manual validation is done in Gemini CLI after linking:
 
-## Architecture
+```bash
+/maestro:orchestrate "Build a simple TODO app"
+/maestro:status
+/maestro:resume
+/maestro:review
+```
 
-### Extension Entry Point
+## Source of Truth Files
 
-`gemini-extension.json` → points to `GEMINI.md` as the context file (system prompt). When the extension loads, `GEMINI.md` defines the TechLead orchestrator persona and all orchestration logic.
+- `gemini-extension.json`: extension metadata + user-configurable `MAESTRO_*` settings
+- `GEMINI.md`: orchestrator behavior, phase protocol, delegation rules
+- `commands/maestro/*.toml`: slash-command prompts
+- `agents/*.md`: per-agent permissions (`tools:` frontmatter), turns, timeout, temperature
+- `hooks/hooks.json` and `hooks/*.sh`: SessionStart/BeforeAgent/AfterAgent/SessionEnd lifecycle behavior
+- `scripts/parallel-dispatch.sh`: parallel execution contract
+- `scripts/read-active-session.sh`: session status resolution for status/resume commands
 
-### Seven-Layer Component Model
+## Current Maestro Settings
 
-| Layer | Directory | Format | Purpose |
-|-------|-----------|--------|---------|
-| **Orchestrator** | `GEMINI.md` | Markdown | TechLead persona, phase transitions, delegation rules |
-| **Commands** | `commands/` | TOML | CLI command definitions mapping user commands to prompts/skills |
-| **Agents** | `agents/` | Markdown + YAML frontmatter | 12 subagent persona definitions with tool permissions and model config |
-| **Skills** | `skills/` | Markdown (`SKILL.md` per directory) | Reusable methodology modules with embedded protocols |
-| **Scripts** | `scripts/` | Shell | Execution infrastructure (parallel dispatch) |
-| **Hooks** | `hooks/` | JSON + Shell | Lifecycle middleware for agent tracking, model overrides, session init, and handoff validation (tool permissions enforced natively via frontmatter `tools:`) |
-| **Templates** | `templates/` | Markdown | Structure templates for generated artifacts (designs, plans, sessions) |
+These are the settings surfaced by `gemini-extension.json`:
 
-### Agent Tool Access (Least-Privilege)
+| envVar | Purpose |
+|---|---|
+| `MAESTRO_DEFAULT_MODEL` | Model override for parallel-dispatched agents |
+| `MAESTRO_WRITER_MODEL` | Model override for `technical-writer` in parallel dispatch |
+| `MAESTRO_DEFAULT_TEMPERATURE` | Delegation prompt temperature override |
+| `MAESTRO_MAX_TURNS` | Max turns per delegation |
+| `MAESTRO_AGENT_TIMEOUT` | Per-agent timeout (minutes) |
+| `MAESTRO_DISABLED_AGENTS` | Comma-separated excluded agents for planning |
+| `MAESTRO_MAX_RETRIES` | Retry limit before user escalation |
+| `MAESTRO_AUTO_ARCHIVE` | Auto-archive session on successful completion |
+| `MAESTRO_VALIDATION_STRICTNESS` | Validation behavior (`normal`/`strict`) |
+| `MAESTRO_STATE_DIR` | Base path for state and plans (default `.gemini`) |
+| `MAESTRO_MAX_CONCURRENT` | Parallel dispatch concurrency cap (`0` = unlimited) |
+| `MAESTRO_STAGGER_DELAY` | Delay between launching parallel agents (seconds) |
+| `MAESTRO_GEMINI_EXTRA_ARGS` | Extra Gemini CLI flags forwarded per parallel process (prefer `--policy`) |
+| `MAESTRO_EXECUTION_MODE` | Phase 3 mode (`parallel`, `sequential`, `ask`) |
 
-- **Read-only**: architect, api-designer, code-reviewer (analysis only)
-- **Read + Shell**: debugger, performance-engineer, security-engineer (investigation)
-- **Read + Write + Shell**: refactor (modification with validation)
-- **Read + Write**: technical-writer (modification without shell)
-- **Full access**: coder, data-engineer, devops-engineer, tester
+Script-only env vars used by `scripts/parallel-dispatch.sh`:
+- `MAESTRO_CLEANUP_DISPATCH=true` removes `<dispatch-dir>/prompts` after completion.
+- `MAESTRO_CURRENT_AGENT` is exported internally for hook correlation.
 
-### Model Assignment
+## Parallel Dispatch Contract
 
-- All agents omit the `model` field, inheriting the main session's model selection
-- Override via `MAESTRO_DEFAULT_MODEL` or `MAESTRO_WRITER_MODEL` environment variables
+`scripts/parallel-dispatch.sh <dispatch-dir>` expects:
+- `<dispatch-dir>/prompts/*.txt` prompt files named after agents
 
-### Skills System
+For each prompt file it:
+- Validates agent name against `agents/*.md`
+- Prepends a project-root preamble to the prompt
+- Spawns `gemini --approval-mode=yolo --output-format json [model flags] [extra args] --prompt "<prompt>"`
+- Writes:
+  - `<dispatch-dir>/results/<agent>.json`
+  - `<dispatch-dir>/results/<agent>.exit`
+  - `<dispatch-dir>/results/<agent>.log`
+  - `<dispatch-dir>/results/summary.json`
 
-Skills are on-demand methodology modules activated via `activate_skill`. They keep the base context lean:
+If `MAESTRO_GEMINI_EXTRA_ARGS` contains `--allowed-tools`, the script emits a deprecation warning and recommends `--policy`.
 
-- `design-dialogue` — Requirements gathering, architectural proposals
-- `implementation-planning` — Phase decomposition, agent assignment, dependency analysis
-- `execution` — Phase execution protocols, error handling, completion
-- `delegation` — Subagent prompt construction, scope boundaries, parallel dispatch
-- `session-management` — Session CRUD, resume protocol, archival
-- `code-review` — Scope detection, severity classification, structured output
-- `validation` — Build/lint/test pipeline detection and execution
+## Hook Behavior (Current)
 
-### State Management
+Configured in `hooks/hooks.json`:
+- `SessionStart` -> `hooks/session-start.sh`
+- `BeforeAgent` -> `hooks/before-agent.sh`
+- `AfterAgent` -> `hooks/after-agent.sh`
+- `SessionEnd` -> `hooks/session-end.sh`
 
-Session state persists in the target project at `.gemini/state/active-session.md` (YAML frontmatter + Markdown body). Plans live in `.gemini/plans/`. Both have `archive/` subdirectories for completed work.
+Current behavior:
+- `BeforeAgent` tracks active agent (`MAESTRO_CURRENT_AGENT` first, regex fallback), then injects session context from `<state_dir>/state/active-session.md` when available.
+- `AfterAgent` validates delegated-agent handoff format (`## Task Report` + `## Downstream Context`), requests one retry on malformed output, and clears active-agent tracking.
+- Session hooks initialize and clean temporary hook state under `/tmp/maestro-hooks/<session_id>`.
 
-State transitions: `pending` → `in_progress` → `completed`/`failed`/`skipped`
+Tool permissions are enforced by each agent's `tools:` frontmatter, not by hook-time shell gating.
 
-## Key Conventions
+## Agent Capability Map
 
-- **YAML frontmatter** on all agent/skill/template Markdown files defines metadata (name, tools, model, temperature, max_turns, timeout_mins)
-- **TOML** for command definitions (maps CLI commands to prompts with skill/file injection)
-- **File naming**: agents use kebab-case (`api-designer.md`), commands use directory nesting (`commands/maestro/orchestrate.toml`), producing colon-namespaced CLI commands (`/maestro:orchestrate`), plans use date-prefixed slugs (`YYYY-MM-DD-<topic>-design.md`)
-- **Error handling**: automatic retry (max 2) per phase before user escalation
-- **Parallel execution**: implementation plans identify independent phases for concurrent subagent dispatch
+All agents have read/navigation tools (`read_file`, `list_directory`, `glob`, `grep_search`, `read_many_files`) and `ask_user`, then vary by write/shell/web:
 
-## CI/CD
+- Read-only analysis: `code-reviewer`
+- Read + web research: `architect`, `api-designer`
+- Read + shell investigation: `debugger`
+- Read + shell + web: `performance-engineer`, `security-engineer`
+- Read + write (no shell): `refactor`, `technical-writer`
+- Read + write + shell: `coder`, `data-engineer`, `devops-engineer`, `tester`
 
-`.github/workflows/release.yml` triggers on `v*` tag push — extracts changelog section and creates a GitHub Release.
+Additional specialized tools:
+- `activate_skill`: `coder`, `refactor`, `tester`
+- `write_todos`: implementation/investigation-capable agents
 
-## Prerequisite for Testing
+## Commands and Skills
 
-Gemini CLI must have experimental subagents enabled in `~/.gemini/settings.json`:
+Slash commands:
+- `/maestro:orchestrate`
+- `/maestro:execute`
+- `/maestro:resume`
+- `/maestro:status`
+- `/maestro:archive`
+- `/maestro:review`
+- `/maestro:debug`
+- `/maestro:perf-check`
+- `/maestro:security-audit`
+
+Skills:
+- `design-dialogue`
+- `implementation-planning`
+- `execution`
+- `delegation`
+- `session-management`
+- `code-review`
+- `validation`
+
+## Testing Notes
+
+`bash tests/run-all.sh` covers:
+- Hook scripts (SessionStart, BeforeAgent, AfterAgent, SessionEnd)
+- Parallel dispatch argument forwarding
+- Active-session resolution script behavior
+
+Prerequisite for orchestration testing:
+
 ```json
 { "experimental": { "enableAgents": true } }
 ```

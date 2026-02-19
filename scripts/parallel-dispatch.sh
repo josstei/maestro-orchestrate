@@ -36,6 +36,7 @@ Environment:
   MAESTRO_CLEANUP_DISPATCH   Remove prompt files after dispatch (default: false)
   MAESTRO_MAX_CONCURRENT      Max agents running simultaneously (default: 0 = unlimited)
   MAESTRO_STAGGER_DELAY       Seconds between agent launches (default: 5)
+  MAESTRO_GEMINI_EXTRA_ARGS   Space-separated extra Gemini CLI args for each agent (prefer Policy Engine flags, e.g. --policy)
 EOF
   exit 1
 }
@@ -86,6 +87,22 @@ if ! [[ "$STAGGER_DELAY" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+EXTRA_ARGS=()
+if [[ -n "${MAESTRO_GEMINI_EXTRA_ARGS:-}" ]]; then
+  read -r -a EXTRA_ARGS <<< "${MAESTRO_GEMINI_EXTRA_ARGS}"
+fi
+
+DEPRECATED_ALLOWED_TOOLS=false
+for arg in "${EXTRA_ARGS[@]}"; do
+  if [[ "$arg" == "--allowed-tools" ]] || [[ "$arg" == --allowed-tools=* ]]; then
+    DEPRECATED_ALLOWED_TOOLS=true
+    break
+  fi
+done
+if [[ "$DEPRECATED_ALLOWED_TOOLS" == true ]]; then
+  echo "WARNING: --allowed-tools is deprecated in gemini-cli; prefer --policy <path> with the Policy Engine." >&2
+fi
+
 SUPPORTS_WAIT_N=false
 if [[ "${BASH_VERSINFO[0]:-0}" -ge 5 ]] || \
    { [[ "${BASH_VERSINFO[0]:-0}" -eq 4 ]] && [[ "${BASH_VERSINFO[1]:-0}" -ge 3 ]]; }; then
@@ -126,8 +143,8 @@ run_with_timeout() {
   local exit_code=$?
 
   touch "$cancel_file"
-  kill "$watchdog_pid" 2>/dev/null
-  wait "$watchdog_pid" 2>/dev/null
+  kill "$watchdog_pid" 2>/dev/null || true
+  wait "$watchdog_pid" 2>/dev/null || true
   rm -f "$cancel_file"
 
   return "$exit_code"
@@ -147,6 +164,7 @@ echo "Model: ${MAESTRO_DEFAULT_MODEL:-default}"
 [[ -n "${MAESTRO_WRITER_MODEL:-}" ]] && echo "Writer Model: $MAESTRO_WRITER_MODEL"
 echo "Max Concurrent: $CONCURRENT_DISPLAY"
 echo "Stagger Delay: ${STAGGER_DELAY}s"
+[[ ${#EXTRA_ARGS[@]} -gt 0 ]] && echo "Extra Gemini Args: ${MAESTRO_GEMINI_EXTRA_ARGS}"
 echo "Project Root: $PROJECT_ROOT"
 echo ""
 
@@ -210,7 +228,8 @@ ${PROMPT_CONTENT}"
       --approval-mode=yolo \
       --output-format json \
       ${AGENT_MODEL_FLAGS[@]+"${AGENT_MODEL_FLAGS[@]}"} \
-      "$PROMPT_CONTENT" \
+      ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
+      --prompt "$PROMPT_CONTENT" \
       > "$RESULT_JSON" \
       2> "$RESULT_LOG"
     echo $? > "$RESULT_EXIT"

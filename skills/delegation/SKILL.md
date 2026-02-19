@@ -140,7 +140,7 @@ Explicitly state what the agent must NOT do:
 
 ## Parallel Delegation
 
-Parallel delegation uses `scripts/parallel-dispatch.sh` to spawn independent `gemini` CLI processes. Instead of invoking subagent tools sequentially, the orchestrator writes prompt files to disk and invokes the dispatch script.
+Parallel delegation uses `${extensionPath}/scripts/parallel-dispatch.sh` to spawn independent `gemini` CLI processes. Instead of invoking subagent tools sequentially, the orchestrator writes prompt files to disk and invokes the dispatch script.
 
 ### Prompt File Construction
 
@@ -234,10 +234,10 @@ This block reinforces the Agent Base Protocol's File Writing Rule directly in ev
 ### Dispatch Invocation
 
 ```bash
-./scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>
+${extensionPath}/scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>
 ```
 
-The script handles spawning, waiting, timeout enforcement, and result collection. See `scripts/parallel-dispatch.sh` for the full implementation.
+The script handles spawning, waiting, timeout enforcement, and result collection. See `${extensionPath}/scripts/parallel-dispatch.sh` for the full implementation.
 
 ### Non-Overlapping File Ownership
 When delegating to multiple agents in parallel, ensure no two agents are assigned the same file. Each file must have exactly one owner in a parallel batch.

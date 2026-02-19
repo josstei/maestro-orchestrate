@@ -78,7 +78,7 @@ python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: Invalid JSON for context injectio
 import json, sys
 data = json.loads(sys.argv[1])
 hso = data.get('hookSpecificOutput', {})
-assert 'hookEventName' not in hso, f'hookEventName should not be in output, but found: {hso.get("hookEventName")}'
+assert hso.get('hookEventName') == 'BeforeAgent', f'Expected hookEventName=BeforeAgent, got: {hso.get("hookEventName")}'
 assert data.get('decision') == 'allow', f'Expected decision allow, got {data.get("decision")}'
 ctx = hso.get('additionalContext', '')
 assert 'current_phase=phase-2-implementation' in ctx, f'Expected phase info in context, got: {ctx}'
@@ -88,7 +88,61 @@ PYEOF
 
 rm -rf "$TEMP_CWD"
 
-echo "Test 5: Returns allow with no context when session state missing"
+echo "Test 5: Honors MAESTRO_STATE_DIR for relative custom state path"
+TEMP_CWD_CUSTOM=$(mktemp -d)
+mkdir -p "$TEMP_CWD_CUSTOM/.maestro/state"
+cat > "$TEMP_CWD_CUSTOM/.maestro/state/active-session.md" <<'STATE'
+---
+session_id: test-session-custom
+current_phase: phase-4-validation
+status: in_progress
+---
+Custom state directory is active.
+STATE
+
+INPUT_CTX_CUSTOM="{\"session_id\":\"test-ba-005\",\"transcript_path\":\"/tmp/t\",\"cwd\":\"$TEMP_CWD_CUSTOM\",\"hook_event_name\":\"BeforeAgent\",\"timestamp\":\"2026-02-17T00:00:00Z\",\"prompt\":\"Continue working\"}"
+OUTPUT=$(MAESTRO_STATE_DIR=".maestro" bash "$HOOK" <<< "$INPUT_CTX_CUSTOM" 2>/dev/null)
+
+python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: Invalid JSON for custom state dir injection"; exit 1; }
+import json, sys
+data = json.loads(sys.argv[1])
+hso = data.get('hookSpecificOutput', {})
+ctx = hso.get('additionalContext', '')
+assert 'current_phase=phase-4-validation' in ctx, f'Expected phase info in context, got: {ctx}'
+assert 'status=in_progress' in ctx, f'Expected status in context, got: {ctx}'
+print(f'PASS: MAESTRO_STATE_DIR relative path honored: {ctx}')
+PYEOF
+
+rm -rf "$TEMP_CWD_CUSTOM"
+
+echo "Test 6: Honors MAESTRO_STATE_DIR for absolute custom state path"
+ABS_STATE_ROOT=$(mktemp -d)
+mkdir -p "$ABS_STATE_ROOT/state"
+cat > "$ABS_STATE_ROOT/state/active-session.md" <<'STATE'
+---
+session_id: test-session-absolute
+current_phase: phase-5-docs
+status: in_progress
+---
+Absolute state directory is active.
+STATE
+
+INPUT_CTX_ABS='{"session_id":"test-ba-006","transcript_path":"/tmp/t","cwd":"/tmp","hook_event_name":"BeforeAgent","timestamp":"2026-02-17T00:00:00Z","prompt":"Continue working"}'
+OUTPUT=$(MAESTRO_STATE_DIR="$ABS_STATE_ROOT" bash "$HOOK" <<< "$INPUT_CTX_ABS" 2>/dev/null)
+
+python3 - "$OUTPUT" <<'PYEOF' || { echo "FAIL: Invalid JSON for absolute state dir injection"; exit 1; }
+import json, sys
+data = json.loads(sys.argv[1])
+hso = data.get('hookSpecificOutput', {})
+ctx = hso.get('additionalContext', '')
+assert 'current_phase=phase-5-docs' in ctx, f'Expected phase info in context, got: {ctx}'
+assert 'status=in_progress' in ctx, f'Expected status in context, got: {ctx}'
+print(f'PASS: MAESTRO_STATE_DIR absolute path honored: {ctx}')
+PYEOF
+
+rm -rf "$ABS_STATE_ROOT"
+
+echo "Test 7: Returns allow with no context when session state missing"
 INPUT_NO_STATE='{"session_id":"test-ba-003","transcript_path":"/tmp/t","cwd":"/tmp/nonexistent","hook_event_name":"BeforeAgent","timestamp":"2026-02-17T00:00:00Z","prompt":"Test prompt"}'
 OUTPUT=$(echo "$INPUT_NO_STATE" | bash "$HOOK" 2>/dev/null)
 
@@ -100,7 +154,7 @@ assert decision == 'allow', f'Expected allow decision, got {data}'
 print("PASS: Returns allow when no session state")
 PYEOF
 
-echo "Test 6: Casual agent name mention does not trigger detection"
+echo "Test 8: Casual agent name mention does not trigger detection"
 rm -rf "$STATE_DIR/test-ba-casual" 2>/dev/null || true
 INPUT_CASUAL='{"session_id":"test-ba-casual","transcript_path":"/tmp/t","cwd":"/tmp","hook_event_name":"BeforeAgent","timestamp":"2026-02-17T00:00:00Z","prompt":"You are the tester agent. Run the test suite."}'
 echo "$INPUT_CASUAL" | bash "$HOOK" 2>/dev/null

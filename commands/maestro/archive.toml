@@ -6,15 +6,15 @@ Activate the `session-management` skill and follow its archive protocol.
 
 ## Execution
 
-1. Check for an active session at `.gemini/state/active-session.md`
+1. Check for an active session at `<MAESTRO_STATE_DIR>/state/active-session.md` (`MAESTRO_STATE_DIR` defaults to `.gemini`)
 2. If no active session exists, inform the user that there is nothing to archive
 3. If an active session exists:
    - Read the session state and present a brief summary of what will be archived
    - Ask the user to confirm archival (the session may have incomplete phases)
    - Execute the archive protocol from the session-management skill:
-     - Move design document to `.gemini/plans/archive/`
-     - Move implementation plan to `.gemini/plans/archive/`
+     - Move design document to `<MAESTRO_STATE_DIR>/plans/archive/`
+     - Move implementation plan to `<MAESTRO_STATE_DIR>/plans/archive/`
      - Update session status to `completed`
-     - Move session state to `.gemini/state/archive/<session-id>.md`
+     - Move session state to `<MAESTRO_STATE_DIR>/state/archive/<session-id>.md`
    - Verify archival was successful (no active-session.md remains)
    - Confirm to the user with a summary of what was archived"""

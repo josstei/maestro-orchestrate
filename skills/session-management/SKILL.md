@@ -28,20 +28,20 @@ Where `MAESTRO_STATE_DIR` defaults to `.gemini` if not set. All state paths in t
 
 The `read_file` tool enforces `.gitignore` and `.geminiignore` patterns via `shouldIgnoreFile()`. Since `.gemini/` is typically gitignored, `read_file` will reject paths inside the state directory. All reads must use the dedicated shell script to bypass this restriction.
 
-Note: `run_shell_command` executes from the workspace root directory (`config.getTargetDir()`), so relative paths like `./scripts/read-state.sh` resolve from the project root.
+Use `${extensionPath}` for script locations so these commands work even when the extension is installed outside the workspace root.
 
 **Reading state files:**
 ```bash
-run_shell_command: ./scripts/read-state.sh <relative-path>
+run_shell_command: ${extensionPath}/scripts/read-state.sh <relative-path>
 ```
 
-Example: `./scripts/read-state.sh .gemini/state/active-session.md`
+Example: `${extensionPath}/scripts/read-state.sh <state_dir>/state/active-session.md`
 
 **Writing state files:**
 Use `write_file` as the primary mechanism for state file writes — `write_file` does not enforce the same ignore patterns as `read_file`, so it can write to `.gemini/` paths directly. When content must be piped from a shell command, use:
 
 ```bash
-run_shell_command: echo '...' | ./scripts/write-state.sh <relative-path>
+run_shell_command: echo '...' | ${extensionPath}/scripts/write-state.sh <relative-path>
 ```
 
 **Rules:**
@@ -70,8 +70,8 @@ task: "<user's original task description>"
 created: "<ISO 8601 timestamp>"
 updated: "<ISO 8601 timestamp>"
 status: "in_progress"
-design_document: ".gemini/plans/<design-doc-filename>"
-implementation_plan: ".gemini/plans/<impl-plan-filename>"
+design_document: "<state_dir>/plans/<design-doc-filename>"
+implementation_plan: "<state_dir>/plans/<impl-plan-filename>"
 current_phase: 1
 total_phases: <integer from impl plan>
 execution_mode: null
@@ -214,7 +214,7 @@ Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestra
 
 ### Resume Steps
 
-1. **Read State**: Read state via run_shell_command: `./scripts/read-state.sh <MAESTRO_STATE_DIR>/state/active-session.md` (resolve `MAESTRO_STATE_DIR`, default: `.gemini`)
+1. **Read State**: Read state via run_shell_command: `${extensionPath}/scripts/read-state.sh <MAESTRO_STATE_DIR>/state/active-session.md` (resolve `MAESTRO_STATE_DIR`, default: `.gemini`)
 2. **Parse Frontmatter**: Extract YAML frontmatter for session metadata
 3. **Identify Position**: Determine:
    - Last completed phase (highest ID with `status: completed`)

@@ -14,7 +14,7 @@ Activate the `session-management` and `execution` skills.
 The current session state is provided below:
 
 <session-state>
-!{cat "$(git rev-parse --show-toplevel)/.gemini/state/active-session.md" 2>/dev/null || echo "No active session"}
+!{script="$HOME/.gemini/extensions/maestro/scripts/read-active-session.sh"; if [[ ! -x "$script" ]]; then script="./scripts/read-active-session.sh"; fi; if [[ -x "$script" ]]; then bash "$script"; else echo "No active session"; fi}
 </session-state>
 
 1. Parse the session state above to determine:

@@ -28,6 +28,7 @@ Before any orchestration command:
 | State Directory | `MAESTRO_STATE_DIR` | `.gemini` | Session state and plan paths |
 | Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` (unlimited) | Parallel dispatch max simultaneous agents |
 | Stagger Delay | `MAESTRO_STAGGER_DELAY` | `5` (seconds) | Seconds between parallel agent launches |
+| Extra Gemini Args | `MAESTRO_GEMINI_EXTRA_ARGS` | (none) | Forwarded to each parallel-dispatched `gemini` process (prefer Policy Engine flags such as `--policy`) |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Phase 3 dispatch: `parallel`, `sequential`, or `ask` |
 
 When an env var is unset, use the default. Log resolved non-default settings at session start for transparency.
@@ -92,7 +93,7 @@ Your implementation plan has [N] phases ([M] parallelizable).
 - Parallelizable phases run as concurrent `gemini` CLI processes via `scripts/parallel-dispatch.sh`
 - Agents operate in **autonomous mode (`--approval-mode=yolo`)**: all tool calls (file writes, shell commands, file deletions) are auto-approved without your confirmation
 - You review results after each batch completes, not during execution
-- Requires trust in the delegation prompts and tool restriction enforcement
+- Requires trust in delegation prompts and policy configuration (if using `MAESTRO_GEMINI_EXTRA_ARGS`, prefer `--policy`-based restrictions)
 - Best for: well-defined tasks with clear file ownership boundaries
 
 **Option 2: Sequential Delegation (more controlled)**
@@ -115,10 +116,12 @@ Parallel execution uses `scripts/parallel-dispatch.sh` to spawn independent `gem
 **How it works:**
 1. The orchestrator writes delegation prompts to `<state_dir>/parallel/<batch-id>/prompts/`
 2. Invokes `./scripts/parallel-dispatch.sh <dispatch-dir>` via `run_shell_command`
-3. The script spawns one `gemini --approval-mode=yolo --output-format json "<prompt>"` process per prompt file, using `MAESTRO_DEFAULT_MODEL` as the `--model` flag when set
+3. The script spawns one `gemini --approval-mode=yolo --output-format json [model flags] [extra args] --prompt "<prompt>"` process per prompt file (`MAESTRO_DEFAULT_MODEL` and `MAESTRO_WRITER_MODEL` control model flags; `MAESTRO_GEMINI_EXTRA_ARGS` is appended as extra args)
 4. All agents execute concurrently as independent processes (subject to `MAESTRO_MAX_CONCURRENT` cap)
 5. The script collects results to `<dispatch-dir>/results/` and writes `summary.json`
 6. The orchestrator reads results and updates session state
+
+If `MAESTRO_GEMINI_EXTRA_ARGS` includes `--allowed-tools`, the dispatch script emits a deprecation warning; use policy files via `--policy` instead.
 
 **When to use parallel dispatch:**
 - Phases at the same dependency depth with non-overlapping file ownership

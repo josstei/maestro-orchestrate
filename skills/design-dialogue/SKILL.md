@@ -157,7 +157,7 @@ After each section, use `ask_user` with `type: 'yesno'` for approval:
 The write path depends on whether Plan Mode is active:
 
 - **Plan Mode active**: Write to `~/.gemini/tmp/<project>/plans/YYYY-MM-DD-<topic-slug>-design.md` (the only writable location during Plan Mode). After `exit_plan_mode` approval in Phase 2, the orchestrator copies it to the permanent location.
-- **Plan Mode not active**: Write directly to `.gemini/plans/YYYY-MM-DD-<topic-slug>-design.md`.
+- **Plan Mode not active**: Write directly to `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-design.md` (`<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `.gemini`).
 
 Where:
 - `YYYY-MM-DD` is the current date

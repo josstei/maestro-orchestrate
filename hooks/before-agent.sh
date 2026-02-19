@@ -8,6 +8,10 @@ main() {
   SESSION_ID=$(json_get "$INPUT" "session_id")
   CWD=$(json_get "$INPUT" "cwd")
   PROMPT=$(json_get "$INPUT" "prompt")
+  HOOK_EVENT_NAME=$(json_get "$INPUT" "hook_event_name")
+  if [ -z "$HOOK_EVENT_NAME" ]; then
+    HOOK_EVENT_NAME="BeforeAgent"
+  fi
 
   AGENT_NAME="${MAESTRO_CURRENT_AGENT:-}"
   # MAESTRO_CURRENT_AGENT is set by parallel-dispatch.sh (exported to the
@@ -45,7 +49,12 @@ PYEOF
     log_hook "INFO" "BeforeAgent: Detected agent '$AGENT_NAME' — set active agent [session=$SESSION_ID]"
   fi
 
-  SESSION_STATE="$CWD/.gemini/state/active-session.md"
+  STATE_DIR="${MAESTRO_STATE_DIR:-.gemini}"
+  if [[ "$STATE_DIR" == /* ]]; then
+    SESSION_STATE="$STATE_DIR/state/active-session.md"
+  else
+    SESSION_STATE="$CWD/$STATE_DIR/state/active-session.md"
+  fi
   CONTEXT_PARTS=""
 
   if [ -f "$SESSION_STATE" ]; then
@@ -67,7 +76,7 @@ PYEOF
   fi
 
   if [ -n "$CONTEXT_PARTS" ]; then
-    respond_with_context "$CONTEXT_PARTS"
+    respond_with_context "$CONTEXT_PARTS" "$HOOK_EVENT_NAME"
   else
     respond_allow
   fi

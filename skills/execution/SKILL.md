@@ -26,10 +26,10 @@ Before executing any phases in Phase 3:
 The `read_file` tool enforces `.gitignore` patterns via `shouldIgnoreFile()`, and `.gemini/` is typically gitignored. All reads of files within `<MAESTRO_STATE_DIR>` must use the shell script to bypass this restriction:
 
 ```bash
-run_shell_command: ./scripts/read-state.sh <relative-path>
+run_shell_command: ${extensionPath}/scripts/read-state.sh <relative-path>
 ```
 
-Note: `run_shell_command` executes from the workspace root directory (`config.getTargetDir()`), so relative paths like `./scripts/read-state.sh` resolve from the project root.
+The command path must use `${extensionPath}` so orchestration works when the extension is installed outside the workspace root.
 
 This applies to:
 - Reading `summary.json` from parallel dispatch results
@@ -56,7 +56,7 @@ For phases with dependencies (`blocked_by` is non-empty):
 
 ### Parallel Execution
 
-For phases at the same dependency depth with no file overlap, use shell-based parallel dispatch via `scripts/parallel-dispatch.sh`. This spawns independent `gemini` CLI processes that execute concurrently, bypassing the sequential subagent tool invocation pattern.
+For phases at the same dependency depth with no file overlap, use shell-based parallel dispatch via `${extensionPath}/scripts/parallel-dispatch.sh`. This spawns independent `gemini` CLI processes that execute concurrently, bypassing the sequential subagent tool invocation pattern.
 
 #### Parallel Dispatch Protocol
 
@@ -70,13 +70,13 @@ For phases at the same dependency depth with no file overlap, use shell-based pa
 4. Write each agent's full delegation prompt (including injected base protocol, context chain, and downstream consumer declaration) to its prompt file
 5. Invoke the parallel dispatch script via `run_shell_command`:
    ```bash
-   ./scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>
+   ${extensionPath}/scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>
    ```
 6. The script spawns one `gemini --approval-mode=yolo --output-format json "<prompt>"` process per prompt file
 7. All agents execute concurrently as independent CLI processes
 8. The script waits for all agents, collects exit codes, and writes `results/summary.json`
-9. Read the batch summary via run_shell_command: `./scripts/read-state.sh <state_dir>/parallel/<batch-id>/results/summary.json`
-10. For each agent, read its JSON output via run_shell_command: `./scripts/read-state.sh <state_dir>/parallel/<batch-id>/results/<agent-name>.json` and parse the Task Report
+9. Read the batch summary via run_shell_command: `${extensionPath}/scripts/read-state.sh <state_dir>/parallel/<batch-id>/results/summary.json`
+10. For each agent, read its JSON output via run_shell_command: `${extensionPath}/scripts/read-state.sh <state_dir>/parallel/<batch-id>/results/<agent-name>.json` and parse the Task Report
 11. Update session state for all phases in the batch
 12. Only proceed to the next batch when all phases in the current batch are completed
 
