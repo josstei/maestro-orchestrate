@@ -38,6 +38,33 @@ This applies to:
 
 Use `write_file` directly for state writes — it does not enforce ignore patterns. Never use `read_file` for paths inside `<MAESTRO_STATE_DIR>`.
 
+## Hook Lifecycle During Execution
+
+Maestro hooks (`hooks/hooks.json`) fire automatically at session and agent boundaries. The orchestrator does not invoke hooks directly — the Gemini CLI triggers them based on lifecycle events.
+
+### Session Boundary Hooks
+
+- **SessionStart** (`hooks/session-start.sh`): Fires when the Gemini CLI session begins. Creates `/tmp/maestro-hooks/<session-id>/` for hook-level per-session state and prunes stale state directories older than 2 hours.
+- **SessionEnd** (`hooks/session-end.sh`): Fires when the session ends. Removes the `/tmp/maestro-hooks/<session-id>/` directory.
+
+These hooks manage transient state (active agent tracking) that is separate from orchestration state in `<MAESTRO_STATE_DIR>`.
+
+### Agent Turn Hooks
+
+- **BeforeAgent** (`hooks/before-agent.sh`): Fires before each agent turn. Detects the active agent (via `MAESTRO_CURRENT_AGENT` env var in parallel dispatch, or regex fallback in sequential delegation) and injects compact session phase/status context from `active-session.md` when available.
+- **AfterAgent** (`hooks/after-agent.sh`): Fires after each agent turn. Validates that the agent's response contains both `## Task Report` and `## Downstream Context` headings. Blocks and requests retry on first format violation; allows through on second failure to prevent infinite loops.
+
+### Sequential vs Parallel Hook Behavior
+
+| Aspect | Sequential Delegation | Parallel Dispatch |
+| --- | --- | --- |
+| Agent detection | Regex fallback on prompt content | `MAESTRO_CURRENT_AGENT` env var (set by `parallel-dispatch.sh`) |
+| Session context | Injected from shared session state | Injected from shared session state (same path) |
+| AfterAgent validation | Fires per turn in main session | Fires per turn in each independent `gemini` process |
+| Retry on format violation | Blocks main session, agent retries in-place | Blocks the individual parallel process |
+
+The orchestrator does not need to account for hooks in delegation prompts or execution logic — they operate transparently at the CLI level. However, the AfterAgent format enforcement means that all agents will be retried once if they omit the required handoff sections, which can add latency to execution.
+
 ## Phase Execution Protocol
 
 ### Sequential Execution

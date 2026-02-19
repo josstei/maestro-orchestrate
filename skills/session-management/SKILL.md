@@ -7,6 +7,22 @@ description: Manages orchestration session state, tracking, and resumption
 
 Activate this skill for all session state operations during Maestro orchestration. This skill defines the protocols for creating, updating, resuming, and archiving orchestration sessions.
 
+## Hook-Level Session State
+
+Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-hooks/<session-id>/` that is distinct from orchestration state in `<MAESTRO_STATE_DIR>`:
+
+| Concern | Orchestration State | Hook State |
+| --- | --- | --- |
+| Location | `<MAESTRO_STATE_DIR>/state/` | `/tmp/maestro-hooks/<session-id>/` |
+| Lifecycle | Created in Phase 2, archived in Phase 4 | Created by `SessionStart` hook, removed by `SessionEnd` hook |
+| Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
+| Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
+| Managed by | Orchestrator via session-management skill | Hooks (`before-agent.sh`, `after-agent.sh`) |
+
+The `SessionStart` hook also prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
+
+The orchestrator does not read or write hook-level state directly. It interacts only with `<MAESTRO_STATE_DIR>` paths. The two state systems are independent and serve different concerns.
+
 ## Session Creation Protocol
 
 ### When to Create

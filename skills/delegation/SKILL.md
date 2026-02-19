@@ -255,6 +255,45 @@ All agents in a parallel batch must complete before:
 - If two phases must modify the same file, they cannot run in parallel — execute them sequentially
 - Parallel agents must NOT create git commits — the orchestrator commits after validating the batch
 
+## Hook Integration
+
+Maestro hooks fire at agent boundaries during delegation, providing context injection and output validation. Understanding hook behavior is essential for constructing correct delegation prompts.
+
+### Agent Tracking
+
+The `BeforeAgent` hook (`hooks/before-agent.sh`) tracks which agent is currently executing:
+
+- **Parallel dispatch**: `MAESTRO_CURRENT_AGENT` is exported per subprocess by `parallel-dispatch.sh`. The hook reads this directly from the environment — no prompt parsing needed.
+- **Sequential delegation**: The env var is not set. The hook falls back to regex-based detection, scanning the delegation prompt for patterns like `delegate to <agent>` or `@<agent>`.
+
+The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `AfterAgent` hook after the turn completes.
+
+### Session Context Injection
+
+When an active orchestration session exists, the `BeforeAgent` hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
+
+```
+Active session: current_phase=3, status=in_progress
+```
+
+This gives delegated agents awareness of where they sit in the orchestration workflow without requiring explicit context in every delegation prompt. The injection is automatic and requires no action from the orchestrator.
+
+### Handoff Format Enforcement
+
+The `AfterAgent` hook (`hooks/after-agent.sh`) validates that every subagent response contains both required handoff sections:
+
+- `## Task Report` (or `# Task Report`)
+- `## Downstream Context` (or `# Downstream Context`)
+
+If either heading is missing:
+
+1. **First failure**: The hook blocks the response and requests a retry with a diagnostic message specifying which section is missing.
+2. **Second failure** (`stop_hook_active=true`): The hook allows the malformed response through to prevent infinite retry loops, logging a warning.
+
+This enforcement is the runtime complement to the Output Handoff Contract defined in the agent-base-protocol. Delegation prompts do not need to re-state the retry mechanism — the hook handles it transparently.
+
+**Exception**: The TechLead/orchestrator agent is excluded from validation. Only delegated subagents are subject to format enforcement.
+
 ## Validation Criteria Templates
 
 ### For Implementation Agents (coder, data-engineer, devops-engineer)

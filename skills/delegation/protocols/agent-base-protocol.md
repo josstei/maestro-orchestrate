@@ -99,3 +99,12 @@ Populate this section when your output feeds into subsequent phases. Read-only a
 - Part 2 may be omitted only when the phase has no downstream dependencies AND is the final phase
 - The orchestrator extracts Downstream Context from completed phases and includes relevant sections in subsequent delegation prompts, creating an information chain
 - Be specific in Downstream Context — reference exact file paths, function names, and type signatures rather than general descriptions
+
+### Hook Enforcement
+
+The `AfterAgent` hook (`hooks/after-agent.sh`) validates this contract at runtime. After every agent turn, the hook checks for both `## Task Report` and `## Downstream Context` headings in the response:
+
+- **Missing either heading on first attempt**: The hook blocks the response and returns a retry request specifying which section is absent. The agent must re-produce the complete handoff report.
+- **Missing either heading on retry**: The hook allows the response through to prevent infinite loops, but logs a warning. The orchestrator receives the malformed output and must handle the missing context.
+
+Always include both headings, even when Part 2 fields are all "none". Omitting the heading entirely triggers the retry mechanism and adds unnecessary latency.
