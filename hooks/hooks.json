@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${extensionPath}/hooks/before-agent.sh",
+            "command": "node ${extensionPath}/hooks/before-agent.js",
             "name": "maestro-before-agent",
             "description": "Inject session context into agent turns",
             "timeout": 10000
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${extensionPath}/hooks/after-agent.sh",
+            "command": "node ${extensionPath}/hooks/after-agent.js",
             "name": "maestro-after-agent",
             "description": "Validate handoff report format with retry on malformed output",
             "timeout": 10000
