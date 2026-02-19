@@ -27,7 +27,7 @@ Before running orchestration commands:
    - default
 3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning.
 4. Run workspace preparation:
-   - `./scripts/ensure-workspace.sh <resolved-state-dir>`
+   - `node ./scripts/ensure-workspace.js <resolved-state-dir>`
    - Stop and report if it fails.
 
 ## Gemini CLI Integration Constraints
@@ -109,12 +109,12 @@ Record selected mode in session state as `execution_mode`.
 
 ## Parallel Dispatch Contract
 
-Parallel batches are executed by `scripts/parallel-dispatch.sh`.
+Parallel batches are executed by `node scripts/parallel-dispatch.js`.
 
 Workflow:
 
 1. Write full per-agent prompts to `<state_dir>/parallel/<batch-id>/prompts/*.txt`.
-2. Run dispatch script: `./scripts/parallel-dispatch.sh <dispatch-dir>`.
+2. Run dispatch script: `node ./scripts/parallel-dispatch.js <dispatch-dir>`.
 3. Script resolves model/timeout/concurrency/extra args using precedence above.
 4. Script starts one process per prompt:
    - `gemini --approval-mode=yolo --output-format json [model flags] [extra args]`
@@ -166,7 +166,7 @@ Resolve `<state_dir>` from `MAESTRO_STATE_DIR` (default `.gemini`):
 - Archives: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 - Parallel batches: `<state_dir>/parallel/`
 
-`/maestro:status` and `/maestro:resume` read active session through `${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/scripts/read-active-session.sh`.
+`/maestro:status` and `/maestro:resume` read active session through `node ${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/scripts/read-active-session.js`.
 
 ## Skills Reference
 
@@ -203,8 +203,8 @@ Maestro uses Gemini CLI hooks from `hooks/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
-| BeforeAgent | `hooks/before-agent.sh` | Track active agent and inject compact session context |
-| AfterAgent | `hooks/after-agent.sh` | Enforce handoff format (`Task Report` + `Downstream Context`) |
+| BeforeAgent | `hooks/before-agent.js` | Track active agent and inject compact session context |
+| AfterAgent | `hooks/after-agent.js` | Enforce handoff format (`Task Report` + `Downstream Context`) |
 
 ## Alignment Notes
 

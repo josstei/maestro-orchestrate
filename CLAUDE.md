@@ -11,8 +11,9 @@ Maestro is a configuration-first Gemini CLI extension. Core runtime surfaces:
 - `commands/maestro/*.toml`: slash command prompts (`/maestro:*`)
 - `agents/*.md`: local subagent definitions and tool permissions
 - `skills/*/SKILL.md`: reusable procedural protocols
-- `hooks/hooks.json` + `hooks/*.sh`: lifecycle middleware
-- `scripts/*.sh`: workspace/state/parallel-dispatch helpers
+- `hooks/hooks.json` + `hooks/*.js`: lifecycle middleware
+- `scripts/*.js`: workspace/state/parallel-dispatch helpers
+- `src/lib/*.js`: shared Node.js modules (stdin, state, validation, settings, etc.)
 
 There is no compiled runtime binary in this repository.
 
@@ -46,11 +47,12 @@ Useful manual checks after linking:
 - `agents/*.md`
 - `skills/*/SKILL.md`
 - `hooks/hooks.json`
-- `scripts/ensure-workspace.sh`
-- `scripts/read-state.sh`
-- `scripts/write-state.sh`
-- `scripts/read-active-session.sh`
-- `scripts/parallel-dispatch.sh`
+- `src/lib/*.js`
+- `scripts/ensure-workspace.js`
+- `scripts/read-state.js`
+- `scripts/write-state.js`
+- `scripts/read-active-session.js`
+- `scripts/parallel-dispatch.js`
 - `tests/run-all.sh`
 
 ## Gemini CLI Compatibility Notes
@@ -93,20 +95,18 @@ Script precedence is env -> workspace `.env` -> extension `.env` -> default.
 
 Defined in `hooks/hooks.json`:
 
-- SessionStart -> `hooks/session-start.sh`
-- BeforeAgent -> `hooks/before-agent.sh`
-- AfterAgent -> `hooks/after-agent.sh`
-- SessionEnd -> `hooks/session-end.sh`
+- BeforeAgent -> `hooks/before-agent.js`
+- AfterAgent -> `hooks/after-agent.js`
 
 Behavior summary:
 
-- `before-agent.sh`: tracks active agent (`MAESTRO_CURRENT_AGENT` first, regex fallback), injects compact session phase/status context
-- `after-agent.sh`: validates delegated output includes both `Task Report` and `Downstream Context`, requests one retry when malformed
-- session hooks: maintain `/tmp/maestro-hooks/<session-id>` lifecycle
+- `before-agent.js`: tracks active agent (`MAESTRO_CURRENT_AGENT` first, regex fallback), injects compact session phase/status context
+- `after-agent.js`: validates delegated output includes both `Task Report` and `Downstream Context`, requests one retry when malformed
+- session hooks (`session-start.js`, `session-end.js`): maintain hook state lifecycle under temp directory
 
 ## Parallel Dispatch Contract
 
-`scripts/parallel-dispatch.sh <dispatch-dir>` expects `prompts/*.txt` and writes `results/*`.
+`node scripts/parallel-dispatch.js <dispatch-dir>` expects `prompts/*.txt` and writes `results/*`.
 
 Per-agent execution:
 
@@ -125,9 +125,11 @@ Batch-level behavior:
 
 ## Testing
 
-`bash tests/run-all.sh` currently covers:
+`bash tests/run-all.sh` covers integration tests, `node --test tests/unit/test-*.js` covers unit tests.
 
-- all hook scripts
+Integration tests cover:
+
+- all hook scripts (Node.js)
 - parallel dispatch arg forwarding and stdin payload behavior
 - dispatch config fallback precedence
 - dispatch exit-code propagation
