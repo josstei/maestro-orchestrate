@@ -67,7 +67,7 @@ PYEOF
   fi
 
   if [ -n "$CONTEXT_PARTS" ]; then
-    respond_with_context "$CONTEXT_PARTS" "BeforeAgent"
+    respond_with_context "$CONTEXT_PARTS"
   else
     respond_allow
   fi
