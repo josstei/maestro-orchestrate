@@ -1,23 +1,15 @@
 #!/usr/bin/env node
 'use strict';
 
-const { getBool } = require('../src/lib/stdin');
-const { allow, deny } = require('../src/lib/response');
-const hookState = require('../src/lib/hook-state');
-const { log } = require('../src/lib/logger');
-const { runHook } = require('../src/lib/hook-runner');
+const { defineHook, response, hookState, log } = require('../src/lib/maestro');
 
-function handler(input) {
-  const sessionId = input.session_id || '';
-  const stopHookActive = getBool(input, 'stop_hook_active');
-
-  const agentName = hookState.getActiveAgent(sessionId);
+function handler(ctx) {
+  const agentName = hookState.getActiveAgent(ctx.sessionId);
   const agentLower = agentName.toLowerCase();
 
   if (agentName && agentLower !== 'techlead' && agentLower !== 'orchestrator') {
-    const promptResponse = input.prompt_response || '';
-    const hasTaskReport = promptResponse.includes('## Task Report') || promptResponse.includes('# Task Report');
-    const hasDownstream = promptResponse.includes('## Downstream Context') || promptResponse.includes('# Downstream Context');
+    const hasTaskReport = ctx.promptResponse.includes('## Task Report') || ctx.promptResponse.includes('# Task Report');
+    const hasDownstream = ctx.promptResponse.includes('## Downstream Context') || ctx.promptResponse.includes('# Downstream Context');
 
     const warnings = [];
     if (!hasTaskReport) warnings.push('Missing Task Report section (expected ## Task Report heading)');
@@ -25,21 +17,21 @@ function handler(input) {
 
     if (warnings.length > 0) {
       const reason = warnings.join('; ');
-      if (stopHookActive) {
+      if (ctx.stopHookActive) {
         log('WARN', `AfterAgent [${agentName}]: Retry still malformed: ${reason} — allowing to prevent infinite loop`);
       } else {
         log('WARN', `AfterAgent [${agentName}]: WARN: ${reason} — requesting retry`);
-        return deny(`Handoff report validation failed: ${reason}. Please include both a ## Task Report section and a ## Downstream Context section in your response.`);
+        return response.deny(`Handoff report validation failed: ${reason}. Please include both a ## Task Report section and a ## Downstream Context section in your response.`);
       }
     } else {
       log('INFO', `AfterAgent [${agentName}]: Handoff report validated`);
     }
   }
 
-  hookState.clearActiveAgent(sessionId);
-  return allow();
+  hookState.clearActiveAgent(ctx.sessionId);
+  return response.allow();
 }
 
-runHook(handler, allow);
+defineHook({ handler, fallbackResponse: response.allow });
 
 module.exports = { handler };

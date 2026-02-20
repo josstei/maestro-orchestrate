@@ -1,32 +1,19 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { advisory } = require('../src/lib/response');
-const { validateSessionId } = require('../src/lib/validation');
-const hookState = require('../src/lib/hook-state');
-const { hasActiveSession } = require('../src/lib/state');
-const { runHook } = require('../src/lib/hook-runner');
+const { defineHook, response, hookState, state } = require('../src/lib/maestro');
 
-function handler(input) {
-  const sessionId = input.session_id || '';
-  const cwd = input.cwd || '';
-
+function handler(ctx) {
   hookState.pruneStale();
 
-  if (!hasActiveSession(cwd)) {
-    return advisory();
+  if (!state.hasActiveSession(ctx.cwd)) {
+    return response.advisory();
   }
 
-  if (validateSessionId(sessionId)) {
-    const baseDir = hookState.getBaseDir();
-    fs.mkdirSync(path.join(baseDir, sessionId), { recursive: true });
-  }
-
-  return advisory();
+  hookState.ensureSessionDir(ctx.sessionId);
+  return response.advisory();
 }
 
-runHook(handler, advisory);
+defineHook({ handler, fallbackResponse: response.advisory });
 
 module.exports = { handler };

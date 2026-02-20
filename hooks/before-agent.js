@@ -2,29 +2,19 @@
 'use strict';
 
 const fs = require('fs');
-const { allow, allowWithContext } = require('../src/lib/response');
-const { validateSessionId, detectAgentFromPrompt } = require('../src/lib/validation');
-const hookState = require('../src/lib/hook-state');
-const { resolveActiveSessionPath } = require('../src/lib/state');
-const { log } = require('../src/lib/logger');
-const { runHook } = require('../src/lib/hook-runner');
+const { defineHook, response, validation, hookState, state, log } = require('../src/lib/maestro');
 
-function handler(input) {
-  const sessionId = input.session_id || '';
-  const cwd = input.cwd || '';
-  const prompt = input.prompt || '';
-  const hookEventName = input.hook_event_name || 'BeforeAgent';
-
+function handler(ctx) {
   hookState.pruneStale();
 
-  const agentName = detectAgentFromPrompt(prompt);
+  const agentName = validation.detectAgentFromPrompt(ctx.prompt);
 
-  if (agentName && validateSessionId(sessionId)) {
-    hookState.setActiveAgent(sessionId, agentName);
-    log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${sessionId}]`);
+  if (agentName && validation.validateSessionId(ctx.sessionId)) {
+    hookState.setActiveAgent(ctx.sessionId, agentName);
+    log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }
 
-  const sessionPath = resolveActiveSessionPath(cwd);
+  const sessionPath = state.resolveActiveSessionPath(ctx.cwd);
   let contextParts = '';
 
   try {
@@ -39,12 +29,13 @@ function handler(input) {
     }
   } catch {}
 
+  const hookEventName = ctx.hookEventName || 'BeforeAgent';
   if (contextParts) {
-    return allowWithContext(contextParts, hookEventName);
+    return response.allowWithContext(contextParts, hookEventName);
   }
-  return allow();
+  return response.allow();
 }
 
-runHook(handler, allow);
+defineHook({ handler, fallbackResponse: response.allow });
 
 module.exports = { handler };

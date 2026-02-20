@@ -4,10 +4,12 @@
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
+const { resolveDispatchConfig } = require('../src/lib/dispatch-config');
+const { ConcurrencyLimiter } = require('../src/lib/concurrency');
 const { resolveSetting } = require('../src/lib/settings');
 const { runWithTimeout } = require('../src/lib/process');
-const { log } = require('../src/lib/logger');
-const { DEFAULT_TIMEOUT_MINS, DEFAULT_STAGGER_DELAY_SECS, MAX_PROMPT_SIZE_BYTES } = require('../src/lib/constants');
+const { log, fatal } = require('../src/lib/logger');
+const { MAX_PROMPT_SIZE_BYTES } = require('../src/lib/constants');
 
 const SCRIPT_DIR = __dirname;
 const EXTENSION_DIR = path.dirname(SCRIPT_DIR);
@@ -47,31 +49,6 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isStrictInteger(value) {
-  return typeof value === 'string' && /^[0-9]+$/.test(value);
-}
-
-function parsePositiveIntegerSetting(varName, rawValue) {
-  if (!isStrictInteger(rawValue)) {
-    process.stderr.write(`ERROR: ${varName} must be a positive integer (got: ${rawValue})\n`);
-    process.exit(1);
-  }
-  const parsed = Number(rawValue);
-  if (parsed <= 0) {
-    process.stderr.write(`ERROR: ${varName} must be a positive integer (got: ${rawValue})\n`);
-    process.exit(1);
-  }
-  return parsed;
-}
-
-function parseNonNegativeIntegerSetting(varName, rawValue) {
-  if (!isStrictInteger(rawValue)) {
-    process.stderr.write(`ERROR: ${varName} must be a non-negative integer (got: ${rawValue})\n`);
-    process.exit(1);
-  }
-  return Number(rawValue);
-}
-
 async function main() {
   const startTime = Date.now();
   const dispatchDir = process.argv[2];
@@ -91,108 +68,68 @@ async function main() {
     .map((f) => path.join(promptDir, f));
 
   if (promptFiles.length === 0) {
-    process.stderr.write(`ERROR: No prompt files found in ${promptDir}\n`);
-    process.exit(1);
+    fatal(`No prompt files found in ${promptDir}`);
   }
 
   fs.mkdirSync(resultDir, { recursive: true });
   const projectRoot = process.cwd();
 
-  const defaultModel = resolveSetting('MAESTRO_DEFAULT_MODEL', projectRoot) || '';
-  const writerModel = resolveSetting('MAESTRO_WRITER_MODEL', projectRoot) || '';
-  const agentTimeoutRaw = resolveSetting('MAESTRO_AGENT_TIMEOUT', projectRoot) || String(DEFAULT_TIMEOUT_MINS);
-  const maxConcurrentRaw = resolveSetting('MAESTRO_MAX_CONCURRENT', projectRoot) || '0';
-  const staggerDelayRaw = resolveSetting('MAESTRO_STAGGER_DELAY', projectRoot) || String(DEFAULT_STAGGER_DELAY_SECS);
-  const extraArgsRaw = resolveSetting('MAESTRO_GEMINI_EXTRA_ARGS', projectRoot) || '';
+  const config = resolveDispatchConfig(projectRoot);
 
-  const timeoutMins = parsePositiveIntegerSetting('MAESTRO_AGENT_TIMEOUT', agentTimeoutRaw);
-  if (timeoutMins > 60) {
-    process.stderr.write(`WARNING: Agent timeout set to ${timeoutMins} minutes (over 1 hour)\n`);
+  if (config.timeoutMins > 60) {
+    process.stderr.write(`WARNING: Agent timeout set to ${config.timeoutMins} minutes (over 1 hour)\n`);
   }
-  const timeoutMs = timeoutMins * 60 * 1000;
 
-  const maxConcurrent = parseNonNegativeIntegerSetting('MAESTRO_MAX_CONCURRENT', maxConcurrentRaw);
-
-  const staggerDelay = parseNonNegativeIntegerSetting('MAESTRO_STAGGER_DELAY', staggerDelayRaw);
-
-  const extraArgs = extraArgsRaw ? extraArgsRaw.split(/\s+/).filter(Boolean) : [];
-  const hasExtraArgs = extraArgs.length > 0;
-
-  if (hasExtraArgs && extraArgs.some((a) => a === '--allowed-tools' || a.startsWith('--allowed-tools='))) {
+  if (config.extraArgs.length > 0 && config.extraArgs.some((a) => a === '--allowed-tools' || a.startsWith('--allowed-tools='))) {
     process.stderr.write('WARNING: --allowed-tools is deprecated in gemini-cli; prefer --policy <path> with the Policy Engine.\n');
   }
 
-  const concurrentDisplay = maxConcurrent === 0 ? 'unlimited' : String(maxConcurrent);
+  const concurrentDisplay = config.maxConcurrent === 0 ? 'unlimited' : String(config.maxConcurrent);
   log('INFO', 'MAESTRO PARALLEL DISPATCH');
   log('INFO', '=========================');
   log('INFO', `Agents: ${promptFiles.length}`);
-  log('INFO', `Timeout: ${timeoutMins} minutes`);
-  log('INFO', `Model: ${defaultModel || 'default'}`);
-  if (writerModel) log('INFO', `Writer Model: ${writerModel}`);
+  log('INFO', `Timeout: ${config.timeoutMins} minutes`);
+  log('INFO', `Model: ${config.defaultModel || 'default'}`);
+  if (config.writerModel) log('INFO', `Writer Model: ${config.writerModel}`);
   log('INFO', `Max Concurrent: ${concurrentDisplay}`);
-  log('INFO', `Stagger Delay: ${staggerDelay}s`);
-  if (hasExtraArgs) log('INFO', `Extra Gemini Args: ${extraArgsRaw}`);
+  log('INFO', `Stagger Delay: ${config.staggerDelay}s`);
+  if (config.extraArgs.length > 0) log('INFO', `Extra Gemini Args: ${config.extraArgsRaw}`);
   log('INFO', `Project Root: ${projectRoot}`);
 
+  const limiter = new ConcurrencyLimiter(config.maxConcurrent);
   const agentPromises = [];
-  let activeCount = 0;
-  const slotWaiters = [];
-
-  function releaseSlot() {
-    activeCount--;
-    if (slotWaiters.length > 0) {
-      const waiter = slotWaiters.shift();
-      waiter();
-    }
-  }
-
-  function waitForSlot() {
-    if (maxConcurrent === 0 || activeCount < maxConcurrent) {
-      activeCount++;
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-      slotWaiters.push(() => {
-        activeCount++;
-        resolve();
-      });
-    });
-  }
 
   for (let i = 0; i < promptFiles.length; i++) {
     const promptFile = promptFiles[i];
     const basename = path.basename(promptFile).replace(/\.[^.]+$/, '');
     const agentName = basename.replace(/[^a-zA-Z0-9_-]/g, '');
     if (!agentName) {
-      process.stderr.write(`ERROR: Prompt file ${path.basename(promptFile)} produces empty agent name after sanitization\n`);
-      process.exit(1);
+      fatal(`Prompt file ${path.basename(promptFile)} produces empty agent name after sanitization`);
     }
     const normalizedName = agentName.replace(/-/g, '_');
     if (fs.existsSync(AGENTS_DIR) && !fs.existsSync(path.join(AGENTS_DIR, `${normalizedName}.md`))) {
-      process.stderr.write(`ERROR: Agent '${agentName}' not found in ${AGENTS_DIR}/\n`);
+      let msg = `Agent '${agentName}' not found in ${AGENTS_DIR}/`;
       try {
         const available = fs.readdirSync(AGENTS_DIR)
           .filter((f) => f.endsWith('.md'))
           .map((f) => f.replace(/\.md$/, ''))
           .join(', ');
-        if (available) process.stderr.write(`  Available agents: ${available}\n`);
+        if (available) msg += `\n  Available agents: ${available}`;
       } catch {}
-      process.exit(1);
+      fatal(msg);
     }
 
     const promptSize = fs.statSync(promptFile).size;
     if (promptSize > MAX_PROMPT_SIZE_BYTES) {
-      process.stderr.write(`ERROR: Prompt file ${agentName} exceeds 1MB size limit (${promptSize} bytes)\n`);
-      process.exit(1);
+      fatal(`Prompt file ${agentName} exceeds 1MB size limit (${promptSize} bytes)`);
     }
 
     const promptContent = fs.readFileSync(promptFile, 'utf8');
     if (!promptContent.trim()) {
-      process.stderr.write(`ERROR: Prompt file ${agentName} is empty or whitespace-only\n`);
-      process.exit(1);
+      fatal(`Prompt file ${agentName} is empty or whitespace-only`);
     }
 
-    await waitForSlot();
+    await limiter.acquire();
 
     log('INFO', `Dispatching: ${agentName}`);
 
@@ -201,17 +138,17 @@ async function main() {
     const resultLog = path.join(resultDir, `${agentName}.log`);
 
     let modelFlags = [];
-    if (normalizedName === 'technical_writer' && writerModel) {
-      modelFlags = ['-m', writerModel];
-    } else if (defaultModel) {
-      modelFlags = ['-m', defaultModel];
+    if (normalizedName === 'technical_writer' && config.writerModel) {
+      modelFlags = ['-m', config.writerModel];
+    } else if (config.defaultModel) {
+      modelFlags = ['-m', config.defaultModel];
     }
 
     const geminiArgs = [
       '--approval-mode=yolo',
       '--output-format', 'json',
       ...modelFlags,
-      ...extraArgs,
+      ...config.extraArgs,
     ];
 
     const stdinPayload = `PROJECT ROOT: ${projectRoot}\nAll file paths in this task are relative to this directory. When using write_file, replace, or read_file, construct absolute paths by prepending this root. When using run_shell_command, execute from this directory.\n\n${promptContent}`;
@@ -241,15 +178,15 @@ async function main() {
         cwd: projectRoot,
         env: { ...process.env, MAESTRO_CURRENT_AGENT: normalizedName },
       },
-      timeoutMs
+      config.timeoutMs
     ).then((result) => {
       closeFds();
       fs.writeFileSync(resultExit, String(result.exitCode));
-      releaseSlot();
+      limiter.release();
       return { agentName, ...result };
     }, (err) => {
       closeFds();
-      releaseSlot();
+      limiter.release();
       log('ERROR', `Agent ${agentName} dispatch failed: ${err.message}`);
       fs.writeFileSync(resultExit, '255');
       return { agentName, exitCode: 255, timedOut: false };
@@ -257,8 +194,8 @@ async function main() {
 
     agentPromises.push(agentPromise);
 
-    if (staggerDelay > 0 && i < promptFiles.length - 1) {
-      await sleep(staggerDelay * 1000);
+    if (config.staggerDelay > 0 && i < promptFiles.length - 1) {
+      await sleep(config.staggerDelay * 1000);
     }
   }
 
@@ -271,7 +208,7 @@ async function main() {
     if (result.exitCode === 0) {
       log('INFO', `  ${result.agentName}: SUCCESS (exit 0)`);
     } else if (result.timedOut) {
-      log('INFO', `  ${result.agentName}: TIMEOUT (exceeded ${timeoutMins}m)`);
+      log('INFO', `  ${result.agentName}: TIMEOUT (exceeded ${config.timeoutMins}m)`);
       failures++;
     } else {
       log('INFO', `  ${result.agentName}: FAILED (exit ${result.exitCode})`);
