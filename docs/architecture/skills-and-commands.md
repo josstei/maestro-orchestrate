@@ -42,7 +42,7 @@ Example:
 State-aware commands also inject script output:
 
 ```bash
-!{extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/scripts/read-active-session.sh"; if [[ -x "$script" ]]; then bash "$script"; else echo "No active session"; fi}
+!{extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
 ```
 
 ## Skill Catalog
@@ -81,8 +81,8 @@ Gemini CLI discovery and precedence:
 ## Execution and Command Coupling Notes
 
 - `/maestro:status` is read-only by prompt contract
-- `/maestro:resume` and `/maestro:status` both depend on `scripts/read-active-session.sh`
-- Parallel execution behavior is implemented by `scripts/parallel-dispatch.sh` and documented in:
+- `/maestro:resume` and `/maestro:status` both depend on `scripts/read-active-session.js`
+- Parallel execution behavior is implemented by `scripts/parallel-dispatch.js` and documented in:
   - `skills/execution/SKILL.md`
   - `skills/delegation/SKILL.md`
   - `docs/architecture/state-management-and-scripts.md`

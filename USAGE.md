@@ -1504,24 +1504,20 @@ Check for syntax errors in the YAML frontmatter (unmatched quotes, invalid inden
 **Symptom**: Parallel execution fails with "script not found" or "all agents failed".
 
 **Diagnosis**:
-1. Verify the dispatch script exists and is executable:
+1. Verify the dispatch script exists:
    ```bash
-   ls -l scripts/parallel-dispatch.sh
+   ls -l scripts/parallel-dispatch.js
    ```
-   Should show `-rwxr-xr-x` (executable).
 
-2. Check that `gemini` CLI is on PATH:
+2. Check that `gemini` CLI and Node.js are on PATH:
    ```bash
-   which gemini
+   which gemini && which node
    ```
 
 **Solution**:
-1. Make script executable:
-   ```bash
-   chmod +x scripts/parallel-dispatch.sh
-   ```
+1. Verify `scripts/parallel-dispatch.js` exists in the extension directory
 
-2. Add `gemini` to PATH or use absolute path in script
+2. Ensure Node.js is available on PATH (provided by Gemini CLI)
 
 3. Fall back to sequential mode:
    ```bash

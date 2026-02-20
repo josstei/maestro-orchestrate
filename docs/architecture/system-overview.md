@@ -11,8 +11,9 @@ Maestro is configuration-driven. The runtime is composed of:
 - `commands/maestro/*.toml`: slash command prompts
 - `skills/*/SKILL.md`: on-demand procedural protocols
 - `agents/*.md`: local agent definitions (`tools`, temperature, turn limits, timeout)
-- `hooks/hooks.json` + `hooks/*.sh`: BeforeAgent/AfterAgent middleware
-- `scripts/*.sh`: workspace, state, and parallel dispatch helpers
+- `hooks/hooks.json` + `hooks/*.js`: BeforeAgent/AfterAgent middleware
+- `scripts/*.js`: workspace, state, and parallel dispatch helpers
+- `src/lib/*.js`: shared Node.js modules (stdin, state, validation, settings, etc.)
 
 ## Gemini CLI Loader Alignment
 
@@ -50,7 +51,7 @@ Command prompts use defensive wrappers around user input:
 </user-request>
 ```
 
-State-aware commands (`/maestro:status`, `/maestro:resume`) also inject script output via `!{...}` shell injection to read active session state through `scripts/read-active-session.sh`.
+State-aware commands (`/maestro:status`, `/maestro:resume`) also inject script output via `!{...}` shell injection to read active session state through `node scripts/read-active-session.js`.
 
 ## Orchestration Lifecycle
 
@@ -72,11 +73,11 @@ For script-resolved settings, precedence is:
 3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
 4. Built-in default
 
-This precedence is implemented in `scripts/parallel-dispatch.sh` and `scripts/read-active-session.sh`.
+This precedence is implemented in `scripts/parallel-dispatch.js` and `scripts/read-active-session.js`.
 
 ## Parallel Dispatch Architecture
 
-Parallel batches are executed by `scripts/parallel-dispatch.sh`.
+Parallel batches are executed by `node scripts/parallel-dispatch.js`.
 
 ### Flow
 
@@ -110,8 +111,8 @@ If `MAESTRO_GEMINI_EXTRA_ARGS` includes `--allowed-tools`, dispatch emits a depr
 
 Hooks are configured in `hooks/hooks.json`.
 
-- BeforeAgent (`hooks/before-agent.sh`): detects active agent (`MAESTRO_CURRENT_AGENT` first, regex fallback), stores active agent, injects compact session context
-- AfterAgent (`hooks/after-agent.sh`): validates delegated output contains both `Task Report` and `Downstream Context`, requests one retry on malformed output
+- BeforeAgent (`hooks/before-agent.js`): detects active agent (`MAESTRO_CURRENT_AGENT` first, regex fallback), stores active agent, injects compact session context
+- AfterAgent (`hooks/after-agent.js`): validates delegated output contains both `Task Report` and `Downstream Context`, requests one retry on malformed output
 
 ## Gemini CLI Features Actively Leveraged
 

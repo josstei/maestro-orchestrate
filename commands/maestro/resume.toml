@@ -14,7 +14,7 @@ Activate the `session-management` and `execution` skills.
 The current session state is provided below:
 
 <session-state>
-!{extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/scripts/read-active-session.sh"; if [[ -x "$script" ]]; then bash "$script"; else echo "No active session"; fi}
+!{extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
 </session-state>
 
 1. Parse the session state above to determine:

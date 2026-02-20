@@ -17,7 +17,7 @@ Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-ho
 | Lifecycle | Created in Phase 2, archived in Phase 4 | Created lazily by `BeforeAgent` on first active-agent write; active-agent file cleared by `AfterAgent`; stale directories pruned periodically |
 | Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
 | Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
-| Managed by | Orchestrator via session-management skill | Hooks (`before-agent.sh`, `after-agent.sh`) |
+| Managed by | Orchestrator via session-management skill | Hooks (`before-agent.js`, `after-agent.js`) |
 
 The `BeforeAgent` hook prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
 
@@ -42,28 +42,28 @@ Where `MAESTRO_STATE_DIR` defaults to `.gemini` if not set. All state paths in t
 
 ### State File Access
 
-The `read_file` tool enforces `.gitignore` and `.geminiignore` patterns via `shouldIgnoreFile()`. Since `.gemini/` is typically gitignored, `read_file` will reject paths inside the state directory. All reads must use the dedicated shell script to bypass this restriction.
+The `read_file` tool enforces `.gitignore` and `.geminiignore` patterns via `shouldIgnoreFile()`. Since `.gemini/` is typically gitignored, `read_file` will reject paths inside the state directory. All reads must use the dedicated Node.js script to bypass this restriction.
 
 Use `${extensionPath}` for script locations so these commands work even when the extension is installed outside the workspace root.
 
 **Reading state files:**
 ```bash
-run_shell_command: ${extensionPath}/scripts/read-state.sh <relative-path>
+run_shell_command: node ${extensionPath}/scripts/read-state.js <relative-path>
 ```
 
-Example: `${extensionPath}/scripts/read-state.sh <state_dir>/state/active-session.md`
+Example: `node ${extensionPath}/scripts/read-state.js <state_dir>/state/active-session.md`
 
 **Writing state files:**
 Use `write_file` as the primary mechanism for state file writes — `write_file` does not enforce the same ignore patterns as `read_file`, so it can write to `.gemini/` paths directly. When content must be piped from a shell command, use:
 
 ```bash
-run_shell_command: echo '...' | ${extensionPath}/scripts/write-state.sh <relative-path>
+run_shell_command: echo '...' | node ${extensionPath}/scripts/write-state.js <relative-path>
 ```
 
 **Rules:**
 - Never use `read_file` for paths inside `<MAESTRO_STATE_DIR>` — `read_file` enforces `.gitignore` patterns and will reject these paths
 - Use `write_file` directly for state writes (no ignore enforcement on writes)
-- The `write-state.sh` script writes atomically (temp file + `mv`) to prevent partial writes
+- The `write-state.js` script writes atomically (temp file + rename) to prevent partial writes
 - Both scripts validate against absolute paths and path traversal
 
 ### Initialization Steps
@@ -230,7 +230,7 @@ Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestra
 
 ### Resume Steps
 
-1. **Read State**: Read state via run_shell_command: `${extensionPath}/scripts/read-state.sh <MAESTRO_STATE_DIR>/state/active-session.md` (resolve `MAESTRO_STATE_DIR`, default: `.gemini`)
+1. **Read State**: Read state via run_shell_command: `node ${extensionPath}/scripts/read-state.js <MAESTRO_STATE_DIR>/state/active-session.md` (resolve `MAESTRO_STATE_DIR`, default: `.gemini`)
 2. **Parse Frontmatter**: Extract YAML frontmatter for session metadata
 3. **Identify Position**: Determine:
    - Last completed phase (highest ID with `status: completed`)

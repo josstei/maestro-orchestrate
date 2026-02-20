@@ -140,7 +140,7 @@ Explicitly state what the agent must NOT do:
 
 ## Parallel Delegation
 
-Parallel delegation uses `${extensionPath}/scripts/parallel-dispatch.sh` to spawn independent `gemini` CLI processes. Instead of invoking subagent tools sequentially, the orchestrator writes prompt files to disk and invokes the dispatch script.
+Parallel delegation uses `node ${extensionPath}/scripts/parallel-dispatch.js` to spawn independent `gemini` CLI processes. Instead of invoking subagent tools sequentially, the orchestrator writes prompt files to disk and invokes the dispatch script.
 
 ### Prompt File Construction
 
@@ -234,10 +234,10 @@ This block reinforces the Agent Base Protocol's File Writing Rule directly in ev
 ### Dispatch Invocation
 
 ```bash
-${extensionPath}/scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>
+node ${extensionPath}/scripts/parallel-dispatch.js <state_dir>/parallel/<batch-id>
 ```
 
-The script handles spawning, waiting, timeout enforcement, and result collection. See `${extensionPath}/scripts/parallel-dispatch.sh` for the full implementation.
+The script handles spawning, waiting, timeout enforcement, and result collection. See `${extensionPath}/scripts/parallel-dispatch.js` for the full implementation.
 
 ### Non-Overlapping File Ownership
 When delegating to multiple agents in parallel, ensure no two agents are assigned the same file. Each file must have exactly one owner in a parallel batch.
@@ -261,9 +261,9 @@ Maestro hooks fire at agent boundaries during delegation, providing context inje
 
 ### Agent Tracking
 
-The `BeforeAgent` hook (`hooks/before-agent.sh`) tracks which agent is currently executing:
+The `BeforeAgent` hook (`hooks/before-agent.js`) tracks which agent is currently executing:
 
-- **Parallel dispatch**: `MAESTRO_CURRENT_AGENT` is exported per subprocess by `parallel-dispatch.sh`. The hook reads this directly from the environment — no prompt parsing needed.
+- **Parallel dispatch**: `MAESTRO_CURRENT_AGENT` is exported per subprocess by `parallel-dispatch.js`. The hook reads this directly from the environment — no prompt parsing needed.
 - **Sequential delegation**: The env var is not set. The hook falls back to regex-based detection, scanning the delegation prompt for patterns like `delegate to <agent>` or `@<agent>`.
 
 The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `AfterAgent` hook after the turn completes.
@@ -280,7 +280,7 @@ This gives delegated agents awareness of where they sit in the orchestration wor
 
 ### Handoff Format Enforcement
 
-The `AfterAgent` hook (`hooks/after-agent.sh`) validates that every subagent response contains both required handoff sections:
+The `AfterAgent` hook (`hooks/after-agent.js`) validates that every subagent response contains both required handoff sections:
 
 - `## Task Report` (or `# Task Report`)
 - `## Downstream Context` (or `# Downstream Context`)

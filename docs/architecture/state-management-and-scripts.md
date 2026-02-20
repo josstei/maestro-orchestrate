@@ -1,6 +1,6 @@
 # State Management and Scripts
 
-This document describes Maestro's persisted session state model and shell-script runtime contract.
+This document describes Maestro's persisted session state model and script runtime contract.
 
 ## State Directory Layout
 
@@ -32,26 +32,26 @@ For script-backed settings:
 3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
 4. Default
 
-`read-active-session.sh` and `parallel-dispatch.sh` both implement this precedence.
+`read-active-session.js` and `parallel-dispatch.js` both implement this precedence.
 
 ## Why Scripts Are Required for State Reads
 
-`read_file` follows ignore rules; `.gemini/` is commonly ignored. Maestro therefore uses shell helpers for state reads under `<state_dir>`:
+`read_file` follows ignore rules; `.gemini/` is commonly ignored. Maestro therefore uses Node.js helpers for state reads under `<state_dir>`:
 
-- `scripts/read-state.sh <relative-path>`
-- `scripts/read-active-session.sh`
+- `node scripts/read-state.js <relative-path>`
+- `node scripts/read-active-session.js`
 
-State writes are typically done with `write_file`. For shell-piped writes, use `scripts/write-state.sh` (atomic temp-file + `mv`).
+State writes are typically done with `write_file`. For shell-piped writes, use `node scripts/write-state.js` (atomic temp-file + rename).
 
 ## Script Reference
 
 | Script | Responsibility | Key Guarantees |
 | --- | --- | --- |
-| `scripts/ensure-workspace.sh` | Prepare `<state_dir>` tree | Rejects absolute/path-traversal/symlink state dir; creates required directories and verifies writability |
-| `scripts/read-state.sh` | Safe state-file read | Relative-path only, traversal rejection, explicit error on missing file |
-| `scripts/write-state.sh` | Safe atomic state write | Relative-path only, traversal rejection, atomic move to destination |
-| `scripts/read-active-session.sh` | Resolve and read active session | Uses precedence chain and returns `No active session` fallback |
-| `scripts/parallel-dispatch.sh` | Run agent batch concurrently | Validates agent names, applies env settings, timeout/concurrency control, writes structured result artifacts |
+| `scripts/ensure-workspace.js` | Prepare `<state_dir>` tree | Rejects absolute/path-traversal/symlink state dir; creates required directories and verifies writability |
+| `scripts/read-state.js` | Safe state-file read | Relative-path only, traversal rejection, explicit error on missing file |
+| `scripts/write-state.js` | Safe atomic state write | Relative-path only, traversal rejection, atomic move to destination |
+| `scripts/read-active-session.js` | Resolve and read active session | Uses precedence chain and returns `No active session` fallback |
+| `scripts/parallel-dispatch.js` | Run agent batch concurrently | Validates agent names, applies env settings, timeout/concurrency control, writes structured result artifacts |
 | `scripts/sync-version.js` | Keep extension version in sync | Copies `package.json` version into `gemini-extension.json` |
 
 ## Parallel Dispatch Runtime Contract
@@ -103,10 +103,10 @@ Configured in `hooks/hooks.json`:
 
 | Event | Script | Behavior |
 | --- | --- | --- |
-| `BeforeAgent` | `hooks/before-agent.sh` | Tracks active agent, injects compact phase/status context from active session |
-| `AfterAgent` | `hooks/after-agent.sh` | Validates delegated response contains `Task Report` and `Downstream Context`; requests one retry if malformed |
+| `BeforeAgent` | `hooks/before-agent.js` | Tracks active agent, injects compact phase/status context from active session |
+| `AfterAgent` | `hooks/after-agent.js` | Validates delegated response contains `Task Report` and `Downstream Context`; requests one retry if malformed |
 
-Shared hook helpers live in `hooks/lib/common.sh`.
+Shared hook helpers live in `src/lib/` modules (hook-state, validation, response, stdin, logger, constants).
 
 Gemini CLI hook-schema compatibility notes:
 
@@ -125,12 +125,12 @@ Lifecycle stages:
 
 1. Create `state/active-session.md`
 2. Update per-phase status, files changed, downstream context, errors, token usage
-3. Read via `/maestro:status` and `/maestro:resume` using `read-active-session.sh`
+3. Read via `/maestro:status` and `/maestro:resume` using `read-active-session.js`
 4. Archive to `state/archive/` and `plans/archive/`
 
 ## Test Coverage
 
-Integration coverage runs via `tests/run-all.sh` and currently verifies:
+Integration coverage runs via `node tests/run-all.js` and currently verifies:
 
 - all hook scripts
 - parallel dispatch arg forwarding and stdin prompt payload behavior

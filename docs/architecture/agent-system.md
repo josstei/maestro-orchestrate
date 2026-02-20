@@ -81,7 +81,7 @@ This standardizes:
 ### Parallel Dispatch
 
 - Delegation is materialized into prompt files
-- `scripts/parallel-dispatch.sh` starts independent `gemini` processes
+- `node scripts/parallel-dispatch.js` starts independent `gemini` processes
 - Per-agent model override is supported through dispatch flags:
   - `MAESTRO_DEFAULT_MODEL`
   - `MAESTRO_WRITER_MODEL` (technical_writer only)
@@ -90,8 +90,8 @@ This standardizes:
 
 Parallel dispatch exports `MAESTRO_CURRENT_AGENT` per process. Hooks consume that identity to enforce middleware behavior:
 
-- `hooks/before-agent.sh` stores active agent in `/tmp/maestro-hooks/<session-id>/active-agent`
-- `hooks/after-agent.sh` reads active agent and validates handoff format
+- `hooks/before-agent.js` stores active agent in the hook state directory under `<session-id>/active-agent`
+- `hooks/after-agent.js` reads active agent and validates handoff format
 - If `MAESTRO_CURRENT_AGENT` is absent (typical sequential path), before-hook falls back to delegation-pattern detection against prompt text
 
 ## Practical Constraints

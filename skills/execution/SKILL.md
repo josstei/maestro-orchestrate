@@ -26,7 +26,7 @@ Before executing any phases in Phase 3:
 The `read_file` tool enforces `.gitignore` patterns via `shouldIgnoreFile()`, and `.gemini/` is typically gitignored. All reads of files within `<MAESTRO_STATE_DIR>` must use the shell script to bypass this restriction:
 
 ```bash
-run_shell_command: ${extensionPath}/scripts/read-state.sh <relative-path>
+run_shell_command: node ${extensionPath}/scripts/read-state.js <relative-path>
 ```
 
 The command path must use `${extensionPath}` so orchestration works when the extension is installed outside the workspace root.
@@ -46,14 +46,14 @@ Transient hook state (active agent tracking under `/tmp/maestro-hooks/<session-i
 
 ### Agent Turn Hooks
 
-- **BeforeAgent** (`hooks/before-agent.sh`): Fires before each agent turn. Detects the active agent (via `MAESTRO_CURRENT_AGENT` env var in parallel dispatch, or regex fallback in sequential delegation) and injects compact session phase/status context from `active-session.md` when available.
-- **AfterAgent** (`hooks/after-agent.sh`): Fires after each agent turn. Validates that the agent's response contains both `## Task Report` and `## Downstream Context` headings. Blocks and requests retry on first format violation; allows through on second failure to prevent infinite loops.
+- **BeforeAgent** (`hooks/before-agent.js`): Fires before each agent turn. Detects the active agent (via `MAESTRO_CURRENT_AGENT` env var in parallel dispatch, or regex fallback in sequential delegation) and injects compact session phase/status context from `active-session.md` when available.
+- **AfterAgent** (`hooks/after-agent.js`): Fires after each agent turn. Validates that the agent's response contains both `## Task Report` and `## Downstream Context` headings. Blocks and requests retry on first format violation; allows through on second failure to prevent infinite loops.
 
 ### Sequential vs Parallel Hook Behavior
 
 | Aspect | Sequential Delegation | Parallel Dispatch |
 | --- | --- | --- |
-| Agent detection | Regex fallback on prompt content | `MAESTRO_CURRENT_AGENT` env var (set by `parallel-dispatch.sh`) |
+| Agent detection | Regex fallback on prompt content | `MAESTRO_CURRENT_AGENT` env var (set by `parallel-dispatch.js`) |
 | Session context | Injected from shared session state | Injected from shared session state (same path) |
 | AfterAgent validation | Fires per turn in main session | Fires per turn in each independent `gemini` process |
 | Retry on format violation | Blocks main session, agent retries in-place | Blocks the individual parallel process |
@@ -78,7 +78,7 @@ For phases with dependencies (`blocked_by` is non-empty):
 
 ### Parallel Execution
 
-For phases at the same dependency depth with no file overlap, use shell-based parallel dispatch via `${extensionPath}/scripts/parallel-dispatch.sh`. This spawns independent `gemini` CLI processes that execute concurrently, bypassing the sequential subagent tool invocation pattern.
+For phases at the same dependency depth with no file overlap, use Node.js-based parallel dispatch via `node ${extensionPath}/scripts/parallel-dispatch.js`. This spawns independent `gemini` CLI processes that execute concurrently, bypassing the sequential subagent tool invocation pattern.
 
 #### Parallel Dispatch Protocol
 
@@ -92,13 +92,13 @@ For phases at the same dependency depth with no file overlap, use shell-based pa
 5. Write each agent's full delegation prompt (including injected base protocol, context chain, and downstream consumer declaration) to its prompt file
 6. Invoke the parallel dispatch script via `run_shell_command`:
    ```bash
-   ${extensionPath}/scripts/parallel-dispatch.sh <state_dir>/parallel/<batch-id>
+   node ${extensionPath}/scripts/parallel-dispatch.js <state_dir>/parallel/<batch-id>
    ```
 7. The script spawns one `gemini --approval-mode=yolo --output-format json` process per prompt file and streams each full prompt payload over stdin
 8. All agents execute concurrently as independent CLI processes
 9. The script waits for all agents, collects exit codes, and writes `results/summary.json`
-10. Read the batch summary via run_shell_command: `${extensionPath}/scripts/read-state.sh <state_dir>/parallel/<batch-id>/results/summary.json`
-11. For each agent, read its JSON output via run_shell_command: `${extensionPath}/scripts/read-state.sh <state_dir>/parallel/<batch-id>/results/<agent-name>.json` and parse the Task Report
+10. Read the batch summary via run_shell_command: `node ${extensionPath}/scripts/read-state.js <state_dir>/parallel/<batch-id>/results/summary.json`
+11. For each agent, read its JSON output via run_shell_command: `node ${extensionPath}/scripts/read-state.js <state_dir>/parallel/<batch-id>/results/<agent-name>.json` and parse the Task Report
 12. Update session state for all phases in the batch
 13. Only proceed to the next batch when all phases in the current batch are completed
 
