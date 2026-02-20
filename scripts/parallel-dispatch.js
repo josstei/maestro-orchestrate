@@ -47,9 +47,8 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const startTime = Date.now();
-
 async function main() {
+  const startTime = Date.now();
   const dispatchDir = process.argv[2];
   if (!dispatchDir) usage();
 
@@ -208,6 +207,11 @@ async function main() {
     const stdoutFd = fs.openSync(resultJson, 'w');
     const stderrFd = fs.openSync(resultLog, 'w');
 
+    function closeFds() {
+      try { fs.closeSync(stdoutFd); } catch {}
+      try { fs.closeSync(stderrFd); } catch {}
+    }
+
     const agentPromise = runWithTimeout(
       'gemini',
       geminiArgs,
@@ -220,11 +224,16 @@ async function main() {
       },
       timeoutMs
     ).then((result) => {
-      try { fs.closeSync(stdoutFd); } catch {}
-      try { fs.closeSync(stderrFd); } catch {}
+      closeFds();
       fs.writeFileSync(resultExit, String(result.exitCode));
       releaseSlot();
       return { agentName, ...result };
+    }, (err) => {
+      closeFds();
+      releaseSlot();
+      log('ERROR', `Agent ${agentName} dispatch failed: ${err.message}`);
+      fs.writeFileSync(resultExit, '255');
+      return { agentName, exitCode: 255, timedOut: false };
     });
 
     agentPromises.push(agentPromise);

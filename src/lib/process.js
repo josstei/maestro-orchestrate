@@ -50,7 +50,7 @@ function runWithTimeout(command, args, options = {}, timeoutMs) {
     let forceKillTimer = null;
     const timer = setTimeout(() => {
       timedOut = true;
-      log('WARN', `Process ${child.pid} timed out after ${timeoutMs}ms`);
+      log('WARN', `Process ${child.pid ?? 'unknown'} timed out after ${timeoutMs}ms`);
       killProcess(child.pid);
       forceKillTimer = setTimeout(() => {
         try {
