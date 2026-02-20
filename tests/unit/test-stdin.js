@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('child_process');
 const path = require('path');
-const { get, getBool, getNested } = require('../../src/lib/stdin');
+const { get, getBool } = require('../../src/lib/stdin');
 
 describe('stdin helpers', () => {
   describe('get()', () => {
@@ -36,22 +36,6 @@ describe('stdin helpers', () => {
 
     it('returns false for falsy value', () => {
       assert.equal(getBool({ a: false }, 'a'), false);
-    });
-  });
-
-  describe('getNested()', () => {
-    it('traverses nested objects', () => {
-      const obj = { a: { b: { c: 'deep' } } };
-      assert.equal(getNested(obj, 'a', 'b', 'c'), 'deep');
-    });
-
-    it('returns empty string for missing path', () => {
-      assert.equal(getNested({ a: { b: 1 } }, 'a', 'x', 'y'), '');
-    });
-
-    it('returns JSON for non-string leaf', () => {
-      const obj = { a: { b: [1, 2] } };
-      assert.equal(getNested(obj, 'a', 'b'), '[1,2]');
     });
   });
 

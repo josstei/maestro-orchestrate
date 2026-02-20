@@ -39,15 +39,4 @@ function getBool(obj, key) {
   return false;
 }
 
-function getNested(obj, ...keys) {
-  let current = obj;
-  for (const key of keys) {
-    if (current == null || typeof current !== 'object') return '';
-    current = current[key];
-  }
-  if (current == null) return '';
-  if (typeof current === 'string') return current;
-  return JSON.stringify(current);
-}
-
-module.exports = { readJson, get, getBool, getNested };
+module.exports = { readJson, get, getBool };

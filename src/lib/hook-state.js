@@ -31,7 +31,7 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
       if (!entry.isDirectory()) continue;
       const dirPath = path.join(baseDir, entry.name);
       try {
-        const stat = fs.statSync(dirPath);
+        const stat = fs.lstatSync(dirPath);
         if (now - stat.mtimeMs > HOOK_STATE_TTL_MS) {
           fs.rmSync(dirPath, { recursive: true, force: true });
         }

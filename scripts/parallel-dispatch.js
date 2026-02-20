@@ -218,7 +218,13 @@ async function main() {
 
     const stdinStream = Readable.from([stdinPayload]);
     const stdoutFd = fs.openSync(resultJson, 'w');
-    const stderrFd = fs.openSync(resultLog, 'w');
+    let stderrFd;
+    try {
+      stderrFd = fs.openSync(resultLog, 'w');
+    } catch (err) {
+      fs.closeSync(stdoutFd);
+      throw err;
+    }
 
     function closeFds() {
       try { fs.closeSync(stdoutFd); } catch {}
