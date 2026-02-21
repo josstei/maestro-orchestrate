@@ -5,6 +5,15 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **src/lib reorganization** — Flat 13-module `src/lib/` directory decomposed into domain-scoped subdirectories (`core/`, `config/`, `hooks/`, `state/`, `dispatch/`) with single-responsibility modules and improved naming conventions
+- **Constants dissolved** — Grab-bag `constants.js` eliminated; each constant inlined into its domain owner
+- **Mixed-concern files split** — `settings.js` split into `env-file-parser`, `setting-resolver`, `project-root-resolver`; `validation.js` split into `session-id-validator` and `agent-registry`; `dispatch-config.js` split into `integer-parser` and `dispatch-config-resolver`; `stdin.js` split into `stdin-reader` with `get`/`getBool` absorbed into hook facade
+- **Improved naming** — `file-utils.js` → `atomic-write.js`, `process.js` → `process-runner.js`, `response.js` → `hook-response.js`, `maestro.js` → `hook-facade.js`, `concurrency.js` → `concurrency-limiter.js`
+
 ## [1.2.1] - 2026-02-19
 
 ### Changed
