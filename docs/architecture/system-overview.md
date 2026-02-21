@@ -11,7 +11,7 @@ Maestro is configuration-driven. The runtime is composed of:
 - `commands/maestro/*.toml`: slash command prompts
 - `skills/*/SKILL.md`: on-demand procedural protocols
 - `agents/*.md`: local agent definitions (`tools`, temperature, turn limits, timeout)
-- `hooks/hooks.json` + `hooks/*.js`: BeforeAgent/AfterAgent middleware
+- `hooks/hooks.json` + `hooks/*.js`: lifecycle middleware (SessionStart, BeforeAgent, AfterAgent, SessionEnd)
 - `scripts/*.js`: workspace, state, and parallel dispatch helpers
 - `src/lib/{core,config,state,hooks,dispatch}/*.js`: shared Node.js modules organized by domain (stdin, state, settings, hook lifecycle, dispatch, etc.)
 
@@ -69,7 +69,7 @@ Execution mode is controlled by `MAESTRO_EXECUTION_MODE` (`ask`, `parallel`, `se
 For script-resolved settings, precedence is:
 
 1. Exported environment variable
-2. Workspace `.env` (`$PWD/.env`)
+2. Workspace `.env` (project root `.env`; `read-active-session.js` resolves via git repo root, `parallel-dispatch.js` resolves via `cwd`)
 3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
 4. Built-in default
 

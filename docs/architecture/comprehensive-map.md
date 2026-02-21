@@ -57,20 +57,22 @@ Maestro follows a sequential four-phase lifecycle:
 
 Maestro employs a roster of 12 specialized agents, each defined in `agents/*.md`.
 
-| Role | Primary Responsibility | Key Tools |
+All agents share a baseline tool set: `read_file`, `list_directory`, `glob`, `grep_search`, `read_many_files`, `ask_user`. The table below shows additional tools and primary responsibility.
+
+| Role | Primary Responsibility | Additional Tools |
 | :--- | :--- | :--- |
-| **Architect** | System design & tech stack | Web search, Read tools |
-| **API Designer** | Interface & contract design | Web search, Read tools |
-| **Coder** | Feature implementation | Write, Replace, Shell, Skills |
-| **Tester** | Test suite implementation | Write, Replace, Shell, Skills |
-| **Code Reviewer** | Quality & pattern enforcement | Read-only |
-| **Debugger** | Root cause analysis | Shell, Read tools |
-| **DevOps** | CI/CD & infrastructure | Write, Shell, Web search |
-| **Security** | Security auditing | Shell, Web search |
-| **Performance** | Profiling & optimization | Shell, Web search |
-| **Data Engineer** | Schema & query design | Write, Shell, Web search |
-| **Refactor** | Structural improvements | Write, Replace, Skills |
-| **Tech Writer** | Documentation | Write, Replace, Web search |
+| **architect** | System design & tech stack | Web search/fetch |
+| **api_designer** | Interface & contract design | Web search/fetch |
+| **coder** | Feature implementation | Write, Replace, Shell, Skills |
+| **tester** | Test suite implementation | Write, Replace, Shell, Skills, Web search |
+| **code_reviewer** | Quality & pattern enforcement | _(baseline only)_ |
+| **debugger** | Root cause analysis | Shell |
+| **devops_engineer** | CI/CD & infrastructure | Write, Replace, Shell, Web search/fetch |
+| **security_engineer** | Security auditing | Shell, Web search/fetch |
+| **performance_engineer** | Profiling & optimization | Shell, Web search/fetch |
+| **data_engineer** | Schema & query design | Write, Replace, Shell, Web search |
+| **refactor** | Structural improvements | Write, Replace, Skills |
+| **technical_writer** | Documentation | Write, Replace, Web search |
 
 ### Delegation Protocols
 All agents are bound by injected protocols:
@@ -119,14 +121,17 @@ Maestro maintains state in a project-local directory (default: `.gemini/`).
 
 ## Component Map
 
-| Directory | Responsibility |
+| Path | Responsibility |
 | :--- | :--- |
+| `gemini-extension.json` | Extension manifest: name, version, and user-configurable `MAESTRO_*` settings. |
+| `GEMINI.md` | TechLead orchestrator system prompt: four-phase protocol, delegation rules, tool usage. |
+| `package.json` | NPM package identity and version sync hook (`scripts/sync-version.js`). |
 | `agents/` | Agent definitions (system prompts and tool permissions). |
 | `commands/maestro/` | Slash command definitions and orchestration logic. |
 | `docs/architecture/` | System documentation and architecture guides. |
-| `hooks/` | Before/After agent middleware and session lifecycle hooks. |
+| `hooks/` | Lifecycle middleware: SessionStart, BeforeAgent, AfterAgent, SessionEnd. |
 | `scripts/` | Utility scripts for state management, workspace setup, and dispatch. |
-| `skills/` | Reusable procedural protocols (planning, execution, delegation). |
+| `skills/` | Reusable procedural protocols (planning, execution, delegation). Includes `delegation/protocols/` for shared agent protocols. |
 | `src/lib/` | Shared JavaScript logic organized by domain: `core/`, `config/`, `state/`, `hooks/`, `dispatch/`. |
-| `templates/` | Standardized formats for plans and session state. |
-| `tests/` | Integration and unit tests for the Maestro platform. |
+| `templates/` | Standardized formats for plans and session state (`design-document.md`, `implementation-plan.md`, `session-state.md`). |
+| `tests/` | Unit tests (`tests/unit/`) and integration tests (`tests/integration/`) with shared helpers (`tests/helpers/`). |

@@ -17,8 +17,8 @@ Gemini CLI command-loader constraints in effect:
 
 | Command | Prompt File | Primary Behavior | Skill Usage |
 | --- | --- | --- | --- |
-| `/maestro:orchestrate` | `commands/maestro/orchestrate.toml` | Full orchestration entry point | Starts with `design-dialogue`; workflow later uses planning/execution/session skills |
-| `/maestro:execute` | `commands/maestro/execute.toml` | Execute existing implementation plan | `execution`, `delegation`, `session-management`, `validation` |
+| `/maestro:orchestrate` | `commands/maestro/orchestrate.toml` | Full orchestration entry point | Starts with `design-dialogue`; workflow later uses planning/execution/session skills; final `code_reviewer` quality gate runs directly in Phase 4 (Complete) before archival |
+| `/maestro:execute` | `commands/maestro/execute.toml` | Execute existing implementation plan | `execution`, `delegation`, `session-management`, `validation`; final `code_reviewer` quality gate runs directly before archival |
 | `/maestro:resume` | `commands/maestro/resume.toml` | Resume active session | `session-management`, `execution`, `delegation`, `validation` |
 | `/maestro:status` | `commands/maestro/status.toml` | Read-only status report | No skill activation required |
 | `/maestro:archive` | `commands/maestro/archive.toml` | Archive active session | `session-management` |
@@ -29,7 +29,7 @@ Gemini CLI command-loader constraints in effect:
 
 ## Prompt Safety Pattern
 
-Command prompts consistently wrap user args in `<user-request>` tags and instruct the orchestrator to treat them as data, not override instructions.
+Command prompts wrap user args in `<user-request>` tags where applicable and instruct the orchestrator to treat them as data, not override instructions. Commands that take no arguments (e.g., `archive`) omit this pattern.
 
 Example:
 

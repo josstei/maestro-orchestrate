@@ -91,7 +91,7 @@ This standardizes:
 Parallel dispatch exports `MAESTRO_CURRENT_AGENT` per process. Hooks consume that identity to enforce middleware behavior:
 
 - `hooks/before-agent.js` detects the active agent via `detectAgentFromPrompt()`: checks `MAESTRO_CURRENT_AGENT` env var first (set by parallel dispatch), then falls back to regex pattern matching on prompt text. Stores the resolved agent name in the hook state directory under `<session-id>/active-agent`.
-- `hooks/after-agent.js` reads the active agent and validates handoff format. Validation is skipped for `techlead` and `orchestrator` agents.
+- `hooks/after-agent.js` reads the active agent, validates handoff format, and clears the active agent from hook state. Validation is skipped for `techlead` and `orchestrator` agents.
 - Hook state is stored under `/tmp/maestro-hooks` on Unix or `%TEMP%\maestro-hooks` on Windows.
 
 ## Practical Constraints

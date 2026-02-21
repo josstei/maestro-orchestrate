@@ -376,22 +376,26 @@ After all phases complete:
 
 Maestro coordinates 12 specialized subagents:
 
-| Agent | Specialization | Tools | Model |
-|-------|---------------|-------|-------|
-| architect | System design, technology selection, component design | read, glob, search, web search/fetch | inherit |
-| api_designer | REST/GraphQL endpoint design, API contracts | read, glob, search, web search/fetch | inherit |
-| coder | Feature implementation, clean code, SOLID principles | read, glob, search, write, replace, shell, todos, skills | inherit |
-| code_reviewer | Code quality review, best practices, security | read, glob, search | inherit |
-| data_engineer | Schema design, query optimization, ETL pipelines | read, glob, search, write, replace, shell, web search | inherit |
-| debugger | Root cause analysis, log analysis, execution tracing | read, glob, search, shell | inherit |
-| devops_engineer | CI/CD pipelines, containerization, infrastructure | read, glob, search, write, replace, shell, web search/fetch | inherit |
-| performance_engineer | Profiling, bottleneck identification, optimization | read, glob, search, shell, web search/fetch | inherit |
-| refactor | Code modernization, technical debt, design patterns | read, glob, search, write, replace, todos, skills | inherit |
-| security_engineer | Vulnerability assessment, OWASP, threat modeling | read, glob, search, shell, web search/fetch | inherit |
-| tester | Unit/integration/E2E tests, TDD, coverage analysis | read, glob, search, write, replace, shell, todos, skills, web search | inherit |
-| technical_writer | API docs, READMEs, architecture documentation | read, glob, search, write, replace, todos, web search | inherit |
+All agents share a baseline tool set: `read_file`, `list_directory`, `glob`, `grep_search`, `read_many_files`, `ask_user`. The table below shows additional tools granted beyond that baseline.
+
+| Agent | Specialization | Additional Tools | Model |
+|-------|---------------|-----------------|-------|
+| architect | System design, technology selection, component design | web search/fetch | inherit |
+| api_designer | REST/GraphQL endpoint design, API contracts | web search/fetch | inherit |
+| coder | Feature implementation, clean code, SOLID principles | write, replace, shell, todos, skills | inherit |
+| code_reviewer | Code quality review, best practices, security | _(baseline only)_ | inherit |
+| data_engineer | Schema design, query optimization, ETL pipelines | write, replace, shell, todos, web search | inherit |
+| debugger | Root cause analysis, log analysis, execution tracing | shell, todos | inherit |
+| devops_engineer | CI/CD pipelines, containerization, infrastructure | write, replace, shell, todos, web search/fetch | inherit |
+| performance_engineer | Profiling, bottleneck identification, optimization | shell, todos, web search/fetch | inherit |
+| refactor | Code modernization, technical debt, design patterns | write, replace, todos, skills | inherit |
+| security_engineer | Vulnerability assessment, OWASP, threat modeling | shell, todos, web search/fetch | inherit |
+| tester | Unit/integration/E2E tests, TDD, coverage analysis | write, replace, shell, todos, skills, web search | inherit |
+| technical_writer | API docs, READMEs, architecture documentation | write, replace, todos, web search | inherit |
 
 ### Tool Access Philosophy
+
+All agents can ask the user clarifying questions via `ask_user` (not available during parallel dispatch where agents run non-interactively).
 
 - **Read-only agents** (architect, api_designer, code_reviewer): Produce analysis and recommendations
 - **Read + Shell agents** (debugger, performance_engineer, security_engineer): Investigate without modifying files
@@ -408,7 +412,7 @@ Maestro uses skills to encapsulate detailed methodologies that are activated on 
 | `implementation-planning` | Phase decomposition, agent assignment, and plan generation | `/maestro:orchestrate` (Phase 2) |
 | `execution` | Phase execution protocols, error handling, and completion workflows | `/maestro:orchestrate` (Phase 3), `/maestro:execute`, `/maestro:resume` |
 | `delegation` | Subagent prompt construction, scope boundaries, and parallel delegation | Any phase involving subagent delegation |
-| `session-management` | Session creation, state updates, resume protocol, and archival | `/maestro:orchestrate`, `/maestro:resume`, `/maestro:archive`, `/maestro:status` |
+| `session-management` | Session creation, state updates, resume protocol, and archival | `/maestro:orchestrate`, `/maestro:resume`, `/maestro:archive` |
 | `code-review` | Scope detection, severity classification, and structured review output | `/maestro:review` |
 | `validation` | Build/lint/test pipeline, project type detection, and result interpretation | Post-phase validation during execution |
 
@@ -490,6 +494,7 @@ All state files use YAML frontmatter for machine-readable metadata and Markdown 
 - **[Agent System](docs/architecture/agent-system.md)** — Agent definitions, tool permissions, model assignment, and delegation
 - **[Skills & Commands](docs/architecture/skills-and-commands.md)** — Skill activation, command definitions, and protocol contracts
 - **[State Management & Scripts](docs/architecture/state-management-and-scripts.md)** — Session state, parallel dispatch, and execution infrastructure
+- **[Comprehensive Map](docs/architecture/comprehensive-map.md)** — High-level architectural map connecting all components
 
 ## Troubleshooting
 

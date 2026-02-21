@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Documentation accuracy audit** — Systematic audit of all documentation against source code, fixing discrepancies across 8 files:
+  - CLAUDE.md: Added missing `templates/*.md` and `package.json` to runtime surfaces and source-of-truth files
+  - README.md: Fixed agent tool table to show baseline tool set (`read_file`, `list_directory`, `glob`, `grep_search`, `read_many_files`, `ask_user`) separately from additional per-agent tools; added `ask_user` to Tool Access Philosophy; linked `comprehensive-map.md`
+  - USAGE.md: Documented `code_reviewer` quality gate in Phase 4 for both `/maestro:orchestrate` and `/maestro:execute`; fixed incomplete workspace directory tree to include `plans/`, `plans/archive/`, and `parallel/`
+  - skills-and-commands.md: Corrected inaccurate claim that `code-review` is activated "transitively via execution skill" — it runs directly in Phase 4
+  - system-overview.md: Fixed incomplete hook list summary to mention all four lifecycle hooks
+  - agent-system.md: Added missing `after-agent.js` active agent clearing behavior
+  - comprehensive-map.md: Added `gemini-extension.json`, `GEMINI.md`, `package.json` to component map; fixed agent names to use canonical `snake_case`; expanded `templates/`, `skills/`, and `tests/` descriptions
+
 ### Changed
 
 - **src/lib reorganization** — Flat 13-module `src/lib/` directory decomposed into domain-scoped subdirectories (`core/`, `config/`, `hooks/`, `state/`, `dispatch/`) with single-responsibility modules and improved naming conventions
@@ -19,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Cross-platform Node.js rewrite** — All bash and python3 hooks and scripts rewritten to pure Node.js (zero npm dependencies) for Windows PowerShell compatibility
-- **Layered module architecture** — 9 shared `src/lib/` modules (constants, hook-state, logger, process, response, settings, state, stdin, validation) composed by thin hook and script entry points
+- **Layered module architecture** — 13 shared `src/lib/` modules (constants, hook-state, logger, process, response, settings, state, stdin, validation, file-utils, dispatch-config, concurrency, maestro) composed by thin hook and script entry points
 - **Hook-state factory pattern** — `createHookState(baseDir)` replaces mutable `_setBaseDirForTest` singleton for clean test isolation
 - **Session hook registration** — SessionStart and SessionEnd hooks registered in `hooks/hooks.json`
 - **Parallel dispatch output** — Status messages moved from stdout to stderr (via logger) to avoid mixing with result data
@@ -31,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **70 unit tests** — `tests/unit/` covering all 9 `src/lib/` modules including readJson, stdin piping, timeoutMs validation, concurrency gate, and inline comment parsing
+- **70 unit tests** — `tests/unit/` covering all 13 `src/lib/` modules including readJson, stdin piping, timeoutMs validation, concurrency gate, and inline comment parsing
 - **Node.js integration tests** — All 8 integration tests migrated from bash to Node.js with `node:test`; consistent `{ concurrency: 1 }` across shared-state tests
 
 ### Removed

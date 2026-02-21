@@ -13,6 +13,7 @@ Maestro is a configuration-first Gemini CLI extension. Core runtime surfaces:
 - `skills/*/SKILL.md`: reusable procedural protocols
 - `hooks/hooks.json` + `hooks/*.js`: lifecycle middleware
 - `scripts/*.js`: workspace/state/parallel-dispatch helpers
+- `templates/*.md`: structure templates for generated artifacts (designs, plans, sessions)
 - `src/lib/`: shared Node.js modules organized by domain:
   - `core/`: cross-cutting infrastructure (logger, atomic-write, stdin-reader, env-file-parser, integer-parser, project-root-resolver, agent-registry)
   - `config/`: configuration resolution (setting-resolver, dispatch-config-resolver)
@@ -64,6 +65,8 @@ Useful manual checks after linking:
 - `scripts/read-active-session.js`
 - `scripts/parallel-dispatch.js`
 - `scripts/sync-version.js`
+- `templates/*.md`
+- `package.json`
 - `tests/run-all.js`
 
 ## Gemini CLI Compatibility Notes

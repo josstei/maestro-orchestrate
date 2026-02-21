@@ -254,7 +254,7 @@ Start a full Maestro orchestration for a complex engineering task.
    - **Phase 1**: Design Dialogue — structured requirements gathering
    - **Phase 2**: Team Assembly & Planning — agent selection and task decomposition
    - **Phase 3**: Execution — delegated implementation with progress tracking
-   - **Phase 4**: Completion — final review and archival
+   - **Phase 4**: Completion — final `code_reviewer` quality gate (blocks on unresolved Critical/Major findings), review, and archival
 
 **When to Use**:
 - Complex tasks requiring multiple specialized agents
@@ -347,7 +347,8 @@ Execute an existing implementation plan, skipping design and planning phases.
    - Estimated effort
 4. Asks for confirmation before beginning
 5. Executes phases according to the plan
-6. Archives the session on completion
+6. Runs a final `code_reviewer` quality gate when execution changed non-documentation files (blocks on unresolved Critical/Major findings)
+7. Archives the session on completion
 
 **When to Use**:
 - You have a pre-written implementation plan
@@ -949,14 +950,16 @@ flowchart TD
 
 1. **Final Review**: Maestro verifies all phases are completed and deliverables are accounted for.
 
-2. **Validation**: Maestro runs final validation (build, lint, tests) across all deliverables.
+2. **Code Review Gate**: If execution changed non-documentation files, Maestro runs a final `code_reviewer` quality gate. Completion is blocked on unresolved Critical or Major findings — the orchestrator will remediate, re-validate, and re-review until resolved.
 
-3. **Archival**: If `MAESTRO_AUTO_ARCHIVE` is `true` (default), Maestro automatically archives the session:
+3. **Validation**: Maestro runs final validation (build, lint, tests) across all deliverables.
+
+4. **Archival**: If `MAESTRO_AUTO_ARCHIVE` is `true` (default), Maestro automatically archives the session:
    - Design document → `.gemini/plans/archive/`
    - Implementation plan → `.gemini/plans/archive/`
    - Session state → `.gemini/state/archive/<session-id>.md`
 
-4. **Summary**: Maestro presents a final summary with:
+5. **Summary**: Maestro presents a final summary with:
    - What was delivered
    - Files changed (created, modified, deleted)
    - Token usage by agent
@@ -990,10 +993,13 @@ Maestro tracks all orchestration progress in `.gemini/state/active-session.md` u
 ```
 <your-project>/
 └── .gemini/
-    └── state/
-        ├── active-session.md       # Current orchestration
-        └── archive/                # Completed sessions
-            └── 2026-02-15-task-management-api.md
+    ├── plans/                          # Active design docs and implementation plans
+    │   └── archive/                    # Completed plans
+    ├── state/
+    │   ├── active-session.md           # Current orchestration
+    │   └── archive/                    # Completed sessions
+    │       └── 2026-02-15-task-management-api.md
+    └── parallel/                       # Parallel dispatch artifacts
 ```
 
 **Structure**:
@@ -1296,9 +1302,9 @@ export MAESTRO_STATE_DIR=.maestro
 
 Controls how strictly Maestro enforces validation after each phase:
 
-- **strict**: All build/lint/test failures block phase completion
-- **normal** (default): Build failures block, lint/test failures warn but allow continuation
-- **lenient**: Validation failures are logged but do not block
+- **strict**: All failures and warnings block phase completion (lint warnings, deprecation notices, coverage decreases all block)
+- **normal** (default): Build/lint/test errors block phase completion. Lint warnings, deprecation notices, and coverage decreases are recorded but do not block.
+- **lenient**: All failures and warnings are recorded but do not block phase completion. The user reviews the accumulated report at completion.
 
 Set via:
 ```bash

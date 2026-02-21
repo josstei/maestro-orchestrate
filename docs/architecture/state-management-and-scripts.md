@@ -21,7 +21,7 @@ State is project-local under `MAESTRO_STATE_DIR` (default `.gemini`):
       results/
 ```
 
-`<state_dir>` can be relative (resolved from project root) or absolute.
+`<state_dir>` can be relative (resolved from project root) or absolute for session path resolution (`resolveActiveSessionPath`). Note that `ensureWorkspace`, `readState`, and `writeState` enforce relative paths only and reject absolute values.
 
 ## Resolution Precedence
 
@@ -32,7 +32,7 @@ For script-backed settings:
 3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
 4. Default
 
-`read-active-session.js` and `parallel-dispatch.js` both implement this precedence.
+`read-active-session.js` and `parallel-dispatch.js` both implement this precedence, though they resolve project root differently: `read-active-session.js` uses the git repository root (via `resolveProjectRoot()`), while `parallel-dispatch.js` uses the current working directory (`process.cwd()`).
 
 ## Why Scripts Are Required for State Reads
 
@@ -136,6 +136,8 @@ Integration coverage runs via `node tests/run-all.js` and currently verifies:
 
 - all hook scripts
 - parallel dispatch arg forwarding and stdin prompt payload behavior
+- concurrency gate enforcement
+- numeric setting validation
 - dispatch config fallback precedence
 - dispatch exit-code propagation
 - active-session resolution behavior
