@@ -21,7 +21,7 @@ Comprehensive guide to installing, configuring, and using the Maestro multi-agen
 
 1. **Gemini CLI**: Maestro is a Gemini CLI extension. Install Gemini CLI from [geminicli.com](https://geminicli.com) before proceeding.
 
-2. **Node.js**: Required for version management scripts. Install Node.js 16 or later from [nodejs.org](https://nodejs.org).
+2. **Node.js**: Required for hooks, scripts, and parallel dispatch infrastructure. Install Node.js 16 or later from [nodejs.org](https://nodejs.org).
 
 ### Enable Experimental Subagents
 
@@ -805,7 +805,7 @@ Measurement Plan:
 
 This section walks through the Design → Plan → Execute → Complete lifecycle from a user perspective.
 
-> **Skill Activation Prompts**: Each skill activated during orchestration requires a user confirmation dialog in the Gemini CLI. Extension-provided skills are never auto-approved. During a full `/maestro:orchestrate` workflow, expect 3-5 confirmation prompts — one per phase skill activation. To suppress these prompts, configure an auto-approve policy in your Gemini CLI settings.
+> **Skill Activation Prompts**: Each skill activated during orchestration requires a user confirmation dialog in the Gemini CLI. Extension-provided skills are never auto-approved. During a full `/maestro:orchestrate` workflow, expect 5-7 confirmation prompts — one per phase skill activation. To suppress these prompts, configure an auto-approve policy in your Gemini CLI settings.
 
 ```mermaid
 flowchart TD
@@ -1234,7 +1234,7 @@ Maestro works out of the box with sensible defaults. To customize behavior, set 
 |----------|---------|-------------|
 | `MAESTRO_DEFAULT_MODEL` | _(inherit from main session)_ | Model override for agents dispatched via parallel execution (has no effect on sequential delegation) |
 | `MAESTRO_WRITER_MODEL` | _(inherit from main session)_ | Model override for the technical_writer agent in parallel execution (has no effect on sequential delegation) |
-| `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | Temperature for all agents (0.0-1.0) |
+| `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | Temperature for all agents (0.0-2.0) |
 | `MAESTRO_MAX_TURNS` | `25` | Maximum turns per subagent execution |
 | `MAESTRO_AGENT_TIMEOUT` | `10` | Timeout in minutes per subagent |
 | `MAESTRO_DISABLED_AGENTS` | _(none)_ | Comma-separated list of agents to exclude from planning |

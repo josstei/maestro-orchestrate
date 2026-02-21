@@ -46,7 +46,7 @@
     },
     {
       "name": "Validation Strictness",
-      "description": "Post-phase validation strictness level (normal/strict).",
+      "description": "Post-phase validation strictness level (strict/normal/lenient).",
       "envVar": "MAESTRO_VALIDATION_STRICTNESS"
     },
     {

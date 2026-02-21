@@ -13,7 +13,7 @@ Maestro is configuration-driven. The runtime is composed of:
 - `agents/*.md`: local agent definitions (`tools`, temperature, turn limits, timeout)
 - `hooks/hooks.json` + `hooks/*.js`: BeforeAgent/AfterAgent middleware
 - `scripts/*.js`: workspace, state, and parallel dispatch helpers
-- `src/lib/*.js`: shared Node.js modules (stdin, state, validation, settings, etc.)
+- `src/lib/{core,config,state,hooks,dispatch}/*.js`: shared Node.js modules organized by domain (stdin, state, settings, hook lifecycle, dispatch, etc.)
 
 ## Gemini CLI Loader Alignment
 
@@ -73,7 +73,7 @@ For script-resolved settings, precedence is:
 3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
 4. Built-in default
 
-This precedence is implemented in `scripts/parallel-dispatch.js` and `scripts/read-active-session.js`.
+This precedence is implemented in `src/lib/config/setting-resolver.js`, consumed by `scripts/parallel-dispatch.js` and `scripts/read-active-session.js`.
 
 ## Parallel Dispatch Architecture
 
@@ -111,8 +111,10 @@ If `MAESTRO_GEMINI_EXTRA_ARGS` includes `--allowed-tools`, dispatch emits a depr
 
 Hooks are configured in `hooks/hooks.json`.
 
-- BeforeAgent (`hooks/before-agent.js`): detects active agent (`MAESTRO_CURRENT_AGENT` first, regex fallback), stores active agent, injects compact session context
-- AfterAgent (`hooks/after-agent.js`): validates delegated output contains both `Task Report` and `Downstream Context`, requests one retry on malformed output
+- SessionStart (`hooks/session-start.js`): prunes stale hook state, initializes session directory when an active session exists
+- BeforeAgent (`hooks/before-agent.js`): detects active agent via `detectAgentFromPrompt()` (`MAESTRO_CURRENT_AGENT` env var first, prompt regex fallback), stores active agent, injects compact session context
+- AfterAgent (`hooks/after-agent.js`): validates delegated output contains both `Task Report` and `Downstream Context`, requests one retry on malformed output; skips validation for `techlead`/`orchestrator` agents
+- SessionEnd (`hooks/session-end.js`): removes session hook state directory
 
 ## Gemini CLI Features Actively Leveraged
 

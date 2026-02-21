@@ -251,7 +251,7 @@ Maestro works out of the box with sensible defaults. To customize behavior, set 
 |---------------------|---------|-------------|
 | `MAESTRO_DEFAULT_MODEL` | _(inherit)_ | Model used by all agents unless individually overridden |
 | `MAESTRO_WRITER_MODEL` | _(inherit)_ | Model for technical_writer agent |
-| `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | Temperature for all agents (0.0-1.0) |
+| `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | Temperature for all agents (0.0-2.0) |
 | `MAESTRO_MAX_TURNS` | `25` | Maximum turns per subagent execution |
 | `MAESTRO_AGENT_TIMEOUT` | `10` | Timeout in minutes per subagent |
 | `MAESTRO_DISABLED_AGENTS` | _(none)_ | Comma-separated list of agents to exclude |
@@ -283,8 +283,10 @@ Maestro uses Gemini CLI's hooks system for lifecycle middleware. Tool permission
 
 | Hook | Purpose |
 |------|---------|
+| SessionStart | Initialize hook state, prune stale sessions |
 | BeforeAgent | Track active agent identity, inject session context |
 | AfterAgent | Validate handoff report format, clear agent tracking |
+| SessionEnd | Clean up hook state for ended session |
 
 Hook handlers are in `hooks/` and registered via `hooks/hooks.json`.
 
@@ -330,7 +332,7 @@ Maestro is built from seven layers, each with a distinct responsibility:
 | **Commands** | `commands/` | TOML | CLI command definitions mapping user commands to prompts/skills |
 | **Agents** | `agents/` | Markdown + YAML frontmatter | 12 subagent persona definitions with tool permissions and model config |
 | **Skills** | `skills/` | Markdown (`SKILL.md` per directory) | Reusable methodology modules with embedded protocols |
-| **Scripts** | `scripts/` | Node.js | Execution infrastructure (parallel dispatch) |
+| **Scripts** | `scripts/` | Node.js | Execution infrastructure (workspace setup, state management, parallel dispatch, version sync) |
 | **Hooks** | `hooks/` | JSON + Node.js | Lifecycle middleware for active-agent tracking and handoff validation |
 | **Templates** | `templates/` | Markdown | Structure templates for generated artifacts (designs, plans, sessions) |
 
@@ -378,16 +380,16 @@ Maestro coordinates 12 specialized subagents:
 |-------|---------------|-------|-------|
 | architect | System design, technology selection, component design | read, glob, search, web search/fetch | inherit |
 | api_designer | REST/GraphQL endpoint design, API contracts | read, glob, search, web search/fetch | inherit |
-| coder | Feature implementation, clean code, SOLID principles | read, glob, search, write, replace, shell | inherit |
+| coder | Feature implementation, clean code, SOLID principles | read, glob, search, write, replace, shell, todos, skills | inherit |
 | code_reviewer | Code quality review, best practices, security | read, glob, search | inherit |
 | data_engineer | Schema design, query optimization, ETL pipelines | read, glob, search, write, replace, shell, web search | inherit |
 | debugger | Root cause analysis, log analysis, execution tracing | read, glob, search, shell | inherit |
 | devops_engineer | CI/CD pipelines, containerization, infrastructure | read, glob, search, write, replace, shell, web search/fetch | inherit |
 | performance_engineer | Profiling, bottleneck identification, optimization | read, glob, search, shell, web search/fetch | inherit |
-| refactor | Code modernization, technical debt, design patterns | read, glob, search, write, replace | inherit |
+| refactor | Code modernization, technical debt, design patterns | read, glob, search, write, replace, todos, skills | inherit |
 | security_engineer | Vulnerability assessment, OWASP, threat modeling | read, glob, search, shell, web search/fetch | inherit |
-| tester | Unit/integration/E2E tests, TDD, coverage analysis | read, glob, search, write, replace, shell, web search | inherit |
-| technical_writer | API docs, READMEs, architecture documentation | read, glob, search, write, replace, web search | inherit |
+| tester | Unit/integration/E2E tests, TDD, coverage analysis | read, glob, search, write, replace, shell, todos, skills, web search | inherit |
+| technical_writer | API docs, READMEs, architecture documentation | read, glob, search, write, replace, todos, web search | inherit |
 
 ### Tool Access Philosophy
 

@@ -52,6 +52,7 @@ Useful manual checks after linking:
 - `agents/*.md`
 - `skills/*/SKILL.md`
 - `hooks/hooks.json`
+- `hooks/*.js`
 - `src/lib/core/*.js`
 - `src/lib/config/*.js`
 - `src/lib/hooks/*.js`
@@ -62,6 +63,7 @@ Useful manual checks after linking:
 - `scripts/write-state.js`
 - `scripts/read-active-session.js`
 - `scripts/parallel-dispatch.js`
+- `scripts/sync-version.js`
 - `tests/run-all.js`
 
 ## Gemini CLI Compatibility Notes
@@ -104,14 +106,19 @@ Script precedence is env -> workspace `.env` -> extension `.env` -> default.
 
 Defined in `hooks/hooks.json`:
 
+- SessionStart -> `hooks/session-start.js`
 - BeforeAgent -> `hooks/before-agent.js`
 - AfterAgent -> `hooks/after-agent.js`
+- SessionEnd -> `hooks/session-end.js`
 
 Behavior summary:
 
-- `before-agent.js`: tracks active agent (`MAESTRO_CURRENT_AGENT` first, regex fallback), injects compact session phase/status context
-- `after-agent.js`: validates delegated output includes both `Task Report` and `Downstream Context`, requests one retry when malformed
-- session hooks (`session-start.js`, `session-end.js`): maintain hook state lifecycle under temp directory
+- `session-start.js`: prunes stale hook state (2-hour TTL), initializes session state directory only when an active Maestro session exists in the workspace
+- `before-agent.js`: detects active agent via `agent-registry.detectAgentFromPrompt()` (`MAESTRO_CURRENT_AGENT` env var first, prompt delegation-pattern regex fallback), persists agent to hook state, injects compact session phase/status context
+- `after-agent.js`: validates delegated output includes both `Task Report` and `Downstream Context` (skips validation for `techlead`/`orchestrator` agents), denies with retry reason when malformed, allows on second attempt (`stopHookActive`) to prevent infinite loops
+- `session-end.js`: removes session hook state directory
+
+Hook state is stored under `/tmp/maestro-hooks` (Unix) or `%TEMP%\maestro-hooks` (Windows). Stale session directories older than 2 hours are automatically pruned on each SessionStart and BeforeAgent invocation.
 
 ## Parallel Dispatch Contract
 
@@ -120,6 +127,11 @@ Behavior summary:
 Per-agent execution:
 
 - validates agent name against `agents/*.md`
+- validates prompt file size (1 MB limit) and non-empty content
+- sanitizes agent name from filename (alphanumeric, hyphens, underscores only)
+- normalizes agent name hyphens to underscores for agent lookup
+- injects `MAESTRO_CURRENT_AGENT` env var with the normalized agent name into each spawned process
+- uses `MAESTRO_WRITER_MODEL` for the `technical_writer` agent when set, otherwise falls back to `MAESTRO_DEFAULT_MODEL`
 - prepends project-root safety preamble
 - streams prompt payload to `gemini` over stdin
 - runs `gemini --approval-mode=yolo --output-format json [model flags] [extra args]`
@@ -131,15 +143,18 @@ Batch-level behavior:
 - preserves real non-zero exit codes in `.exit` and summary
 - exits with number of failed agents
 - warns when `--allowed-tools` is passed and recommends `--policy`
+- optionally cleans up prompt files when `MAESTRO_CLEANUP_DISPATCH=true`
 
 ## Testing
 
 `node tests/run-all.js` runs all tests. Unit tests are in `tests/unit/`, integration tests are in `tests/integration/`.
 
+Unit tests cover all `src/lib/` modules: logger, atomic-write, stdin-reader, env-file-parser, integer-parser, project-root-resolver, agent-registry, setting-resolver, dispatch-config-resolver, hook-facade, hook-response, hook-state, session-state, session-id-validator, process-runner, concurrency-limiter.
+
 Integration tests cover:
 
-- all hook scripts (Node.js)
-- parallel dispatch arg forwarding and stdin payload behavior
+- all hook scripts (SessionStart, BeforeAgent, AfterAgent, SessionEnd)
+- parallel dispatch arg forwarding, stdin payload behavior, concurrency gate enforcement, and numeric setting validation
 - dispatch config fallback precedence
 - dispatch exit-code propagation
 - read-active-session resolution behavior

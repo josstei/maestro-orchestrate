@@ -60,6 +60,7 @@ Additional script-only controls:
 
 - `MAESTRO_CLEANUP_DISPATCH=true`: remove prompt directory after dispatch
 - `MAESTRO_CURRENT_AGENT`: exported per parallel process for hook correlation
+- `MAESTRO_EXTENSION_PATH`: override extension root for setting resolution (defaults to ~/.gemini/extensions/maestro)
 
 ## Four-Phase Workflow
 
@@ -207,8 +208,10 @@ Maestro uses Gemini CLI hooks from `hooks/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
+| SessionStart | `hooks/session-start.js` | Initialize hook state, prune stale sessions |
 | BeforeAgent | `hooks/before-agent.js` | Track active agent and inject compact session context |
-| AfterAgent | `hooks/after-agent.js` | Enforce handoff format (`Task Report` + `Downstream Context`) |
+| AfterAgent | `hooks/after-agent.js` | Enforce handoff format (`Task Report` + `Downstream Context`); skips `techlead`/`orchestrator` |
+| SessionEnd | `hooks/session-end.js` | Clean up hook state for ended session |
 
 ## Alignment Notes
 
