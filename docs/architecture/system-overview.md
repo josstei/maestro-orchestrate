@@ -71,7 +71,7 @@ For script-resolved settings, precedence is:
 1. Exported environment variable
 2. Workspace `.env` (project root `.env`; `read-active-session.js` resolves via git repo root, `parallel-dispatch.js` resolves via `cwd`)
 3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
-4. Built-in default
+4. Caller-applied default (`setting-resolver` returns `undefined`)
 
 This precedence is implemented in `src/lib/config/setting-resolver.js`, consumed by `scripts/parallel-dispatch.js` and `scripts/read-active-session.js`.
 
@@ -81,8 +81,8 @@ Parallel batches are executed by `node scripts/parallel-dispatch.js`.
 
 ### Flow
 
-1. Orchestrator writes per-agent prompt files to `<state_dir>/parallel/<batch-id>/prompts/*.txt`
-2. Script validates agent names against `agents/*.md`
+1. Orchestrator writes per-agent prompt files to `<state_dir>/parallel/<batch-id>/prompts/` (any non-hidden file accepted; `.txt` is convention, not a requirement)
+2. Script validates agent names against `agents/*.md` (skipped when `agents/` directory does not exist)
 3. Script resolves model/timeout/concurrency/extra-args settings
 4. For each prompt file, script prepends a project-root preamble and streams prompt content to `gemini` over stdin
 5. Script runs one process per prompt:
@@ -112,7 +112,7 @@ If `MAESTRO_GEMINI_EXTRA_ARGS` includes `--allowed-tools`, dispatch emits a depr
 Hooks are configured in `hooks/hooks.json`.
 
 - SessionStart (`hooks/session-start.js`): prunes stale hook state, initializes session directory when an active session exists
-- BeforeAgent (`hooks/before-agent.js`): detects active agent via `detectAgentFromPrompt()` (`MAESTRO_CURRENT_AGENT` env var first, prompt regex fallback), stores active agent, injects compact session context
+- BeforeAgent (`hooks/before-agent.js`): prunes stale hook state, detects active agent via `detectAgentFromPrompt()` (`MAESTRO_CURRENT_AGENT` env var first, prompt regex fallback), stores active agent, injects compact session context
 - AfterAgent (`hooks/after-agent.js`): validates delegated output contains both `Task Report` and `Downstream Context`, requests one retry on malformed output; skips validation for `techlead`/`orchestrator` agents
 - SessionEnd (`hooks/session-end.js`): removes session hook state directory
 

@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **70 unit tests** — `tests/unit/` covering all 13 `src/lib/` modules including readJson, stdin piping, timeoutMs validation, concurrency gate, and inline comment parsing
+- **91 unit tests** — `tests/unit/` covering all 13 `src/lib/` modules including readJson, stdin piping, timeoutMs validation, concurrency gate, and inline comment parsing
 - **Node.js integration tests** — All 8 integration tests migrated from bash to Node.js with `node:test`; consistent `{ concurrency: 1 }` across shared-state tests
 
 ### Removed
@@ -107,7 +107,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **SessionStart/SessionEnd hook registrations** from `hooks.json` — functionality absorbed by BeforeAgent lazy init and inline pruning; scripts retained as standalone utilities
 - `before-tool.sh`, `before-tool-selection.sh`, `after-tool.sh` hooks — native frontmatter `tools:` handles tool enforcement
 - `BeforeModel` hook — Gemini CLI discards model field from hook output
 - `permissions.json` and `generate-permissions.sh` — redundant with native frontmatter enforcement

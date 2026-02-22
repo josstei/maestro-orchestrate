@@ -90,7 +90,7 @@ Map domain errors to HTTP status codes with machine-readable error contracts:
 
 When completing your task, conclude with a **Handoff Report** containing two parts:
 
-### Part 1 — Task Report
+## Task Report
 - **Status**: success | partial | failure
 - **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
 - **Files Created**: [Absolute paths with one-line purpose each, or "none"]
@@ -102,7 +102,7 @@ When completing your task, conclude with a **Handoff Report** containing two par
 - **Errors**: [List with type, description, and resolution status, or "none"]
 - **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
 
-### Part 2 — Downstream Context
+## Downstream Context
 - **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
 - **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
 - **Integration Points**: [Where and how downstream work should connect to this output, or "none"]

@@ -120,13 +120,14 @@ For each approach, provide:
 
 Present the design document in sections, validating each before proceeding. Each section should be 200-300 words.
 
-**Presentation Order**:
-1. Problem Statement & Requirements
-2. Selected Approach & Architecture
-3. Component Specifications & Data Flow
-4. Agent Team Composition & Phase Plan
-5. Risk Assessment & Mitigation
-6. Success Criteria
+**Presentation Order** (matches `templates/design-document.md` structure):
+1. Problem Statement
+2. Requirements (Functional, Non-Functional, Constraints)
+3. Approach (Selected Approach, Alternatives Considered)
+4. Architecture (Component Diagram, Data Flow, Key Interfaces)
+5. Agent Team Composition & Phase Plan
+6. Risk Assessment & Mitigation
+7. Success Criteria
 
 ### Validation Format
 

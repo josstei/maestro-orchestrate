@@ -4,11 +4,11 @@ task: "<user's original task description>"
 created: "<ISO 8601 timestamp>"
 updated: "<ISO 8601 timestamp>"
 status: "in_progress"
-design_document: "<relative path to design doc>"
-implementation_plan: "<relative path to impl plan>"
+design_document: "<state_dir>/plans/<YYYY-MM-DD-topic-slug>-design.md"
+implementation_plan: "<state_dir>/plans/<YYYY-MM-DD-topic-slug>-impl-plan.md"
 current_phase: 1
-execution_mode: null
 total_phases: <integer>
+execution_mode: null
 
 token_usage:
   total_input: 0
@@ -52,6 +52,13 @@ Pending
 - Created: [none yet]
 - Modified: [none yet]
 - Deleted: [none yet]
+
+### Downstream Context
+- Key Interfaces Introduced: [none yet]
+- Patterns Established: [none yet]
+- Integration Points: [none yet]
+- Assumptions: [none yet]
+- Warnings: [none yet]
 
 ### Validation Result
 [Pending]

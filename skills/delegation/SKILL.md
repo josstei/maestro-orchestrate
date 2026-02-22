@@ -61,7 +61,7 @@ Before constructing any delegation prompt, resolve configurable parameters:
    - `MAESTRO_AGENT_TIMEOUT` → overrides `timeout_mins` for all agents
 3. **Model selection**:
    - **Sequential delegation**: Model is inherited from the main session. Cannot be overridden per-agent via hooks.
-   - **Parallel dispatch**: `MAESTRO_DEFAULT_MODEL` is passed as `--model` flag. `MAESTRO_WRITER_MODEL` overrides for `technical_writer`.
+   - **Parallel dispatch**: `MAESTRO_DEFAULT_MODEL` is passed as `-m` flag. `MAESTRO_WRITER_MODEL` overrides for `technical_writer`.
 4. Include resolved values in the delegation prompt metadata
 5. If the agent appears in `MAESTRO_DISABLED_AGENTS`, do not construct a delegation prompt — report to the orchestrator that the agent is disabled
 
@@ -181,8 +181,8 @@ Each prompt must be **fully self-contained** — the agent runs as an independen
 
 Prompt filenames must follow these rules:
 
-- Use **underscores**, not hyphens: `technical_writer.txt`, not `technical-writer.txt`
-- The filename (minus `.txt` extension) must exactly match an agent definition filename in `agents/`
+- Prefer **underscores** over hyphens: `technical_writer.txt`, not `technical-writer.txt` (hyphens are normalized to underscores automatically, but underscores match agent filenames directly)
+- The filename (minus `.txt` extension) must match an agent definition filename in `agents/` (after hyphen-to-underscore normalization)
 - The dispatch script validates agent names at runtime and rejects unrecognized names with a list of available agents
 - This validation catches typos before they waste an API call and a timeout window
 
@@ -288,7 +288,7 @@ The `AfterAgent` hook (`hooks/after-agent.js`) validates that every subagent res
 If either heading is missing:
 
 1. **First failure**: The hook blocks the response and requests a retry with a diagnostic message specifying which section is missing.
-2. **Second failure** (`stop_hook_active=true`): The hook allows the malformed response through to prevent infinite retry loops, logging a warning.
+2. **Second failure** (`stop_hook_active=true`, mapped to `stopHookActive` in JS): The hook allows the malformed response through to prevent infinite retry loops, logging a warning.
 
 This enforcement is the runtime complement to the Output Handoff Contract defined in the agent-base-protocol. Delegation prompts do not need to re-state the retry mechanism — the hook handles it transparently.
 

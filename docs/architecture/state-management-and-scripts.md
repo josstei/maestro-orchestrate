@@ -32,7 +32,7 @@ For script-backed settings:
 3. Extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
 4. Default
 
-`read-active-session.js` and `parallel-dispatch.js` both implement this precedence, though they resolve project root differently: `read-active-session.js` uses the git repository root (via `resolveProjectRoot()`), while `parallel-dispatch.js` uses the current working directory (`process.cwd()`).
+`read-active-session.js` and `parallel-dispatch.js` both implement this precedence, though they resolve project root differently: `read-active-session.js` uses the git repository root (via `resolveProjectRoot()`, falling back to `process.cwd()` outside git repos), while `parallel-dispatch.js` uses the current working directory (`process.cwd()`).
 
 ## Why Scripts Are Required for State Reads
 
@@ -60,7 +60,7 @@ State writes are typically done with `write_file`. For shell-piped writes, use `
 
 Required:
 
-- `<dispatch-dir>/prompts/*.txt`
+- `<dispatch-dir>/prompts/*` (any non-hidden files)
 
 Optional settings:
 
@@ -77,11 +77,14 @@ Optional settings:
 For each prompt file:
 
 1. Validate agent name against `agents/*.md`
-2. Build prompt payload by prepending a project-root safety preamble
-3. Stream prompt payload to `gemini` over stdin
-4. Execute:
+2. Validate prompt file size (1 MB limit) and verify non-empty content
+3. Inject `MAESTRO_CURRENT_AGENT` env var with the normalized agent name into the spawned process environment
+4. Select model: use `MAESTRO_WRITER_MODEL` for the `technical_writer` agent when set, otherwise fall back to `MAESTRO_DEFAULT_MODEL`
+5. Build prompt payload by prepending a project-root safety preamble
+6. Stream prompt payload to `gemini` over stdin
+7. Execute:
    - `gemini --approval-mode=yolo --output-format json [model flags] [extra args]`
-5. Persist artifacts:
+8. Persist artifacts:
    - `<agent>.json`
    - `<agent>.exit`
    - `<agent>.log`
@@ -91,7 +94,7 @@ After all processes:
 - Write `summary.json`
 - Exit with failure count
 - Preserve real non-zero agent exit codes in `.exit` files and `summary.json`
-- Normalize timeout to exit code `124`
+- Normalize timeout to exit code `124`; use `255` for spawn/dispatch errors
 
 ### Deprecated Flag Guard
 
@@ -104,7 +107,7 @@ Configured in `hooks/hooks.json`:
 | Event | Script | Behavior |
 | --- | --- | --- |
 | `SessionStart` | `hooks/session-start.js` | Prunes stale hook state, initializes session directory when an active session exists |
-| `BeforeAgent` | `hooks/before-agent.js` | Tracks active agent, injects compact phase/status context from active session |
+| `BeforeAgent` | `hooks/before-agent.js` | Prunes stale hook state, tracks active agent, injects compact phase/status context from active session |
 | `AfterAgent` | `hooks/after-agent.js` | Validates delegated response contains `Task Report` and `Downstream Context`; requests one retry if malformed |
 | `SessionEnd` | `hooks/session-end.js` | Removes session hook state directory |
 

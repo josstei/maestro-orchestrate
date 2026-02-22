@@ -13,8 +13,8 @@ Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-ho
 
 | Concern | Orchestration State | Hook State |
 | --- | --- | --- |
-| Location | `<MAESTRO_STATE_DIR>/state/` | `/tmp/maestro-hooks/<session-id>/` |
-| Lifecycle | Created in Phase 2, archived in Phase 4 | Created lazily by `BeforeAgent` on first active-agent write; active-agent file cleared by `AfterAgent`; stale directories pruned periodically |
+| Location | `<MAESTRO_STATE_DIR>/state/` | `/tmp/maestro-hooks/<session-id>/` (Unix) or `<os.tmpdir()>/maestro-hooks/<session-id>/` (Windows) |
+| Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by `SessionStart` when an active session exists; active-agent file written by `BeforeAgent` and cleared by `AfterAgent`; stale directories pruned by both `SessionStart` and `BeforeAgent` |
 | Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
 | Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
 | Managed by | Orchestrator via session-management skill | Hooks (`before-agent.js`, `after-agent.js`) |

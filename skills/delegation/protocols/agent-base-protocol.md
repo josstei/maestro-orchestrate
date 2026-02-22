@@ -67,7 +67,7 @@ Every agent must conclude with a **Handoff Report** containing two parts. This r
 ### Part 1 — Task Report
 
 ```
-### Task Report
+## Task Report
 - **Status**: success | partial | failure
 - **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
 - **Files Created**: [Absolute paths with one-line purpose each, or "none"]
@@ -85,7 +85,7 @@ Every agent must conclude with a **Handoff Report** containing two parts. This r
 Populate this section when your output feeds into subsequent phases. Read-only agents populate this with findings structured as actionable items.
 
 ```
-### Downstream Context
+## Downstream Context
 - **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
 - **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
 - **Integration Points**: [Where and how downstream work should connect to this output — specific files, functions, endpoints, or "none"]

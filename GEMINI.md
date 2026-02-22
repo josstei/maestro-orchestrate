@@ -24,7 +24,7 @@ Before running orchestration commands:
    - exported env var
    - workspace `.env` (`$PWD/.env`)
    - extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}/.env`)
-   - default
+   - undefined (callers apply defaults)
 3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning.
 4. Run workspace preparation:
    - `node ./scripts/ensure-workspace.js <resolved-state-dir>`
@@ -43,8 +43,8 @@ Before running orchestration commands:
 | --- | --- | --- | --- |
 | Default Model | `MAESTRO_DEFAULT_MODEL` | inherit | Parallel dispatch model flag |
 | Writer Model | `MAESTRO_WRITER_MODEL` | inherit | Parallel dispatch override for `technical_writer` |
-| Default Temperature | `MAESTRO_DEFAULT_TEMPERATURE` | `0.2` | Delegation prompt metadata override |
-| Max Agent Turns | `MAESTRO_MAX_TURNS` | `25` | Delegation prompt metadata override |
+| Default Temperature | `MAESTRO_DEFAULT_TEMPERATURE` | inherit | Delegation prompt metadata override (agents define own defaults in frontmatter) |
+| Max Agent Turns | `MAESTRO_MAX_TURNS` | inherit | Delegation prompt metadata override (agents define own defaults in frontmatter) |
 | Agent Timeout | `MAESTRO_AGENT_TIMEOUT` | `10` min | Delegation timeout metadata and dispatch timeout |
 | Disabled Agents | `MAESTRO_DISABLED_AGENTS` | none | Exclude agents from assignment |
 | Max Retries | `MAESTRO_MAX_RETRIES` | `2` | Phase retry limit |
@@ -55,6 +55,8 @@ Before running orchestration commands:
 | Stagger Delay | `MAESTRO_STAGGER_DELAY` | `5` sec | Launch delay between parallel agents |
 | Extra Gemini Args | `MAESTRO_GEMINI_EXTRA_ARGS` | none | Forwarded to each parallel-dispatched `gemini` process |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
+
+**Note:** Settings fall into three categories. *Dispatch-backed* settings (`MAESTRO_DEFAULT_MODEL`, `MAESTRO_WRITER_MODEL`, `MAESTRO_AGENT_TIMEOUT`, `MAESTRO_MAX_CONCURRENT`, `MAESTRO_STAGGER_DELAY`, `MAESTRO_GEMINI_EXTRA_ARGS`) are resolved by `dispatch-config-resolver.js` with code-level defaults. *State-resolution* setting (`MAESTRO_STATE_DIR`) is resolved by `read-active-session.js` via `resolveSetting()` and consumed by `session-state.js` with `.gemini` default — it is not part of the dispatch config pipeline. *Orchestrator-prompt-only* settings (`MAESTRO_DEFAULT_TEMPERATURE`, `MAESTRO_MAX_TURNS`, `MAESTRO_MAX_RETRIES`, `MAESTRO_AUTO_ARCHIVE`, `MAESTRO_VALIDATION_STRICTNESS`, `MAESTRO_DISABLED_AGENTS`, `MAESTRO_EXECUTION_MODE`) are consumed from this prompt context and have no code-level consumer.
 
 Additional script-only controls:
 
@@ -208,8 +210,8 @@ Maestro uses Gemini CLI hooks from `hooks/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
-| SessionStart | `hooks/session-start.js` | Initialize hook state, prune stale sessions |
-| BeforeAgent | `hooks/before-agent.js` | Track active agent and inject compact session context |
+| SessionStart | `hooks/session-start.js` | Prune stale sessions, initialize hook state when active session exists |
+| BeforeAgent | `hooks/before-agent.js` | Prune stale sessions, track active agent, inject compact session context |
 | AfterAgent | `hooks/after-agent.js` | Enforce handoff format (`Task Report` + `Downstream Context`); skips `techlead`/`orchestrator` |
 | SessionEnd | `hooks/session-end.js` | Clean up hook state for ended session |
 

@@ -23,7 +23,7 @@ Before executing any phases in Phase 3:
 
 ## State File Access
 
-The `read_file` tool enforces `.gitignore` patterns via `shouldIgnoreFile()`, and `.gemini/` is typically gitignored. All reads of files within `<MAESTRO_STATE_DIR>` must use the shell script to bypass this restriction:
+The `read_file` tool enforces `.gitignore` and `.geminiignore` patterns via `shouldIgnoreFile()`, and `.gemini/` is typically gitignored. All reads of files within `<MAESTRO_STATE_DIR>` must use the shell script to bypass this restriction:
 
 ```bash
 run_shell_command: node ${extensionPath}/scripts/read-state.js <relative-path>
@@ -42,12 +42,12 @@ Use `write_file` directly for state writes — it does not enforce ignore patter
 
 Maestro hooks (`hooks/hooks.json`) fire automatically at agent boundaries. The orchestrator does not invoke hooks directly — the Gemini CLI triggers them based on lifecycle events.
 
-Transient hook state (active agent tracking under `/tmp/maestro-hooks/<session-id>/`) is managed lazily by agent hooks and stale-pruned during `BeforeAgent`.
+Transient hook state (active agent tracking under `/tmp/maestro-hooks/<session-id>/`) is initialized by `SessionStart` when an active session exists, updated by `BeforeAgent`/`AfterAgent`, and stale-pruned during both `SessionStart` and `BeforeAgent`.
 
 ### Agent Turn Hooks
 
 - **BeforeAgent** (`hooks/before-agent.js`): Fires before each agent turn. Detects the active agent (via `MAESTRO_CURRENT_AGENT` env var in parallel dispatch, or regex fallback in sequential delegation) and injects compact session phase/status context from `active-session.md` when available.
-- **AfterAgent** (`hooks/after-agent.js`): Fires after each agent turn. Validates that the agent's response contains both `## Task Report` and `## Downstream Context` headings. Blocks and requests retry on first format violation; allows through on second failure to prevent infinite loops.
+- **AfterAgent** (`hooks/after-agent.js`): Fires after each agent turn. Validates that the agent's response contains both `Task Report` and `Downstream Context` headings (any heading level — `# Task Report` or `## Task Report` both match via substring detection). Blocks and requests retry on first format violation; allows through on second failure to prevent infinite loops.
 
 ### Sequential vs Parallel Hook Behavior
 

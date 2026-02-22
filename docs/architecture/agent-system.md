@@ -15,7 +15,7 @@ tools:
   - read_file
   - write_file
   - run_shell_command
-temperature: 0.2
+temperature: 0.2  # most agents; architect, api_designer, technical_writer use 0.3
 max_turns: 25
 timeout_mins: 10
 ---
@@ -92,11 +92,11 @@ Parallel dispatch exports `MAESTRO_CURRENT_AGENT` per process. Hooks consume tha
 
 - `hooks/before-agent.js` detects the active agent via `detectAgentFromPrompt()`: checks `MAESTRO_CURRENT_AGENT` env var first (set by parallel dispatch), then falls back to regex pattern matching on prompt text. Stores the resolved agent name in the hook state directory under `<session-id>/active-agent`.
 - `hooks/after-agent.js` reads the active agent, validates handoff format, and clears the active agent from hook state. Validation is skipped for `techlead` and `orchestrator` agents.
-- Hook state is stored under `/tmp/maestro-hooks` on Unix or `%TEMP%\maestro-hooks` on Windows.
+- Hook state is stored under `/tmp/maestro-hooks` on Unix or `<os.tmpdir()>/maestro-hooks` on Windows.
 
 ## Practical Constraints
 
-- Agent filenames and names must remain snake_case and consistent (`technical_writer.md` -> `technical_writer.txt`)
+- Agent definition filenames use snake_case (e.g., `agents/technical_writer.md`). Parallel dispatch prompt filenames must match the agent definition name (e.g., `prompts/technical_writer.txt` maps to agent `technical_writer`).
 - Parallel batches must avoid overlapping file ownership
 - Tool permissions are enforced by `tools:` frontmatter, not prompt text alone
 - Prompt-level tool restriction text remains defense-in-depth, not the primary boundary
