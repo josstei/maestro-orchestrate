@@ -95,7 +95,7 @@ The following are recorded but do not block progression:
 - Coverage decreases (unless coverage threshold is configured)
 - Format-only issues (can be auto-fixed)
 
-## Validation Strictness Modes
+## Validation Modes
 
 The validation strictness is controlled by `MAESTRO_VALIDATION_STRICTNESS` (default: `normal`).
 

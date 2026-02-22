@@ -15,7 +15,7 @@
       "envVar": "MAESTRO_WRITER_MODEL"
     },
     {
-      "name": "Default Temperature",
+      "name": "Temperature",
       "description": "Override the temperature for all agent delegation prompts (0.0-2.0).",
       "envVar": "MAESTRO_DEFAULT_TEMPERATURE"
     },
@@ -45,7 +45,7 @@
       "envVar": "MAESTRO_AUTO_ARCHIVE"
     },
     {
-      "name": "Validation Strictness",
+      "name": "Validation",
       "description": "Post-phase validation strictness level (strict/normal/lenient).",
       "envVar": "MAESTRO_VALIDATION_STRICTNESS"
     },
@@ -65,7 +65,7 @@
       "envVar": "MAESTRO_STAGGER_DELAY"
     },
     {
-      "name": "Extra Gemini Args",
+      "name": "Extra CLI Args",
       "description": "Space-separated Gemini CLI flags forwarded to each parallel dispatch process (example: --sandbox --policy .gemini/policies/maestro.toml).",
       "envVar": "MAESTRO_GEMINI_EXTRA_ARGS"
     },

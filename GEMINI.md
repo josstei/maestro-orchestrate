@@ -43,17 +43,17 @@ Before running orchestration commands:
 | --- | --- | --- | --- |
 | Default Model | `MAESTRO_DEFAULT_MODEL` | inherit | Parallel dispatch model flag |
 | Writer Model | `MAESTRO_WRITER_MODEL` | inherit | Parallel dispatch override for `technical_writer` |
-| Default Temperature | `MAESTRO_DEFAULT_TEMPERATURE` | inherit | Delegation prompt metadata override (agents define own defaults in frontmatter) |
+| Temperature | `MAESTRO_DEFAULT_TEMPERATURE` | inherit | Delegation prompt metadata override (agents define own defaults in frontmatter) |
 | Max Agent Turns | `MAESTRO_MAX_TURNS` | inherit | Delegation prompt metadata override (agents define own defaults in frontmatter) |
 | Agent Timeout | `MAESTRO_AGENT_TIMEOUT` | `10` min | Delegation timeout metadata and dispatch timeout |
 | Disabled Agents | `MAESTRO_DISABLED_AGENTS` | none | Exclude agents from assignment |
 | Max Retries | `MAESTRO_MAX_RETRIES` | `2` | Phase retry limit |
 | Auto Archive | `MAESTRO_AUTO_ARCHIVE` | `true` | Auto archive on success |
-| Validation Strictness | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Validation gating mode |
+| Validation | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Validation gating mode |
 | State Directory | `MAESTRO_STATE_DIR` | `.gemini` | Session/plans/parallel state root |
 | Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Parallel concurrency cap |
 | Stagger Delay | `MAESTRO_STAGGER_DELAY` | `5` sec | Launch delay between parallel agents |
-| Extra Gemini Args | `MAESTRO_GEMINI_EXTRA_ARGS` | none | Forwarded to each parallel-dispatched `gemini` process |
+| Extra CLI Args | `MAESTRO_GEMINI_EXTRA_ARGS` | none | Forwarded to each parallel-dispatched `gemini` process |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
 
 **Note:** Settings fall into three categories. *Dispatch-backed* settings (`MAESTRO_DEFAULT_MODEL`, `MAESTRO_WRITER_MODEL`, `MAESTRO_AGENT_TIMEOUT`, `MAESTRO_MAX_CONCURRENT`, `MAESTRO_STAGGER_DELAY`, `MAESTRO_GEMINI_EXTRA_ARGS`) are resolved by `dispatch-config-resolver.js` with code-level defaults. *State-resolution* setting (`MAESTRO_STATE_DIR`) is resolved by `read-active-session.js` via `resolveSetting()` and consumed by `session-state.js` with `.gemini` default — it is not part of the dispatch config pipeline. *Orchestrator-prompt-only* settings (`MAESTRO_DEFAULT_TEMPERATURE`, `MAESTRO_MAX_TURNS`, `MAESTRO_MAX_RETRIES`, `MAESTRO_AUTO_ARCHIVE`, `MAESTRO_VALIDATION_STRICTNESS`, `MAESTRO_DISABLED_AGENTS`, `MAESTRO_EXECUTION_MODE`) are consumed from this prompt context and have no code-level consumer.

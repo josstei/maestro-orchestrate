@@ -1298,7 +1298,7 @@ Prefer `--policy` over deprecated `--allowed-tools`.
 export MAESTRO_STATE_DIR=.maestro
 ```
 
-### Validation Strictness
+### Validation
 
 Controls how strictly Maestro enforces validation after each phase:
 

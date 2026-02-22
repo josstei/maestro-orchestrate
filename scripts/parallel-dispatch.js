@@ -94,7 +94,7 @@ async function main() {
   if (config.writerModel) log('INFO', `Writer Model: ${config.writerModel}`);
   log('INFO', `Max Concurrent: ${concurrentDisplay}`);
   log('INFO', `Stagger Delay: ${config.staggerDelay}s`);
-  if (config.extraArgs.length > 0) log('INFO', `Extra Gemini Args: ${config.extraArgsRaw}`);
+  if (config.extraArgs.length > 0) log('INFO', `Extra CLI Args: ${config.extraArgsRaw}`);
   log('INFO', `Project Root: ${projectRoot}`);
 
   const limiter = new ConcurrencyLimiter(config.maxConcurrent);
