@@ -36,7 +36,7 @@ Custom commands registered with the Gemini CLI.
 ### 4. Hooks (`hooks/hooks.json`)
 Middleware that runs during agent execution:
 - **SessionStart (`session-start.js`)**: Prunes stale hook state, initializes session directory when an active session exists.
-- **BeforeAgent (`before-agent.js`)**: Tracks the active agent and injects session context.
+- **BeforeAgent (`before-agent.js`)**: Prunes stale hook state, tracks the active agent, and injects session context.
 - **AfterAgent (`after-agent.js`)**: Validates that agent output follows the mandatory handoff format.
 - **SessionEnd (`session-end.js`)**: Removes session hook state directory.
 
@@ -47,8 +47,8 @@ Middleware that runs during agent execution:
 Maestro follows a sequential four-phase lifecycle:
 
 1.  **Design**: Requirements gathering and architectural convergence using the `design-dialogue` skill.
-2.  **Plan**: Decomposition of the task into phases, agent assignments, and dependency mapping using `implementation-planning`.
-3.  **Execute**: Delegation of tasks to specialized agents using `execution` and `delegation` skills. This phase can run in `parallel`, `sequential`, or `ask` mode.
+2.  **Plan**: Decomposition of the task into phases, agent assignments, and dependency mapping using `implementation-planning` and `session-management`.
+3.  **Execute**: Delegation of tasks to specialized agents using `execution`, `delegation`, and `validation` skills. This phase can run in `parallel`, `sequential`, or `ask` mode.
 4.  **Complete**: Final validation, optional code review pass, and session archival.
 
 ---
@@ -63,16 +63,16 @@ All agents share a baseline tool set: `read_file`, `list_directory`, `glob`, `gr
 | :--- | :--- | :--- |
 | **architect** | System design & tech stack | Web search/fetch |
 | **api_designer** | Interface & contract design | Web search/fetch |
-| **coder** | Feature implementation | Write, Replace, Shell, Skills |
-| **tester** | Test suite implementation | Write, Replace, Shell, Skills, Web search |
+| **coder** | Feature implementation | Write, Replace, Shell, Todos, Skills |
+| **tester** | Test suite implementation | Write, Replace, Shell, Todos, Skills, Web search |
 | **code_reviewer** | Quality & pattern enforcement | _(baseline only)_ |
-| **debugger** | Root cause analysis | Shell |
-| **devops_engineer** | CI/CD & infrastructure | Write, Replace, Shell, Web search/fetch |
-| **security_engineer** | Security auditing | Shell, Web search/fetch |
-| **performance_engineer** | Profiling & optimization | Shell, Web search/fetch |
-| **data_engineer** | Schema & query design | Write, Replace, Shell, Web search |
-| **refactor** | Structural improvements | Write, Replace, Skills |
-| **technical_writer** | Documentation | Write, Replace, Web search |
+| **debugger** | Root cause analysis | Shell, Todos |
+| **devops_engineer** | CI/CD & infrastructure | Write, Replace, Shell, Todos, Web search/fetch |
+| **security_engineer** | Security auditing | Shell, Todos, Web search/fetch |
+| **performance_engineer** | Profiling & optimization | Shell, Todos, Web search/fetch |
+| **data_engineer** | Schema & query design | Write, Replace, Shell, Todos, Web search |
+| **refactor** | Structural improvements | Write, Replace, Todos, Skills |
+| **technical_writer** | Documentation | Write, Replace, Todos, Web search |
 
 ### Delegation Protocols
 All agents are bound by injected protocols:
@@ -85,21 +85,21 @@ All agents are bound by injected protocols:
 
 The parallel dispatch mechanism allows multiple agents to work concurrently on independent tasks.
 
-1.  **Preparation**: The orchestrator writes self-contained prompt files to `.gemini/parallel/<batch-id>/prompts/`.
+1.  **Preparation**: The orchestrator writes self-contained prompt files to `<state_dir>/parallel/<batch-id>/prompts/`.
 2.  **Dispatch**: `scripts/parallel-dispatch.js` launches multiple `gemini` processes.
 3.  **Execution**: Each process runs an agent with `--approval-mode=yolo` and streams the prompt via `stdin`.
-4.  **Collection**: Results (JSON, logs, exit codes) are collected in `.gemini/parallel/<batch-id>/results/`.
+4.  **Collection**: Results (JSON, logs, exit codes) are collected in `<state_dir>/parallel/<batch-id>/results/`.
 5.  **Aggregation**: A `summary.json` is produced, and the orchestrator processes the results.
 
 ---
 
 ## State Management
 
-Maestro maintains state in a project-local directory (default: `.gemini/`).
+Maestro maintains state in a project-local directory (configurable via `MAESTRO_STATE_DIR`, default: `.gemini`).
 
 ### Directory Structure
 ```text
-.gemini/
+<state_dir>/
 ├── state/
 │   ├── active-session.md      # Current session status and history
 │   └── archive/               # Completed/archived sessions
@@ -115,7 +115,7 @@ Maestro maintains state in a project-local directory (default: `.gemini/`).
 
 ### Persistence Logic
 - **Active Session**: Updated after every phase or parallel batch.
-- **Utility Scripts**: `scripts/read-active-session.js` and `scripts/read-state.js` are used to bypass `.gitignore` restrictions when reading state.
+- **Utility Scripts**: `scripts/read-active-session.js`, `scripts/read-state.js`, and `scripts/write-state.js` are used to bypass `.gitignore` restrictions when reading and writing state.
 
 ---
 
@@ -125,9 +125,13 @@ Maestro maintains state in a project-local directory (default: `.gemini/`).
 | :--- | :--- |
 | `gemini-extension.json` | Extension manifest: name, version, and user-configurable `MAESTRO_*` settings. |
 | `GEMINI.md` | TechLead orchestrator system prompt: four-phase protocol, delegation rules, tool usage. |
+| `CLAUDE.md` | Implementation guidance for contributors: architecture, contracts, testing. |
+| `CHANGELOG.md` | Version history and release notes. |
+| `README.md` | Project overview, installation, and usage guide. |
+| `USAGE.md` | Detailed usage documentation and examples. |
 | `package.json` | NPM package identity and version sync hook (`scripts/sync-version.js`). |
 | `agents/` | Agent definitions (system prompts and tool permissions). |
-| `commands/maestro/` | Slash command definitions and orchestration logic. |
+| `commands/maestro/` | Slash command prompt definitions (trigger skill activation and provide prompt context). |
 | `docs/architecture/` | System documentation and architecture guides. |
 | `hooks/` | Lifecycle middleware: SessionStart, BeforeAgent, AfterAgent, SessionEnd. |
 | `scripts/` | Utility scripts for state management, workspace setup, and dispatch. |
