@@ -266,7 +266,7 @@ The `BeforeAgent` hook (`hooks/before-agent.js`) tracks which agent is currently
 - **Parallel dispatch**: `MAESTRO_CURRENT_AGENT` is exported per subprocess by `parallel-dispatch.js`. The hook reads this directly from the environment — no prompt parsing needed.
 - **Sequential delegation**: The env var is not set. The hook falls back to regex-based detection, scanning the delegation prompt for patterns like `delegate to <agent>` or `@<agent>`.
 
-The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `AfterAgent` hook after the turn completes.
+The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `AfterAgent` hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
 
 ### Session Context Injection
 

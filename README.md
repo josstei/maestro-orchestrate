@@ -115,7 +115,7 @@ Maestro will:
 
 | Command | Purpose |
 |---------|---------|
-| [`/maestro:orchestrate`](#maestroOrchestrate) | Full orchestration workflow (design → plan → execute → complete) |
+| [`/maestro:orchestrate`](#maestroorchestrate) | Full orchestration workflow (design → plan → execute → complete) |
 | [`/maestro:execute`](#maestroexecute) | Execute an existing implementation plan |
 | [`/maestro:resume`](#maestroresume) | Resume an interrupted session |
 | [`/maestro:review`](#maestroreview) | Standalone code review |

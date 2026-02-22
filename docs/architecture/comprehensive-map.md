@@ -70,9 +70,9 @@ All agents share a baseline tool set: `read_file`, `list_directory`, `glob`, `gr
 | **devops_engineer** | CI/CD & infrastructure | Write, Replace, Shell, Todos, Web search/fetch |
 | **security_engineer** | Security auditing | Shell, Todos, Web search/fetch |
 | **performance_engineer** | Profiling & optimization | Shell, Todos, Web search/fetch |
-| **data_engineer** | Schema & query design | Write, Replace, Shell, Todos, Web search |
+| **data_engineer** | Schema & query design | Write, Replace, Shell, Todos, Web search (no fetch) |
 | **refactor** | Structural improvements | Write, Replace, Todos, Skills |
-| **technical_writer** | Documentation | Write, Replace, Todos, Web search |
+| **technical_writer** | Documentation | Write, Replace, Todos, Web search (no fetch) |
 
 ### Delegation Protocols
 All agents are bound by injected protocols:

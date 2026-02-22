@@ -103,7 +103,7 @@ For phases at the same dependency depth with no file overlap, use Node.js-based 
 - Agents inherit the project directory and linked extensions, but do NOT share the orchestrator's session
 - The orchestrator must write complete, self-contained prompts — parallel agents cannot ask follow-up questions
 - File ownership must be strictly non-overlapping — the dispatch script provides no file locking
-- `MAESTRO_DEFAULT_MODEL`, `MAESTRO_WRITER_MODEL`, `MAESTRO_AGENT_TIMEOUT`, `MAESTRO_MAX_CONCURRENT`, `MAESTRO_STAGGER_DELAY`, `MAESTRO_GEMINI_EXTRA_ARGS`, and `MAESTRO_CLEANUP_DISPATCH` environment variables are respected by the dispatch script
+- `MAESTRO_DEFAULT_MODEL`, `MAESTRO_WRITER_MODEL`, `MAESTRO_AGENT_TIMEOUT`, `MAESTRO_MAX_CONCURRENT`, `MAESTRO_STAGGER_DELAY`, and `MAESTRO_GEMINI_EXTRA_ARGS` environment variables are resolved via dispatch config; `MAESTRO_CLEANUP_DISPATCH` is resolved separately via `resolveSetting()`
 - If any agent in the batch fails, the summary reports `partial_failure` — the orchestrator decides whether to retry or escalate
 
 #### Fallback to Sequential
