@@ -104,7 +104,7 @@ process.stdin.on('end', () => {
         [concurrencyDispatchDir],
         {
           env: {
-            PATH: `${concurrencyBinDir}:${existingPath}`,
+            PATH: `${concurrencyBinDir}${path.delimiter}${existingPath}`,
             MAESTRO_AGENT_TIMEOUT: '2',
             MAESTRO_MAX_CONCURRENT: '1',
             MAESTRO_STAGGER_DELAY: '0',
@@ -149,7 +149,7 @@ process.stdin.on('end', () => {
       [dispatchDir],
       {
         env: {
-          PATH: `${binDir}:${existingPath}`,
+          PATH: `${binDir}${path.delimiter}${existingPath}`,
           MAESTRO_TEST_ARGV_CAPTURE: argvCaptureFile,
           MAESTRO_TEST_STDIN_CAPTURE: stdinCaptureFile,
           MAESTRO_DEFAULT_MODEL: 'gemini-2.5-pro',
@@ -225,7 +225,7 @@ process.stdin.on('end', () => {
   it('rejects non-numeric values for numeric settings', () => {
     const existingPath = process.env.PATH || '';
     const baseEnv = {
-      PATH: `${binDir}:${existingPath}`,
+      PATH: `${binDir}${path.delimiter}${existingPath}`,
       MAESTRO_AGENT_TIMEOUT: '2',
       MAESTRO_MAX_CONCURRENT: '1',
       MAESTRO_STAGGER_DELAY: '0',

@@ -101,6 +101,13 @@ function writeHookStateAgent(sessionId, agentName) {
   fs.writeFileSync(path.join(sessionDir, 'active-agent'), agentName);
 }
 
+function setFakeHome(env, homePath) {
+  env.HOME = homePath;
+  if (process.platform === 'win32') {
+    env.USERPROFILE = homePath;
+  }
+}
+
 function removeTempDir(dirPath) {
   fs.rmSync(dirPath, { recursive: true, force: true });
 }
@@ -109,7 +116,12 @@ function createGeminiStub(binDir, scriptContent) {
   fs.mkdirSync(binDir, { recursive: true });
   const stubPath = path.join(binDir, 'gemini');
   fs.writeFileSync(stubPath, scriptContent);
-  fs.chmodSync(stubPath, 0o755);
+  if (process.platform === 'win32') {
+    const cmdPath = path.join(binDir, 'gemini.cmd');
+    fs.writeFileSync(cmdPath, '@node "%~dp0gemini" %*\r\n');
+  } else {
+    fs.chmodSync(stubPath, 0o755);
+  }
   return stubPath;
 }
 
@@ -132,4 +144,5 @@ module.exports = {
   writeHookStateAgent,
   removeTempDir,
   createGeminiStub,
+  setFakeHome,
 };

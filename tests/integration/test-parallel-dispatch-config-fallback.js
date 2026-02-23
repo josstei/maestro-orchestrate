@@ -10,6 +10,7 @@ const {
   createTempDir,
   createGeminiStub,
   removeTempDir,
+  setFakeHome,
 } = require('./helpers');
 
 const DISPATCH_SCRIPT = scriptPath('parallel-dispatch.js');
@@ -83,8 +84,8 @@ describe('parallel-dispatch extension .env config fallback', () => {
     delete env.MAESTRO_MAX_CONCURRENT;
     delete env.MAESTRO_STAGGER_DELAY;
 
-    env.PATH = `${binDir}:${existingPath}`;
-    env.HOME = fakeHome;
+    env.PATH = `${binDir}${path.delimiter}${existingPath}`;
+    setFakeHome(env, fakeHome);
     env.MAESTRO_TEST_ARGV_CAPTURE = argvCaptureFile;
 
     const { stdout, stderr, exitCode } = runScriptWithExit(

@@ -30,6 +30,7 @@ function runWithTimeout(command, args, options = {}, timeoutMs) {
       ],
       cwd,
       env: env || process.env,
+      shell: process.platform === 'win32',
     };
 
     const child = spawn(command, args, spawnOptions);

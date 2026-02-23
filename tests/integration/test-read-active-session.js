@@ -11,6 +11,7 @@ const {
   createTempDir,
   writeSessionState,
   removeTempDir,
+  setFakeHome,
 } = require('./helpers');
 
 const SCRIPT_FILE = scriptPath('read-active-session.js');
@@ -93,7 +94,8 @@ describe('read-active-session script', () => {
       fs.writeFileSync(path.join(extEnvDir, '.env'), 'MAESTRO_STATE_DIR=.ext-state\n');
       writeSessionState(projectDir, 'extension env marker', '.ext-state');
 
-      const env = { ...process.env, HOME: fakeHome };
+      const env = { ...process.env };
+      setFakeHome(env, fakeHome);
       delete env.MAESTRO_STATE_DIR;
       delete env.MAESTRO_EXTENSION_PATH;
 

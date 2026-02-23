@@ -55,7 +55,7 @@ describe('parallel-dispatch exit code propagation', () => {
       [dispatchDir],
       {
         env: {
-          PATH: `${binDir}:${existingPath}`,
+          PATH: `${binDir}${path.delimiter}${existingPath}`,
           MAESTRO_AGENT_TIMEOUT: '2',
         },
         timeout: 30000,
