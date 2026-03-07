@@ -5,279 +5,252 @@ description: Phase execution methodology for orchestration workflows with error 
 
 # Execution Skill
 
-Activate this skill during Phase 3 (Execution) of Maestro orchestration. This skill provides the protocols for executing implementation plan phases through subagent delegation, handling errors, and completing orchestration sessions.
+Activate this skill during Phase 3 (Execution) of Maestro orchestration. This skill defines how Maestro executes implementation phases through native Gemini CLI subagent delegation.
 
 ## Execution Mode Gate
 
-Before executing any phases in Phase 3:
+<HARD-GATE>
+This gate MUST resolve before ANY delegation proceeds. Do not skip it. Do not defer it. Do not begin delegating to subagents until execution_mode is recorded in session state. If you reach a delegation step and execution_mode is not set, STOP and return here.
+</HARD-GATE>
 
-1. Read `MAESTRO_EXECUTION_MODE` (default: `ask`)
-2. If `ask`: present the execution mode selection prompt defined in `GEMINI.md`
-3. Record the user's choice in session state as `execution_mode`
-4. If `parallel` or `sequential`: use the pre-selected mode and log it
-5. For the remainder of this session, use the selected mode for all batches
+### Step 1 — Read the configured mode
 
-**Mode-specific behavior:**
-- When parallel is selected and a batch contains only one phase, fall back to sequential for that batch (no benefit from parallel with a single agent)
-- When sequential is selected and the plan identifies parallelizable phases, execute them sequentially in dependency order — do not reorder the plan
+Read `MAESTRO_EXECUTION_MODE` (default: `ask`).
+
+- If `parallel`: record `execution_mode: parallel` and `execution_backend: native` in session state. Skip to delegation.
+- If `sequential`: record `execution_mode: sequential` and `execution_backend: native` in session state. Skip to delegation.
+- If `ask`: proceed to Step 2.
+
+### Step 2 — Analyze the implementation plan
+
+Before prompting the user, analyze the approved plan to generate a recommendation:
+
+1. Count total phases in the plan
+2. Count phases marked `parallel: true` (parallelizable phases)
+3. Count distinct parallel batches (groups of parallelizable phases at the same dependency depth)
+4. Count sequential-only phases (phases with `blocked_by` dependencies that prevent parallelization)
+5. Check for any overlapping file ownership warnings across parallel-eligible phases
+
+Record these counts — they feed into the prompt.
+
+### Step 3 — Determine the recommendation
+
+- If parallelizable phases > 50% of total phases → recommend **parallel**
+- If parallelizable phases ≤ 1 → recommend **sequential**
+- The recommended option appears first in the `ask_user` options list with "(Recommended)" appended to its label
+
+### Step 4 — Prompt the user
+
+Call `ask_user` with `type: 'choice'`. The question must include the plan analysis numbers so the user can make an informed decision.
+
+When parallel is recommended:
+
+```json
+{
+  "questions": [{
+    "header": "Exec mode",
+    "question": "Execution Mode: [N] of [M] phases are parallelizable in [B] batches. How should phases be executed?",
+    "type": "choice",
+    "options": [
+      {
+        "label": "Parallel (Recommended)",
+        "description": "[N] phases run concurrently in [B] batches. Faster execution but agents run autonomously."
+      },
+      {
+        "label": "Sequential",
+        "description": "All [M] phases run one at a time in plan order. Slower but allows step-by-step review."
+      }
+    ]
+  }]
+}
+```
+
+When sequential is recommended (parallelizable ≤ 1):
+
+```json
+{
+  "questions": [{
+    "header": "Exec mode",
+    "question": "Execution Mode: Only [N] of [M] phases can run in parallel. How should phases be executed?",
+    "type": "choice",
+    "options": [
+      {
+        "label": "Sequential (Recommended)",
+        "description": "Phases run one at a time in plan order. Best for this plan's dependency structure."
+      },
+      {
+        "label": "Parallel",
+        "description": "Parallel batching available for [N] phase(s). Limited benefit for this plan."
+      }
+    ]
+  }]
+}
+```
+
+Replace `[N]`, `[M]`, and `[B]` with actual counts from Step 2.
+
+### Step 5 — Record and proceed
+
+1. Record the user's selection in session state as `execution_mode`
+2. Record `execution_backend: native`
+3. Use the selected mode for the remainder of the session unless the user changes it
+
+### Mode-specific behavior
+
+- If `parallel` is selected and a ready batch has only one phase, execute it sequentially
+- If `sequential` is selected, preserve plan order even when phases are parallel-safe
+
+### Safety fallback
+
+If `execution_mode` is not present in session state at the point where delegation is about to begin, STOP. Do not default to sequential. Return to this gate and resolve it. This catches any edge case where the gate was skipped.
 
 ## State File Access
 
-Both `read_file` and `write_file` work on state paths inside `<MAESTRO_STATE_DIR>`. The project `.geminiignore` negates the `.gitignore` exclusion of `.gemini/` for Gemini CLI tools.
+State lives inside `<MAESTRO_STATE_DIR>` and is accessible through `read_file` and `write_file`.
 
-The `read-state.js` script remains available as an alternative for TOML shell blocks that inject state before the model's first turn:
+Helper scripts remain available for shell-injected command prompts:
 
 ```bash
-run_shell_command: node ${extensionPath}/scripts/read-state.js <relative-path>
+node ${extensionPath}/scripts/read-state.js <relative-path>
+node ${extensionPath}/scripts/read-active-session.js
 ```
-
-The command path must use `${extensionPath}` so orchestration works when the extension is installed outside the workspace root.
 
 ## Hook Lifecycle During Execution
 
-Maestro hooks (`hooks/hooks.json`) fire automatically at agent boundaries. The orchestrator does not invoke hooks directly — the Gemini CLI triggers them based on lifecycle events.
+Hooks fire automatically at agent boundaries. The orchestrator does not invoke them directly.
 
-Transient hook state (active agent tracking under `/tmp/maestro-hooks/<session-id>/`) is initialized by `SessionStart` when an active session exists, updated by `BeforeAgent`/`AfterAgent`, and stale-pruned during both `SessionStart` and `BeforeAgent`.
+- `BeforeAgent`: resolves active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context
+- `AfterAgent`: validates that the response contains both `Task Report` and `Downstream Context`; requests one retry on the first malformed response
 
-### Agent Turn Hooks
+The hook state directory under `/tmp/maestro-hooks/<session-id>/` is transient and separate from orchestration state.
 
-- **BeforeAgent** (`hooks/before-agent.js`): Fires before each agent turn. Detects the active agent (via `MAESTRO_CURRENT_AGENT` env var in parallel dispatch, or regex fallback in sequential delegation) and injects compact session phase/status context from `active-session.md` when available.
-- **AfterAgent** (`hooks/after-agent.js`): Fires after each agent turn. Validates that the agent's response contains both `Task Report` and `Downstream Context` headings (any heading level — `# Task Report` or `## Task Report` both match via substring detection). Blocks and requests retry on first format violation; allows through on second failure to prevent infinite loops.
+## Sequential Execution Protocol
 
-### Sequential vs Parallel Hook Behavior
+For a sequential phase:
 
-| Aspect | Sequential Delegation | Parallel Dispatch |
-| --- | --- | --- |
-| Agent detection | Regex fallback on prompt content | `MAESTRO_CURRENT_AGENT` env var (set by `parallel-dispatch.js`) |
-| Session context | Injected from shared session state | Injected from shared session state (same path) |
-| AfterAgent validation | Fires per turn in main session | Fires per turn in each independent `gemini` process |
-| Retry on format violation | Blocks main session, agent retries in-place | Blocks the individual parallel process |
+1. Verify all `blocked_by` dependencies are completed
+2. Mark the phase `in_progress`
+3. Update `current_phase`
+4. Set `current_batch: null`
+5. Update `write_todos` before delegation
+6. Delegate to the assigned agent with the required header and full context
+7. Parse the returned handoff
+8. Update session state
+9. Mark the phase `completed` or `failed`
+10. Update `write_todos` after the state update
 
-The orchestrator does not need to account for hooks in delegation prompts or execution logic — they operate transparently at the CLI level. However, the AfterAgent format enforcement means that all agents will be retried once if they omit the required handoff sections, which can add latency to execution.
+## Native Parallel Execution Protocol
 
-## Phase Execution Protocol
+Use native parallel execution only for sibling phases at the same dependency depth with non-overlapping file ownership.
 
-### Sequential Execution
-
-For phases with dependencies (`blocked_by` is non-empty):
-
-1. Verify all blocking phases have `status: completed`
-2. Update the phase status to `in_progress` in session state
-3. Update `current_phase` in session state
-4. Call `write_todos` to reflect current phase progress before delegating
-5. Delegate to the assigned agent(s) with full context
-6. Process the agent's Task Report
-7. Update session state with results (files changed, validation status, token usage)
-8. Transition phase status to `completed` or `failed`
-9. Call `write_todos` to mark the phase complete after state update
-
-### Parallel Execution
-
-For phases at the same dependency depth with no file overlap, use Node.js-based parallel dispatch via `node ${extensionPath}/scripts/parallel-dispatch.js`. This spawns independent `gemini` CLI processes that execute concurrently, bypassing the sequential subagent tool invocation pattern.
-
-#### Parallel Dispatch Protocol
+### Batch Rules
 
 1. Verify all blocking phases for every phase in the batch are completed
-2. Update all batch phases to `in_progress` simultaneously in session state
-3. Call `write_todos` with a single composite item: "Executing batch: Phase N, M, O" as `in_progress` (only one todo can be `in_progress` at a time — the CLI enforces this constraint)
-4. Ensure the batch-specific dispatch directory exists before writing prompt files:
-   ```bash
-   mkdir -p <state_dir>/parallel/<batch-id>/prompts
-   ```
-5. Write each agent's full delegation prompt (including injected base protocol, context chain, and downstream consumer declaration) to its prompt file
-6. Invoke the parallel dispatch script via `run_shell_command`:
-   ```bash
-   node ${extensionPath}/scripts/parallel-dispatch.js <state_dir>/parallel/<batch-id>
-   ```
-7. The script spawns one `gemini --approval-mode=yolo --output-format json` process per prompt file and streams each full prompt payload over stdin
-8. All agents execute concurrently as independent CLI processes
-9. The script waits for all agents, collects exit codes, and writes `results/summary.json`
-10. Read the batch summary via `read_file`: `<state_dir>/parallel/<batch-id>/results/summary.json`
-11. For each agent, read its JSON output via `read_file`: `<state_dir>/parallel/<batch-id>/results/<agent-name>.json` and parse the Task Report
-12. Update session state for all phases in the batch
-13. Only proceed to the next batch when all phases in the current batch are completed
+2. Slice the ready batch into the current dispatch chunk using `MAESTRO_MAX_CONCURRENT`
+3. Mark only the current chunk phases `in_progress`
+4. Set `current_batch` in session state for that chunk
+5. Write one in-progress todo item for the chunk
+6. In the next turn, emit only agent tool calls for that chunk
+7. Do not mix shell commands, validation commands, file writes, or narration between those agent calls
+8. `MAESTRO_MAX_CONCURRENT=0` means emit the entire ready batch in one turn
 
-#### Parallel Dispatch Constraints
+### Native Constraints
 
-- Each agent runs as an **independent `gemini` process** — no shared memory or conversation context between parallel agents
-- Agents inherit the project directory and linked extensions, but do NOT share the orchestrator's session
-- The orchestrator must write complete, self-contained prompts — parallel agents cannot ask follow-up questions
-- File ownership must be strictly non-overlapping — the dispatch script provides no file locking
-- `MAESTRO_DEFAULT_MODEL`, `MAESTRO_WRITER_MODEL`, `MAESTRO_AGENT_TIMEOUT`, `MAESTRO_MAX_CONCURRENT`, `MAESTRO_STAGGER_DELAY`, and `MAESTRO_GEMINI_EXTRA_ARGS` environment variables are resolved via dispatch config; `MAESTRO_CLEANUP_DISPATCH` is resolved separately via `resolveSetting()`
-- If any agent in the batch fails, the summary reports `partial_failure` — the orchestrator decides whether to retry or escalate
+- Gemini CLI only parallelizes contiguous agent calls in one turn
+- Native subagents currently run in YOLO mode
+- `ask_user` remains available; a batch may pause while waiting for user input
+- If execution is interrupted, restart unfinished `in_progress` phases on resume instead of attempting to restore in-flight subagent interactions
 
-#### Fallback to Sequential
+## Progress Context
 
-If parallel dispatch fails (script not found, `gemini` CLI not available in PATH, or all agents fail), fall back to sequential execution via direct subagent tool invocation and record the fallback in session state.
+Include the following in every delegation query body:
 
-### Progress Context
-
-Include the following in every delegation prompt to maintain execution awareness:
-
-```
+```text
 Progress: Phase [N] of [M]: [Phase Name]
 Session: [session_id]
 ```
 
+For native parallel batches, also include the batch identifier in the required header:
+
+```text
+Agent: <agent_name>
+Phase: <id>/<total>
+Batch: <batch_id>
+Session: <session_id>
+```
+
 ## Error Handling Protocol
 
-### Error Recording
+Record all errors in session state with:
 
-Record all errors in session state with complete metadata:
-- `agent`: Which subagent encountered the error
-- `timestamp`: When the error occurred (ISO 8601)
-- `type`: Category — `validation`, `timeout`, `file_conflict`, `runtime`, `dependency`
-- `message`: Full error message or relevant output
-- `resolution`: How it was resolved, or `pending` if unresolved
+- `agent`
+- `timestamp`
+- `type`
+- `message`
+- `resolution`
 
 ### Retry Logic
 
-- **Maximum retries** per phase: controlled by `MAESTRO_MAX_RETRIES` (default: 2). Escalate to user after this limit is reached.
-- **First failure**: Analyze the error, adjust delegation parameters (more context, narrower scope, different approach), retry automatically
-- **Subsequent failures up to limit**: Continue retrying with progressively adjusted parameters
-- **Limit exceeded**: Mark phase as `failed`, stop execution, escalate to user
+- Maximum retries per phase: `MAESTRO_MAX_RETRIES` (default `2`)
+- First failure: analyze, adjust context/scope, retry automatically
+- Subsequent failures up to the limit: continue retrying with clearer constraints
+- Limit exceeded: mark the phase `failed` and escalate to the user
 
-Increment `retry_count` in session state on each retry attempt.
+Increment `retry_count` on each retry.
 
-### Timeout Handling
+### Timeout / Termination Handling
 
-When a subagent times out:
-1. Record partial output in session state if available
-2. Report the timeout to the user with context about what was attempted
-3. Offer options: retry with adjusted parameters, skip phase, or abort
+When a native subagent terminates early or exceeds its configured timeout:
+
+1. Record any useful partial output in session state
+2. Report what the agent was attempting
+3. Retry with narrower scope when reasonable
+4. Escalate if repeated failures continue
 
 ### File Conflict Handling
 
-When a subagent reports a file conflict (concurrent modification):
+When a subagent reports a file conflict:
+
 1. Stop execution immediately
-2. Report conflict details to user (which files, which agents)
-3. Do NOT attempt automatic resolution
-4. Wait for user guidance before proceeding
-
-### Error Escalation Format
-
-Present failures to the user in this structured format:
-
-```
-Phase Execution Failed: [phase-name]
-
-Agent: [agent-name]
-Attempt: [N] of [MAESTRO_MAX_RETRIES, default 2]
-Error Type: [error-type]
-
-Error Message:
-[full error message]
-
-Context:
-[what the agent was trying to do]
-[relevant files/parameters]
-
-Options:
-1. Manually fix the issue and retry this phase
-2. Skip this phase and continue
-3. Abort orchestration and review session state
-4. Adjust delegation parameters and retry
-
-What would you like to do?
-```
+2. Record the conflicting files and phases
+3. Do not attempt automatic merge resolution
+4. Ask the user how to proceed
 
 ## Subagent Output Processing
 
-### Task Report Parsing
+Native Gemini CLI subagent results are wrapped. Do not assume the handoff begins at byte 0.
 
-After each subagent completes, parse its Task Report to extract:
-- **Status**: `success`, `failure`, or `partial`
-- **Files Created/Modified/Deleted**: Update session state file manifest
-- **Downstream Context**: Extract Part 2 fields (`Key Interfaces Introduced`, `Patterns Established`, `Integration Points`, `Assumptions`, `Warnings`) into phase `downstream_context`
-- **Validation**: `pass`, `fail`, or `skipped`
-- **Errors**: Append to session state errors array
+### Parsing Rules
+
+1. Locate `## Task Report` (or `# Task Report`) inside the returned text
+2. Locate `## Downstream Context` (or `# Downstream Context`) inside the returned text
+3. Parse:
+   - status
+   - files created / modified / deleted
+   - downstream context fields
+   - validation result
+   - reported errors
+4. Persist the full raw output plus the parsed fields into session state
 
 ### State Update Sequence
 
-After processing each Task Report:
-1. Update phase `files_created`, `files_modified`, `files_deleted`
-2. Update phase `downstream_context` from the parsed Handoff Report Part 2 (or empty lists when legitimately omitted)
-3. Append any errors to phase `errors` array
-4. Aggregate token usage into session `token_usage`
-5. If validation passed: transition phase to `completed`
-6. If validation failed: trigger retry logic
-7. Update `updated` timestamp
+After processing each handoff:
+
+1. Update the phase file manifests
+2. Update `downstream_context`
+3. Append any errors
+4. Aggregate token usage
+5. If validation passed, mark the phase `completed`
+6. If validation failed, trigger retry logic
+7. Update `updated`
+8. Advance or clear `current_batch` as each chunk finishes
 
 ## Completion Protocol
 
-### Final Review
-
 When all phases are completed:
-1. Review all phase statuses — confirm none are `failed` or `pending`
-2. Verify all deliverables from the implementation plan are accounted for
-3. Cross-reference the file manifest against expected outputs
 
-### Final Code Review Gate (Change-Triggered)
-
-Run this gate after all execution phases are `completed` and before archival.
-
-1. Aggregate unique paths from all phase file manifests (`files_created`, `files_modified`, `files_deleted`)
-2. Classify each path:
-   - **Documentation-only**: `docs/**`, `*.md`, `*.txt`, `*.rst`, `*.adoc`
-   - **Review-required**: all other paths (source, tests, scripts, build/deploy/config)
-3. If no review-required paths exist, record: `Final code review skipped (documentation-only changes)` and continue
-4. If review-required paths exist:
-   - Activate the `code-review` skill
-   - Delegate to the `code_reviewer` agent with:
-     - review-required file paths
-     - relevant implementation-plan objectives/acceptance criteria
-     - latest validation results from execution
-   - Require explicit assessment of both code quality risk and conformance to approved plan/design
-5. Parse review findings by severity:
-   - `Critical` or `Major`: blocking
-   - `Minor` and `Suggestion`: non-blocking
-6. For blocking findings:
-   - Re-open the owning phase (or create a remediation phase)
-   - Delegate fixes to implementation agent(s)
-   - Run validation
-   - Re-run this Final Code Review Gate
-7. Persist final review status and severity counts in session state/log before completion
-
-### Deliverable Verification
-
-For each phase in the implementation plan:
-- Confirm expected files were created/modified
-- Confirm validation passed (or was explicitly skipped by user)
-- Flag any deviations from the plan
-
-### Archival Trigger
-
-After successful completion:
-1. Activate the `session-management` skill
-2. Execute the archive protocol
-3. Move design document, implementation plan, and session state to archive directories
-
-### Summary Format
-
-Present the final orchestration summary:
-
-```
-Orchestration Complete: [session_id]
-
-Delivered:
-- [bullet point summary of what was built/changed]
-
-Files Changed:
-- Created: [count] files
-- Modified: [count] files
-- Deleted: [count] files
-
-Token Usage:
-- Total: [input + output tokens]
-- By Agent: [top 3 agents by usage]
-
-Deviations from Plan:
-- [any changes from original plan, or "None"]
-
-Code Review Gate:
-- Status: [passed | blocked | skipped]
-- Findings: Critical [n], Major [n], Minor [n], Suggestion [n]
-
-Recommended Next Steps:
-- [actionable follow-up items]
-```
+1. Verify there are no `failed` or `pending` phases
+2. Confirm plan deliverables are accounted for
+3. Run the final code-review gate for non-documentation changes
+4. Archive the session through `session-management`
+5. Present a final summary with deliverables, files changed, token usage, deviations, and review status
