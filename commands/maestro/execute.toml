@@ -24,9 +24,10 @@ Read the implementation plan file at the specified path. If no path is provided,
    - Parallel execution opportunities
    - Estimated effort
 4. Ask for user confirmation before beginning execution
-5. Execute phases according to the plan, following the execution skill's protocols
-6. Activate the `validation` skill to verify outputs after each phase
-7. Update session state after every phase transition
-8. Before archival, run a final `code_reviewer` gate when execution changed non-documentation files
-9. Block completion on unresolved Critical/Major review findings; remediate, re-validate, and re-review
-10. On completion, archive the session and deliver the final summary"""
+5. Resolve the execution mode gate (parallel vs sequential) from the execution skill BEFORE beginning phase execution — this is mandatory
+6. Execute phases according to the resolved mode, following the execution skill's protocols
+7. Activate the `validation` skill to verify outputs after each phase
+8. Update session state after every phase transition
+9. Before archival, run a final `code_reviewer` gate when execution changed non-documentation files
+10. Block completion on unresolved Critical/Major review findings; remediate, re-validate, and re-review
+11. On completion, archive the session and deliver the final summary"""
