@@ -5,6 +5,67 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-19
+
+### Added
+
+- **10 new specialist agents** — `seo_specialist`, `copywriter`, `content_strategist`, `ux_designer`, `accessibility_specialist`, `product_manager`, `analytics_engineer`, `i18n_specialist`, `design_system_engineer`, `compliance_reviewer`; roster expanded from 12 to 22
+- **MCP server** (`mcp/maestro-server.js`) — Bundled Model Context Protocol server registered via `mcpServers` in `gemini-extension.json` with 9 tools: `initialize_workspace`, `assess_task_complexity`, `validate_plan`, `create_session`, `get_session_status`, `update_session`, `transition_phase`, `archive_session`, `resolve_settings`
+- **Express workflow** — Streamlined inline flow for `simple` tasks: 1-2 clarifying questions, combined design+plan structured brief, single-agent delegation, code review, and archival without skill activations or execution-mode gating
+- **Task complexity classification** — Three-tier system (`simple`, `medium`, `complex`) gating workflow mode selection (Express vs Standard), design depth defaults, domain analysis breadth, question coverage, and phase count limits
+- **8-domain analysis** — Pre-planning domain sweep across Engineering, Product, Design, Content, SEO, Compliance, Internationalization, and Analytics; scaled by task complexity to identify specialist involvement
+- **Design depth gate** — Three-tier depth selector (`Quick`, `Standard`, `Deep`) in design-dialogue controlling reasoning richness: assumption surfacing, decision matrices, rationale annotations, and requirement traceability; orthogonal to task complexity
+- **3 standalone commands** — `/maestro:a11y-audit` (WCAG compliance), `/maestro:compliance-check` (GDPR/CCPA/regulatory), `/maestro:seo-audit` (technical SEO assessment)
+- **Policy engine rules** (`policies/maestro.toml`) — Extension-tier deny/ask guardrails: blocks `rm -rf`, `git reset --hard`, `git clean`, and heredoc shell writes; prompts on `tee` and shell redirection operators
+- **Hook adapter layer** (`hooks/hook-adapter.js`) — Normalizes Gemini stdin JSON to internal context contract and formats responses for stdout, decoupling hook I/O from business logic
+- **Runtime-agnostic hook logic** — Extracted core hook behavior into `lib/hooks/` modules (`before-agent-logic.js`, `after-agent-logic.js`, `session-start-logic.js`, `session-end-logic.js`) separate from I/O handling
+- **`scripts/read-setting.js`** — CLI utility to resolve a single Maestro setting using script-accurate precedence
+- **Architecture reference** (`references/architecture.md`) — Compact reference for agent roster, state contract, session lifecycle, execution modes, and delegation contract; read by commands at startup
+- **`ARCHITECTURE.md`** and **`OVERVIEW.md`** — Top-level project documentation for architecture deep-dive and quick-start overview
+- **Context budget guidance** — GEMINI.md section on minimizing skill activations, leveraging delegation for context relief, and preferring compact MCP responses over full state reads
+- **`codebase_investigator` integration** — Design-dialogue and implementation-planning skills call the built-in investigator for repo grounding before proposing approaches or decomposing phases
+- **Design document enrichments** — Decision matrix template (Standard/Deep), rationale annotations, per-decision alternatives (Deep), requirement traceability tags (Deep), `design_depth` and `task_complexity` frontmatter fields, numbered requirement IDs (`REQ-N`)
+- **Session state fields** — `workflow_mode`, `execution_backend`, `current_batch`, and `task_complexity` added to session state template
+
+### Changed
+
+- **`src/lib/` flattened to `lib/`** — All shared modules relocated from `src/lib/` to `lib/`; scripts, hooks, and internal imports updated to new paths
+- **Default state directory** — `MAESTRO_STATE_DIR` default changed from `.gemini` to `docs/maestro`; updated in `gemini-extension.json`, GEMINI.md, session-state module, and all command/skill references
+- **Hook architecture** — Hooks (`before-agent.js`, `after-agent.js`, `session-start.js`, `session-end.js`) refactored from `defineHook`/`hook-facade` pattern to direct stdin/stdout with `hook-adapter.js` normalization and separated logic modules
+- **Agent registry** — `KNOWN_AGENTS` array updated from 12 to 22 entries; `detectAgentFromPrompt` now checks agent header (`agent: <name>`) before env var and prompt pattern matching
+- **Orchestrate command** — Expanded from 14-line protocol summary to full orchestrator template with hard gates, first-turn contract, required question order, design/plan approval gates, execution mode gate, delegation requirements, Express workflow routing, and recovery rules
+- **Execute command** — Added inline Maestro Execute section with workspace initialization, execution-mode gate resolution, and parallel/sequential dispatch constraints
+- **Resume command** — Added Express resume detection (`workflow_mode: "express"`), anti-delegation guards for token/status queries, and inline Maestro Resume section with constraint rules
+- **Archive command** — Rewritten to use `get_session_status` and `archive_session` MCP tools instead of direct file manipulation
+- **Status and resume commands** — Added anti-delegation guards preventing token/accounting questions from being routed to `cli_help` or research agents
+- **All standalone audit commands** (`debug`, `perf-check`, `security-audit`, `review`) — Added delegation skill activation for protocol injection
+- **Delegation skill** — Protocol injection paths updated to `${extensionPath}/skills/delegation/protocols/`; added missing context fallback and downstream consumer declaration patterns
+- **Design-dialogue skill** — Added Standard-workflow-only gate, Express bypass, repository grounding protocol with `codebase_investigator`, depth gate with first-turn contract, and complexity-aware section/question scaling
+- **Implementation-planning skill** — Added Standard-workflow-only gate, codebase grounding protocol, `task_complexity` propagation from design document to plan frontmatter
+- **Session-management skill** — Added MCP-first state access protocol (preferred > fallback > legacy), Express workflow session creation, and `workflow_mode` awareness
+- **Execution skill** — Added Standard-workflow-only scope note and Express bypass
+- **GEMINI.md orchestrator context** — Expanded with workflow routing, complexity classification, Express workflow definition, domain analysis matrix, context budget section, MCP tool preference for state operations, `codebase_investigator` guidance, and 22-agent roster
+- **Package identity** — Renamed from `gemini-maestro` to `@maestro-orchestrator/gemini-extension`; added `files` manifest for publishable assets
+- **License** — Changed from MIT to Apache-2.0
+- **`env-file-parser`** — Added multi-line quoted value support for values spanning multiple lines within double quotes
+- **`session-state` module** — Added `resolveStateDirPath` helper; `ensureWorkspace` accepts absolute `stateDir` paths; removed `parallel` subdirectory from workspace scaffold
+- **`atomic-write`** — Added monotonic counter to temp file names to prevent PID-only collisions
+- **`project-root-resolver`** — Added `MAESTRO_WORKSPACE_PATH` env var check before git fallback
+- **`hook-state`** — Added `MAESTRO_HOOKS_DIR` env var override for hook state base directory
+- **`setting-resolver`** — Removed `os.homedir()` fallback for extension path; requires `MAESTRO_EXTENSION_PATH` env var when resolving extension `.env`
+- **`refactor` agent** — Added `run_shell_command` to tool set
+- **Implementation plan template** — Updated parallel dispatch note from `--approval-mode=yolo` reference to native subagent framing; added `task_complexity` frontmatter
+- **`USAGE.md`** and **`README.md`** — Rewrites reflecting 22-agent roster, Express workflow, MCP tools, policy engine, and updated configuration
+
+### Removed
+
+- **`src/lib/` directory** — All modules relocated to `lib/`; removed `src/lib/config/dispatch-config-resolver.js`, `src/lib/core/integer-parser.js`, `src/lib/dispatch/concurrency-limiter.js`, `src/lib/dispatch/process-runner.js`, `src/lib/hooks/hook-facade.js`, `src/lib/hooks/hook-response.js`
+- **`scripts/parallel-dispatch.js`** — Script-based parallel dispatch replaced by native subagent calls in v1.3.0; module fully removed
+- **`scripts/sync-version.js`** — Version sync script between `package.json` and `gemini-extension.json`; replaced by `files` manifest in `package.json`
+- **Entire test suite** — Removed `tests/` directory: 19 unit tests, 8 integration tests, test runner (`run-all.js`), and helpers; tests were coupled to removed `src/lib/` modules and dispatch infrastructure
+- **CI workflow** — Removed `.github/workflows/ci.yml` (cross-platform test matrix on `ubuntu-latest` and `windows-latest`)
+- **Architecture docs directory** — Removed `docs/architecture/` (5 files: `agent-system.md`, `comprehensive-map.md`, `skills-and-commands.md`, `state-management-and-scripts.md`, `system-overview.md`); replaced by `ARCHITECTURE.md`, `OVERVIEW.md`, and `references/architecture.md`
+
 ## [1.3.0] - 2026-03-07
 
 ### Added
