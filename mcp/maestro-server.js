@@ -37596,7 +37596,7 @@ var require_resolve_settings = __commonJS({
       "MAESTRO_EXECUTION_MODE"
     ];
     function handleResolveSettings2(params, projectRoot) {
-      const requested = Array.isArray(params.settings) && params.settings.length > 0 ? params.settings : KNOWN_SETTINGS;
+      const requested = Array.isArray(params.settings) && params.settings.length > 0 ? params.settings.filter((name) => KNOWN_SETTINGS.includes(name)) : KNOWN_SETTINGS;
       const settings = {};
       for (const name of requested) {
         settings[name] = resolveSetting(name, projectRoot) ?? null;
