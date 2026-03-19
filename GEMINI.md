@@ -97,12 +97,29 @@ The classification result also gates workflow mode selection via the workflow ro
 
 ## Workflow Mode Selection
 
-Based on the `task_complexity` classification above:
+<HARD-GATE>
+This routing MUST be followed exactly. Do not override, skip, or mix workflows.
 
-- If `simple`: follow the **Express Workflow** section below. Do not activate any skills — Express defines its own inline flow.
-- If `medium` or `complex`: follow the **Standard Workflow** section below. Activate skills as directed by each phase.
+- If `task_complexity` is `simple` → follow the **Express Workflow** section below. Do not activate any skills. Do not enter the Standard Workflow. Do not present design depth selectors, design questions, or plan approval gates. Go directly to Express Flow.
+- If `task_complexity` is `medium` or `complex` → follow the **Standard Workflow** section below. Activate skills as directed by each phase. Do not enter the Express Workflow.
 
-This routing is a hard gate — do not mix workflows. If Express is selected, skip the Standard Workflow section entirely and vice versa.
+If Express is selected, skip the Standard Workflow section entirely. If Standard is selected, skip the Express Workflow section entirely.
+</HARD-GATE>
+
+<ANTI-PATTERN>
+WRONG — Task classified as `simple` but Standard workflow used:
+  task_complexity: simple
+  workflow_mode: standard       ← VIOLATION
+  (Presented design depth selector, 4+ design questions, plan approval gate)
+
+When `task_complexity` is `simple`, the ONLY valid workflow is Express.
+Do not present design depth selectors, design questions, or plan approval gates for simple tasks.
+
+CORRECT — Task classified as `simple` with Express workflow:
+  task_complexity: simple
+  workflow_mode: express
+  (1-2 clarifying questions → structured brief → single-phase delegation)
+</ANTI-PATTERN>
 
 ## Express Workflow
 

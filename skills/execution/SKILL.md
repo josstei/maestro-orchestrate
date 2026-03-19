@@ -44,7 +44,17 @@ Record these counts — they feed into the prompt.
 
 ### Step 3 — Determine the recommendation
 
-- If parallelizable phases ≤ 1 → auto-select **sequential**. Call `update_session` with `{ execution_mode: 'sequential', execution_backend: 'native' }`. Inform the user: "All phases are sequential — no parallel batches available." Skip to delegation. Do NOT prompt with a choice. (Parallelism requires at least 2 phases at the same dependency depth; a single parallel-eligible phase has nothing to batch with.)
+- If parallelizable phases ≤ 1 → auto-select **sequential**. Call `update_session` with `{ execution_mode: 'sequential', execution_backend: 'native' }`. Inform the user: "All phases are sequential — no parallel batches available." Skip to delegation. Do NOT prompt with a choice. Do NOT call `ask_user`. Do NOT present options. (Parallelism requires at least 2 phases at the same dependency depth; a single parallel-eligible phase has nothing to batch with.)
+
+<ANTI-PATTERN>
+WRONG — 1 parallel-eligible phase but user still prompted:
+  Parallel-eligible Phases: 1
+  → Presented choice: "Sequential (Recommended)" / "Parallel"
+
+When parallelizable phases ≤ 1, there is NO choice to make. Auto-select sequential
+and skip directly to delegation. Do not show a picker.
+</ANTI-PATTERN>
+
 - If parallelizable phases > 50% of total phases → recommend **parallel**
 - If parallelizable phases ≤ 50% but > 1 → recommend **sequential** (limited benefit)
 - The recommended option appears first in the `ask_user` options list with "(Recommended)" appended to its label. The non-recommended option MUST NOT include "(Recommended)" in its label.

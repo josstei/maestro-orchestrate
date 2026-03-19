@@ -34,7 +34,14 @@ Read `${extensionPath}/references/architecture.md`, `${extensionPath}/templates/
 
 ## Workflow Routing
 
-After startup checks, classify task complexity per the complexity-classification fragment in the orchestrator template. If `simple`, follow the Express Workflow section from the orchestrator template — skip the Hard Gates, First-Turn Contract, Design Phase Behavior, Planning Phase Behavior, and Execution Mode Gate below. Those sections apply to Standard workflow only.
+<HARD-GATE>
+After startup checks, classify task complexity per the complexity-classification fragment in the orchestrator template.
+
+- If `simple`: follow the Express Workflow section from the orchestrator template. Do NOT continue reading the sections below — skip the Hard Gates, First-Turn Contract, Design Phase Behavior, Planning Phase Behavior, and Execution Mode Gate entirely. Go directly to Express Flow.
+- If `medium` or `complex`: continue with the Standard Workflow sections below.
+
+Do not present design depth selectors, design questions, or plan approval gates for `simple` tasks. Those are Standard workflow only.
+</HARD-GATE>
 
 ## Hard Gates (Standard Workflow Only)
 
