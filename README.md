@@ -1,8 +1,8 @@
 # Maestro
 
 [![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/josstei/maestro-gemini/releases)
-[![License](https://img.shields.io/badge/license-Apache-2.0-green)](LICENSE)
-[![Gemini CLI](https://img.shields.io/badge/Gemini CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
+[![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
 
 Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands
 
