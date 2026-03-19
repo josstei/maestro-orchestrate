@@ -15,6 +15,10 @@ The current session state is provided below:
 !{extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
 </session-state>
 
+Use the injected session state above as the source of truth for token usage and progress.
+Do NOT delegate token/accounting/progress questions to `cli_help` or any other agent for this command.
+Do NOT call `get_internal_docs` or any repo-grounding/research tool to answer token/accounting questions for this command.
+
 Parse the session state and present a concise status summary:
 
 1. **Session ID** and creation timestamp

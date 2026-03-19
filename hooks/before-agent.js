@@ -1,41 +1,25 @@
-#!/usr/bin/env node
 'use strict';
 
-const fs = require('fs');
-const { defineHook, response, validation, hookState, state, log } = require('../src/lib/hooks/hook-facade');
+const { normalizeInput, formatOutput } = require('./hook-adapter');
+const { handleBeforeAgent } = require('../lib/hooks/before-agent-logic.js');
 
-function handler(ctx) {
-  hookState.pruneStale();
-
-  const agentName = validation.detectAgentFromPrompt(ctx.prompt);
-
-  if (agentName && validation.validateSessionId(ctx.sessionId)) {
-    hookState.setActiveAgent(ctx.sessionId, agentName);
-    log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
-  }
-
-  const sessionPath = state.resolveActiveSessionPath(ctx.cwd);
-  let contextParts = '';
-
+const chunks = [];
+process.stdin.on('data', (chunk) => chunks.push(chunk));
+process.stdin.on('end', () => {
   try {
-    const content = fs.readFileSync(sessionPath, 'utf8');
-    const parts = [];
-    const phaseMatch = content.match(/current_phase:\s*(\S+)/);
-    if (phaseMatch) parts.push(`current_phase=${phaseMatch[1]}`);
-    const statusMatch = content.match(/status:\s*(\S+)/);
-    if (statusMatch) parts.push(`status=${statusMatch[1]}`);
-    if (parts.length > 0) {
-      contextParts = `Active session: ${parts.join(', ')}`;
-    }
-  } catch {}
-
-  const hookEventName = ctx.hookEventName || 'BeforeAgent';
-  if (contextParts) {
-    return response.allowWithContext(contextParts, hookEventName);
+    const raw = JSON.parse(Buffer.concat(chunks).toString());
+    const ctx = normalizeInput(raw);
+    Promise.resolve(handleBeforeAgent(ctx))
+      .then((result) => {
+        const output = formatOutput(result);
+        process.stdout.write(JSON.stringify(output) + '\n');
+      })
+      .catch((err) => {
+        process.stderr.write('Hook error: ' + err.message + '\n');
+        process.stdout.write(JSON.stringify({ "continue": true }) + '\n');
+      });
+  } catch (err) {
+    process.stderr.write('Hook parse error: ' + err.message + '\n');
+    process.stdout.write(JSON.stringify({ "continue": true }) + '\n');
   }
-  return response.allow();
-}
-
-defineHook({ handler, fallbackResponse: response.allow });
-
-module.exports = { handler };
+});

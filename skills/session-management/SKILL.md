@@ -7,6 +7,15 @@ description: Manages orchestration session state, tracking, and resumption
 
 Activate this skill for all session state operations during Maestro orchestration. This skill defines the protocols for creating, updating, resuming, and archiving orchestration sessions.
 
+## State Access Protocol
+
+When MCP state tools are available, prefer them for state operations:
+- **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, atomic operations.
+- **Fallback**: `write_file`/`replace` directly on state files — when MCP tools are not in the available tool list.
+- **Legacy**: Shell scripts (`write-state.js`, `read-state.js`) — remain available but are not the recommended path.
+
+Detection: check whether MCP state tools appear in your available tools. If they do, use them. If they do not, use `write_file`/`replace`.
+
 ## Hook-Level Session State
 
 Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-hooks/<session-id>/` that is distinct from orchestration state in `<MAESTRO_STATE_DIR>`:
@@ -17,16 +26,16 @@ Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-ho
 | Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by `SessionStart` when an active session exists; active-agent file written by `BeforeAgent` and cleared by `AfterAgent`; stale directories pruned by both `SessionStart` and `BeforeAgent` |
 | Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
 | Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
-| Managed by | Orchestrator via session-management skill | Hooks (`before-agent.js`, `after-agent.js`) |
+| Managed by | Orchestrator via session-management skill | The runtime's pre-delegation and post-delegation hooks |
 
-The `BeforeAgent` hook prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
+The `BeforeAgent` prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
 
 The orchestrator does not read or write hook-level state directly. It interacts only with `<MAESTRO_STATE_DIR>` paths. The two state systems are independent and serve different concerns.
 
 ## Session Creation Protocol
 
 ### When to Create
-Create a new session when beginning Phase 2 (Team Assembly & Planning) of orchestration, after the design document has been approved.
+For Standard workflow, create a new session when beginning Phase 2 (Team Assembly & Planning) of orchestration, after the design document has been approved. For Express workflow, create a session after the structured brief is approved (see Express Workflow section in the orchestrator template).
 
 ### Session ID Format
 `YYYY-MM-DD-<topic-slug>`
@@ -38,42 +47,38 @@ Where:
 ### File Location
 `<MAESTRO_STATE_DIR>/state/active-session.md`
 
-Where `MAESTRO_STATE_DIR` defaults to `.gemini` if not set. All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `<state_dir>` represents the resolved value of this variable.
+All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `<state_dir>` represents the resolved value of this variable.
 
 ### State File Access
 
-Both `read_file` and `write_file` work on state paths inside `<MAESTRO_STATE_DIR>`. The project `.geminiignore` negates the `.gitignore` exclusion of `.gemini/` for Gemini CLI tools.
+Both `read_file` and `write_file` work on state paths inside `<MAESTRO_STATE_DIR>`. The runtime's file-access configuration makes state paths accessible.
 
-Use `${extensionPath}` for script locations so these commands work even when the extension is installed outside the workspace root.
+Use `${extensionPath}/scripts/` for script locations so these commands work even when the extension is installed outside the workspace root.
 
 **Reading state files:**
 Use `read_file` directly. The `read-state.js` script remains available as an alternative for TOML shell blocks that inject state before the model's first turn:
 
-```bash
-run_shell_command: node ${extensionPath}/scripts/read-state.js <relative-path>
-```
+`run_shell_command`: `node ${extensionPath}/scripts/read-state.js <relative-path>`
 
 **Writing state files:**
 Use `write_file` directly. When content must be piped from a shell command, use the atomic write script:
 
-```bash
-run_shell_command: echo '...' | node ${extensionPath}/scripts/write-state.js <relative-path>
-```
+`run_shell_command`: `echo '...' | node ${extensionPath}/scripts/write-state.js <relative-path>`
 
 **Rules:**
 - The `write-state.js` script writes atomically (temp file + rename) to prevent partial writes
 - Both scripts validate against absolute paths and path traversal
 
 ### Initialization Steps
-1. Resolve state directory from `MAESTRO_STATE_DIR` (default: `.gemini`)
+1. Resolve state directory from `MAESTRO_STATE_DIR`
 2. Create `<state_dir>/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
 3. Verify no existing `active-session.md` — if one exists, alert the user and offer to archive or resume
-3. Generate session state using the template from `templates/session-state.md`
-4. Initialize all phases as `pending`
-5. Set overall status to `in_progress`
-6. Set `current_phase` to 1
-7. Record design document and implementation plan paths
-8. Initialize empty token_usage, file manifests, downstream_context, and errors sections
+4. Generate session state using the template from `templates/session-state.md`
+5. Initialize all phases as `pending`
+6. Set overall status to `in_progress`
+7. Set `current_phase` to 1
+8. Record design document and implementation plan paths
+9. Initialize empty token_usage, file manifests, downstream_context, and errors sections
 
 ### Initial State Template
 
@@ -84,11 +89,14 @@ task: "<user's original task description>"
 created: "<ISO 8601 timestamp>"
 updated: "<ISO 8601 timestamp>"
 status: "in_progress"
+workflow_mode: "<standard|express>"
 design_document: "<state_dir>/plans/<design-doc-filename>"
 implementation_plan: "<state_dir>/plans/<impl-plan-filename>"
 current_phase: 1
 total_phases: <integer from impl plan>
 execution_mode: null
+execution_backend: null
+task_complexity: null
 
 token_usage:
   total_input: 0
@@ -120,6 +128,8 @@ phases:
 
 # <Topic> Orchestration Log
 ```
+
+Include `task_complexity` (from design document frontmatter) in the session state. Place after `execution_backend`, before `token_usage`. Default: `null`.
 
 ## State Update Protocol
 
@@ -206,20 +216,30 @@ Archive session state when:
 When `MAESTRO_AUTO_ARCHIVE` is `false`, prompt the user after successful completion: "Session complete. Auto-archive is disabled. Would you like to archive this session?"
 
 ### Archive Steps
-1. Create `<state_dir>/plans/archive/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
-2. Create `<state_dir>/state/archive/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
-3. Move design document from `<state_dir>/plans/` to `<state_dir>/plans/archive/`
-4. Move implementation plan from `<state_dir>/plans/` to `<state_dir>/plans/archive/`
+If `archive_session` appears in your available tools, use it — a single call handles all archival:
+1. Call `archive_session` with the session ID. The MCP tool atomically:
+   - Updates session status to `completed`
+   - Moves `active-session.md` to `<state_dir>/state/archive/<session-id>.md`
+   - Moves design document to `<state_dir>/plans/archive/` (if it exists and is non-null)
+   - Moves implementation plan to `<state_dir>/plans/archive/` (if it exists and is non-null)
+2. Confirm archival to user with summary of what was archived (use the `archived_files` array in the response)
+
+If `archive_session` is not available, fall back to manual file operations:
+1. Create `<state_dir>/plans/archive/` directory if it does not exist
+2. Create `<state_dir>/state/archive/` directory if it does not exist
+3. **MOVE** (not copy) design document from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — the original MUST be deleted. Use `run_shell_command` with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
+4. **MOVE** (not copy) implementation plan from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
 5. Update session state `status` to `completed`
 6. Update `updated` timestamp
-7. Move `active-session.md` from `<state_dir>/state/` to `<state_dir>/state/archive/<session-id>.md`
+7. **MOVE** (not copy) `active-session.md` from `<state_dir>/state/` to `<state_dir>/state/archive/<session-id>.md` — delete the original.
 8. Confirm archival to user with summary of what was archived
 
 ### Archive Verification
-After archival, verify:
+After archival, verify ALL of the following (archive is incomplete if any check fails):
 - No `active-session.md` exists in `<state_dir>/state/`
-- Archived files are readable at their new locations
-- Plan files are no longer in active `<state_dir>/plans/` directory
+- No plan files remain in `<state_dir>/plans/` (only the `archive/` subdirectory should be present)
+- Archived files are readable at their new locations in `archive/`
+- If files still exist in the original locations, delete them now — the archive step used copy instead of move
 
 ## Resume Protocol
 
@@ -228,20 +248,30 @@ Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestra
 
 ### Resume Steps
 
-1. **Read State**: Read state via run_shell_command: `node ${extensionPath}/scripts/read-active-session.js` (resolves `MAESTRO_STATE_DIR` internally, default: `.gemini`)
+1. **Read State**: If session state was already injected into the prompt (e.g., via `/maestro:resume`), use that injected content instead of calling `get_session_status`. Otherwise, if `get_session_status` appears in your available tools, call it to read the active session. Otherwise, read state via `run_shell_command`: `node ${extensionPath}/scripts/read-active-session.js` (resolves `MAESTRO_STATE_DIR` internally)
 2. **Parse Frontmatter**: Extract YAML frontmatter for session metadata
 3. **Identify Position**: Determine:
    - Last completed phase (highest ID with `status: completed`)
    - Current active phase (first phase with `status: in_progress` or `pending`)
    - Any failed phases with unresolved errors
 4. **Check Errors**: Identify unresolved errors from previous execution
-5. **Present Summary**: Display status summary to user using the resume format defined in GEMINI.md
+5. **Present Summary**: Display status summary to user using the resume format defined in the orchestrator instructions
 6. **Handle Errors**: If unresolved errors exist:
    - Present each error with context
    - Offer options: retry, skip, abort, or adjust parameters
    - Wait for user guidance before proceeding
 7. **Continue Execution**: Resume from the first pending or failed phase
 8. **Update State**: Mark resumed phase as `in_progress` and update timestamps
+
+### Express Resume Branch
+
+When resuming a session with `workflow_mode: "express"` (read from session state via `get_session_status`), follow the Express workflow's resume protocol instead of the standard resume steps above:
+
+- If phase status is `pending`: re-generate and present the structured brief for approval. On approval, proceed to delegation.
+- If phase status is `in_progress`: the implementing agent was interrupted. Re-delegate with the same scope. Use the `agents` array to identify which agent was running.
+- If phase status is `completed` but session status is `in_progress`: code review or archival was interrupted. Run the code review step, then archive.
+
+Express sessions have a single phase. The phase status combined with the `agents` array contents determines the resume position.
 
 ### Conflict Detection
 When resuming, check for potential conflicts:

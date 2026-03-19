@@ -2,7 +2,7 @@ description = "Run a standalone code review on staged changes, last commit, or s
 
 prompt = """Run a standalone code review.
 
-Activate the `code-review` skill and follow its scope detection protocol.
+Activate the `code-review` and `delegation` skills. The delegation skill ensures agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.
 
 ## Scope Detection
 

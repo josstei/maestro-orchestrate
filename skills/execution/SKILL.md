@@ -5,20 +5,22 @@ description: Phase execution methodology for orchestration workflows with error 
 
 # Execution Skill
 
-Activate this skill during Phase 3 (Execution) of Maestro orchestration. This skill defines how Maestro executes implementation phases through native Gemini CLI subagent delegation.
+Activate this skill during Phase 3 (Execution) of Maestro orchestration. This skill defines how Maestro executes implementation phases through native subagent delegation.
 
 ## Execution Mode Gate
 
 <HARD-GATE>
 This gate MUST resolve before ANY delegation proceeds. Do not skip it. Do not defer it. Do not begin delegating to subagents until execution_mode is recorded in session state. If you reach a delegation step and execution_mode is not set, STOP and return here.
+
+**Exception:** If `workflow_mode` is `express`, this gate does not apply. Express workflow bypasses execution-mode resolution entirely and dispatches sequentially.
 </HARD-GATE>
 
 ### Step 1 — Read the configured mode
 
 Read `MAESTRO_EXECUTION_MODE` (default: `ask`).
 
-- If `parallel`: record `execution_mode: parallel` and `execution_backend: native` in session state. Skip to delegation.
-- If `sequential`: record `execution_mode: sequential` and `execution_backend: native` in session state. Skip to delegation.
+- If `parallel`: call `update_session` with `{ execution_mode: 'parallel', execution_backend: 'native' }` to record in session state. Skip to delegation.
+- If `sequential`: call `update_session` with `{ execution_mode: 'sequential', execution_backend: 'native' }` to record in session state. Skip to delegation.
 - If `ask`: proceed to Step 2.
 
 ### Step 2 — Analyze the implementation plan
@@ -39,6 +41,12 @@ Record these counts — they feed into the prompt.
 - If parallelizable phases ≤ 1 → recommend **sequential**
 - Otherwise (parallelizable > 1 but ≤ 50%) → recommend **sequential** (limited parallelization benefit)
 - The recommended option appears first in the `ask_user` options list with "(Recommended)" appended to its label
+
+### Step 3a — Reconcile with validate_plan profile
+
+If `validate_plan` was called during planning and returned a `parallelization_profile`, use its `parallel_eligible` and `effective_batches` counts as the authoritative source for Steps 2-3. These are computed from actual dependency depths and override any manual flag-based counts.
+
+If `parallelization_profile` is not available, compute counts from the plan's `blocked_by` structure using dependency depth analysis. Do not count `parallel: true` flags without verifying that the flagged phases actually share a dependency depth with at least one other phase.
 
 ### Step 4 — Prompt the user
 
@@ -92,8 +100,8 @@ Replace `[N]`, `[M]`, and `[B]` with actual counts from Step 2.
 
 ### Step 5 — Record and proceed
 
-1. Record the user's selection in session state as `execution_mode`
-2. Record `execution_backend: native`
+1. Call `update_session` with the selected `execution_mode` and `execution_backend: native`
+2. The tool atomically persists both fields
 3. Use the selected mode for the remainder of the session unless the user changes it
 
 ### Mode-specific behavior
@@ -107,7 +115,9 @@ If `execution_mode` is not present in session state at the point where delegatio
 
 ## State File Access
 
-State lives inside `<MAESTRO_STATE_DIR>` and is accessible through `read_file` and `write_file`.
+When MCP state tools (`get_session_status`, `update_session`, `transition_phase`) are available, prefer them for state operations. They provide structured I/O and atomic transitions.
+
+When MCP tools are not available, state lives inside `<MAESTRO_STATE_DIR>` and is accessible through `read_file` and `write_file`.
 
 Helper scripts remain available for shell-injected command prompts:
 
@@ -157,8 +167,8 @@ Use native parallel execution only for sibling phases at the same dependency dep
 
 ### Native Constraints
 
-- Gemini CLI only parallelizes contiguous agent calls in one turn
-- Native subagents currently run in YOLO mode
+- The runtime only parallelizes contiguous agent calls in one turn
+- Native subagents currently run without user approval gates
 - `ask_user` remains available; a batch may pause while waiting for user input
 - If execution is interrupted, restart unfinished `in_progress` phases on resume instead of attempting to restore in-flight subagent interactions
 
@@ -219,7 +229,7 @@ When a subagent reports a file conflict:
 
 ## Subagent Output Processing
 
-Native Gemini CLI subagent results are wrapped. Do not assume the handoff begins at byte 0.
+Native subagent results are wrapped. Do not assume the handoff begins at byte 0.
 
 ### Parsing Rules
 

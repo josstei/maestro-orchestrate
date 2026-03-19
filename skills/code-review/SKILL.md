@@ -11,7 +11,7 @@ Activate this skill when performing standalone code reviews via the `/maestro:re
 
 Determine review scope using the following priority order:
 
-1. **User-specified paths**: If the user provides file paths or glob patterns, expand glob patterns using the `glob` tool to resolve them to concrete file paths before delegating to the code_reviewer agent
+1. **User-specified paths**: If the user provides file paths or glob patterns, expand glob patterns using the `glob` tool to resolve them to concrete file paths before delegating to the `code_reviewer` agent
 2. **Staged changes**: If `git diff --staged` produces output, review staged changes
 3. **Last commit diff**: If no staged changes exist, review the last commit via `git diff HEAD~1`
 4. **Fallback**: If none of the above yield content, ask the user to specify scope
@@ -35,7 +35,7 @@ If scope is provided as file paths and a git diff is empty for some paths (for e
 
 ### Context Enrichment
 
-When delegating to the code_reviewer agent, include:
+When delegating to the `code_reviewer` agent, include:
 - The diff content (not just file names)
 - Surrounding context for modified sections (10 lines before/after when available)
 - Project language and framework information (detected from package.json, Cargo.toml, go.mod, etc.)

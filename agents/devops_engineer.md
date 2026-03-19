@@ -100,9 +100,9 @@ Every deployment must satisfy:
 
 ## Downstream Consumers
 
-- **coder**: Needs environment variable contracts (variable names, types, required vs optional, default values) and configuration schema definitions
-- **security_engineer**: Needs infrastructure configuration details for security review — exposed ports, network policies, secret injection methods, TLS termination points
-- **tester**: Needs CI pipeline stage configuration to understand where and how tests are executed, including environment setup and teardown
+- `coder`: Needs environment variable contracts (variable names, types, required vs optional, default values) and configuration schema definitions
+- `security_engineer`: Needs infrastructure configuration details for security review — exposed ports, network policies, secret injection methods, TLS termination points
+- `tester`: Needs CI pipeline stage configuration to understand where and how tests are executed, including environment setup and teardown
 
 ## Output Contract
 

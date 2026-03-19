@@ -7,21 +7,24 @@ Comprehensive guide to installing, configuring, and using the Maestro multi-agen
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
 3. [Quick Start](#quick-start)
-4. [Command Reference](#command-reference)
-5. [Workflow Guide](#workflow-guide)
-6. [Working with Sessions](#working-with-sessions)
-7. [Specialized Commands](#specialized-commands)
-8. [Configuration](#configuration)
-9. [Tips and Best Practices](#tips-and-best-practices)
-10. [Troubleshooting](#troubleshooting)
+4. [Workflow Modes](#workflow-modes)
+5. [Design Dialogue](#design-dialogue)
+6. [Implementation Planning](#implementation-planning)
+7. [Execution](#execution)
+8. [Command Reference](#command-reference)
+9. [Working with Sessions](#working-with-sessions)
+10. [Agents](#agents)
+11. [Configuration](#configuration)
+12. [Tips and Best Practices](#tips-and-best-practices)
+13. [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
 ### Required Software
 
-1. **Gemini CLI**: Maestro is a Gemini CLI extension. Install Gemini CLI from [geminicli.com](https://geminicli.com) before proceeding.
+1. **Gemini CLI**: Maestro is a Gemini CLI extension. Install Gemini CLI from [https://github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) before proceeding.
 
-2. **Node.js**: Required for hooks, scripts, and parallel dispatch infrastructure. Install Node.js 16 or later from [nodejs.org](https://nodejs.org).
+2. **Node.js**: Required for hooks and local helper scripts. Install Node.js 16 or later from [nodejs.org](https://nodejs.org).
 
 ### Enable Experimental Subagents
 
@@ -42,7 +45,7 @@ Maestro requires Gemini CLI's experimental subagent system. Enable it in your Ge
 
 If the file does not exist, create it with the content above. If it exists, add the `experimental` section to your existing configuration.
 
-**Important**: Parallel-dispatched agents run in autonomous mode (`--approval-mode=yolo`). Sequential delegation uses your current Gemini CLI approval mode. Review the [Gemini CLI subagents documentation](https://geminicli.com/docs/core/subagents/) for full details.
+**Important**: Native parallel subagents currently run in autonomous mode. Sequential delegation uses your current Gemini CLI approval mode. Review the [Gemini CLI subagents documentation](https://geminicli.com/docs/core/subagents/) for full details.
 
 Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enableAgents` manually before orchestration.
 
@@ -50,17 +53,13 @@ Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enabl
 
 ### From Git Repository
 
-Install directly from GitHub:
-
 ```bash
 gemini extensions install https://github.com/josstei/maestro-gemini
 ```
 
-This downloads the extension and links it automatically.
+This downloads the extension and registers it automatically.
 
 ### Local Development
-
-For local development or to contribute:
 
 ```bash
 git clone https://github.com/josstei/maestro-gemini
@@ -72,7 +71,7 @@ The `link` command creates a symlink from your Gemini CLI extensions directory t
 
 ### Verify Installation
 
-Restart Gemini CLI after installation. Verify the extension loaded successfully:
+Restart Gemini CLI after installation, then confirm the extension loaded:
 
 ```bash
 gemini extensions list
@@ -80,164 +79,317 @@ gemini extensions list
 
 You should see `maestro` in the list of active extensions.
 
+
 ## Quick Start
 
-Path examples in this guide use the default `MAESTRO_STATE_DIR=.gemini` unless noted otherwise.
+Path examples in this guide use the default `MAESTRO_STATE_DIR=docs/maestro` unless noted otherwise.
 
 This walkthrough demonstrates a complete orchestration from start to finish.
 
-### 1. Start Orchestration
+Start a full orchestration by describing what you want to build:
 
 ```
 /maestro:orchestrate Build a REST API for a task management system with user authentication
 ```
 
-### 2. Design Dialogue
+Maestro will walk you through the complete lifecycle:
 
-Maestro will engage you in a structured conversation:
+1. **Design Dialogue** -- Maestro asks structured questions one at a time (problem scope, constraints, technology preferences, quality requirements, deployment context) and presents 2-3 architectural approaches with trade-offs.
+2. **Design Review** -- The design document is presented section by section for your approval. Each section is 200-300 words covering requirements, architecture, component specs, team composition, risk assessment, and success criteria.
+3. **Implementation Planning** -- Maestro generates a detailed plan with phase breakdown, agent assignments, dependency graph, parallel execution opportunities, and validation criteria. You review and approve before execution begins.
+4. **Execution Mode Selection** -- Choose parallel dispatch (independent phases run concurrently as native subagents) or sequential delegation (one phase at a time with intervention opportunities).
+5. **Phase-by-Phase Execution** -- Specialized agents implement the plan. Session state is updated after each phase with files changed, validation results, and token usage.
+6. **Quality Gate** -- A final code review blocks completion on unresolved Critical or Major findings. The orchestrator remediates and re-validates until resolved.
+7. **Completion & Archival** -- Maestro delivers a summary of files changed, token usage by agent, deviations from plan, and recommended next steps. The session is archived automatically.
 
-**Question Example**:
-```
-Authentication Strategy: Which authentication approach would you prefer?
 
-Options:
-1. JWT-based authentication (Recommended) — Stateless, scalable, industry standard
-2. Session-based authentication — Server-managed, easier revocation
-3. OAuth 2.0 with external provider — Leverage Google/GitHub for auth
+### Express Mode Example
 
-My recommendation: JWT-based authentication because it scales horizontally without session storage and integrates well with modern frontend frameworks.
-```
-
-Maestro asks one question at a time, covering:
-- Problem scope and boundaries
-- Technical constraints
-- Technology preferences
-- Quality requirements (performance, security, scalability)
-- Deployment context
-
-### 3. Architectural Approaches
-
-After gathering requirements, Maestro presents 2-3 architectural approaches:
+For simple tasks, Maestro detects low complexity and uses the Express workflow:
 
 ```
-Approach 1: Monolithic REST API (Recommended)
-
-Summary: Single Node.js/Express server with layered architecture (routes → services → data access). PostgreSQL for persistence. JWT authentication middleware.
-
-Pros:
-- Simple deployment and debugging
-- Low operational complexity
-- Fast development velocity for small teams
-- All code in one repository
-
-Cons:
-- Scales vertically only (initially)
-- Tight coupling between components
-- Harder to adopt microservices later
-
-Best When: Team is small, traffic is moderate, time-to-market is critical
-
-Risk Level: Low
+/maestro:orchestrate Add a health check endpoint to the Express server
 ```
 
-Choose your preferred approach. Maestro will accept your choice without pushback.
+Express mode follows a streamlined flow:
 
-### 4. Design Review
+1. **Complexity classification**: Maestro determines the task is `simple` and selects Express workflow
+2. **Clarifying questions** (1-2 turns): Maestro asks focused questions about problem scope only
+3. **Structured brief**: Maestro presents a consolidated design+plan for approval:
 
-Maestro presents the design document section by section (200-300 words each):
+```
+## Express Brief: Health Check Endpoint
 
+**Problem**: The Express server has no health check endpoint for load balancer and monitoring integration.
+
+**Approach**: Add a GET /health endpoint returning JSON status with uptime and timestamp.
+*Alternative*: Considered a HEAD-only endpoint but rejected for lack of response body.
+
+**Files**:
+| Action | Path | Purpose |
+|--------|------|---------|
+| Create | src/routes/health.js | Health check route handler |
+| Modify | src/app.js | Register the health route |
+
+**Agent**: coder -- Simple implementation task with clear requirements
+**Validation**: npm test
+
+Approve to proceed?
+```
+
+4. **Delegation**: Single-agent implementation
+5. **Code review**: `code_reviewer` validates the changes
+6. **Archival**: Session state archived automatically
+
+## Workflow Modes
+
+Maestro classifies every task by complexity before choosing a workflow mode. The classification happens automatically when you invoke `/maestro:orchestrate`, and the user can override the result.
+
+### Complexity Classification
+
+| Signal | Simple | Medium | Complex |
+|--------|--------|--------|---------|
+| Scope | Single concern, few files | Multi-component, clear boundaries | Cross-cutting, multi-service |
+| Examples | Static sites, config changes, single-file scripts, CLI tools | API endpoints, feature additions, integrations, CRUD apps | New subsystems, refactors spanning modules, multi-service architectures |
+| Greenfield | Empty or near-empty repo | Small existing codebase | Large codebase with established patterns |
+
+### Express Workflow (Simple Tasks)
+
+Express mode replaces the Standard 4-phase ceremony with a streamlined flow:
+
+1. **Clarifying questions**: 1-2 `ask_user` turns covering problem scope and boundaries only. Questions already answered by the task description are combined or skipped.
+2. **Structured brief**: A single approval prompt presenting the consolidated design+plan -- problem statement, approach with alternative, file manifest, agent assignment, and validation command.
+3. **Session creation**: Creates session state with `workflow_mode: "express"`, `design_document: null`, `implementation_plan: null`, and a single phase.
+4. **Delegation**: Single-agent implementation with full protocol injection (agent base protocol + filesystem safety protocol).
+5. **Code review gate**: `code_reviewer` reviews all changes. Critical or Major findings trigger one retry with fix instructions. If the retry fails, the issue escalates to the user.
+6. **Archival**: Session state archived. No design document or implementation plan to move.
+
+Express always dispatches sequentially. It bypasses the execution mode gate entirely.
+
+**Escalation to Standard**: If the user rejects the structured brief twice, Maestro escalates to Standard workflow -- overriding the classification to `medium` and starting from the beginning of the Standard flow.
+
+### Standard Workflow (Medium/Complex Tasks)
+
+The Standard workflow is a full 4-phase lifecycle:
+
+1. **Phase 1: Design Dialogue** -- Structured requirements gathering with depth-selectable reasoning
+2. **Phase 2: Team Assembly & Planning** -- 8-domain agent assignment, dependency mapping, plan generation
+3. **Phase 3: Execution** -- Delegated implementation with parallel or sequential dispatch
+4. **Phase 4: Completion** -- Quality gate, validation, archival, and summary
+
+### Decision Table: When to Use Each Mode
+
+Workflow mode is selected automatically by the complexity classifier, but understanding when each applies helps you write better task descriptions:
+
+| Characteristic | Express | Standard |
+|---|---|---|
+| Task complexity | Simple | Medium or Complex |
+| Agents involved | 1 | 2-22 |
+| Design document | None | Full multi-section design |
+| Implementation plan | None | Phase-by-phase with dependencies |
+| Execution mode | Sequential only | Parallel or Sequential |
+| User approval checkpoints | 1 (structured brief) | Multiple (design sections, plan, mode) |
+| Typical duration | Minutes | 30 minutes to hours |
+
+## Design Dialogue
+
+The design dialogue is Phase 1 of the Standard workflow. It is not used in Express mode.
+
+### Depth Selector
+
+Before asking any design questions, Maestro presents a depth selector to control the level of reasoning applied throughout the design phase:
+
+- **Quick** -- Standard reasoning behavior. One question per topic, pros/cons on approaches, standard design sections. No enrichment steps. Choose this when you already have clarity and want to move fast.
+- **Standard** (Recommended) -- Adds assumption surfacing after each answer and a decision matrix during approach evaluation. Design sections gain rationale annotations tying decisions to project context.
+- **Deep** -- Full treatment. Follow-up probing into implications, assumption surfacing with confirmation, trade-off narration on each choice, decision matrix with scoring, rationale annotations, per-decision alternatives, and full requirement traceability. Choose this for high-stakes or ambiguous tasks.
+
+Depth and complexity are orthogonal. Complexity controls which sections appear and word count per section. Depth controls reasoning richness within each section. A user may select Deep depth on a Medium complexity task or Quick depth on a Complex task.
+
+The chosen depth is recorded in the design document frontmatter as `design_depth: quick | standard | deep`.
+
+### Codebase Investigation
+
+For tasks targeting an existing codebase, Maestro calls the built-in `codebase_investigator` before proposing architectural approaches. The investigator gathers:
+
+- Current architecture slice relevant to the task
+- Most likely impacted modules and files
+- Existing naming, layering, and testing conventions to preserve
+- Integration points and dependency edges the design must respect
+- Validation commands already used by the repo
+- Parallelization or file-conflict risks that should shape the implementation plan
+
+This grounds the design in reality rather than assumptions. For greenfield tasks, documentation-only work, or scopes already understood from direct file reads, the investigator is skipped.
+
+### Domain Analysis
+
+Before decomposing into phases, Maestro assesses the task across 8 capability domains proportional to task complexity:
+
+| Domain | Signal Questions | Candidate Agents |
+|--------|-----------------|-----------------|
+| Engineering | Does the task involve code, infrastructure, or data? | architect, api_designer, coder, code_reviewer, tester, refactor, data_engineer, debugger, devops_engineer, performance_engineer, security_engineer, technical_writer |
+| Product | Are requirements unclear, or does success depend on user outcomes? | product_manager |
+| Design | Does the deliverable have a user-facing interface or interaction? | ux_designer, accessibility_specialist, design_system_engineer |
+| Content | Does the task produce or modify user-visible text, copy, or media? | content_strategist, copywriter |
+| SEO | Is the deliverable web-facing and discoverable by search engines? | seo_specialist |
+| Compliance | Does the task handle user data, payments, or operate in a regulated domain? | compliance_reviewer |
+| Internationalization | Must the deliverable support multiple locales? | i18n_specialist |
+| Analytics | Does success need to be measured, or does the feature need instrumentation? | analytics_engineer |
+
+Domain analysis scope by complexity:
+- **Simple**: Engineering domain only. Other domains skipped unless explicitly requested.
+- **Medium**: Engineering + domains with clear signals from the task description.
+- **Complex**: Full 8-domain sweep.
+
+### Architectural Approaches
+
+After gathering requirements, Maestro presents 2-3 architectural approaches. Each includes:
+
+- Summary and high-level architecture description
+- Pros and cons
+- Best-fit scenarios
+- Risk level
+
+Choose your preferred approach. Maestro accepts your choice without pushback and uses it to structure the design document.
+
+### Section-by-Section Review
+
+Once you choose an approach, Maestro presents the design document in sections (200-300 words each). The number of sections scales with complexity:
+
+| Complexity | Minimum Sections |
+|------------|-----------------|
+| Simple | 3 |
+| Medium | 4-5 |
+| Complex | All 7 |
+
+Standard sections include:
 1. Problem Statement & Requirements
 2. Selected Approach & Architecture
 3. Component Specifications & Data Flow
 4. Agent Team Composition & Phase Plan
 5. Risk Assessment & Mitigation
 6. Success Criteria
+7. Non-Functional Requirements
 
-After each section, you'll be asked to approve or request changes. Once all sections are approved, Maestro writes the design document to `.gemini/plans/YYYY-MM-DD-task-management-api-design.md`.
+After each section, you approve or request changes. Once all sections are approved, Maestro writes the design document to `<MAESTRO_STATE_DIR>/plans/YYYY-MM-DD-<topic>-design.md`.
 
-### 5. Implementation Planning
+## Implementation Planning
 
-Maestro generates a detailed implementation plan with:
-- Phases broken down by task domain
-- Agent assignments (coder, tester, devops_engineer, etc.)
-- Dependency graph showing which phases must run sequentially
-- Parallel execution opportunities
-- Validation criteria per phase
+Implementation planning is Phase 2 of the Standard workflow. Express mode does not create an implementation plan.
 
-You'll review and approve the plan. Once approved, Maestro writes it to `.gemini/plans/YYYY-MM-DD-task-management-api-impl-plan.md` and creates a session state file at `.gemini/state/active-session.md`.
+### Grounded Decomposition
 
-### 6. Execution
+Maestro analyzes the approved design and breaks it into implementation phases. If the plan would otherwise rely on assumed file locations, unclear ownership boundaries, or guessed integration points, Maestro calls the `codebase_investigator` before decomposition to ground the plan in the actual repository structure.
 
-Maestro asks which execution mode to use:
+Each phase is assigned:
+- One or more specialized agents based on task domain
+- A dependency graph showing which phases must complete before it can start
+- A set of files the phase is expected to create or modify (file ownership)
+- Validation criteria (specific commands to run after completion)
 
-**Option 1: Parallel Dispatch (faster)**
-- Independent phases run as concurrent `gemini` CLI processes
-- Agents operate in autonomous mode (`--approval-mode=yolo`) — all tool calls are auto-approved
-- You review results after each batch completes
-- Best for well-defined tasks with clear file ownership
+### Phase Count
 
-**Option 2: Sequential Delegation (safer)**
-- Each phase executes one at a time
-- Standard tool approval rules apply
-- You can intervene between phases
-- Best for exploratory tasks or security-sensitive work
+Phase limits scale with task complexity:
 
-Choose your mode. Maestro will execute the plan phase by phase, delegating work to specialized agents:
+| Complexity | Maximum Phases |
+|------------|---------------|
+| Simple | 3 |
+| Medium | 5 |
+| Complex | No cap |
 
-```
-Phase 1: Database Schema Design
-  Agent: data_engineer
-  Status: In Progress...
+### Dependency Optimization
 
-Phase 2: Authentication Middleware
-  Agent: coder
-  Status: In Progress...
+Maestro maps dependencies between phases and identifies parallel execution opportunities. Phases at the same dependency depth with non-overlapping file ownership can be batched for parallel dispatch. The plan explicitly marks:
 
-Phase 3: REST API Endpoints
-  Agent: api_designer → coder
-  Status: Pending (blocked by Phase 2)
-```
+- `blocked_by`: list of phase IDs that must complete before this phase starts
+- `parallel: true/false`: whether the phase is eligible for parallel execution
+- File ownership boundaries per phase to prevent conflicts
 
-After each phase, Maestro updates the session state with files changed, validation results, and token usage.
+### Plan Validation
 
-### 7. Completion
+Maestro validates the implementation plan for structural correctness:
 
-When all phases are complete, Maestro presents a final summary:
+- All phase dependencies reference valid phase IDs
+- No circular dependency chains exist
+- File ownership does not overlap across parallel-eligible phases
+- Agent assignments match the available agent roster
+- Validation commands are specified for phases that produce testable output
 
-```
-Orchestration Complete: 2026-02-15-task-management-api
+The validated plan is written to `<MAESTRO_STATE_DIR>/plans/YYYY-MM-DD-<topic>-impl-plan.md`. A session state file is created at `<MAESTRO_STATE_DIR>/state/active-session.md`.
 
-Delivered:
-- PostgreSQL schema with users, tasks, and sessions tables
-- JWT authentication middleware with token generation and validation
-- REST API with 12 endpoints (CRUD for users and tasks)
-- Integration tests with 85% coverage
-- Dockerfile and docker-compose.yml for local development
+## Execution
 
-Files Changed:
-- Created: 24 files
-- Modified: 3 files
-- Deleted: 0 files
+Execution is Phase 3 of the Standard workflow. Express mode uses single-agent delegation without an execution mode gate.
 
-Token Usage:
-- Total: 125,000 tokens (80,000 input, 45,000 output)
-- By Agent: coder (45k), tester (32k), data_engineer (18k)
+### Execution Mode Gate
 
-Deviations from Plan: None
+The execution mode gate must resolve before any delegation proceeds. It is a hard gate -- delegation cannot begin until `execution_mode` is recorded in session state.
 
-Recommended Next Steps:
-- Run `docker-compose up` to start the development environment
-- Review API documentation in docs/api.md
-- Configure environment variables in .env (see .env.example)
-```
+**Resolution flow:**
 
-The session is automatically archived to `.gemini/state/archive/2026-02-15-task-management-api.md`.
+1. Read `MAESTRO_EXECUTION_MODE` (default: `ask`)
+2. If `parallel`: record in session state, skip to delegation
+3. If `sequential`: record in session state, skip to delegation
+4. If `ask`: analyze the implementation plan and prompt the user
+
+When prompting, Maestro presents plan analysis (total phases, parallelizable phases, distinct batches, sequential-only phases, file overlap warnings) and a recommendation:
+
+- If parallelizable phases > 50% of total phases: recommend **parallel**
+- If parallelizable phases <= 1: recommend **sequential**
+- Otherwise: recommend **sequential** (limited parallelization benefit)
+
+### Native Parallel Execution
+
+When parallel mode is selected, Maestro dispatches independent phases as native subagent batches using Gemini CLI's built-in scheduler.
+
+**How a batch executes:**
+
+1. Identify the ready batch from the implementation plan (phases at the same dependency depth with non-overlapping file ownership)
+2. Slice the ready batch using `MAESTRO_MAX_CONCURRENT` (`0` = dispatch full batch)
+3. Mark the current chunk `in_progress` in session state and set `current_batch`
+4. Emit contiguous subagent tool calls for the chunk -- agent calls only, no interleaved operations
+5. Each delegation prompt includes:
+   - Required headers: `Agent:`, `Phase:`, `Batch:`, `Session:`
+   - Injected protocols: agent base protocol, filesystem safety protocol
+   - Context chain from completed dependency phases
+   - Downstream consumer declaration
+6. Parse results from `## Task Report` and `## Downstream Context` sections
+7. Persist results into session state
+8. Advance to the next batch or clear `current_batch`
+
+If a batch has only one phase, it executes sequentially even in parallel mode.
+
+### Sequential Execution
+
+When sequential mode is selected, Maestro delegates phases one at a time in dependency order. Each delegation includes the same protocol injection and context chain as parallel mode, but execution pauses between phases for state updates and validation.
+
+Sequential mode preserves plan order even when phases are marked parallel-safe.
+
+### MCP State Operations
+
+Session state updates use MCP tools (`update_session`, `transition_phase`, `get_session_status`) for structured I/O and atomic transitions. If MCP tools are unavailable, Maestro falls back to direct filesystem operations on `<MAESTRO_STATE_DIR>/state/active-session.md`.
+
+### Error Handling and Retries
+
+If a phase fails:
+1. The error is recorded in session state with retry count
+2. Maestro retries automatically up to `MAESTRO_MAX_RETRIES` (default: 2) times
+3. If retries are exhausted, the user is asked for guidance:
+   - Retry with modified instructions
+   - Skip the phase
+   - Abort execution
+
+### Code Review Gate
+
+At the end of Phase 4 (Completion), if execution changed non-documentation files (source, test, config, scripts), Maestro runs a final `code_reviewer` quality gate on all changed files.
+
+- **Critical or Major findings**: Block completion. The orchestrator remediates the findings, re-validates, and re-runs the review gate until resolved.
+- **Minor or Suggestion findings**: Recorded and reported in the completion summary but do not block.
 
 ## Command Reference
 
 ### /maestro:orchestrate
 
-Start a full Maestro orchestration for a complex engineering task.
+Start a full Maestro orchestration for an engineering task.
 
 **Syntax**:
 ```
@@ -248,18 +400,16 @@ Start a full Maestro orchestration for a complex engineering task.
 - `<task description>`: Natural language description of what you want to build or change
 
 **Behavior**:
-1. Checks for existing active sessions in `.gemini/state/`
-2. If an active session exists, offers to resume or archive it
-3. Begins the four-phase orchestration workflow:
-   - **Phase 1**: Design Dialogue — structured requirements gathering
-   - **Phase 2**: Team Assembly & Planning — agent selection and task decomposition
-   - **Phase 3**: Execution — delegated implementation with progress tracking
-   - **Phase 4**: Completion — final `code_reviewer` quality gate (blocks on unresolved Critical/Major findings), review, and archival
+1. Checks for existing active sessions
+2. Classifies task complexity (simple, medium, complex)
+3. Routes to Express (simple) or Standard (medium/complex) workflow
+4. Express: clarifying questions, brief, delegate, review, archive
+5. Standard: design dialogue, planning, execution, completion
 
 **When to Use**:
-- Complex tasks requiring multiple specialized agents
-- Projects needing architectural design before implementation
-- When you want a structured approach with clear checkpoints
+- Any engineering task, from simple config changes to complex multi-service architectures
+- When you want Maestro to determine the appropriate workflow depth
+- When you need structured orchestration with progress tracking
 
 **Example**:
 ```
@@ -267,63 +417,10 @@ Start a full Maestro orchestration for a complex engineering task.
 ```
 
 **Expected Output**:
-- Interactive design dialogue with multiple-choice questions
-- Architectural approach proposals
-- Generated design document in `.gemini/plans/`
-- Implementation plan with phase dependencies
-- Session state tracking in `.gemini/state/active-session.md`
+- Complexity classification with rationale
+- Workflow-appropriate interactions (Express brief or Standard design dialogue)
 - Phase-by-phase execution with progress updates
-
-### /maestro:resume
-
-Resume an interrupted orchestration session.
-
-**Syntax**:
-```
-/maestro:resume
-```
-
-**Arguments**: None
-
-**Behavior**:
-1. Reads `.gemini/state/active-session.md`
-2. Parses session metadata and phase statuses
-3. Presents a status summary:
-   - Session ID and creation timestamp
-   - Phase-by-phase status (completed, in_progress, failed, pending)
-   - Unresolved errors from previous execution
-   - What will happen next
-4. If errors exist, presents them and asks for guidance before retrying
-5. Continues execution from the last active/pending phase
-
-**When to Use**:
-- Orchestration was interrupted (timeout, manual stop, error)
-- You want to check session state before continuing
-- Previous execution failed and you've manually fixed the issue
-
-**Example**:
-```
-/maestro:resume
-```
-
-**Expected Output**:
-```
-Resuming Session: 2026-02-15-task-management-api
-Created: 2026-02-15T10:30:00Z
-
-Phase Status:
-✓ Phase 1: Database Schema Design (completed)
-✓ Phase 2: Authentication Middleware (completed)
-✗ Phase 3: REST API Endpoints (failed)
-□ Phase 4: Integration Tests (pending)
-
-Unresolved Errors:
-Phase 3 (coder):
-  Type: validation
-  Message: ESLint errors in src/routes/tasks.js - unused variable 'userId'
-
-I'll retry Phase 3 now. Continue?
-```
+- Completion summary with files changed and next steps
 
 ### /maestro:execute
 
@@ -335,8 +432,8 @@ Execute an existing implementation plan, skipping design and planning phases.
 ```
 
 **Arguments**:
-- `<path-to-implementation-plan>`: Path to an implementation plan file (e.g., `.gemini/plans/2026-02-15-api-refactor-impl-plan.md`)
-- If omitted, Maestro checks `.gemini/plans/` for the most recent plan
+- `<path-to-implementation-plan>`: Path to an implementation plan file (e.g., `docs/maestro/plans/2026-02-15-api-refactor-impl-plan.md`)
+- If omitted, Maestro checks `<MAESTRO_STATE_DIR>/plans/` for the most recent plan
 
 **Behavior**:
 1. Reads the specified implementation plan
@@ -345,9 +442,9 @@ Execute an existing implementation plan, skipping design and planning phases.
    - Total phases and agent assignments
    - Parallel execution opportunities
    - Estimated effort
-4. Asks for confirmation before beginning
+4. Resolves execution mode via the mode gate
 5. Executes phases according to the plan
-6. Runs a final `code_reviewer` quality gate when execution changed non-documentation files (blocks on unresolved Critical/Major findings)
+6. Runs final code review gate on non-documentation changes
 7. Archives the session on completion
 
 **When to Use**:
@@ -357,7 +454,7 @@ Execute an existing implementation plan, skipping design and planning phases.
 
 **Example**:
 ```
-/maestro:execute .gemini/plans/2026-02-15-api-refactor-impl-plan.md
+/maestro:execute docs/maestro/plans/2026-02-15-api-refactor-impl-plan.md
 ```
 
 **Expected Output**:
@@ -373,6 +470,57 @@ Execution Mode:
 Which mode would you like to use? (parallel/sequential)
 ```
 
+### /maestro:resume
+
+Resume an interrupted orchestration session.
+
+**Syntax**:
+```
+/maestro:resume
+```
+
+**Arguments**: None
+
+**Behavior**:
+1. Reads `<MAESTRO_STATE_DIR>/state/active-session.md`
+2. Parses session metadata and phase statuses
+3. Presents a status summary with completed/pending/failed phases
+4. If errors exist, presents them and asks for guidance before retrying
+5. For Express sessions (`workflow_mode: "express"`):
+   - Phase `pending`: re-generates and presents the structured brief
+   - Phase `in_progress`: re-delegates with the same scope
+   - Phase `completed` but session `in_progress`: runs code review, then archives
+6. For Standard sessions: continues from the last active/pending phase
+
+**When to Use**:
+- Orchestration was interrupted (timeout, manual stop, error)
+- You want to check session state before continuing
+- Previous execution failed and you have manually fixed the issue
+
+**Example**:
+```
+/maestro:resume
+```
+
+**Expected Output**:
+```
+Resuming Session: 2026-02-15-task-management-api
+Created: 2026-02-15T10:30:00Z
+
+Phase Status:
+  Phase 1: Database Schema Design (completed)
+  Phase 2: Authentication Middleware (completed)
+  Phase 3: REST API Endpoints (failed)
+  Phase 4: Integration Tests (pending)
+
+Unresolved Errors:
+Phase 3 (coder):
+  Type: validation
+  Message: ESLint errors in src/routes/tasks.js - unused variable 'userId'
+
+I'll retry Phase 3 now. Continue?
+```
+
 ### /maestro:review
 
 Run a standalone code review on staged changes, last commit, or specified paths.
@@ -384,7 +532,7 @@ Run a standalone code review on staged changes, last commit, or specified paths.
 
 **Arguments**:
 - `[file paths or glob patterns]`: Optional. Specific files or patterns to review (e.g., `src/api/*.js`)
-- If omitted, Maestro auto-detects scope: staged changes → last commit diff
+- If omitted, Maestro auto-detects scope: staged changes > last commit diff
 
 **Behavior**:
 1. Auto-detects review scope (priority order):
@@ -422,136 +570,22 @@ Lines Reviewed: 450
 Findings:
 
 CRITICAL (1):
-- src/api/tasks.js:45 — SQL injection vulnerability in raw query
+- src/api/tasks.js:45 -- SQL injection vulnerability in raw query
   Use parameterized queries instead of string concatenation
 
 MAJOR (2):
-- src/api/users.js:78 — Password stored in plain text
+- src/api/users.js:78 -- Password stored in plain text
   Hash passwords with bcrypt before storing
-- src/api/tasks.js:120 — Missing error handling on database operations
+- src/api/tasks.js:120 -- Missing error handling on database operations
   Wrap in try-catch and return appropriate HTTP status
 
 MINOR (3):
-- src/api/users.js:23 — Inconsistent naming (snake_case vs camelCase)
-- src/api/tasks.js:90 — Magic number 100 should be a named constant
-- src/api/users.js:150 — Unused import 'lodash'
+- src/api/users.js:23 -- Inconsistent naming (snake_case vs camelCase)
+- src/api/tasks.js:90 -- Magic number 100 should be a named constant
+- src/api/users.js:150 -- Unused import 'lodash'
 
 SUGGESTIONS (1):
-- src/api/tasks.js:60-80 — Consider extracting validation logic to middleware
-```
-
-### /maestro:status
-
-Display the current orchestration session status.
-
-**Syntax**:
-```
-/maestro:status
-```
-
-**Arguments**: None
-
-**Behavior**:
-1. Reads `.gemini/state/active-session.md`
-2. Presents a concise status summary:
-   - Session ID and creation timestamp
-   - Overall status (in_progress, completed, failed)
-   - Phase breakdown with status indicators
-   - File manifest (files created, modified, deleted)
-   - Token usage (total and top agents)
-   - Unresolved errors
-3. Read-only — does not modify state or continue execution
-
-**When to Use**:
-- Checking orchestration progress
-- Understanding what has been completed
-- Reviewing token usage before proceeding
-- Identifying errors without resuming execution
-
-**Example**:
-```
-/maestro:status
-```
-
-**Expected Output**:
-```
-Orchestration Session Status
-
-Session ID: 2026-02-15-task-management-api
-Created: 2026-02-15T10:30:00Z
-Updated: 2026-02-15T11:45:00Z
-Status: In Progress
-
-Phase Status:
-✓ Phase 1: Database Schema Design (completed at 10:45)
-✓ Phase 2: Authentication Middleware (completed at 11:20)
-○ Phase 3: REST API Endpoints (in progress since 11:25)
-□ Phase 4: Integration Tests (pending)
-□ Phase 5: Documentation (pending)
-
-Files Changed:
-- Created: 12 files
-- Modified: 2 files
-- Deleted: 0 files
-
-Token Usage:
-- Total: 45,000 tokens (28,000 input, 17,000 output)
-- By Agent: coder (22k), data_engineer (15k), tester (8k)
-
-Errors: None
-```
-
-### /maestro:archive
-
-Archive the current active orchestration session.
-
-**Syntax**:
-```
-/maestro:archive
-```
-
-**Arguments**: None
-
-**Behavior**:
-1. Checks for an active session at `.gemini/state/active-session.md`
-2. If no active session exists, informs you there is nothing to archive
-3. If an active session exists:
-   - Presents a summary of what will be archived
-   - Asks for confirmation (session may have incomplete phases)
-   - Moves design document to `.gemini/plans/archive/`
-   - Moves implementation plan to `.gemini/plans/archive/`
-   - Updates session status to `completed`
-   - Moves session state to `.gemini/state/archive/<session-id>.md`
-4. Verifies archival was successful (no `active-session.md` remains)
-5. Confirms to you with a summary of archived files
-
-**When to Use**:
-- Manually archiving a completed session (when `MAESTRO_AUTO_ARCHIVE` is `false`)
-- Cleaning up an incomplete session you no longer need
-- Before starting a new orchestration (required if active session exists)
-
-**Example**:
-```
-/maestro:archive
-```
-
-**Expected Output**:
-```
-Archive Confirmation
-
-Active Session: 2026-02-15-task-management-api
-Status: In Progress (3 of 5 phases completed)
-
-This session will be archived with incomplete phases. Continue?
-
-[After confirmation]
-
-Archived Successfully:
-- Design document → .gemini/plans/archive/2026-02-15-task-management-api-design.md
-- Implementation plan → .gemini/plans/archive/2026-02-15-task-management-api-impl-plan.md
-- Session state → .gemini/state/archive/2026-02-15-task-management-api.md
-
-No active session remains.
+- src/api/tasks.js:60-80 -- Consider extracting validation logic to middleware
 ```
 
 ### /maestro:debug
@@ -564,7 +598,7 @@ Focused debugging session to investigate and diagnose an issue.
 ```
 
 **Arguments**:
-- `<issue description>`: Natural language description of the problem you're experiencing
+- `<issue description>`: Natural language description of the problem you are experiencing
 
 **Behavior**:
 1. Delegates to the `debugger` agent with your issue description
@@ -597,36 +631,27 @@ Focused debugging session to investigate and diagnose an issue.
 Debug Report: User Login 500 Error
 
 Root Cause:
-Password validation regex in src/auth/validate.js:34 does not escape special characters, causing regex syntax errors when input contains characters like $ or ^.
+Password validation regex in src/auth/validate.js:34 does not escape special
+characters, causing regex syntax errors when input contains characters like $ or ^.
 
 Evidence:
-- src/auth/validate.js:34 — Regex pattern: /^[A-Za-z0-9!@#$%^&*()]+$/
+- src/auth/validate.js:34 -- Regex pattern: /^[A-Za-z0-9!@#$%^&*()]+$/
 - Error log: "Invalid regular expression: Unmatched ')'"
 - Test case: Password "test^pass)" triggers the error
 
 Execution Trace:
 1. POST /api/login with password "test^pass)"
-2. src/routes/auth.js:45 → validatePassword(password)
-3. src/auth/validate.js:34 → new RegExp(pattern) throws SyntaxError
+2. src/routes/auth.js:45 -> validatePassword(password)
+3. src/auth/validate.js:34 -> new RegExp(pattern) throws SyntaxError
 4. Error propagates to Express error handler
 5. Returns 500 Internal Server Error
 
 Recommended Fix:
-File: src/auth/validate.js
-Line: 34
-Change:
-  const pattern = /^[A-Za-z0-9!@#$%^&*()]+$/;
-To:
-  const pattern = /^[A-Za-z0-9!@#$%^&*()]+$/;
-
-Or use character class escaping:
-  const pattern = /^[\w!@#$%^&*()]+$/;
+File: src/auth/validate.js, Line: 34
+Use a regex literal instead of new RegExp(), or escape special characters.
 
 Regression Prevention:
-Add test case in test/auth/validate.test.js:
-  it('validates password with special characters', () => {
-    expect(validatePassword('test^pass)')).toBe(true);
-  });
+Add test case for passwords with special characters in the validation test suite.
 ```
 
 ### /maestro:security-audit
@@ -680,30 +705,20 @@ Lines Reviewed: 2,450
 Findings:
 
 CRITICAL (2):
-- src/auth/jwt.js:23 — Hardcoded JWT secret in source code
+- src/auth/jwt.js:23 -- Hardcoded JWT secret in source code
   Severity: Critical (CVSS 9.1)
   Threat: Secret exposure allows token forgery
   Remediation: Move secret to environment variable, rotate immediately
 
-- src/api/users.js:67 — SQL injection vulnerability
+- src/api/users.js:67 -- SQL injection vulnerability
   Severity: Critical (CVSS 9.8)
   Threat: Attacker can read/modify database
-  PoC: POST /api/users with username="admin' OR '1'='1"
   Remediation: Use parameterized queries
 
 HIGH (3):
-- src/auth/password.js:45 — Weak password hashing (MD5)
-  Use bcrypt with cost factor 12+
-
-- src/api/tasks.js:120 — Missing authorization check
-  Users can access other users' tasks by guessing IDs
-  Implement ownership validation
-
-- src/auth/session.js:90 — Session tokens not invalidated on logout
-  Implement token blacklist or short TTL
-
-MEDIUM (5):
-[Additional findings...]
+- src/auth/password.js:45 -- Weak password hashing (MD5)
+- src/api/tasks.js:120 -- Missing authorization check
+- src/auth/session.js:90 -- Session tokens not invalidated on logout
 
 Overall Security Posture: High Risk
 Critical issues must be addressed before production deployment.
@@ -754,224 +769,233 @@ Performance Analysis Report
 Scope: src/api/tasks.js
 Analysis Type: Code Review + Query Profiling
 
-Baseline Metrics:
-- Average response time: 850ms (target: <200ms)
-- P95 latency: 1,200ms
-- Throughput: 50 req/sec
-- Database queries per request: 12
-
 Bottlenecks Identified:
 
 1. N+1 Query Problem (HIGH IMPACT)
    Location: src/api/tasks.js:78-92
    Issue: Fetches task assignees in a loop (1 query per task)
-   Current: 12 queries for 10 tasks
    Evidence: 720ms spent on database I/O
 
 2. Missing Index (MEDIUM IMPACT)
    Location: Database table 'tasks' on column 'assignee_id'
    Issue: Full table scan on every query
-   Evidence: EXPLAIN shows 50,000 rows scanned for 10 results
-
-3. Unoptimized JSON Serialization (LOW IMPACT)
-   Location: src/api/tasks.js:120
-   Issue: Serializing entire task object including large description field
-   Evidence: 80ms serialization time per request
 
 Optimization Recommendations (ranked by impact-to-effort):
 
 1. Fix N+1 Query (HIGH IMPACT, LOW EFFORT)
    Change: Use JOIN or IN clause to fetch assignees in single query
-   Expected Improvement: 700ms reduction (850ms → 150ms)
+   Expected Improvement: 700ms reduction
    Effort: 30 minutes
 
 2. Add Database Index (HIGH IMPACT, LOW EFFORT)
    Change: CREATE INDEX idx_tasks_assignee ON tasks(assignee_id)
-   Expected Improvement: 100ms reduction (150ms → 50ms)
+   Expected Improvement: 100ms reduction
    Effort: 5 minutes
-
-3. Selective Serialization (LOW IMPACT, MEDIUM EFFORT)
-   Change: Serialize only required fields
-   Expected Improvement: 50ms reduction (50ms → <10ms)
-   Effort: 2 hours (requires API contract review)
-
-Measurement Plan:
-1. Add APM instrumentation (New Relic, DataDog)
-2. Track P50, P95, P99 latencies
-3. Monitor query counts and execution times
-4. Load test with 500 concurrent users
 ```
 
-## Workflow Guide
+### /maestro:seo-audit
 
-This section walks through the Design → Plan → Execute → Complete lifecycle from a user perspective.
+Run a technical SEO assessment on web-facing deliverables.
 
-> **Skill Activation Prompts**: Each skill activated during orchestration requires a user confirmation dialog in the Gemini CLI. Extension-provided skills are never auto-approved. During a full `/maestro:orchestrate` workflow, expect 5-7 confirmation prompts — one per phase skill activation. To suppress these prompts, configure an auto-approve policy in your Gemini CLI settings.
-
-```mermaid
-flowchart TD
-    Start([Start Orchestration]) --> Design[Phase 1: Design Dialogue]
-    Design --> Questions[Ask Questions<br/>scope, constraints, preferences]
-    Questions --> Approaches[Present Approaches<br/>2-3 architectural options]
-    Approaches --> SectionReview[Section Review<br/>approve each section]
-    SectionReview --> DesignApproved{Approved?}
-    DesignApproved -->|No| SectionReview
-    DesignApproved -->|Yes| Plan[Phase 2: Planning]
-
-    Plan --> Decompose[Decompose Tasks<br/>assign agents]
-    Decompose --> Identify[Identify Dependencies<br/>parallel opportunities]
-    Identify --> PlanApproved{Approved?}
-    PlanApproved -->|No| Decompose
-    PlanApproved -->|Yes| Execute[Phase 3: Execution]
-
-    Execute --> ModeSelect[Mode Selection<br/>parallel or sequential]
-    ModeSelect --> Delegate[Delegate Phases<br/>to specialized agents]
-    Delegate --> Validate[Validate Results<br/>build, lint, tests]
-    Validate --> UpdateState[Update State<br/>track progress]
-    UpdateState --> PhaseError{Error?}
-    PhaseError -->|Yes, retry| Delegate
-    PhaseError -->|Yes, max retries| UserFix[User Intervention]
-    UserFix --> Resume([Resume])
-    Resume --> Delegate
-    PhaseError -->|No| MorePhases{More Phases?}
-    MorePhases -->|Yes| Delegate
-    MorePhases -->|No| Complete[Phase 4: Completion]
-
-    Complete --> Verify[Verify Deliverables<br/>final validation]
-    Verify --> Archive[Archive Session<br/>move to archive/]
-    Archive --> Summary[Present Summary<br/>files, tokens, next steps]
-    Summary --> End([End])
+**Syntax**:
+```
+/maestro:seo-audit <scope>
 ```
 
-### Phase 1: Design Dialogue
+**Arguments**:
+- `<scope>`: Files, directories, or URLs to audit (e.g., `src/pages`, `public/index.html`, `entire site`)
 
-**Goal**: Converge on an approved architectural design through structured conversation.
+**Behavior**:
+1. Delegates to the `seo_specialist` agent with the specified scope
+2. Reviews meta tags, Open Graph data, structured data (JSON-LD), crawlability (robots.txt, sitemaps), canonical URLs, page speed factors, mobile responsiveness, and internal linking
+3. Presents findings with priority ranking and actionable implementation guidance
 
-**What Happens**:
+**When to Use**:
+- Before launching a web-facing product
+- After redesigning page templates or URL structure
+- When search traffic has dropped
+- Validating structured data implementation
 
-1. **Structured Questions**: Maestro asks one question at a time, covering:
-   - Problem scope and boundaries
-   - Technical constraints (existing stack, compatibility requirements)
-   - Technology preferences (languages, frameworks, databases)
-   - Quality requirements (performance, security, scalability)
-   - Deployment context (cloud provider, CI/CD, monitoring)
+**Example**:
+```
+/maestro:seo-audit src/pages
+```
 
-2. **Question Format**: Questions are presented as multiple choice with 2-4 options. Maestro leads with a recommended option and explains why.
+### /maestro:a11y-audit
 
-3. **Architectural Approaches**: After gathering requirements, Maestro presents 2-3 architectural approaches. Each includes:
-   - Summary and architecture diagram
-   - Pros and cons
-   - Best-fit scenarios
-   - Risk level
+Run a WCAG accessibility audit on user-facing components.
 
-4. **Section-by-Section Review**: Once you choose an approach, Maestro presents the design document in sections (200-300 words each). You approve or request changes for each section before proceeding.
+**Syntax**:
+```
+/maestro:a11y-audit <scope>
+```
 
-5. **Design Document**: After all sections are approved, Maestro writes the design document to `.gemini/plans/YYYY-MM-DD-<topic>-design.md`.
+**Arguments**:
+- `<scope>`: Files, components, or pages to audit (e.g., `src/components`, `src/pages/login.tsx`)
 
-**Your Actions**:
-- Answer questions thoughtfully — the more context you provide, the better the design
-- Choose the architectural approach that best fits your needs (not necessarily the recommended one)
-- Review each section carefully — changes are harder to make later
-- Give explicit final approval before proceeding to Phase 2
+**Behavior**:
+1. Delegates to the `accessibility_specialist` agent with the specified scope
+2. Reviews WCAG 2.1 conformance (A, AA, AAA), ARIA attribute usage, keyboard navigation paths, color contrast ratios, screen reader compatibility, focus management, and form labeling
+3. Presents findings with conformance level, impact on user groups, and remediation steps
 
-### Phase 2: Team Assembly & Planning
+**When to Use**:
+- Before launching user-facing features
+- When building form-heavy interfaces
+- To meet regulatory accessibility requirements
+- After receiving accessibility complaints
 
-**Goal**: Generate a detailed implementation plan with agent assignments, dependencies, and validation criteria.
+**Example**:
+```
+/maestro:a11y-audit src/components
+```
 
-**What Happens**:
+### /maestro:compliance-check
 
-1. **Task Decomposition**: Maestro analyzes the design and breaks it into implementation phases.
+Run a regulatory compliance review on the specified scope.
 
-2. **Agent Assignment**: Each phase is assigned to one or more specialized agents based on task domain:
-   - `architect`: System design, component specifications
-   - `coder`: Feature implementation
-   - `data_engineer`: Database schema, queries
-   - `tester`: Unit/integration/E2E tests
-   - `devops_engineer`: CI/CD, Docker, infrastructure
-   - `security_engineer`: Authentication, authorization, vulnerability assessment
-   - `technical_writer`: Documentation, API specs
+**Syntax**:
+```
+/maestro:compliance-check <scope>
+```
 
-3. **Dependency Mapping**: Maestro identifies which phases must run sequentially (blocked by dependencies) and which can run in parallel.
+**Arguments**:
+- `<scope>`: Files, modules, or areas to review (e.g., `src/data-handling`, `entire codebase`, `payment processing`)
 
-4. **Implementation Plan**: Maestro generates a detailed plan with:
-   - Phase-by-phase breakdown
-   - Agent assignments
-   - Dependency graph
-   - Parallel execution opportunities
-   - Validation criteria
+**Behavior**:
+1. Delegates to the `compliance_reviewer` agent with the specified scope
+2. Reviews GDPR/CCPA data handling practices, license compatibility of dependencies, cookie consent implementation, privacy policy coverage, data retention policies, and cross-border data transfer considerations
+3. Presents findings with specific regulatory references and remediation recommendations
 
-5. **Session Creation**: After you approve the plan, Maestro writes it to `.gemini/plans/YYYY-MM-DD-<topic>-impl-plan.md` and creates a session state file at `.gemini/state/active-session.md`.
+**When to Use**:
+- Before handling PII or payment data
+- When adding third-party integrations that process user data
+- Preparing for SOC 2, GDPR, or HIPAA compliance
+- Reviewing open-source license compatibility
 
-**Your Actions**:
-- Review the implementation plan for completeness
-- Verify agent assignments make sense for each task
-- Check that validation criteria are clear and measurable
-- Approve the plan to proceed to Phase 3
+**Example**:
+```
+/maestro:compliance-check src/data-handling
+```
 
-### Phase 3: Execution
+### /maestro:status
 
-**Goal**: Execute the implementation plan phase by phase, delegating to specialized agents.
+Display the current orchestration session status.
 
-**What Happens**:
+**Syntax**:
+```
+/maestro:status
+```
 
-1. **Execution Mode Selection**: Maestro asks which execution mode to use:
-   - **Parallel Dispatch**: Independent phases run concurrently as separate `gemini` CLI processes. Faster but fully autonomous (agents auto-approve all tool calls).
-   - **Sequential Delegation**: Each phase executes one at a time. Safer with tool approval and intervention opportunities.
+**Arguments**: None
 
-2. **Phase Execution**: Maestro delegates work to agents according to the plan:
-   - Sequential phases execute in dependency order
-   - Parallel phases execute concurrently (if parallel mode selected)
-   - Each agent receives a delegation prompt with full context
+**Behavior**:
+1. Reads `<MAESTRO_STATE_DIR>/state/active-session.md`
+2. Presents a concise status summary:
+   - Session ID and creation timestamp
+   - Workflow mode (express or standard)
+   - Overall status (in_progress, completed, failed)
+   - Phase breakdown with status indicators
+   - File manifest (files created, modified, deleted)
+   - Token usage (total and top agents)
+   - Unresolved errors
+3. Read-only -- does not modify state or continue execution
 
-3. **Progress Tracking**: After each phase:
-   - Maestro updates session state with files changed
-   - Runs validation (build, lint, tests) if applicable
-   - Records token usage
-   - Logs downstream context for dependent phases
+**When to Use**:
+- Checking orchestration progress
+- Understanding what has been completed
+- Reviewing token usage before proceeding
+- Identifying errors without resuming execution
 
-4. **Error Handling**: If a phase fails:
-   - Maestro records the error in session state
-   - Retries automatically (up to `MAESTRO_MAX_RETRIES`, default: 2)
-   - Escalates to you if retries exhausted
+**Example**:
+```
+/maestro:status
+```
 
-5. **State Persistence**: Session state is continuously updated in `.gemini/state/active-session.md`. You can check status with `/maestro:status` or resume with `/maestro:resume` if interrupted.
+**Expected Output**:
+```
+Orchestration Session Status
 
-**Your Actions**:
-- Choose execution mode based on task complexity and trust level
-- Monitor progress (Maestro provides updates after each phase)
-- Intervene if errors occur (manual fix → `/maestro:resume`)
-- Review agent output if needed (session state contains full logs)
+Session ID: 2026-02-15-task-management-api
+Created: 2026-02-15T10:30:00Z
+Updated: 2026-02-15T11:45:00Z
+Workflow: Standard
+Status: In Progress
 
-### Phase 4: Completion
+Phase Status:
+  Phase 1: Database Schema Design (completed at 10:45)
+  Phase 2: Authentication Middleware (completed at 11:20)
+  Phase 3: REST API Endpoints (in progress since 11:25)
+  Phase 4: Integration Tests (pending)
+  Phase 5: Documentation (pending)
 
-**Goal**: Final review, validation, and archival.
+Files Changed:
+- Created: 12 files
+- Modified: 2 files
+- Deleted: 0 files
 
-**What Happens**:
+Token Usage:
+- Total: 45,000 tokens (28,000 input, 17,000 output)
+- By Agent: coder (22k), data_engineer (15k), tester (8k)
 
-1. **Final Review**: Maestro verifies all phases are completed and deliverables are accounted for.
+Errors: None
+```
 
-2. **Code Review Gate**: If execution changed non-documentation files, Maestro runs a final `code_reviewer` quality gate. Completion is blocked on unresolved Critical or Major findings — the orchestrator will remediate, re-validate, and re-review until resolved.
+### /maestro:archive
 
-3. **Validation**: Maestro runs final validation (build, lint, tests) across all deliverables.
+Archive the current active orchestration session.
 
-4. **Archival**: If `MAESTRO_AUTO_ARCHIVE` is `true` (default), Maestro automatically archives the session:
-   - Design document → `.gemini/plans/archive/`
-   - Implementation plan → `.gemini/plans/archive/`
-   - Session state → `.gemini/state/archive/<session-id>.md`
+**Syntax**:
+```
+/maestro:archive
+```
 
-5. **Summary**: Maestro presents a final summary with:
-   - What was delivered
-   - Files changed (created, modified, deleted)
-   - Token usage by agent
-   - Deviations from plan (if any)
-   - Recommended next steps
+**Arguments**: None
 
-**Your Actions**:
-- Review the summary
-- Test the deliverables
-- Follow recommended next steps (e.g., run tests, configure environment variables)
+**Behavior**:
+1. Checks for an active session at `<MAESTRO_STATE_DIR>/state/active-session.md`
+2. If no active session exists, informs you there is nothing to archive
+3. If an active session exists:
+   - Presents a summary of what will be archived
+   - Asks for confirmation (session may have incomplete phases)
+   - For Standard sessions: moves design document, implementation plan, and session state to archive directories
+   - For Express sessions: moves session state to archive (no design document or plan)
+   - Updates session status to `completed`
+4. Verifies archival was successful (no `active-session.md` remains)
+
+**When to Use**:
+- Manually archiving a completed session (when `MAESTRO_AUTO_ARCHIVE` is `false`)
+- Cleaning up an incomplete session you no longer need
+- Before starting a new orchestration (required if active session exists)
+
+**Example**:
+```
+/maestro:archive
+```
+
+**Expected Output**:
+```
+Archive Confirmation
+
+Active Session: 2026-02-15-task-management-api
+Status: In Progress (3 of 5 phases completed)
+
+This session will be archived with incomplete phases. Continue?
+
+[After confirmation]
+
+Archived Successfully:
+- Design document -> docs/maestro/plans/archive/2026-02-15-task-management-api-design.md
+- Implementation plan -> docs/maestro/plans/archive/2026-02-15-task-management-api-impl-plan.md
+- Session state -> docs/maestro/state/archive/2026-02-15-task-management-api.md
+
+No active session remains.
+```
 
 ## Working with Sessions
+
+### Session State Files
+
+Maestro tracks all orchestration progress in `<MAESTRO_STATE_DIR>/state/active-session.md` using YAML frontmatter + Markdown body.
 
 ```mermaid
 stateDiagram-v2
@@ -985,33 +1009,33 @@ stateDiagram-v2
     Archived --> [*]
 ```
 
-### Session State Files
-
-Maestro tracks all orchestration progress in `.gemini/state/active-session.md` using YAML frontmatter + Markdown body.
-
 **Location**:
 ```
 <your-project>/
-└── .gemini/
+└── docs/maestro/
     ├── plans/                          # Active design docs and implementation plans
     │   └── archive/                    # Completed plans
     ├── state/
     │   ├── active-session.md           # Current orchestration
     │   └── archive/                    # Completed sessions
     │       └── 2026-02-15-task-management-api.md
-    └── parallel/                       # Parallel dispatch artifacts
 ```
 
-**Structure**:
+**State file structure**:
 ```yaml
 ---
 session_id: "2026-02-15-task-management-api"
 created: "2026-02-15T10:30:00Z"
 updated: "2026-02-15T11:45:00Z"
 status: "in_progress"
-design_document: ".gemini/plans/2026-02-15-task-management-api-design.md"
-implementation_plan: ".gemini/plans/2026-02-15-task-management-api-impl-plan.md"
+workflow_mode: "standard"
+task_complexity: "medium"
+execution_mode: "parallel"
+execution_backend: "native"
+design_document: "docs/maestro/plans/2026-02-15-task-management-api-design.md"
+implementation_plan: "docs/maestro/plans/2026-02-15-task-management-api-impl-plan.md"
 current_phase: 3
+current_batch: null
 total_phases: 5
 
 token_usage:
@@ -1030,40 +1054,34 @@ phases:
     completed: "2026-02-15T10:45:00Z"
     files_created: ["src/db/schema.sql"]
     errors: []
-  - id: 2
-    name: "Authentication Middleware"
-    status: "completed"
-    agents: ["coder"]
-    ...
-  - id: 3
-    name: "REST API Endpoints"
-    status: "in_progress"
-    agents: ["coder"]
-    started: "2026-02-15T11:25:00Z"
-    ...
+    downstream_context: "..."
 ---
 
 # Task Management API Orchestration Log
 
-## Phase 1: Database Schema Design ✓
+## Phase 1: Database Schema Design
 ...
 ```
 
-### Checking Session Status
+### Express Session Lifecycle
 
-Use `/maestro:status` to check orchestration progress without continuing execution:
+Express sessions have a simplified lifecycle:
 
+```yaml
+---
+workflow_mode: "express"
+design_document: null
+implementation_plan: null
+total_phases: 1
+phases:
+  - id: 1
+    name: "Health Check Endpoint"
+    status: "completed"
+    agents: ["coder"]
+---
 ```
-/maestro:status
-```
 
-This displays:
-- Session ID and timestamps
-- Overall status
-- Phase-by-phase status with indicators
-- File manifest (created, modified, deleted)
-- Token usage
-- Unresolved errors
+Express sessions go from creation to single-phase execution to code review to archival. No design document or implementation plan is created or archived.
 
 ### Resuming Interrupted Sessions
 
@@ -1075,7 +1093,7 @@ If orchestration is interrupted (timeout, manual stop, error), resume with:
 
 Maestro will:
 1. Read the session state
-2. Present a summary of what's completed and what's pending
+2. Present a summary of what is completed and what is pending
 3. If errors exist, present them and ask for guidance
 4. Continue from the last active/pending phase
 
@@ -1083,7 +1101,7 @@ Maestro will:
 
 1. **Timeout**: An agent took too long and was terminated
    - Review the timeout error in session state
-   - Adjust `MAESTRO_AGENT_TIMEOUT` if needed
+   - Narrow the phase scope or tune the agent via Gemini CLI `agents.overrides` if needed
    - `/maestro:resume` to retry
 
 2. **Validation Failure**: Build or tests failed after a phase
@@ -1105,14 +1123,9 @@ To manually archive a session:
 ```
 
 This moves:
-- Design document → `.gemini/plans/archive/`
-- Implementation plan → `.gemini/plans/archive/`
-- Session state → `.gemini/state/archive/<session-id>.md`
-
-**When to Manually Archive**:
-- You've set `MAESTRO_AUTO_ARCHIVE` to `false`
-- Orchestration is incomplete but you want to start fresh
-- Cleaning up before starting a new orchestration (required if active session exists)
+- Design document to `<MAESTRO_STATE_DIR>/plans/archive/` (Standard only)
+- Implementation plan to `<MAESTRO_STATE_DIR>/plans/archive/` (Standard only)
+- Session state to `<MAESTRO_STATE_DIR>/state/archive/<session-id>.md`
 
 ### Multiple Sessions
 
@@ -1124,111 +1137,111 @@ Maestro enforces a single active session at a time. If you start `/maestro:orche
 
 This prevents conflicting orchestrations and accidental overwrites.
 
-## Specialized Commands
+## Agents
 
-These commands provide direct access to specific agents without full orchestration.
+### Agent Roster
 
-### Code Review (/maestro:review)
+Maestro coordinates 22 specialized subagents across 8 editorial domains:
 
-**Use Case**: Get a code quality assessment before committing changes.
+All agents share a baseline tool set: `read_file`, `list_directory`, `glob`, `grep_search`, `read_many_files`, `ask_user`. Tool tiers reflect additional capabilities beyond that baseline.
 
-**Best Practices**:
-- Run on staged changes before committing: `/maestro:review`
-- Review specific files: `/maestro:review src/api/*.js`
-- Use after refactoring to catch regressions
+| Agent | Domain | Specialization | Tool Tier |
+|-------|--------|----------------|-----------|
+| architect | Engineering | System design, technology selection, component design | Read-Only |
+| api_designer | Engineering | REST/GraphQL endpoint design, API contracts | Read-Only |
+| coder | Engineering | Feature implementation, clean code, SOLID principles | Full Access |
+| code_reviewer | Engineering | Code quality review, bug detection, security checks | Read-Only |
+| data_engineer | Engineering | Schema design, query optimization, ETL pipelines | Full Access |
+| debugger | Engineering | Root cause analysis, execution tracing, log analysis | Read + Shell |
+| devops_engineer | Engineering | CI/CD pipelines, containerization, infrastructure | Full Access |
+| performance_engineer | Engineering | Profiling, bottleneck identification, optimization | Read + Shell |
+| refactor | Engineering | Code modernization, technical debt, design patterns | Full Access |
+| security_engineer | Engineering | Vulnerability assessment, OWASP, threat modeling | Read + Shell |
+| tester | Engineering | Unit/integration/E2E tests, TDD, coverage analysis | Full Access |
+| technical_writer | Engineering | API docs, READMEs, architecture documentation | Read + Write |
+| product_manager | Product | Requirements gathering, PRDs, feature prioritization | Read + Write |
+| ux_designer | Design | User flow design, interaction patterns, usability evaluation | Read + Write |
+| design_system_engineer | Design | Design tokens, component APIs, theming architecture | Full Access |
+| content_strategist | Content | Content planning, editorial calendars, audience targeting | Read-Only |
+| copywriter | Content | Persuasive copy, landing pages, CTAs, brand voice | Read + Write |
+| seo_specialist | SEO | Technical SEO audits, schema markup, crawlability | Read + Shell |
+| accessibility_specialist | Compliance | WCAG compliance, ARIA review, keyboard navigation | Read + Shell |
+| compliance_reviewer | Compliance | GDPR/CCPA auditing, license checks, data handling | Read-Only |
+| i18n_specialist | Internationalization | String extraction, locale management, RTL support | Full Access |
+| analytics_engineer | Analytics | Event tracking, conversion funnels, A/B test design | Full Access |
 
-**Severity Levels**:
-- **Critical**: Security vulnerabilities, data loss risks — fix immediately
-- **Major**: Logic errors, broken patterns — fix before merging
-- **Minor**: Code quality issues — fix when convenient
-- **Suggestion**: Optimization opportunities — optional
 
-**Example Workflow**:
-```bash
-git add src/api/tasks.js src/api/users.js
-/maestro:review
+### Tool Access Tiers
 
-# Review findings
-# Fix critical and major issues
-git add .
-git commit -m "Add task and user API endpoints"
+Agents follow a least-privilege model with 4 access tiers:
+
+```mermaid
+flowchart LR
+    subgraph ReadOnly[Read-Only]
+        A1[architect]
+        A2[api_designer]
+        A3[code_reviewer]
+        A4[content_strategist]
+        A5[compliance_reviewer]
+    end
+
+    subgraph ReadShell[Read + Shell]
+        B1[debugger]
+        B2[performance_engineer]
+        B3[security_engineer]
+        B4[seo_specialist]
+        B5[accessibility_specialist]
+    end
+
+    subgraph ReadWrite[Read + Write]
+        C1[technical_writer]
+        C2[product_manager]
+        C3[ux_designer]
+        C4[copywriter]
+    end
+
+    subgraph Full[Full Access]
+        D1[coder]
+        D2[data_engineer]
+        D3[devops_engineer]
+        D4[tester]
+        D5[refactor]
+        D6[design_system_engineer]
+        D7[i18n_specialist]
+        D8[analytics_engineer]
+    end
+
+    ReadOnly -.->|Analysis only| Output1[Recommendations]
+    ReadShell -.->|Investigation| Output2[Diagnostics]
+    ReadWrite -.->|Modification| Output3[Content & Design]
+    Full -.->|Implementation| Output4[Complete Features]
 ```
 
-### Debugging (/maestro:debug)
+- **Read-Only**: Analysis and recommendations only. Cannot modify files or run commands.
+- **Read + Shell**: Can run commands to investigate but not modify files directly.
+- **Read + Write**: Can create and modify files but not run shell commands.
+- **Full Access**: Complete implementation capabilities including read, write, shell, and task tracking.
 
-**Use Case**: Investigate and diagnose a bug or unexpected behavior.
+**Why this matters for delegation**:
+- Delegating to `code_reviewer` gives you analysis, not fixes
+- Delegating to `coder` gives you working code
+- Delegating to `debugger` gives you root cause analysis with evidence, but not the fix itself
+- Delegating to `security_engineer` gives you vulnerability assessment and remediation guidance
 
-**Best Practices**:
-- Provide specific symptoms: `/maestro:debug Login returns 500 when password contains special characters`
-- Include error messages if available
-- Mention steps to reproduce
-- The debugger agent has shell access and can run tests, examine logs, and trace execution
+### Domain Coverage
 
-**Example Workflow**:
-```bash
-/maestro:debug User authentication fails with "Invalid token" error after upgrading to v2.0
+Agents cover 8 editorial domains. Domain analysis during planning determines which domains are relevant:
 
-# Debugger investigates:
-# 1. Examines auth middleware
-# 2. Checks JWT signing algorithm changes
-# 3. Traces token generation and validation
-# 4. Identifies version mismatch in jwt.sign() and jwt.verify()
-
-# Fix the issue
-# Run tests to verify
-```
-
-### Security Audit (/maestro:security-audit)
-
-**Use Case**: Assess security posture before deploying to production.
-
-**Best Practices**:
-- Audit authentication and authorization: `/maestro:security-audit src/auth src/api`
-- Audit before handling sensitive data (PII, payment info)
-- Run after adding third-party dependencies
-- Treat critical findings as blockers for production deployment
-
-**When to Run**:
-- Before initial production deployment
-- After major feature additions
-- When handling new types of sensitive data
-- As part of compliance requirements (SOC 2, GDPR, HIPAA)
-
-**Example Workflow**:
-```bash
-/maestro:security-audit src/auth src/api src/db
-
-# Review findings
-# Fix critical and high-severity issues
-# Re-run audit to verify
-/maestro:security-audit src/auth
-
-# Deploy once critical issues are resolved
-```
-
-### Performance Analysis (/maestro:perf-check)
-
-**Use Case**: Identify and fix performance bottlenecks.
-
-**Best Practices**:
-- Be specific about scope: `/maestro:perf-check src/api/tasks.js`
-- Mention performance symptoms (slow response, high CPU, memory leaks)
-- Provide target metrics if known (e.g., "response time should be <200ms")
-- Implement high-impact, low-effort optimizations first
-
-**Example Workflow**:
-```bash
-/maestro:perf-check src/api/tasks.js
-
-# Review bottlenecks:
-# 1. N+1 query problem (HIGH IMPACT, LOW EFFORT)
-# 2. Missing index (HIGH IMPACT, LOW EFFORT)
-# 3. Unoptimized serialization (LOW IMPACT, MEDIUM EFFORT)
-
-# Fix #1 and #2 first
-# Measure improvement
-# Decide if #3 is worth the effort
-```
+| Domain | Agents | Coverage |
+|--------|--------|----------|
+| Engineering | architect, api_designer, coder, code_reviewer, data_engineer, debugger, devops_engineer, performance_engineer, refactor, security_engineer, tester, technical_writer | Architecture, implementation, testing, infrastructure, security |
+| Product | product_manager | Requirements, PRDs, feature prioritization |
+| Design | ux_designer, accessibility_specialist, design_system_engineer | User flows, WCAG compliance, design tokens |
+| Content | content_strategist, copywriter | Content planning, persuasive copy, brand voice |
+| SEO | seo_specialist | Technical SEO, schema markup, crawlability |
+| Compliance | compliance_reviewer | GDPR/CCPA, licensing, data handling |
+| Internationalization | i18n_specialist | String extraction, locale management, RTL |
+| Analytics | analytics_engineer | Event tracking, conversion funnels, A/B testing |
 
 ## Configuration
 
@@ -1238,20 +1251,16 @@ Maestro works out of the box with sensible defaults. To customize behavior, set 
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MAESTRO_DEFAULT_MODEL` | _(inherit from main session)_ | Model override for agents dispatched via parallel execution (has no effect on sequential delegation) |
-| `MAESTRO_WRITER_MODEL` | _(inherit from main session)_ | Model override for the technical_writer agent in parallel execution (has no effect on sequential delegation) |
-| `MAESTRO_DEFAULT_TEMPERATURE` | _(inherit)_ | Temperature override for delegation prompts (agents define own defaults in frontmatter) |
-| `MAESTRO_MAX_TURNS` | _(inherit)_ | Max turns override per agent (agents define own defaults in frontmatter) |
-| `MAESTRO_AGENT_TIMEOUT` | `10` | Timeout in minutes per subagent |
-| `MAESTRO_DISABLED_AGENTS` | _(none)_ | Comma-separated list of agents to exclude from planning |
-| `MAESTRO_MAX_RETRIES` | `2` | Retry attempts per phase before user escalation |
-| `MAESTRO_AUTO_ARCHIVE` | `true` | Archive sessions on completion automatically |
-| `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Validation mode: `strict`, `normal`, or `lenient` |
-| `MAESTRO_STATE_DIR` | `.gemini` | Directory for session state and plans |
-| `MAESTRO_MAX_CONCURRENT` | `0` (unlimited) | Max simultaneous agents in parallel dispatch |
-| `MAESTRO_STAGGER_DELAY` | `5` | Seconds between parallel agent launches |
-| `MAESTRO_GEMINI_EXTRA_ARGS` | _(none)_ | Extra Gemini CLI args forwarded to each parallel dispatch process (prefer `--policy`) |
-| `MAESTRO_EXECUTION_MODE` | `ask` | Phase 3 dispatch mode: `parallel`, `sequential`, or `ask` |
+| `MAESTRO_DISABLED_AGENTS` | _(none)_ | Comma-separated list of agent names to exclude from implementation planning |
+| `MAESTRO_MAX_RETRIES` | `2` | Maximum retry attempts per phase before escalating to the user |
+| `MAESTRO_AUTO_ARCHIVE` | `true` | Automatically archive session state on successful completion |
+| `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Post-phase validation strictness level (`strict`, `normal`, or `lenient`) |
+| `MAESTRO_STATE_DIR` | `docs/maestro` | Base directory for session state and plans |
+| `MAESTRO_MAX_CONCURRENT` | `0` | Maximum subagents emitted in one native parallel batch turn (`0` = dispatch the entire ready batch) |
+| `MAESTRO_EXECUTION_MODE` | `ask` | Phase 3 execution mode: `parallel` (native concurrent subagents), `sequential` (one at a time), or `ask` (prompt each time) |
+
+
+Setting resolution precedence: exported env var > workspace `.env` > extension `.env` > default.
 
 You can set extension-scoped values interactively with:
 
@@ -1261,14 +1270,14 @@ gemini extensions config maestro
 
 ### Configuration Examples
 
-**Use a different model**:
+**Exclude specific agents from planning**:
 ```bash
-export MAESTRO_DEFAULT_MODEL=gemini-2.5-pro
+export MAESTRO_DISABLED_AGENTS=devops_engineer,performance_engineer
 ```
 
-**Increase agent timeout for complex tasks**:
+**Use parallel mode by default** (skip the mode gate prompt):
 ```bash
-export MAESTRO_AGENT_TIMEOUT=20
+export MAESTRO_EXECUTION_MODE=parallel
 ```
 
 **Disable auto-archive for manual review**:
@@ -1276,33 +1285,26 @@ export MAESTRO_AGENT_TIMEOUT=20
 export MAESTRO_AUTO_ARCHIVE=false
 ```
 
-**Exclude specific agents**:
-```bash
-export MAESTRO_DISABLED_AGENTS=devops_engineer,performance_engineer
-```
-
-**Use parallel mode by default**:
-```bash
-export MAESTRO_EXECUTION_MODE=parallel
-```
-
-**Forward extra Gemini CLI args to parallel dispatch**:
-```bash
-export MAESTRO_GEMINI_EXTRA_ARGS="--sandbox --policy .gemini/policies/maestro.toml"
-```
-
-Prefer `--policy` over deprecated `--allowed-tools`.
-
 **Custom state directory**:
 ```bash
 export MAESTRO_STATE_DIR=.maestro
 ```
 
-### Validation
+**Limit parallel batch size** to 2 agents per batch:
+```bash
+export MAESTRO_MAX_CONCURRENT=2
+```
+
+**Increase retry attempts** for flaky environments:
+```bash
+export MAESTRO_MAX_RETRIES=3
+```
+
+### Validation Strictness
 
 Controls how strictly Maestro enforces validation after each phase:
 
-- **strict**: All failures and warnings block phase completion (lint warnings, deprecation notices, coverage decreases all block)
+- **strict**: All failures and warnings block phase completion. Lint warnings, deprecation notices, and coverage decreases all block.
 - **normal** (default): Build/lint/test errors block phase completion. Lint warnings, deprecation notices, and coverage decreases are recorded but do not block.
 - **lenient**: All failures and warnings are recorded but do not block phase completion. The user reviews the accumulated report at completion.
 
@@ -1327,123 +1329,82 @@ export MAESTRO_VALIDATION_STRICTNESS=strict
 - "Build a high-traffic API that can handle 10,000 requests per second"
 - "Build a secure API for handling PII with GDPR compliance"
 
-### When to Use /maestro:orchestrate vs Specialized Commands
+### Workflow Selection Tips
 
-```mermaid
-flowchart TD
-    Start([Need Help?]) --> Complex{Complex<br/>multi-agent task?}
-    Complex -->|Yes| Orchestrate[/maestro:orchestrate]
-    Complex -->|No| HasPlan{Have existing<br/>plan?}
+Maestro classifies complexity automatically, but you can influence the classification:
 
-    HasPlan -->|Yes| Execute[/maestro:execute]
-    HasPlan -->|No| Interrupted{Interrupted<br/>session?}
-
-    Interrupted -->|Yes| Resume[/maestro:resume]
-    Interrupted -->|No| CheckProgress{Check<br/>progress?}
-
-    CheckProgress -->|Yes| Status[/maestro:status]
-    CheckProgress -->|No| Done{Done with<br/>session?}
-
-    Done -->|Yes| ArchiveCmd[/maestro:archive]
-    Done -->|No| SpecializedTask{What kind<br/>of task?}
-
-    SpecializedTask -->|Code review| Review[/maestro:review]
-    SpecializedTask -->|Bug investigation| Debug[/maestro:debug]
-    SpecializedTask -->|Performance issue| PerfCheck[/maestro:perf-check]
-    SpecializedTask -->|Security concern| SecurityAudit[/maestro:security-audit]
-```
-
-**Use /maestro:orchestrate when**:
-- Task requires multiple specialized agents
-- You need architectural design before implementation
-- Project is complex with dependencies between components
-- You want a structured approach with clear checkpoints
-
-**Use specialized commands when**:
-- Single-purpose task (code review, debugging, security audit, performance analysis)
-- You already have a clear plan
-- Quick feedback needed without full orchestration
-- Reviewing existing code rather than building new features
-
-### Understanding Agent Delegation
-
-**Agent Tool Access** (Least-Privilege Model):
-
-```mermaid
-flowchart LR
-    subgraph ReadOnly[Read-Only]
-        A1[architect]
-        A2[api_designer]
-        A3[code_reviewer]
-    end
-
-    subgraph ReadShell[Read + Shell]
-        B1[debugger]
-        B2[performance_engineer]
-        B3[security_engineer]
-    end
-
-    subgraph ReadWrite[Read + Write]
-        C1[refactor]
-        C2[technical_writer]
-    end
-
-    subgraph Full[Full Access]
-        D1[coder]
-        D2[data_engineer]
-        D3[devops_engineer]
-        D4[tester]
-    end
-
-    ReadOnly -.->|Analysis only| Output1[Recommendations]
-    ReadShell -.->|Investigation| Output2[Diagnostics]
-    ReadWrite -.->|Modification| Output3[Code Changes]
-    Full -.->|Implementation| Output4[Complete Features]
-```
-
-- **Read-only** (architect, api_designer, code_reviewer): Analysis and recommendations only. Cannot modify files or run commands.
-- **Read + Shell** (debugger, performance_engineer, security_engineer): Investigation tools. Can run commands but not modify files.
-- **Read + Write** (refactor, technical_writer): Can modify files but not run shell commands.
-- **Full Access** (coder, data_engineer, devops_engineer, tester): Complete implementation capabilities.
-
-**Why This Matters**:
-- Delegating to `code_reviewer` means you get analysis, not fixes
-- Delegating to `coder` means you get working code
-- Delegating to `debugger` means you get root cause analysis, not the fix itself (though the debugger can run tests and examine logs)
+- **To encourage Express**: describe a focused, single-concern task: "Add a health check endpoint" rather than "Add monitoring infrastructure"
+- **To encourage Standard**: describe multi-component scope or mention architectural concerns: "Build a REST API with authentication, database schema, and CI/CD pipeline"
+- You can always override the classification when Maestro presents it
 
 ### Parallel vs Sequential Execution
 
 **Choose Parallel When**:
 - Independent phases with no file overlap
 - Well-defined tasks with clear file ownership
-- Time-sensitive projects
+- Time-sensitive projects where speed matters
 - High trust in delegation prompts
 
 **Choose Sequential When**:
 - Phases may need interactive clarification
 - Unfamiliar codebase or exploratory tasks
-- Security-sensitive work
+- Security-sensitive work requiring review between phases
 - You want to review output after each phase
 
 **Hybrid Approach**:
-- Use `MAESTRO_EXECUTION_MODE=ask` (default)
-- Choose mode per orchestration based on complexity
+- Use `MAESTRO_EXECUTION_MODE=ask` (default) to choose mode per orchestration based on the specific plan analysis
 
-### Managing Token Usage
+### Token Usage Optimization
 
 Token usage is tracked in session state and displayed in `/maestro:status` and completion summaries.
 
-**Optimization Tips**:
-- Set `MAESTRO_WRITER_MODEL` to a cost-optimized model for documentation agents in parallel dispatch
-- Limit agent turns with `MAESTRO_MAX_TURNS` for exploratory tasks
+**Tips**:
+- Tune agent models and limits with Gemini CLI `agents.overrides` when you need cost or latency control
 - Break large tasks into smaller orchestrations to isolate token costs
 - Review token usage with `/maestro:status` before proceeding to expensive phases
+- Express workflow is inherently token-efficient due to its single-agent flow
 
 **Cost Awareness**:
 - Design dialogue is typically low-cost (single TechLead session)
 - Planning is low-cost (single TechLead session)
 - Execution is where token usage scales (one session per agent per phase)
-- Parallel dispatch uses more total tokens but completes faster
+- Native parallel execution often uses more total tokens but completes faster
+
+### When to Use Specialized Commands vs Full Orchestration
+
+```mermaid
+flowchart TD
+    Start([Need Help?]) --> Complex{Complex multi-agent task?}
+    Complex -->|Yes| Orchestrate[/maestro:orchestrate]
+    Complex -->|No| HasPlan{Have existing plan?}
+
+    HasPlan -->|Yes| Execute[/maestro:execute]
+    HasPlan -->|No| Interrupted{Interrupted session?}
+
+    Interrupted -->|Yes| Resume[/maestro:resume]
+    Interrupted -->|No| SpecializedTask{What kind of task?}
+
+    SpecializedTask -->|Code review| Review[/maestro:review]
+    SpecializedTask -->|Bug investigation| Debug[/maestro:debug]
+    SpecializedTask -->|Performance issue| PerfCheck[/maestro:perf-check]
+    SpecializedTask -->|Security concern| SecurityAudit[/maestro:security-audit]
+    SpecializedTask -->|SEO issues| SeoAudit[/maestro:seo-audit]
+    SpecializedTask -->|Accessibility| A11yAudit[/maestro:a11y-audit]
+    SpecializedTask -->|Compliance| ComplianceCheck[/maestro:compliance-check]
+    SpecializedTask -->|Check progress| Status[/maestro:status]
+    SpecializedTask -->|Clean up| Archive[/maestro:archive]
+```
+
+**Use `/maestro:orchestrate` when**:
+- Task requires multiple specialized agents
+- You need architectural design before implementation
+- Project is complex with dependencies between components
+- You want a structured approach with clear checkpoints
+
+**Use specialized commands when**:
+- Single-purpose task (code review, debugging, security audit, performance analysis, SEO, accessibility, compliance)
+- Quick feedback needed without full orchestration
+- Reviewing existing code rather than building new features
 
 ## Troubleshooting
 
@@ -1458,10 +1419,7 @@ Token usage is tracked in session state and displayed in `/maestro:status` and c
    ```
    You should see `maestro` in the list.
 
-2. Check that `gemini-extension.json` exists:
-   ```bash
-   ls maestro/gemini-extension.json
-   ```
+2. Check that `gemini-extension.json` exists in the extension directory.
 
 **Solution**:
 - If not linked: `gemini extensions link .` (from the cloned repository root)
@@ -1494,58 +1452,26 @@ Maestro will not update this setting automatically; update `~/.gemini/settings.j
 **Symptom**: `/maestro:resume` fails with YAML parsing errors.
 
 **Diagnosis**:
-Read the session state file:
-```bash
-cat .gemini/state/active-session.md
-```
-Check for syntax errors in the YAML frontmatter (unmatched quotes, invalid indentation, etc.).
+Read the session state file and check for syntax errors in the YAML frontmatter (unmatched quotes, invalid indentation, etc.).
 
 **Solution**:
-1. **Manual Fix**: Edit `.gemini/state/active-session.md` to fix YAML syntax
+1. **Manual Fix**: Edit `<MAESTRO_STATE_DIR>/state/active-session.md` to fix YAML syntax
 2. **Archive and Restart**: `/maestro:archive` to move the corrupted session, then start fresh with `/maestro:orchestrate`
-3. **Delete State**: Remove `.gemini/state/active-session.md` and start fresh (loses progress)
+3. **Delete State**: Remove `active-session.md` and start fresh (loses progress)
 
-### Parallel Dispatch Fails
+### Parallel Execution Issues
 
-**Symptom**: Parallel execution fails with "script not found" or "all agents failed".
-
-**Diagnosis**:
-1. Verify the dispatch script exists:
-   ```bash
-   ls -l scripts/parallel-dispatch.js
-   ```
-
-2. Check that `gemini` CLI and Node.js are on PATH:
-   ```bash
-   which gemini && which node
-   ```
-
-**Solution**:
-1. Verify `scripts/parallel-dispatch.js` exists in the extension directory
-
-2. Ensure Node.js is available on PATH (provided by Gemini CLI)
-
-3. Fall back to sequential mode:
-   ```bash
-   export MAESTRO_EXECUTION_MODE=sequential
-   ```
-
-### Agent Timeout
-
-**Symptom**: Agent execution times out, phase marked as failed.
+**Symptom**: Parallel execution fails, stalls, or produces unexpected results.
 
 **Diagnosis**:
-Check session state for timeout errors. Review `MAESTRO_AGENT_TIMEOUT` (default: 10 minutes).
+1. Check session state to see whether the current batch actually started
+2. Look for overlapping file ownership or dependency mistakes in the implementation plan
+3. Check whether an agent asked a follow-up question that paused the batch
 
 **Solution**:
-1. Increase timeout:
-   ```bash
-   export MAESTRO_AGENT_TIMEOUT=20
-   ```
-
-2. Break complex phases into smaller sub-phases
-
-3. `/maestro:resume` to retry after increasing timeout
+1. Reduce batch size: `export MAESTRO_MAX_CONCURRENT=1`
+2. Fall back to sequential mode: `export MAESTRO_EXECUTION_MODE=sequential`
+3. Resume after tightening the plan: `/maestro:resume`
 
 ### Validation Failures
 
@@ -1561,14 +1487,11 @@ Check session state for validation error logs. Common causes:
 1. Review error logs in session state
 2. Manually fix the issue
 3. `/maestro:resume` to retry validation
-4. Adjust validation strictness if needed:
-   ```bash
-   export MAESTRO_VALIDATION_STRICTNESS=lenient
-   ```
+4. Adjust validation strictness if needed: `export MAESTRO_VALIDATION_STRICTNESS=lenient`
 
 ### File Conflicts
 
-**Symptom**: Agent reports file conflict (concurrent modification).
+**Symptom**: Agent reports file conflict during parallel execution.
 
 **Diagnosis**:
 Multiple agents tried to modify the same file (parallel execution with file overlap).
@@ -1577,7 +1500,7 @@ Multiple agents tried to modify the same file (parallel execution with file over
 1. Maestro will stop and report conflict details
 2. Review which agents conflicted
 3. Manually resolve conflicts
-4. `/maestro:resume` with sequential mode to avoid future conflicts:
+4. Resume with sequential mode:
    ```bash
    export MAESTRO_EXECUTION_MODE=sequential
    /maestro:resume
@@ -1588,31 +1511,20 @@ Multiple agents tried to modify the same file (parallel execution with file over
 **Symptom**: `/maestro:resume` or `/maestro:status` reports "No active session found".
 
 **Diagnosis**:
-Check if `active-session.md` exists:
-```bash
-ls .gemini/state/active-session.md
-```
+Check if `active-session.md` exists under your configured state directory (default: `docs/maestro/state/`).
 
 **Solution**:
-- If file doesn't exist: Start a new orchestration with `/maestro:orchestrate`
-- If file is in archive: Use the archived file path to review, or start fresh
-- Check `MAESTRO_STATE_DIR` if you've customized it:
-  ```bash
-  echo $MAESTRO_STATE_DIR
-  ```
+- If file does not exist: Start a new orchestration with `/maestro:orchestrate`
+- If file is in archive: Start fresh or review the archived file
+- Check `MAESTRO_STATE_DIR` if you have customized it: `echo $MAESTRO_STATE_DIR`
 
 ### Getting Help
 
 If you encounter issues not covered here:
 
-1. Review session state logs in `.gemini/state/active-session.md`
+1. Review session state logs in `<MAESTRO_STATE_DIR>/state/active-session.md`
 2. Check Maestro version: `gemini extensions list`
 3. Review Gemini CLI logs (location varies by installation)
 4. Report issues on GitHub: [https://github.com/josstei/maestro-gemini/issues](https://github.com/josstei/maestro-gemini/issues)
 
-Include:
-- Maestro version
-- Gemini CLI version
-- Session state file (redact sensitive data)
-- Error messages
-- Steps to reproduce
+Include: Maestro version, Gemini CLI version, session state file (redact sensitive data), error messages, and steps to reproduce.

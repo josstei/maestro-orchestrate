@@ -4,11 +4,15 @@ task: "<user's original task description>"
 created: "<ISO 8601 timestamp>"
 updated: "<ISO 8601 timestamp>"
 status: "in_progress"
+workflow_mode: "standard"
 design_document: "<state_dir>/plans/<YYYY-MM-DD-topic-slug>-design.md"
 implementation_plan: "<state_dir>/plans/<YYYY-MM-DD-topic-slug>-impl-plan.md"
 current_phase: 1
 total_phases: <integer>
 execution_mode: null
+execution_backend: null
+current_batch: null
+task_complexity: null
 
 token_usage:
   total_input: 0

@@ -16,7 +16,7 @@ Directory creation is a precondition, not a noteworthy event. Do not report succ
 
 ## Rule 3 — Never Assume Directory State
 
-Treat every directory reference as potentially non-existent, even if a prior phase "should have" created it. Phases run independently (especially in parallel dispatch). Each agent ensures its own write targets exist.
+Treat every directory reference as potentially non-existent, even if a prior phase "should have" created it. Phases run independently (especially in native parallel batches). Each agent ensures its own write targets exist.
 
 ## Rule 4 — Path Construction
 

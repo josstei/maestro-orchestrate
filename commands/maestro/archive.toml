@@ -6,15 +6,9 @@ Activate the `session-management` skill and follow its archive protocol.
 
 ## Execution
 
-1. Check for an active session at `<MAESTRO_STATE_DIR>/state/active-session.md` (`MAESTRO_STATE_DIR` defaults to `.gemini`)
-2. If no active session exists, inform the user that there is nothing to archive
-3. If an active session exists:
-   - Read the session state and present a brief summary of what will be archived
+1. Call `get_session_status` to check for an active session. If no session exists, inform the user there is nothing to archive.
+2. If an active session exists:
+   - Present a brief summary of what will be archived (session ID, task, phase progress)
    - Ask the user to confirm archival (the session may have incomplete phases)
-   - Execute the archive protocol from the session-management skill:
-     - Move design document to `<MAESTRO_STATE_DIR>/plans/archive/`
-     - Move implementation plan to `<MAESTRO_STATE_DIR>/plans/archive/`
-     - Update session status to `completed`
-     - Move session state to `<MAESTRO_STATE_DIR>/state/archive/<session-id>.md`
-   - Verify archival was successful (no active-session.md remains)
-   - Confirm to the user with a summary of what was archived"""
+   - Call `archive_session` with the session ID — this MCP tool handles moving the session state file, design document, and implementation plan to their respective archive directories
+   - Verify the response indicates success and report the archived files to the user"""

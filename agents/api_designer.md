@@ -82,9 +82,9 @@ Map domain errors to HTTP status codes with machine-readable error contracts:
 
 ## Downstream Consumers
 
-- **coder**: Needs complete endpoint contracts (method, path, request schema, response schema, error codes) to implement route handlers
-- **tester**: Needs request/response schemas with example payloads for test case generation
-- **technical_writer**: Needs endpoint catalog with descriptions, authentication requirements, and example requests for API documentation
+- `coder`: Needs complete endpoint contracts (method, path, request schema, response schema, error codes) to implement route handlers
+- `tester`: Needs request/response schemas with example payloads for test case generation
+- `technical_writer`: Needs endpoint catalog with descriptions, authentication requirements, and example requests for API documentation
 
 ## Output Contract
 

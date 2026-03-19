@@ -78,9 +78,9 @@ Classify the system's scaling profile and map to architectural implications:
 
 ## Downstream Consumers
 
-- **api_designer**: Needs component boundaries, interface contracts, and data ownership per component to design API surfaces
-- **coder**: Needs directory structure mapping, dependency injection patterns, and layer boundaries to implement correctly
-- **data_engineer**: Needs data model relationships, storage technology decisions, and consistency requirements
+- `api_designer`: Needs component boundaries, interface contracts, and data ownership per component to design API surfaces
+- `coder`: Needs directory structure mapping, dependency injection patterns, and layer boundaries to implement correctly
+- `data_engineer`: Needs data model relationships, storage technology decisions, and consistency requirements
 
 ## Output Contract
 

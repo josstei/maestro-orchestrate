@@ -104,8 +104,8 @@ Theoretical vulnerabilities behind multiple layers of authentication + authoriza
 
 ## Downstream Consumers
 
-- **coder**: Needs specific remediation code patterns per vulnerability — not just "sanitize input" but the exact function, library, or pattern to use
-- **devops_engineer**: Needs infrastructure-level security findings — missing security headers, TLS configuration issues, secret exposure in environment variables or logs, network policy gaps
+- `coder`: Needs specific remediation code patterns per vulnerability — not just "sanitize input" but the exact function, library, or pattern to use
+- `devops_engineer`: Needs infrastructure-level security findings — missing security headers, TLS configuration issues, secret exposure in environment variables or logs, network policy gaps
 
 ## Output Contract
 

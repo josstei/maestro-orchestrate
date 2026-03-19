@@ -1,7 +1,7 @@
 {
   "name": "maestro",
-  "version": "1.3.0",
-  "description": "Multi-agent development orchestration platform — 12 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf commands",
+  "version": "1.4.0",
+  "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
   "contextFileName": "GEMINI.md",
   "settings": [
     {
@@ -26,7 +26,7 @@
     },
     {
       "name": "State Directory",
-      "description": "Base directory for session state and plans (default: .gemini).",
+      "description": "Base directory for session state and plans (default: docs/maestro).",
       "envVar": "MAESTRO_STATE_DIR"
     },
     {
@@ -39,5 +39,17 @@
       "description": "Phase 3 execution mode: 'parallel' (native concurrent subagents), 'sequential' (one at a time), or 'ask' (prompt each time). Default: ask.",
       "envVar": "MAESTRO_EXECUTION_MODE"
     }
-  ]
+  ],
+  "mcpServers": {
+    "maestro": {
+      "command": "node",
+      "args": [
+        "${extensionPath}/mcp/maestro-server.js"
+      ],
+      "cwd": "${extensionPath}",
+      "env": {
+        "MAESTRO_WORKSPACE_PATH": "${workspacePath}"
+      }
+    }
+  }
 }

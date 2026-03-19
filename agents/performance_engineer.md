@@ -100,8 +100,8 @@ Every performance claim must include:
 
 ## Downstream Consumers
 
-- **coder**: Needs specific code locations (file:line) with before/after optimization patterns and the expected improvement for each
-- **architect**: Needs systemic findings that suggest architectural changes (adding a cache layer, introducing async processing, restructuring data flow) rather than code-level fixes
+- `coder`: Needs specific code locations (file:line) with before/after optimization patterns and the expected improvement for each
+- `architect`: Needs systemic findings that suggest architectural changes (adding a cache layer, introducing async processing, restructuring data flow) rather than code-level fixes
 
 ## Output Contract
 

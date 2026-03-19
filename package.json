@@ -1,15 +1,30 @@
 {
-  "name": "gemini-maestro",
-  "version": "1.3.0",
-  "description": "Maestro - Multi-agent orchestration for Gemini CLI",
-  "license": "MIT",
+  "name": "@maestro-orchestrator/gemini-extension",
+  "version": "1.4.0",
+  "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
+  "license": "Apache-2.0",
   "keywords": [
-    "gemini-cli",
-    "extension",
     "orchestration",
-    "multi-agent"
+    "multi-agent",
+    "planning",
+    "execution"
   ],
-  "scripts": {
-    "version": "node scripts/sync-version.js && git add gemini-extension.json"
-  }
+  "files": [
+    "agents/",
+    "commands/",
+    "hooks/",
+    "lib/",
+    "mcp/",
+    "policies/",
+    "scripts/",
+    "skills/",
+    "templates/",
+    "references/",
+    "GEMINI.md",
+    "gemini-extension.json",
+    "README.md",
+    "USAGE.md",
+    "OVERVIEW.md",
+    "ARCHITECTURE.md"
+  ]
 }

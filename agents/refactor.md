@@ -9,6 +9,7 @@ tools:
   - grep_search
   - write_file
   - replace
+  - run_shell_command
   - write_todos
   - activate_skill
   - read_many_files
@@ -99,8 +100,8 @@ You have access to `activate_skill` for loading methodology modules when needed:
 
 ## Downstream Consumers
 
-- **tester**: Needs to know which public interfaces changed shape (renamed methods, moved classes, new parameter signatures) so test files can be updated accordingly
-- **coder**: Needs to know new patterns established during refactoring (new base classes, new directory organization, new naming conventions) for consistency in future implementation work
+- `tester`: Needs to know which public interfaces changed shape (renamed methods, moved classes, new parameter signatures) so test files can be updated accordingly
+- `coder`: Needs to know new patterns established during refactoring (new base classes, new directory organization, new naming conventions) for consistency in future implementation work
 
 ## Output Contract
 

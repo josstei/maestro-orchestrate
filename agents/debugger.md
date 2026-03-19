@@ -92,8 +92,8 @@ A root cause conclusion requires:
 
 ## Downstream Consumers
 
-- **coder**: Needs root cause location with exact file:line reference and a specific, implementable fix recommendation
-- **tester**: Needs reproduction steps (exact inputs, environment conditions, expected vs actual behavior) for regression test creation
+- `coder`: Needs root cause location with exact file:line reference and a specific, implementable fix recommendation
+- `tester`: Needs reproduction steps (exact inputs, environment conditions, expected vs actual behavior) for regression test creation
 
 ## Output Contract
 

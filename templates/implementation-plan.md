@@ -5,6 +5,7 @@ created: "<ISO 8601 timestamp>"
 status: "draft"
 total_phases: <integer>
 estimated_files: <integer>
+task_complexity: "medium" # one of: simple, medium, complex
 ---
 
 # <Topic> Implementation Plan
@@ -80,6 +81,6 @@ Execution Profile:
 - Estimated parallel wall time: [time estimate based on batch execution]
 - Estimated sequential wall time: [time estimate based on serial execution]
 
-Note: Parallel dispatch runs agents in autonomous mode (--approval-mode=yolo).
+Note: Native subagents currently run without user approval gates.
 All tool calls are auto-approved without user confirmation.
 ```

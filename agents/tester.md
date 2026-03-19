@@ -98,8 +98,8 @@ You have access to `activate_skill` for loading methodology modules when needed:
 
 ## Downstream Consumers
 
-- **code_reviewer**: Needs tests readable as behavioral specifications — test names and assertions should document expected behavior clearly enough to serve as living documentation
-- **coder**: Needs clear test failure messages that indicate what behavior was expected vs what actually occurred — assertion messages should make debugging unnecessary
+- `code_reviewer`: Needs tests readable as behavioral specifications — test names and assertions should document expected behavior clearly enough to serve as living documentation
+- `coder`: Needs clear test failure messages that indicate what behavior was expected vs what actually occurred — assertion messages should make debugging unnecessary
 
 ## Output Contract
 

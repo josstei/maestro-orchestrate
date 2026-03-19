@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const { writeState } = require('../src/lib/state/session-state');
-const { readText } = require('../src/lib/core/stdin-reader');
-const { fatal } = require('../src/lib/core/logger');
+const { writeState } = require('../lib/state/session-state');
+const { readText } = require('../lib/core/stdin-reader');
+const { fatal } = require('../lib/core/logger');
 
 const stateFile = process.argv[2];
 if (!stateFile) {

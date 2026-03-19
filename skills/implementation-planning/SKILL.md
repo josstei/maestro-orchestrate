@@ -5,12 +5,38 @@ description: Generates detailed implementation plans from finalized designs
 
 # Implementation Planning Skill
 
+**Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate implementation-planning. Return to the Express Workflow section.
+
 Activate this skill during Phase 2 of Maestro orchestration, after the design document has been approved. This skill provides the methodology for generating detailed, actionable implementation plans that map directly to subagent assignments.
+
+## Codebase Grounding
+
+Do not generate an implementation plan from guesses about the repository.
+
+Use the built-in `codebase_investigator` before phase decomposition when:
+- The task modifies an existing codebase
+- File ownership, integration points, or validation commands are still unclear after reading the approved design
+- Parallelization decisions depend on understanding current module boundaries or likely file overlap
+
+Ask the investigator for:
+- The modules and files most likely to change
+- Existing architectural boundaries and conventions the plan must preserve
+- Integration seams, dependencies, and shared ownership hotspots
+- Validation commands and test entry points already used by the project
+- Parallelization or conflict risks that should prevent batching
+
+Skip the investigator only for greenfield tasks, documentation-only work, or plans where the current turn already established the relevant repo structure from direct reads.
+
+Reuse investigator findings directly in the implementation plan:
+- File inventories should reflect real candidate paths, not placeholders
+- Validation criteria should prefer repo-native commands the investigator surfaced
+- Parallel batches should account for actual ownership overlap and conflict risk
 
 ## Plan Generation Methodology
 
 ### Input Analysis
 Before generating the plan, thoroughly analyze the approved design document for:
+- Read `task_complexity` from the approved design document's frontmatter. Apply phase count guidance and domain analysis scaling accordingly. Record `task_complexity` in implementation plan frontmatter.
 - Components and their responsibilities
 - Interfaces and contracts between components
 - Data models and their relationships
@@ -43,6 +69,13 @@ Layer 5: Quality (testing, security review, performance)
     |
 Layer 6: Documentation & Polish
 ```
+
+### Phase Count Guidance
+
+Scale decomposition granularity to `task_complexity` (read from design document frontmatter):
+- **simple**: 1-3 phases. Prefer single-phase execution when feasible. Combine foundation + implementation. Skip separate documentation/polish phases.
+- **medium**: 3-5 phases. Use the layer model but combine Quality and Documentation into the final implementation phase where practical.
+- **complex**: No phase count cap. Full layer decomposition strategy applies.
 
 ### Parallelization Identification
 
@@ -100,24 +133,56 @@ Specific commands to run and expected outcomes:
 - `blocked_by`: Phase IDs that must complete before this phase starts
 - `blocks`: Phase IDs that cannot start until this phase completes
 
+### Dependency Minimization
+
+List only **direct** blockers in `blocked_by`. Do not include transitive dependencies — they inflate dependency depth and prevent parallelism.
+
+Anti-pattern (over-specified):
+- Phase 2: blocked_by: [1]
+- Phase 3: blocked_by: [1, 2] — Phase 1 is redundant, already reachable via Phase 2
+- Phase 4: blocked_by: [1, 2, 3] — Phases 1, 2 are redundant
+
+Result: depths 0, 1, 2, 3 — zero parallel phases.
+
+Correct (minimized):
+- Phase 2: blocked_by: [1]
+- Phase 3: blocked_by: [1] — Only needs Phase 1 output, not Phase 2
+- Phase 4: blocked_by: [2, 3] — Needs both done
+
+Result: depths 0, 1, 2 — Phases 2 and 3 run in parallel at depth 1.
+
+Ask for each dependency: "Does this phase truly need the output of that specific phase, or is it transitively covered?"
+
+If `validate_plan` is available, review its `parallelization_profile` and `redundant_dependency` warnings before presenting the plan. Revise `blocked_by` to eliminate redundancies when possible.
+
 ## Agent Assignment Criteria
 
 ### Matching Tasks to Agents
 
 | Task Domain | Primary Agent | Secondary Agent | Rationale |
 |-------------|--------------|-----------------|-----------|
-| System design, architecture | architect | - | Read-only analysis, design expertise |
-| API contracts, endpoints | api_designer | coder | Design then implement |
-| Feature implementation | coder | - | Full implementation access |
-| Code quality review | code_reviewer | - | Read-only verification |
-| Database schema, queries | data_engineer | - | Schema + implementation |
-| Bug investigation | debugger | - | Read + shell for investigation |
-| CI/CD, infrastructure | devops_engineer | - | Full DevOps access |
-| Performance analysis | performance_engineer | - | Read + shell for profiling |
-| Code restructuring | refactor | - | Write access, no shell needed |
-| Security assessment | security_engineer | - | Read + shell for scanning |
-| Test creation | tester | - | Full test implementation |
-| Documentation | technical_writer | - | Write access for docs |
+| System design, architecture | `architect` | - | Read-only analysis, design expertise |
+| API contracts, endpoints | `api_designer` | `coder` | Design then implement |
+| Feature implementation | `coder` | - | Full implementation access |
+| Code quality review | `code_reviewer` | - | Read-only verification |
+| Database schema, queries | `data_engineer` | - | Schema + implementation |
+| Bug investigation | `debugger` | - | Read + shell for investigation |
+| CI/CD, infrastructure | `devops_engineer` | - | Full DevOps access |
+| Performance analysis | `performance_engineer` | - | Read + shell for profiling |
+| Code restructuring | `refactor` | - | Write + shell access (for validation) |
+| Security assessment | `security_engineer` | - | Read + shell for scanning |
+| Test creation | `tester` | - | Full test implementation |
+| Documentation | `technical_writer` | - | Write access for docs |
+| Technical SEO audit | `seo_specialist` | - | Read + shell + web search |
+| Marketing copy, content | `copywriter` | - | Read/write |
+| Content planning | `content_strategist` | - | Read + web search/fetch |
+| UX design, user flows | `ux_designer` | - | Read/write + web search |
+| WCAG compliance audit | `accessibility_specialist` | - | Read + shell + web search |
+| Requirements, product | `product_manager` | - | Read/write + web search |
+| Tracking, analytics | `analytics_engineer` | `coder` | Implement then instrument |
+| Internationalization | `i18n_specialist` | `coder` | Implement then localize |
+| Design tokens, theming | `design_system_engineer` | `coder` | Tokens then consume |
+| Legal, regulatory | `compliance_reviewer` | - | Read + web search/fetch |
 
 ### Assignment Rules
 1. Match the primary task domain to the agent specialization
@@ -167,7 +232,7 @@ Include this table in every implementation plan:
 During Plan Mode, `write_file` is restricted to `.md` files within `~/.gemini/tmp/<project>/plans/` (where `<project>` is the CLI's internal project hash). Write the implementation plan there first, then copy to the project archive after approval:
 
 1. **During Plan Mode** (writable): `~/.gemini/tmp/<project>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
-2. **After approval** (permanent reference): `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (`<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `.gemini`)
+2. **After approval** (permanent reference): `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (`<state_dir>` resolves from `MAESTRO_STATE_DIR`)
 
 The `exit_plan_mode` tool validates that `plan_path` is within the project's temp plans directory. Always pass the tmp-directory path.
 
@@ -191,7 +256,7 @@ Use the implementation plan template from `templates/implementation-plan.md`.
    - Estimated parallel wall time: [time estimate based on batch execution]
    - Estimated sequential wall time: [time estimate based on serial execution]
 
-   Note: Parallel dispatch runs agents in autonomous mode (--approval-mode=yolo).
+   Note: Native parallel execution currently runs agents in autonomous mode.
    All tool calls are auto-approved without user confirmation.
    ```
 
@@ -203,6 +268,8 @@ The implementation plan is complete when:
 - Each phase has clear validation criteria
 - File ownership is non-overlapping for parallel phases
 - The user has given explicit approval of the complete plan
+
+Before presenting the plan for approval, check whether `validate_plan` appears in your available tools. If it does, call it with the plan structure and `task_complexity` to verify phase count constraints, file ownership, acyclic dependencies, and agent validity. If it does not, self-check against the phase count limits above.
 
 ### Post-Generation
 After writing the implementation plan:

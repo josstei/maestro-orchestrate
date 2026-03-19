@@ -92,8 +92,8 @@ Destructive migrations (DROP COLUMN, DROP TABLE) require a two-phase approach:
 
 ## Downstream Consumers
 
-- **coder**: Needs schema type definitions and repository interface contracts to implement data access layers correctly
-- **devops_engineer**: Needs migration execution requirements — estimated duration, locks acquired, rollback procedure, and whether maintenance window is needed
+- `coder`: Needs schema type definitions and repository interface contracts to implement data access layers correctly
+- `devops_engineer`: Needs migration execution requirements — estimated duration, locks acquired, rollback procedure, and whether maintenance window is needed
 
 ## Output Contract
 

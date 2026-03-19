@@ -80,8 +80,8 @@ Calibrate review depth based on what changed:
 
 ## Downstream Consumers
 
-- **coder**: Needs findings formatted as specific file:line locations with concrete fix recommendations, not abstract suggestions
-- **refactor**: Needs structural improvement suggestions clearly separated from behavioral bug reports
+- `coder`: Needs findings formatted as specific file:line locations with concrete fix recommendations, not abstract suggestions
+- `refactor`: Needs structural improvement suggestions clearly separated from behavioral bug reports
 
 ## Output Contract
 

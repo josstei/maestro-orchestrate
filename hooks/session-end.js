@@ -1,13 +1,25 @@
-#!/usr/bin/env node
 'use strict';
 
-const { defineHook, response, hookState } = require('../src/lib/hooks/hook-facade');
+const { normalizeInput, formatOutput } = require('./hook-adapter');
+const { handleSessionEnd } = require('../lib/hooks/session-end-logic.js');
 
-function handler(ctx) {
-  hookState.removeSessionDir(ctx.sessionId);
-  return response.advisory();
-}
-
-defineHook({ handler, fallbackResponse: response.advisory });
-
-module.exports = { handler };
+const chunks = [];
+process.stdin.on('data', (chunk) => chunks.push(chunk));
+process.stdin.on('end', () => {
+  try {
+    const raw = JSON.parse(Buffer.concat(chunks).toString());
+    const ctx = normalizeInput(raw);
+    Promise.resolve(handleSessionEnd(ctx))
+      .then((result) => {
+        const output = formatOutput(result);
+        process.stdout.write(JSON.stringify(output) + '\n');
+      })
+      .catch((err) => {
+        process.stderr.write('Hook error: ' + err.message + '\n');
+        process.stdout.write(JSON.stringify({ "continue": true }) + '\n');
+      });
+  } catch (err) {
+    process.stderr.write('Hook parse error: ' + err.message + '\n');
+    process.stdout.write(JSON.stringify({ "continue": true }) + '\n');
+  }
+});
