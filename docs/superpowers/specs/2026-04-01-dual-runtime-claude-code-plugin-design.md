@@ -46,7 +46,7 @@ Overture's generated `hook-adapter.js` and `policy-enforcer.js` (commit `b314d9d
 
 Gemini CLI sets `MAESTRO_WORKSPACE_PATH` (via `gemini-extension.json` mcpServers env) and makes `${extensionPath}` available. Claude Code provides `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PROJECT_DIR}` instead. The `lib/config/setting-resolver.js` and `lib/core/project-root-resolver.js` read Gemini-specific env vars.
 
-The `claude/lib/` copy must be patched to also check `CLAUDE_PLUGIN_ROOT` (as fallback for `MAESTRO_EXTENSION_PATH`) and `CLAUDE_PROJECT_DIR` (as fallback for `MAESTRO_WORKSPACE_PATH`). This is a targeted 2-line addition per file — not a rewrite. Phase A must include these patches; otherwise, settings resolution and project root detection will silently fall back to less reliable heuristics under Claude Code.
+The **root** `lib/` files must be patched to also check `CLAUDE_PLUGIN_ROOT` (as fallback for `MAESTRO_EXTENSION_PATH`) and `CLAUDE_PROJECT_DIR` (as fallback for `MAESTRO_WORKSPACE_PATH`). This is a targeted 1-line change per file (adding `|| process.env.CLAUDE_PLUGIN_ROOT` to the existing env var read). Patching root `lib/` rather than `claude/lib/` ensures the MCP server bundle (built from root `lib/` via esbuild) also picks up the fallbacks. The additional env var checks are harmless under Gemini CLI — they are always undefined. Phase A must include these patches before copying `lib/` into `claude/lib/`.
 
 ---
 
@@ -100,7 +100,7 @@ maestro-gemini/                          # Gemini extension root (ALL UNCHANGED)
     │   └── plugin.json
     ├── agents/                          # 22 agents (kebab-case, Claude frontmatter)
     ├── commands/                        # 12 commands (Markdown + allowed-tools)
-    ├── skills/                          # 18 skills (7 core + 11 command-backed)
+    ├── skills/                          # 19 skills (7 core + 12 command-backed)
     │   ├── code-review/SKILL.md
     │   ├── delegation/
     │   │   ├── SKILL.md
@@ -112,7 +112,7 @@ maestro-gemini/                          # Gemini extension root (ALL UNCHANGED)
     │   ├── implementation-planning/SKILL.md
     │   ├── session-management/SKILL.md
     │   ├── validation/SKILL.md
-    │   └── maestro-*/SKILL.md           # 11 command-backed skills
+    │   └── maestro-*/SKILL.md           # 12 command-backed skills
     ├── hooks/
     │   └── hooks.json                   # Claude hooks (SessionStart, SessionEnd, PreToolUse)
     ├── scripts/                         # Claude hook entry points (322 lines total)
@@ -159,9 +159,17 @@ All files under `claude/` are copied from overture's `dist/claude-plugin/` outpu
 | `claude/mcp/` | 1 bundled file | Only on MCP rebuild | Low | Phase B eliminates this |
 | `claude/lib/` | 14 JS files | Active development | Medium | CI diff check (must account for the 2 patched files) |
 
-CI guard (temporary — removed in Phase C):
+CI guard (temporary — removed in Phase C). Excludes the 2 patched files and checks them separately:
 ```bash
-diff -rq lib/ claude/lib/ || (echo "DRIFT: lib/ and claude/lib/ diverged" && exit 1)
+diff -rq lib/ claude/lib/ \
+  --exclude=setting-resolver.js \
+  --exclude=project-root-resolver.js \
+  || (echo "DRIFT: unpatched lib/ files diverged" && exit 1)
+
+# Verify patched files still contain their base logic (diff ignoring added fallback lines)
+grep -q "MAESTRO_EXTENSION_PATH" claude/lib/config/setting-resolver.js \
+  && grep -q "CLAUDE_PLUGIN_ROOT" claude/lib/config/setting-resolver.js \
+  || (echo "DRIFT: setting-resolver.js missing expected env vars" && exit 1)
 ```
 
 ### Modifications to Existing Files
@@ -171,10 +179,12 @@ Phase A is predominantly additive. The only modifications:
 | File | Change | Reason |
 |------|--------|--------|
 | `.geminiignore` | Add `claude/` | Prevent Gemini CLI from indexing Claude-specific content into its context window |
-| `claude/lib/config/setting-resolver.js` | Add `CLAUDE_PLUGIN_ROOT` fallback for `MAESTRO_EXTENSION_PATH` | Settings resolution under Claude Code (see Cross-Cutting Concerns) |
-| `claude/lib/core/project-root-resolver.js` | Add `CLAUDE_PROJECT_DIR` fallback for `MAESTRO_WORKSPACE_PATH` | Project root detection under Claude Code |
+| `lib/config/setting-resolver.js` | Add `CLAUDE_PLUGIN_ROOT` fallback for `MAESTRO_EXTENSION_PATH` | Settings resolution under Claude Code AND MCP bundle (see Phase B MCP Environment Variable Resolution) |
+| `lib/core/project-root-resolver.js` | Add `CLAUDE_PROJECT_DIR` fallback for `MAESTRO_WORKSPACE_PATH` | Project root detection under Claude Code AND MCP bundle |
 
-No existing Gemini-runtime files are modified. `package.json` `files` array is intentionally NOT updated — the npm package is for Gemini extension distribution only; Claude plugin distribution uses a separate mechanism.
+The lib patches are applied to the **root** `lib/` (not `claude/lib/`) so that the MCP server bundle (built from root `lib/` via esbuild) also picks them up. The fallback env vars are harmless under Gemini CLI — they simply check additional env vars that are always undefined. The `claude/lib/` copy inherits these patches automatically since it is copied from root `lib/` after patching.
+
+`package.json` `files` array is intentionally NOT updated — the npm package is for Gemini extension distribution only; Claude plugin distribution uses a separate mechanism.
 
 ### Installation
 
@@ -190,7 +200,7 @@ Register the `claude/` subdirectory as a Claude Code plugin. The exact installat
 
 1. `gemini extensions list` still shows maestro (no Gemini regression)
 2. Claude Code discovers 22 agents from `claude/agents/`
-3. Claude Code discovers 18 skills from `claude/skills/`
+3. Claude Code discovers 19 skills from `claude/skills/`
 4. Hook scripts execute without `MODULE_NOT_FOUND` errors
 5. `/maestro-orchestrate` command activates in Claude Code
 6. MCP server starts and responds to `get_session_status`
@@ -215,19 +225,17 @@ Move the unbundled MCP server source from overture into this repo. Add a build s
 
 ### MCP Source (from overture `plugins/maestro/src/mcp/`)
 
-```
-src/mcp/
-├── maestro-server.js              # Server bootstrap, tool registration, dispatch
-├── handlers/
-│   ├── initialize-workspace.js    # Workspace directory creation
-│   ├── assess-task-complexity.js  # Repo signal analysis for complexity classification
-│   ├── validate-plan.js           # Acyclic dep validation, file ownership, agent validity
-│   └── session-state-tools.js     # create_session, update_session, transition_phase,
-│                                  # get_session_status, archive_session, resolve_settings
-└── roots-discovery.js             # Workspace root resolution (MCP roots/list → env → git → cwd)
-```
+The MCP source is larger than a simple server with 4 handlers. The actual tree at overture commit `b314d9d` (and likely expanded further on overture's `main` branch) contains ~32 files across 4 subdirectories. The implementation plan must enumerate the exact file tree at the time of migration — do NOT rely on this spec's summary as a complete listing.
 
-Dependencies bundled by esbuild: `@modelcontextprotocol/sdk`, `zod`, and imports from `lib/state/` and `lib/core/`.
+Key structural components:
+- `maestro-server.js` — server bootstrap, tool registration, dispatch
+- `roots-discovery.js` — workspace root resolution (MCP roots/list → env → git → cwd)
+- `runtime-adapter.js` — dev mode vs bundle mode switching (uses `__OVERTURE_BUNDLE__` define)
+- `handlers/` — tool handler implementations (session state, workspace, complexity, validation, settings, delegation context, workflow kernel, etc.)
+- `lib/` — MCP-internal utilities (session mutations, workflow contract, recovery hints, action gate, etc.)
+- `content/` — canonical content providers (agent, skill, template, reference providers with caching)
+
+Dependencies bundled by esbuild: `@modelcontextprotocol/sdk`, `zod`, `js-yaml`, and imports from the repo's shared `lib/state/` and `lib/core/`.
 
 ### Changes
 
@@ -235,15 +243,13 @@ Dependencies bundled by esbuild: `@modelcontextprotocol/sdk`, `zod`, and imports
 
 | File | Source |
 |------|--------|
-| `src/mcp/maestro-server.js` | overture `plugins/maestro/src/mcp/maestro-server.js` |
-| `src/mcp/handlers/*.js` (4 files) | overture `plugins/maestro/src/mcp/handlers/` |
-| `src/mcp/roots-discovery.js` | overture `plugins/maestro/src/mcp/roots-discovery.js` |
+| `src/mcp/**` (~32 files) | Entire overture `plugins/maestro/src/mcp/` tree — enumerate exact contents during implementation |
 
 **Modified files:**
 
 | File | Change |
 |------|--------|
-| `package.json` | Add `devDependencies.esbuild`, add `scripts.build:mcp` |
+| `package.json` | Add `devDependencies` (`esbuild`, `@modelcontextprotocol/sdk`, `zod`, `js-yaml`), add `scripts.build:mcp` |
 | `claude/mcp-config.example.json` | Update path to `../mcp/maestro-server.js` (points to repo root) |
 
 **Deleted files:**
@@ -256,25 +262,31 @@ Dependencies bundled by esbuild: `@modelcontextprotocol/sdk`, `zod`, and imports
 ```json
 {
   "scripts": {
-    "build:mcp": "esbuild src/mcp/maestro-server.js --bundle --platform=node --target=node18 --format=cjs --outfile=mcp/maestro-server.js"
-  },
-  "devDependencies": {
-    "esbuild": "^0.25.0"
+    "build:mcp": "esbuild src/mcp/maestro-server.js --bundle --platform=node --target=node18 --format=cjs --define:__OVERTURE_BUNDLE__=true --outfile=mcp/maestro-server.js"
   }
 }
 ```
 
+The `--define:__OVERTURE_BUNDLE__=true` flag is required — `runtime-adapter.js` uses it to switch between dev mode (reads canonical files from disk) and bundle mode (uses inlined content). Without it, the bundled server will fail to resolve canonical content paths at runtime. If the runtime adapter is removed or simplified during migration, this flag can be dropped.
+
 ### Import Path Adjustments
 
-MCP handler source in overture imports from `../../lib/` relative to `plugins/maestro/src/mcp/handlers/`. In the new layout at `src/mcp/handlers/`, imports reach `lib/` at repo root:
+MCP source files import from multiple depths. All paths resolve at esbuild bundle time — none appear in the output.
 
-| Import in overture | Import in this repo |
-|-------------------|---------------------|
-| `../../lib/state/session-state` | `../../../lib/state/session-state` |
-| `../../lib/core/logger` | `../../../lib/core/logger` |
-| `../../lib/core/atomic-write` | `../../../lib/core/atomic-write` |
+| Import type | Overture pattern | This repo pattern | Notes |
+|-------------|-----------------|-------------------|-------|
+| Handlers → shared lib | `../../lib/state/...` | `../../../lib/state/...` | One extra `../` due to deeper nesting |
+| Server root → shared lib | `../../lib/core/...` | `../../lib/core/...` | Same depth (src/mcp/ → lib/) |
+| Handlers → MCP lib | `../lib/workflow-kernel` | `../lib/workflow-kernel` | Intra-MCP, no change needed |
+| Handlers → roots-discovery | `../roots-discovery` | `../roots-discovery` | Intra-MCP, no change needed |
 
-Mechanical find-replace. These paths are resolved at esbuild bundle time only — not present in the output.
+The implementation plan must enumerate ALL import paths across the ~32 source files. Additional shared lib files may need to be migrated — e.g., overture has `plugins/maestro/src/lib/plan-graph.js` which the MCP handlers import but which does NOT exist in maestro-gemini's `lib/`. Any such files must be copied into `lib/` during Phase B.
+
+### MCP Environment Variable Resolution
+
+The MCP server bundles its own copy of `lib/core/project-root-resolver.js` via esbuild. Phase A patches `claude/lib/core/project-root-resolver.js` with `CLAUDE_PROJECT_DIR` fallback, but the MCP bundle uses the **root** `lib/` copy (unpatched). This means under Claude Code, the MCP server will not resolve `MAESTRO_WORKSPACE_PATH` via `CLAUDE_PROJECT_DIR`.
+
+**Fix**: Apply the `CLAUDE_PROJECT_DIR` and `CLAUDE_PLUGIN_ROOT` fallback patches to the **root** `lib/` files (not just `claude/lib/`). These env vars simply will not exist under Gemini CLI, so the fallback is harmless — it checks additional env vars that are always undefined on Gemini. This also means Phase A's `claude/lib/` copy inherits the patches automatically instead of requiring separate patching.
 
 ### MCP Registration (both runtimes, single artifact)
 
@@ -384,17 +396,25 @@ maestro-orchestrate/
 
 ### Name Map Format
 
-Each runtime has a `name-map.json` with three sections:
+Each runtime has a `name-map.json` with four sections. The full token set is derived from overture's `vocabulary.json` (22 operations, 5 paths) and `name-resolutions.json`.
 
-**`tools`**: Maps abstract tool tokens to runtime-specific names.
+**`tools`**: Maps abstract tool tokens to runtime-specific names. All 22 operations from overture's vocabulary must be covered. Example (Claude, showing representative entries — full map defined during implementation):
 ```json
 {
   "file_read": "Read",
   "file_write": "Write",
+  "file_edit": "Edit",
   "shell_exec": "Bash",
-  "user_prompt": "AskUserQuestion"
+  "user_prompt": "AskUserQuestion",
+  "skill_activate": "Skill",
+  "subagent_dispatch": "Agent",
+  "plan_enter": "EnterPlanMode",
+  "plan_exit": "ExitPlanMode",
+  "todo_sync": "TaskCreate"
 }
 ```
+
+Some vocabulary entries map to compound alternatives (e.g., `codebase_search` → `Grep` or `Glob` depending on context). For these, the token replacement uses the primary tool name and a comment in the canonical content clarifies alternatives where needed.
 
 **`paths`**: Maps abstract path tokens to runtime-specific variables.
 ```json
@@ -404,6 +424,15 @@ Each runtime has a `name-map.json` with three sections:
   "config_home": "~/.claude"
 }
 ```
+
+**`agents`**: Maps canonical agent names (snake_case) to runtime-specific names. Needed for cross-references in body text (e.g., "delegate to `{{agent:code_reviewer}}`").
+```json
+{
+  "code_reviewer": "code-reviewer",
+  "api_designer": "api-designer"
+}
+```
+Single-word agent names (e.g., `coder`, `architect`) are identical across runtimes and do not need entries.
 
 **`naming`**: Controls filename and format conventions.
 ```json
@@ -432,28 +461,49 @@ You are a **Senior Software Engineer**...
 
 The generator reads this, loads the runtime's `agents/coder.json` override (tools array, model, temperature, etc.), merges frontmatter, replaces tokens, transforms filename, and writes the output.
 
+### De-Tokenization Strategy (Creating Canonical Content)
+
+When extracting canonical content from existing runtime-specific files, tool/path/agent name replacement must be precise to avoid corrupting natural language prose. Rules:
+
+1. **Only replace tokens that appear inside backticks** (`` `read_file` `` → `` `{{tool:file_read}}` ``) or in structured contexts (frontmatter arrays, YAML values, code blocks).
+2. **Never replace bare English words** — `Read existing code` stays as-is; only `` `Read` `` (backtick-delimited tool reference) becomes `` `{{tool:file_read}}` ``.
+3. **Path variables are unambiguous** — `${extensionPath}` and `${CLAUDE_PLUGIN_ROOT}` do not appear as natural language.
+4. **Agent names in delegation contexts** — `delegate to code_reviewer` → `delegate to {{agent:code_reviewer}}`.
+5. **Use the Claude version as the canonical base** (Claude tool names like `Read`, `Write` are more likely to conflict with prose; starting from Claude and replacing backtick-delimited instances ensures correctness). Cross-check against the Gemini version for any missed tokens.
+
 ### Generator Algorithm
 
 ```
 1. Parse --runtime argument (gemini | claude | both)
 2. Load name-map.json for target runtime(s)
 3. For each agent in canonical/agents/:
-   a. Parse frontmatter + body
+   a. Parse frontmatter + body (using js-yaml)
    b. Load runtime override from runtimes/<runtime>/agents/<name>.json
    c. Merge: canonical frontmatter ← runtime override (override wins)
-   d. Replace all {{tool:*}} and {{path:*}} tokens in body
+   d. Replace all {{tool:*}}, {{path:*}}, and {{agent:*}} tokens in body
    e. Transform filename per naming.agent_filename
    f. Write to dist/<runtime>/agents/
 4. For each skill in canonical/skills/:
-   a. Read all .md files in skill directory
+   a. RECURSIVELY read all .md files in skill directory tree (e.g., delegation/protocols/*.md)
    b. Replace tokens in each .md
-   c. Write to dist/<runtime>/skills/
-5. Copy entry-points from runtimes/<runtime>/entry-points/
-6. Copy hooks config from runtimes/<runtime>/hooks.json
-7. Copy shared directories: lib/, scripts/, templates/, references/, mcp/
-8. Write runtime manifest
-9. Validate: scan dist/ for any remaining {{tool:*}} or {{path:*}} tokens — fail if found
+   c. Write to dist/<runtime>/skills/ preserving directory structure
+5. Copy runtime-specific entry-points from runtimes/<runtime>/entry-points/ to appropriate locations:
+   - Gemini: TOML commands → dist/gemini/commands/maestro/, GEMINI.md → dist/gemini/
+   - Claude: Markdown commands → dist/claude/commands/, command-backed skills → dist/claude/skills/
+6. Copy runtime-specific hook scripts from runtimes/<runtime>/scripts/ to dist/<runtime>/scripts/
+   (Claude has 10 scripts including hook adapter and policy enforcer; Gemini has 6 hook entry points)
+7. Copy hooks config from runtimes/<runtime>/hooks.json to dist/<runtime>/hooks/
+8. Copy shared directories into each runtime output: lib/, templates/, references/, mcp/
+   - Copy shared utility scripts (ensure-workspace.js, read-*.js, write-state.js) into dist/<runtime>/scripts/
+9. Apply runtime-specific lib patches if any exist at runtimes/<runtime>/lib-patches/
+   (NOTE: For Phase C, the env var fallback patches should be applied to ROOT lib/ instead — see below)
+10. Write runtime manifest (gemini-extension.json or .claude-plugin/plugin.json)
+11. Validate: scan dist/ for any remaining {{tool:*}}, {{path:*}}, or {{agent:*}} tokens — fail if found
 ```
+
+### Lib Patch Survival Through Phase C
+
+Phase A applies env var fallback patches to root `lib/` (not `claude/lib/`). In Phase C, the generator copies root `lib/` into both runtime outputs. Since the patches are in root `lib/`, they automatically propagate to `dist/gemini/lib/` and `dist/claude/lib/`. The fallback env vars are harmless under Gemini (always undefined). No additional patch mechanism is needed.
 
 ### Generated Output
 
@@ -477,7 +527,7 @@ Migration strategy:
 2. `README.md` documents the new installation command prominently
 3. `CHANGELOG.md` includes a "Breaking Changes" section with migration instructions
 4. The previous release tag (`v1.4.0`) remains installable from the old URL for users who pin versions
-5. Consider adding a `gemini-extension.json` stub at repo root that errors with a message directing users to `dist/gemini/`
+5. Add a minimal `gemini-extension.json` stub at repo root that loads a single-agent extension whose description says "Maestro has moved — run `gemini extensions link dist/gemini/` instead". This gives users a visible message when they `gemini extensions link .` instead of a silent failure or cryptic parse error
 
 ### Rebrand
 
@@ -490,16 +540,26 @@ Migration strategy:
 | `CHANGELOG.md` | New entry documenting rebrand |
 | GitHub repo | Rename `maestro-gemini` → `maestro-orchestrate` |
 
-### Files Deleted (relative to Phase A+B)
+### Files Deleted or Moved (relative to Phase A+B)
 
-| Path | Reason |
-|------|--------|
-| `agents/` (root Gemini agents) | Replaced by `canonical/agents/` + generated `dist/gemini/agents/` |
-| `claude/` (entire directory) | Replaced by generated `dist/claude/` |
-| `skills/` (root Gemini skills) | Replaced by `canonical/skills/` + generated output |
-| `commands/maestro/*.toml` | Moved to `runtimes/gemini/entry-points/` |
-| `hooks/hooks.json` | Moved to `runtimes/gemini/hooks.json` |
-| `GEMINI.md` | Moved to `runtimes/gemini/entry-points/` |
+| Path | Destination | Reason |
+|------|-------------|--------|
+| `agents/` | `canonical/agents/` (de-tokenized) | Replaced by canonical + generated output |
+| `claude/` (entire directory) | Generated `dist/claude/` | Replaced by generated output |
+| `skills/` | `canonical/skills/` (de-tokenized) | Replaced by canonical + generated output |
+| `commands/maestro/*.toml` | `runtimes/gemini/entry-points/` | Gemini-specific entry points |
+| `hooks/hooks.json` | `runtimes/gemini/hooks.json` | Gemini hook config |
+| `hooks/*.js` (5 hook entry points + adapter) | `runtimes/gemini/scripts/` | Gemini hook scripts |
+| `GEMINI.md` | `runtimes/gemini/entry-points/` | Gemini orchestrator (non-canonical) |
+| `policies/maestro.toml` | `runtimes/gemini/entry-points/` | Gemini policy file |
+| `.gitignore` entry for `dist/` | Removed | `dist/` is now committed |
+
+Files that remain at repo root unchanged: `lib/`, `src/mcp/`, `mcp/`, `scripts/` (shared utility scripts only), `templates/`, `references/`, `package.json`, `README.md`, `CHANGELOG.md`, `LICENSE`, `site/`, `.github/`.
+
+### Maintenance Considerations
+
+- **Agent renames**: Both orchestrator files (`runtimes/gemini/entry-points/GEMINI.md` and `runtimes/claude/entry-points/maestro-orchestrate.md`) must be updated manually when agents are added, removed, or renamed.
+- **Concurrent sessions**: Both runtimes default to `docs/maestro/` for session state. Simultaneous Maestro sessions from Gemini CLI and Claude Code on the same project will corrupt `active-session.md`. This is an unsupported configuration — document it in README.
 
 ### New Scripts
 
@@ -531,7 +591,7 @@ gemini extensions link dist/gemini/ # Test Gemini
 3. Generated Claude output is functionally equivalent to pre-Phase-C state
 4. Zero `{{tool:*}}` or `{{path:*}}` tokens remain in generated output
 5. CI runs `npm run generate` and validates no token leaks
-6. Generator script is under 400 lines (scope guard)
+6. Generator script (`generate.js`) is under 500 lines excluding `js-yaml` library (scope guard)
 7. Both runtimes load and function correctly from generated output
 
 ### Rollback
@@ -556,13 +616,16 @@ Phase A ──→ Phase B ──→ Phase C
 | Risk | Phase | Likelihood | Impact | Mitigation |
 |------|-------|-----------|--------|------------|
 | Claude hook contract mismatch | A | Medium | High | Validate hook I/O against live Claude Code session; overture's adapter tested at commit b314d9d |
-| Content drift between runtimes | A | Medium | Medium | CI diff check on lib/, templates/, references/ |
-| Claude env var resolution failures | A | High | Medium | Targeted patches to claude/lib/ for CLAUDE_PLUGIN_ROOT / CLAUDE_PROJECT_DIR fallbacks |
-| MCP import path errors after migration | B | Low | High | Build validation + functional MCP tests |
+| Content drift between runtimes | A | Medium | Medium | CI diff check on shared lib/, templates/, references/ (excluding patched files) |
+| MCP source tree larger than expected | B | High | Medium | Enumerate full file tree from overture during implementation; spec's summary is not exhaustive |
+| MCP import paths and missing shared lib files | B | Medium | High | Audit ALL imports; migrate any shared lib files (e.g., plan-graph.js) that exist in overture but not here |
+| MCP `__OVERTURE_BUNDLE__` flag and runtime adapter | B | Medium | High | Include `--define` in esbuild command; decide whether to keep or remove runtime adapter |
 | MCP path confusion (plugin root vs cwd) | B | Medium | Low | Documentation clearly states MCP `cwd` MUST be repo root, not claude/ |
+| De-tokenization corrupts prose | C | Medium | High | Only replace backtick-delimited tool names and structured contexts; use Claude version as base |
+| Compound tool name tokens (1:many mappings) | C | Medium | Medium | Use primary tool name; annotate alternatives in canonical content comments |
 | Generator scope creep toward overture | C | Medium | High | Hard 500-line cap (excluding js-yaml); stop and reassess if exceeded |
-| Gemini installation breaking change | C | High | High | Migration docs, CHANGELOG breaking changes section, stub gemini-extension.json at root |
-| Gemini regression during restructure | C | Low | High | Full Gemini validation before and after Phase C |
+| Gemini installation breaking change | C | High | High | Migration docs, CHANGELOG, stub gemini-extension.json with redirect message |
+| Concurrent sessions corrupt shared state | C | Low | High | Document as unsupported; both runtimes write to same `docs/maestro/` |
 | Cross-platform path issues | All | Low | Medium | No symlinks; all paths are standard relative paths |
 
 ## Out of Scope
