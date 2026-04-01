@@ -215,28 +215,30 @@ test -d ../overture/.git && echo "overture found" || echo "ERROR: overture repo 
 
 Expected: `overture found`. If not found, clone it: `git clone https://github.com/josstei/overture ../overture`.
 
-- [ ] **Step 2: Checkout overture at the pinned commit and generate**
+- [ ] **Step 2: Generate from overture and copy into claude/**
+
+Steps 2-4 are a single bash block because shell variables (`OVERTURE_BRANCH`, `STASHED`) must persist across the checkout/generate/restore sequence. Run this entire block in one shell session:
 
 ```bash
 cd ../overture
+
+# Save current state
 OVERTURE_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 git stash --include-untracked 2>/dev/null; STASHED=$?
+
+# Checkout pinned commit and generate
 git checkout b314d9d
-npm run generate:claude
-```
+npm run generate:claude || { echo "ERROR: generate:claude failed"; git checkout "$OVERTURE_BRANCH"; exit 1; }
 
-Expected output includes: `Output written to: dist/claude-plugin/`
+# Verify output was produced
+test -d dist/claude-plugin/.claude-plugin || { echo "ERROR: dist not generated"; git checkout "$OVERTURE_BRANCH"; exit 1; }
 
-- [ ] **Step 3: Copy the entire dist/claude-plugin/ into claude/**
-
-```bash
+# Clean any previous partial run and copy
 cd /Users/josstei/Development/agentic-workspace/gemini-extensions/maestro-gemini
+rm -rf claude/
 cp -R ../overture/dist/claude-plugin/ claude/
-```
 
-- [ ] **Step 4: Restore overture to its previous branch**
-
-```bash
+# Restore overture
 cd ../overture
 git checkout "$OVERTURE_BRANCH"
 if [ "$STASHED" -eq 0 ]; then
@@ -245,7 +247,9 @@ fi
 cd /Users/josstei/Development/agentic-workspace/gemini-extensions/maestro-gemini
 ```
 
-- [ ] **Step 5: Verify file count**
+Expected: final line of npm output includes `Output written to: dist/claude-plugin/`. Overture is restored to its original branch.
+
+- [ ] **Step 3: Verify file count**
 
 ```bash
 cd /Users/josstei/Development/agentic-workspace/gemini-extensions/maestro-gemini
@@ -254,7 +258,7 @@ find claude/ -type f | wc -l
 
 Expected: `89`
 
-- [ ] **Step 6: Verify key structural elements exist**
+- [ ] **Step 4: Verify key structural elements exist**
 
 ```bash
 test -f claude/.claude-plugin/plugin.json && echo "manifest OK"
@@ -270,7 +274,7 @@ test -f claude/mcp/maestro-server.js && echo "mcp OK"
 
 Expected: all lines print "OK".
 
-- [ ] **Step 7: Overwrite claude/lib/ with the patched root lib/**
+- [ ] **Step 5: Overwrite claude/lib/ with the patched root lib/**
 
 The overture output includes its own `lib/` copy which does NOT have the env var patches from Task 1. Overwrite it with the patched root copy:
 
@@ -279,7 +283,7 @@ rm -rf claude/lib/
 cp -R lib/ claude/lib/
 ```
 
-- [ ] **Step 8: Verify claude/lib/ has the env var patches**
+- [ ] **Step 6: Verify claude/lib/ has the env var patches**
 
 ```bash
 grep -q "CLAUDE_PLUGIN_ROOT" claude/lib/config/setting-resolver.js && echo "PATCH OK" || echo "PATCH MISSING"
@@ -288,7 +292,7 @@ grep -q "CLAUDE_PROJECT_DIR" claude/lib/core/project-root-resolver.js && echo "P
 
 Expected: both print "PATCH OK".
 
-- [ ] **Step 9: Commit the claude/ directory**
+- [ ] **Step 7: Commit the claude/ directory**
 
 ```bash
 git add claude/
@@ -409,16 +413,29 @@ Expected: `matchers: Agent, Bash`
 
 - [ ] **Step 4: Verify hook scripts resolve their dependencies**
 
-The scripts that register stdin listeners (`policy-enforcer.js`, `session-start.js`, `session-end.js`, `before-agent.js`) will hang if stdin is not closed. Pipe `/dev/null` to close stdin immediately:
+The scripts that register stdin listeners (`policy-enforcer.js`, `session-start.js`, `session-end.js`, `before-agent.js`) will hang if stdin is not closed. Pipe input and capture stderr to check for `MODULE_NOT_FOUND`:
 
 ```bash
 node -e "require('./claude/scripts/hook-adapter.js'); console.log('hook-adapter OK')"
-echo '{}' | node claude/scripts/session-start.js > /dev/null 2>&1 && echo "session-start OK" || echo "session-start OK (non-zero exit expected)"
-echo '{}' | node claude/scripts/session-end.js > /dev/null 2>&1 && echo "session-end OK" || echo "session-end OK (non-zero exit expected)"
-echo '{"tool_input":{"command":"echo hello"}}' | node claude/scripts/policy-enforcer.js > /dev/null 2>&1 && echo "policy-enforcer OK" || echo "policy-enforcer OK (non-zero exit expected)"
+
+for script in session-start session-end before-agent; do
+  STDERR=$(echo '{}' | node claude/scripts/${script}.js 2>&1 >/dev/null || true)
+  if echo "$STDERR" | grep -q "MODULE_NOT_FOUND\|Cannot find module"; then
+    echo "FAIL: ${script}.js has missing modules: $STDERR"
+  else
+    echo "${script} OK"
+  fi
+done
+
+STDERR=$(echo '{"tool_input":{"command":"echo hello"}}' | node claude/scripts/policy-enforcer.js 2>&1 >/dev/null || true)
+if echo "$STDERR" | grep -q "MODULE_NOT_FOUND\|Cannot find module"; then
+  echo "FAIL: policy-enforcer.js has missing modules: $STDERR"
+else
+  echo "policy-enforcer OK"
+fi
 ```
 
-Expected: all print "OK" (possibly with "non-zero exit expected" suffix). The key check is that NO line produces `MODULE_NOT_FOUND` or `Cannot find module` errors. Non-zero exits are expected because the scripts may reject the simplified input format.
+Expected: all print "OK". Any line printing "FAIL" means a require path is broken — investigate the missing module.
 
 - [ ] **Step 5: Verify agent count**
 
@@ -515,11 +532,13 @@ Expected: `All drift checks passed.`
 
 ```bash
 git add scripts/check-claude-lib-drift.sh
-git commit -m "ci: add drift guard for claude/lib, templates, references
+git commit -m "ci: add drift guard for shared claude/lib files
 
-Temporary CI check (removed in Phase C) that verifies shared files
-between root and claude/ haven't diverged. Excludes the 2 lib files
-with intentional Claude Code env var patches."
+Temporary CI check (removed in Phase C) that verifies lib/ files
+between root and claude/ haven't diverged. Excludes the 2 files
+with intentional Claude Code env var patches (setting-resolver.js,
+project-root-resolver.js). Does NOT check templates/ or references/
+which are intentionally different per runtime."
 ```
 
 ---
@@ -580,7 +599,7 @@ Expected: exit code `0` (the Gemini hooks still work).
 | Task | Description | Files Created | Files Modified | Commits |
 |------|-------------|--------------|----------------|---------|
 | 1 | Patch root lib/ env var fallbacks | 0 | 2 | 1 |
-| 2 | Generate and copy Claude plugin output (9 steps) | 89 | 0 | 1 |
+| 2 | Generate and copy Claude plugin output (7 steps) | 89 | 0 | 1 |
 | 3 | Add .geminiignore exclusion | 0 | 1 | 1 |
 | 4 | Verify Gemini extension unaffected | 0 | 0 | 0 |
 | 5 | Verify Claude plugin structure | 0 | 0 | 0 |
