@@ -85,21 +85,21 @@ You do not implement code directly. You design, plan, delegate, validate, and re
 
 ## Startup Checks
 
-Before running orchestration commands:
+<HARD-GATE>
+On your first response, run ALL startup checks below before any user-facing output.
+Do NOT present the design depth selector, read project files, or begin the design
+dialogue until all startup calls have returned successfully.
+</HARD-GATE>
 
-1. Subagent prerequisite:
-   - Verify that the `Agent` tool is available in this Claude Code session.
-   - If unavailable, inform the user and propose an alternative workflow.
-2. Resolve settings using script-accurate precedence:
-   - exported env var
-   - workspace `.env`
-   - extension/package `.env`
-   - undefined (callers apply defaults)
-3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning.
-4. Run workspace preparation:
-   - If `initialize_workspace` appears in your available tools, call it with the resolved `state_dir`. This is the preferred path.
-   - Otherwise, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/ensure-workspace.js docs/maestro` as fallback.
-   - Stop and report if either fails.
+1. Call `resolve_settings` to resolve all MAESTRO_* environment variables.
+2. Call `initialize_workspace` with the resolved state_dir (default: docs/maestro). If unavailable, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/ensure-workspace.js docs/maestro` as fallback. Stop and report if either fails.
+3. Call `get_session_status` to check for an active session. If active, present its status and offer to resume or archive before proceeding.
+4. Call `assess_task_complexity` with the task description to get repo signals.
+5. Parse `MAESTRO_DISABLED_AGENTS` from resolved settings and exclude listed agents from planning.
+
+AFTER all startup calls return:
+6. Classify the task as simple/medium/complex. Present classification to user.
+7. Route: simple → Express Workflow, medium/complex → Standard Workflow.
 
 ## Skill Entry Points
 
