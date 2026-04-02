@@ -36,7 +36,6 @@ Maestro MCP tools are registered with a namespace prefix in Claude Code. When in
 | `transition_phase` | `mcp__plugin_maestro_maestro__transition_phase` |
 | `archive_session` | `mcp__plugin_maestro_maestro__archive_session` |
 | `validate_plan` | `mcp__plugin_maestro_maestro__validate_plan` |
-| `get_workflow_context` | `mcp__plugin_maestro_maestro__get_workflow_context` |
 
 When any skill says "If `X` appears in your available tools, call it", search your available tools for the prefixed version.
 

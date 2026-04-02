@@ -1,6 +1,6 @@
 {
   "name": "maestro",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
   "contextFileName": "GEMINI.md",
   "settings": [
