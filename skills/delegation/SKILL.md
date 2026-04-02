@@ -153,6 +153,29 @@ Explicitly state what the agent must NOT do:
 | Design tokens, theming | `design_system_engineer` | Full read/write/shell access |
 | Legal, regulatory compliance | `compliance_reviewer` | Read + web search/fetch |
 
+## Agent Tool Dispatch Contract
+
+Every Maestro agent in the Agent Roster is registered as its own tool in the runtime. When delegating a phase, call the assigned agent's tool by its exact name — the tool name matches the agent name in the roster (e.g., `coder`, `design_system_engineer`, `tester`).
+
+This is mandatory because each agent tool carries its frontmatter configuration:
+- `temperature`: Controls output determinism (e.g., coder uses 0.2 for precise code)
+- `max_turns`: Prevents runaway sessions (e.g., 25 turns for implementation agents)
+- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot call write_file)
+- Body: Contains the agent's specialized methodology and decision frameworks
+
+The built-in `generalist` tool bypasses all of this. It uses default temperature, has no turn limit, no tool restrictions, and no specialized methodology. Never use `generalist` for Maestro phase delegations.
+
+**Sequential dispatch:**
+```
+coder(query: "Agent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
+```
+
+**Parallel dispatch (contiguous calls in one turn):**
+```
+coder(query: "Agent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
+ux_designer(query: "Agent: ux_designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
+```
+
 ## Parallel Delegation
 
 Parallel delegation uses the runtime's native subagent scheduler. The orchestrator emits contiguous agent tool calls inside a single turn; it does not write prompt files, spawn subprocesses, or call shell-based dispatch helpers.

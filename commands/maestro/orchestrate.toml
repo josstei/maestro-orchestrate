@@ -321,10 +321,10 @@ Do not duplicate the gate logic here — the execution skill is the single sourc
 
 ## Delegation Requirement
 
-- Execution work should be performed by child agents via `native subagent call`, not by the parent session.
-- `sequential` means one child agent handles one approved work package at a time, followed by parent-session validation and state updates.
-- `parallel` means the parent session dispatches multiple child agents for the current ready batch in the same execution step when the plan marks those phases as parallel-safe.
-- If a parallel-ready batch collapses to a single phase, still delegate that phase to one child agent instead of implementing it directly in the parent session.
+- Execution work should be performed by calling the assigned agent's registered tool directly — for example, `coder(query: "...")`, not `generalist(query: "...")`. Each Maestro agent is registered as its own tool with specialized methodology, tool restrictions, and configuration from its frontmatter. The `generalist` tool ignores all of this.
+- `sequential` means one agent tool call handles one approved work package at a time, followed by parent-session validation and state updates.
+- `parallel` means the parent session emits multiple contiguous agent tool calls for the current ready batch in the same turn — e.g., `coder(query: "...")` and `ux_designer(query: "...")` back to back.
+- If a parallel-ready batch collapses to a single phase, still delegate that phase to one agent tool call instead of implementing it directly in the parent session.
 - Parent-session work is limited to orchestration, session updates, validation, handoff checks, and conflict resolution unless the user explicitly approves a main-context fallback.
 - If no safe child-agent delegation path exists, stop, explain why, and ask whether the user wants to revise the plan or approve a main-context fallback.
 
