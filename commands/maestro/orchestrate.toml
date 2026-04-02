@@ -103,7 +103,34 @@ Lead with recommended approach. In Standard/Deep modes, include a decision matri
 
 ## Design Convergence
 
-Present the design section by section, validating each before proceeding.
+<HARD-GATE>
+Present the design section by section, validating each INDIVIDUALLY before proceeding to the next. Do NOT present the full design as a single block. Do NOT write the design document until all sections are individually approved.
+
+For each section:
+1. Present the section content
+2. Call `ask_user` with `type: 'yesno'` — include the section title and full content in the question body
+3. Wait for approval before presenting the next section
+4. If rejected, revise and re-present that section
+
+This is mandatory for Standard and Deep depth. Quick depth may present all sections as one block.
+</HARD-GATE>
+
+<ANTI-PATTERN>
+WRONG — All sections presented at once with a single approval:
+  "Here is the full design summary: [Problem Statement] [Requirements] [Approach] ..."
+  ask_user: "Approve this design?"
+
+This violates the per-section validation gate. Each section must be approved individually.
+
+CORRECT — Sections presented one at a time:
+  "Problem Statement: [content]"
+  ask_user type: yesno: "Does this Problem Statement look right?"
+  → user approves
+  "Requirements: [content]"
+  ask_user type: yesno: "Do these Requirements look right?"
+  → user approves
+  ... (repeat for each section)
+</ANTI-PATTERN>
 
 Minimum sections (always): Problem Statement, Approach, Risk Assessment.
 Full order (medium/complex): Problem Statement, Requirements, Approach, Architecture, Agent Team, Risk Assessment, Success Criteria.
@@ -111,8 +138,6 @@ Full order (medium/complex): Problem Statement, Requirements, Approach, Architec
 Simple tasks: 3 minimum sections, 100-150 words each.
 Medium: 4-5 sections, 150-250 words each.
 Complex: all 7 sections, 200-300 words each.
-
-After each section, use `ask_user` with `type: 'yesno'` for approval. Include the section content in the question body.
 
 Section reasoning by depth:
 - Quick: no annotations
