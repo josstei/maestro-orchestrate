@@ -38,8 +38,10 @@ Steps are grouped under phase headers (STARTUP, CLASSIFICATION, DESIGN, PLANNING
 ### Cross-Runtime Parity via Shared Reference File
 
 The step sequence lives in `references/orchestration-steps.md`. Both runtimes load it:
-- Gemini: `get_skill_content(["orchestration-steps"])` — requires adding `orchestration-steps` to the `RESOURCE_ALLOWLIST` in `lib/mcp/handlers/get-skill-content.js`, `mcp/maestro-server.js` (Gemini bundle), AND `claude/mcp/maestro-server.js` (Claude bundle)
+- Gemini: `get_skill_content(["orchestration-steps"])` — requires adding `orchestration-steps` to the `RESOURCE_ALLOWLIST` in `lib/mcp/handlers/get-skill-content.js` and `mcp/maestro-server.js` (Gemini bundle). Claude does NOT use `get_skill_content` — it reads files directly.
 - Claude: `Read ${CLAUDE_PLUGIN_ROOT}/references/orchestration-steps.md`
+
+**Note:** The file `references/orchestration-steps.md` does not exist yet. It is created as part of this design's implementation — it is the primary deliverable, containing the step sequences from Sections 4 and 5.
 
 Each runtime's command file becomes a thin shell: runtime preamble + "load and follow orchestration-steps" + runtime-specific reference tables.
 
@@ -84,7 +86,7 @@ STARTUP (Turn 1 — tool calls only, no text output)
 CLASSIFICATION (Turn 2)
  7. Load templates and references: ["architecture", "design-document", "implementation-plan", "session-state"].
  8. Classify task as simple/medium/complex. Present classification with rationale.
- 9. Route: simple → Express (step 35). Medium/complex → continue to step 10.
+ 9. Route: simple → Express (step 31). Medium/complex → continue to step 10.
 
 DESIGN (Phase 1)
 10. Enter Plan Mode. If unavailable, follow the runtime preamble's Plan Mode fallback instructions.
@@ -164,7 +166,7 @@ If the user says the flow moved too fast: return to the most recent unanswered a
 If the user asks for implementation before approval: remind them Maestro requires approval first.
 If the user asks to skip execution-mode: remind them parallel/sequential is required unless MAESTRO_EXECUTION_MODE pins it.
 If an answer invalidates a prior choice: restate the updated assumption and re-run the relevant gate.
-If delegation collapses to parent session without fallback approval: return to step 19.
+If delegation collapses to parent session without fallback approval: return to step 19 or re-scope the child-agent work packages.
 ```
 
 ## 5. Step Sequence — Express Workflow
@@ -172,39 +174,40 @@ If delegation collapses to parent session without fallback approval: return to s
 ```
 EXPRESS WORKFLOW (simple tasks only — jumped to from step 9)
 
-Express bypasses the execution-mode gate. Express always dispatches sequentially.
-If MCP state tools are unavailable, fall back to direct file writes on <state_dir>/state/active-session.md.
+EXPRESS MODE GATE BYPASS: Express bypasses the execution-mode gate entirely. Express always dispatches sequentially. Do NOT prompt for parallel/sequential.
 
-35. Verify classification is simple. If task requires multiple phases or agents, override to medium → step 10.
+EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, archive_session) are unavailable, fall back to direct file writes on <state_dir>/state/active-session.md.
+
+31. Verify classification is simple. If task requires multiple phases or agents, override to medium → step 10.
     <HARD-GATE>
     Express sessions MUST have exactly one implementation phase with exactly one agent.
     </HARD-GATE>
-36. Ask 1-2 clarifying questions from Area 1 only via user prompt.
-37. Present structured Express brief as plain text.
+32. Ask 1-2 clarifying questions from Area 1 only via user prompt.
+33. Present structured Express brief as plain text.
     <HARD-GATE>
     Brief MUST be plain text output, NOT inside a user prompt parameter.
     Approval is a SEPARATE prompt with only: "Approve this Express brief to proceed?"
     </HARD-GATE>
-38. On approval, create session with workflow_mode: "express", exactly 1 phase.
+34. On approval, create session with workflow_mode: "express", exactly 1 phase.
     On rejection, revise. On second rejection, escalate to Standard → step 10.
-39. Load agent-base-protocol and filesystem-safety-protocol. Prepend to delegation prompt.
-40. Delegate to the assigned agent.
+35. Load agent-base-protocol and filesystem-safety-protocol. Prepend to delegation prompt.
+36. Delegate to the assigned agent.
     <HARD-GATE>
     Same dispatch rule as step 23: call agent by registered tool name, not generalist.
     </HARD-GATE>
-41. Parse Task Report. Call transition_phase to persist files_created/modified/deleted and downstream_context.
-42. Delegate to code_reviewer.
+37. Parse Task Report. Call transition_phase to persist files_created/modified/deleted and downstream_context.
+38. Delegate to code_reviewer.
     <HARD-GATE>
     If Critical/Major findings: re-delegate to implementing agent (1 retry).
     Orchestrator MUST NOT write code directly. If retry fails, escalate to user.
     </HARD-GATE>
-43. Call archive_session.
-44. Present summary.
+39. Call archive_session.
+40. Present summary.
 
 EXPRESS RESUME (when resuming an Express session from get_session_status)
-If phase is pending: re-generate and present brief (step 37). On approval, proceed to delegation (step 40).
-If phase is in_progress: re-delegate with same scope (step 40).
-If phase is completed but session is in_progress: run code review (step 42), then archive (step 43).
+If phase is pending: re-generate and present brief (step 33). On approval, proceed to delegation (step 36).
+If phase is in_progress: re-delegate with same scope (step 36).
+If phase is completed but session is in_progress: run code review (step 38), then archive (step 39).
 ```
 
 ## 6. What Gets Removed
@@ -219,7 +222,7 @@ Everything between the command header and the end of the prompt is replaced by: 
 | `# Maestro Orchestrate` + orphaned template read | Template read becomes step 7. Header redundant. |
 | `## Workflow Routing` | Replaced by step 9 |
 | `## Hard Gates (Standard Workflow Only)` | Each gate is now inline on its step |
-| `## First-Turn Contract (Standard Workflow Only)` | Replaced by step 6 |
+| `## First-Turn Contract (Standard Workflow Only)` | Replaced by steps 1-6 (STARTUP phase) |
 | `## Workflow` (9-item prose list) | Replaced by step sequence |
 | `## Design Phase Behavior` | Replaced by steps 10-14 |
 | `## Required Question Order` | Lives in design-dialogue skill |
@@ -262,9 +265,9 @@ The Claude command is significantly larger than the Gemini one due to a legacy i
 - Severity: Medium
 - The command's only procedural instruction is "load this file and follow it." The model can't proceed without loading it. This is a loud failure (zero progress), not a silent one.
 
-**Risk: Step list is too long (37 steps total)**
+**Risk: Step list is too long (40 steps total: 30 Standard + 10 Express)**
 - Severity: Medium
-- Steps are grouped under phase headers (7 groups of 3-5 steps each). The model processes numbered lists as sequences with clear boundaries — higher fidelity than prose. HARD-GATEs reinforce decision points.
+- Steps are grouped under phase headers (8 groups of 3-5 steps each). The model processes numbered lists as sequences with clear boundaries — higher fidelity than prose. HARD-GATEs reinforce decision points.
 
 **Risk: Runtime preamble gets ignored**
 - Severity: Low
@@ -276,7 +279,7 @@ The Claude command is significantly larger than the Gemini one due to a legacy i
 
 **Risk: HARD-GATEs lose effectiveness through overuse**
 - Severity: Low-Medium
-- ~8 HARD-GATEs total across 37 steps. Each appears at a distinct decision point. Current commands have 5-7 HARD-GATEs — the increase is marginal.
+- ~8 HARD-GATEs total across 40 steps. Each appears at a distinct decision point. Current commands have 5-7 HARD-GATEs — the increase is marginal.
 
 ## 8. Success Criteria
 
@@ -290,12 +293,12 @@ The Claude command is significantly larger than the Gemini one due to a legacy i
 
 5. **Design sections validated individually.** HARD-GATE on step 12 enforces per-section approval. Verified by transcript showing multiple user prompts during design.
 
-6. **Agent dispatch uses registered tool names.** HARD-GATE on steps 23/40 prevents generalist usage. Verified by transcript tool call names.
+6. **Agent dispatch uses registered tool names.** HARD-GATE on steps 23/36 prevents generalist usage. Verified by transcript tool call names.
 
 7. **Shared step sequence is single-source.** `references/orchestration-steps.md` loaded by both runtimes. Diff confirms same file.
 
 8. **Cross-runtime regression.** Bristlebomb test on both runtimes produces same workflow behavior.
 
-9. **Express sub-protocols preserved.** Express Resume, MCP Fallback, and Mode Gate Bypass are present in the Express step sequence. Verified by reading the shared steps file.
+9. **Express sub-protocols preserved.** EXPRESS RESUME, EXPRESS MCP FALLBACK, and EXPRESS MODE GATE BYPASS are present as labeled blocks in the Express step sequence. Verified by reading the shared steps file.
 
 10. **Disabled agents respected.** Step 5 parses `MAESTRO_DISABLED_AGENTS`. Verified by checking that disabled agents are excluded from plan assignments.
