@@ -52,7 +52,8 @@ Break the implementation into phases following these principles:
 2. **Dependencies Flow Downward**: A phase can only depend on phases with lower IDs
 3. **Single Responsibility**: Each phase delivers a cohesive unit of functionality
 4. **Agent Alignment**: Each phase maps to one or two agent specializations
-5. **Testability**: Each phase should be independently validatable
+5. **Agent Capability Match**: Verify the assigned agent's tool tier supports the phase deliverables (see compatibility check below)
+6. **Testability**: Each phase should be independently validatable
 
 ### Phase Ordering Strategy
 
@@ -69,6 +70,23 @@ Layer 5: Quality (testing, security review, performance)
     |
 Layer 6: Documentation & Polish
 ```
+
+### Agent-Deliverable Compatibility Check
+
+Before finalizing agent assignments, verify each phase's agent can deliver its requirements:
+
+| Phase Deliverable | Required Tier | Compatible Agents |
+|-------------------|--------------|-------------------|
+| Creates/modifies files | Full Access or Read+Write | coder, data_engineer, devops_engineer, tester, refactor, design_system_engineer, i18n_specialist, analytics_engineer, technical_writer, product_manager, ux_designer, copywriter |
+| Runs shell commands | Full Access or Read+Shell | coder, data_engineer, devops_engineer, tester, refactor, design_system_engineer, i18n_specialist, analytics_engineer, debugger, performance_engineer, security_engineer, seo_specialist, accessibility_specialist |
+| Analysis/review only | Any tier | All agents |
+
+<HARD-GATE>
+Read-Only agents (architect, api_designer, code_reviewer, content_strategist, compliance_reviewer)
+CANNOT be assigned to phases that create or modify files. If a phase requires file creation
+and domain expertise from a Read-Only agent, split it: the Read-Only agent produces a spec
+or analysis, then a write-capable agent (typically coder) implements the files based on that output.
+</HARD-GATE>
 
 ### Phase Count Guidance
 

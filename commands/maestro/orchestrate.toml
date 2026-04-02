@@ -24,13 +24,21 @@ STANDARD WORKFLOW:
 9. Propose 2-3 architectural approaches with trade-offs
 10. Lead with your recommended approach and explain why
 11. Present the design in sections, validating each one
-12. Once design is approved, write the design document
-13. Generate the implementation plan with phases, agents, and dependencies
-14. Create the session state file
-15. Activate the execution skill and resolve the execution mode gate (parallel vs sequential) BEFORE any delegation — this is mandatory
-16. Execute phases according to the resolved mode, delegating to subagents
-17. Update session state after each phase completion
-18. Before completion/archival, run a final `code_reviewer` quality gate if execution changed non-documentation files; block completion on unresolved Critical/Major findings
+12. Once design is approved, write the design document to `<state_dir>/plans/`. Do NOT skip this step.
+13. Generate the implementation plan with phases, agents, and dependencies. Verify agent-deliverable compatibility (see below).
+14. Present plan for user approval
+15. Activate the execution skill and resolve the execution mode gate (parallel vs sequential) BEFORE creating the session
+16. Create the session state file with the resolved execution_mode — do NOT create the session before the mode is resolved
+17. Execute phases according to the resolved mode, delegating to subagents
+18. Update session state after each phase completion. For parallel batches, call transition_phase for EVERY completed phase in the batch, not just the first one.
+19. Before completion/archival, run a final `code_reviewer` quality gate if execution changed non-documentation files; block completion on unresolved Critical/Major findings
+
+AGENT-DELIVERABLE COMPATIBILITY (step 13):
+Before presenting the plan, verify each phase's agent can deliver its requirements:
+- Phase creates/modifies files → agent MUST have write_file (Full Access or Read+Write tier)
+- Phase runs shell commands → agent MUST have run_shell_command (Full Access or Read+Shell tier)
+- Analysis/review only → any tier is fine
+Read-Only agents (architect, api_designer, code_reviewer, content_strategist, compliance_reviewer) CANNOT be assigned to phases that create files. Swap to coder, technical_writer, or another write-capable agent.
 
 ---
 

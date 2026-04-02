@@ -365,7 +365,19 @@ Apply domain analysis proportional to `task_complexity`:
 - If the implementation plan would otherwise rely on assumed file locations, unclear ownership boundaries, or guessed integration points, call the built-in `Agent (Explore) / Grep / Glob` before phase decomposition. Reuse its findings when assigning files, validation commands, and parallel-safe batches.
 - Keep investigator usage scoped to repo structure, integration points, and validation commands. Do not use it for token accounting or status questions.
 - Produce phase plan, dependencies, agent assignments, validation gates.
+- **Verify agent-deliverable compatibility** before presenting the plan (see below).
 - Activate `session-management` to create session state.
+
+<HARD-GATE>
+Agent-Deliverable Compatibility: Before presenting the implementation plan, verify each
+phase's assigned agent can deliver its requirements:
+- Phase creates/modifies files → agent MUST have Write/Edit tools (Full Access or Read+Write tier)
+- Phase runs shell commands → agent MUST have Bash tool (Full Access or Read+Shell tier)
+- Analysis/review only → any tier is fine
+Read-Only agents (architect, api-designer, code-reviewer, content-strategist, compliance-reviewer)
+CANNOT be assigned to phases that create files. Swap to coder, technical-writer, or another
+write-capable agent before presenting the plan for approval.
+</HARD-GATE>
 
 Plan output path handling:
 
@@ -376,9 +388,10 @@ Plan output path handling:
 
 - Activate `execution` and `delegation`.
 - **Resolve execution mode gate** before any delegation (mandatory — see execution skill).
+- **Create session** with the resolved execution_mode — do NOT create the session before the mode is resolved.
 - Activate `validation` for quality gates.
 - Keep `TodoWrite / TaskCreate` in sync with execution progress.
-- Update session state after each phase or parallel batch.
+- Update session state after each phase or parallel batch. For parallel batches, call `transition_phase` for EVERY completed phase in the batch, not just the first one.
 
 ### Phase 4: Complete
 
