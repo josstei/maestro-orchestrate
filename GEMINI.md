@@ -193,7 +193,7 @@ CORRECT — Express session with one phase:
 
 4. **Delegate** (1-2 agent calls): Follow the delegation-rules fragment for protocol injection — read `agent-base-protocol.md` and `filesystem-safety-protocol.md` once, prepend to all delegation prompts. Include required headers (`Agent:`, `Phase: 1/1`, `Batch: single`, `Session:`). Protocol files are read once and reused for all delegations in this workflow.
 
-   **Protocol file read note**: The protocol files are at `${extensionPath}/skills/delegation/protocols/`. If `read_file` fails due to workspace sandboxing (path outside allowed workspace), use `run_shell_command` with `cat ${extensionPath}/skills/delegation/protocols/agent-base-protocol.md` as fallback. Do not skip protocol injection if the read fails — always use the fallback.
+   **Protocol file read note**: Call `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"] to read the shared protocols.
 
 5. **Persist coder output** (1 MCP call): After the implementing agent call returns, parse the `## Task Report` from its response. Extract `Files Created`, `Files Modified`, `Files Deleted`, and `## Downstream Context`. Call `transition_phase` with:
    - `completed_phase_id: 1`
@@ -283,11 +283,11 @@ Apply domain analysis proportional to `task_complexity`:
 
 ### Phase 2: Plan
 
-- Read `${extensionPath}/skills/implementation-planning/SKILL.md` using `read_file` and follow its protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/implementation-planning/SKILL.md` as fallback.
+- Call `get_skill_content` with resources: ["implementation-planning"] and follow its protocol.
 - If the implementation plan would otherwise rely on assumed file locations, unclear ownership boundaries, or guessed integration points, call the built-in `codebase_investigator` before phase decomposition. Reuse its findings when assigning files, validation commands, and parallel-safe batches.
 - Keep investigator usage scoped to repo structure, integration points, and validation commands. Do not use it for token accounting or status questions.
 - Produce phase plan, dependencies, agent assignments, validation gates.
-- Read `${extensionPath}/skills/session-management/SKILL.md` using `read_file` and follow its session creation protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/session-management/SKILL.md` as fallback.
+- Call `get_skill_content` with resources: ["session-management"] and follow its session creation protocol.
 
 Plan output path handling:
 
@@ -296,16 +296,16 @@ Plan output path handling:
 
 ### Phase 3: Execute
 
-- Read `${extensionPath}/skills/execution/SKILL.md` and `${extensionPath}/skills/delegation/SKILL.md` using `read_file` and follow their protocols. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat` on the same paths as fallback.
+- Call `get_skill_content` with resources: ["execution", "delegation"] and follow their protocols.
 - **Resolve execution mode gate** before any delegation (mandatory — see execution skill).
-- Read `${extensionPath}/skills/validation/SKILL.md` using `read_file` and follow its validation protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/validation/SKILL.md` as fallback.
+- Call `get_skill_content` with resources: ["validation"] and follow its validation protocol.
 - Keep `write_todos` in sync with execution progress.
 - Update session state after each phase or parallel batch.
 
 ### Phase 4: Complete
 
 - Verify deliverables and validation outcomes.
-- If execution changed non-documentation files (source/test/config/scripts), read `${extensionPath}/skills/code-review/SKILL.md` using `read_file` and run a final `code_reviewer` pass on the changed scope with implementation-plan context. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/code-review/SKILL.md` as fallback.
+- If execution changed non-documentation files (source/test/config/scripts), call `get_skill_content` with resources: ["code-review"] and run a final `code_reviewer` pass on the changed scope with implementation-plan context.
 - Treat unresolved `Critical` or `Major` review findings as completion blockers; remediate, re-validate, and re-run the review gate before archival.
 - Archive via `session-management` (respecting `MAESTRO_AUTO_ARCHIVE`).
 - Provide final summary and recommended next steps.
