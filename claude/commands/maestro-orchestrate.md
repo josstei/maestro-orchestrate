@@ -197,7 +197,15 @@ CORRECT — Express session with one phase:
 
 1. **Clarifying questions** (1-2 `AskUserQuestion` turns): Ask from Area 1 (Problem Scope & Boundaries) only. Combine or skip sub-questions already answered by the task description. Use `type: 'choice'` where possible.
 
-2. **Structured brief** (text output + short `AskUserQuestion`): First, output the brief as regular text so it renders clearly in the conversation:
+2. **Structured brief** (two separate actions — a text message then a tool call):
+
+   <HARD-GATE>
+   The brief MUST be output as a plain assistant text message BEFORE any AskUserQuestion call.
+   Do NOT pass brief content as an AskUserQuestion parameter — AskUserQuestion renders as a
+   compact UI chip that cannot display rich content. This is a two-turn sequence, not one action.
+   </HARD-GATE>
+
+   **Step 2a — Output the brief as plain text** (no tool call, just an assistant message):
 
    ```
    ## Express Brief: [Task Name]
@@ -217,7 +225,10 @@ CORRECT — Express session with one phase:
    **Validation**: [exact command]
    ```
 
-   Then use `AskUserQuestion` with ONLY the short approval prompt: "Approve this Express brief to proceed?" Do NOT put the brief content inside the `AskUserQuestion` — it renders as a compact UI element that cannot display rich content well.
+   **Step 2b — Ask for approval** (AskUserQuestion with ONLY this short text):
+   `"Approve this Express brief to proceed?"`
+   
+   Do NOT include any brief content, tables, or markdown in the AskUserQuestion parameter.
 
    The brief describes work for one **implementing** agent in one phase. If you find yourself
    listing multiple implementing agents or splitting work into stages, STOP — escalate to
@@ -230,7 +241,7 @@ CORRECT — Express session with one phase:
 
 3. **Create session** (1 MCP call): Call `create_session` with `workflow_mode: "express"`, `design_document: null`, `implementation_plan: null`, and exactly one phase. The phase object MUST use the field name `agent` (SINGULAR, not `agents`) with a string value — e.g., `{"id": 1, "name": "...", "agent": "coder", "parallel": false, "blocked_by": []}`. The MCP server reads `phase.agent` (singular) to populate the `agents` array; passing `agents` (plural) is silently ignored. The `phases` array MUST have length 1. Do not create the session before brief approval.
 
-4. **Delegate** (1-2 agent calls): Follow the delegation-rules fragment for protocol injection — read `agent-base-protocol.md` and `filesystem-safety-protocol.md` once, prepend to all delegation prompts. Include required headers (`Agent:`, `Phase: 1/1`, `Session:`). Protocol files are read once and reused for all delegations in this workflow.
+4. **Delegate** (1-2 agent calls): Follow the delegation-rules fragment for protocol injection — read `agent-base-protocol.md` and `filesystem-safety-protocol.md` once, prepend to all delegation prompts. Include required headers (`Agent:`, `Phase: 1/1`, `Batch: single`, `Session:`). Protocol files are read once and reused for all delegations in this workflow.
 
 5. **Persist coder output** (1 MCP call): After the coder Agent call returns, parse the `## Task Report` from its response. Extract `Files Created`, `Files Modified`, `Files Deleted`, and `## Downstream Context`. Call `transition_phase` with:
    - `completed_phase_id: 1`
@@ -242,11 +253,21 @@ CORRECT — Express session with one phase:
    
    This persists the coder's work into session state BEFORE the code review. Note: `update_session` cannot write file manifests — only `transition_phase` can.
 
-6. **Code review** (1 agent call): Delegate to `code-reviewer` with protocol injection. Include diff scope, project type, and severity criteria (Critical, Major, Minor, Suggestion). If Critical or Major findings: re-delegate to the **implementing agent** (the same agent from step 4) via a new `Agent` tool call with specific fix instructions (1 retry). Do NOT fix the code yourself in the parent session — always delegate fixes to the implementing agent. If the agent fix fails, escalate to the user. Minor/Suggestion: record and report in summary.
+6. **Code review** (1 agent call): Delegate to `code-reviewer` with protocol injection. Include diff scope, project type, and severity criteria (Critical, Major, Minor, Suggestion).
+
+   <HARD-GATE>
+   After receiving code review findings, the orchestrator MUST NOT call Read, Edit, Write,
+   or Bash to fix code. If Critical or Major findings are present, re-delegate to the
+   implementing agent (the same agent from step 4) via a new Agent tool call with specific
+   fix instructions (1 retry). Proceeding to archive without fixing Critical/Major findings
+   is also a violation. If the agent fix fails, escalate to the user.
+   </HARD-GATE>
+
+   Minor/Suggestion findings: record and report in the summary — do not fix.
 
    <ANTI-PATTERN>
    WRONG — Orchestrator fixes code directly:
-     Code review found Major issue → orchestrator uses Edit tool → fixes file itself
+     Code review found Major issue → orchestrator calls Edit → fixes file itself
    
    This violates the delegation contract. The orchestrator designs, plans, delegates,
    validates, and reports. It does NOT implement code directly.
