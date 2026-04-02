@@ -58,7 +58,7 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 Start a full orchestration by describing what you want to build:
 
 ```
-/maestro:maestro-orchestrate Build a REST API for a task management system with user authentication
+/maestro:orchestrate Build a REST API for a task management system with user authentication
 ```
 
 Maestro will walk you through the complete lifecycle:
@@ -77,18 +77,18 @@ Maestro will walk you through the complete lifecycle:
 
 | Command | Purpose |
 |---------|---------|
-| `/maestro:maestro-orchestrate` | Full orchestration workflow (design, plan, execute, complete) |
-| `/maestro:maestro-execute` | Execute an approved implementation plan |
-| `/maestro:maestro-status` | Display current session status |
-| `/maestro:maestro-resume` | Resume an interrupted session |
-| `/maestro:maestro-archive` | Archive the active session |
-| `/maestro:maestro-review` | Standalone code review |
-| `/maestro:maestro-debug` | Standalone debugging session |
-| `/maestro:maestro-security-audit` | Standalone security assessment |
-| `/maestro:maestro-perf-check` | Standalone performance analysis |
-| `/maestro:maestro-seo-audit` | Standalone SEO assessment |
-| `/maestro:maestro-a11y-audit` | Standalone accessibility audit |
-| `/maestro:maestro-compliance-check` | Standalone compliance review |
+| `/maestro:orchestrate` | Full orchestration workflow (design, plan, execute, complete) |
+| `/maestro:execute` | Execute an approved implementation plan |
+| `/maestro:status` | Display current session status |
+| `/maestro:resume` | Resume an interrupted session |
+| `/maestro:archive` | Archive the active session |
+| `/maestro:review` | Standalone code review |
+| `/maestro:debug` | Standalone debugging session |
+| `/maestro:security-audit` | Standalone security assessment |
+| `/maestro:perf-check` | Standalone performance analysis |
+| `/maestro:seo-audit` | Standalone SEO assessment |
+| `/maestro:a11y-audit` | Standalone accessibility audit |
+| `/maestro:compliance-check` | Standalone compliance review |
 
 ## Agents
 
