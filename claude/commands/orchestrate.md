@@ -273,7 +273,7 @@ CORRECT — Express session with one phase:
 
 4. **Delegate** (1-2 agent calls): Follow the delegation-rules fragment for protocol injection — read `agent-base-protocol.md` and `filesystem-safety-protocol.md` once, prepend to all delegation prompts. Include required headers (`Agent:`, `Phase: 1/1`, `Batch: single`, `Session:`). Protocol files are read once and reused for all delegations in this workflow.
 
-5. **Persist coder output** (1 MCP call): After the coder Agent call returns, parse the `## Task Report` from its response. Extract `Files Created`, `Files Modified`, `Files Deleted`, and `## Downstream Context`. Call `transition_phase` with:
+5. **Persist implementing agent output** (1 MCP call): After the implementing agent (the same agent from step 4) returns, parse the `## Task Report` from its response. Extract `Files Created`, `Files Modified`, `Files Deleted`, and `## Downstream Context`. Call `transition_phase` with:
    - `completed_phase_id: 1`
    - `next_phase_id: null`
    - `files_created: [...]` (from Task Report)
@@ -281,7 +281,7 @@ CORRECT — Express session with one phase:
    - `files_deleted: [...]` (from Task Report)
    - `downstream_context: {...}` (from Downstream Context section)
    
-   This persists the coder's work into session state BEFORE the code review. Note: `update_session` cannot write file manifests — only `transition_phase` can.
+   This persists the implementing agent's work into session state BEFORE the code review. Note: `update_session` cannot write file manifests — only `transition_phase` can.
 
 6. **Code review** (1 agent call): Delegate to `code-reviewer` with protocol injection. Include diff scope, project type, and severity criteria (Critical, Major, Minor, Suggestion).
 

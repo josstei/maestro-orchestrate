@@ -247,12 +247,11 @@ Include this table in every implementation plan:
 
 ### Output Location
 
-During Plan Mode, `Write` is restricted to `.md` files within `docs/maestro/plans/` (where `<project>` is the CLI's internal project hash). Write the implementation plan there first, then copy to the project archive after approval:
+Write the implementation plan directly to the project's plans directory:
 
-1. **During Plan Mode** (writable): `docs/maestro/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
-2. **After approval** (permanent reference): `docs/maestro/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (`docs/maestro` resolves from `MAESTRO_STATE_DIR`)
+`docs/maestro/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
 
-The `ExitPlanMode` tool validates that `plan_path` is within the project's temp plans directory. Always pass the tmp-directory path.
+The path resolves from `MAESTRO_STATE_DIR` (default: `docs/maestro`). If Plan Mode is active, call `ExitPlanMode` with the plan path after approval. Unlike Gemini CLI (which uses a temporary staging directory), Claude Code writes directly to the final location.
 
 ### Document Structure
 Use the implementation plan template from `templates/implementation-plan.md`.
