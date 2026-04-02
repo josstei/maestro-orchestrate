@@ -40,7 +40,7 @@ The manifest file identifies the extension to Gemini CLI and declares its config
 ```json
 {
   "name": "maestro",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Multi-agent development orchestration platform...",
   "contextFileName": "GEMINI.md",
   "settings": [ ... ],
@@ -88,7 +88,7 @@ Gemini CLI starts this process automatically, passing `${extensionPath}` (the ex
 ```json
 {
   "name": "@maestro-orchestrator/gemini-extension",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "license": "Apache-2.0",
   "files": [
     "agents/", "commands/", "hooks/", "lib/", "mcp/",
