@@ -37665,6 +37665,65 @@ var require_resolve_settings = __commonJS({
   }
 });
 
+// plugins/maestro/src/mcp/handlers/get-skill-content.js
+var require_get_skill_content = __commonJS({
+  "plugins/maestro/src/mcp/handlers/get-skill-content.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var path2 = require("path");
+    var RESOURCE_ALLOWLIST2 = Object.freeze({
+      "delegation": "skills/delegation/SKILL.md",
+      "execution": "skills/execution/SKILL.md",
+      "validation": "skills/validation/SKILL.md",
+      "session-management": "skills/session-management/SKILL.md",
+      "implementation-planning": "skills/implementation-planning/SKILL.md",
+      "code-review": "skills/code-review/SKILL.md",
+      "design-dialogue": "skills/design-dialogue/SKILL.md",
+      "agent-base-protocol": "skills/delegation/protocols/agent-base-protocol.md",
+      "filesystem-safety-protocol": "skills/delegation/protocols/filesystem-safety-protocol.md",
+      "design-document": "templates/design-document.md",
+      "implementation-plan": "templates/implementation-plan.md",
+      "session-state": "templates/session-state.md",
+      "architecture": "references/architecture.md"
+    });
+    function resolveExtensionRoot2() {
+      if (process.env.MAESTRO_EXTENSION_PATH) {
+        return process.env.MAESTRO_EXTENSION_PATH;
+      }
+      var serverFile = process.argv[1];
+      if (serverFile) {
+        return path2.resolve(path2.dirname(serverFile), "..");
+      }
+      return process.cwd();
+    }
+    function handleGetSkillContent2(params) {
+      var resources = params.resources;
+      if (!Array.isArray(resources) || resources.length === 0) {
+        throw new Error("resources must be a non-empty array of resource identifiers");
+      }
+      var extensionRoot = resolveExtensionRoot2();
+      var contents = {};
+      var errors = {};
+      for (var i = 0; i < resources.length; i++) {
+        var id = resources[i];
+        var relativePath = RESOURCE_ALLOWLIST2[id];
+        if (!relativePath) {
+          errors[id] = 'Unknown resource identifier: "' + id + '". Known identifiers: ' + Object.keys(RESOURCE_ALLOWLIST2).join(", ");
+          continue;
+        }
+        var absolutePath = path2.join(extensionRoot, relativePath);
+        try {
+          contents[id] = fs2.readFileSync(absolutePath, "utf8");
+        } catch (err) {
+          errors[id] = "Failed to read " + relativePath + ": " + err.message;
+        }
+      }
+      return { contents: contents, errors: errors };
+    }
+    module2.exports = { handleGetSkillContent: handleGetSkillContent2, RESOURCE_ALLOWLIST: RESOURCE_ALLOWLIST2 };
+  }
+});
+
 // plugins/maestro/src/mcp/maestro-server.js
 var { Server } = require_server2();
 var { StdioServerTransport } = require_stdio2();
@@ -37861,6 +37920,22 @@ registerTool({
     }
   }
 }, handleResolveSettings);
+var { handleGetSkillContent } = require_get_skill_content();
+registerTool({
+  name: "get_skill_content",
+  description: "Read one or more Maestro skill files, delegation protocols, templates, or reference documents by identifier. Returns file contents keyed by identifier. Use this instead of read_file for extension-internal resources.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      resources: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture".'
+      }
+    },
+    required: ["resources"]
+  }
+}, handleGetSkillContent);
 async function main() {
   log("info", "MCP server starting");
   const transport = new StdioServerTransport();
