@@ -64,7 +64,9 @@ Maestro classifies every task by complexity before choosing a workflow. Simple t
 
 ### Prerequisites
 
-Maestro relies on Gemini CLI's experimental subagent system. Enable it in your Gemini CLI settings:
+**Gemini CLI** requires the experimental subagent system. Claude Code users can skip to [Installation](#installation) — subagents are available by default.
+
+Enable subagents in your Gemini CLI settings:
 
 ```json
 {
@@ -336,7 +338,9 @@ You can configure extension-scoped settings interactively with `gemini extension
 
 ### Hooks
 
-Maestro uses Gemini CLI's hooks system for lifecycle middleware. Tool permissions are enforced natively via agent frontmatter `tools:` declarations -- hooks handle supplementary lifecycle concerns:
+Maestro uses lifecycle hooks for active-agent tracking, session context injection, and handoff validation. Hook events differ between runtimes:
+
+**Gemini CLI** (`hooks/hooks.json`):
 
 | Hook | Purpose |
 |------|---------|
@@ -345,7 +349,16 @@ Maestro uses Gemini CLI's hooks system for lifecycle middleware. Tool permission
 | AfterAgent | Enforce handoff report format (`Task Report` + `Downstream Context`), clear agent tracking |
 | SessionEnd | Clean up hook state for ended session |
 
-Hook handlers are in `hooks/` and registered via `hooks/hooks.json`.
+**Claude Code** (`claude/hooks/hooks.json`):
+
+| Hook | Purpose |
+|------|---------|
+| SessionStart | Prune stale sessions, initialize hook state |
+| PreToolUse (Agent) | Track active agent identity, inject session context |
+| PreToolUse (Bash) | Policy enforcement — block destructive shell commands |
+| SessionEnd | Clean up hook state for ended session |
+
+Both runtimes share the same business logic in `lib/hooks/` — only the I/O adapters differ.
 
 ## Architecture
 
@@ -391,17 +404,19 @@ flowchart TD
 
 ### Component Model
 
-Maestro is built from seven layers, each with a distinct responsibility:
+Maestro is built from seven layers, each with a distinct responsibility. The Gemini CLI layout is at repo root; Claude Code mirrors it in `claude/` with platform-specific adaptations.
 
-| Layer | Directory | Format | Purpose |
-|-------|-----------|--------|---------|
-| **Orchestrator** | `GEMINI.md` | Markdown | TechLead persona, workflow routing, phase transitions, delegation rules |
-| **Commands** | `commands/` | TOML | CLI command definitions mapping user commands to prompts/skills |
-| **Agents** | `agents/` | Markdown + YAML frontmatter | 22 subagent persona definitions with tool permissions and model config |
-| **Skills** | `skills/` | Markdown (`SKILL.md` per directory) | Reusable methodology modules with embedded protocols |
-| **Scripts** | `scripts/` | Node.js | Execution infrastructure (workspace setup, state management, version sync) |
-| **Hooks** | `hooks/` | JSON + Node.js | Lifecycle middleware for active-agent tracking and handoff validation |
-| **Policies** | `policies/` | TOML | Safety rails for deny/ask tool access rules |
+| Layer | Gemini Directory | Claude Directory | Purpose |
+|-------|-----------------|-----------------|---------|
+| **Orchestrator** | `GEMINI.md` | `claude/commands/orchestrate.md` | TechLead persona, workflow routing, phase transitions, delegation rules |
+| **Commands** | `commands/maestro/*.toml` | `claude/commands/*.md` | CLI command definitions mapping user commands to prompts/skills |
+| **Agents** | `agents/*.md` | `claude/agents/*.md` | 22 subagent persona definitions with tool permissions and model config |
+| **Skills** | `skills/*/SKILL.md` | `claude/skills/*/SKILL.md` | Reusable methodology modules with embedded protocols |
+| **Scripts** | `scripts/*.js` | `claude/scripts/*.js` | Execution infrastructure (workspace setup, state management, hook adapters) |
+| **Hooks** | `hooks/hooks.json` | `claude/hooks/hooks.json` | Lifecycle middleware for agent tracking and session context injection |
+| **Policies** | `policies/maestro.toml` | `claude/scripts/policy-enforcer.js` | Safety rails for deny/ask tool access rules |
+
+Shared resources (`lib/`, `mcp/`, `templates/`, `references/`) are at repo root and copied into `claude/`.
 
 ### Workflow Phases
 
@@ -633,7 +648,8 @@ Express sessions have `workflow_mode: "express"` with `design_document: null` an
 
 - **[Usage Guide](USAGE.md)** -- Comprehensive guide to installing, configuring, and using Maestro
 - **[System Overview](OVERVIEW.md)** -- High-level explanation of how Maestro works, its agent system, and execution model
-- **[Architecture](ARCHITECTURE.md)** — Gemini CLI runtime internals: hooks, MCP server, file formats, policies, and extension manifest
+- **[Architecture](ARCHITECTURE.md)** — Runtime internals: hooks, MCP server, file formats, policies, and extension/plugin manifest
+- **[Claude Code Plugin](claude/README.md)** — Claude Code-specific setup, commands, agent naming, and MCP tool mapping
 
 ## Troubleshooting
 

@@ -28,9 +28,11 @@ Comprehensive guide to installing, configuring, and using the Maestro multi-agen
 
 2. **Node.js**: Required for hooks and helper scripts. Install Node.js 18 or later from [nodejs.org](https://nodejs.org).
 
-### Enable Experimental Subagents
+### Enable Experimental Subagents (Gemini CLI Only)
 
-Maestro requires Gemini CLI's experimental subagent system. Enable it in your Gemini CLI settings file:
+Maestro on Gemini CLI requires the experimental subagent system. Claude Code users can skip this section — subagents are available by default.
+
+Enable it in your Gemini CLI settings file:
 
 **Location**:
 - macOS/Linux: `~/.gemini/settings.json`
