@@ -143,7 +143,7 @@ EXECUTION (Phase 3 — delegation loop)
 23. For each phase (or parallel batch): delegate to the assigned agent.
     <HARD-GATE>
     Dispatch by calling the agent's registered tool directly.
-    Do NOT use the built-in generalist tool (Gemini) or bare agent names (Claude).
+    Do NOT use the built-in generalist tool or invoke agents by bare name.
     Each Maestro agent carries specialized methodology, tool restrictions, temperature,
     and turn limits from its frontmatter that the generalist ignores.
     </HARD-GATE>
@@ -279,7 +279,7 @@ The Claude command is significantly larger than the Gemini one due to a legacy i
 
 **Risk: HARD-GATEs lose effectiveness through overuse**
 - Severity: Low-Medium
-- ~8 HARD-GATEs total across 40 steps. Each appears at a distinct decision point. Current commands have 5-7 HARD-GATEs — the increase is marginal.
+- ~10 HARD-GATEs total across 40 steps. Each appears at a distinct decision point. Current commands have 5-7 HARD-GATEs — the increase is marginal.
 
 ## 8. Success Criteria
 
