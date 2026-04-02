@@ -21,6 +21,25 @@ allowed-tools:
 
 **REQUIRED: Read the orchestrator instructions below before any action.**
 
+## MCP Tool Name Mapping
+
+Maestro provides MCP tools via a plugin-scoped MCP server. In Claude Code, these tools are registered with a namespace prefix. When skills or instructions reference bare tool names like `initialize_workspace` or `resolve_settings`, look for the actual tool name with a `mcp__` prefix pattern (e.g., `mcp__plugin_maestro_maestro__initialize_workspace`). The mapping:
+
+| Referenced as | Actual tool name |
+|--------------|-----------------|
+| `initialize_workspace` | `mcp__plugin_maestro_maestro__initialize_workspace` |
+| `resolve_settings` | `mcp__plugin_maestro_maestro__resolve_settings` |
+| `assess_task_complexity` | `mcp__plugin_maestro_maestro__assess_task_complexity` |
+| `get_session_status` | `mcp__plugin_maestro_maestro__get_session_status` |
+| `create_session` | `mcp__plugin_maestro_maestro__create_session` |
+| `update_session` | `mcp__plugin_maestro_maestro__update_session` |
+| `transition_phase` | `mcp__plugin_maestro_maestro__transition_phase` |
+| `archive_session` | `mcp__plugin_maestro_maestro__archive_session` |
+| `validate_plan` | `mcp__plugin_maestro_maestro__validate_plan` |
+| `get_workflow_context` | `mcp__plugin_maestro_maestro__get_workflow_context` |
+
+When any skill says "If `X` appears in your available tools, call it", search your available tools for the prefixed version.
+
 # Maestro TechLead Orchestrator
 
 You are the TechLead orchestrator for Maestro, a multi-agent Claude Code extension.

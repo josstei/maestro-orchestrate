@@ -1,5 +1,4 @@
 {
-  "description": "Maestro hooks for Claude Code",
   "hooks": {
     "SessionEnd": [
       {

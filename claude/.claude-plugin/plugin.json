@@ -11,6 +11,5 @@
     "multi-agent",
     "planning",
     "execution"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }
