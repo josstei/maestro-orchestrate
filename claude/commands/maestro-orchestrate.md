@@ -228,7 +228,7 @@ CORRECT — Express session with one phase:
 
    If rejected: revise and re-present. On second rejection, escalate to Standard workflow — override classification to `medium` and follow the Standard Workflow section from the beginning.
 
-3. **Create session** (1 MCP call): Call `create_session` with `workflow_mode: "express"`, `design_document: null`, `implementation_plan: null`, and exactly one phase. The phase object MUST include `agent: "<agent_name>"` so the session records which agent is assigned. The `phases` array MUST have length 1. Do not create the session before brief approval.
+3. **Create session** (1 MCP call): Call `create_session` with `workflow_mode: "express"`, `design_document: null`, `implementation_plan: null`, and exactly one phase. The phase object MUST use the field name `agent` (SINGULAR, not `agents`) with a string value — e.g., `{"id": 1, "name": "...", "agent": "coder", "parallel": false, "blocked_by": []}`. The MCP server reads `phase.agent` (singular) to populate the `agents` array; passing `agents` (plural) is silently ignored. The `phases` array MUST have length 1. Do not create the session before brief approval.
 
 4. **Delegate** (1-2 agent calls): Follow the delegation-rules fragment for protocol injection — read `agent-base-protocol.md` and `filesystem-safety-protocol.md` once, prepend to all delegation prompts. Include required headers (`Agent:`, `Phase: 1/1`, `Session:`). Protocol files are read once and reused for all delegations in this workflow.
 
@@ -242,7 +242,18 @@ CORRECT — Express session with one phase:
    
    This persists the coder's work into session state BEFORE the code review. Note: `update_session` cannot write file manifests — only `transition_phase` can.
 
-6. **Code review** (1 agent call): Delegate to `code-reviewer` with protocol injection. Include diff scope, project type, and severity criteria (Critical, Major, Minor, Suggestion). If Critical or Major findings: re-delegate to the implementing agent with fix instructions (1 retry). If fix fails, escalate to user. Minor/Suggestion: record and report in summary.
+6. **Code review** (1 agent call): Delegate to `code-reviewer` with protocol injection. Include diff scope, project type, and severity criteria (Critical, Major, Minor, Suggestion). If Critical or Major findings: re-delegate to the **implementing agent** (the same agent from step 4) via a new `Agent` tool call with specific fix instructions (1 retry). Do NOT fix the code yourself in the parent session — always delegate fixes to the implementing agent. If the agent fix fails, escalate to the user. Minor/Suggestion: record and report in summary.
+
+   <ANTI-PATTERN>
+   WRONG — Orchestrator fixes code directly:
+     Code review found Major issue → orchestrator uses Edit tool → fixes file itself
+   
+   This violates the delegation contract. The orchestrator designs, plans, delegates,
+   validates, and reports. It does NOT implement code directly.
+   
+   CORRECT — Orchestrator re-delegates to implementing agent:
+     Code review found Major issue → orchestrator dispatches Agent(coder) with fix instructions → coder fixes
+   </ANTI-PATTERN>
 
 7. **Archive** (1 MCP call): Call `archive_session`. The orchestrator skips design document and implementation plan moves (paths are `null` for Express sessions).
 
