@@ -1,10 +1,11 @@
 # Maestro
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/josstei/maestro-gemini/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/josstei/maestro-gemini/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
 
-Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands
+Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands. Runs on both **Gemini CLI** and **Claude Code**.
 
 ## Table of Contents
 
@@ -40,7 +41,9 @@ Multi-agent development orchestration platform — 22 specialists, 4-phase orche
 
 ## Overview
 
-Maestro transforms Gemini CLI into a multi-agent orchestration platform. Instead of a single AI session handling everything, Maestro delegates work to 22 specialized subagents -- each with its own context, tools, and expertise -- coordinated by a TechLead orchestrator. For simple tasks, Maestro uses an Express workflow that collapses design and planning into a single brief before executing. For medium and complex tasks, Maestro follows a structured 4-phase Standard workflow: Design, Plan, Execute, Complete.
+Maestro is a multi-agent orchestration platform for **Gemini CLI** and **Claude Code**. Instead of a single AI session handling everything, Maestro delegates work to 22 specialized subagents -- each with its own context, tools, and expertise -- coordinated by a TechLead orchestrator. For simple tasks, Maestro uses an Express workflow that collapses design and planning into a single brief before executing. For medium and complex tasks, Maestro follows a structured 4-phase Standard workflow: Design, Plan, Execute, Complete.
+
+The same orchestration engine, agents, and quality gates run on both platforms. Gemini CLI uses the extension at the repo root; Claude Code uses the plugin in the `claude/` subdirectory.
 
 Maestro classifies every task by complexity before choosing a workflow. Simple tasks (single concern, few files) get the Express path. Medium tasks (multi-component, clear boundaries) and complex tasks (cross-cutting, multi-service) enter the Standard path with full design dialogue, implementation planning, and phased execution across 22 agents spanning 8 editorial domains.
 
@@ -81,15 +84,13 @@ Maestro does not auto-edit `~/.gemini/settings.json`. Enable `experimental.enabl
 
 ### Installation
 
-### From Git Repository
+#### Gemini CLI
 
 ```bash
 gemini extensions install https://github.com/josstei/maestro-gemini
 ```
 
-This downloads the extension and registers it automatically.
-
-### Local Development
+Or for local development:
 
 ```bash
 git clone https://github.com/josstei/maestro-gemini
@@ -97,17 +98,18 @@ cd maestro-gemini
 gemini extensions link .
 ```
 
-The `link` command creates a symlink from your Gemini CLI extensions directory to the current directory. Run this from the cloned repository root.
+Verify: `gemini extensions list` should show `maestro`.
 
-### Verify Installation
-
-Restart Gemini CLI after installation, then confirm the extension loaded:
+#### Claude Code
 
 ```bash
-gemini extensions list
+git clone https://github.com/josstei/maestro-gemini
+claude --plugin-dir /path/to/maestro-gemini/claude
 ```
 
-You should see `maestro` in the list of active extensions.
+The `--plugin-dir` flag loads the plugin for a single session. The Claude Code plugin lives in the `claude/` subdirectory (not the repo root).
+
+Verify: agents appear with `maestro:` prefix (e.g., `maestro:coder`), skills appear as `maestro-orchestrate`, `maestro-review`, etc.
 
 
 ### Quick Start

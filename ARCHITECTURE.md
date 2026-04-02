@@ -1,6 +1,8 @@
-# Maestro Architecture -- Gemini CLI Runtime
+# Maestro Architecture
 
-This document describes the internal architecture of the Maestro extension as packaged for the Gemini CLI runtime. It covers every component layer, the extension manifest, command system, agent definitions, hooks lifecycle, MCP server, policies, skills, state file formats, and the published file layout.
+This document describes the internal architecture of the Maestro extension/plugin. It covers every component layer, the extension manifest, command system, agent definitions, hooks lifecycle, MCP server, policies, skills, state file formats, and the published file layout.
+
+Maestro runs on two platforms: **Gemini CLI** (extension at repo root) and **Claude Code** (plugin in `claude/` subdirectory). Both share the same `lib/`, `mcp/`, `templates/`, and `references/` resources. The sections below describe the Gemini CLI layout; see `claude/README.md` for Claude Code specifics (agent name prefixes, hook event mapping, MCP tool name prefixes).
 
 ---
 
@@ -301,6 +303,19 @@ All four hook scripts share the same I/O pattern via `hook-adapter.js`:
 ```
 
 Each hook script reads all of stdin, parses JSON, calls the corresponding logic function from `lib/hooks/`, formats the result, and writes JSON to stdout. On any error, hooks fail open (`"continue": true`) to avoid blocking the session.
+
+### Claude Code Hooks
+
+The Claude Code plugin (`claude/`) uses a separate hook adapter (`claude/scripts/hook-adapter.js`) that normalizes Claude Code's different I/O contract:
+
+| Aspect | Gemini CLI | Claude Code |
+|--------|-----------|-------------|
+| Hook events | `SessionStart`, `BeforeAgent`, `AfterAgent`, `SessionEnd` | `SessionStart`, `SessionEnd`, `PreToolUse` |
+| Agent detection | `BeforeAgent` event with `prompt` field | `PreToolUse` with matcher `Agent`, `tool_input` contains prompt |
+| Denial signaling | `{ continue: false, systemMessage: "..." }` | `process.exit(2)` + `permissionDecision: "deny"` in stdout |
+| Path variable | `${extensionPath}` | `${CLAUDE_PLUGIN_ROOT}` |
+
+Claude Code also has a **policy enforcer** (`claude/scripts/policy-enforcer.js`) that runs as a `PreToolUse` hook with matcher `Bash`, blocking destructive shell commands (equivalent to Gemini's `policies/maestro.toml`).
 
 ### SessionStart
 

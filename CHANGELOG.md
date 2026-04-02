@@ -5,6 +5,27 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-01
+
+### Added
+
+- **Claude Code plugin** — Full dual-runtime support. Same 22 agents, 19 skills, 12 commands, lifecycle hooks, and MCP state management now available on Claude Code via the `claude/` subdirectory
+- **Claude Code MCP auto-registration** (`claude/.mcp.json`) — MCP server discovered automatically when the plugin is loaded
+- **MCP tool name mapping** — Orchestrator commands include mapping tables translating bare tool names (e.g., `initialize_workspace`) to Claude Code's prefixed names (`mcp__plugin_maestro_maestro__initialize_workspace`)
+- **Agent name mapping** — Orchestrator commands include mapping for Claude Code's `maestro:` agent prefix (e.g., `maestro:coder`, `maestro:code-reviewer`)
+- **Claude Code hook adapter** (`claude/scripts/hook-adapter.js`) — Normalizes Claude Code's PreToolUse/SessionStart/SessionEnd hook contract to Maestro's internal format
+- **Policy enforcer** (`claude/scripts/policy-enforcer.js`) — Blocks destructive shell commands via Claude Code's PreToolUse hook on Bash tool calls
+- **Library drift detection** (`scripts/check-claude-lib-drift.sh`) — CI script that validates shared `lib/` files haven't diverged between Gemini and Claude runtimes
+
+### Changed
+
+- **Express Flow state persistence** — Added step 5 (`transition_phase`) between coder delegation and code review to persist file manifests and downstream context before the review runs. Previously, state was only updated after the review.
+- **Express Flow delegation enforcement** — Added HARD-GATE blocks preventing the orchestrator from editing code directly after code review findings. Fixes must be re-delegated to the implementing agent.
+- **Express Flow brief presentation** — Split into two explicit sub-steps (2a: output brief as text, 2b: short approval prompt) with HARD-GATE preventing brief content from being stuffed into AskUserQuestion/ask_user
+- **`create_session` field name** — Express Flow instructions now explicitly require `agent` (singular string) in phase objects, not `agents` (plural array which was silently ignored by the MCP server)
+- **Delegation headers** — Added `Batch: single` to Express Flow delegation headers to match the delegation skill's required header set
+- **Environment variable fallbacks** — `lib/config/setting-resolver.js` checks `CLAUDE_PLUGIN_ROOT` as fallback for `MAESTRO_EXTENSION_PATH`; `lib/core/project-root-resolver.js` checks `CLAUDE_PROJECT_DIR` as fallback for `MAESTRO_WORKSPACE_PATH`. Harmless no-op under Gemini CLI.
+
 ## [1.4.0] - 2026-03-19
 
 ### Added
