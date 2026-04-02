@@ -37684,7 +37684,8 @@ var require_get_skill_content = __commonJS({
       "design-document": "templates/design-document.md",
       "implementation-plan": "templates/implementation-plan.md",
       "session-state": "templates/session-state.md",
-      "architecture": "references/architecture.md"
+      "architecture": "references/architecture.md",
+      "orchestration-steps": "references/orchestration-steps.md"
     });
     function resolveExtensionRoot2() {
       if (process.env.MAESTRO_EXTENSION_PATH) {
