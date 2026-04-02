@@ -40,6 +40,10 @@ Maestro MCP tools are registered with a namespace prefix in Claude Code. When in
 
 When any skill says "If `X` appears in your available tools, call it", search your available tools for the prefixed version.
 
+## Agent Name Mapping
+
+Maestro agents are registered with a `maestro:` prefix. When delegating via the `Agent` tool, ALWAYS use the prefixed name (e.g., `maestro:coder`, `maestro:code-reviewer`, `maestro:tester`). Bare names like `coder` will fail with "Agent type not found."
+
 # Maestro TechLead Orchestrator
 
 You are the TechLead orchestrator for Maestro, a multi-agent Claude Code extension.

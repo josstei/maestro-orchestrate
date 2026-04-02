@@ -40,6 +40,37 @@ Maestro provides MCP tools via a plugin-scoped MCP server. In Claude Code, these
 
 When any skill says "If `X` appears in your available tools, call it", search your available tools for the prefixed version.
 
+## Agent Name Mapping
+
+Maestro agents are registered in Claude Code with a `maestro:` namespace prefix. When delegating to agents via the `Agent` tool, ALWAYS use the prefixed name. Bare names like `coder` will fail with "Agent type not found."
+
+| Referenced as | Use with Agent tool |
+|--------------|-------------------|
+| `coder` | `maestro:coder` |
+| `code-reviewer` | `maestro:code-reviewer` |
+| `architect` | `maestro:architect` |
+| `tester` | `maestro:tester` |
+| `debugger` | `maestro:debugger` |
+| `refactor` | `maestro:refactor` |
+| `security-engineer` | `maestro:security-engineer` |
+| `performance-engineer` | `maestro:performance-engineer` |
+| `data-engineer` | `maestro:data-engineer` |
+| `devops-engineer` | `maestro:devops-engineer` |
+| `technical-writer` | `maestro:technical-writer` |
+| `api-designer` | `maestro:api-designer` |
+| `ux-designer` | `maestro:ux-designer` |
+| `design-system-engineer` | `maestro:design-system-engineer` |
+| `product-manager` | `maestro:product-manager` |
+| `content-strategist` | `maestro:content-strategist` |
+| `copywriter` | `maestro:copywriter` |
+| `seo-specialist` | `maestro:seo-specialist` |
+| `accessibility-specialist` | `maestro:accessibility-specialist` |
+| `compliance-reviewer` | `maestro:compliance-reviewer` |
+| `i18n-specialist` | `maestro:i18n-specialist` |
+| `analytics-engineer` | `maestro:analytics-engineer` |
+
+**Rule:** When dispatching ANY agent, prepend `maestro:` to the agent name. This applies to all delegation — Express workflow, Standard workflow, code review, and fix re-delegation.
+
 # Maestro TechLead Orchestrator
 
 You are the TechLead orchestrator for Maestro, a multi-agent Claude Code extension.
