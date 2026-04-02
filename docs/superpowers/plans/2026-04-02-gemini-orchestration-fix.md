@@ -16,7 +16,7 @@
 
 ### Files Modified
 
-- `commands/maestro/orchestrate.toml` — Replace lines 11-51 (sectioned step list) with flat 16-step list + inlined design-dialogue protocol (~170 lines of design methodology added)
+- `commands/maestro/orchestrate.toml` — Replace lines 11-52 (sectioned step list + separator) with flat 17-step list + inlined design-dialogue protocol (~170 lines of design methodology added)
 - `GEMINI.md` — Replace "Activate X" directives for execution-phase skills (Phases 2-4) with `read_file` instructions. Phase 1 "Activate design-dialogue" replaced with "Follow the design-dialogue protocol inlined in the orchestrate command."
 
 ### Files NOT Modified
@@ -58,11 +58,12 @@ Follow the Maestro orchestration protocol:
 9. Once design is approved, write the design document to `<state_dir>/plans/`
 10. Read `${extensionPath}/skills/implementation-planning/SKILL.md` using `read_file` and follow its protocol for Phase 2 (planning). Before presenting the plan, verify each phase's agent can deliver its requirements — read-only agents (architect, api_designer, code_reviewer, content_strategist, compliance_reviewer) cannot be assigned to phases that create files. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/implementation-planning/SKILL.md` as fallback.
 11. Present plan for user approval
-12. Read `${extensionPath}/skills/execution/SKILL.md` using `read_file` and resolve the execution mode gate (parallel vs sequential) before creating the session. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/execution/SKILL.md` as fallback.
-13. Create the session state file with the resolved execution_mode
-14. Read `${extensionPath}/skills/delegation/SKILL.md` using `read_file`. Execute phases according to the resolved mode, delegating to subagents. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/delegation/SKILL.md` as fallback.
-15. Update session state after each phase completion. For parallel batches, call transition_phase for EVERY completed phase in the batch, not just the first one.
-16. Before completion/archival, run a final `code_reviewer` quality gate if execution changed non-documentation files; block completion on unresolved Critical/Major findings
+12. Read `${extensionPath}/skills/session-management/SKILL.md` using `read_file` and follow its session creation protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/session-management/SKILL.md` as fallback.
+13. Read `${extensionPath}/skills/execution/SKILL.md` using `read_file` and resolve the execution mode gate (parallel vs sequential) before creating the session. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/execution/SKILL.md` as fallback.
+14. Create the session state file with the resolved execution_mode
+15. Read `${extensionPath}/skills/delegation/SKILL.md` using `read_file`. Read `${extensionPath}/skills/validation/SKILL.md` using `read_file`. Execute phases according to the resolved mode, delegating to subagents with validation after each phase. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat` on the same paths as fallback.
+16. Update session state after each phase completion. For parallel batches, call transition_phase for EVERY completed phase in the batch, not just the first one.
+17. Before completion/archival, read `${extensionPath}/skills/code-review/SKILL.md` using `read_file` and run a final `code_reviewer` quality gate if execution changed non-documentation files; block completion on unresolved Critical/Major findings. If `read_file` fails, use `run_shell_command` with `cat` fallback.
 
 # Design Dialogue Protocol (Phase 1 — Standard Workflow Only)
 
@@ -192,7 +193,7 @@ Expected: all `true`.
 git add commands/maestro/orchestrate.toml
 git commit -m "refactor(gemini): flatten step list + inline design-dialogue protocol
 
-Replace STARTUP/STANDARD WORKFLOW sections with flat 16-step list.
+Replace STARTUP/STANDARD WORKFLOW sections with flat 17-step list.
 Inline the design-dialogue skill's critical protocol content directly
 into the orchestrate command — design depth gate, enrichment protocol,
 question framework, approach presentation, decision matrix, design
