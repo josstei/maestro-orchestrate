@@ -101,7 +101,7 @@ The classification result also gates workflow mode selection via the workflow ro
 This routing MUST be followed exactly. Do not override, skip, or mix workflows.
 
 - If `task_complexity` is `simple` → follow the **Express Workflow** section below. Do not activate any skills. Do not enter the Standard Workflow. Do not present design depth selectors, design questions, or plan approval gates. Go directly to Express Flow.
-- If `task_complexity` is `medium` or `complex` → follow the **Standard Workflow** section below. Activate skills as directed by each phase. Do not enter the Express Workflow.
+- If `task_complexity` is `medium` or `complex` → follow the **Standard Workflow** section below. Read skill files as directed by each phase. Do not enter the Express Workflow.
 
 If Express is selected, skip the Standard Workflow section entirely. If Standard is selected, skip the Express Workflow section entirely.
 </HARD-GATE>
@@ -250,7 +250,7 @@ If MCP state tools (`create_session`, `transition_phase`, `archive_session`) are
 ### Phase 1: Design
 
 - Ensure task complexity has been classified per the complexity classification section above. The classification must complete before the depth selector in `design-dialogue`.
-- Activate `design-dialogue`.
+- Follow the Design Dialogue Protocol inlined in the orchestrate command. Do not call `activate_skill` for design-dialogue — the protocol is already loaded.
 - Call `enter_plan_mode` to enter Plan Mode at the start of Phase 1. If the tool call fails or is unavailable, inform the user that Plan Mode is not enabled and provide activation instructions: "Plan Mode gives you a dedicated review surface for designs and plans. To enable it, run: `gemini --settings` and set `experimental.plan` to `true`, then restart this session." Ask the user if they want to pause and enable it, or continue without Plan Mode. If continuing without Plan Mode, use `ask_user` for design approvals instead.
 - If the task targets an existing codebase or the relevant subsystem is not already well understood, call the built-in `codebase_investigator` before proposing approaches. Use it to gather the current architecture slice, impacted modules/files, prevailing conventions, integration seams, validation commands, and likely conflict risks. Skip this for greenfield work, documentation-only work, or scopes already grounded by direct reads.
 - Use `codebase_investigator` only for repository grounding. It is not a tool for token usage, session accounting, or runtime capability lookups.
@@ -283,11 +283,11 @@ Apply domain analysis proportional to `task_complexity`:
 
 ### Phase 2: Plan
 
-- Activate `implementation-planning`.
+- Read `${extensionPath}/skills/implementation-planning/SKILL.md` using `read_file` and follow its protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/implementation-planning/SKILL.md` as fallback.
 - If the implementation plan would otherwise rely on assumed file locations, unclear ownership boundaries, or guessed integration points, call the built-in `codebase_investigator` before phase decomposition. Reuse its findings when assigning files, validation commands, and parallel-safe batches.
 - Keep investigator usage scoped to repo structure, integration points, and validation commands. Do not use it for token accounting or status questions.
 - Produce phase plan, dependencies, agent assignments, validation gates.
-- Activate `session-management` to create session state.
+- Read `${extensionPath}/skills/session-management/SKILL.md` using `read_file` and follow its session creation protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/session-management/SKILL.md` as fallback.
 
 Plan output path handling:
 
@@ -296,16 +296,16 @@ Plan output path handling:
 
 ### Phase 3: Execute
 
-- Activate `execution` and `delegation`.
+- Read `${extensionPath}/skills/execution/SKILL.md` and `${extensionPath}/skills/delegation/SKILL.md` using `read_file` and follow their protocols. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat` on the same paths as fallback.
 - **Resolve execution mode gate** before any delegation (mandatory — see execution skill).
-- Activate `validation` for quality gates.
+- Read `${extensionPath}/skills/validation/SKILL.md` using `read_file` and follow its validation protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/validation/SKILL.md` as fallback.
 - Keep `write_todos` in sync with execution progress.
 - Update session state after each phase or parallel batch.
 
 ### Phase 4: Complete
 
 - Verify deliverables and validation outcomes.
-- If execution changed non-documentation files (source/test/config/scripts), activate `code-review` and run a final `code_reviewer` pass on the changed scope with implementation-plan context.
+- If execution changed non-documentation files (source/test/config/scripts), read `${extensionPath}/skills/code-review/SKILL.md` using `read_file` and run a final `code_reviewer` pass on the changed scope with implementation-plan context. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/code-review/SKILL.md` as fallback.
 - Treat unresolved `Critical` or `Major` review findings as completion blockers; remediate, re-validate, and re-run the review gate before archival.
 - Archive via `session-management` (respecting `MAESTRO_AUTO_ARCHIVE`).
 - Provide final summary and recommended next steps.
