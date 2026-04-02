@@ -19,14 +19,14 @@ Follow the Maestro orchestration protocol:
 7. Route based on classification: simple tasks follow Express Workflow from the orchestrator template. Medium/complex tasks continue with the Standard Workflow below.
 8. Follow the Design Dialogue Protocol below for Phase 1 (design phase). The protocol is inlined in this command — no skill activation or file reading needed.
 9. Once design is approved, write the design document to `<state_dir>/plans/`
-10. Read `${extensionPath}/skills/implementation-planning/SKILL.md` using `read_file` and follow its protocol for Phase 2 (planning). Before presenting the plan, verify each phase's agent can deliver its requirements — read-only agents (architect, api_designer, code_reviewer, content_strategist, compliance_reviewer) cannot be assigned to phases that create files. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/implementation-planning/SKILL.md` as fallback.
-11. Present plan for user approval
-12. Read `${extensionPath}/skills/session-management/SKILL.md` using `read_file` and follow its session creation protocol. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/session-management/SKILL.md` as fallback.
-13. Read `${extensionPath}/skills/execution/SKILL.md` using `read_file` and resolve the execution mode gate (parallel vs sequential) before creating the session. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat ${extensionPath}/skills/execution/SKILL.md` as fallback.
+10. Call `get_skill_content` with resources: ["implementation-planning"] and follow the returned protocol for Phase 2 (planning).
+11. Before presenting the plan, call `validate_plan` with the generated plan and task_complexity. If violations with severity "error" are returned, fix them before presenting. Then present the plan for user approval.
+12. Call `get_skill_content` with resources: ["session-management"] and follow the returned session creation protocol.
+13. Call `get_skill_content` with resources: ["execution"] and resolve the execution mode gate (parallel vs sequential) before creating the session.
 14. Create the session state file with the resolved execution_mode
-15. Read `${extensionPath}/skills/delegation/SKILL.md` using `read_file`. Read `${extensionPath}/skills/validation/SKILL.md` using `read_file`. Execute phases according to the resolved mode, delegating to subagents with validation after each phase. If `read_file` fails due to workspace sandboxing, use `run_shell_command` with `cat` on the same paths as fallback.
+15. Call `get_skill_content` with resources: ["delegation", "validation", "agent-base-protocol", "filesystem-safety-protocol"]. Execute phases according to the resolved mode, delegating to subagents with validation after each phase.
 16. Update session state after each phase completion. For parallel batches, call transition_phase for EVERY completed phase in the batch, not just the first one.
-17. Before completion/archival, read `${extensionPath}/skills/code-review/SKILL.md` using `read_file` and run a final `code_reviewer` quality gate if execution changed non-documentation files; block completion on unresolved Critical/Major findings. If `read_file` fails, use `run_shell_command` with `cat` fallback.
+17. Before completion/archival, call `get_skill_content` with resources: ["code-review"] and run a final `code_reviewer` quality gate if execution changed non-documentation files; block completion on unresolved Critical/Major findings.
 
 # Design Dialogue Protocol (Phase 1 — Standard Workflow Only)
 
@@ -127,7 +127,7 @@ Write to `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-design.md`. If Plan Mode is 
 
 # Maestro Orchestrate
 
-Read `${extensionPath}/references/architecture.md`, `${extensionPath}/templates/design-document.md`, `${extensionPath}/templates/implementation-plan.md`, and `${extensionPath}/templates/session-state.md` before starting.
+Call `get_skill_content` with resources: ["architecture", "design-document", "implementation-plan", "session-state"] and read the returned content before starting.
 
 ## Workflow Routing
 
@@ -290,9 +290,7 @@ Do not interpret silence or a non-approval answer as plan approval.
 ## Execution Mode Gate
 
 Resolve execution mode immediately after the implementation plan is approved.
-Activate the `execution` skill and follow its Execution Mode Gate section.
-The skill contains the authoritative gate protocol including plan analysis,
-recommendation logic, user prompting, and session state recording.
+Call `get_skill_content` with resources: ["execution"] and follow the returned Execution Mode Gate section.
 
 Do not duplicate the gate logic here — the execution skill is the single source of truth.
 
