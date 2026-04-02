@@ -20,6 +20,17 @@ If `write_file` is not in your authorized tool list, you cannot create files. Re
 
 ---
 
+## CRITICAL: No Interactive Commands
+
+You run autonomously without user input. NEVER use commands that require interactive stdin:
+- `npx create-*` (scaffolding wizards)
+- `npm init` (without `-y`)
+- `git rebase -i` (interactive rebase)
+- Any CLI tool that prompts for user choices
+
+If a task requires project scaffolding, create the files directly via `write_file` instead of using interactive generators. If you need a `package.json`, write it. If you need a config file, write it. Do not rely on CLI wizards.
+
+---
 
 ## Pre-Flight Protocol
 

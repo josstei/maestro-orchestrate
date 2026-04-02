@@ -148,6 +148,21 @@ Ask design questions in this order:
 
 Do not skip directly to technology selection or implementation structure before scope and integration are clear.
 
+## Technology Recommendation Gate
+
+<HARD-GATE>
+Before presenting technology or framework options in any design question, re-read the
+<user-request> and check:
+- Did the user specify or imply a tech stack? (e.g., "vanilla", "static", "no frameworks", "HTML/CSS/JS")
+- Did the user describe a scope that implies static delivery? (e.g., "fan site", "profile page", "portfolio", "landing page")
+If yes, the recommended option MUST align with the user's stated or implied preference.
+Do NOT recommend frameworks (Next.js, React, Vue, Svelte, etc.) unless the user's request
+explicitly requires capabilities that vanilla HTML/CSS/JS cannot deliver (e.g., server-side
+rendering, authentication, database queries, real-time updates).
+A multi-page static site with animations, charts (via CDN), and interactive features does
+NOT require a framework.
+</HARD-GATE>
+
 ## Selection Rules
 
 - Each question must offer mutually exclusive options.

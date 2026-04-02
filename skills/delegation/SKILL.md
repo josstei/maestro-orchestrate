@@ -106,6 +106,19 @@ Include the exact command(s) to run after completion. The agent should run these
 - `go vet ./... && go test ./...`
 - `python -m pytest tests/`
 
+### No Interactive Commands in Delegation Prompts
+Never include interactive CLI commands in delegation prompts. Subagents run autonomously without user input. Interactive commands will hang indefinitely.
+
+<ANTI-PATTERN>
+WRONG — Delegation prompt includes interactive scaffolding:
+  "Run `npx create-next-app@latest . --typescript --tailwind`"
+  "Run `npm init` to create package.json"
+
+CORRECT — Delegation prompt specifies direct file creation:
+  "Create package.json with the following content: ..."
+  "Create tsconfig.json, tailwind.config.ts, and src/app/layout.tsx directly"
+</ANTI-PATTERN>
+
 ### Exclusions
 Explicitly state what the agent must NOT do:
 - Files it must not modify
