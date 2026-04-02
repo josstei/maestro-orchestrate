@@ -151,9 +151,10 @@ CORRECT — Express session with one phase:
 2. **Structured brief** (two separate actions — a text message then an ask_user call):
 
    <HARD-GATE>
-   The brief MUST be output as a plain assistant text message BEFORE any ask_user call.
-   Do NOT pass brief content as an ask_user parameter — keep the approval prompt short.
-   This is a two-turn sequence, not one action.
+   The brief MUST be output as plain text, NOT as an ask_user parameter. The ask_user call
+   must contain ONLY the short approval prompt. If the runtime supports emitting text and a
+   function call in the same turn, that is acceptable as long as the brief is in the text
+   portion and the ask_user contains only "Approve this Express brief to proceed?"
    </HARD-GATE>
 
    **Step 2a — Output the brief as plain text** (no tool call, just a text response):
@@ -191,6 +192,8 @@ CORRECT — Express session with one phase:
 3. **Create session** (1 MCP call): Call `create_session` with `workflow_mode: "express"`, `design_document: null`, `implementation_plan: null`, and exactly one phase. The phase object MUST use the field name `agent` (SINGULAR, not `agents`) with a string value — e.g., `{"id": 1, "name": "...", "agent": "coder", "parallel": false, "blocked_by": []}`. The MCP server reads `phase.agent` (singular) to populate the `agents` array; passing `agents` (plural) is silently ignored. The `phases` array MUST have length 1. Do not create the session before brief approval.
 
 4. **Delegate** (1-2 agent calls): Follow the delegation-rules fragment for protocol injection — read `agent-base-protocol.md` and `filesystem-safety-protocol.md` once, prepend to all delegation prompts. Include required headers (`Agent:`, `Phase: 1/1`, `Batch: single`, `Session:`). Protocol files are read once and reused for all delegations in this workflow.
+
+   **Protocol file read note**: The protocol files are at `${extensionPath}/skills/delegation/protocols/`. If `read_file` fails due to workspace sandboxing (path outside allowed workspace), use `run_shell_command` with `cat ${extensionPath}/skills/delegation/protocols/agent-base-protocol.md` as fallback. Do not skip protocol injection if the read fails — always use the fallback.
 
 5. **Persist coder output** (1 MCP call): After the implementing agent call returns, parse the `## Task Report` from its response. Extract `Files Created`, `Files Modified`, `Files Deleted`, and `## Downstream Context`. Call `transition_phase` with:
    - `completed_phase_id: 1`
