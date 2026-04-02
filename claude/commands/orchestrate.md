@@ -117,7 +117,7 @@ Prefer these bundled entry-point skills:
 
 ## Skill Loading
 
-When a workflow phase says "Activate `<skill>`", read the skill file from `${CLAUDE_PLUGIN_ROOT}/skills/` using the `Read` tool and follow its full methodology. Do not skip this step — the methodology files contain the structured questions, formats, and protocols that each phase requires.
+When a workflow step says "Load the `<skill>` skill", read the skill file from `${CLAUDE_PLUGIN_ROOT}/skills/` using the `Read` tool and follow its full methodology. Do not skip this step — the methodology files contain the structured questions, formats, and protocols that each phase requires.
 
 | Skill | File |
 | --- | --- |

@@ -69,20 +69,7 @@ Additional controls:
 
 Orchestration workflow steps are loaded from `references/orchestration-steps.md` by the orchestrate command. See that file for the authoritative step sequence.
 
-## Standard Workflow
-
-### Phase 1: Design
-
-- Ensure task complexity has been classified per the complexity classification section above. The classification must complete before the depth selector in `design-dialogue`.
-- Follow the Design Dialogue Protocol inlined in the orchestrate command. Do not call `activate_skill` for design-dialogue — the protocol is already loaded.
-- Call `enter_plan_mode` to enter Plan Mode at the start of Phase 1. If the tool call fails or is unavailable, inform the user that Plan Mode is not enabled and provide activation instructions: "Plan Mode gives you a dedicated review surface for designs and plans. To enable it, run: `gemini --settings` and set `experimental.plan` to `true`, then restart this session." Ask the user if they want to pause and enable it, or continue without Plan Mode. If continuing without Plan Mode, use `ask_user` for design approvals instead.
-- If the task targets an existing codebase or the relevant subsystem is not already well understood, call the built-in `codebase_investigator` before proposing approaches. Use it to gather the current architecture slice, impacted modules/files, prevailing conventions, integration seams, validation commands, and likely conflict risks. Skip this for greenfield work, documentation-only work, or scopes already grounded by direct reads.
-- Use `codebase_investigator` only for repository grounding. It is not a tool for token usage, session accounting, or runtime capability lookups.
-- Ask structured questions one at a time.
-- When requesting approval for a design section via `ask_user`, include the section title and full section summary in the `question` so the user can review the content directly in the prompt.
-- Present tradeoff-backed approaches and converge on approved design.
-
-### Domain Analysis (Phase 2 prerequisite)
+## Domain Analysis
 
 Before decomposing into phases, assess the task across all capability domains.
 For each domain, determine if the task has needs that warrant specialist involvement:
@@ -105,54 +92,6 @@ Apply domain analysis proportional to `task_complexity`:
 - `medium`: Engineering + domains with clear signals from the task description.
 - `complex`: Full 8-domain sweep (current behavior).
 
-### Phase 2: Plan
-
-- Call `get_skill_content` with resources: ["implementation-planning"] and follow its protocol.
-- If the implementation plan would otherwise rely on assumed file locations, unclear ownership boundaries, or guessed integration points, call the built-in `codebase_investigator` before phase decomposition. Reuse its findings when assigning files, validation commands, and parallel-safe batches.
-- Keep investigator usage scoped to repo structure, integration points, and validation commands. Do not use it for token accounting or status questions.
-- Produce phase plan, dependencies, agent assignments, validation gates.
-- Call `get_skill_content` with resources: ["session-management"] and follow its session creation protocol.
-
-Plan output path handling:
-
-- If plan mode is active: write in `~/.gemini/tmp/<project>/plans/`, then call `exit_plan_mode` with `plan_path`, then copy approved plan into `<state_dir>/plans/`.
-- If plan mode is not active: write directly to `<state_dir>/plans/` and require explicit user approval before execute.
-
-### Phase 3: Execute
-
-- Call `get_skill_content` with resources: ["execution", "delegation"] and follow their protocols.
-- **Resolve execution mode gate** before any delegation (mandatory — see execution skill).
-- Call `get_skill_content` with resources: ["validation"] and follow its validation protocol.
-- Keep `write_todos` in sync with execution progress.
-- Update session state after each phase or parallel batch.
-
-### Phase 4: Complete
-
-- Verify deliverables and validation outcomes.
-- If execution changed non-documentation files (source/test/config/scripts), call `get_skill_content` with resources: ["code-review"] and run a final `code_reviewer` pass on the changed scope with implementation-plan context.
-- Treat unresolved `Critical` or `Major` review findings as completion blockers; remediate, re-validate, and re-run the review gate before archival.
-- Archive via `session-management` (respecting `MAESTRO_AUTO_ARCHIVE`).
-- Provide final summary and recommended next steps.
-- If a memory-saving tool is available, save key cross-session findings with `[Maestro]` prefix. Key entries include: architectural decisions, project conventions established, and recurring patterns discovered.
-
-**Pre-check:** If `workflow_mode` is `express`, this entire protocol is skipped.
-Express dispatches sequentially without prompting. Do not continue reading this section.
-
----
-
-## Execution Mode Protocol
-
-**Scope:** This gate applies to Standard workflow only. Express workflow bypasses this gate and dispatches sequentially without prompting.
-
-`MAESTRO_EXECUTION_MODE` controls execute behavior:
-
-- `ask`: prompt user before execute phase with plan-based recommendation
-- `parallel`: run ready phases as native parallel subagent batches
-- `sequential`: run one phase at a time without prompting
-
-The execution skill's mode gate is the authoritative protocol. It analyzes the implementation plan and presents a recommendation via `ask_user`. The gate must resolve before any delegation proceeds.
-
-Record selected mode in session state by calling `update_session` with `execution_mode` and `execution_backend: native`.
 
 ## Native Parallel Contract
 
