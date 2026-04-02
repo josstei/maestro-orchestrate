@@ -197,7 +197,7 @@ CORRECT — Express session with one phase:
 
 1. **Clarifying questions** (1-2 `AskUserQuestion` turns): Ask from Area 1 (Problem Scope & Boundaries) only. Combine or skip sub-questions already answered by the task description. Use `type: 'choice'` where possible.
 
-2. **Structured brief** (single `AskUserQuestion` approval): Present the consolidated design+plan:
+2. **Structured brief** (text output + short `AskUserQuestion`): First, output the brief as regular text so it renders clearly in the conversation:
 
    ```
    ## Express Brief: [Task Name]
@@ -215,9 +215,9 @@ CORRECT — Express session with one phase:
 
    **Agent**: [agent_name] — [rationale]
    **Validation**: [exact command]
-
-   Approve to proceed?
    ```
+
+   Then use `AskUserQuestion` with ONLY the short approval prompt: "Approve this Express brief to proceed?" Do NOT put the brief content inside the `AskUserQuestion` — it renders as a compact UI element that cannot display rich content well.
 
    The brief describes work for one **implementing** agent in one phase. If you find yourself
    listing multiple implementing agents or splitting work into stages, STOP — escalate to
@@ -263,7 +263,7 @@ If MCP state tools (`create_session`, `transition_phase`, `archive_session`) are
 - If the task targets an existing codebase or the relevant subsystem is not already well understood, call the built-in `Agent (Explore) / Grep / Glob` before proposing approaches. Use it to gather the current architecture slice, impacted modules/files, prevailing conventions, integration seams, validation commands, and likely conflict risks. Skip this for greenfield work, documentation-only work, or scopes already grounded by direct reads.
 - Use `Agent (Explore) / Grep / Glob` only for repository grounding. It is not a tool for token usage, session accounting, or runtime capability lookups.
 - Ask structured questions one at a time.
-- When requesting approval for a design section via `AskUserQuestion`, include the section title and full section summary in the `question` so the user can review the content directly in the prompt.
+- When requesting approval for a design section, output the section title and full section summary as regular text first, THEN use `AskUserQuestion` with only a short prompt like "Approve this section?" Do not put long content inside `AskUserQuestion` — it renders as a compact UI element.
 - Present tradeoff-backed approaches and converge on approved design.
 
 ### Domain Analysis (Phase 2 prerequisite)
