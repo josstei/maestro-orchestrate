@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`get_skill_content` MCP tool** — Reads skill files, delegation protocols, templates, and reference documents by identifier via MCP, bypassing workspace sandbox restrictions. Used by the orchestrate command for skill loading.
+- **`get_skill_content` MCP tool** — Reads delegation protocols, templates, and reference documents by identifier via MCP, bypassing workspace sandbox restrictions. Used by the orchestrate command to load non-skill resources (methodology skills are loaded via `activate_skill`).
 - **`references/orchestration-steps.md`** — Shared numbered-step sequence (40 steps with inline HARD-GATEs) loaded by both Gemini CLI and Claude Code orchestrate commands as the sole procedural authority.
 - **`AGENT_CAPABILITIES` tier map** in `lib/core/agent-registry.js` — Classifies all 22 agents into `read_only`, `read_shell`, `read_write`, or `full` capability tiers. Exports `getAgentCapability()` and `canCreateFiles()`.
 - **`agent_capability_mismatch` validation rule** in `validate_plan` — Server-side enforcement that read-only agents cannot be assigned to file-creating phases. Emits error violations for explicit file lists, warnings for creation-signal phase names.
@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Orchestrate command restructured to numbered-step backbone** — `commands/maestro/orchestrate.toml` is now a thin runtime preamble (~28 lines) that loads `orchestration-steps.md`. The previous 347-line inlined protocol with prose instruction sections has been replaced. Same change applied to `claude/commands/orchestrate.md` (~773 lines → ~214 lines).
-- **Design-dialogue protocol moved** from inlined in orchestrate command to on-demand loading via `get_skill_content` (Gemini) or `Read` tool (Claude).
+- **Design-dialogue protocol moved** from inlined in orchestrate command to on-demand loading via `activate_skill` (Gemini) or `Read` tool (Claude).
 - **Template and reference loading deferred to consumption points** — `design-document`, `implementation-plan`, and `session-state` templates are no longer loaded at classification time; each is loaded at the step where it's consumed (steps 13, 15, 20).
 - **`GEMINI.md` inline workflow content removed** — Express Workflow, Standard Workflow Phase 1-4, Task Complexity Classification, and Workflow Mode Selection sections replaced by pointer to `orchestration-steps.md`.
 - **Express Flow state persistence** — Added step 5 (`transition_phase`) between coder delegation and code review to persist file manifests and downstream context before the review runs. Previously, state was only updated after the review.

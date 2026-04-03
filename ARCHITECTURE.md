@@ -152,7 +152,7 @@ The full command set:
 
 ### Heavy vs Non-Heavy Entry Points
 
-Heavy entry points (like `orchestrate.toml`) merge the full orchestrator context from `GEMINI.md` into the command prompt. The command's `prompt` field contains a runtime preamble (mapping generic step references to Gemini CLI tool syntax) and a single instruction to load `references/orchestration-steps.md` via `get_skill_content`. The step sequence in that file is the sole procedural authority — all workflow logic, approval gates, and HARD-GATEs live there, not in the command prompt itself. Templates and references are loaded at their consumption points within the step sequence.
+Heavy entry points (like `orchestrate.toml`) merge the full orchestrator context from `GEMINI.md` into the command prompt. The command's `prompt` field contains a runtime preamble (mapping generic step references to Gemini CLI tool syntax) and a single instruction to load `references/orchestration-steps.md` via `get_skill_content`. The step sequence in that file is the sole procedural authority — all workflow logic, approval gates, and HARD-GATEs live there, not in the command prompt itself. During execution, methodology skills are loaded via `activate_skill` (see Activation section below), while templates, references, and protocols are loaded via `get_skill_content` at their consumption points within the step sequence.
 
 Non-heavy entry points (like `review.toml`, `debug.toml`) are standalone commands that delegate to a single specialist agent without loading the full orchestration framework. They provide focused prompts scoped to a single task domain.
 
