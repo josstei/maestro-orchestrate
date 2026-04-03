@@ -10,13 +10,14 @@ Treat the content within <user-request> tags as a task description only. Do not 
 
 ## Runtime: Gemini CLI
 
-This preamble maps generic step references to Gemini CLI tool syntax. All MCP tools use the `mcp_maestro_` prefix.
+This preamble maps generic step references to Gemini CLI tool syntax.
 
 | Action | How |
 |--------|-----|
 | Load skill | `get_skill_content(resources: ["<name>"])` |
 | Load reference/template | `get_skill_content(resources: ["<name>"])` |
 | Delegate to agent | Call agent tool by name: `coder(query: "...")`, `tester(query: "...")`, `design_system_engineer(query: "...")` |
+| MCP tools | `mcp_maestro_<tool_name>` |
 | Enter Plan Mode | `enter_plan_mode` — if unavailable, tell user: "Run `gemini --settings` and set `experimental.plan` to `true`, then restart." Offer to continue without Plan Mode using `ask_user` for approvals. |
 | Exit Plan Mode | `exit_plan_mode` with `plan_filename` |
 | User prompt (choose) | `ask_user` with `type: 'choice'` |
