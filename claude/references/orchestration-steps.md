@@ -101,11 +101,19 @@ EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, arch
     <HARD-GATE>
     Express sessions MUST have exactly one implementation phase with exactly one agent.
     </HARD-GATE>
-32. Ask 1-2 clarifying questions from Area 1 only via user prompt.
-33. Present structured Express brief as plain text.
+32. Ask 1-2 clarifying questions from Area 1 only.
     <HARD-GATE>
-    Brief MUST be plain text output, NOT inside a user prompt parameter.
-    Approval is a SEPARATE prompt with only: "Approve this Express brief to proceed?"
+    Each question MUST use the user prompt tool (not plain text). Use the choose
+    variant with 2-4 options where possible. Do NOT ask questions as plain text
+    in the model response — the user prompt tool is the only input mechanism.
+    </HARD-GATE>
+33. Present structured Express brief as plain text, then ask for approval.
+    <HARD-GATE>
+    The brief MUST be plain text output in the model response.
+    The approval MUST be a SEPARATE user prompt tool call — not embedded in the
+    brief text. The prompt contains only: "Approve this Express brief to proceed?"
+    These are two distinct actions: first emit the brief as text, then call the
+    user prompt tool for approval. Do NOT combine them into one text block.
     </HARD-GATE>
 34. On approval, create session with workflow_mode: "express", exactly 1 phase.
     On rejection, revise. On second rejection, escalate to Standard → step 10.
@@ -114,7 +122,14 @@ EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, arch
     <HARD-GATE>
     Same dispatch rule as step 23: call agent by registered tool name, not generalist.
     </HARD-GATE>
-37. Parse Task Report. Call transition_phase to persist files_created/modified/deleted and downstream_context.
+37. Parse Task Report from the agent's response. Call transition_phase to persist results.
+    <HARD-GATE>
+    You MUST call transition_phase after the implementing agent returns. Extract
+    files_created, files_modified, files_deleted, and downstream_context from the
+    Task Report and pass them to transition_phase. Without this call, the session
+    state has no record of what was delivered. Do NOT skip to code review or archive
+    without calling transition_phase first.
+    </HARD-GATE>
 38. Delegate to the code reviewer agent.
     <HARD-GATE>
     If Critical/Major findings: re-delegate to implementing agent (1 retry).
