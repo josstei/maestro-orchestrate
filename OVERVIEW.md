@@ -246,5 +246,8 @@ Maestro provides an MCP server with tools for workspace management, complexity a
 | `transition_phase` | Atomically transition a phase to a new status with validation |
 | `get_session_status` | Read current session state in structured format |
 | `archive_session` | Move session artifacts to archive directories |
+| `get_skill_content` | Read skill files, protocols, templates, and references by identifier — bypasses workspace sandbox |
 
 When MCP tools are available, the orchestrator uses them for all state operations. When unavailable, it falls back to direct filesystem reads and writes on session state files.
+
+The orchestrate command's step sequence lives in `references/orchestration-steps.md` — a shared reference file loaded by both Gemini CLI (via `get_skill_content`) and Claude Code (via `Read` tool) as the sole procedural authority.

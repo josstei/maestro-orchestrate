@@ -566,10 +566,12 @@ flowchart LR
 
 ## Skills
 
-Maestro uses skills to encapsulate detailed methodologies that are activated on demand, keeping the base context lean. Express workflow does not activate any skills -- all Express behavior is defined inline in the orchestrator.
+Maestro uses skills to encapsulate detailed methodologies that are loaded on demand, keeping the base context lean. During orchestration (`/maestro:orchestrate`), skills are loaded via the `get_skill_content` MCP tool (Gemini) or the `Read` tool (Claude Code), not via `activate_skill`. This provides sandbox-immune access to skill files. Express workflow loads only delegation protocols (`agent-base-protocol`, `filesystem-safety-protocol`) and the `code-review` skill — it does not use the full methodology skills.
 
-| Skill | Purpose | Activated By |
-|-------|---------|-------------|
+The orchestrate command's step sequence lives in `references/orchestration-steps.md` — a shared reference file loaded by both runtimes as the sole procedural authority.
+
+| Skill | Purpose | Used By |
+|-------|---------|---------|
 | `design-dialogue` | Structured requirements gathering, depth-selectable reasoning, and architectural design convergence | `/maestro:orchestrate` (Phase 1, Standard only) |
 | `implementation-planning` | Phase decomposition, 8-domain agent assignment, dependency mapping, and plan generation | `/maestro:orchestrate` (Phase 2, Standard only) |
 | `execution` | Execution mode gate, phase execution protocols, error handling, retry logic, and completion workflows | `/maestro:orchestrate` (Phase 3), `/maestro:execute`, `/maestro:resume` |
