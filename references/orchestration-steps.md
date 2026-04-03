@@ -71,7 +71,14 @@ EXECUTION (Phase 3 — delegation loop)
     and turn limits from its frontmatter that the generalist ignores.
     </HARD-GATE>
 24. After each agent returns, parse Task Report + Downstream Context from response.
-25. Call transition_phase to persist results. For parallel batches, call transition_phase for EVERY completed phase.
+25. Call transition_phase to persist results.
+    <HARD-GATE>
+    For parallel batches: call transition_phase INDIVIDUALLY for EVERY completed
+    phase in the batch. The MCP tool accepts one completed_phase_id per call.
+    Each phase has its own files_created, files_modified, and downstream_context
+    that must be persisted separately. Do NOT call it only for the last phase —
+    skipping phases leaves them stuck as in_progress in the archive.
+    </HARD-GATE>
 26. Repeat steps 23-25 until all phases complete.
 
 COMPLETION (Phase 4)

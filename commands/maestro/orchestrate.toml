@@ -14,8 +14,8 @@ This preamble maps generic step references to Gemini CLI tool syntax.
 
 | Action | How |
 |--------|-----|
-| Load skill | `get_skill_content(resources: ["<name>"])` |
-| Load reference/template | `get_skill_content(resources: ["<name>"])` |
+| Load skill | `activate_skill(name: "<skill-name>")` — masking-exempt, expands workspace access to skill directory |
+| Load template/reference/protocol | `get_skill_content(resources: ["<name>"])` |
 | Delegate to agent | Call agent tool by name: `coder(query: "...")`, `tester(query: "...")`, `design_system_engineer(query: "...")` |
 | MCP tools | `mcp_maestro_<tool_name>` (Gemini CLI also accepts bare names like `resolve_settings`) |
 | Enter Plan Mode | `enter_plan_mode` — if unavailable, tell user: "Run `gemini --settings` and set `experimental.plan` to `true`, then restart." Offer to continue without Plan Mode using `ask_user` for approvals. |
