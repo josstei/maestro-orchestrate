@@ -14,10 +14,9 @@ This preamble maps generic step references to Gemini CLI tool syntax.
 
 | Action | How |
 |--------|-----|
-| Load skill | `get_skill_content(resources: ["<name>"])` |
-| Load reference/template | `get_skill_content(resources: ["<name>"])` |
+| Load skill/reference/template | `mcp_maestro_get_skill_content(resources: ["<name>"])` |
 | Delegate to agent | Call agent tool by name: `coder(query: "...")`, `tester(query: "...")`, `design_system_engineer(query: "...")` |
-| MCP tools | `mcp_maestro_<tool_name>` |
+| MCP state tools | Prefixed: `mcp_maestro_resolve_settings`, `mcp_maestro_create_session`, `mcp_maestro_transition_phase`, etc. |
 | Enter Plan Mode | `enter_plan_mode` — if unavailable, tell user: "Run `gemini --settings` and set `experimental.plan` to `true`, then restart." Offer to continue without Plan Mode using `ask_user` for approvals. |
 | Exit Plan Mode | `exit_plan_mode` with `plan_filename` |
 | User prompt (choose) | `ask_user` with `type: 'choice'` |
@@ -25,4 +24,4 @@ This preamble maps generic step references to Gemini CLI tool syntax.
 
 ## Execute
 
-Call `get_skill_content` with resources: ["orchestration-steps"] and follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them."""
+Call `mcp_maestro_get_skill_content` with resources: ["orchestration-steps"] and follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them."""
