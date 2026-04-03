@@ -169,7 +169,7 @@ Do not interpret silence or a non-approval answer as plan approval.
 ## Execution Mode Gate
 
 Resolve execution mode immediately after the implementation plan is approved.
-Activate the `execution` skill and follow its Execution Mode Gate section.
+Load the `execution` skill and follow its Execution Mode Gate section.
 The skill contains the authoritative gate protocol including plan analysis,
 recommendation logic, user prompting, and session state recording.
 

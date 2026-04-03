@@ -43,8 +43,8 @@ PLANNING (Phase 2)
 15. Load the implementation-planning skill and the implementation-plan template: ["implementation-planning", "implementation-plan"]. Follow the skill's protocol.
 16. Call validate_plan with the generated plan and task_complexity. Fix any error-severity violations.
     <HARD-GATE>
-    Agent-deliverable compatibility: read-only agents (architect, api_designer,
-    code_reviewer, content_strategist, compliance_reviewer) CANNOT be assigned
+    Agent-deliverable compatibility: read-only agents (architect, api designer,
+    code reviewer, content strategist, compliance reviewer) CANNOT be assigned
     to phases that create or modify files. validate_plan enforces this server-side.
     If it returns agent_capability_mismatch errors, reassign to a write-capable agent.
     </HARD-GATE>
@@ -76,7 +76,7 @@ EXECUTION (Phase 3 — delegation loop)
 
 COMPLETION (Phase 4)
 27. Load the code-review skill.
-28. If execution changed non-documentation files, delegate to code_reviewer. Block on Critical/Major findings.
+28. If execution changed non-documentation files, delegate to the code reviewer agent. Block on Critical/Major findings.
     <HARD-GATE>
     If Critical/Major findings: re-delegate to the implementing agent to fix.
     The orchestrator MUST NOT write code directly.
@@ -115,7 +115,7 @@ EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, arch
     Same dispatch rule as step 23: call agent by registered tool name, not generalist.
     </HARD-GATE>
 37. Parse Task Report. Call transition_phase to persist files_created/modified/deleted and downstream_context.
-38. Delegate to code_reviewer.
+38. Delegate to the code reviewer agent.
     <HARD-GATE>
     If Critical/Major findings: re-delegate to implementing agent (1 retry).
     Orchestrator MUST NOT write code directly. If retry fails, escalate to user.
