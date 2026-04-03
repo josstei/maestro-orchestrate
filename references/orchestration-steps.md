@@ -41,12 +41,15 @@ DESIGN (Phase 1)
 
 PLANNING (Phase 2)
 15. Load the implementation-planning skill and the implementation-plan template: ["implementation-planning", "implementation-plan"]. Follow the skill's protocol.
-16. Call validate_plan with the generated plan and task_complexity. Fix any error-severity violations.
+16. Call validate_plan with the generated plan and task_complexity.
     <HARD-GATE>
-    Agent-deliverable compatibility: read-only agents (architect, api designer,
-    code reviewer, content strategist, compliance reviewer) CANNOT be assigned
-    to phases that create or modify files. validate_plan enforces this server-side.
-    If it returns agent_capability_mismatch errors, reassign to a write-capable agent.
+    You MUST call validate_plan BEFORE presenting the plan for approval. Do NOT
+    present the plan, write it to state_dir, or proceed to step 17 without first
+    calling validate_plan and resolving any error-severity violations.
+    validate_plan enforces server-side: phase count limits, dependency cycles,
+    unknown agents, file ownership conflicts, and agent-deliverable compatibility
+    (read-only agents cannot be assigned to file-creating phases). If it returns
+    violations with severity "error", fix them in the plan and re-validate.
     </HARD-GATE>
 17. Present plan for user approval (Approve / Revise / Abort via user prompt).
 18. Write approved implementation plan to <state_dir>/plans/.
@@ -74,10 +77,12 @@ EXECUTION (Phase 3 — delegation loop)
 25. Call transition_phase to persist results.
     <HARD-GATE>
     For parallel batches: call transition_phase INDIVIDUALLY for EVERY completed
-    phase in the batch. The MCP tool accepts one completed_phase_id per call.
-    Each phase has its own files_created, files_modified, and downstream_context
-    that must be persisted separately. Do NOT call it only for the last phase —
-    skipping phases leaves them stuck as in_progress in the archive.
+    phase in the batch. The MCP tool writes files_created, files_modified,
+    files_deleted, and downstream_context to the SPECIFIC phase identified by
+    completed_phase_id. Extract each agent's Task Report separately and pass
+    that agent's files and context to the corresponding phase's call. Do NOT
+    merge all agents' files into one call — the archive attributes files per
+    phase, so empty payloads mean lost traceability.
     </HARD-GATE>
 26. Repeat steps 23-25 until all phases complete.
 
