@@ -34306,6 +34306,30 @@ var require_agent_registry = __commonJS({
         ]
       };
     });
+    var AGENT_CAPABILITIES = Object.freeze({
+      architect: "read_only",
+      api_designer: "read_only",
+      code_reviewer: "read_only",
+      content_strategist: "read_only",
+      compliance_reviewer: "read_only",
+      debugger: "read_shell",
+      performance_engineer: "read_shell",
+      security_engineer: "read_shell",
+      seo_specialist: "read_shell",
+      accessibility_specialist: "read_shell",
+      technical_writer: "read_write",
+      product_manager: "read_write",
+      ux_designer: "read_write",
+      copywriter: "read_write",
+      coder: "full",
+      data_engineer: "full",
+      devops_engineer: "full",
+      tester: "full",
+      refactor: "full",
+      design_system_engineer: "full",
+      i18n_specialist: "full",
+      analytics_engineer: "full"
+    });
     function detectAgentFromPrompt(prompt) {
       if (typeof prompt === "string") {
         const headerMatch = prompt.match(/(?:^|\n)\s*agent:\s*([a-z0-9_-]+)/i);
@@ -34325,7 +34349,15 @@ var require_agent_registry = __commonJS({
       }
       return "";
     }
-    module2.exports = { KNOWN_AGENTS, normalizeAgentName, detectAgentFromPrompt };
+    function getAgentCapability(name) {
+      const normalized = normalizeAgentName(name);
+      return AGENT_CAPABILITIES[normalized] || null;
+    }
+    function canCreateFiles(name) {
+      const cap = getAgentCapability(name);
+      return cap === "read_write" || cap === "full";
+    }
+    module2.exports = { KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability, canCreateFiles };
   }
 });
 
@@ -34333,8 +34365,9 @@ var require_agent_registry = __commonJS({
 var require_validate_plan = __commonJS({
   "plugins/maestro/src/mcp/handlers/validate-plan.js"(exports2, module2) {
     "use strict";
-    var { KNOWN_AGENTS, normalizeAgentName } = require_agent_registry();
+    var { KNOWN_AGENTS, normalizeAgentName, getAgentCapability, canCreateFiles } = require_agent_registry();
     var PHASE_LIMITS = { simple: 3, medium: 5, complex: Infinity };
+    var CREATION_SIGNAL_PATTERNS = /\b(implement|create|build|scaffold|write|generate|set\s*up|develop)\b/i;
     function computeDepths(phases, phaseById) {
       const depthMap = {};
       function getDepth(id) {
@@ -34404,6 +34437,26 @@ var require_validate_plan = __commonJS({
         const normalized = normalizeAgentName(phase.agent);
         if (normalized && !KNOWN_AGENTS.includes(normalized)) {
           violations.push({ rule: "unknown_agent", detail: `Phase ${phase.id}: unknown agent "${phase.agent}" (normalized: "${normalized}")`, severity: "error" });
+        }
+      }
+      for (const phase of phases) {
+        const normalized = normalizeAgentName(phase.agent);
+        if (!normalized) continue;
+        const hasFileCreation = (Array.isArray(phase.files_created) && phase.files_created.length > 0)
+          || (Array.isArray(phase.files_modified) && phase.files_modified.length > 0);
+        if (hasFileCreation && !canCreateFiles(normalized)) {
+          const cap = getAgentCapability(normalized);
+          violations.push({
+            rule: "agent_capability_mismatch",
+            detail: `Phase ${phase.id}: agent '${phase.agent}' (${cap}) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.`,
+            severity: "error"
+          });
+        } else if (!hasFileCreation && getAgentCapability(normalized) === "read_only" && phase.name && CREATION_SIGNAL_PATTERNS.test(phase.name)) {
+          violations.push({
+            rule: "agent_capability_mismatch",
+            detail: `Phase ${phase.id}: agent '${phase.agent}' (read_only) assigned to phase '${phase.name}' which may require file creation. Verify this agent can deliver the phase's requirements.`,
+            severity: "warning"
+          });
         }
       }
       const visited = /* @__PURE__ */ new Set();
