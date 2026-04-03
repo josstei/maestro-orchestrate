@@ -692,12 +692,12 @@ Companion files are referenced by the skill body using `${extensionPath}/skills/
 
 ### Activation
 
-Skills are loaded through two mechanisms depending on context:
+Skills are loaded through two mechanisms depending on resource type:
 
-- **`get_skill_content` (MCP tool)**: Used by the orchestrate command. The MCP server reads skill files from the extension directory via `fs.readFileSync`, bypassing workspace sandbox restrictions. This enables skill loading in all modes (normal, Plan Mode, auto-edit). Skills are loaded at their consumption points within the orchestration step sequence, not upfront.
-- **`activate_skill` (native Gemini tool)**: Used by standalone commands (`/maestro:review`, `/maestro:debug`, etc.). Activation is user-consent-driven — skills are never auto-approved. When activated, the skill's `SKILL.md` body is loaded into the agent's context window.
+- **`activate_skill` (native Gemini tool)**: Used for methodology skills (SKILL.md files) during both orchestration and standalone commands. Provides masking exemption (skill content is never pruned from context history), automatic workspace expansion to the skill's directory, and structured `<activated_skill>` XML wrapping with available resource listings. Extension skills require user consent on first activation.
+- **`get_skill_content` (MCP tool)**: Used for non-skill resources during orchestration — templates (`design-document`, `implementation-plan`, `session-state`), references (`architecture`, `orchestration-steps`), and delegation protocols (`agent-base-protocol`, `filesystem-safety-protocol`). The MCP server reads files from the extension directory via `fs.readFileSync`, bypassing workspace sandbox restrictions.
 
-The orchestrator manages skill lifecycle, deactivating skills that are no longer needed to conserve context budget.
+On Claude Code, both mechanisms are replaced by the native `Read` tool, which reads files directly from the plugin directory.
 
 The full set of skills:
 

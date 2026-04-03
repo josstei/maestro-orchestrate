@@ -566,7 +566,7 @@ flowchart LR
 
 ## Skills
 
-Maestro uses skills to encapsulate detailed methodologies that are loaded on demand, keeping the base context lean. During orchestration (`/maestro:orchestrate`), skills are loaded via the `get_skill_content` MCP tool (Gemini) or the `Read` tool (Claude Code), not via `activate_skill`. This provides sandbox-immune access to skill files. Express workflow loads only delegation protocols (`agent-base-protocol`, `filesystem-safety-protocol`) and the `code-review` skill — it does not use the full methodology skills.
+Maestro uses skills to encapsulate detailed methodologies that are loaded on demand, keeping the base context lean. During orchestration on Gemini CLI, methodology skills are loaded via `activate_skill` (masking-exempt, expands workspace access), while templates, references, and protocols are loaded via the `get_skill_content` MCP tool. On Claude Code, all resources are loaded via the native `Read` tool. Express workflow loads only delegation protocols (`agent-base-protocol`, `filesystem-safety-protocol`) and the `code-review` skill — it does not use the full methodology skills.
 
 The orchestrate command's step sequence lives in `references/orchestration-steps.md` — a shared reference file loaded by both runtimes as the sole procedural authority.
 

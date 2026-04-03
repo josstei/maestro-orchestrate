@@ -171,7 +171,7 @@ When MCP state tools (`initialize_workspace`, `create_session`, `update_session`
 
 ## Skills Reference
 
-During orchestration, skills are loaded via `get_skill_content` at the step where they are consumed (see `references/orchestration-steps.md` for the loading sequence). Other commands load skills via `activate_skill`.
+During orchestration, methodology skills are loaded via `activate_skill` (masking-exempt, expands workspace access to skill directories). Templates, references, and delegation protocols are loaded via `get_skill_content`. See `references/orchestration-steps.md` for the loading sequence. Standalone commands load skills via `activate_skill`.
 
 | Skill | Purpose |
 | --- | --- |
