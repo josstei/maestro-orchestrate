@@ -404,7 +404,7 @@ flowchart TD
 
 ### Component Model
 
-Maestro is built from seven layers, each with a distinct responsibility. The Gemini CLI layout is at repo root; Claude Code mirrors it in `claude/` with platform-specific adaptations.
+Maestro is built from seven primary layers plus shared resources (MCP server, templates, references). See ARCHITECTURE.md for the full nine-layer technical model. The Gemini CLI layout is at repo root; Claude Code mirrors it in `claude/` with platform-specific adaptations.
 
 | Layer | Gemini Directory | Claude Directory | Purpose |
 |-------|-----------------|-----------------|---------|

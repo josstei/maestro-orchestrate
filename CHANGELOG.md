@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`references/orchestration-steps.md`** — Shared numbered-step sequence (40 steps with inline HARD-GATEs) loaded by both Gemini CLI and Claude Code orchestrate commands as the sole procedural authority.
 - **`AGENT_CAPABILITIES` tier map** in `lib/core/agent-registry.js` — Classifies all 22 agents into `read_only`, `read_shell`, `read_write`, or `full` capability tiers. Exports `getAgentCapability()` and `canCreateFiles()`.
 - **`agent_capability_mismatch` validation rule** in `validate_plan` — Server-side enforcement that read-only agents cannot be assigned to file-creating phases. Emits error violations for explicit file lists, warnings for creation-signal phase names.
-- **Claude Code plugin** — Full dual-runtime support. Same 22 agents, 19 skills, 12 commands, lifecycle hooks, and MCP state management now available on Claude Code via the `claude/` subdirectory
+- **Claude Code plugin** — Full dual-runtime support. Same 22 agents, 7 methodology skills (plus 12 command entry-point wrappers), 12 commands, lifecycle hooks, and MCP state management now available on Claude Code via the `claude/` subdirectory
 - **Claude Code MCP auto-registration** (`claude/.mcp.json`) — MCP server discovered automatically when the plugin is loaded
 - **MCP tool name mapping** — Orchestrator commands include mapping tables translating bare tool names (e.g., `initialize_workspace`) to Claude Code's prefixed names (`mcp__plugin_maestro_maestro__initialize_workspace`)
 - **Agent name mapping** — Orchestrator commands include mapping for Claude Code's `maestro:` agent prefix (e.g., `maestro:coder`, `maestro:code-reviewer`)
