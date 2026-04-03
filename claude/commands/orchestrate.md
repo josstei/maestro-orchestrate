@@ -52,6 +52,7 @@ Maestro provides MCP tools via a plugin-scoped MCP server. In Claude Code, these
 | `transition_phase` | `mcp__plugin_maestro_maestro__transition_phase` |
 | `archive_session` | `mcp__plugin_maestro_maestro__archive_session` |
 | `validate_plan` | `mcp__plugin_maestro_maestro__validate_plan` |
+| `get_skill_content` | N/A — Claude uses `Read` tool directly for skill/reference loading |
 
 When any skill says "If `X` appears in your available tools, call it", search your available tools for the prefixed version.
 

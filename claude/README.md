@@ -53,6 +53,8 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 }
 ```
 
+**Note:** Claude Code uses the native `Read` tool for loading skill files and references, not the `get_skill_content` MCP tool (which is Gemini-specific). The orchestrate command instructs Claude to `Read ${CLAUDE_PLUGIN_ROOT}/references/orchestration-steps.md` directly.
+
 ## Quick Start
 
 Start a full orchestration by describing what you want to build:
@@ -92,7 +94,7 @@ Maestro will walk you through the complete lifecycle:
 
 ## Agents
 
-All agents are registered with a `maestro:` namespace prefix. When the orchestrator delegates work, it dispatches agents as `maestro:coder`, `maestro:architect`, etc.
+All agents are registered with a `maestro:` namespace prefix. When the orchestrator delegates work, it dispatches agents as `maestro:coder`, `maestro:architect`, etc. Claude Code agents use **kebab-case** naming (e.g., `code-reviewer`, `api-designer`), contrasting with Gemini CLI's snake_case convention (e.g., `code_reviewer`, `api_designer`). The `maestro:` prefix is always required when dispatching.
 
 All agents share a baseline tool set: `Read`, `Glob`, `Grep`, `Skill`. Tool tiers reflect additional capabilities beyond that baseline.
 

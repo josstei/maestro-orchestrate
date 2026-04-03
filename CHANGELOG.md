@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **10 new specialist agents** — `seo_specialist`, `copywriter`, `content_strategist`, `ux_designer`, `accessibility_specialist`, `product_manager`, `analytics_engineer`, `i18n_specialist`, `design_system_engineer`, `compliance_reviewer`; roster expanded from 12 to 22
-- **MCP server** (`mcp/maestro-server.js`) — Bundled Model Context Protocol server registered via `mcpServers` in `gemini-extension.json` with 9 tools: `initialize_workspace`, `assess_task_complexity`, `validate_plan`, `create_session`, `get_session_status`, `update_session`, `transition_phase`, `archive_session`, `resolve_settings`
+- **MCP server** (`mcp/maestro-server.js`) — Bundled Model Context Protocol server registered via `mcpServers` in `gemini-extension.json` with 9 tools at launch: `initialize_workspace`, `assess_task_complexity`, `validate_plan`, `create_session`, `get_session_status`, `update_session`, `transition_phase`, `archive_session`, `resolve_settings` (10th tool `get_skill_content` added in v1.5.0)
 - **Express workflow** — Streamlined inline flow for `simple` tasks: 1-2 clarifying questions, combined design+plan structured brief, single-agent delegation, code review, and archival without skill activations or execution-mode gating
 - **Task complexity classification** — Three-tier system (`simple`, `medium`, `complex`) gating workflow mode selection (Express vs Standard), design depth defaults, domain analysis breadth, question coverage, and phase count limits
 - **8-domain analysis** — Pre-planning domain sweep across Engineering, Product, Design, Content, SEO, Compliance, Internationalization, and Analytics; scaled by task complexity to identify specialist involvement

@@ -171,6 +171,8 @@ When MCP state tools (`initialize_workspace`, `create_session`, `update_session`
 
 ## Skills Reference
 
+During orchestration, skills are loaded via `get_skill_content` at the step where they are consumed (see `references/orchestration-steps.md` for the loading sequence). Other commands load skills via `activate_skill`.
+
 | Skill | Purpose |
 | --- | --- |
 | `design-dialogue` | Structured requirements and architecture convergence |
@@ -226,4 +228,4 @@ Maestro uses Gemini CLI hooks from `hooks/hooks.json`:
 ## Alignment Notes
 
 - Maestro is aligned with Gemini CLI extension, agents, skills, hooks, and policy-engine-compatible arg forwarding.
-- Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, and session state management.
+- Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, session state management, and skill/reference content delivery.
