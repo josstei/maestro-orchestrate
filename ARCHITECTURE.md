@@ -19,15 +19,15 @@ Maestro is organized into nine component layers, each in its own directory withi
 | Scripts | `scripts/` | JavaScript (Node.js) | Utility scripts for workspace initialization, state reading/writing, and settings resolution. Used as fallbacks when MCP tools are unavailable. |
 | Hooks | `hooks/` | JavaScript + JSON registry | Lifecycle hooks (SessionStart, BeforeAgent, AfterAgent, SessionEnd) that fire at agent boundaries. Registered in `hooks.json`. |
 | Policies | `policies/` | TOML | Shell command guardrails. Three policy rules controlling destructive commands, shell redirection, and heredoc usage. |
-| MCP Server | `mcp/` | JavaScript (Node.js) | Model Context Protocol server exposing 9 tools for workspace management, session state, intelligence analysis, and settings resolution. |
+| MCP Server | `mcp/` | JavaScript (Node.js) | Model Context Protocol server exposing 10 tools for workspace management, session state, intelligence analysis, settings resolution, and skill/reference content delivery. |
 | Templates | `templates/` | Markdown with YAML frontmatter | Canonical templates for session state, design documents, and implementation plans. Consumed by the orchestrator and MCP tools. |
 
 Additional directories:
 
 | Directory | Purpose |
 |---|---|
-| `references/` | Read-only reference documents (architecture overview, agent roster) consumed by command prompts. |
-| `lib/` | Shared library code: `lib/core/` (logger, project-root-resolver, agent-registry, atomic-write, env-file-parser, stdin-reader), `lib/config/` (setting-resolver), `lib/hooks/` (hook logic modules, hook-state manager), `lib/state/` (session-state reader/writer, session-id-validator). |
+| `references/` | Read-only reference documents (architecture overview, orchestration step sequence) consumed by command prompts and `get_skill_content`. |
+| `lib/` | Shared library code: `lib/core/` (logger, project-root-resolver, agent-registry with capability tier classification, atomic-write, env-file-parser, stdin-reader), `lib/config/` (setting-resolver), `lib/hooks/` (hook logic modules, hook-state manager), `lib/state/` (session-state reader/writer, session-id-validator), `lib/mcp/handlers/` (get-skill-content handler). |
 
 ---
 
@@ -152,7 +152,7 @@ The full command set:
 
 ### Heavy vs Non-Heavy Entry Points
 
-Heavy entry points (like `orchestrate.toml`) merge the full orchestrator context from `GEMINI.md` into the command prompt. The command's `prompt` field references `${extensionPath}/references/architecture.md`, `${extensionPath}/templates/design-document.md`, `${extensionPath}/templates/implementation-plan.md`, and `${extensionPath}/templates/session-state.md`, instructing the model to read those files before starting. This ensures the orchestrator has access to all architectural context, workflow rules, hard gates, and template schemas.
+Heavy entry points (like `orchestrate.toml`) merge the full orchestrator context from `GEMINI.md` into the command prompt. The command's `prompt` field contains a runtime preamble (mapping generic step references to Gemini CLI tool syntax) and a single instruction to load `references/orchestration-steps.md` via `get_skill_content`. The step sequence in that file is the sole procedural authority — all workflow logic, approval gates, and HARD-GATEs live there, not in the command prompt itself. Templates and references are loaded at their consumption points within the step sequence.
 
 Non-heavy entry points (like `review.toml`, `debug.toml`) are standalone commands that delegate to a single specialist agent without loading the full orchestration framework. They provide focused prompts scoped to a single task domain.
 
@@ -379,7 +379,7 @@ Hook state is managed by `lib/hooks/hook-state.js` using the filesystem:
 
 ## MCP Server
 
-The MCP server (`mcp/maestro-server.js`) implements the Model Context Protocol over stdio transport. It registers 9 tools and handles workspace resolution, settings resolution, and context-aware error recovery.
+The MCP server (`mcp/maestro-server.js`) implements the Model Context Protocol over stdio transport. It registers 10 tools and handles workspace resolution, settings resolution, and context-aware error recovery.
 
 ### Tool Registry
 
@@ -435,6 +435,16 @@ Resolves Maestro settings using the precedence chain.
 | `settings` | string[] | No | Setting names to resolve (e.g., `["MAESTRO_DISABLED_AGENTS"]`). If empty or omitted, resolves all known settings. |
 
 Returns resolved values for each setting with provenance information.
+
+**`get_skill_content`**
+
+Reads one or more Maestro skill files, delegation protocols, templates, or reference documents by identifier. Used by the orchestrate command to load skills at their consumption points, bypassing workspace sandbox restrictions (the MCP server reads files via `fs.readFileSync` from the extension directory).
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `resources` | string[] | Yes | Resource identifiers to read. Known: `delegation`, `execution`, `validation`, `session-management`, `implementation-planning`, `code-review`, `design-dialogue`, `agent-base-protocol`, `filesystem-safety-protocol`, `design-document`, `implementation-plan`, `session-state`, `architecture`, `orchestration-steps`. |
+
+Returns `{ contents: { [id]: string }, errors: { [id]: string } }`. The allowlist is hardcoded in `lib/mcp/handlers/get-skill-content.js` — no arbitrary file access.
 
 ### State Tools
 
@@ -525,6 +535,7 @@ Checks:
 - File ownership conflicts (no two phases in the same parallel batch owning the same file)
 - Dependency cycle detection (topological sort of the `blocked_by` graph)
 - Agent registry validation (all referenced agents exist in the agent roster)
+- Agent capability mismatch (read-only agents cannot be assigned to phases that create or modify files; warnings for creation-signal phase names assigned to read-only agents)
 - Redundant dependency detection (transitive dependencies that can be removed)
 - Parallelization profile (batch grouping analysis, parallel-eligible phase count)
 
@@ -681,7 +692,12 @@ Companion files are referenced by the skill body using `${extensionPath}/skills/
 
 ### Activation
 
-Skills are activated via the `activate_skill` tool. Activation is user-consent-driven -- skills are never auto-approved. When activated, the skill's `SKILL.md` body is loaded into the agent's context window. The orchestrator manages skill lifecycle, deactivating skills that are no longer needed to conserve context budget.
+Skills are loaded through two mechanisms depending on context:
+
+- **`get_skill_content` (MCP tool)**: Used by the orchestrate command. The MCP server reads skill files from the extension directory via `fs.readFileSync`, bypassing workspace sandbox restrictions. This enables skill loading in all modes (normal, Plan Mode, auto-edit). Skills are loaded at their consumption points within the orchestration step sequence, not upfront.
+- **`activate_skill` (native Gemini tool)**: Used by standalone commands (`/maestro:review`, `/maestro:debug`, etc.). Activation is user-consent-driven — skills are never auto-approved. When activated, the skill's `SKILL.md` body is loaded into the agent's context window.
+
+The orchestrator manages skill lifecycle, deactivating skills that are no longer needed to conserve context budget.
 
 The full set of skills:
 
@@ -893,7 +909,7 @@ dist/gemini-extension/
     config/
       setting-resolver.js                #   Settings precedence resolver
     core/
-      agent-registry.js                  #   Agent name detection from prompts
+      agent-registry.js                  #   Agent name detection, capability tier classification
       atomic-write.js                    #   Atomic file writes (temp + rename)
       env-file-parser.js                 #   .env file parser
       logger.js                          #   Structured logging
@@ -910,13 +926,14 @@ dist/gemini-extension/
       session-id-validator.js            #   Session ID format validation
 
   mcp/                                   # MCP server
-    maestro-server.js (bundled)           #   Server entry point (9 tools)
+    maestro-server.js (bundled)           #   Server entry point (10 tools)
 
   policies/                              # Shell command guardrails
     maestro.toml                         #   3 rules: redirection(ask), destructive(deny), heredoc(deny)
 
   references/                            # Read-only reference documents
     architecture.md                      #   Architecture overview for command prompts
+    orchestration-steps.md               #   Shared numbered-step sequence (sole procedural authority)
 
   scripts/                               # Utility scripts (MCP fallbacks)
     ensure-workspace.js                  #   Create state/plans/archives directories
