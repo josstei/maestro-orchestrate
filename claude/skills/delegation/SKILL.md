@@ -153,6 +153,29 @@ Explicitly state what the agent must NOT do:
 | Design tokens, theming | `design-system-engineer` | Full read/write/shell access |
 | Legal, regulatory compliance | `compliance-reviewer` | Read + web search/fetch |
 
+## Agent Tool Dispatch Contract
+
+Every Maestro agent in the Agent Roster is registered as its own tool in the runtime with a `maestro:` prefix. When delegating a phase, call the assigned agent via the `Agent` tool using `subagent_type: "maestro:<name>"` — the name matches the agent name in the roster (e.g., `maestro:coder`, `maestro:design-system-engineer`, `maestro:tester`).
+
+This is mandatory because each agent carries its frontmatter configuration:
+- `temperature`: Controls output determinism (e.g., coder uses 0.2 for precise code)
+- `max_turns`: Prevents runaway sessions (e.g., 25 turns for implementation agents)
+- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot call Write/Edit)
+- Body: Contains the agent's specialized methodology and decision frameworks
+
+Using bare agent names (without the `maestro:` prefix) will fail with "Agent type not found." Never use unprefixed names for Maestro delegations.
+
+**Sequential dispatch:**
+```
+Agent(subagent_type: "maestro:coder", prompt: "Agent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
+```
+
+**Parallel dispatch (multiple Agent calls in one turn):**
+```
+Agent(subagent_type: "maestro:coder", prompt: "Agent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
+Agent(subagent_type: "maestro:ux-designer", prompt: "Agent: ux-designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
+```
+
 ## Parallel Delegation
 
 Parallel delegation uses the runtime's native subagent scheduler. The orchestrator emits contiguous agent tool calls inside a single turn; it does not write prompt files, spawn subprocesses, or call shell-based dispatch helpers.
