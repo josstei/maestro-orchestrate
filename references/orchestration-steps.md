@@ -7,7 +7,7 @@ STARTUP (Turn 1 — tool calls only, no text output)
  6. STOP. Turn 1 is ONLY steps 1-5. No text, no design questions, no file reads.
 
 CLASSIFICATION (Turn 2)
- 7. Load templates and references: ["architecture", "design-document", "implementation-plan", "session-state"].
+ 7. Load the architecture reference: ["architecture"]. Do NOT load templates yet — they are loaded at their consumption points (steps 13, 15, 20).
  8. Classify task as simple/medium/complex. Present classification with rationale.
  9. Route: simple → Express (step 31). Medium/complex → continue to step 10.
 
@@ -36,11 +36,11 @@ DESIGN (Phase 1)
     proceeding to the next. Do NOT present the full design as a single block.
     Quick depth may combine sections. Standard/Deep MUST validate individually.
     </HARD-GATE>
-13. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path).
+13. Load the design-document template: ["design-document"]. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path).
 14. If Plan Mode is active, exit Plan Mode with the plan path. Copy approved document to <state_dir>/plans/.
 
 PLANNING (Phase 2)
-15. Load the implementation-planning skill. Follow its protocol.
+15. Load the implementation-planning skill and the implementation-plan template: ["implementation-planning", "implementation-plan"]. Follow the skill's protocol.
 16. Call validate_plan with the generated plan and task_complexity. Fix any error-severity violations.
     <HARD-GATE>
     Agent-deliverable compatibility: read-only agents (architect, api_designer,
@@ -58,7 +58,7 @@ EXECUTION SETUP (Phase 3 — pre-delegation)
     Do NOT present "Ask" as a user-facing choice — "ask" is a setting value
     that means "prompt the user", not an execution mode the user selects.
     </HARD-GATE>
-20. Load the session-management skill.
+20. Load the session-management skill and session-state template: ["session-management", "session-state"].
 21. Create session via create_session with resolved execution_mode. Do NOT create before mode is resolved.
 22. Load delegation, validation, agent-base-protocol, and filesystem-safety-protocol.
 
