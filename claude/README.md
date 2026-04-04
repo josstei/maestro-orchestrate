@@ -8,34 +8,57 @@ Multi-agent development orchestration platform — 22 specialists, 4-phase orche
 
 ## Installation
 
-### Session-Only (Development/Testing)
+### From Marketplace (recommended)
+
+Add the maestro marketplace, then install the plugin:
+
+```bash
+claude plugin marketplace add josstei/maestro-gemini
+claude plugin install maestro@maestro-marketplace --scope user
+```
+
+The marketplace must be configured before installing. See the main [README](../README.md) for marketplace setup details.
+
+### Installation Scopes
+
+| Scope | Flag | Effect |
+|-------|------|--------|
+| User (default) | `--scope user` | Available across all your projects |
+| Project | `--scope project` | Shared with your team via version control |
+| Local | `--scope local` | Project-specific, gitignored |
+
+### Plugin Management
+
+```bash
+claude plugin update maestro          # Pull the latest version
+claude plugin disable maestro         # Disable without uninstalling
+claude plugin uninstall maestro       # Remove the plugin entirely
+```
+
+### Development / Testing
+
+Load the plugin for a single session without persistent registration:
 
 ```bash
 claude --plugin-dir /path/to/maestro-gemini/claude
 ```
 
-This loads the plugin for a single session without persistent registration.
+Use `/reload-plugins` inside the session to pick up file changes without restarting.
 
-### Local Development
+For local development, clone the repo first:
 
 ```bash
 git clone https://github.com/josstei/maestro-gemini
-cd maestro-gemini/claude
-```
-
-Then start Claude Code with the plugin directory:
-
-```bash
 claude --plugin-dir /path/to/maestro-gemini/claude
 ```
 
 ### Verify Installation
 
-After starting Claude Code with the plugin loaded, verify agents and skills are discovered:
+After starting Claude Code with the plugin loaded:
 
-- Agents should appear with `maestro:` prefix (e.g., `maestro:coder`, `maestro:architect`)
-- Skills should appear as `maestro-orchestrate`, `maestro-review`, etc.
-- MCP tools should appear as `mcp__plugin_maestro_maestro__*` (e.g., `mcp__plugin_maestro_maestro__get_session_status`)
+- Type `/maestro:` and verify `orchestrate`, `review`, `debug`, `security-audit`, `perf-check`, `seo-audit`, `a11y-audit`, and `compliance-check` appear in autocomplete.
+- Run `/agents` and verify agents with the `maestro:` prefix appear (e.g., `maestro:coder`, `maestro:architect`).
+- Confirm MCP tools are registered: `mcp__plugin_maestro_maestro__*` tools should be available (e.g., `mcp__plugin_maestro_maestro__get_session_status`).
 
 ### MCP Server
 
@@ -53,7 +76,7 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 }
 ```
 
-**Note:** Claude Code uses the native `Read` tool for loading skill files and references, not the `get_skill_content` MCP tool (which is Gemini-specific). The orchestrate command instructs Claude to `Read ${CLAUDE_PLUGIN_ROOT}/references/orchestration-steps.md` directly.
+**Note:** Claude Code uses the native `Read` tool for loading skill files and references, not the `get_skill_content` MCP tool (which is Gemini-specific). The orchestrate skill instructs Claude to `Read ${CLAUDE_PLUGIN_ROOT}/references/orchestration-steps.md` directly.
 
 ## Quick Start
 
@@ -127,11 +150,11 @@ All agents share a baseline tool set: `Read`, `Glob`, `Grep`, `Skill`. Tool tier
 
 ### MCP Tool Names
 
-MCP tools are registered with a namespace prefix. Skills reference bare names like `initialize_workspace` but the actual tool name is `mcp__plugin_maestro_maestro__initialize_workspace`. The orchestrator commands include a mapping table that handles this automatically.
+MCP tools are registered with a namespace prefix. Skills reference bare names like `initialize_workspace` but the actual tool name is `mcp__plugin_maestro_maestro__initialize_workspace`. The orchestrate skill includes a mapping table that handles this automatically.
 
 ### Agent Names
 
-Agents are registered as `maestro:<agent-name>` (e.g., `maestro:coder`, `maestro:code-reviewer`). The orchestrator commands include a mapping that handles this automatically.
+Agents are registered as `maestro:<agent-name>` (e.g., `maestro:coder`, `maestro:code-reviewer`). The orchestrate skill includes a mapping that handles this automatically.
 
 ### Hooks
 
