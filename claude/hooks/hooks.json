@@ -8,8 +8,7 @@
             "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/session-end.js",
             "timeout": 10
           }
-        ],
-        "matcher": "*"
+        ]
       }
     ],
     "SessionStart": [
@@ -20,8 +19,7 @@
             "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/session-start.js",
             "timeout": 10
           }
-        ],
-        "matcher": "*"
+        ]
       }
     ],
     "PreToolUse": [
