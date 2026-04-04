@@ -1,6 +1,6 @@
 # Maestro
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/josstei/maestro-gemini/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
@@ -89,14 +89,14 @@ Maestro does not auto-edit `~/.gemini/settings.json`. Enable `experimental.enabl
 #### Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/josstei/maestro-gemini
+gemini extensions install https://github.com/josstei/maestro-orchestrate
 ```
 
 Or for local development:
 
 ```bash
-git clone https://github.com/josstei/maestro-gemini
-cd maestro-gemini
+git clone https://github.com/josstei/maestro-orchestrate
+cd maestro-orchestrate
 gemini extensions link .
 ```
 
@@ -107,15 +107,15 @@ Verify: `gemini extensions list` should show `maestro`.
 From Marketplace (recommended):
 
 ```bash
-claude plugin marketplace add josstei/maestro-gemini
+claude plugin marketplace add josstei/maestro-orchestrate
 claude plugin install maestro@maestro-orchestrator --scope user
 ```
 
 Development / Testing:
 
 ```bash
-git clone https://github.com/josstei/maestro-gemini
-claude --plugin-dir /path/to/maestro-gemini/claude
+git clone https://github.com/josstei/maestro-orchestrate
+claude --plugin-dir /path/to/maestro-orchestrate/claude
 ```
 
 Marketplace install is the persistent end-user path. The `--plugin-dir` flag loads the plugin for a single session and is intended for local development or temporary testing. The Claude Code plugin lives in the `claude/` subdirectory (not the repo root).
@@ -716,7 +716,7 @@ Express sessions have `workflow_mode: "express"` with `design_document: null` an
 ### Runtime Not Loading
 
 1. Gemini CLI: verify the extension is linked with `gemini extensions list`
-2. Claude Code: start a fresh session with `claude --plugin-dir /path/to/maestro-gemini/claude`
+2. Claude Code: start a fresh session with `claude --plugin-dir /path/to/maestro-orchestrate/claude`
 3. Check that the runtime manifest exists: `gemini-extension.json` for Gemini CLI, `claude/.claude-plugin/plugin.json` for Claude Code
 
 ### Subagents Not Enabled (Gemini CLI Only)
@@ -773,7 +773,7 @@ If you encounter issues not covered here:
 1. Review session state logs in `<MAESTRO_STATE_DIR>/state/active-session.md`
 2. Check Maestro version in the runtime you are using: `gemini extensions list` for Gemini CLI, or inspect the loaded plugin metadata for Claude Code
 3. Review runtime logs for the environment where the issue occurs
-4. Report issues on GitHub: [https://github.com/josstei/maestro-gemini/issues](https://github.com/josstei/maestro-gemini/issues)
+4. Report issues on GitHub: [https://github.com/josstei/maestro-orchestrate/issues](https://github.com/josstei/maestro-orchestrate/issues)
 
 Include: Maestro version, runtime (`Gemini CLI` or `Claude Code`) and version, session state file (redact sensitive data), error messages, and steps to reproduce.
 
