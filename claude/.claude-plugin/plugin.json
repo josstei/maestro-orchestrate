@@ -8,8 +8,8 @@
   "license": "Apache-2.0",
   "hooks": "./hooks/claude-hooks.json",
   "mcpServers": "./.mcp.json",
-  "homepage": "https://github.com/josstei/maestro-gemini",
-  "repository": "https://github.com/josstei/maestro-gemini",
+  "homepage": "https://github.com/josstei/maestro-orchestrate",
+  "repository": "https://github.com/josstei/maestro-orchestrate",
   "keywords": [
     "orchestration",
     "multi-agent",
