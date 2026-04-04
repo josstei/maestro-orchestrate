@@ -21,6 +21,7 @@ description: |
   </example>
 model: inherit
 color: olive
+maxTurns: 25
 tools:
   - Read
   - Write

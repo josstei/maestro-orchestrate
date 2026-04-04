@@ -21,6 +21,7 @@ description: |
   </example>
 model: inherit
 color: orange
+maxTurns: 20
 tools:
   - Read
   - Bash

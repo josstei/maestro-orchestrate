@@ -21,6 +21,7 @@ description: |
   </example>
 model: inherit
 color: blue
+maxTurns: 15
 tools:
   - Read
   - Glob
