@@ -1,6 +1,7 @@
 ---
 name: delegation
 description: Agent delegation best practices for constructing effective subagent prompts with proper scoping
+user-invocable: false
 ---
 
 # Delegation Skill

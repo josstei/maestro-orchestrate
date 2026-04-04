@@ -1,6 +1,7 @@
 ---
 name: implementation-planning
 description: Generates detailed implementation plans from finalized designs
+user-invocable: false
 ---
 
 # Implementation Planning Skill

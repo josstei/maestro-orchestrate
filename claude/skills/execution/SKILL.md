@@ -1,6 +1,7 @@
 ---
 name: execution
 description: Phase execution methodology for orchestration workflows with error handling and completion protocols
+user-invocable: false
 ---
 
 # Execution Skill

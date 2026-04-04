@@ -1,6 +1,7 @@
 ---
 name: validation
 description: Cross-cutting validation methodology for verifying phase outputs and project integrity
+user-invocable: false
 ---
 
 # Validation Skill

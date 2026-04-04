@@ -1,6 +1,7 @@
 ---
 name: design-dialogue
 description: Guides structured design conversations for complex engineering tasks
+user-invocable: false
 ---
 
 # Design Dialogue Skill

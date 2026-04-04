@@ -1,6 +1,7 @@
 ---
 name: session-management
 description: Manages orchestration session state, tracking, and resumption
+user-invocable: false
 ---
 
 # Session Management Skill

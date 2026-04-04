@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: Standalone code review methodology for structured, severity-classified code assessment
+user-invocable: false
 ---
 
 # Code Review Skill
