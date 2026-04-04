@@ -1,6 +1,6 @@
 # Maestro — Claude Code Plugin
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/josstei/maestro-gemini/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache-2.0-green)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-orange)](https://docs.anthropic.com/en/docs/claude-code)
 
@@ -13,7 +13,7 @@ Multi-agent development orchestration platform — 22 specialists, 4-phase orche
 Add the maestro marketplace, then install the plugin:
 
 ```bash
-claude plugin marketplace add josstei/maestro-gemini
+claude plugin marketplace add josstei/maestro-orchestrate
 claude plugin install maestro@maestro-orchestrator --scope user
 ```
 
@@ -40,7 +40,7 @@ claude plugin uninstall maestro       # Remove the plugin entirely
 Load the plugin for a single session without persistent registration:
 
 ```bash
-claude --plugin-dir /path/to/maestro-gemini/claude
+claude --plugin-dir /path/to/maestro-orchestrate/claude
 ```
 
 Use `/reload-plugins` inside the session to pick up file changes without restarting.
@@ -48,8 +48,8 @@ Use `/reload-plugins` inside the session to pick up file changes without restart
 For local development, clone the repo first:
 
 ```bash
-git clone https://github.com/josstei/maestro-gemini
-claude --plugin-dir /path/to/maestro-gemini/claude
+git clone https://github.com/josstei/maestro-orchestrate
+claude --plugin-dir /path/to/maestro-orchestrate/claude
 ```
 
 ### Verify Installation
