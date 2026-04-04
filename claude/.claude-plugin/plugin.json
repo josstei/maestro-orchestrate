@@ -6,6 +6,8 @@
     "name": "maestro contributors"
   },
   "license": "Apache-2.0",
+  "hooks": "./hooks/claude-hooks.json",
+  "mcpServers": "./.mcp.json",
   "homepage": "https://github.com/josstei/maestro-gemini",
   "repository": "https://github.com/josstei/maestro-gemini",
   "keywords": [

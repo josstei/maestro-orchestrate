@@ -56,7 +56,7 @@ claude --plugin-dir /path/to/maestro-gemini/claude
 
 After starting Claude Code with the plugin loaded:
 
-- Type `/maestro:` and verify `orchestrate`, `review`, `debug`, `security-audit`, `perf-check`, `seo-audit`, `a11y-audit`, and `compliance-check` appear in autocomplete.
+- Type `/` and verify `orchestrate`, `review`, `debug`, `security-audit`, `perf-check`, `seo-audit`, `a11y-audit`, and `compliance-check` appear in autocomplete.
 - Run `/agents` and verify agents with the `maestro:` prefix appear (e.g., `maestro:coder`, `maestro:architect`).
 - Confirm MCP tools are registered: `mcp__plugin_maestro_maestro__*` tools should be available (e.g., `mcp__plugin_maestro_maestro__get_session_status`).
 
@@ -83,7 +83,7 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 Start a full orchestration by describing what you want to build:
 
 ```
-/maestro:orchestrate Build a REST API for a task management system with user authentication
+/orchestrate Build a REST API for a task management system with user authentication
 ```
 
 Maestro will walk you through the complete lifecycle:
@@ -102,18 +102,20 @@ Maestro will walk you through the complete lifecycle:
 
 | Command | Purpose |
 |---------|---------|
-| `/maestro:orchestrate` | Full orchestration workflow (design, plan, execute, complete) |
-| `/maestro:execute` | Execute an approved implementation plan |
-| `/maestro:status` | Display current session status |
-| `/maestro:resume` | Resume an interrupted session |
-| `/maestro:archive` | Archive the active session |
-| `/maestro:review` | Standalone code review |
-| `/maestro:debug` | Standalone debugging session |
-| `/maestro:security-audit` | Standalone security assessment |
-| `/maestro:perf-check` | Standalone performance analysis |
-| `/maestro:seo-audit` | Standalone SEO assessment |
-| `/maestro:a11y-audit` | Standalone accessibility audit |
-| `/maestro:compliance-check` | Standalone compliance review |
+| `/orchestrate` | Full orchestration workflow (design, plan, execute, complete) |
+| `/execute` | Execute an approved implementation plan |
+| `/status` | Display current session status |
+| `/resume` | Resume an interrupted session |
+| `/archive` | Archive the active session |
+| `/review` | Standalone code review |
+| `/debug` | Standalone debugging session |
+| `/security-audit` | Standalone security assessment |
+| `/perf-check` | Standalone performance analysis |
+| `/seo-audit` | Standalone SEO assessment |
+| `/a11y-audit` | Standalone accessibility audit |
+| `/compliance-check` | Standalone compliance review |
+
+These Claude entrypoints come from the public top-level skills in `skills/`. Internal methodology skills remain hidden with `user-invocable: false`.
 
 ## Agents
 
@@ -158,7 +160,7 @@ Agents are registered as `maestro:<agent-name>` (e.g., `maestro:coder`, `maestro
 
 ### Hooks
 
-Claude Code hooks are registered in `hooks/hooks.json`:
+Claude Code hooks are registered in `hooks/claude-hooks.json`:
 
 - **SessionStart** — Prune stale sessions, initialize hook state
 - **SessionEnd** — Clean up hook state

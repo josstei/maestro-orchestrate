@@ -94,7 +94,7 @@ function splitCommands(command) {
       escaped = false;
       continue;
     }
-    if (ch === '\\') {
+    if (ch === '\\' && !inSingle) {
       current += ch;
       escaped = true;
       continue;
@@ -102,13 +102,33 @@ function splitCommands(command) {
     if (ch === "'" && !inDouble) { inSingle = !inSingle; current += ch; continue; }
     if (ch === '"' && !inSingle) { inDouble = !inDouble; current += ch; continue; }
 
+    if (!inSingle && ch === '$' && command[i + 1] === '(') {
+      const parsed = readDollarSubshell(command, i + 2);
+      current += '$(' + parsed.content + ')';
+      i = parsed.end;
+      continue;
+    }
+    if (!inSingle && ch === '`') {
+      const parsed = readBacktickSubshell(command, i + 1);
+      current += '`' + parsed.content + '`';
+      i = parsed.end;
+      continue;
+    }
+
     if (inSingle || inDouble) {
       current += ch;
       continue;
     }
 
     if (ch === '(' || ch === '{') { depth++; current += ch; continue; }
-    if (ch === ')' || ch === '}') { depth--; current += ch; continue; }
+    if (ch === ')') {
+      if (depth > 0) {
+        depth--;
+      }
+      current += ch;
+      continue;
+    }
+    if (ch === '}') { depth--; current += ch; continue; }
 
     if (depth === 0) {
       if (ch === ';') {
@@ -140,25 +160,144 @@ function splitCommands(command) {
   return parts.map((p) => p.trim()).filter(Boolean);
 }
 
+function readBacktickSubshell(command, startIndex) {
+  let content = '';
+
+  for (let i = startIndex; i < command.length; i++) {
+    const ch = command[i];
+    if (ch === '\\') {
+      const next = command[i + 1];
+      if (next === '`') {
+        content += '`';
+        i++;
+        continue;
+      }
+      content += ch;
+      continue;
+    }
+    if (ch === '`') {
+      return { content, end: i };
+    }
+    content += ch;
+  }
+
+  throw new Error('Unterminated backtick command substitution');
+}
+
+function readDollarSubshell(command, startIndex) {
+  let content = '';
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < command.length; i++) {
+    const ch = command[i];
+
+    if (escaped) {
+      content += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && !inSingle) {
+      if (command[i + 1] === '`') {
+        content += '`';
+        i++;
+        continue;
+      }
+      content += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      content += ch;
+      continue;
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      content += ch;
+      continue;
+    }
+    if (inSingle) {
+      content += ch;
+      continue;
+    }
+    if (ch === '$' && command[i + 1] === '(') {
+      const parsed = readDollarSubshell(command, i + 2);
+      content += '$(' + parsed.content + ')';
+      i = parsed.end;
+      continue;
+    }
+    if (ch === '`') {
+      const parsed = readBacktickSubshell(command, i + 1);
+      content += '`' + parsed.content + '`';
+      i = parsed.end;
+      continue;
+    }
+    if (!inSingle && ch === ')') {
+      return { content, end: i };
+    }
+
+    content += ch;
+  }
+
+  throw new Error('Unterminated $(...) command substitution');
+}
+
 function extractSubshells(command) {
   const patterns = [];
-  const subshellRe = /\$\(([^)]+)\)/g;
-  const backtickRe = /`([^`]+)`/g;
-  let match;
-  while ((match = subshellRe.exec(command)) !== null) {
-    patterns.push(match[1].trim());
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && !inSingle) {
+      escaped = true;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (inSingle) continue;
+
+    if (ch === '$' && command[i + 1] === '(') {
+      const parsed = readDollarSubshell(command, i + 2);
+      const content = parsed.content.trim();
+      if (content) {
+        patterns.push(content, ...extractSubshells(content));
+      }
+      i = parsed.end;
+      continue;
+    }
+
+    if (ch === '`') {
+      const parsed = readBacktickSubshell(command, i + 1);
+      const content = parsed.content.trim();
+      if (content) {
+        patterns.push(content, ...extractSubshells(content));
+      }
+      i = parsed.end;
+    }
   }
-  while ((match = backtickRe.exec(command)) !== null) {
-    patterns.push(match[1].trim());
-  }
+
   return patterns;
 }
 
 function checkCommand(command) {
   const segments = splitCommands(command);
   const subshells = extractSubshells(command);
-  const subshellSegments = subshells.flatMap((s) => splitCommands(s));
-  const allParts = [...segments, ...subshells, ...subshellSegments];
+  const allParts = [...new Set([...segments, ...subshells, ...subshells.flatMap((s) => splitCommands(s))])];
 
   for (const part of allParts) {
     for (const rule of DENY_RULES) {
