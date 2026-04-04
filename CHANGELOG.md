@@ -34,6 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Delegation headers** — Added `Batch: single` to Express Flow delegation headers to match the delegation skill's required header set
 - **Environment variable fallbacks** — `lib/config/setting-resolver.js` checks `CLAUDE_PLUGIN_ROOT` as fallback for `MAESTRO_EXTENSION_PATH`; `lib/core/project-root-resolver.js` checks `CLAUDE_PROJECT_DIR` as fallback for `MAESTRO_WORKSPACE_PATH`. Harmless no-op under Gemini CLI.
 
+### Security
+
+- **`validateContainment()` in `session-state.js`** — Absolute `state_dir` paths must resolve within the project root; rejects paths outside the cwd boundary. Applied to both `resolveStateDirPath` and `ensureWorkspace`.
+- **`ensureBaseDir()` in `hook-state.js`** — Validates hook state base directory is not a symlink before creating session subdirectories. Temp directory naming changed from predictable `/tmp/maestro-hooks` to per-user `maestro-hooks-${uid}`.
+- **Policy enforcer full-command parsing** — `splitCommands()` and `extractSubshells()` in `policy-enforcer.js` decompose commands on `;`, `&&`, `||`, `|`, and `$()` boundaries before checking deny rules against each segment. Prefix matching trims leading whitespace. Error handler changed from fail-open to fail-closed.
+- **MCP error message path stripping** — Error handler in both MCP bundles replaces absolute filesystem paths with `[path]` before returning to the client. `get-skill-content.js` returns `err.code` instead of `err.message`.
+- **`readBoundedStdin()` in hook adapters** — 1MB `MAX_STDIN_BYTES` limit applied to all hook entry scripts (7 scripts across both runtimes), `stdin-reader.js`, and `policy-enforcer.js`.
+- **`ensureWorkspace` create-then-verify ordering** — Directory is created first, then verified via `lstatSync` that it is not a symlink, replacing the previous check-then-create ordering.
+- **Explicit file permissions in `atomicWriteSync`** — Directories created with mode `0o700`, files with mode `0o600`. Same modes applied in `ensureWorkspace` and `ensureSessionDir`.
+- **Session state `.gitignore`** — `docs/maestro/state/` added to project `.gitignore`. `ensureWorkspace` auto-creates a `.gitignore` inside the state directory excluding `active-session.md` and `archive/`.
+
 ### Fixed
 
 - **Skill files now accessible in all modes** (normal, Plan Mode, auto-edit) via `get_skill_content` MCP tool — replaces broken `read_file` → `run_shell_command cat` fallback chain that failed due to workspace sandbox + Plan Mode policy restrictions.
