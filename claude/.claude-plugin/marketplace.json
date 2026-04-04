@@ -1,0 +1,37 @@
+{
+  "name": "maestro-marketplace",
+  "owner": {
+    "name": "josstei",
+    "email": "josstei@github"
+  },
+  "metadata": {
+    "description": "Maestro multi-agent orchestration platform for Claude Code",
+    "version": "1.5.0"
+  },
+  "plugins": [
+    {
+      "name": "maestro",
+      "source": {
+        "source": "git-subdir",
+        "url": "josstei/maestro-gemini",
+        "path": "claude"
+      },
+      "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
+      "version": "1.5.0",
+      "author": {
+        "name": "josstei"
+      },
+      "homepage": "https://github.com/josstei/maestro-gemini",
+      "repository": "https://github.com/josstei/maestro-gemini",
+      "license": "Apache-2.0",
+      "keywords": [
+        "orchestration",
+        "multi-agent",
+        "planning",
+        "execution",
+        "agents"
+      ],
+      "category": "productivity"
+    }
+  ]
+}
