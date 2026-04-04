@@ -33919,10 +33919,10 @@ var require_atomic_write = __commonJS({
     var path = require("path");
     var counter = 0;
     function atomicWriteSync(filePath, content) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 448 });
       const tmpFile = filePath + `.tmp.${process.pid}.${++counter}`;
       try {
-        fs.writeFileSync(tmpFile, content);
+        fs.writeFileSync(tmpFile, content, { mode: 384 });
         fs.renameSync(tmpFile, filePath);
       } catch (err) {
         try {
@@ -33946,20 +33946,28 @@ var require_session_state = __commonJS({
     var DEFAULT_STATE_DIR = "docs/maestro";
     function validateRelativePath(filePath) {
       if (path.isAbsolute(filePath)) {
-        throw new Error(`Path must be relative (got: ${filePath})`);
+        throw new Error("Path must be relative");
       }
       const segments = filePath.split(/[/\\]/);
       if (segments.includes("..")) {
-        throw new Error(`Path traversal not allowed (got: ${filePath})`);
+        throw new Error("Path traversal not allowed");
       }
+    }
+    function validateContainment(absolutePath, rootDir) {
+      const resolved = path.resolve(absolutePath);
+      const resolvedRoot = path.resolve(rootDir) + path.sep;
+      if (!resolved.startsWith(resolvedRoot) && resolved !== resolvedRoot.slice(0, -1)) {
+        throw new Error("state_dir must be within the project root");
+      }
+      return resolved;
     }
     function resolveStateDirPath(cwd, stateDirOverride) {
       const stateDir = stateDirOverride || process.env.MAESTRO_STATE_DIR || DEFAULT_STATE_DIR;
+      const base = cwd || process.cwd();
       if (path.isAbsolute(stateDir)) {
-        return stateDir;
+        return validateContainment(stateDir, base);
       }
       validateRelativePath(stateDir);
-      const base = cwd || process.cwd();
       return path.join(base, stateDir);
     }
     function resolveActiveSessionPath(cwd) {
@@ -33984,17 +33992,14 @@ var require_session_state = __commonJS({
       atomicWriteSync(fullPath, content);
     }
     function ensureWorkspace(stateDir, basePath) {
-      const fullBase = path.isAbsolute(stateDir) ? stateDir : (() => {
+      const fullBase = path.isAbsolute(stateDir) ? validateContainment(stateDir, basePath) : (() => {
         validateRelativePath(stateDir);
         return path.join(basePath, stateDir);
       })();
-      try {
-        const stats = fs.lstatSync(fullBase);
-        if (stats.isSymbolicLink()) {
-          throw new Error(`STATE_DIR must not be a symlink (got: ${stateDir})`);
-        }
-      } catch (err) {
-        if (err.code !== "ENOENT") throw err;
+      fs.mkdirSync(fullBase, { recursive: true, mode: 448 });
+      const stats = fs.lstatSync(fullBase);
+      if (stats.isSymbolicLink()) {
+        throw new Error("STATE_DIR must not be a symlink");
       }
       const dirs = [
         path.join(fullBase, "state"),
@@ -34003,21 +34008,28 @@ var require_session_state = __commonJS({
         path.join(fullBase, "plans", "archive")
       ];
       for (const dir of dirs) {
-        const relativeDir = path.relative(basePath, dir) || dir;
         try {
-          fs.mkdirSync(dir, { recursive: true });
+          fs.mkdirSync(dir, { recursive: true, mode: 448 });
         } catch {
-          throw new Error(`Failed to create directory: ${relativeDir}`);
+          throw new Error("Failed to create workspace directory");
         }
         try {
           fs.accessSync(dir, fs.constants.W_OK);
         } catch {
-          throw new Error(`Directory not writable: ${relativeDir}`);
+          throw new Error("Workspace directory not writable");
+        }
+      }
+      const stateGitignore = path.join(fullBase, "state", ".gitignore");
+      if (!fs.existsSync(stateGitignore)) {
+        try {
+          fs.writeFileSync(stateGitignore, "active-session.md\narchive/\n", { mode: 384 });
+        } catch {
         }
       }
     }
     module2.exports = {
       DEFAULT_STATE_DIR,
+      validateContainment,
       resolveStateDirPath,
       resolveActiveSessionPath,
       hasActiveSession,
@@ -37732,9 +37744,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const result = await handler(args || {}, root);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   } catch (err) {
-    log("error", `Tool ${name} failed: ${err.message}`);
-    const hint = getRecoveryHint(name, err.message);
-    return { content: [{ type: "text", text: JSON.stringify({ error: err.message, recovery_hint: hint }) }], isError: true };
+    const sanitized = err.message.replace(/\/[^\s'"]+/g, "[path]");
+    log("error", `Tool ${name} failed: ${sanitized}`);
+    const hint = getRecoveryHint(name, sanitized);
+    return { content: [{ type: "text", text: JSON.stringify({ error: sanitized, recovery_hint: hint }) }], isError: true };
   }
 });
 var { handleInitializeWorkspace } = require_initialize_workspace();

@@ -8,23 +8,32 @@ const DEFAULT_STATE_DIR = 'docs/maestro';
 
 function validateRelativePath(filePath) {
   if (path.isAbsolute(filePath)) {
-    throw new Error(`Path must be relative (got: ${filePath})`);
+    throw new Error('Path must be relative');
   }
   const segments = filePath.split(/[/\\]/);
   if (segments.includes('..')) {
-    throw new Error(`Path traversal not allowed (got: ${filePath})`);
+    throw new Error('Path traversal not allowed');
   }
+}
+
+function validateContainment(absolutePath, rootDir) {
+  const resolved = path.resolve(absolutePath);
+  const resolvedRoot = path.resolve(rootDir) + path.sep;
+  if (!resolved.startsWith(resolvedRoot) && resolved !== resolvedRoot.slice(0, -1)) {
+    throw new Error('state_dir must be within the project root');
+  }
+  return resolved;
 }
 
 function resolveStateDirPath(cwd, stateDirOverride) {
   const stateDir = stateDirOverride || process.env.MAESTRO_STATE_DIR || DEFAULT_STATE_DIR;
+  const base = cwd || process.cwd();
 
   if (path.isAbsolute(stateDir)) {
-    return stateDir;
+    return validateContainment(stateDir, base);
   }
 
   validateRelativePath(stateDir);
-  const base = cwd || process.cwd();
   return path.join(base, stateDir);
 }
 
@@ -54,17 +63,16 @@ function writeState(relativePath, content, basePath) {
 }
 
 function ensureWorkspace(stateDir, basePath) {
-  const fullBase = path.isAbsolute(stateDir) ? stateDir : (() => {
-    validateRelativePath(stateDir);
-    return path.join(basePath, stateDir);
-  })();
-  try {
-    const stats = fs.lstatSync(fullBase);
-    if (stats.isSymbolicLink()) {
-      throw new Error(`STATE_DIR must not be a symlink (got: ${stateDir})`);
-    }
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err;
+  const fullBase = path.isAbsolute(stateDir)
+    ? validateContainment(stateDir, basePath)
+    : (() => {
+        validateRelativePath(stateDir);
+        return path.join(basePath, stateDir);
+      })();
+  fs.mkdirSync(fullBase, { recursive: true, mode: 0o700 });
+  const stats = fs.lstatSync(fullBase);
+  if (stats.isSymbolicLink()) {
+    throw new Error('STATE_DIR must not be a symlink');
   }
   const dirs = [
     path.join(fullBase, 'state'),
@@ -73,22 +81,28 @@ function ensureWorkspace(stateDir, basePath) {
     path.join(fullBase, 'plans', 'archive'),
   ];
   for (const dir of dirs) {
-    const relativeDir = path.relative(basePath, dir) || dir;
     try {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     } catch {
-      throw new Error(`Failed to create directory: ${relativeDir}`);
+      throw new Error('Failed to create workspace directory');
     }
     try {
       fs.accessSync(dir, fs.constants.W_OK);
     } catch {
-      throw new Error(`Directory not writable: ${relativeDir}`);
+      throw new Error('Workspace directory not writable');
     }
+  }
+  const stateGitignore = path.join(fullBase, 'state', '.gitignore');
+  if (!fs.existsSync(stateGitignore)) {
+    try {
+      fs.writeFileSync(stateGitignore, 'active-session.md\narchive/\n', { mode: 0o600 });
+    } catch {}
   }
 }
 
 module.exports = {
   DEFAULT_STATE_DIR,
+  validateContainment,
   resolveStateDirPath,
   resolveActiveSessionPath,
   hasActiveSession,

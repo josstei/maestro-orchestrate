@@ -42,4 +42,7 @@ coverage/
 tmp/
 temp/
 
+# Maestro session state (may contain user task descriptions)
+docs/maestro/state/
+
 hooks/permissions.json
