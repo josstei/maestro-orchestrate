@@ -58,7 +58,7 @@ Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enabl
 ### Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/josstei/maestro-gemini
+gemini extensions install https://github.com/josstei/maestro-orchestrate
 ```
 
 This downloads the extension and registers it automatically.
@@ -66,8 +66,8 @@ This downloads the extension and registers it automatically.
 ### Claude Code
 
 ```bash
-git clone https://github.com/josstei/maestro-gemini
-claude --plugin-dir /path/to/maestro-gemini/claude
+git clone https://github.com/josstei/maestro-orchestrate
+claude --plugin-dir /path/to/maestro-orchestrate/claude
 ```
 
 The `--plugin-dir` flag loads the plugin for a single session. The Claude Code plugin lives in the `claude/` subdirectory (not the repo root). See `claude/README.md` for detailed Claude Code setup instructions.
@@ -75,8 +75,8 @@ The `--plugin-dir` flag loads the plugin for a single session. The Claude Code p
 ### Local Development
 
 ```bash
-git clone https://github.com/josstei/maestro-gemini
-cd maestro-gemini
+git clone https://github.com/josstei/maestro-orchestrate
+cd maestro-orchestrate
 gemini extensions link .
 ```
 
@@ -1538,6 +1538,6 @@ If you encounter issues not covered here:
 1. Review session state logs in `<MAESTRO_STATE_DIR>/state/active-session.md`
 2. Check Maestro version: `gemini extensions list`
 3. Review Gemini CLI logs (location varies by installation)
-4. Report issues on GitHub: [https://github.com/josstei/maestro-gemini/issues](https://github.com/josstei/maestro-gemini/issues)
+4. Report issues on GitHub: [https://github.com/josstei/maestro-orchestrate/issues](https://github.com/josstei/maestro-orchestrate/issues)
 
 Include: Maestro version, Gemini CLI version, session state file (redact sensitive data), error messages, and steps to reproduce.
