@@ -104,12 +104,23 @@ Verify: `gemini extensions list` should show `maestro`.
 
 #### Claude Code
 
+From Marketplace (recommended):
+
+```bash
+claude plugin marketplace add josstei/maestro-gemini
+claude plugin install maestro@maestro-marketplace --scope user
+```
+
+Development / Testing:
+
 ```bash
 git clone https://github.com/josstei/maestro-gemini
 claude --plugin-dir /path/to/maestro-gemini/claude
 ```
 
-The `--plugin-dir` flag loads the plugin for a single session. The Claude Code plugin lives in the `claude/` subdirectory (not the repo root).
+Marketplace install is the persistent end-user path. The `--plugin-dir` flag loads the plugin for a single session and is intended for local development or temporary testing. The Claude Code plugin lives in the `claude/` subdirectory (not the repo root).
+
+For installation scopes and plugin management commands, see [claude/README.md](claude/README.md).
 
 Verify: agents appear with `maestro:` prefix (e.g., `maestro:coder`), and `/orchestrate`, `/review`, etc. appear in slash-command autocomplete.
 
