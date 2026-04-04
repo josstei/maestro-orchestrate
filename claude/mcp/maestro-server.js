@@ -33954,9 +33954,12 @@ var require_session_state = __commonJS({
       }
     }
     function validateContainment(absolutePath, rootDir) {
-      const resolved = path.resolve(absolutePath);
-      const resolvedRoot = path.resolve(rootDir) + path.sep;
-      if (!resolved.startsWith(resolvedRoot) && resolved !== resolvedRoot.slice(0, -1)) {
+      var resolved = path.resolve(absolutePath);
+      var resolvedRoot = path.resolve(rootDir);
+      try { resolved = fs.realpathSync(resolved); } catch {}
+      try { resolvedRoot = fs.realpathSync(resolvedRoot); } catch {}
+      var rootPrefix = resolvedRoot + path.sep;
+      if (!resolved.startsWith(rootPrefix) && resolved !== resolvedRoot) {
         throw new Error("state_dir must be within the project root");
       }
       return resolved;
@@ -34020,11 +34023,9 @@ var require_session_state = __commonJS({
         }
       }
       const stateGitignore = path.join(fullBase, "state", ".gitignore");
-      if (!fs.existsSync(stateGitignore)) {
-        try {
-          fs.writeFileSync(stateGitignore, "active-session.md\narchive/\n", { mode: 384 });
-        } catch {
-        }
+      try {
+        fs.writeFileSync(stateGitignore, "active-session.md\narchive/\n", { mode: 384, flag: "wx" });
+      } catch {
       }
     }
     module2.exports = {

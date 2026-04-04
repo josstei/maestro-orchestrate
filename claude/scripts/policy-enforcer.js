@@ -157,7 +157,8 @@ function extractSubshells(command) {
 function checkCommand(command) {
   const segments = splitCommands(command);
   const subshells = extractSubshells(command);
-  const allParts = [...segments, ...subshells];
+  const subshellSegments = subshells.flatMap((s) => splitCommands(s));
+  const allParts = [...segments, ...subshells, ...subshellSegments];
 
   for (const part of allParts) {
     for (const rule of DENY_RULES) {
