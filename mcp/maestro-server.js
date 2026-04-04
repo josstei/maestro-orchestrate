@@ -33919,10 +33919,10 @@ var require_atomic_write = __commonJS({
     var path = require("path");
     var counter = 0;
     function atomicWriteSync(filePath, content) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 448 });
       const tmpFile = filePath + `.tmp.${process.pid}.${++counter}`;
       try {
-        fs.writeFileSync(tmpFile, content);
+        fs.writeFileSync(tmpFile, content, { mode: 384 });
         fs.renameSync(tmpFile, filePath);
       } catch (err) {
         try {
@@ -33946,20 +33946,31 @@ var require_session_state = __commonJS({
     var DEFAULT_STATE_DIR = "docs/maestro";
     function validateRelativePath(filePath) {
       if (path.isAbsolute(filePath)) {
-        throw new Error(`Path must be relative (got: ${filePath})`);
+        throw new Error("Path must be relative");
       }
       const segments = filePath.split(/[/\\]/);
       if (segments.includes("..")) {
-        throw new Error(`Path traversal not allowed (got: ${filePath})`);
+        throw new Error("Path traversal not allowed");
       }
+    }
+    function validateContainment(absolutePath, rootDir) {
+      var resolved = path.resolve(absolutePath);
+      var resolvedRoot = path.resolve(rootDir);
+      try { resolved = fs.realpathSync(resolved); } catch {}
+      try { resolvedRoot = fs.realpathSync(resolvedRoot); } catch {}
+      var rootPrefix = resolvedRoot + path.sep;
+      if (!resolved.startsWith(rootPrefix) && resolved !== resolvedRoot) {
+        throw new Error("state_dir must be within the project root");
+      }
+      return resolved;
     }
     function resolveStateDirPath(cwd, stateDirOverride) {
       const stateDir = stateDirOverride || process.env.MAESTRO_STATE_DIR || DEFAULT_STATE_DIR;
+      const base = cwd || process.cwd();
       if (path.isAbsolute(stateDir)) {
-        return stateDir;
+        return validateContainment(stateDir, base);
       }
       validateRelativePath(stateDir);
-      const base = cwd || process.cwd();
       return path.join(base, stateDir);
     }
     function resolveActiveSessionPath(cwd) {
@@ -33984,17 +33995,14 @@ var require_session_state = __commonJS({
       atomicWriteSync(fullPath, content);
     }
     function ensureWorkspace(stateDir, basePath) {
-      const fullBase = path.isAbsolute(stateDir) ? stateDir : (() => {
+      const fullBase = path.isAbsolute(stateDir) ? validateContainment(stateDir, basePath) : (() => {
         validateRelativePath(stateDir);
         return path.join(basePath, stateDir);
       })();
-      try {
-        const stats = fs.lstatSync(fullBase);
-        if (stats.isSymbolicLink()) {
-          throw new Error(`STATE_DIR must not be a symlink (got: ${stateDir})`);
-        }
-      } catch (err) {
-        if (err.code !== "ENOENT") throw err;
+      fs.mkdirSync(fullBase, { recursive: true, mode: 448 });
+      const stats = fs.lstatSync(fullBase);
+      if (stats.isSymbolicLink()) {
+        throw new Error("STATE_DIR must not be a symlink");
       }
       const dirs = [
         path.join(fullBase, "state"),
@@ -34003,21 +34011,26 @@ var require_session_state = __commonJS({
         path.join(fullBase, "plans", "archive")
       ];
       for (const dir of dirs) {
-        const relativeDir = path.relative(basePath, dir) || dir;
         try {
-          fs.mkdirSync(dir, { recursive: true });
+          fs.mkdirSync(dir, { recursive: true, mode: 448 });
         } catch {
-          throw new Error(`Failed to create directory: ${relativeDir}`);
+          throw new Error("Failed to create workspace directory");
         }
         try {
           fs.accessSync(dir, fs.constants.W_OK);
         } catch {
-          throw new Error(`Directory not writable: ${relativeDir}`);
+          throw new Error("Workspace directory not writable");
         }
+      }
+      const stateGitignore = path.join(fullBase, "state", ".gitignore");
+      try {
+        fs.writeFileSync(stateGitignore, "active-session.md\narchive/\n", { mode: 384, flag: "wx" });
+      } catch {
       }
     }
     module2.exports = {
       DEFAULT_STATE_DIR,
+      validateContainment,
       resolveStateDirPath,
       resolveActiveSessionPath,
       hasActiveSession,
@@ -34306,6 +34319,30 @@ var require_agent_registry = __commonJS({
         ]
       };
     });
+    var AGENT_CAPABILITIES = Object.freeze({
+      architect: "read_only",
+      api_designer: "read_only",
+      code_reviewer: "read_only",
+      content_strategist: "read_only",
+      compliance_reviewer: "read_only",
+      debugger: "read_shell",
+      performance_engineer: "read_shell",
+      security_engineer: "read_shell",
+      seo_specialist: "read_shell",
+      accessibility_specialist: "read_shell",
+      technical_writer: "read_write",
+      product_manager: "read_write",
+      ux_designer: "read_write",
+      copywriter: "read_write",
+      coder: "full",
+      data_engineer: "full",
+      devops_engineer: "full",
+      tester: "full",
+      refactor: "full",
+      design_system_engineer: "full",
+      i18n_specialist: "full",
+      analytics_engineer: "full"
+    });
     function detectAgentFromPrompt(prompt) {
       if (typeof prompt === "string") {
         const headerMatch = prompt.match(/(?:^|\n)\s*agent:\s*([a-z0-9_-]+)/i);
@@ -34325,7 +34362,15 @@ var require_agent_registry = __commonJS({
       }
       return "";
     }
-    module2.exports = { KNOWN_AGENTS, normalizeAgentName, detectAgentFromPrompt };
+    function getAgentCapability(name) {
+      const normalized = normalizeAgentName(name);
+      return AGENT_CAPABILITIES[normalized] || null;
+    }
+    function canCreateFiles(name) {
+      const cap = getAgentCapability(name);
+      return cap === "read_write" || cap === "full";
+    }
+    module2.exports = { KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability, canCreateFiles };
   }
 });
 
@@ -34333,8 +34378,9 @@ var require_agent_registry = __commonJS({
 var require_validate_plan = __commonJS({
   "plugins/maestro/src/mcp/handlers/validate-plan.js"(exports2, module2) {
     "use strict";
-    var { KNOWN_AGENTS, normalizeAgentName } = require_agent_registry();
+    var { KNOWN_AGENTS, normalizeAgentName, getAgentCapability, canCreateFiles } = require_agent_registry();
     var PHASE_LIMITS = { simple: 3, medium: 5, complex: Infinity };
+    var CREATION_SIGNAL_PATTERNS = /\b(implement|create|build|scaffold|write|generate|set\s*up|develop)\b/i;
     function computeDepths(phases, phaseById) {
       const depthMap = {};
       function getDepth(id) {
@@ -34404,6 +34450,26 @@ var require_validate_plan = __commonJS({
         const normalized = normalizeAgentName(phase.agent);
         if (normalized && !KNOWN_AGENTS.includes(normalized)) {
           violations.push({ rule: "unknown_agent", detail: `Phase ${phase.id}: unknown agent "${phase.agent}" (normalized: "${normalized}")`, severity: "error" });
+        }
+      }
+      for (const phase of phases) {
+        const normalized = normalizeAgentName(phase.agent);
+        if (!normalized) continue;
+        const hasFileCreation = (Array.isArray(phase.files_created) && phase.files_created.length > 0)
+          || (Array.isArray(phase.files_modified) && phase.files_modified.length > 0);
+        if (hasFileCreation && !canCreateFiles(normalized)) {
+          const cap = getAgentCapability(normalized);
+          violations.push({
+            rule: "agent_capability_mismatch",
+            detail: `Phase ${phase.id}: agent '${phase.agent}' (${cap}) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.`,
+            severity: "error"
+          });
+        } else if (!hasFileCreation && getAgentCapability(normalized) === "read_only" && phase.name && CREATION_SIGNAL_PATTERNS.test(phase.name)) {
+          violations.push({
+            rule: "agent_capability_mismatch",
+            detail: `Phase ${phase.id}: agent '${phase.agent}' (read_only) assigned to phase '${phase.name}' which may require file creation. Verify this agent can deliver the phase's requirements.`,
+            severity: "warning"
+          });
         }
       }
       const visited = /* @__PURE__ */ new Set();
@@ -37612,6 +37678,66 @@ var require_resolve_settings = __commonJS({
   }
 });
 
+// plugins/maestro/src/mcp/handlers/get-skill-content.js
+var require_get_skill_content = __commonJS({
+  "plugins/maestro/src/mcp/handlers/get-skill-content.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var path2 = require("path");
+    var RESOURCE_ALLOWLIST2 = Object.freeze({
+      "delegation": "skills/delegation/SKILL.md",
+      "execution": "skills/execution/SKILL.md",
+      "validation": "skills/validation/SKILL.md",
+      "session-management": "skills/session-management/SKILL.md",
+      "implementation-planning": "skills/implementation-planning/SKILL.md",
+      "code-review": "skills/code-review/SKILL.md",
+      "design-dialogue": "skills/design-dialogue/SKILL.md",
+      "agent-base-protocol": "skills/delegation/protocols/agent-base-protocol.md",
+      "filesystem-safety-protocol": "skills/delegation/protocols/filesystem-safety-protocol.md",
+      "design-document": "templates/design-document.md",
+      "implementation-plan": "templates/implementation-plan.md",
+      "session-state": "templates/session-state.md",
+      "architecture": "references/architecture.md",
+      "orchestration-steps": "references/orchestration-steps.md"
+    });
+    function resolveExtensionRoot2() {
+      if (process.env.MAESTRO_EXTENSION_PATH) {
+        return process.env.MAESTRO_EXTENSION_PATH;
+      }
+      var serverFile = process.argv[1];
+      if (serverFile) {
+        return path2.resolve(path2.dirname(serverFile), "..");
+      }
+      return process.cwd();
+    }
+    function handleGetSkillContent2(params) {
+      var resources = params.resources;
+      if (!Array.isArray(resources) || resources.length === 0) {
+        throw new Error("resources must be a non-empty array of resource identifiers");
+      }
+      var extensionRoot = resolveExtensionRoot2();
+      var contents = {};
+      var errors = {};
+      for (var i = 0; i < resources.length; i++) {
+        var id = resources[i];
+        var relativePath = RESOURCE_ALLOWLIST2[id];
+        if (!relativePath) {
+          errors[id] = 'Unknown resource identifier: "' + id + '". Known identifiers: ' + Object.keys(RESOURCE_ALLOWLIST2).join(", ");
+          continue;
+        }
+        var absolutePath = path2.join(extensionRoot, relativePath);
+        try {
+          contents[id] = fs2.readFileSync(absolutePath, "utf8");
+        } catch (err) {
+          errors[id] = "Failed to read resource \"" + id + "\": " + (err.code || "UNKNOWN");
+        }
+      }
+      return { contents: contents, errors: errors };
+    }
+    module2.exports = { handleGetSkillContent: handleGetSkillContent2, RESOURCE_ALLOWLIST: RESOURCE_ALLOWLIST2 };
+  }
+});
+
 // plugins/maestro/src/mcp/maestro-server.js
 var { Server } = require_server2();
 var { StdioServerTransport } = require_stdio2();
@@ -37679,9 +37805,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const result = await handler(args || {}, root);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   } catch (err) {
-    log("error", `Tool ${name} failed: ${err.message}`);
-    const hint = getRecoveryHint(name, err.message);
-    return { content: [{ type: "text", text: JSON.stringify({ error: err.message, recovery_hint: hint }) }], isError: true };
+    const sanitized = err.message.replace(/\/[^\s'"]+/g, "[path]");
+    log("error", `Tool ${name} failed: ${sanitized}`);
+    const hint = getRecoveryHint(name, sanitized);
+    return { content: [{ type: "text", text: JSON.stringify({ error: sanitized, recovery_hint: hint }) }], isError: true };
   }
 });
 var { handleInitializeWorkspace } = require_initialize_workspace();
@@ -37808,6 +37935,22 @@ registerTool({
     }
   }
 }, handleResolveSettings);
+var { handleGetSkillContent } = require_get_skill_content();
+registerTool({
+  name: "get_skill_content",
+  description: "Read one or more Maestro skill files, delegation protocols, templates, or reference documents by identifier. Returns file contents keyed by identifier. Use this instead of read_file for extension-internal resources.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      resources: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture".'
+      }
+    },
+    required: ["resources"]
+  }
+}, handleGetSkillContent);
 async function main() {
   log("info", "MCP server starting");
   const transport = new StdioServerTransport();

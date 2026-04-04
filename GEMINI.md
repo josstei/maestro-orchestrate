@@ -65,159 +65,11 @@ Additional controls:
 - `MAESTRO_EXTENSION_PATH`: override extension root for setting resolution (defaults to ~/.gemini/extensions/maestro)
 - `MAESTRO_CURRENT_AGENT`: legacy fallback for hook correlation only; primary identity now comes from the required `Agent:` delegation header
 
-## Task Complexity Classification
+## Orchestration Workflow
 
-Before beginning any workflow, classify the task as `simple`, `medium`, or `complex`. This classification controls workflow mode selection and, for Standard workflow, design depth, question coverage, section count, phase limits, and domain analysis scope.
+Orchestration workflow steps are loaded from `references/orchestration-steps.md` by the orchestrate command. See that file for the authoritative step sequence.
 
-Check whether `assess_task_complexity` appears in your available tools. If it does, call it to get factual repo signals, then apply the heuristics below to those signals plus the task description. If it does not, classify from the task description alone.
-
-**Heuristics:**
-
-| Signal | Simple | Medium | Complex |
-|--------|--------|--------|---------|
-| Scope | Single concern, few files | Multi-component, clear boundaries | Cross-cutting, multi-service |
-| Examples | Static sites, config changes, single-file scripts, CLI tools | API endpoints, feature additions, integrations, CRUD apps | New subsystems, refactors spanning modules, multi-service architectures |
-| Greenfield | Empty or near-empty repo | Small existing codebase | Large codebase with established patterns |
-
-**Downstream behavior:**
-
-| Dimension | Simple | Medium | Complex |
-|-----------|--------|--------|---------|
-| Depth recommendation | Quick (auto-selected, user can override) | Standard (recommended) | Standard or Deep |
-| Design sections | 3 minimum | 4-5 sections | All 7 |
-| Max phases | 3 | 5 | No cap |
-| Domain analysis | Engineering only | Engineering + relevant | Full 8-domain |
-| Question areas | Area 1 only | Areas 1-3 | All 5 |
-
-Present the classification and rationale before proceeding. The user can override.
-
-Record `task_complexity` in design document frontmatter alongside `design_depth`. For Express workflow (where no design document is created), `task_complexity` is recorded in session state only via the `create_session` MCP call.
-
-The classification result also gates workflow mode selection via the workflow router below. `simple` tasks enter the Express workflow; `medium` and `complex` tasks enter the Standard workflow.
-
-## Workflow Mode Selection
-
-<HARD-GATE>
-This routing MUST be followed exactly. Do not override, skip, or mix workflows.
-
-- If `task_complexity` is `simple` → follow the **Express Workflow** section below. Do not activate any skills. Do not enter the Standard Workflow. Do not present design depth selectors, design questions, or plan approval gates. Go directly to Express Flow.
-- If `task_complexity` is `medium` or `complex` → follow the **Standard Workflow** section below. Activate skills as directed by each phase. Do not enter the Express Workflow.
-
-If Express is selected, skip the Standard Workflow section entirely. If Standard is selected, skip the Express Workflow section entirely.
-</HARD-GATE>
-
-<ANTI-PATTERN>
-WRONG — Task classified as `simple` but Standard workflow used:
-  task_complexity: simple
-  workflow_mode: standard       ← VIOLATION
-  (Presented design depth selector, 4+ design questions, plan approval gate)
-
-When `task_complexity` is `simple`, the ONLY valid workflow is Express.
-Do not present design depth selectors, design questions, or plan approval gates for simple tasks.
-
-CORRECT — Task classified as `simple` with Express workflow:
-  task_complexity: simple
-  workflow_mode: express
-  (1-2 clarifying questions → structured brief → single-phase delegation)
-</ANTI-PATTERN>
-
-## Express Workflow
-
-Express mode is for `simple` tasks only. It replaces the 4-phase ceremony with a streamlined flow. Do not activate any skills — all behavior is defined inline below.
-
-<HARD-GATE>
-Express sessions MUST contain exactly one implementation phase with exactly one agent.
-If the task requires multiple phases, multiple agents, or cross-phase file dependencies,
-it is not simple — escalate to Standard workflow by overriding classification to `medium`.
-Do not create an Express session with more than one phase under any circumstance.
-</HARD-GATE>
-
-<ANTI-PATTERN>
-WRONG — Express session with multiple phases:
-  phases: [{id: 1, agent: "coder"}, {id: 2, agent: "design_system_engineer"},
-           {id: 3, agent: "technical_writer"}, {id: 4, agent: "code_reviewer"}]
-
-This violates Express. Multiple agents/phases = Standard workflow.
-
-CORRECT — Express session with one phase:
-  phases: [{id: 1, agent: "coder"}]
-  Code review is handled in Express Flow step 5 (a fixed delegation, not a separate implementation phase).
-</ANTI-PATTERN>
-
-### Express Flow
-
-1. **Clarifying questions** (1-2 `ask_user` turns): Ask from Area 1 (Problem Scope & Boundaries) only. Combine or skip sub-questions already answered by the task description. Use `type: 'choice'` where possible.
-
-2. **Structured brief** (single `ask_user` approval): Present the consolidated design+plan:
-
-   ```
-   ## Express Brief: [Task Name]
-
-   **Problem**: [2-3 sentences]
-
-   **Approach**: [1 paragraph]
-   *Alternative*: [1 sentence — what was considered and rejected]
-
-   **Files**:
-   | Action | Path | Purpose |
-   |--------|------|---------|
-   | Create | path/to/file.js | [purpose] |
-   | Modify | path/to/existing.js | [what changes] |
-
-   **Agent**: [agent_name] — [rationale]
-   **Validation**: [exact command]
-
-   Approve to proceed?
-   ```
-
-   The brief describes work for one **implementing** agent in one phase. If you find yourself
-   listing multiple implementing agents or splitting work into stages, STOP — escalate to
-   Standard workflow. (The code review in step 5 is a separate, fixed part of Express ceremony,
-   not an additional implementation phase.)
-
-   Before presenting, verify the selected agent is not in `MAESTRO_DISABLED_AGENTS`. If disabled, select an alternative or escalate to Standard workflow.
-
-   If rejected: revise and re-present. On second rejection, escalate to Standard workflow — override classification to `medium` and follow the Standard Workflow section from the beginning.
-
-3. **Create session** (1 MCP call): Call `create_session` with `workflow_mode: "express"`, `design_document: null`, `implementation_plan: null`, and exactly one phase (the `phases` array MUST have length 1). Do not create the session before brief approval.
-
-4. **Delegate** (1-2 agent calls): Follow the delegation-rules fragment for protocol injection — read `agent-base-protocol.md` and `filesystem-safety-protocol.md` once, prepend to all delegation prompts. Include required headers (`Agent:`, `Phase: 1/1`, `Session:`). Protocol files are read once and reused for all delegations in this workflow.
-
-5. **Code review** (1 agent call): Delegate to `code_reviewer` with protocol injection. Include diff scope, project type, and severity criteria (Critical, Major, Minor, Suggestion). If Critical or Major findings: re-delegate to the implementing agent with fix instructions (1 retry). If fix fails, escalate to user. Minor/Suggestion: record and report in summary.
-
-5b. **Complete phase**: Call `transition_phase` with `completed_phase_id: 1` and `next_phase_id: null` to mark the implementation phase as completed before archival.
-
-6. **Archive** (1 MCP call): Call `archive_session`. The orchestrator skips design document and implementation plan moves (paths are `null` for Express sessions).
-
-### Express Mode Gate Bypass
-
-Express mode bypasses the execution-mode gate. Do not resolve execution mode — Express always dispatches sequentially.
-
-### Express Resume
-
-If resuming an Express session (`workflow_mode: "express"` in session state):
-- Phase `pending`: re-generate and present the structured brief. On approval, proceed to delegation.
-- Phase `in_progress`: re-delegate with the same scope. Use the `agents` array to identify which agent was running.
-- Phase `completed` but session `in_progress`: run code review, then archive.
-
-### Express MCP Fallback
-
-If MCP state tools (`create_session`, `transition_phase`, `archive_session`) are not in your available tools, use `write_file` directly on `<state_dir>/state/active-session.md` for session creation, `replace` for phase transitions, and `write_file` + delete for archival. Follow the state-contract paths. The session state YAML structure matches the session-management skill's Initial State Template with `workflow_mode: "express"`, `design_document: null`, and `implementation_plan: null`.
-
-## Standard Workflow
-
-### Phase 1: Design
-
-- Ensure task complexity has been classified per the complexity classification section above. The classification must complete before the depth selector in `design-dialogue`.
-- Activate `design-dialogue`.
-- Call `enter_plan_mode` to enter Plan Mode at the start of Phase 1. If the tool call fails or is unavailable, inform the user that Plan Mode is not enabled and provide activation instructions: "Plan Mode gives you a dedicated review surface for designs and plans. To enable it, run: `gemini --settings` and set `experimental.plan` to `true`, then restart this session." Ask the user if they want to pause and enable it, or continue without Plan Mode. If continuing without Plan Mode, use `ask_user` for design approvals instead.
-- If the task targets an existing codebase or the relevant subsystem is not already well understood, call the built-in `codebase_investigator` before proposing approaches. Use it to gather the current architecture slice, impacted modules/files, prevailing conventions, integration seams, validation commands, and likely conflict risks. Skip this for greenfield work, documentation-only work, or scopes already grounded by direct reads.
-- Use `codebase_investigator` only for repository grounding. It is not a tool for token usage, session accounting, or runtime capability lookups.
-- Ask structured questions one at a time.
-- When requesting approval for a design section via `ask_user`, include the section title and full section summary in the `question` so the user can review the content directly in the prompt.
-- Present tradeoff-backed approaches and converge on approved design.
-
-### Domain Analysis (Phase 2 prerequisite)
+## Domain Analysis
 
 Before decomposing into phases, assess the task across all capability domains.
 For each domain, determine if the task has needs that warrant specialist involvement:
@@ -240,54 +92,6 @@ Apply domain analysis proportional to `task_complexity`:
 - `medium`: Engineering + domains with clear signals from the task description.
 - `complex`: Full 8-domain sweep (current behavior).
 
-### Phase 2: Plan
-
-- Activate `implementation-planning`.
-- If the implementation plan would otherwise rely on assumed file locations, unclear ownership boundaries, or guessed integration points, call the built-in `codebase_investigator` before phase decomposition. Reuse its findings when assigning files, validation commands, and parallel-safe batches.
-- Keep investigator usage scoped to repo structure, integration points, and validation commands. Do not use it for token accounting or status questions.
-- Produce phase plan, dependencies, agent assignments, validation gates.
-- Activate `session-management` to create session state.
-
-Plan output path handling:
-
-- If plan mode is active: write in `~/.gemini/tmp/<project>/plans/`, then call `exit_plan_mode` with `plan_path`, then copy approved plan into `<state_dir>/plans/`.
-- If plan mode is not active: write directly to `<state_dir>/plans/` and require explicit user approval before execute.
-
-### Phase 3: Execute
-
-- Activate `execution` and `delegation`.
-- **Resolve execution mode gate** before any delegation (mandatory — see execution skill).
-- Activate `validation` for quality gates.
-- Keep `write_todos` in sync with execution progress.
-- Update session state after each phase or parallel batch.
-
-### Phase 4: Complete
-
-- Verify deliverables and validation outcomes.
-- If execution changed non-documentation files (source/test/config/scripts), activate `code-review` and run a final `code_reviewer` pass on the changed scope with implementation-plan context.
-- Treat unresolved `Critical` or `Major` review findings as completion blockers; remediate, re-validate, and re-run the review gate before archival.
-- Archive via `session-management` (respecting `MAESTRO_AUTO_ARCHIVE`).
-- Provide final summary and recommended next steps.
-- If a memory-saving tool is available, save key cross-session findings with `[Maestro]` prefix. Key entries include: architectural decisions, project conventions established, and recurring patterns discovered.
-
-**Pre-check:** If `workflow_mode` is `express`, this entire protocol is skipped.
-Express dispatches sequentially without prompting. Do not continue reading this section.
-
----
-
-## Execution Mode Protocol
-
-**Scope:** This gate applies to Standard workflow only. Express workflow bypasses this gate and dispatches sequentially without prompting.
-
-`MAESTRO_EXECUTION_MODE` controls execute behavior:
-
-- `ask`: prompt user before execute phase with plan-based recommendation
-- `parallel`: run ready phases as native parallel subagent batches
-- `sequential`: run one phase at a time without prompting
-
-The execution skill's mode gate is the authoritative protocol. It analyzes the implementation plan and presents a recommendation via `ask_user`. The gate must resolve before any delegation proceeds.
-
-Record selected mode in session state by calling `update_session` with `execution_mode` and `execution_backend: native`.
 
 ## Native Parallel Contract
 
@@ -317,13 +121,29 @@ Constraints:
 
 ## Delegation Rules
 
+<HARD-GATE>
+Dispatch every Maestro subagent by calling its registered tool name directly — for example, `coder(query: "...")`, `design_system_engineer(query: "...")`, `tester(query: "...")`. Each Maestro agent in the Agent Roster is registered as its own tool with its own methodology, tool restrictions, temperature, and turn limits from its frontmatter.
+
+Do NOT use the built-in `generalist` tool for Maestro phase delegations. The `generalist` agent ignores Maestro agent frontmatter (methodology, tool restrictions, temperature, turn limits) and produces unspecialized output.
+</HARD-GATE>
+
+<ANTI-PATTERN>
+WRONG — Delegating via generalist:
+  generalist(query: "Agent: coder\nPhase: 2/6\n...")
+  The generalist ignores the coder's frontmatter. It uses default temperature,
+  has no turn limit, no tool restrictions, and no specialized methodology.
+
+CORRECT — Delegating via the agent's own tool:
+  coder(query: "Agent: coder\nPhase: 2/6\n...")
+  The coder tool applies its frontmatter: temperature 0.2, max_turns 25,
+  restricted tool set, and implementation methodology.
+</ANTI-PATTERN>
+
 When building delegation prompts:
 
-1. Use agent frontmatter defaults from `${extensionPath}/agents/<name>.md`. Use the exact agent name format specified in the Agent Roster section.
+1. Call the agent's registered tool by its exact name from the Agent Roster (e.g., `coder`, `tester`, `design_system_engineer`). Use agent frontmatter defaults from `${extensionPath}/agents/<name>.md`.
 2. Do not rely on Maestro-level model, temperature, turn, or timeout overrides. Use agent frontmatter and runtime-level agent configuration for native tuning.
-3. Inject shared protocols from:
-   - `${extensionPath}/skills/delegation/protocols/agent-base-protocol.md`
-   - `${extensionPath}/skills/delegation/protocols/filesystem-safety-protocol.md`
+3. Inject shared protocols from `get_skill_content` with resources: `["agent-base-protocol", "filesystem-safety-protocol"]`.
 4. Include dependency downstream context from session state.
 5. Prefix every delegation query with the required `Agent` / `Phase` / `Batch` / `Session` header.
 
@@ -350,6 +170,8 @@ When MCP state tools (`initialize_workspace`, `create_session`, `update_session`
 `/maestro:status` and `/maestro:resume` use `node ${extensionPath}/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
 
 ## Skills Reference
+
+During orchestration, methodology skills are loaded via `activate_skill` (masking-exempt, expands workspace access to skill directories). Templates, references, and delegation protocols are loaded via `get_skill_content`. See `references/orchestration-steps.md` for the loading sequence. Standalone commands load skills via `activate_skill`.
 
 | Skill | Purpose |
 | --- | --- |
@@ -406,4 +228,4 @@ Maestro uses Gemini CLI hooks from `hooks/hooks.json`:
 ## Alignment Notes
 
 - Maestro is aligned with Gemini CLI extension, agents, skills, hooks, and policy-engine-compatible arg forwarding.
-- Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, and session state management.
+- Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, session state management, and skill/reference content delivery.

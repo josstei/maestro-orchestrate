@@ -5,12 +5,58 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-01
+
+### Added
+
+- **`get_skill_content` MCP tool** — Reads delegation protocols, templates, and reference documents by identifier via MCP, bypassing workspace sandbox restrictions. Used by the orchestrate command to load non-skill resources (methodology skills are loaded via `activate_skill`).
+- **`references/orchestration-steps.md`** — Shared numbered-step sequence (40 steps with inline HARD-GATEs) loaded by both Gemini CLI and Claude Code orchestrate commands as the sole procedural authority.
+- **`AGENT_CAPABILITIES` tier map** in `lib/core/agent-registry.js` — Classifies all 22 agents into `read_only`, `read_shell`, `read_write`, or `full` capability tiers. Exports `getAgentCapability()` and `canCreateFiles()`.
+- **`agent_capability_mismatch` validation rule** in `validate_plan` — Server-side enforcement that read-only agents cannot be assigned to file-creating phases. Emits error violations for explicit file lists, warnings for creation-signal phase names.
+- **Claude Code plugin** — Full dual-runtime support. Same 22 agents, 7 methodology skills (plus 12 command entry-point wrappers), 12 commands, lifecycle hooks, and MCP state management now available on Claude Code via the `claude/` subdirectory
+- **Claude Code MCP auto-registration** (`claude/.mcp.json`) — MCP server discovered automatically when the plugin is loaded
+- **MCP tool name mapping** — Orchestrator commands include mapping tables translating bare tool names (e.g., `initialize_workspace`) to Claude Code's prefixed names (`mcp__plugin_maestro_maestro__initialize_workspace`)
+- **Agent name mapping** — Orchestrator commands include mapping for Claude Code's `maestro:` agent prefix (e.g., `maestro:coder`, `maestro:code-reviewer`)
+- **Claude Code hook adapter** (`claude/scripts/hook-adapter.js`) — Normalizes Claude Code's PreToolUse/SessionStart/SessionEnd hook contract to Maestro's internal format
+- **Policy enforcer** (`claude/scripts/policy-enforcer.js`) — Blocks destructive shell commands via Claude Code's PreToolUse hook on Bash tool calls
+- **Library drift detection** (`scripts/check-claude-lib-drift.sh`) — CI script that validates shared `lib/` files haven't diverged between Gemini and Claude runtimes
+
+### Changed
+
+- **Orchestrate command restructured to numbered-step backbone** — `commands/maestro/orchestrate.toml` is now a thin runtime preamble (~28 lines) that loads `orchestration-steps.md`. The previous 347-line inlined protocol with prose instruction sections has been replaced. Same change applied to `claude/commands/orchestrate.md` (~773 lines → ~214 lines).
+- **Design-dialogue protocol moved** from inlined in orchestrate command to on-demand loading via `activate_skill` (Gemini) or `Read` tool (Claude).
+- **Template and reference loading deferred to consumption points** — `design-document`, `implementation-plan`, and `session-state` templates are no longer loaded at classification time; each is loaded at the step where it's consumed (steps 13, 15, 20).
+- **`GEMINI.md` inline workflow content removed** — Express Workflow, Standard Workflow Phase 1-4, Task Complexity Classification, and Workflow Mode Selection sections replaced by pointer to `orchestration-steps.md`.
+- **Express Flow state persistence** — Added step 5 (`transition_phase`) between coder delegation and code review to persist file manifests and downstream context before the review runs. Previously, state was only updated after the review.
+- **Express Flow delegation enforcement** — Added HARD-GATE blocks preventing the orchestrator from editing code directly after code review findings. Fixes must be re-delegated to the implementing agent.
+- **Express Flow brief presentation** — Split into two explicit sub-steps (2a: output brief as text, 2b: short approval prompt) with HARD-GATE preventing brief content from being stuffed into AskUserQuestion/ask_user
+- **`create_session` field name** — Express Flow instructions now explicitly require `agent` (singular string) in phase objects, not `agents` (plural array which was silently ignored by the MCP server)
+- **Delegation headers** — Added `Batch: single` to Express Flow delegation headers to match the delegation skill's required header set
+- **Environment variable fallbacks** — `lib/config/setting-resolver.js` checks `CLAUDE_PLUGIN_ROOT` as fallback for `MAESTRO_EXTENSION_PATH`; `lib/core/project-root-resolver.js` checks `CLAUDE_PROJECT_DIR` as fallback for `MAESTRO_WORKSPACE_PATH`. Harmless no-op under Gemini CLI.
+
+### Security
+
+- **`validateContainment()` in `session-state.js`** — Absolute `state_dir` paths must resolve within the project root; rejects paths outside the cwd boundary. Applied to both `resolveStateDirPath` and `ensureWorkspace`.
+- **`ensureBaseDir()` in `hook-state.js`** — Validates hook state base directory is not a symlink before creating session subdirectories. Temp directory naming changed from predictable `/tmp/maestro-hooks` to per-user `maestro-hooks-${uid}`.
+- **Policy enforcer full-command parsing** — `splitCommands()` and `extractSubshells()` in `policy-enforcer.js` decompose commands on `;`, `&&`, `||`, `|`, and `$()` boundaries before checking deny rules against each segment. Prefix matching trims leading whitespace. Error handler changed from fail-open to fail-closed.
+- **MCP error message path stripping** — Error handler in both MCP bundles replaces absolute filesystem paths with `[path]` before returning to the client. `get-skill-content.js` returns `err.code` instead of `err.message`.
+- **`readBoundedStdin()` in hook adapters** — 1MB `MAX_STDIN_BYTES` limit applied to all hook entry scripts (7 scripts across both runtimes), `stdin-reader.js`, and `policy-enforcer.js`.
+- **`ensureWorkspace` create-then-verify ordering** — Directory is created first, then verified via `lstatSync` that it is not a symlink, replacing the previous check-then-create ordering.
+- **Explicit file permissions in `atomicWriteSync`** — Directories created with mode `0o700`, files with mode `0o600`. Same modes applied in `ensureWorkspace` and `ensureSessionDir`.
+- **Session state `.gitignore`** — `docs/maestro/state/` added to project `.gitignore`. `ensureWorkspace` auto-creates a `.gitignore` inside the state directory excluding `active-session.md` and `archive/`.
+
+### Fixed
+
+- **Skill files now accessible in all modes** (normal, Plan Mode, auto-edit) via `get_skill_content` MCP tool — replaces broken `read_file` → `run_shell_command cat` fallback chain that failed due to workspace sandbox + Plan Mode policy restrictions.
+- **Agent dispatch enforcement** — Delegation rules now require calling agents by registered tool name, preventing fallback to the built-in `generalist` tool which ignores agent frontmatter (methodology, temperature, tool restrictions, turn limits).
+- **Express workflow `transition_phase` enforcement** — HARD-GATE ensures session state records all delivered files after agent execution.
+
 ## [1.4.0] - 2026-03-19
 
 ### Added
 
 - **10 new specialist agents** — `seo_specialist`, `copywriter`, `content_strategist`, `ux_designer`, `accessibility_specialist`, `product_manager`, `analytics_engineer`, `i18n_specialist`, `design_system_engineer`, `compliance_reviewer`; roster expanded from 12 to 22
-- **MCP server** (`mcp/maestro-server.js`) — Bundled Model Context Protocol server registered via `mcpServers` in `gemini-extension.json` with 9 tools: `initialize_workspace`, `assess_task_complexity`, `validate_plan`, `create_session`, `get_session_status`, `update_session`, `transition_phase`, `archive_session`, `resolve_settings`
+- **MCP server** (`mcp/maestro-server.js`) — Bundled Model Context Protocol server registered via `mcpServers` in `gemini-extension.json` with 9 tools at launch: `initialize_workspace`, `assess_task_complexity`, `validate_plan`, `create_session`, `get_session_status`, `update_session`, `transition_phase`, `archive_session`, `resolve_settings` (10th tool `get_skill_content` added in v1.5.0)
 - **Express workflow** — Streamlined inline flow for `simple` tasks: 1-2 clarifying questions, combined design+plan structured brief, single-agent delegation, code review, and archival without skill activations or execution-mode gating
 - **Task complexity classification** — Three-tier system (`simple`, `medium`, `complex`) gating workflow mode selection (Express vs Standard), design depth defaults, domain analysis breadth, question coverage, and phase count limits
 - **8-domain analysis** — Pre-planning domain sweep across Engineering, Product, Design, Content, SEO, Compliance, Internationalization, and Analytics; scaled by task complexity to identify specialist involvement

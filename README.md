@@ -1,10 +1,11 @@
 # Maestro
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/josstei/maestro-gemini/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/josstei/maestro-gemini/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
 
-Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands
+Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands. Runs on both **Gemini CLI** and **Claude Code**.
 
 ## Table of Contents
 
@@ -40,7 +41,9 @@ Multi-agent development orchestration platform — 22 specialists, 4-phase orche
 
 ## Overview
 
-Maestro transforms Gemini CLI into a multi-agent orchestration platform. Instead of a single AI session handling everything, Maestro delegates work to 22 specialized subagents -- each with its own context, tools, and expertise -- coordinated by a TechLead orchestrator. For simple tasks, Maestro uses an Express workflow that collapses design and planning into a single brief before executing. For medium and complex tasks, Maestro follows a structured 4-phase Standard workflow: Design, Plan, Execute, Complete.
+Maestro is a multi-agent orchestration platform for **Gemini CLI** and **Claude Code**. Instead of a single AI session handling everything, Maestro delegates work to 22 specialized subagents -- each with its own context, tools, and expertise -- coordinated by a TechLead orchestrator. For simple tasks, Maestro uses an Express workflow that collapses design and planning into a single brief before executing. For medium and complex tasks, Maestro follows a structured 4-phase Standard workflow: Design, Plan, Execute, Complete.
+
+The same orchestration engine, agents, and quality gates run on both platforms. Gemini CLI uses the extension at the repo root; Claude Code uses the plugin in the `claude/` subdirectory.
 
 Maestro classifies every task by complexity before choosing a workflow. Simple tasks (single concern, few files) get the Express path. Medium tasks (multi-component, clear boundaries) and complex tasks (cross-cutting, multi-service) enter the Standard path with full design dialogue, implementation planning, and phased execution across 22 agents spanning 8 editorial domains.
 
@@ -48,7 +51,7 @@ Maestro classifies every task by complexity before choosing a workflow. Simple t
 
 - **Express Workflow** -- Simple tasks skip ceremony: 1-2 clarifying questions, a structured brief, single-agent delegation, code review, and archival. No design document or implementation plan is created.
 - **Guided Design Dialogue** -- Standard workflow includes structured requirements gathering with multiple-choice questions, depth-selectable reasoning (Quick, Standard, Deep), and architectural approach proposals with trade-offs.
-- **Native Parallel Execution** -- Independent phases run concurrently through Gemini CLI's native subagent scheduler, batching phases at the same dependency depth with non-overlapping file ownership.
+- **Native Parallel Execution** -- Independent phases run concurrently through the active runtime's native subagent scheduler, batching phases at the same dependency depth with non-overlapping file ownership.
 - **Session Persistence** -- All orchestration state is tracked in YAML+Markdown files with machine-readable frontmatter and human-readable logs, enabling reliable resumption after interruptions.
 - **Hooks-Based Lifecycle Middleware** -- Lifecycle hooks for active-agent tracking, session context injection, and handoff validation.
 - **Least-Privilege Security** -- Each subagent receives only the tools required for its role through a 4-tier access model enforced via agent frontmatter declarations.
@@ -61,7 +64,9 @@ Maestro classifies every task by complexity before choosing a workflow. Simple t
 
 ### Prerequisites
 
-Maestro relies on Gemini CLI's experimental subagent system. Enable it in your Gemini CLI settings:
+**Gemini CLI** requires the experimental subagent system. Claude Code users can skip to [Installation](#installation) — subagents are available by default.
+
+Enable subagents in your Gemini CLI settings:
 
 ```json
 {
@@ -81,15 +86,13 @@ Maestro does not auto-edit `~/.gemini/settings.json`. Enable `experimental.enabl
 
 ### Installation
 
-### From Git Repository
+#### Gemini CLI
 
 ```bash
 gemini extensions install https://github.com/josstei/maestro-gemini
 ```
 
-This downloads the extension and registers it automatically.
-
-### Local Development
+Or for local development:
 
 ```bash
 git clone https://github.com/josstei/maestro-gemini
@@ -97,17 +100,48 @@ cd maestro-gemini
 gemini extensions link .
 ```
 
-The `link` command creates a symlink from your Gemini CLI extensions directory to the current directory. Run this from the cloned repository root.
+Verify: `gemini extensions list` should show `maestro`.
 
-### Verify Installation
+#### Claude Code
 
-Restart Gemini CLI after installation, then confirm the extension loaded:
+From Marketplace (recommended):
 
 ```bash
-gemini extensions list
+claude plugin marketplace add josstei/maestro-gemini
+claude plugin install maestro@maestro-orchestrator --scope user
 ```
 
-You should see `maestro` in the list of active extensions.
+Development / Testing:
+
+```bash
+git clone https://github.com/josstei/maestro-gemini
+claude --plugin-dir /path/to/maestro-gemini/claude
+```
+
+Marketplace install is the persistent end-user path. The `--plugin-dir` flag loads the plugin for a single session and is intended for local development or temporary testing. The Claude Code plugin lives in the `claude/` subdirectory (not the repo root).
+
+For installation scopes and plugin management commands, see [claude/README.md](claude/README.md).
+
+Verify: agents appear with `maestro:` prefix (e.g., `maestro:coder`), and `/orchestrate`, `/review`, etc. appear in slash-command autocomplete.
+
+#### Command Names By Runtime
+
+Gemini CLI exposes Maestro as `/maestro:*` commands. Claude Code exposes the same public entrypoints as top-level slash commands without the `maestro:` prefix.
+
+| Workflow | Gemini CLI | Claude Code |
+|----------|------------|-------------|
+| Orchestrate | `/maestro:orchestrate` | `/orchestrate` |
+| Execute | `/maestro:execute` | `/execute` |
+| Resume | `/maestro:resume` | `/resume` |
+| Status | `/maestro:status` | `/status` |
+| Archive | `/maestro:archive` | `/archive` |
+| Review | `/maestro:review` | `/review` |
+| Debug | `/maestro:debug` | `/debug` |
+| Security Audit | `/maestro:security-audit` | `/security-audit` |
+| Performance Check | `/maestro:perf-check` | `/perf-check` |
+| SEO Audit | `/maestro:seo-audit` | `/seo-audit` |
+| Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` |
+| Compliance Check | `/maestro:compliance-check` | `/compliance-check` |
 
 
 ### Quick Start
@@ -115,7 +149,8 @@ You should see `maestro` in the list of active extensions.
 Start a full orchestration by describing what you want to build:
 
 ```
-/maestro:orchestrate Build a REST API for a task management system with user authentication
+Gemini CLI:  /maestro:orchestrate Build a REST API for a task management system with user authentication
+Claude Code: /orchestrate Build a REST API for a task management system with user authentication
 ```
 
 Maestro will walk you through the complete lifecycle:
@@ -132,36 +167,39 @@ Maestro will walk you through the complete lifecycle:
 **Express mode example** -- For straightforward tasks, Maestro detects low complexity and uses the Express workflow:
 
 ```
-/maestro:orchestrate Add a health check endpoint to the Express server
+Gemini CLI:  /maestro:orchestrate Add a health check endpoint to the Express server
+Claude Code: /orchestrate Add a health check endpoint to the Express server
 ```
 
 Express mode asks 1-2 clarifying questions, presents a structured brief for approval, delegates to a single agent, runs a code review gate, and archives -- all without a full design document or implementation plan.
 
 ## Commands
 
-| Command | Purpose |
-|---------|---------|
-| `/maestro:orchestrate` | Full orchestration workflow (design, plan, execute, complete) |
-| `/maestro:execute` | Execute an approved implementation plan, skipping design and planning |
-| `/maestro:status` | Display current session status without modifying state |
-| `/maestro:resume` | Resume an interrupted orchestration session |
-| `/maestro:archive` | Archive the active session and move artifacts to archive directories |
-| `/maestro:review` | Standalone code review with severity-classified findings |
-| `/maestro:debug` | Standalone debugging session with systematic root cause analysis |
-| `/maestro:security-audit` | Standalone security assessment (OWASP, threat modeling, data flow) |
-| `/maestro:perf-check` | Standalone performance analysis with optimization recommendations |
-| `/maestro:seo-audit` | Standalone SEO assessment (meta tags, structured data, crawlability) |
-| `/maestro:a11y-audit` | Standalone accessibility audit (WCAG compliance, ARIA, keyboard navigation) |
-| `/maestro:compliance-check` | Standalone regulatory compliance review (GDPR/CCPA, licensing, data handling) |
+| Workflow | Gemini CLI | Claude Code | Purpose |
+|----------|------------|-------------|---------|
+| Orchestrate | `/maestro:orchestrate` | `/orchestrate` | Full orchestration workflow (design, plan, execute, complete) |
+| Execute | `/maestro:execute` | `/execute` | Execute an approved implementation plan, skipping design and planning |
+| Status | `/maestro:status` | `/status` | Display current session status without modifying state |
+| Resume | `/maestro:resume` | `/resume` | Resume an interrupted orchestration session |
+| Archive | `/maestro:archive` | `/archive` | Archive the active session and move artifacts to archive directories |
+| Review | `/maestro:review` | `/review` | Standalone code review with severity-classified findings |
+| Debug | `/maestro:debug` | `/debug` | Standalone debugging session with systematic root cause analysis |
+| Security Audit | `/maestro:security-audit` | `/security-audit` | Standalone security assessment (OWASP, threat modeling, data flow) |
+| Performance Check | `/maestro:perf-check` | `/perf-check` | Standalone performance analysis with optimization recommendations |
+| SEO Audit | `/maestro:seo-audit` | `/seo-audit` | Standalone SEO assessment (meta tags, structured data, crawlability) |
+| Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | Standalone accessibility audit (WCAG compliance, ARIA, keyboard navigation) |
+| Compliance Check | `/maestro:compliance-check` | `/compliance-check` | Standalone regulatory compliance review (GDPR/CCPA, licensing, data handling) |
 
 
 ### Orchestration
 
-#### /maestro:orchestrate
+#### Orchestrate
 
 Initiates the full Maestro orchestration workflow. Maestro first classifies the task by complexity, then routes to the appropriate workflow.
 
-**Usage**: `/maestro:orchestrate <task description>`
+**Usage**:
+- Gemini CLI: `/maestro:orchestrate <task description>`
+- Claude Code: `/orchestrate <task description>`
 
 **Behavior**:
 1. Checks for existing active sessions in `<MAESTRO_STATE_DIR>/state/` (default: `docs/maestro/state/`)
@@ -171,13 +209,15 @@ Initiates the full Maestro orchestration workflow. Maestro first classifies the 
    - **Simple tasks**: Express workflow -- clarifying questions, structured brief, single-agent delegation, code review, archival
    - **Medium/Complex tasks**: Standard 4-phase workflow -- Design Dialogue, Team Assembly & Planning, Execution, Completion
 
-For Standard workflow, Phase 4 includes a final `code_reviewer` quality gate that blocks completion on unresolved Critical or Major findings.
+For Standard workflow, Phase 4 includes a final code reviewer quality gate that blocks completion on unresolved Critical or Major findings.
 
-#### /maestro:execute
+#### Execute
 
 Executes an existing implementation plan, skipping design and planning phases.
 
-**Usage**: `/maestro:execute <path-to-implementation-plan>`
+**Usage**:
+- Gemini CLI: `/maestro:execute <path-to-implementation-plan>`
+- Claude Code: `/execute <path-to-implementation-plan>`
 
 **Behavior**:
 1. Reads the specified implementation plan file
@@ -185,14 +225,16 @@ Executes an existing implementation plan, skipping design and planning phases.
 3. Presents an execution summary for user confirmation
 4. Resolves execution mode (parallel, sequential, or ask) via the execution mode gate
 5. Executes phases according to the plan with full progress tracking
-6. Runs a final `code_reviewer` quality gate when execution changed non-documentation files
+6. Runs a final code reviewer quality gate when execution changed non-documentation files
 7. Archives the session on completion
 
-#### /maestro:resume
+#### Resume
 
 Resumes an interrupted orchestration session.
 
-**Usage**: `/maestro:resume`
+**Usage**:
+- Gemini CLI: `/maestro:resume`
+- Claude Code: `/resume`
 
 **Behavior**:
 1. Reads active session state from `<MAESTRO_STATE_DIR>/state/active-session.md`
@@ -204,103 +246,121 @@ Resumes an interrupted orchestration session.
 
 ### Standalone Tools
 
-#### /maestro:review
+#### Review
 
 Runs a standalone code review on staged changes, last commit, or specified paths.
 
-**Usage**: `/maestro:review [file paths or glob patterns]`
+**Usage**:
+- Gemini CLI: `/maestro:review [file paths or glob patterns]`
+- Claude Code: `/review [file paths or glob patterns]`
 
 **Behavior**:
 1. Auto-detects review scope: user-specified paths > staged changes > last commit diff
 2. Confirms detected scope with the user
-3. Delegates to the `code_reviewer` agent
+3. Delegates to the code reviewer agent
 4. Presents findings classified by severity (Critical, Major, Minor, Suggestion)
 5. Every finding references a specific file and line number
 
-#### /maestro:debug
+#### Debug
 
 Focused debugging session to investigate and diagnose an issue.
 
-**Usage**: `/maestro:debug <issue description>`
+**Usage**:
+- Gemini CLI: `/maestro:debug <issue description>`
+- Claude Code: `/debug <issue description>`
 
 **Behavior**:
-1. Delegates to the `debugger` agent with the issue description
+1. Delegates to the debugger agent with the issue description
 2. Follows systematic methodology: reproduce, hypothesize, investigate, isolate, verify
 3. Presents root cause analysis with evidence, execution trace, and recommended fix
 
-#### /maestro:security-audit
+#### Security Audit
 
 Runs a security assessment on the specified scope.
 
-**Usage**: `/maestro:security-audit <scope>`
+**Usage**:
+- Gemini CLI: `/maestro:security-audit <scope>`
+- Claude Code: `/security-audit <scope>`
 
 **Behavior**:
-1. Delegates to the `security_engineer` agent
+1. Delegates to the security engineer agent
 2. Reviews for OWASP Top 10 vulnerabilities, traces data flow, audits authentication/authorization
 3. Presents findings with CVSS-aligned severity, proof of concept, and remediation steps
 
-#### /maestro:perf-check
+#### Performance Check
 
 Runs a performance analysis on the specified scope.
 
-**Usage**: `/maestro:perf-check <scope>`
+**Usage**:
+- Gemini CLI: `/maestro:perf-check <scope>`
+- Claude Code: `/perf-check <scope>`
 
 **Behavior**:
-1. Delegates to the `performance_engineer` agent
+1. Delegates to the performance engineer agent
 2. Establishes baseline, profiles hotspots, analyzes bottlenecks
 3. Presents optimization recommendations ranked by impact-to-effort ratio
 
-#### /maestro:seo-audit
+#### SEO Audit
 
 Runs a technical SEO assessment on web-facing deliverables.
 
-**Usage**: `/maestro:seo-audit <scope>`
+**Usage**:
+- Gemini CLI: `/maestro:seo-audit <scope>`
+- Claude Code: `/seo-audit <scope>`
 
 **Behavior**:
-1. Delegates to the `seo_specialist` agent
+1. Delegates to the SEO specialist agent
 2. Reviews meta tags, structured data, crawlability, page speed factors, and canonical URLs
 3. Presents findings with priority ranking and implementation guidance
 
-#### /maestro:a11y-audit
+#### Accessibility Audit
 
 Runs a WCAG accessibility audit on user-facing components.
 
-**Usage**: `/maestro:a11y-audit <scope>`
+**Usage**:
+- Gemini CLI: `/maestro:a11y-audit <scope>`
+- Claude Code: `/a11y-audit <scope>`
 
 **Behavior**:
-1. Delegates to the `accessibility_specialist` agent
+1. Delegates to the accessibility specialist agent
 2. Reviews WCAG 2.1 compliance, ARIA usage, keyboard navigation, color contrast, and screen reader compatibility
 3. Presents findings with conformance level, impact assessment, and remediation steps
 
-#### /maestro:compliance-check
+#### Compliance Check
 
 Runs a regulatory compliance review on the specified scope.
 
-**Usage**: `/maestro:compliance-check <scope>`
+**Usage**:
+- Gemini CLI: `/maestro:compliance-check <scope>`
+- Claude Code: `/compliance-check <scope>`
 
 **Behavior**:
-1. Delegates to the `compliance_reviewer` agent
+1. Delegates to the compliance reviewer agent
 2. Reviews GDPR/CCPA data handling, license compatibility, cookie consent, and privacy policy coverage
 3. Presents findings with regulatory references and remediation recommendations
 
 ### Session Management
 
-#### /maestro:status
+#### Status
 
 Displays the current orchestration session status.
 
-**Usage**: `/maestro:status`
+**Usage**:
+- Gemini CLI: `/maestro:status`
+- Claude Code: `/status`
 
 **Behavior**:
 1. Reads the active session state via file injection
 2. Presents phase-by-phase status, file manifest, token usage, and errors
 3. Read-only -- does not modify state or continue execution
 
-#### /maestro:archive
+#### Archive
 
 Archives the current active orchestration session.
 
-**Usage**: `/maestro:archive`
+**Usage**:
+- Gemini CLI: `/maestro:archive`
+- Claude Code: `/archive`
 
 **Behavior**:
 1. Checks for an active session
@@ -330,11 +390,13 @@ All settings are optional. The orchestrator uses the defaults shown above when a
 
 Setting resolution precedence: exported env var > workspace `.env` > extension `.env` > default.
 
-You can configure extension-scoped settings interactively with `gemini extensions config maestro`.
+Gemini CLI only: you can configure extension-scoped settings interactively with `gemini extensions config maestro`.
 
 ### Hooks
 
-Maestro uses Gemini CLI's hooks system for lifecycle middleware. Tool permissions are enforced natively via agent frontmatter `tools:` declarations -- hooks handle supplementary lifecycle concerns:
+Maestro uses lifecycle hooks for active-agent tracking, session context injection, and handoff validation. Hook events differ between runtimes:
+
+**Gemini CLI** (`hooks/hooks.json`):
 
 | Hook | Purpose |
 |------|---------|
@@ -343,7 +405,16 @@ Maestro uses Gemini CLI's hooks system for lifecycle middleware. Tool permission
 | AfterAgent | Enforce handoff report format (`Task Report` + `Downstream Context`), clear agent tracking |
 | SessionEnd | Clean up hook state for ended session |
 
-Hook handlers are in `hooks/` and registered via `hooks/hooks.json`.
+**Claude Code** (`claude/hooks/claude-hooks.json`):
+
+| Hook | Purpose |
+|------|---------|
+| SessionStart | Prune stale sessions, initialize hook state |
+| PreToolUse (Agent) | Track active agent identity, inject session context |
+| PreToolUse (Bash) | Policy enforcement — block destructive shell commands |
+| SessionEnd | Clean up hook state for ended session |
+
+Both runtimes share the same business logic in `lib/hooks/` — only the I/O adapters differ.
 
 ## Architecture
 
@@ -389,17 +460,19 @@ flowchart TD
 
 ### Component Model
 
-Maestro is built from seven layers, each with a distinct responsibility:
+Maestro is built from seven primary layers plus shared resources (MCP server, templates, references). See ARCHITECTURE.md for the full nine-layer technical model. The Gemini CLI layout is at repo root; Claude Code mirrors it in `claude/` with platform-specific adaptations.
 
-| Layer | Directory | Format | Purpose |
-|-------|-----------|--------|---------|
-| **Orchestrator** | `GEMINI.md` | Markdown | TechLead persona, workflow routing, phase transitions, delegation rules |
-| **Commands** | `commands/` | TOML | CLI command definitions mapping user commands to prompts/skills |
-| **Agents** | `agents/` | Markdown + YAML frontmatter | 22 subagent persona definitions with tool permissions and model config |
-| **Skills** | `skills/` | Markdown (`SKILL.md` per directory) | Reusable methodology modules with embedded protocols |
-| **Scripts** | `scripts/` | Node.js | Execution infrastructure (workspace setup, state management, version sync) |
-| **Hooks** | `hooks/` | JSON + Node.js | Lifecycle middleware for active-agent tracking and handoff validation |
-| **Policies** | `policies/` | TOML | Safety rails for deny/ask tool access rules |
+| Layer | Gemini Directory | Claude Directory | Purpose |
+|-------|-----------------|-----------------|---------|
+| **Orchestrator** | `GEMINI.md` | `claude/skills/orchestrate/SKILL.md` | TechLead persona, workflow routing, phase transitions, delegation rules |
+| **Commands** | `commands/maestro/*.toml` | `claude/skills/*/SKILL.md` | Gemini uses TOML slash-command files; Claude exposes public skills as slash commands |
+| **Agents** | `agents/*.md` | `claude/agents/*.md` | 22 subagent persona definitions with tool permissions and model config |
+| **Skills** | `skills/*/SKILL.md` | `claude/skills/*/SKILL.md` | Reusable methodology modules with embedded protocols |
+| **Scripts** | `scripts/*.js` | `claude/scripts/*.js` | Execution infrastructure (workspace setup, state management, hook adapters) |
+| **Hooks** | `hooks/hooks.json` | `claude/hooks/claude-hooks.json` | Lifecycle middleware for agent tracking and session context injection |
+| **Policies** | `policies/maestro.toml` | `claude/scripts/policy-enforcer.js` | Safety rails for deny/ask tool access rules |
+
+Shared resources (`lib/`, `mcp/`, `templates/`, `references/`) are at repo root and copied into `claude/`.
 
 ### Workflow Phases
 
@@ -457,7 +530,7 @@ With plan approval, the TechLead:
 #### Standard Workflow Phase 4: Completion
 
 After all phases complete:
-- Final `code_reviewer` quality gate -- blocks completion on unresolved Critical/Major findings; remediates, re-validates, and re-reviews until resolved
+- Final code reviewer quality gate -- blocks completion on unresolved Critical/Major findings; remediates, re-validates, and re-reviews until resolved
 - Session state marked as completed
 - Plans and state files archived to `archive/` subdirectories (respecting `MAESTRO_AUTO_ARCHIVE`)
 - Summary delivered with files changed, token usage, and next steps
@@ -468,72 +541,72 @@ After all phases complete:
 
 Maestro coordinates 22 specialized subagents across 8 editorial domains:
 
-All agents share a baseline tool set: `read_file`, `list_directory`, `glob`, `grep_search`, `read_many_files`, `ask_user`. Tool tiers reflect additional capabilities beyond that baseline.
+All agents share a baseline read/search/question capability set. The tool tiers below summarize effective access levels across runtimes rather than listing literal tool IDs.
 
 | Agent | Domain | Specialization | Tool Tier |
 |-------|--------|----------------|-----------|
-| architect | Engineering | System design, technology selection, component design | Read-Only |
-| api_designer | Engineering | REST/GraphQL endpoint design, API contracts | Read-Only |
-| coder | Engineering | Feature implementation, clean code, SOLID principles | Full Access |
-| code_reviewer | Engineering | Code quality review, bug detection, security checks | Read-Only |
-| data_engineer | Engineering | Schema design, query optimization, ETL pipelines | Full Access |
-| debugger | Engineering | Root cause analysis, execution tracing, log analysis | Read + Shell |
-| devops_engineer | Engineering | CI/CD pipelines, containerization, infrastructure | Full Access |
-| performance_engineer | Engineering | Profiling, bottleneck identification, optimization | Read + Shell |
-| refactor | Engineering | Code modernization, technical debt, design patterns | Full Access |
-| security_engineer | Engineering | Vulnerability assessment, OWASP, threat modeling | Read + Shell |
-| tester | Engineering | Unit/integration/E2E tests, TDD, coverage analysis | Full Access |
-| technical_writer | Engineering | API docs, READMEs, architecture documentation | Read + Write |
-| product_manager | Product | Requirements gathering, PRDs, feature prioritization | Read + Write |
-| ux_designer | Design | User flow design, interaction patterns, usability evaluation | Read + Write |
-| design_system_engineer | Design | Design tokens, component APIs, theming architecture | Full Access |
-| content_strategist | Content | Content planning, editorial calendars, audience targeting | Read-Only |
-| copywriter | Content | Persuasive copy, landing pages, CTAs, brand voice | Read + Write |
-| seo_specialist | SEO | Technical SEO audits, schema markup, crawlability | Read + Shell |
-| accessibility_specialist | Compliance | WCAG compliance, ARIA review, keyboard navigation | Read + Shell |
-| compliance_reviewer | Compliance | GDPR/CCPA auditing, license checks, data handling | Read-Only |
-| i18n_specialist | Internationalization | String extraction, locale management, RTL support | Full Access |
-| analytics_engineer | Analytics | Event tracking, conversion funnels, A/B test design | Full Access |
+| Architect | Engineering | System design, technology selection, component design | Read-Only |
+| API Designer | Engineering | REST/GraphQL endpoint design, API contracts | Read-Only |
+| Coder | Engineering | Feature implementation, clean code, SOLID principles | Full Access |
+| Code Reviewer | Engineering | Code quality review, bug detection, security checks | Read-Only |
+| Data Engineer | Engineering | Schema design, query optimization, ETL pipelines | Full Access |
+| Debugger | Engineering | Root cause analysis, execution tracing, log analysis | Read + Shell |
+| DevOps Engineer | Engineering | CI/CD pipelines, containerization, infrastructure | Full Access |
+| Performance Engineer | Engineering | Profiling, bottleneck identification, optimization | Read + Shell |
+| Refactor | Engineering | Code modernization, technical debt, design patterns | Full Access |
+| Security Engineer | Engineering | Vulnerability assessment, OWASP, threat modeling | Read + Shell |
+| Tester | Engineering | Unit/integration/E2E tests, TDD, coverage analysis | Full Access |
+| Technical Writer | Engineering | API docs, READMEs, architecture documentation | Read + Write |
+| Product Manager | Product | Requirements gathering, PRDs, feature prioritization | Read + Write |
+| UX Designer | Design | User flow design, interaction patterns, usability evaluation | Read + Write |
+| Design System Engineer | Design | Design tokens, component APIs, theming architecture | Full Access |
+| Content Strategist | Content | Content planning, editorial calendars, audience targeting | Read-Only |
+| Copywriter | Content | Persuasive copy, landing pages, CTAs, brand voice | Read + Write |
+| SEO Specialist | SEO | Technical SEO audits, schema markup, crawlability | Read + Shell |
+| Accessibility Specialist | Compliance | WCAG compliance, ARIA review, keyboard navigation | Read + Shell |
+| Compliance Reviewer | Compliance | GDPR/CCPA auditing, license checks, data handling | Read-Only |
+| I18n Specialist | Internationalization | String extraction, locale management, RTL support | Full Access |
+| Analytics Engineer | Analytics | Event tracking, conversion funnels, A/B test design | Full Access |
 
 
 ### Tool Access Philosophy
 
-Agents follow a 4-tier least-privilege model. All agents can ask the user clarifying questions via `ask_user` (not available during native parallel batches where agents run autonomously).
+Agents follow a 4-tier least-privilege model. All agents can ask clarifying questions when the active runtime allows interactive delegation; native parallel batches remain autonomous.
 
 ```mermaid
 flowchart LR
     subgraph ReadOnly[Read-Only]
-        A1[architect]
-        A2[api_designer]
-        A3[code_reviewer]
-        A4[content_strategist]
-        A5[compliance_reviewer]
+        A1[Architect]
+        A2[API Designer]
+        A3[Code Reviewer]
+        A4[Content Strategist]
+        A5[Compliance Reviewer]
     end
 
     subgraph ReadShell[Read + Shell]
-        B1[debugger]
-        B2[performance_engineer]
-        B3[security_engineer]
-        B4[seo_specialist]
-        B5[accessibility_specialist]
+        B1[Debugger]
+        B2[Performance Engineer]
+        B3[Security Engineer]
+        B4[SEO Specialist]
+        B5[Accessibility Specialist]
     end
 
     subgraph ReadWrite[Read + Write]
-        C1[technical_writer]
-        C2[product_manager]
-        C3[ux_designer]
-        C4[copywriter]
+        C1[Technical Writer]
+        C2[Product Manager]
+        C3[UX Designer]
+        C4[Copywriter]
     end
 
     subgraph Full[Full Access]
-        D1[coder]
-        D2[data_engineer]
-        D3[devops_engineer]
-        D4[tester]
-        D5[refactor]
-        D6[design_system_engineer]
-        D7[i18n_specialist]
-        D8[analytics_engineer]
+        D1[Coder]
+        D2[Data Engineer]
+        D3[DevOps Engineer]
+        D4[Tester]
+        D5[Refactor]
+        D6[Design System Engineer]
+        D7[I18n Specialist]
+        D8[Analytics Engineer]
     end
 
     ReadOnly -.->|Analysis only| Output1[Recommendations]
@@ -542,28 +615,32 @@ flowchart LR
     Full -.->|Implementation| Output4[Complete Features]
 ```
 
-- **Read-Only** (architect, api_designer, code_reviewer, content_strategist, compliance_reviewer): Produce analysis, recommendations, and strategic direction. Cannot modify files or run commands.
-- **Read + Shell** (debugger, performance_engineer, security_engineer, seo_specialist, accessibility_specialist): Investigate and audit. Can run commands but not modify files directly.
-- **Read + Write** (technical_writer, product_manager, ux_designer, copywriter): Create and modify content and design artifacts. No shell access.
-- **Full Access** (coder, data_engineer, devops_engineer, tester, refactor, design_system_engineer, i18n_specialist, analytics_engineer): Complete implementation capabilities including read, write, shell, and task tracking.
+- **Read-Only** (Architect, API Designer, Code Reviewer, Content Strategist, Compliance Reviewer): Produce analysis, recommendations, and strategic direction. Cannot modify files or run commands.
+- **Read + Shell** (Debugger, Performance Engineer, Security Engineer, SEO Specialist, Accessibility Specialist): Investigate and audit. Can run commands but not modify files directly.
+- **Read + Write** (Technical Writer, Product Manager, UX Designer, Copywriter): Create and modify content and design artifacts. No shell access.
+- **Full Access** (Coder, Data Engineer, DevOps Engineer, Tester, Refactor, Design System Engineer, I18n Specialist, Analytics Engineer): Complete implementation capabilities including read, write, shell, and task tracking.
 
 ## Skills
 
-Maestro uses skills to encapsulate detailed methodologies that are activated on demand, keeping the base context lean. Express workflow does not activate any skills -- all Express behavior is defined inline in the orchestrator.
+Maestro uses skills to encapsulate detailed methodologies that are loaded on demand, keeping the base context lean. During orchestration on Gemini CLI, methodology skills are loaded via `activate_skill` (masking-exempt, expands workspace access), while templates, references, and protocols are loaded via the `get_skill_content` MCP tool. On Claude Code, all resources are loaded via the native `Read` tool. Express workflow loads only delegation protocols (`agent-base-protocol`, `filesystem-safety-protocol`) and the `code-review` skill — it does not use the full methodology skills.
 
-| Skill | Purpose | Activated By |
-|-------|---------|-------------|
-| `design-dialogue` | Structured requirements gathering, depth-selectable reasoning, and architectural design convergence | `/maestro:orchestrate` (Phase 1, Standard only) |
-| `implementation-planning` | Phase decomposition, 8-domain agent assignment, dependency mapping, and plan generation | `/maestro:orchestrate` (Phase 2, Standard only) |
-| `execution` | Execution mode gate, phase execution protocols, error handling, retry logic, and completion workflows | `/maestro:orchestrate` (Phase 3), `/maestro:execute`, `/maestro:resume` |
+The orchestrate command's step sequence lives in `references/orchestration-steps.md` — a shared reference file loaded by both runtimes as the sole procedural authority.
+
+In the table below, command names are shown in runtime-neutral form. Gemini CLI prefixes them with `/maestro:`; Claude Code uses the same names without that prefix.
+
+| Skill | Purpose | Used By |
+|-------|---------|---------|
+| `design-dialogue` | Structured requirements gathering, depth-selectable reasoning, and architectural design convergence | `orchestrate` (Phase 1, Standard only) |
+| `implementation-planning` | Phase decomposition, 8-domain agent assignment, dependency mapping, and plan generation | `orchestrate` (Phase 2, Standard only) |
+| `execution` | Execution mode gate, phase execution protocols, error handling, retry logic, and completion workflows | `orchestrate` (Phase 3), `execute`, `resume` |
 | `delegation` | Subagent prompt construction with protocol injection, scope boundaries, context chain construction, and downstream consumer declaration | Any phase involving subagent delegation |
-| `session-management` | Session creation, state updates, resume protocol, and archival | `/maestro:orchestrate`, `/maestro:resume`, `/maestro:archive` |
-| `code-review` | Scope detection, severity classification (Critical/Major/Minor/Suggestion), and structured review output | `/maestro:review`, Phase 4 quality gate |
+| `session-management` | Session creation, state updates, resume protocol, and archival | `orchestrate`, `resume`, `archive` |
+| `code-review` | Scope detection, severity classification (Critical/Major/Minor/Suggestion), and structured review output | `review`, Phase 4 quality gate |
 | `validation` | Build/lint/test pipeline, project type detection, strictness gating, and result interpretation | Post-phase validation during execution |
 
 ## Parallel Execution
 
-Maestro uses Gemini CLI's native subagent scheduler for parallel execution, enabling independent implementation phases to run concurrently instead of sequentially.
+Maestro uses the active runtime's native subagent scheduler for parallel execution, enabling independent implementation phases to run concurrently instead of sequentially.
 
 ### How It Works
 
@@ -631,17 +708,18 @@ Express sessions have `workflow_mode: "express"` with `design_document: null` an
 
 - **[Usage Guide](USAGE.md)** -- Comprehensive guide to installing, configuring, and using Maestro
 - **[System Overview](OVERVIEW.md)** -- High-level explanation of how Maestro works, its agent system, and execution model
-- **[Architecture](ARCHITECTURE.md)** — Gemini CLI runtime internals: hooks, MCP server, file formats, policies, and extension manifest
+- **[Architecture](ARCHITECTURE.md)** — Runtime internals: hooks, MCP server, file formats, policies, and extension/plugin manifest
+- **[Claude Code Plugin](claude/README.md)** — Claude Code-specific setup, commands, agent naming, and MCP tool mapping
 
 ## Troubleshooting
 
-### Extension Not Loading
+### Runtime Not Loading
 
-1. Verify the extension is linked: `gemini extensions list`
-2. Restart Gemini CLI after installation or linking
-3. Check that `gemini-extension.json` exists in the maestro directory
+1. Gemini CLI: verify the extension is linked with `gemini extensions list`
+2. Claude Code: start a fresh session with `claude --plugin-dir /path/to/maestro-gemini/claude`
+3. Check that the runtime manifest exists: `gemini-extension.json` for Gemini CLI, `claude/.claude-plugin/plugin.json` for Claude Code
 
-### Subagents Not Enabled
+### Subagents Not Enabled (Gemini CLI Only)
 
 1. Verify `experimental.enableAgents` is `true` in `~/.gemini/settings.json`
 2. If the file does not exist, create it with the `experimental` section
@@ -653,7 +731,7 @@ Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enabl
 
 1. Check the YAML frontmatter in `<MAESTRO_STATE_DIR>/state/active-session.md` for syntax errors (unmatched quotes, invalid indentation)
 2. **Manual Fix**: Edit the file to fix YAML syntax
-3. **Archive and Restart**: `/maestro:archive` to move the corrupted session, then start fresh with `/maestro:orchestrate`
+3. **Archive and Restart**: use Gemini CLI `/maestro:archive` or Claude Code `/archive`, then start fresh with Gemini CLI `/maestro:orchestrate` or Claude Code `/orchestrate`
 4. **Delete State**: Remove `active-session.md` and start fresh (loses progress)
 
 ### Parallel Execution Issues
@@ -666,13 +744,13 @@ Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enabl
 **Reducing batch problems:**
 - Reduce batch size: `export MAESTRO_MAX_CONCURRENT=1`
 - Fall back to sequential mode: `export MAESTRO_EXECUTION_MODE=sequential`
-- Resume after tightening the plan: `/maestro:resume`
+- Resume after tightening the plan: Gemini CLI `/maestro:resume` or Claude Code `/resume`
 
 ### Validation Failures
 
 1. Check session state for validation error logs
 2. Common causes: lint errors, test failures, build errors
-3. Manually fix the issue, then `/maestro:resume` to retry
+3. Manually fix the issue, then rerun resume: Gemini CLI `/maestro:resume` or Claude Code `/resume`
 4. Adjust strictness if needed: `export MAESTRO_VALIDATION_STRICTNESS=lenient`
 
 ### File Conflicts
@@ -680,12 +758,12 @@ Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enabl
 1. Multiple agents tried to modify the same file during parallel execution
 2. Maestro will stop and report conflict details
 3. Manually resolve conflicts
-4. Resume with sequential mode: `export MAESTRO_EXECUTION_MODE=sequential` then `/maestro:resume`
+4. Resume with sequential mode: `export MAESTRO_EXECUTION_MODE=sequential`, then use Gemini CLI `/maestro:resume` or Claude Code `/resume`
 
 ### Cannot Find Active Session
 
 1. Check if `active-session.md` exists under your configured state directory (`docs/maestro/state/` by default)
-2. If the file is in archive, start fresh with `/maestro:orchestrate`
+2. If the file is in archive, start fresh with Gemini CLI `/maestro:orchestrate` or Claude Code `/orchestrate`
 3. Check `MAESTRO_STATE_DIR` if you have customized it: `echo $MAESTRO_STATE_DIR`
 
 ### Getting Help
@@ -693,11 +771,11 @@ Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enabl
 If you encounter issues not covered here:
 
 1. Review session state logs in `<MAESTRO_STATE_DIR>/state/active-session.md`
-2. Check Maestro version: `gemini extensions list`
-3. Review Gemini CLI logs (location varies by installation)
+2. Check Maestro version in the runtime you are using: `gemini extensions list` for Gemini CLI, or inspect the loaded plugin metadata for Claude Code
+3. Review runtime logs for the environment where the issue occurs
 4. Report issues on GitHub: [https://github.com/josstei/maestro-gemini/issues](https://github.com/josstei/maestro-gemini/issues)
 
-Include: Maestro version, Gemini CLI version, session state file (redact sensitive data), error messages, and steps to reproduce.
+Include: Maestro version, runtime (`Gemini CLI` or `Claude Code`) and version, session state file (redact sensitive data), error messages, and steps to reproduce.
 
 ## License
 

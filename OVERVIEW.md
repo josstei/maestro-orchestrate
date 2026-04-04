@@ -4,7 +4,7 @@ A high-level explanation of how Maestro works, its agent system, and execution m
 
 ## How It Works
 
-Maestro is a multi-agent orchestration extension for Gemini CLI. It introduces a TechLead orchestrator persona that coordinates 22 specialized subagents through structured workflows. The orchestrator does not implement code directly -- it designs, plans, delegates, validates, and reports.
+Maestro is a multi-agent orchestration platform for **Gemini CLI** and **Claude Code**. It introduces a TechLead orchestrator persona that coordinates 22 specialized subagents through structured workflows. The orchestrator does not implement code directly -- it designs, plans, delegates, validates, and reports. The same orchestration engine, agents, and quality gates run on both platforms.
 
 When you invoke `/maestro:orchestrate`, Maestro classifies the task by complexity and routes it to the appropriate workflow:
 
@@ -246,5 +246,8 @@ Maestro provides an MCP server with tools for workspace management, complexity a
 | `transition_phase` | Atomically transition a phase to a new status with validation |
 | `get_session_status` | Read current session state in structured format |
 | `archive_session` | Move session artifacts to archive directories |
+| `get_skill_content` | Read protocols, templates, and references by identifier — bypasses workspace sandbox (methodology skills use `activate_skill` instead) |
 
 When MCP tools are available, the orchestrator uses them for all state operations. When unavailable, it falls back to direct filesystem reads and writes on session state files.
+
+The orchestrate command's step sequence lives in `references/orchestration-steps.md` — a shared reference file loaded by both Gemini CLI (via `get_skill_content`) and Claude Code (via `Read` tool) as the sole procedural authority.

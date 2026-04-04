@@ -1,6 +1,6 @@
 # Maestro Usage Guide
 
-Comprehensive guide to installing, configuring, and using the Maestro multi-agent orchestration extension for Gemini CLI.
+Comprehensive guide to installing, configuring, and using the Maestro multi-agent orchestration platform. Maestro runs on both **Gemini CLI** (extension) and **Claude Code** (plugin). This guide covers both runtimes — platform-specific differences are noted where applicable.
 
 ## Table of Contents
 
@@ -22,13 +22,17 @@ Comprehensive guide to installing, configuring, and using the Maestro multi-agen
 
 ### Required Software
 
-1. **Gemini CLI**: Maestro is a Gemini CLI extension. Install Gemini CLI from [https://github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) before proceeding.
+1. **Gemini CLI** or **Claude Code**: Maestro runs on either platform.
+   - Gemini CLI: Install from [https://github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)
+   - Claude Code: Install from [https://docs.anthropic.com/en/docs/claude-code](https://docs.anthropic.com/en/docs/claude-code)
 
-2. **Node.js**: Required for hooks and local helper scripts. Install Node.js 16 or later from [nodejs.org](https://nodejs.org).
+2. **Node.js**: Required for hooks and helper scripts. Install Node.js 18 or later from [nodejs.org](https://nodejs.org).
 
-### Enable Experimental Subagents
+### Enable Experimental Subagents (Gemini CLI Only)
 
-Maestro requires Gemini CLI's experimental subagent system. Enable it in your Gemini CLI settings file:
+Maestro on Gemini CLI requires the experimental subagent system. Claude Code users can skip this section — subagents are available by default.
+
+Enable it in your Gemini CLI settings file:
 
 **Location**:
 - macOS/Linux: `~/.gemini/settings.json`
@@ -51,13 +55,22 @@ Maestro does not auto-edit `~/.gemini/settings.json`; enable `experimental.enabl
 
 ## Installation
 
-### From Git Repository
+### Gemini CLI
 
 ```bash
 gemini extensions install https://github.com/josstei/maestro-gemini
 ```
 
 This downloads the extension and registers it automatically.
+
+### Claude Code
+
+```bash
+git clone https://github.com/josstei/maestro-gemini
+claude --plugin-dir /path/to/maestro-gemini/claude
+```
+
+The `--plugin-dir` flag loads the plugin for a single session. The Claude Code plugin lives in the `claude/` subdirectory (not the repo root). See `claude/README.md` for detailed Claude Code setup instructions.
 
 ### Local Development
 
