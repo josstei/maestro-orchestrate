@@ -9,10 +9,17 @@ const { atomicWriteSync } = require('../core/atomic-write');
 
 const HOOK_STATE_TTL_MS = 2 * 60 * 60 * 1000;
 
+const uid = process.getuid ? process.getuid() : 'default';
 const DEFAULT_BASE_DIR = process.env.MAESTRO_HOOKS_DIR
-  || (process.platform === 'win32'
-    ? path.join(os.tmpdir(), 'maestro-hooks')
-    : '/tmp/maestro-hooks');
+  || path.join(os.tmpdir(), `maestro-hooks-${uid}`);
+
+function ensureBaseDir(dir) {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const stats = fs.lstatSync(dir);
+  if (stats.isSymbolicLink()) {
+    throw new Error('Hook state directory must not be a symlink');
+  }
+}
 
 function createHookState(baseDir = DEFAULT_BASE_DIR) {
   function getBaseDir() {
@@ -20,6 +27,7 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   }
 
   function pruneStale() {
+    ensureBaseDir(baseDir);
     if (!fs.existsSync(baseDir)) return;
 
     const now = Date.now();
@@ -72,7 +80,8 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
 
   function ensureSessionDir(sessionId) {
     if (!validateSessionId(sessionId)) return false;
-    fs.mkdirSync(path.join(baseDir, sessionId), { recursive: true });
+    ensureBaseDir(baseDir);
+    fs.mkdirSync(path.join(baseDir, sessionId), { recursive: true, mode: 0o700 });
     return true;
   }
 
