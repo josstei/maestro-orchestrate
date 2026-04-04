@@ -1,5 +1,5 @@
 ---
-name: maestro-security-audit
+name: security-audit
 description: Run a Maestro-style security assessment for authentication, authorization, data exposure, secret handling, and exploitability risks
 ---
 

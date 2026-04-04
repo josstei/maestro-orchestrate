@@ -1,5 +1,5 @@
 ---
-name: maestro-debug
+name: debug
 description: Run the Maestro debugging workflow for investigation-heavy tasks
 ---
 

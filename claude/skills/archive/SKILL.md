@@ -1,5 +1,5 @@
 ---
-name: maestro-archive
+name: archive
 description: Archive the active Maestro session while preserving the shared state layout
 ---
 
