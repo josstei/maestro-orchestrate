@@ -108,7 +108,7 @@ From Marketplace (recommended):
 
 ```bash
 claude plugin marketplace add josstei/maestro-gemini
-claude plugin install maestro@maestro-marketplace --scope user
+claude plugin install maestro@maestro-orchestrator --scope user
 ```
 
 Development / Testing:

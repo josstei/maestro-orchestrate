@@ -14,7 +14,7 @@ Add the maestro marketplace, then install the plugin:
 
 ```bash
 claude plugin marketplace add josstei/maestro-gemini
-claude plugin install maestro@maestro-marketplace --scope user
+claude plugin install maestro@maestro-orchestrator --scope user
 ```
 
 The marketplace must be configured before installing. See the main [README](../README.md) for marketplace setup details.
