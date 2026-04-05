@@ -4,6 +4,7 @@ const replaceAgentNames = require('./replace-agent-names');
 const replaceToolNames = require('./replace-tool-names');
 const replacePaths = require('./replace-paths');
 const injectFrontmatter = require('./inject-frontmatter');
+const skillMetadata = require('./skill-metadata');
 
 const transforms = {
   copy,
@@ -12,6 +13,7 @@ const transforms = {
   'replace-tool-names': replaceToolNames,
   'replace-paths': replacePaths,
   'inject-frontmatter': injectFrontmatter,
+  'skill-metadata': skillMetadata,
 };
 
 /**
