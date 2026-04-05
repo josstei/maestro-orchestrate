@@ -595,7 +595,12 @@ function replaceToolNames(content, runtime) {
       '(^\\s*- )' + escapeForRegex(canonical) + '(\\s*$)',
       'gm'
     );
-    if (!Array.isArray(mapped)) {
+    if (Array.isArray(mapped)) {
+      // Expand single YAML list entry into multiple entries
+      result = result.replace(yamlPattern, (match, indent) => {
+        return mapped.map((t) => `${indent}${t}`).join('\n');
+      });
+    } else {
       result = result.replace(yamlPattern, `$1${mapped}$2`);
     }
   }
@@ -859,6 +864,60 @@ describe('inject-frontmatter transform', () => {
     assert.ok(result.includes('- Glob'));
     assert.ok(result.includes('- Grep'));
   });
+
+  it('embeds example blocks into claude description field', () => {
+    const agentWithExamples = [
+      '---',
+      'name: code-reviewer',
+      'description: "Code review specialist."',
+      'color: blue',
+      'tools: [read_file, glob, grep_search]',
+      'max_turns: 15',
+      'temperature: 0.2',
+      'timeout_mins: 5',
+      '---',
+      '',
+      '<example>',
+      'Context: User wants a review.',
+      '</example>',
+      '',
+      '## Methodology',
+      'Review code carefully.',
+    ].join('\n');
+    const result = injectFrontmatter(agentWithExamples, claudeRuntime, {});
+    // Claude: examples must be inside description: | block
+    assert.ok(result.includes('description: |'));
+    assert.ok(result.includes('  <example>'));
+    assert.ok(result.includes('  Context: User wants a review.'));
+    // Examples should NOT appear in body after frontmatter
+    const afterFrontmatter = result.split('---\n').slice(2).join('---\n');
+    assert.ok(!afterFrontmatter.includes('<example>'));
+  });
+
+  it('keeps examples in body for gemini (no embedding)', () => {
+    const agentWithExamples = [
+      '---',
+      'name: code-reviewer',
+      'description: "Code review specialist."',
+      'color: blue',
+      'tools: [read_file, glob, grep_search]',
+      'max_turns: 15',
+      'temperature: 0.2',
+      'timeout_mins: 5',
+      '---',
+      '',
+      '<example>',
+      'Context: User wants a review.',
+      '</example>',
+      '',
+      '## Methodology',
+      'Review code carefully.',
+    ].join('\n');
+    const result = injectFrontmatter(agentWithExamples, geminiRuntime, {});
+    // Gemini: description is a plain string, no examples embedded
+    assert.ok(!result.includes('description: |'));
+    assert.ok(result.includes('description: "Code review specialist."'));
+  });
 });
 ```
 
@@ -905,6 +964,34 @@ function injectFrontmatter(content, runtime) {
     tools = [];
   }
 
+  // Extract <example> blocks from body (used by Claude's description: | field)
+  const exampleRegex = /(<example>[\s\S]*?<\/example>)/g;
+  const exampleBlocks = [];
+  let match;
+  while ((match = exampleRegex.exec(body)) !== null) {
+    exampleBlocks.push(match[1]);
+  }
+
+  // For Claude: embed examples into description and strip from body
+  // For Gemini: leave examples in body (strip-feature will remove them)
+  let description = frontmatter.description;
+  let outputBody = body;
+
+  if (runtime.name !== 'gemini' && exampleBlocks.length > 0) {
+    // Build multi-line description with embedded examples
+    const indentedDesc = description + '\n\n' +
+      exampleBlocks.map((ex) => ex).join('\n');
+    // Use YAML block scalar (description: |) with 2-space indent
+    const descLines = indentedDesc.split('\n').map((l) => '  ' + l).join('\n');
+    description = null; // Signal to use block scalar below
+
+    // Remove example blocks from body
+    outputBody = body.replace(/<example>[\s\S]*?<\/example>\s*/g, '').trim();
+    if (outputBody && !outputBody.startsWith('\n')) {
+      outputBody = '\n' + outputBody;
+    }
+  }
+
   // Build output frontmatter
   const lines = ['---'];
   lines.push(`name: ${name}`);
@@ -913,8 +1000,16 @@ function injectFrontmatter(content, runtime) {
   if (fm.kind) lines.push(`kind: ${fm.kind}`);
   if (fm.model) lines.push(`model: ${fm.model}`);
 
-  // Description (always present)
-  lines.push(`description: ${yamlQuote(frontmatter.description)}`);
+  // Description
+  if (description === null) {
+    // Block scalar form (Claude with examples)
+    const indentedDesc = (frontmatter.description + '\n\n' +
+      exampleBlocks.join('\n')).split('\n').map((l) => '  ' + l).join('\n');
+    lines.push('description: |');
+    lines.push(indentedDesc);
+  } else {
+    lines.push(`description: ${yamlQuote(description)}`);
+  }
 
   // Color (Claude only)
   if (runtime.name !== 'gemini' && frontmatter.color) {
@@ -946,7 +1041,7 @@ function injectFrontmatter(content, runtime) {
 
   lines.push('---');
 
-  return lines.join('\n') + '\n' + body;
+  return lines.join('\n') + '\n' + outputBody;
 }
 
 /**

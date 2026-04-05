@@ -233,10 +233,11 @@ replace-tool-names    — Swap canonical tool names -> runtime tool names
 replace-env-vars      — Swap canonical env var references -> runtime env vars
 replace-agent-names   — Swap canonical agent names -> runtime naming convention
 replace-paths         — Swap canonical path templates -> runtime paths
-inject-frontmatter    — Build runtime-specific YAML frontmatter for agents
-inject-examples       — Add <example> blocks if runtime.features.exampleBlocks
-strip-feature         — Remove feature-flagged blocks when flag is false
-inject-feature        — Add feature-flagged blocks when flag is true
+inject-frontmatter    — Build runtime-specific YAML frontmatter for agents;
+                        for Claude, embeds <example> blocks from body into
+                        description: | field to match Claude's agent format
+strip-feature         — Process feature-flagged blocks: keep content when flag
+                        is true (strip markers), remove when false
 skill-metadata        — Add runtime-specific frontmatter to skills
 ```
 
@@ -271,7 +272,7 @@ module.exports = [
   // --- Agent definitions ---
   {
     src: 'agents/code-reviewer.md',
-    transforms: ['inject-frontmatter', 'replace-tool-names', 'replace-agent-names', 'inject-examples'],
+    transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'],
     outputs: {
       gemini: 'agents/code_reviewer.md',
       claude: 'claude/agents/code-reviewer.md',
