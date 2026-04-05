@@ -59,7 +59,6 @@ Before constructing any delegation prompt, resolve configurable parameters:
 3. Include only task-relevant execution context in the prompt metadata
 4. If the agent appears in `MAESTRO_DISABLED_AGENTS`, do not construct a delegation prompt — report to the orchestrator that the agent is disabled
 
-
 ## Delegation Prompt Template
 
 Every delegation to a subagent must follow this structure:

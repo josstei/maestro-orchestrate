@@ -5,8 +5,8 @@ module.exports = {
   agentNaming: 'snake_case',
 
   env: {
-    extensionPath: 'MAESTRO_EXTENSION_PATH',
-    workspacePath: 'MAESTRO_WORKSPACE_PATH',
+    extensionPath: 'extensionPath',
+    workspacePath: 'workspacePath',
   },
 
   tools: {
@@ -23,6 +23,9 @@ module.exports = {
     read_many_files: 'read_many_files',
     write_todos: 'write_todos',
     activate_skill: 'activate_skill',
+    enter_plan_mode: 'enter_plan_mode',
+    exit_plan_mode: 'exit_plan_mode',
+    codebase_investigator: 'codebase_investigator',
   },
 
   agentFrontmatter: {

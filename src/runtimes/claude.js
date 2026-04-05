@@ -23,6 +23,9 @@ module.exports = {
     read_many_files: 'Read',
     write_todos: ['TaskCreate', 'TaskUpdate', 'TaskList'],
     activate_skill: 'Skill',
+    enter_plan_mode: 'EnterPlanMode',
+    exit_plan_mode: 'ExitPlanMode',
+    codebase_investigator: 'Agent (Explore) / Grep / Glob',
   },
 
   agentFrontmatter: {
