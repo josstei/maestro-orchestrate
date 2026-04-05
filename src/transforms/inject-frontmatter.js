@@ -40,7 +40,7 @@ function injectFrontmatter(content, runtime, _options) {
 
     if (examples.length > 0) {
       // Build block scalar with description + examples
-      const exampleText = examples.join('\n\n');
+      const exampleText = examples.join('\n');
       description = description + '\n\n' + exampleText;
     }
   }
@@ -50,22 +50,24 @@ function injectFrontmatter(content, runtime, _options) {
   lines.push('---');
   lines.push(`name: ${name}`);
 
-  // Runtime-specific fields after name
+  // Gemini: kind after name, before description
   if (fm.kind) {
     lines.push(`kind: ${fm.kind}`);
-  }
-  if (fm.model) {
-    lines.push(`model: ${fm.model}`);
   }
 
   // Description
   if (runtime.name === 'claude' && description.includes('\n')) {
     lines.push('description: |');
     for (const dl of description.split('\n')) {
-      lines.push(dl === '' ? '' : `  ${dl}`);
+      lines.push(`  ${dl}`);
     }
   } else {
     lines.push(`description: "${stripQuotes(frontmatter.description || '')}"`);
+  }
+
+  // Claude: model after description
+  if (fm.model) {
+    lines.push(`model: ${fm.model}`);
   }
 
   // Color (Claude only)
@@ -73,26 +75,36 @@ function injectFrontmatter(content, runtime, _options) {
     lines.push(`color: ${frontmatter.color}`);
   }
 
-  // Turns field (runtime-specific name)
-  if (fm.turnsField && frontmatter.max_turns != null) {
-    lines.push(`${fm.turnsField}: ${frontmatter.max_turns}`);
-  }
-
-  // Temperature (Gemini only)
-  if (fm.hasTemperature && frontmatter.temperature != null) {
-    lines.push(`temperature: ${frontmatter.temperature}`);
-  }
-
-  // Timeout (Gemini only)
-  if (fm.hasTimeout && frontmatter.timeout_mins != null) {
-    lines.push(`timeout_mins: ${frontmatter.timeout_mins}`);
-  }
-
-  // Tools as block list
-  if (tools.length > 0) {
-    lines.push('tools:');
-    for (const tool of tools) {
-      lines.push(`  - ${tool}`);
+  // Gemini: tools before temperature/turns/timeout
+  // Claude: maxTurns before tools
+  if (runtime.name === 'gemini') {
+    // Tools first
+    if (tools.length > 0) {
+      lines.push('tools:');
+      for (const tool of tools) {
+        lines.push(`  - ${tool}`);
+      }
+    }
+    // Then temperature, max_turns, timeout_mins
+    if (fm.hasTemperature && frontmatter.temperature != null) {
+      lines.push(`temperature: ${frontmatter.temperature}`);
+    }
+    if (fm.turnsField && frontmatter.max_turns != null) {
+      lines.push(`${fm.turnsField}: ${frontmatter.max_turns}`);
+    }
+    if (fm.hasTimeout && frontmatter.timeout_mins != null) {
+      lines.push(`timeout_mins: ${frontmatter.timeout_mins}`);
+    }
+  } else {
+    // Claude: maxTurns then tools
+    if (fm.turnsField && frontmatter.max_turns != null) {
+      lines.push(`${fm.turnsField}: ${frontmatter.max_turns}`);
+    }
+    if (tools.length > 0) {
+      lines.push('tools:');
+      for (const tool of tools) {
+        lines.push(`  - ${tool}`);
+      }
     }
   }
 
