@@ -63,4 +63,17 @@ module.exports = [
   // delegation protocols (no skill-metadata needed)
   { src: 'skills/shared/delegation/protocols/agent-base-protocol.md', transforms: ['strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/delegation/protocols/agent-base-protocol.md', claude: 'claude/skills/delegation/protocols/agent-base-protocol.md' } },
   { src: 'skills/shared/delegation/protocols/filesystem-safety-protocol.md', transforms: ['strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/delegation/protocols/filesystem-safety-protocol.md', claude: 'claude/skills/delegation/protocols/filesystem-safety-protocol.md' } },
+  // hooks/ — Gemini runtime only
+  { src: 'hooks/runtime-only/gemini/hook-adapter.js', transforms: ['copy'], outputs: { gemini: 'hooks/hook-adapter.js' } },
+  { src: 'hooks/runtime-only/gemini/after-agent.js', transforms: ['copy'], outputs: { gemini: 'hooks/after-agent.js' } },
+  { src: 'hooks/runtime-only/gemini/before-agent.js', transforms: ['copy'], outputs: { gemini: 'hooks/before-agent.js' } },
+  { src: 'hooks/runtime-only/gemini/session-start.js', transforms: ['copy'], outputs: { gemini: 'hooks/session-start.js' } },
+  { src: 'hooks/runtime-only/gemini/session-end.js', transforms: ['copy'], outputs: { gemini: 'hooks/session-end.js' } },
+  { src: 'hooks/hook-configs/gemini.json', transforms: ['copy'], outputs: { gemini: 'hooks/hooks.json' } },
+  // hooks/ — Claude runtime only
+  { src: 'hooks/runtime-only/claude/hook-adapter.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/hook-adapter.js' } },
+  { src: 'hooks/runtime-only/claude/before-agent.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/before-agent.js' } },
+  { src: 'hooks/runtime-only/claude/session-start.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/session-start.js' } },
+  { src: 'hooks/runtime-only/claude/session-end.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/session-end.js' } },
+  { src: 'hooks/hook-configs/claude.json', transforms: ['copy'], outputs: { claude: 'claude/hooks/claude-hooks.json' } },
 ];
