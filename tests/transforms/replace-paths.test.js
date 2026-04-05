@@ -23,4 +23,72 @@ describe('replace-paths transform', () => {
     const result = replacePaths(content, runtime);
     assert.equal(result, 'Load from ${extensionPath}/agents/coder.md and ${workspacePath}/state/');
   });
+
+  // --- Missing tests ---
+
+  it('should replace both extensionPath and workspacePath in the same content', () => {
+    const content = 'Load ${extensionPath}/agents and save to ${workspacePath}/state';
+    const runtime = { env: { extensionPath: 'CLAUDE_PLUGIN_ROOT', workspacePath: 'CLAUDE_PROJECT_DIR' } };
+    const result = replacePaths(content, runtime);
+    assert.equal(result, 'Load ${CLAUDE_PLUGIN_ROOT}/agents and save to ${CLAUDE_PROJECT_DIR}/state');
+  });
+
+  it('should replace multiple occurrences of the same placeholder', () => {
+    const content = '${extensionPath}/a and ${extensionPath}/b';
+    const runtime = { env: { extensionPath: 'CLAUDE_PLUGIN_ROOT' } };
+    const result = replacePaths(content, runtime);
+    assert.equal(result, '${CLAUDE_PLUGIN_ROOT}/a and ${CLAUDE_PLUGIN_ROOT}/b');
+  });
+
+  it('should handle runtime with no env property', () => {
+    const content = 'Load from ${extensionPath}/agents';
+    const runtime = {};
+    const result = replacePaths(content, runtime);
+    assert.equal(result, 'Load from ${extensionPath}/agents');
+  });
+
+  it('should leave content with no placeholders unchanged', () => {
+    const content = 'No placeholders here, just plain text.';
+    const runtime = { env: { extensionPath: 'CLAUDE_PLUGIN_ROOT' } };
+    const result = replacePaths(content, runtime);
+    assert.equal(result, 'No placeholders here, just plain text.');
+  });
+
+  it('should handle empty content', () => {
+    const content = '';
+    const runtime = { env: { extensionPath: 'CLAUDE_PLUGIN_ROOT' } };
+    const result = replacePaths(content, runtime);
+    assert.equal(result, '');
+  });
+
+  it('should use the actual gemini runtime env values correctly', () => {
+    // Gemini maps extensionPath -> 'extensionPath' (identity) so no replacement visible
+    const content = '${extensionPath}/skills/';
+    const runtime = { env: { extensionPath: 'extensionPath', workspacePath: 'workspacePath' } };
+    const result = replacePaths(content, runtime);
+    assert.equal(result, '${extensionPath}/skills/');
+  });
+
+  it('should not replace similar-looking but non-matching placeholders', () => {
+    const content = '${extensionPathExtra} and $extensionPath and extensionPath';
+    const runtime = { env: { extensionPath: 'CLAUDE_PLUGIN_ROOT' } };
+    const result = replacePaths(content, runtime);
+    // Only ${extensionPath} should match, not ${extensionPathExtra}
+    assert.ok(!result.includes('${CLAUDE_PLUGIN_ROOTExtra}'));
+    // $extensionPath (no braces) should not be replaced
+    assert.ok(result.includes('$extensionPath and extensionPath'));
+  });
+
+  it('should handle placeholders in multiline content', () => {
+    const content = [
+      'path1: ${extensionPath}/agents',
+      'path2: ${workspacePath}/state',
+      'path3: ${extensionPath}/skills',
+    ].join('\n');
+    const runtime = { env: { extensionPath: 'CLAUDE_PLUGIN_ROOT', workspacePath: 'CLAUDE_PROJECT_DIR' } };
+    const result = replacePaths(content, runtime);
+    assert.ok(result.includes('${CLAUDE_PLUGIN_ROOT}/agents'));
+    assert.ok(result.includes('${CLAUDE_PROJECT_DIR}/state'));
+    assert.ok(result.includes('${CLAUDE_PLUGIN_ROOT}/skills'));
+  });
 });
