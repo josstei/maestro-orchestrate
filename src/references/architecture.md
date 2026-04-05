@@ -16,27 +16,27 @@ The TechLead orchestrator does not implement code directly. It designs, plans, d
 | Agent | Focus |
 | --- | --- |
 | `architect` | System design and architecture decisions |
-| `api_designer` | API contracts and endpoint design |
-| `code_reviewer` | Code quality review and bug identification |
+| `api-designer` | API contracts and endpoint design |
+| `code-reviewer` | Code quality review and bug identification |
 | `coder` | Feature implementation |
-| `data_engineer` | Schema design, queries, and data pipelines |
+| `data-engineer` | Schema design, queries, and data pipelines |
 | `debugger` | Root cause analysis and defect investigation |
-| `devops_engineer` | CI/CD, containerization, and deployment |
-| `performance_engineer` | Performance profiling and optimization |
+| `devops-engineer` | CI/CD, containerization, and deployment |
+| `performance-engineer` | Performance profiling and optimization |
 | `refactor` | Structural refactoring and technical debt |
-| `security_engineer` | Security assessment and vulnerability analysis |
-| `technical_writer` | Documentation and technical writing |
+| `security-engineer` | Security assessment and vulnerability analysis |
+| `technical-writer` | Documentation and technical writing |
 | `tester` | Test implementation and coverage analysis |
-| `seo_specialist` | Technical SEO auditing |
+| `seo-specialist` | Technical SEO auditing |
 | `copywriter` | Marketing copy and content |
-| `content_strategist` | Content planning and strategy |
-| `ux_designer` | User experience design |
-| `accessibility_specialist` | WCAG compliance auditing |
-| `product_manager` | Requirements and product strategy |
-| `analytics_engineer` | Tracking and measurement |
-| `i18n_specialist` | Internationalization |
-| `design_system_engineer` | Design tokens and theming |
-| `compliance_reviewer` | Legal and regulatory compliance |
+| `content-strategist` | Content planning and strategy |
+| `ux-designer` | User experience design |
+| `accessibility-specialist` | WCAG compliance auditing |
+| `product-manager` | Requirements and product strategy |
+| `analytics-engineer` | Tracking and measurement |
+| `i18n-specialist` | Internationalization |
+| `design-system-engineer` | Design tokens and theming |
+| `compliance-reviewer` | Legal and regulatory compliance |
 
 Agent names use the format specified by the runtime's Agent Naming Convention section. When delegating, use the exact name from the roster.
 
@@ -50,11 +50,11 @@ Maestro maintains session state under `docs/maestro` (resolved from `MAESTRO_STA
 
 State scripts:
 
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/read-active-session.js` — read current session state
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/read-state.js <relative-path>` — read arbitrary state file
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/write-state.js <relative-path>` — write state from stdin
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
+- `node ${extensionPath}/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
+- `node ${extensionPath}/scripts/read-active-session.js` — read current session state
+- `node ${extensionPath}/scripts/read-state.js <relative-path>` — read arbitrary state file
+- `node ${extensionPath}/scripts/write-state.js <relative-path>` — write state from stdin
+- `node ${extensionPath}/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
 
 ## Session Management
 
