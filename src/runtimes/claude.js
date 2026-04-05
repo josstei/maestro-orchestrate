@@ -43,6 +43,8 @@ module.exports = {
     geminiToolExamples: false,
     claudeToolExamples: true,
     geminiAskFormat: false,
+    geminiStateContract: false,
+    claudeStateContract: true,
   },
 
   paths: {

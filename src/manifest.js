@@ -28,5 +28,5 @@ module.exports = [
   { src: 'templates/session-state.md', transforms: ['copy'], outputs: { gemini: 'templates/session-state.md', claude: 'claude/templates/session-state.md' } },
   // references/ shared files (output to both runtimes)
   { src: 'references/orchestration-steps.md', transforms: ['copy'], outputs: { gemini: 'references/orchestration-steps.md', claude: 'claude/references/orchestration-steps.md' } },
-  { src: 'references/architecture.md', transforms: ['replace-agent-names', 'replace-paths'], outputs: { gemini: 'references/architecture.md', claude: 'claude/references/architecture.md' } },
+  { src: 'references/architecture.md', transforms: ['strip-feature', 'replace-agent-names'], outputs: { gemini: 'references/architecture.md', claude: 'claude/references/architecture.md' } },
 ];

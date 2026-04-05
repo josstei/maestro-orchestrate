@@ -42,6 +42,22 @@ Agent names use the format specified by the runtime's Agent Naming Convention se
 
 ## State Contract
 
+<!-- @feature geminiStateContract -->
+Maestro maintains session state under `<state_dir>` (resolved from `MAESTRO_STATE_DIR`):
+
+- **Active session**: `<state_dir>/state/active-session.md`
+- **Plans**: `<state_dir>/plans/`
+- **Archives**: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
+
+State scripts:
+
+- `node ${extensionPath}/scripts/ensure-workspace.js <state_dir>` — initialize workspace directories
+- `node ${extensionPath}/scripts/read-active-session.js` — read current session state
+- `node ${extensionPath}/scripts/read-state.js <relative-path>` — read arbitrary state file
+- `node ${extensionPath}/scripts/write-state.js <relative-path>` — write state from stdin
+- `node ${extensionPath}/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
+<!-- @end-feature -->
+<!-- @feature claudeStateContract -->
 Maestro maintains session state under `docs/maestro` (resolved from `MAESTRO_STATE_DIR`):
 
 - **Active session**: `docs/maestro/state/active-session.md`
@@ -50,11 +66,12 @@ Maestro maintains session state under `docs/maestro` (resolved from `MAESTRO_STA
 
 State scripts:
 
-- `node ${extensionPath}/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
-- `node ${extensionPath}/scripts/read-active-session.js` — read current session state
-- `node ${extensionPath}/scripts/read-state.js <relative-path>` — read arbitrary state file
-- `node ${extensionPath}/scripts/write-state.js <relative-path>` — write state from stdin
-- `node ${extensionPath}/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/read-active-session.js` — read current session state
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/read-state.js <relative-path>` — read arbitrary state file
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/write-state.js <relative-path>` — write state from stdin
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
+<!-- @end-feature -->
 
 ## Session Management
 

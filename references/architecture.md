@@ -42,19 +42,19 @@ Agent names use the format specified by the runtime's Agent Naming Convention se
 
 ## State Contract
 
-Maestro maintains session state under `docs/maestro` (resolved from `MAESTRO_STATE_DIR`):
+Maestro maintains session state under `<state_dir>` (resolved from `MAESTRO_STATE_DIR`):
 
-- **Active session**: `docs/maestro/state/active-session.md`
-- **Plans**: `docs/maestro/plans/`
-- **Archives**: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
+- **Active session**: `<state_dir>/state/active-session.md`
+- **Plans**: `<state_dir>/plans/`
+- **Archives**: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
 State scripts:
 
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/read-active-session.js` — read current session state
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/read-state.js <relative-path>` — read arbitrary state file
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/write-state.js <relative-path>` — write state from stdin
-- `node ${MAESTRO_EXTENSION_PATH}/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
+- `node ${extensionPath}/scripts/ensure-workspace.js <state_dir>` — initialize workspace directories
+- `node ${extensionPath}/scripts/read-active-session.js` — read current session state
+- `node ${extensionPath}/scripts/read-state.js <relative-path>` — read arbitrary state file
+- `node ${extensionPath}/scripts/write-state.js <relative-path>` — write state from stdin
+- `node ${extensionPath}/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
 
 ## Session Management
 
