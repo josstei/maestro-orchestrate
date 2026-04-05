@@ -3,6 +3,7 @@ const stripFeature = require('./strip-feature');
 const replaceAgentNames = require('./replace-agent-names');
 const replaceToolNames = require('./replace-tool-names');
 const replacePaths = require('./replace-paths');
+const injectFrontmatter = require('./inject-frontmatter');
 
 const transforms = {
   copy,
@@ -10,6 +11,7 @@ const transforms = {
   'replace-agent-names': replaceAgentNames,
   'replace-tool-names': replaceToolNames,
   'replace-paths': replacePaths,
+  'inject-frontmatter': injectFrontmatter,
 };
 
 /**
