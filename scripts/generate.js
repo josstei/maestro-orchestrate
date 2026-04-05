@@ -3,11 +3,23 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { execSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 const { resolve: resolveTransform } = require('../src/transforms');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
+
+/**
+ * Resolve an output path safely within the project root.
+ * Throws if the resolved path escapes the project directory.
+ */
+function safeResolve(relativePath) {
+  const resolved = path.resolve(ROOT, relativePath);
+  if (!resolved.startsWith(ROOT + path.sep) && resolved !== ROOT) {
+    throw new Error(`Path traversal detected: "${relativePath}" resolves outside project root`);
+  }
+  return resolved;
+}
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -30,7 +42,7 @@ async function main() {
   if (cleanMode && !dryRun) {
     for (const entry of manifest) {
       for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
-        const absPath = path.join(ROOT, outputPath);
+        const absPath = safeResolve(outputPath);
         if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
       }
     }
@@ -63,7 +75,7 @@ async function main() {
           content = fn(content, runtime, { src: entry.src, param });
         }
 
-        const absOutputPath = path.join(ROOT, outputPath);
+        const absOutputPath = safeResolve(outputPath);
 
         if (diffMode) {
           if (!fs.existsSync(absOutputPath)) {
@@ -74,7 +86,7 @@ async function main() {
               const tmpPath = absOutputPath + '.gen-tmp';
               fs.writeFileSync(tmpPath, content, 'utf8');
               try {
-                execSync(`diff -u "${absOutputPath}" "${tmpPath}"`, { encoding: 'utf8' });
+                execFileSync('diff', ['-u', absOutputPath, tmpPath], { encoding: 'utf8' });
               } catch (err) {
                 console.log(`--- ${outputPath}`);
                 console.log(err.stdout);

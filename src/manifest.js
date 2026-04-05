@@ -79,6 +79,7 @@ module.exports = [
   // mcp/ — MCP server (feature-flagged for get-skill-content handler)
   { src: 'mcp/maestro-server.js', transforms: ['strip-feature'], outputs: { gemini: 'mcp/maestro-server.js', claude: 'claude/mcp/maestro-server.js' } },
   // runtime-only/gemini/ — Gemini-only files
+  { src: 'runtime-only/gemini/README.md', transforms: ['copy'], outputs: { gemini: 'README.md' } },
   { src: 'runtime-only/gemini/GEMINI.md', transforms: ['copy'], outputs: { gemini: 'GEMINI.md' } },
   { src: 'runtime-only/gemini/gemini-extension.json', transforms: ['copy'], outputs: { gemini: 'gemini-extension.json' } },
   { src: 'runtime-only/gemini/.geminiignore', transforms: ['copy'], outputs: { gemini: '.geminiignore' } },

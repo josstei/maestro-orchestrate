@@ -62,7 +62,7 @@ function injectFrontmatter(content, runtime, _options) {
       lines.push(`  ${dl}`);
     }
   } else {
-    lines.push(`description: "${stripQuotes(frontmatter.description || '')}"`);
+    lines.push(`description: "${escapeYamlString(frontmatter.description || '')}"`);
   }
 
   // Claude: model after description
@@ -183,9 +183,9 @@ function parseValue(raw) {
 /**
  * Strip surrounding quotes from a string value if present.
  */
-function stripQuotes(val) {
+function escapeYamlString(val) {
   if (typeof val !== 'string') return String(val);
-  return val;
+  return val.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 /**
@@ -225,6 +225,10 @@ function extractExamples(body) {
     } else {
       remainingLines.push(line);
     }
+  }
+
+  if (inExample) {
+    throw new Error('Unclosed <example> tag in agent body');
   }
 
   // Clean up: remove blank lines that surrounded example blocks
