@@ -1,0 +1,44 @@
+# Maestro extension policy pack.
+#
+# These rules add low-friction guardrails for autonomous and interactive runs:
+# - deny obviously destructive shell commands
+# - ask before shell-based file writing patterns
+#
+# The extension tier may only contribute deny / ask_user decisions.
+
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = ".*\\btee\\b.*"
+decision = "ask_user"
+priority = 850
+
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = ".*(?:\\s>>?\\s|\\s>>?$|^>>?\\s|\\d>>?\\s).*$"
+decision = "ask_user"
+priority = 850
+
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = [
+  "rm -rf",
+  "rm -fr",
+  "sudo rm -rf",
+  "sudo rm -fr",
+  "git reset --hard",
+  "git checkout --",
+  "git clean -fd",
+  "git clean -df",
+  "git clean -xfd",
+  "git clean -xdf"
+]
+decision = "deny"
+priority = 950
+deny_message = "Maestro blocks destructive shell commands. Use safer targeted tools or handle the cleanup manually."
+
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = ".*(?:<<).*$"
+decision = "deny"
+priority = 950
+deny_message = "Heredoc corrupts structured content (YAML, Markdown, JSON) — use write_file instead"
