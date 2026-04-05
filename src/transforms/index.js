@@ -1,7 +1,9 @@
 const copy = require('./copy');
+const stripFeature = require('./strip-feature');
 
 const transforms = {
   copy,
+  'strip-feature': stripFeature,
 };
 
 /**
