@@ -148,4 +148,34 @@ describe('inject-frontmatter transform', () => {
     assert.ok(!result.includes('description: |'));
     assert.ok(result.includes('description: "Code review specialist."'));
   });
+
+  it('flattens array tool mappings when no per-runtime override', () => {
+    const agentWithArrayTools = [
+      '---',
+      'name: coder',
+      'description: "Coder."',
+      'color: green',
+      'tools: [read_file, write_todos]',
+      'max_turns: 25',
+      'temperature: 0.2',
+      'timeout_mins: 10',
+      '---',
+      '',
+      'Body.',
+    ].join('\n');
+    const runtimeWithArrayMapping = {
+      name: 'claude',
+      agentNaming: 'kebab-case',
+      agentFrontmatter: { model: 'inherit', turnsField: 'maxTurns' },
+      tools: {
+        read_file: 'Read',
+        write_todos: ['TaskCreate', 'TaskUpdate', 'TaskList'],
+      },
+    };
+    const result = injectFrontmatter(agentWithArrayTools, runtimeWithArrayMapping, {});
+    assert.ok(result.includes('- Read'));
+    assert.ok(result.includes('- TaskCreate'));
+    assert.ok(result.includes('- TaskUpdate'));
+    assert.ok(result.includes('- TaskList'));
+  });
 });

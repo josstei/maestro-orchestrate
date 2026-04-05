@@ -23,9 +23,11 @@ function injectFrontmatter(content, runtime, _options) {
   if (frontmatter[runtimeToolsOverrideKey]) {
     tools = frontmatter[runtimeToolsOverrideKey];
   } else {
-    tools = (frontmatter.tools || []).map(
-      (t) => (runtime.tools && runtime.tools[t]) || t
-    );
+    tools = (frontmatter.tools || []).map((t) => {
+      const mapped = runtime.tools && runtime.tools[t];
+      if (Array.isArray(mapped)) return mapped;
+      return mapped || t;
+    }).flat();
   }
 
   // Handle examples: Claude embeds them in description, Gemini keeps in body
