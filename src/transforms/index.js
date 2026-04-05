@@ -1,9 +1,15 @@
 const copy = require('./copy');
 const stripFeature = require('./strip-feature');
+const replaceAgentNames = require('./replace-agent-names');
+const replaceToolNames = require('./replace-tool-names');
+const replacePaths = require('./replace-paths');
 
 const transforms = {
   copy,
   'strip-feature': stripFeature,
+  'replace-agent-names': replaceAgentNames,
+  'replace-tool-names': replaceToolNames,
+  'replace-paths': replacePaths,
 };
 
 /**
