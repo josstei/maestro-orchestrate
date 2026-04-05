@@ -169,7 +169,7 @@ async function main() {
     // Generator-owned directories with filtering for scripts/
     const scriptsDir = path.join(ROOT, 'scripts');
     const ownedScriptFiles = fs.readdirSync(scriptsDir)
-      .filter((f) => f.endsWith('.js') && f !== 'generate.js' && f !== 'check-claude-lib-drift.sh')
+      .filter((f) => f.endsWith('.js') && f !== 'generate.js')
       .map((f) => `scripts/${f}`);
 
     // Also add claude/.claude-plugin/ directory

@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Agent name mapping** — Orchestrator commands include mapping for Claude Code's `maestro:` agent prefix (e.g., `maestro:coder`, `maestro:code-reviewer`)
 - **Claude Code hook adapter** (`claude/scripts/hook-adapter.js`) — Normalizes Claude Code's PreToolUse/SessionStart/SessionEnd hook contract to Maestro's internal format
 - **Policy enforcer** (`claude/scripts/policy-enforcer.js`) — Blocks destructive shell commands via Claude Code's PreToolUse hook on Bash tool calls
-- **Library drift detection** (`scripts/check-claude-lib-drift.sh`) — CI script that validates shared `lib/` files haven't diverged between Gemini and Claude runtimes
+- **Library drift detection** (`scripts/check-claude-lib-drift.sh`) — CI script that validates shared `lib/` files haven't diverged between Gemini and Claude runtimes (superseded by the runtime generator in v1.6.0)
 
 ### Changed
 
