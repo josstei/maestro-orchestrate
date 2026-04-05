@@ -113,6 +113,93 @@ async function main() {
     console.log(`\nGeneration complete: ${stats.written} written, ${stats.unchanged} unchanged, ${stats.errors} errors`);
   }
 
+  if (!dryRun && !diffMode) {
+    // Collect all manifest output paths into a Set
+    const manifest = require(path.join(SRC, 'manifest'));
+    const manifestPaths = new Set();
+    for (const entry of manifest) {
+      for (const outputPath of Object.values(entry.outputs)) {
+        manifestPaths.add(outputPath);
+      }
+    }
+
+    // Generator-owned directories to scan
+    const ownedDirs = [
+      'agents',
+      'claude/agents',
+      'skills',
+      'claude/skills',
+      'lib',
+      'claude/lib',
+      'claude/scripts',
+      'templates',
+      'claude/templates',
+      'references',
+      'claude/references',
+      'hooks',
+      'claude/hooks',
+      'mcp',
+      'claude/mcp',
+      'commands',
+      'policies',
+    ];
+
+    // Generator-owned root-level files
+    const ownedRootFiles = [
+      'GEMINI.md',
+      'gemini-extension.json',
+      '.geminiignore',
+      'claude/README.md',
+      'claude/.mcp.json',
+      'claude/mcp-config.example.json',
+    ];
+
+    // Generator-owned directories with filtering for scripts/
+    const scriptsDir = path.join(ROOT, 'scripts');
+    const ownedScriptFiles = fs.readdirSync(scriptsDir)
+      .filter((f) => f.endsWith('.js') && f !== 'generate.js' && f !== 'check-claude-lib-drift.sh')
+      .map((f) => `scripts/${f}`);
+
+    // Also add claude/.claude-plugin/ directory
+    ownedDirs.push('claude/.claude-plugin');
+
+    function walkDir(dir) {
+      const results = [];
+      const absDir = path.join(ROOT, dir);
+      if (!fs.existsSync(absDir)) return results;
+      const entries = fs.readdirSync(absDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const relPath = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) {
+          results.push(...walkDir(relPath));
+        } else {
+          results.push(relPath);
+        }
+      }
+      return results;
+    }
+
+    const allOwnedFiles = [];
+    for (const dir of ownedDirs) {
+      allOwnedFiles.push(...walkDir(dir));
+    }
+    for (const f of ownedRootFiles) {
+      const abs = path.join(ROOT, f);
+      if (fs.existsSync(abs)) allOwnedFiles.push(f);
+    }
+    for (const f of ownedScriptFiles) {
+      allOwnedFiles.push(f);
+    }
+
+    const staleFiles = allOwnedFiles.filter((f) => !manifestPaths.has(f));
+    if (staleFiles.length > 0) {
+      console.log('\nWARNING: Stale files found (not in manifest):');
+      for (const f of staleFiles) {
+        console.log(`  STALE: ${f}`);
+      }
+    }
+  }
+
   if (stats.errors > 0) process.exit(1);
 }
 
