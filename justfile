@@ -1,8 +1,8 @@
-# Maestro Orchestrate — development recipes
+# Maestro Orchestrate — development commands
 
-# List available recipes with descriptions
+# List available commands with descriptions
 help:
-    @echo "Maestro Orchestrate — development recipes"
+    @echo "Maestro Orchestrate — development commands"
     @echo ""
     @echo "Generator:"
     @echo "  just generate         Generate all runtime files from src/"
