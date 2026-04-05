@@ -1,5 +1,27 @@
 # Maestro Orchestrate — development recipes
 
+# List available recipes with descriptions
+help:
+    @echo "Maestro Orchestrate — development recipes"
+    @echo ""
+    @echo "Generator:"
+    @echo "  just generate         Generate all runtime files from src/"
+    @echo "  just dry-run          Preview what would change without writing"
+    @echo "  just diff             Show unified diff of what would change"
+    @echo "  just clean            Delete all generated files and regenerate"
+    @echo ""
+    @echo "Testing:"
+    @echo "  just test             Run all 111 tests"
+    @echo "  just test-transforms  Run only transform unit tests"
+    @echo "  just test-integration Run only integration tests"
+    @echo ""
+    @echo "CI:"
+    @echo "  just check            Generate + verify zero drift"
+    @echo "  just ci               Full CI equivalent (check + test)"
+    @echo ""
+    @echo "Release:"
+    @echo "  just release <ver>    Tag and push (e.g. just release 1.5.1)"
+
 # Generate all runtime files from src/
 generate:
     node scripts/generate.js
