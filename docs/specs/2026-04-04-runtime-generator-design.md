@@ -54,10 +54,20 @@ src/
 │   └── architecture.md            # Has agent name markers
 ├── mcp/
 │   └── maestro-server.js          # Unified MCP source with feature flags
-├── hooks/                         # Hook scripts (shared logic)
+├── hooks/
+│   ├── shared/                    # Hook scripts with shared logic
+│   │   ├── session-start.js
+│   │   ├── session-end.js
+│   │   └── before-agent.js
+│   ├── runtime-only/
+│   │   ├── gemini/
+│   │   │   ├── hook-adapter.js    # Gemini-specific: maps prompt/prompt_response
+│   │   │   └── after-agent.js     # Gemini-only: no Claude equivalent
+│   │   └── claude/
+│   │       └── hook-adapter.js    # Claude-specific: maps tool_input.subagent_type
 │   └── hook-configs/
-│       ├── gemini.json            # Runtime-specific hook wiring
-│       └── claude.json
+│       ├── gemini.json            # BeforeAgent/AfterAgent event model
+│       └── claude.json            # PreToolUse with matcher-based targeting
 └── runtime-only/                  # Files with no counterpart in other runtimes
     ├── gemini/
     │   ├── GEMINI.md
@@ -112,12 +122,14 @@ module.exports = {
     run_shell_command: 'Bash',
     ask_user: 'AskUserQuestion',
     read_many_files: 'Read',
+    write_todos: ['TaskCreate', 'TaskUpdate', 'TaskList'],
+    activate_skill: 'Skill',
   },
 
   // Agent frontmatter fields
   agentFrontmatter: {
     model: 'inherit',
-    color: 'blue',
+    // color is per-agent — read from source frontmatter `color` field
     turnsField: 'maxTurns',      // camelCase in Claude
   },
 
@@ -129,6 +141,13 @@ module.exports = {
     mcpSkillContentHandler: false,
     policyEnforcer: true,
     exampleBlocks: true,          // Claude agents include <example> blocks
+    geminiHookModel: false,
+    claudeHookModel: true,
+    geminiDelegation: false,
+    claudeDelegation: true,
+    geminiToolExamples: false,
+    claudeToolExamples: true,
+    geminiAskFormat: false,
   },
 
   // Path templates
@@ -165,6 +184,8 @@ module.exports = {
     run_shell_command: 'run_shell_command',
     ask_user: 'ask_user',
     read_many_files: 'read_many_files',
+    write_todos: 'write_todos',
+    activate_skill: 'activate_skill',
   },
 
   agentFrontmatter: {
@@ -180,6 +201,13 @@ module.exports = {
     mcpSkillContentHandler: true,
     policyEnforcer: false,
     exampleBlocks: false,
+    geminiHookModel: true,
+    claudeHookModel: false,
+    geminiDelegation: true,
+    claudeDelegation: false,
+    geminiToolExamples: true,
+    claudeToolExamples: false,
+    geminiAskFormat: true,
   },
 
   paths: {
@@ -251,9 +279,12 @@ module.exports = [
   },
 
   // --- Shared skills ---
+  // Skills contain feature-flagged blocks for runtime-specific content:
+  // hook lifecycle descriptions, delegation dispatch syntax, and tool
+  // restriction examples differ structurally between runtimes.
   {
     src: 'skills/shared/execution/SKILL.md',
-    transforms: ['skill-metadata', 'replace-tool-names', 'replace-paths', 'replace-agent-names'],
+    transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'],
     outputs: {
       gemini: 'skills/execution/SKILL.md',
       claude: 'claude/skills/execution/SKILL.md',
@@ -271,6 +302,12 @@ module.exports = [
   },
 
   // --- MCP server with feature flags ---
+  // NOTE: The current MCP server files are pre-bundled (~38K lines with inlined
+  // dependencies). Feature flags must be applied to the pre-bundle source. The
+  // bundling step itself is outside the generator's scope — it runs separately
+  // before generation, producing the source file that the generator then
+  // feature-flags and distributes. If the MCP source is maintained as unbundled
+  // modules in the future, the generator can operate on those directly.
   {
     src: 'mcp/maestro-server.js',
     transforms: ['strip-feature:mcpSkillContentHandler'],
@@ -362,6 +399,15 @@ Context: User needs REST API contracts designed.
 Shared methodology prose...
 ```
 
+### Skill-Specific Feature Flags
+
+Shared skills have structural content differences beyond mechanical tool/path swaps. These sections must be feature-flagged in the source:
+
+- **Hook lifecycle descriptions** — Gemini describes `BeforeAgent`/`AfterAgent` events; Claude describes `PreToolUse` with matcher-based targeting and inline validation. Feature flag: `geminiHookModel` / `claudeHookModel`.
+- **Agent delegation dispatch syntax** — Gemini calls agents directly by tool name (`coder(query: ...)`); Claude uses the Agent tool (`Agent(subagent_type: "maestro:coder", prompt: ...)`). Feature flag: `geminiDelegation` / `claudeDelegation`.
+- **Tool restriction examples** — Code examples showing file writing rules, shell command restrictions, etc. reference different tool names and patterns per runtime. Feature flag: `geminiToolExamples` / `claudeToolExamples`.
+- **Structured question format** — Gemini skills include JSON examples for `ask_user` with `type: 'choice'`; Claude skills omit these (different interaction model). Feature flag: `geminiAskFormat`.
+
 ---
 
 ## 5. Agent Frontmatter Injection
@@ -374,6 +420,7 @@ Agent source files contain canonical metadata and methodology prose. The `inject
 ---
 name: code-reviewer
 description: Code review specialist for identifying bugs, security vulnerabilities, and code quality issues.
+color: blue
 tools: [read_file, glob, grep_search]
 max_turns: 15
 temperature: 0.3
@@ -394,9 +441,10 @@ timeout_mins: 5
 2. Map `name` through the runtime's naming convention (`agentNaming`)
 3. Map each entry in `tools` through `runtime.tools`
 4. Rename fields per runtime config (`max_turns` -> `maxTurns` for Claude, kept as-is for Gemini)
-5. Add runtime-specific fields (`kind: local` for Gemini, `model: inherit` + `color: blue` for Claude)
-6. Drop fields the runtime doesn't use (`temperature` and `timeout_mins` excluded from Claude)
-7. Serialize back to YAML frontmatter and prepend to the body
+5. Add runtime-specific fields (`kind: local` for Gemini, `model: inherit` for Claude)
+6. Include `color` from source frontmatter for Claude; drop it for Gemini (Gemini has no color field)
+7. Drop fields the runtime doesn't use (`temperature` and `timeout_mins` excluded from Claude)
+8. Serialize back to YAML frontmatter and prepend to the body
 
 ### Per-Agent Runtime Overrides
 
@@ -412,6 +460,8 @@ tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 ```
 
 When a `tools.<runtime>` key exists, it takes precedence over the base `tools` for that runtime.
+
+**Note:** Most agents will require `tools.<runtime>` overrides. The tool surfaces diverge significantly between runtimes — not just in naming but in which tools are available. For example, Gemini's `debugger` has 8 tools while Claude's has 4. The base `tools` field serves as documentation of the agent's logical capabilities; the per-runtime overrides are the source of truth for actual tool lists.
 
 ---
 
