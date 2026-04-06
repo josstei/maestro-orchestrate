@@ -37720,16 +37720,31 @@ var require_get_skill_content = __commonJS({
     "use strict";
     var fs2 = require("fs");
     var path2 = require("path");
+    var DEFAULT_RUNTIME_CONFIG2 = Object.freeze({
+      name: "gemini",
+      agentNaming: "snake_case",
+      env: {
+        extensionPath: "extensionPath",
+        workspacePath: "workspacePath"
+      },
+      features: {
+        geminiStateContract: true,
+        claudeStateContract: false,
+        codexStateContract: false,
+        exampleBlocks: false
+      }
+    });
+    var DEFAULT_SRC_RELATIVE_PATH2 = "src";
     var RESOURCE_ALLOWLIST2 = Object.freeze({
-      "delegation": "skills/delegation/SKILL.md",
-      "execution": "skills/execution/SKILL.md",
-      "validation": "skills/validation/SKILL.md",
-      "session-management": "skills/session-management/SKILL.md",
-      "implementation-planning": "skills/implementation-planning/SKILL.md",
-      "code-review": "skills/code-review/SKILL.md",
-      "design-dialogue": "skills/design-dialogue/SKILL.md",
-      "agent-base-protocol": "skills/delegation/protocols/agent-base-protocol.md",
-      "filesystem-safety-protocol": "skills/delegation/protocols/filesystem-safety-protocol.md",
+      "delegation": "skills/shared/delegation/SKILL.md",
+      "execution": "skills/shared/execution/SKILL.md",
+      "validation": "skills/shared/validation/SKILL.md",
+      "session-management": "skills/shared/session-management/SKILL.md",
+      "implementation-planning": "skills/shared/implementation-planning/SKILL.md",
+      "code-review": "skills/shared/code-review/SKILL.md",
+      "design-dialogue": "skills/shared/design-dialogue/SKILL.md",
+      "agent-base-protocol": "skills/shared/delegation/protocols/agent-base-protocol.md",
+      "filesystem-safety-protocol": "skills/shared/delegation/protocols/filesystem-safety-protocol.md",
       "design-document": "templates/design-document.md",
       "implementation-plan": "templates/implementation-plan.md",
       "session-state": "templates/session-state.md",
@@ -37746,31 +37761,232 @@ var require_get_skill_content = __commonJS({
       }
       return process.cwd();
     }
-    function handleGetSkillContent2(params) {
-      var resources = params.resources;
-      if (!Array.isArray(resources) || resources.length === 0) {
-        throw new Error("resources must be a non-empty array of resource identifiers");
+    function applyReplacePaths2(content, runtimeConfig) {
+      var result = content;
+      var env = runtimeConfig.env || {};
+      if (env.extensionPath) {
+        var replacement = env.extensionPath.startsWith("${") ? env.extensionPath : "${" + env.extensionPath + "}";
+        result = result.replace(/\$\{extensionPath\}/g, replacement);
       }
-      var extensionRoot = resolveExtensionRoot2();
-      var contents = {};
-      var errors = {};
-      for (var i = 0; i < resources.length; i++) {
-        var id = resources[i];
-        var relativePath = RESOURCE_ALLOWLIST2[id];
-        if (!relativePath) {
-          errors[id] = 'Unknown resource identifier: "' + id + '". Known identifiers: ' + Object.keys(RESOURCE_ALLOWLIST2).join(", ");
+      if (env.workspacePath) {
+        result = result.replace(/\$\{workspacePath\}/g, "${" + env.workspacePath + "}");
+      }
+      return result;
+    }
+    function applySkillMetadata2(content, runtimeConfig, resourcePath) {
+      if (runtimeConfig.name !== "claude" || !resourcePath.endsWith("SKILL.md")) {
+        return content;
+      }
+      return content.replace(/^(---\n[\s\S]*?)(^---)/m, "$1user-invocable: false\n$2");
+    }
+    function applyReplaceAgentNames2(content, runtimeConfig) {
+      if (runtimeConfig.agentNaming !== "snake_case") {
+        return content;
+      }
+      return content.replace(/\bapi-designer\b/g, "api_designer").replace(/\bcode-reviewer\b/g, "code_reviewer").replace(/\bdata-engineer\b/g, "data_engineer").replace(/\bdevops-engineer\b/g, "devops_engineer").replace(/\bperformance-engineer\b/g, "performance_engineer").replace(/\bsecurity-engineer\b/g, "security_engineer").replace(/\btechnical-writer\b/g, "technical_writer").replace(/\bseo-specialist\b/g, "seo_specialist").replace(/\bcontent-strategist\b/g, "content_strategist").replace(/\bux-designer\b/g, "ux_designer").replace(/\baccessibility-specialist\b/g, "accessibility_specialist").replace(/\bproduct-manager\b/g, "product_manager").replace(/\banalytics-engineer\b/g, "analytics_engineer").replace(/\bi18n-specialist\b/g, "i18n_specialist").replace(/\bdesign-system-engineer\b/g, "design_system_engineer").replace(/\bcompliance-reviewer\b/g, "compliance_reviewer");
+    }
+    function applyStripFeature2(content, runtimeConfig) {
+      var features = runtimeConfig.features || {};
+      return content.replace(/^[ \t]*<!-- @feature (\S+) -->\n([\s\S]*?)^[ \t]*<!-- @end-feature -->\n?/gm, function(_match, flagName, body) {
+        if (!(flagName in features)) {
+          throw new Error('Unknown feature flag: "' + flagName + '"');
+        }
+        return features[flagName] ? body : "";
+      }).replace(/\n{3,}/g, "\n\n");
+    }
+    function applyRuntimeTransforms2(content, runtimeConfig, resourcePath) {
+      var result = content;
+      if (resourcePath === "references/architecture.md") {
+        result = applyStripFeature2(result, runtimeConfig);
+        result = applyReplaceAgentNames2(result, runtimeConfig);
+      }
+      result = applyReplacePaths2(result, runtimeConfig);
+      result = applySkillMetadata2(result, runtimeConfig, resourcePath);
+      return result;
+    }
+    function createHandler2(runtimeConfig, srcRelativePath) {
+      if (runtimeConfig == null) runtimeConfig = DEFAULT_RUNTIME_CONFIG2;
+      if (srcRelativePath == null) srcRelativePath = DEFAULT_SRC_RELATIVE_PATH2;
+      return function handleGetSkillContent2(params) {
+        var resources = params.resources;
+        if (!Array.isArray(resources) || resources.length === 0) {
+          throw new Error("resources must be a non-empty array of resource identifiers");
+        }
+        var extensionRoot = resolveExtensionRoot2();
+        var srcRoot = path2.resolve(extensionRoot, srcRelativePath);
+        var contents = {};
+        var errors = {};
+        for (var i = 0; i < resources.length; i++) {
+          var id = resources[i];
+          var relativePath = RESOURCE_ALLOWLIST2[id];
+          if (!relativePath) {
+            errors[id] = 'Unknown resource identifier: "' + id + '". Known identifiers: ' + Object.keys(RESOURCE_ALLOWLIST2).join(", ");
+            continue;
+          }
+          var absolutePath = path2.join(srcRoot, relativePath);
+          try {
+            var content = fs2.readFileSync(absolutePath, "utf8");
+            contents[id] = applyRuntimeTransforms2(content, runtimeConfig, relativePath);
+          } catch (err) {
+            errors[id] = "Failed to read resource \"" + id + "\": " + (err.code || "UNKNOWN");
+          }
+        }
+        return { contents: contents, errors: errors };
+      };
+    }
+    var handleGetSkillContent2 = createHandler2();
+    module2.exports = {
+      RESOURCE_ALLOWLIST: RESOURCE_ALLOWLIST2,
+      DEFAULT_RUNTIME_CONFIG: DEFAULT_RUNTIME_CONFIG2,
+      DEFAULT_SRC_RELATIVE_PATH: DEFAULT_SRC_RELATIVE_PATH2,
+      applyRuntimeTransforms: applyRuntimeTransforms2,
+      createHandler: createHandler2,
+      handleGetSkillContent: handleGetSkillContent2
+    };
+  }
+});
+// @end-feature
+// @feature mcpSkillContentHandler
+// plugins/maestro/src/mcp/handlers/get-agent.js
+var require_get_agent = __commonJS({
+  "plugins/maestro/src/mcp/handlers/get-agent.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var path2 = require("path");
+    var { DEFAULT_RUNTIME_CONFIG, DEFAULT_SRC_RELATIVE_PATH } = require_get_skill_content();
+    var AGENT_ALLOWLIST2 = Object.freeze([
+      "architect",
+      "api-designer",
+      "code-reviewer",
+      "coder",
+      "data-engineer",
+      "debugger",
+      "devops-engineer",
+      "performance-engineer",
+      "refactor",
+      "security-engineer",
+      "technical-writer",
+      "tester",
+      "seo-specialist",
+      "copywriter",
+      "content-strategist",
+      "ux-designer",
+      "accessibility-specialist",
+      "product-manager",
+      "analytics-engineer",
+      "i18n-specialist",
+      "design-system-engineer",
+      "compliance-reviewer"
+    ]);
+    function resolveExtensionRoot2() {
+      if (process.env.MAESTRO_EXTENSION_PATH) {
+        return process.env.MAESTRO_EXTENSION_PATH;
+      }
+      var serverFile = process.argv[1];
+      if (serverFile) {
+        return path2.resolve(path2.dirname(serverFile), "..");
+      }
+      return process.cwd();
+    }
+    function stripFrontmatter2(content) {
+      if (!content.startsWith("---\n")) {
+        return content;
+      }
+      var end = content.indexOf("\n---\n", 4);
+      if (end === -1) {
+        return content;
+      }
+      return content.slice(end + 5);
+    }
+    function stripFeatureBlocks2(content, runtimeConfig) {
+      var features = runtimeConfig.features || {};
+      return content.replace(/^[ \t]*<!-- @feature (\S+) -->\n([\s\S]*?)^[ \t]*<!-- @end-feature -->\n?/gm, function(_match, flagName, body) {
+        if (!(flagName in features)) {
+          return "";
+        }
+        return features[flagName] ? body : "";
+      }).replace(/\n{3,}/g, "\n\n");
+    }
+    function parseInlineArray2(raw) {
+      if (!raw || !raw.startsWith("[") || !raw.endsWith("]")) {
+        return [];
+      }
+      return raw.slice(1, -1).split(",").map((item) => item.trim()).filter(Boolean);
+    }
+    function parseFrontmatter2(content) {
+      if (!content.startsWith("---\n")) {
+        return {};
+      }
+      var end = content.indexOf("\n---\n", 4);
+      if (end === -1) {
+        return {};
+      }
+      var frontmatter = {};
+      var lines = content.slice(4, end).split("\n");
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var separatorIndex = line.indexOf(":");
+        if (separatorIndex === -1) {
           continue;
         }
-        var absolutePath = path2.join(extensionRoot, relativePath);
-        try {
-          contents[id] = fs2.readFileSync(absolutePath, "utf8");
-        } catch (err) {
-          errors[id] = "Failed to read resource \"" + id + "\": " + (err.code || "UNKNOWN");
-        }
+        var key = line.slice(0, separatorIndex).trim();
+        var rawValue = line.slice(separatorIndex + 1).trim();
+        frontmatter[key] = rawValue;
       }
-      return { contents: contents, errors: errors };
+      return frontmatter;
     }
-    module2.exports = { handleGetSkillContent: handleGetSkillContent2, RESOURCE_ALLOWLIST: RESOURCE_ALLOWLIST2 };
+    function mapTools2(frontmatter, runtimeConfig) {
+      var runtimeName = runtimeConfig.name || DEFAULT_RUNTIME_CONFIG.name;
+      var overrideKey = "tools." + runtimeName;
+      var configuredTools = frontmatter[overrideKey] ? parseInlineArray2(frontmatter[overrideKey]) : parseInlineArray2(frontmatter.tools);
+      return configuredTools.flatMap((toolName) => {
+        var mapped = runtimeConfig.tools && runtimeConfig.tools[toolName];
+        if (Array.isArray(mapped)) {
+          return mapped;
+        }
+        return mapped || toolName;
+      });
+    }
+    function createHandler2(runtimeConfig, srcRelativePath) {
+      if (runtimeConfig == null) runtimeConfig = DEFAULT_RUNTIME_CONFIG;
+      if (srcRelativePath == null) srcRelativePath = DEFAULT_SRC_RELATIVE_PATH;
+      return function handleGetAgent2(params) {
+        var requestedAgents = params.agents;
+        if (!Array.isArray(requestedAgents) || requestedAgents.length === 0) {
+          throw new Error("agents must be a non-empty array of kebab-case agent identifiers");
+        }
+        var extensionRoot = resolveExtensionRoot2();
+        var srcRoot = path2.resolve(extensionRoot, srcRelativePath);
+        var agents = {};
+        var errors = {};
+        for (var i = 0; i < requestedAgents.length; i++) {
+          var rawName = requestedAgents[i];
+          var agentName = String(rawName || "").trim();
+          if (!AGENT_ALLOWLIST2.includes(agentName)) {
+            errors[agentName || "(empty)"] = 'Unknown agent identifier: "' + agentName + '". Known identifiers: ' + AGENT_ALLOWLIST2.join(", ");
+            continue;
+          }
+          var absolutePath = path2.join(srcRoot, "agents", agentName + ".md");
+          try {
+            var content = fs2.readFileSync(absolutePath, "utf8");
+            var frontmatter = parseFrontmatter2(content);
+            agents[agentName] = {
+              body: stripFrontmatter2(stripFeatureBlocks2(content, runtimeConfig)),
+              tools: mapTools2(frontmatter, runtimeConfig)
+            };
+          } catch (err) {
+            errors[agentName] = "Failed to read agent \"" + agentName + "\": " + (err.code || "UNKNOWN");
+          }
+        }
+        return { agents: agents, errors: errors };
+      };
+    }
+    var handleGetAgent2 = createHandler2();
+    module2.exports = {
+      AGENT_ALLOWLIST: AGENT_ALLOWLIST2,
+      createHandler: createHandler2,
+      handleGetAgent: handleGetAgent2
+    };
   }
 });
 // @end-feature
@@ -37972,36 +38188,114 @@ registerTool({
     }
   }
 }, handleResolveSettings);
-// @feature mcpSkillContentHandler
-var { handleGetSkillContent } = require_get_skill_content();
+// @feature geminiRuntimeConfig
+var __gemini_rt_cfg = { name: "gemini", tools: { read_file: "read_file", list_directory: "list_directory", glob: "glob", grep_search: "grep_search", google_web_search: "google_web_search", web_fetch: "web_fetch", write_file: "write_file", replace: "replace", run_shell_command: "run_shell_command", ask_user: "ask_user", read_many_files: "read_many_files", write_todos: "write_todos", activate_skill: "activate_skill", enter_plan_mode: "enter_plan_mode", exit_plan_mode: "exit_plan_mode", codebase_investigator: "codebase_investigator" }, agentNaming: "snake_case", delegationPattern: "{{agent}}(query: \"...\")", paths: { skills: "${extensionPath}/skills/", hooks: "${extensionPath}/hooks/" }, env: { extensionPath: "extensionPath", workspacePath: "workspacePath" }, features: { geminiStateContract: true, claudeStateContract: false, codexStateContract: false, exampleBlocks: false } };
+var { createHandler: __createSkillContent1 } = require_get_skill_content();
 registerTool({
   name: "get_skill_content",
-  description: "Read one or more Maestro skill files, delegation protocols, templates, or reference documents by identifier. Returns file contents keyed by identifier. Use this instead of read_file for extension-internal resources.",
+  description: "Read one or more Maestro skills, protocols, templates, or references from canonical src/ content and apply runtime-specific transforms before returning them.",
   inputSchema: {
     type: "object",
     properties: {
       resources: {
         type: "array",
         items: { type: "string" },
-        description: 'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture".'
+        description: 'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture", "orchestration-steps".'
       }
     },
     required: ["resources"]
   }
-}, handleGetSkillContent);
-// @end-feature
-// @feature geminiRuntimeConfig
-var __gemini_rt_cfg = { name: "gemini", tools: { read_file: "read_file", list_directory: "list_directory", glob: "glob", grep_search: "grep_search", google_web_search: "google_web_search", web_fetch: "web_fetch", write_file: "write_file", replace: "replace", run_shell_command: "run_shell_command", ask_user: "ask_user", read_many_files: "read_many_files", write_todos: "write_todos", activate_skill: "activate_skill", enter_plan_mode: "enter_plan_mode", exit_plan_mode: "exit_plan_mode", codebase_investigator: "codebase_investigator" }, agentNaming: "snake_case", delegationPattern: "{{agent}}(query: \"...\")", paths: { skills: "${extensionPath}/skills/", hooks: "${extensionPath}/hooks/" }, env: { extensionPath: "extensionPath", workspacePath: "workspacePath" } };
+}, __createSkillContent1(__gemini_rt_cfg, "src"));
+var { createHandler: __createAgent1 } = require_get_agent();
+registerTool({
+  name: "get_agent",
+  description: "Read one or more Maestro agent methodology definitions by kebab-case name. Returns the runtime-appropriate methodology body plus declared tool restrictions.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      agents: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Agent names (kebab-case): "coder", "code-reviewer", "architect", etc.'
+      }
+    },
+    required: ["agents"]
+  }
+}, __createAgent1(__gemini_rt_cfg, "src"));
 var { createHandler: __createRtCtx1 } = require_get_runtime_context();
 registerTool({ name: "get_runtime_context", description: "Returns tool mappings, agent dispatch syntax, MCP prefixes, and path variables for the current Maestro runtime. Call once at session start (step 0) and carry the returned context through the session.", inputSchema: { type: "object", properties: {} } }, __createRtCtx1(__gemini_rt_cfg));
 // @end-feature
 // @feature claudeRuntimeConfig
-var __claude_rt_cfg = { name: "claude", tools: { read_file: "Read", list_directory: "Glob", glob: "Glob", grep_search: "Grep", google_web_search: "WebSearch", web_fetch: "WebFetch", write_file: "Write", replace: "Edit", run_shell_command: "Bash", ask_user: "AskUserQuestion", read_many_files: "Read", write_todos: ["TaskCreate", "TaskUpdate", "TaskList"], activate_skill: "Skill", enter_plan_mode: "EnterPlanMode", exit_plan_mode: "ExitPlanMode", codebase_investigator: "Agent (Explore) / Grep / Glob" }, agentNaming: "kebab-case", delegationPattern: "Agent(subagent_type: \"maestro:{{agent}}\", prompt: \"...\")", paths: { skills: "${CLAUDE_PLUGIN_ROOT}/skills/", hooks: "${CLAUDE_PLUGIN_ROOT}/scripts/" }, env: { extensionPath: "CLAUDE_PLUGIN_ROOT", workspacePath: "CLAUDE_PROJECT_DIR" } };
+var __claude_rt_cfg = { name: "claude", tools: { read_file: "Read", list_directory: "Glob", glob: "Glob", grep_search: "Grep", google_web_search: "WebSearch", web_fetch: "WebFetch", write_file: "Write", replace: "Edit", run_shell_command: "Bash", ask_user: "AskUserQuestion", read_many_files: "Read", write_todos: ["TaskCreate", "TaskUpdate", "TaskList"], activate_skill: "Skill", enter_plan_mode: "EnterPlanMode", exit_plan_mode: "ExitPlanMode", codebase_investigator: "Agent (Explore) / Grep / Glob" }, agentNaming: "kebab-case", delegationPattern: "Agent(subagent_type: \"maestro:{{agent}}\", prompt: \"...\")", paths: { skills: "${CLAUDE_PLUGIN_ROOT}/skills/", hooks: "${CLAUDE_PLUGIN_ROOT}/scripts/" }, env: { extensionPath: "CLAUDE_PLUGIN_ROOT", workspacePath: "CLAUDE_PROJECT_DIR" }, features: { geminiStateContract: false, claudeStateContract: true, codexStateContract: false, exampleBlocks: true } };
+var { createHandler: __createSkillContent2 } = require_get_skill_content();
+registerTool({
+  name: "get_skill_content",
+  description: "Read one or more Maestro skills, protocols, templates, or references from canonical src/ content and apply runtime-specific transforms before returning them.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      resources: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture", "orchestration-steps".'
+      }
+    },
+    required: ["resources"]
+  }
+}, __createSkillContent2(__claude_rt_cfg, "../src"));
+var { createHandler: __createAgent2 } = require_get_agent();
+registerTool({
+  name: "get_agent",
+  description: "Read one or more Maestro agent methodology definitions by kebab-case name. Returns the runtime-appropriate methodology body plus declared tool restrictions.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      agents: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Agent names (kebab-case): "coder", "code-reviewer", "architect", etc.'
+      }
+    },
+    required: ["agents"]
+  }
+}, __createAgent2(__claude_rt_cfg, "../src"));
 var { createHandler: __createRtCtx2 } = require_get_runtime_context();
 registerTool({ name: "get_runtime_context", description: "Returns tool mappings, agent dispatch syntax, MCP prefixes, and path variables for the current Maestro runtime. Call once at session start (step 0) and carry the returned context through the session.", inputSchema: { type: "object", properties: {} } }, __createRtCtx2(__claude_rt_cfg));
 // @end-feature
 // @feature codexRuntimeConfig
-var __codex_rt_cfg = { name: "codex", tools: { read_file: "direct file reads", list_directory: "exec_command (`rg --files` or `ls`)", glob: "exec_command (`rg --files` or `find`)", grep_search: "exec_command (`rg`)", google_web_search: "web search", web_fetch: "web fetch", write_file: "apply_patch", replace: "apply_patch", run_shell_command: "exec_command", ask_user: "request_user_input", read_many_files: "direct file reads", write_todos: "update_plan", activate_skill: "open the referenced skill and follow it", enter_plan_mode: "update_plan", exit_plan_mode: "request_user_input approval", codebase_investigator: "local inspection or spawn_agent" }, agentNaming: "kebab-case", delegationPattern: "spawn_agent(...) with generated agent references from ./agents/", paths: { skills: "./skills/", hooks: "./scripts/" }, env: { extensionPath: "." } };
+var __codex_rt_cfg = { name: "codex", tools: { read_file: "direct file reads", list_directory: "exec_command (`rg --files` or `ls`)", glob: "exec_command (`rg --files` or `find`)", grep_search: "exec_command (`rg`)", google_web_search: "web search", web_fetch: "web fetch", write_file: "apply_patch", replace: "apply_patch", run_shell_command: "exec_command", ask_user: "request_user_input", read_many_files: "direct file reads", write_todos: "update_plan", activate_skill: "open the referenced skill and follow it", enter_plan_mode: "update_plan", exit_plan_mode: "request_user_input approval", codebase_investigator: "local inspection or spawn_agent" }, agentNaming: "kebab-case", delegationPattern: "spawn_agent(...) with generated agent references from ./agents/", paths: { skills: "./skills/", hooks: "./scripts/" }, env: { extensionPath: "." }, features: { geminiStateContract: false, claudeStateContract: false, codexStateContract: true, exampleBlocks: false } };
+var { createHandler: __createSkillContent3 } = require_get_skill_content();
+registerTool({
+  name: "get_skill_content",
+  description: "Read one or more Maestro skills, protocols, templates, or references from canonical src/ content and apply runtime-specific transforms before returning them.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      resources: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture", "orchestration-steps".'
+      }
+    },
+    required: ["resources"]
+  }
+}, __createSkillContent3(__codex_rt_cfg, "../../src"));
+var { createHandler: __createAgent3 } = require_get_agent();
+registerTool({
+  name: "get_agent",
+  description: "Read one or more Maestro agent methodology definitions by kebab-case name. Returns the runtime-appropriate methodology body plus declared tool restrictions.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      agents: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Agent names (kebab-case): "coder", "code-reviewer", "architect", etc.'
+      }
+    },
+    required: ["agents"]
+  }
+}, __createAgent3(__codex_rt_cfg, "../../src"));
 var { createHandler: __createRtCtx3 } = require_get_runtime_context();
 registerTool({ name: "get_runtime_context", description: "Returns tool mappings, agent dispatch syntax, MCP prefixes, and path variables for the current Maestro runtime. Call once at session start (step 0) and carry the returned context through the session.", inputSchema: { type: "object", properties: {} } }, __createRtCtx3(__codex_rt_cfg));
 // @end-feature

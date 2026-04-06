@@ -2,7 +2,7 @@ description = "Execute an existing implementation plan, skipping design and plan
 
 prompt = """Execute an existing implementation plan directly, skipping the design dialogue and planning phases.
 
-Activate the `execution` and `delegation` skills.
+Call `get_skill_content` with resources: ["execution", "delegation"].
 
 ## Plan Location
 
@@ -36,13 +36,13 @@ Read the implementation plan file at the specified path. If no path is provided,
 
 # Maestro Execute
 
-Read `${extensionPath}/references/architecture.md`, `${extensionPath}/templates/implementation-plan.md`, and `${extensionPath}/templates/session-state.md`.
+Call `get_skill_content` with resources: ["architecture", "implementation-plan", "session-state"].
 
 ## Workflow
 
 1. Read the approved implementation plan and confirm the execution scope.
 2. Resolve `<state_dir>` from `MAESTRO_STATE_DIR`.
-3. If `initialize_workspace` appears in your available tools, call it. Otherwise, run `node ${extensionPath}/scripts/ensure-workspace.js <state_dir>`.
+3. If `initialize_workspace` appears in your available tools, call it. Otherwise, run `node ${extensionPath}/src/scripts/ensure-workspace.js <state_dir>`.
 4. Create or resume `<state_dir>/state/active-session.md`.
 5. Resolve the execution-mode gate before any implementation delegation:
    - if session state already records `execution_mode`, reuse it

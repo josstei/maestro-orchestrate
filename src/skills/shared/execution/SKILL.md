@@ -111,8 +111,8 @@ When MCP tools are not available, state lives inside `<MAESTRO_STATE_DIR>` and i
 Helper scripts remain available for shell-injected command prompts:
 
 ```bash
-node ${extensionPath}/scripts/read-state.js <relative-path>
-node ${extensionPath}/scripts/read-active-session.js
+node <runtime-script-root>/read-state.js <relative-path>
+node <runtime-script-root>/read-active-session.js
 ```
 
 ## Hook Lifecycle During Execution

@@ -467,12 +467,12 @@ Maestro is built from seven primary layers plus shared resources (MCP server, te
 | **Orchestrator** | `GEMINI.md` | `claude/skills/orchestrate/SKILL.md` | TechLead persona, workflow routing, phase transitions, delegation rules |
 | **Commands** | `commands/maestro/*.toml` | `claude/skills/*/SKILL.md` | Gemini uses TOML slash-command files; Claude exposes public skills as slash commands |
 | **Agents** | `agents/*.md` | `claude/agents/*.md` | 22 subagent persona definitions with tool permissions and model config |
-| **Skills** | `skills/*/SKILL.md` | `claude/skills/*/SKILL.md` | Reusable methodology modules with embedded protocols |
-| **Scripts** | `scripts/*.js` | `claude/scripts/*.js` | Execution infrastructure (workspace setup, state management, hook adapters) |
+| **Skills** | MCP-served from `src/skills/shared/` | `claude/skills/*/SKILL.md` | Reusable methodology modules with embedded protocols |
+| **Scripts** | `src/scripts/*.js` | `src/scripts/*.js` | Canonical execution infrastructure (workspace setup, state management) |
 | **Hooks** | `hooks/hooks.json` | `claude/hooks/claude-hooks.json` | Lifecycle middleware for agent tracking and session context injection |
 | **Policies** | `policies/maestro.toml` | `claude/scripts/policy-enforcer.js` | Safety rails for deny/ask tool access rules |
 
-Shared resources (`lib/`, `mcp/`, `templates/`, `references/`) are at repo root and copied into `claude/`.
+Shared methodology resources live in canonical `src/` paths and are served through the MCP tools. Runtime directories keep only the discovery/config files they need on disk.
 
 ### Workflow Phases
 
@@ -622,7 +622,7 @@ flowchart LR
 
 ## Skills
 
-Maestro uses skills to encapsulate detailed methodologies that are loaded on demand, keeping the base context lean. During orchestration on Gemini CLI, methodology skills are loaded via `activate_skill` (masking-exempt, expands workspace access), while templates, references, and protocols are loaded via the `get_skill_content` MCP tool. On Claude Code, all resources are loaded via the native `Read` tool. Express workflow loads only delegation protocols (`agent-base-protocol`, `filesystem-safety-protocol`) and the `code-review` skill — it does not use the full methodology skills.
+Maestro uses skills to encapsulate detailed methodologies that are loaded on demand, keeping the base context lean. Shared methodology, templates, references, and delegation protocols are served from canonical `src/` content via the `get_skill_content` MCP tool across all runtimes. Runtime-local skill files are now discovery stubs where the platform requires them.
 
 The orchestrate command's step sequence lives in `references/orchestration-steps.md` — a shared reference file loaded by both runtimes as the sole procedural authority.
 

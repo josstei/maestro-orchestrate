@@ -31,7 +31,7 @@ allowed-tools:
    - Extended tools: google_web_search=WebSearch, web_fetch=WebFetch, write_todos=[TaskCreate,TaskUpdate,TaskList], read_many_files=Read, list_directory=Glob, codebase_investigator=Agent (Explore) / Grep / Glob
    - Agent dispatch: Agent(subagent_type: "maestro:<name>", prompt: "...")
    - MCP prefix: mcp__plugin_maestro_maestro__
-   - Skills: Read ${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md
+   - Shared skills/templates/references/protocols: call `get_skill_content(resources: ["<name>"])`
 
 ## Task Complexity Classification
 
@@ -115,13 +115,13 @@ Apply domain analysis proportional to `task_complexity`:
 
 ## Execute
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/orchestration-steps.md` and follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them.
+Call `get_skill_content` with resources: ["orchestration-steps"] and follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them.
 
 ---
 
 # Maestro Orchestrate
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`, `${CLAUDE_PLUGIN_ROOT}/templates/design-document.md`, `${CLAUDE_PLUGIN_ROOT}/templates/implementation-plan.md`, and `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md` before starting.
+Call `get_skill_content` with resources: ["architecture", "design-document", "implementation-plan", "session-state"] before starting.
 
 ## Workflow Routing
 
@@ -166,7 +166,7 @@ Do not do any of the following on the first turn:
 ## Workflow
 
 1. Resolve `docs/maestro` from `MAESTRO_STATE_DIR`.
-2. If `initialize_workspace` appears in your available tools, call it. Otherwise, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/ensure-workspace.js docs/maestro`. Do this before writing plan or session files.
+2. If `initialize_workspace` appears in your available tools, call it. Otherwise, run `node ${CLAUDE_PLUGIN_ROOT}/../src/scripts/ensure-workspace.js docs/maestro`. Do this before writing plan or session files.
 3. If `docs/maestro/state/active-session.md` already exists, summarize it and offer to resume or archive before starting a new orchestration.
 4. Ground the task in the repository before asking high-impact questions.
 5. Run the four Maestro phases:
@@ -175,7 +175,7 @@ Do not do any of the following on the first turn:
    - Execute
    - Complete
 6. Write approved design and implementation plan documents into `docs/maestro/plans/` using the shared templates.
-7. Create or update active session state using `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md`.
+7. Create or update active session state using the `session-state` template loaded via `get_skill_content`.
 8. Resolve the execution mode from `MAESTRO_EXECUTION_MODE` or the execution-mode picker after plan approval.
 9. Execute the approved plan through child agents using the selected execution mode.
 

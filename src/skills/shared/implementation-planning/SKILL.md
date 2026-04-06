@@ -257,7 +257,7 @@ Permanent location: `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (wh
 If your runtime does not provide a Plan Mode transition, track planning progress using the plan-update mechanism from your runtime context, write directly to the final location, and use the user-prompt tool from runtime context for the approval gate.
 
 ### Document Structure
-Use the implementation plan template from `templates/implementation-plan.md`.
+Use the `implementation-plan` template loaded via `get_skill_content`.
 
 ### Required Sections
 

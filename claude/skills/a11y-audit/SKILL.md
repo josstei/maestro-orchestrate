@@ -6,11 +6,11 @@ description: Run a Maestro-style accessibility audit for WCAG compliance, ARIA u
 
 # Maestro Accessibility Audit
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`.
+Call `get_skill_content` with resources: ["architecture"].
 
 ## Protocol
 
-Before delegating, activate the `delegation` skill to ensure agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.
+Before delegating, call `get_skill_content` with resources: ["delegation"] and follow the returned methodology.
 
 ## Workflow
 

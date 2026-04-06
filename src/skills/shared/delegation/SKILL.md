@@ -12,8 +12,8 @@ Activate this skill when delegating work to subagents during orchestration execu
 Before constructing any delegation prompt, inject the shared agent base protocol:
 
 ### Injection Steps
-1. Read `agent-base-protocol.md` from `${extensionPath}/skills/delegation/protocols/`
-2. Read `filesystem-safety-protocol.md` from `${extensionPath}/skills/delegation/protocols/`
+1. Load `agent-base-protocol` via `get_skill_content`
+2. Load `filesystem-safety-protocol` via `get_skill_content`
 3. Prepend both protocols to the delegation prompt (base protocol first, then filesystem safety) — these appear before the task-specific content
 4. For each phase listed in the current phase's `blocked_by`, read `phases[].downstream_context` from session state and include it in the prompt
 5. If any required `downstream_context` is missing, include an explicit placeholder noting the missing dependency context (never omit silently)
@@ -176,7 +176,7 @@ Session: <session_id>
 
 **Parallel dispatch**: Emit contiguous agent dispatch calls in a single turn for all agents in the ready batch. Each call includes the same header format with the shared batch ID.
 
-The agent reference files at `${extensionPath}/agents/<agent-name>.md` are the source of truth for agent personas and scope boundaries. If your runtime does not register Maestro agents as named tools, read the matching agent reference and fold it into the delegation prompt.
+Call `get_agent` with the matching kebab-case agent name to load the agent methodology body and declared tool restrictions. Runtime-local agent files remain registration stubs only; do not rely on them for the full methodology body.
 
 ## Parallel Delegation
 
@@ -203,14 +203,14 @@ Maestro enforces tool permissions at two levels:
 
 **Level 1: Native enforcement (primary)**
 
-Tool permissions are enforced natively via the `tools:` array in each agent's YAML frontmatter definition (`${extensionPath}/agents/<agent-name>.md`). The runtime restricts each subagent to exactly those tools listed, regardless of what the prompt requests. This works for both sequential and parallel delegation.
+Tool permissions are enforced natively via each agent's registered frontmatter stub. Use the `tools` array returned by `get_agent` when you mirror that restriction in the prompt. This works for both sequential and parallel delegation.
 
 **Level 2: Prompt-based enforcement (defense-in-depth)**
 
 Native tool permissions remain the primary boundary. As defense-in-depth, every delegation prompt should still include an explicit tool restriction block so the agent sees its allowed surface in plain language.
 
-1. Agent Base Protocol (read `agent-base-protocol.md` from `${extensionPath}/skills/delegation/protocols/`)
-2. Filesystem Safety Protocol (read `filesystem-safety-protocol.md` from `${extensionPath}/skills/delegation/protocols/`)
+1. Agent Base Protocol (load `agent-base-protocol` via `get_skill_content`)
+2. Filesystem Safety Protocol (load `filesystem-safety-protocol` via `get_skill_content`)
 3. **TOOL RESTRICTIONS block (immediately here, before any task content)**
 4. **FILE WRITING RULES block (immediately after tool restrictions)**
 5. Context chain from prior phases
@@ -229,7 +229,7 @@ Do NOT use any tools not listed above. Specifically:
 Violation of these restrictions constitutes a security boundary breach.
 ```
 
-Populate the tool list by reading the agent's definition file (`${extensionPath}/agents/<agent-name>.md`) and extracting the `tools` array from the YAML frontmatter.
+Populate the tool list from the `tools` array returned by `get_agent` for the delegated agent.
 
 The file writing rules block template:
 

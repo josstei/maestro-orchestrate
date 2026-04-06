@@ -6,7 +6,7 @@ description: Archive the active Maestro session while preserving the shared stat
 
 # Maestro Archive
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`.
+Call `get_skill_content` with resources: ["architecture"].
 
 
 ## Workflow

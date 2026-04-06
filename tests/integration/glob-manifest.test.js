@@ -8,7 +8,7 @@ describe('expandManifest', () => {
   it('expands a glob entry into explicit entries per runtime', () => {
     const rule = {
       glob: 'agents/*.md',
-      transforms: ['inject-frontmatter', 'strip-feature'],
+      transforms: ['inject-frontmatter', 'agent-stub'],
       runtimes: ['gemini', 'claude'],
     };
     const runtimes = {
@@ -24,13 +24,13 @@ describe('expandManifest', () => {
     assert.equal(coderEntries.length, 1, 'coder.md should appear once for this rule');
     assert.equal(coderEntries[0].outputs.gemini, 'agents/coder.md');
     assert.equal(coderEntries[0].outputs.claude, 'claude/agents/coder.md');
-    assert.deepEqual(coderEntries[0].transforms, ['inject-frontmatter', 'strip-feature']);
+    assert.deepEqual(coderEntries[0].transforms, ['inject-frontmatter', 'agent-stub']);
   });
 
   it('produces separate entries for same source with different transforms', () => {
     const rules = [
-      { glob: 'agents/*.md', transforms: ['inject-frontmatter', 'strip-feature'], runtimes: ['gemini', 'claude'] },
-      { glob: 'agents/*.md', transforms: ['strip-feature'], runtimes: ['codex'] },
+      { glob: 'agents/*.md', transforms: ['inject-frontmatter', 'agent-stub'], runtimes: ['gemini', 'claude'] },
+      { glob: 'agents/*.md', transforms: ['agent-stub'], runtimes: ['codex'] },
     ];
     const runtimes = {
       gemini: { name: 'gemini', outputDir: './', agentNaming: 'snake_case' },
@@ -44,10 +44,10 @@ describe('expandManifest', () => {
     assert.equal(coderEntries.length, 2, 'coder.md appears in both rules');
 
     const geminiClaudeEntry = coderEntries.find((e) => e.outputs.gemini);
-    assert.deepEqual(geminiClaudeEntry.transforms, ['inject-frontmatter', 'strip-feature']);
+    assert.deepEqual(geminiClaudeEntry.transforms, ['inject-frontmatter', 'agent-stub']);
 
     const codexEntry = coderEntries.find((e) => e.outputs.codex);
-    assert.deepEqual(codexEntry.transforms, ['strip-feature']);
+    assert.deepEqual(codexEntry.transforms, ['agent-stub']);
   });
 
   it('applies snake_case naming for gemini agent outputs', () => {

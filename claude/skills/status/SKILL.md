@@ -6,7 +6,7 @@ description: Summarize the active Maestro session without mutating state
 
 # Maestro Status
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`.
+Call `get_skill_content` with resources: ["architecture"].
 
 
 ## Workflow

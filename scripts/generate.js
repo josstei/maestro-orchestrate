@@ -235,46 +235,59 @@ function expandEntryPoints(runtimeName) {
     content = content.replace(/\{\{constraints_list\}\}/g, constraintsList);
 
     // ── Gemini: skills_block ─────────────────────────────────────────
-    // Activate skills and reference delegation protocol.
+    // Load shared methodology through MCP from canonical src/.
     if (runtimeName === 'gemini') {
-      const skills = entry.skills || [];
+      const resources = [];
+      if (entry.refs && entry.refs.includes('architecture')) {
+        resources.push('architecture');
+      }
+      for (const skill of entry.skills || []) {
+        resources.push(skill);
+      }
+
       let skillsBlock = '';
-      if (skills.length > 0) {
-        const skillList = skills.map((s) => `\`${s}\``).join(' and ');
-        skillsBlock = `Activate the ${skillList} skill${skills.length > 1 ? 's' : ''}. The delegation skill ensures agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.`;
+      if (resources.length > 0) {
+        const resourceList = resources.map((r) => `"${r}"`).join(', ');
+        skillsBlock = `Call \`get_skill_content\` with resources: [${resourceList}].`;
       }
       content = content.replace(/\{\{skills_block\}\}/g, skillsBlock);
     }
 
     // ── Claude: protocol_block ───────────────────────────────────────
-    // If the entry has agents (needs delegation), include protocol section.
+    // If the entry has agents (needs delegation), load delegation through MCP.
     if (runtimeName === 'claude') {
       let protocolBlock = '';
       if (entry.agents && entry.agents.length > 0) {
         protocolBlock =
-          '## Protocol\n\nBefore delegating, activate the `delegation` skill to ensure agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.\n';
+          '## Protocol\n\nBefore delegating, call `get_skill_content` with resources: ["delegation"] and follow the returned methodology.\n';
       }
       content = content.replace(/\{\{protocol_block\}\}/g, protocolBlock);
     }
 
     // ── Codex: refs_list ─────────────────────────────────────────────
-    // Build Read directives for architecture, delegation skill, and agent files.
+    // Build MCP preload directives for shared methodology and agent bodies.
     if (runtimeName === 'codex') {
       const refs = [];
+      const resources = [];
+
       if (entry.refs && entry.refs.includes('architecture')) {
-        refs.push('Read `../../references/architecture.md`.');
+        resources.push('architecture');
       }
-      if (entry.skills && entry.skills.includes('delegation')) {
-        refs.push('Read `../delegation/SKILL.md`.');
+      for (const skill of entry.skills || []) {
+        resources.push(skill);
+      }
+
+      if (resources.length > 0) {
+        refs.push(
+          `Call \`get_skill_content\` with resources: [${resources.map((r) => `"${r}"`).join(', ')}].`
+        );
       }
       if (entry.agents && entry.agents.length > 0) {
-        for (const agent of entry.agents) {
-          refs.push(`Read \`../../agents/${agent}.md\`.`);
-        }
+        refs.push(
+          `Call \`get_agent\` with agents: [${entry.agents.map((agent) => `"${agent}"`).join(', ')}].`
+        );
       }
-      if (entry.skills && entry.skills.includes('session-management')) {
-        refs.push('Read `../session-management/SKILL.md`.');
-      }
+
       const refsList = refs.join('\n');
       content = content.replace(/\{\{refs_list\}\}/g, refsList);
     }
@@ -529,9 +542,10 @@ async function main() {
 
     const staleFiles = allOwnedFiles.filter((f) => !manifestPaths.has(f));
     if (staleFiles.length > 0) {
-      console.log('\nWARNING: Stale files found (not in manifest):');
+      console.log('\nPruning stale files (not in manifest):');
       for (const f of staleFiles) {
-        console.log(`  STALE: ${f}`);
+        fs.unlinkSync(path.join(ROOT, f));
+        console.log(`  PRUNED: ${f}`);
       }
     }
   }

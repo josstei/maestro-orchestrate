@@ -27,7 +27,7 @@ Before running orchestration commands:
 3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning. (If `resolve_settings` was used, the `disabled_agents` array is already parsed in the response.)
 4. Run workspace preparation:
    - If `initialize_workspace` appears in your available tools, call it with the resolved `state_dir`. This is the preferred path.
-   - Otherwise, run `node ${extensionPath}/scripts/ensure-workspace.js <resolved-state-dir>` as fallback.
+   - Otherwise, run `node ${extensionPath}/src/scripts/ensure-workspace.js <resolved-state-dir>` as fallback.
    - Stop and report if either fails.
 
 ## Gemini CLI Integration Constraints
@@ -141,7 +141,7 @@ CORRECT — Delegating via the agent's own tool:
 
 When building delegation prompts:
 
-1. Call the agent's registered tool by its exact name from the Agent Roster (e.g., `coder`, `tester`, `design_system_engineer`). Use agent frontmatter defaults from `${extensionPath}/agents/<name>.md`.
+1. Call the agent's registered tool by its exact name from the Agent Roster (e.g., `coder`, `tester`, `design_system_engineer`). Use `get_agent` to load the full methodology body and declared tool restrictions for the matching kebab-case agent.
 2. Do not rely on Maestro-level model, temperature, turn, or timeout overrides. Use agent frontmatter and runtime-level agent configuration for native tuning.
 3. Inject shared protocols from `get_skill_content` with resources: `["agent-base-protocol", "filesystem-safety-protocol"]`.
 4. Include dependency downstream context from session state.
@@ -167,11 +167,11 @@ Resolve `<state_dir>` from `MAESTRO_STATE_DIR`:
 
 When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`replace` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
 
-`/maestro:status` and `/maestro:resume` use `node ${extensionPath}/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
+`/maestro:status` and `/maestro:resume` use `node ${extensionPath}/src/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
 
 ## Skills Reference
 
-During orchestration, methodology skills are loaded via `activate_skill` (masking-exempt, expands workspace access to skill directories). Templates, references, and delegation protocols are loaded via `get_skill_content`. See `references/orchestration-steps.md` for the loading sequence. Standalone commands load skills via `activate_skill`.
+During orchestration, shared methodology skills, templates, references, and delegation protocols are loaded via `get_skill_content`. Agent methodology is loaded via `get_agent`. See `references/orchestration-steps.md` for the loading sequence.
 
 | Skill | Purpose |
 | --- | --- |

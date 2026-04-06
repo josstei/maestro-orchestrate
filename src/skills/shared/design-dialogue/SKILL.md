@@ -267,7 +267,7 @@ Where:
 - `<topic-slug>` is a lowercase, hyphenated summary of the task (e.g., `user-auth-system`, `data-pipeline-refactor`)
 
 ### Document Structure
-Use the design document template from `templates/design-document.md`. Include the `design_depth` field in the frontmatter, set to the depth mode chosen during the Design Depth Gate.
+Use the `design-document` template loaded via `get_skill_content`. Include the `design_depth` field in the frontmatter, set to the depth mode chosen during the Design Depth Gate.
 
 ### Completion Criteria
 The design document is complete when:

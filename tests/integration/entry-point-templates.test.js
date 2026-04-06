@@ -20,7 +20,7 @@ describe('expandEntryPoints', () => {
     assert.ok(debug);
     assert.ok(debug.outputPath === 'claude/skills/debug/SKILL.md');
     assert.ok(debug.content.includes('name: debug'));
-    assert.ok(debug.content.includes('${CLAUDE_PLUGIN_ROOT}'));
+    assert.ok(debug.content.includes('get_skill_content'));
   });
 
   it('produces codex SKILL.md with maestro- prefix', () => {
@@ -30,12 +30,13 @@ describe('expandEntryPoints', () => {
     assert.ok(review);
     assert.ok(review.outputPath === 'plugins/maestro/skills/maestro-review/SKILL.md');
     assert.ok(review.content.includes('name: maestro-review'));
-    assert.ok(review.content.includes('../../references/'));
+    assert.ok(review.content.includes('get_skill_content'));
   });
 
   it('gemini skills_block activates correct skills', () => {
     const results = expandEntryPoints('gemini');
     const review = results.find((r) => r.outputPath.includes('review'));
+    assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
     assert.ok(review.content.includes('code-review'));
   });
@@ -43,13 +44,15 @@ describe('expandEntryPoints', () => {
   it('claude protocol_block references delegation for agent entries', () => {
     const results = expandEntryPoints('claude');
     const review = results.find((r) => r.outputPath.includes('review'));
+    assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
   });
 
   it('codex refs_list includes agent references for entries with agents', () => {
     const results = expandEntryPoints('codex');
     const review = results.find((r) => r.outputPath.includes('review'));
-    assert.ok(review.content.includes('agents/code-reviewer.md'));
+    assert.ok(review.content.includes('get_agent'));
+    assert.ok(review.content.includes('code-reviewer'));
   });
 
   it('entries without agents omit delegation references', () => {

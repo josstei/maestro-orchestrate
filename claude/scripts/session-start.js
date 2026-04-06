@@ -1,7 +1,7 @@
 'use strict';
 
 const { normalizeInput, formatOutput, readBoundedStdin } = require('./hook-adapter');
-const { handleSessionStart } = require('../lib/hooks/session-start-logic.js');
+const { handleSessionStart } = require('../../src/lib/hooks/session-start-logic.js');
 
 readBoundedStdin()
   .then((raw) => {

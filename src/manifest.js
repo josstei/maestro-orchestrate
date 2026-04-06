@@ -2,43 +2,21 @@ const codex = (relativePath) => `plugins/maestro/${relativePath}`;
 
 module.exports = [
   // ── Agents ──────────────────────────────────────────────────────────
-  // Gemini/Claude get full transforms; Codex gets strip-feature only
+  // Gemini/Claude get runtime-specific frontmatter; all runtimes keep only
+  // a stub body that points delegation back through MCP.
   { glob: 'agents/*.md',
-    transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'],
+    transforms: ['inject-frontmatter', 'agent-stub'],
     runtimes: ['gemini', 'claude'] },
   { glob: 'agents/*.md',
-    transforms: ['strip-feature'],
+    transforms: ['agent-stub'],
     runtimes: ['codex'] },
 
-  // ── Shared lib ──────────────────────────────────────────────────────
-  // Byte-identical copies to all runtimes, EXCLUDING lib/mcp/ (Gemini-only)
-  { glob: 'lib/config/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
-  { glob: 'lib/core/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
-  { glob: 'lib/hooks/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
-  { glob: 'lib/state/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
-  // lib/mcp/ — Gemini only (Claude/Codex get_skill_content is feature-flagged in MCP server)
-  { src: 'lib/mcp/handlers/get-skill-content.js', transforms: ['copy'], outputs: { gemini: 'lib/mcp/handlers/get-skill-content.js' } },
-
-  // ── Shared scripts ──────────────────────────────────────────────────
-  { glob: 'scripts/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
-
-  // ── Shared templates ────────────────────────────────────────────────
-  { glob: 'templates/*.md', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
-
-  // ── Shared references ───────────────────────────────────────────────
-  { src: 'references/orchestration-steps.md', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
-  { src: 'references/architecture.md',
-    transforms: ['strip-feature', 'replace-agent-names', 'replace-paths'],
-    runtimes: ['gemini', 'claude', 'codex'] },
-
   // ── Shared skills ──────────────────────────────────────────────────
+  // Gemini loads shared methodology through MCP only; Claude/Codex keep
+  // minimal discovery stubs so their skill pickers still surface the names.
   { glob: 'skills/shared/**/SKILL.md',
-    transforms: ['skill-metadata', 'replace-paths'],
-    runtimes: ['gemini', 'claude', 'codex'] },
-  // Delegation protocols (no skill-metadata needed)
-  { glob: 'skills/shared/**/protocols/*.md',
-    transforms: ['replace-paths'],
-    runtimes: ['gemini', 'claude', 'codex'] },
+    transforms: ['skill-discovery-stub'],
+    runtimes: ['claude', 'codex'] },
 
   // ── MCP server ──────────────────────────────────────────────────────
   { src: 'mcp/maestro-server.js', transforms: ['strip-feature'], runtimes: ['gemini', 'claude', 'codex'] },

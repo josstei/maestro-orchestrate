@@ -76,7 +76,7 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 }
 ```
 
-**Note:** Claude Code uses the native `Read` tool for loading skill files and references, not the `get_skill_content` MCP tool (which is Gemini-specific). The orchestrate skill instructs Claude to `Read ${CLAUDE_PLUGIN_ROOT}/references/orchestration-steps.md` directly.
+**Note:** Claude Code now uses the same `get_skill_content` MCP flow as the other runtimes for shared skills, templates, references, and delegation protocols. Runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
 
 ## Quick Start
 

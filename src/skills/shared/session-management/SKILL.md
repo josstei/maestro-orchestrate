@@ -53,17 +53,17 @@ All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory 
 
 Both `read_file` and `write_file` work on state paths inside `<MAESTRO_STATE_DIR>`. The runtime's file-access configuration makes state paths accessible.
 
-Use `${extensionPath}/scripts/` for script locations so these commands work even when the extension is installed outside the workspace root.
+Use the runtime's bundled `scripts/` directory for these helper commands so they still work when the extension is installed outside the workspace root.
 
 **Reading state files:**
 Use `read_file` directly. The `read-state.js` script remains available as an alternative for TOML shell blocks that inject state before the model's first turn:
 
-`run_shell_command`: `node ${extensionPath}/scripts/read-state.js <relative-path>`
+`run_shell_command`: `node <runtime-script-root>/read-state.js <relative-path>`
 
 **Writing state files:**
 Use `write_file` directly. When content must be piped from a shell command, use the atomic write script:
 
-`run_shell_command`: `echo '...' | node ${extensionPath}/scripts/write-state.js <relative-path>`
+`run_shell_command`: `echo '...' | node <runtime-script-root>/write-state.js <relative-path>`
 
 **Rules:**
 - The `write-state.js` script writes atomically (temp file + rename) to prevent partial writes
@@ -73,7 +73,7 @@ Use `write_file` directly. When content must be piped from a shell command, use 
 1. Resolve state directory from `MAESTRO_STATE_DIR`
 2. Create `<state_dir>/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
 3. Verify no existing `active-session.md` — if one exists, alert the user and offer to archive or resume
-4. Generate session state using the template from `templates/session-state.md`
+4. Generate session state using the `session-state` template loaded via `get_skill_content`
 5. Initialize all phases as `pending`
 6. Set overall status to `in_progress`
 7. Set `current_phase` to 1
@@ -249,7 +249,7 @@ Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestra
 
 ### Resume Steps
 
-1. **Read State**: If session state was already injected into the prompt (e.g., via `/maestro:resume`), use that injected content instead of calling `get_session_status`. Otherwise, if `get_session_status` appears in your available tools, call it to read the active session. Otherwise, read state via `run_shell_command`: `node ${extensionPath}/scripts/read-active-session.js` (resolves `MAESTRO_STATE_DIR` internally)
+1. **Read State**: If session state was already injected into the prompt (e.g., via `/maestro:resume`), use that injected content instead of calling `get_session_status`. Otherwise, if `get_session_status` appears in your available tools, call it to read the active session. Otherwise, read state via `run_shell_command`: `node <runtime-script-root>/read-active-session.js` (resolves `MAESTRO_STATE_DIR` internally)
 2. **Parse Frontmatter**: Extract YAML frontmatter for session metadata
 3. **Identify Position**: Determine:
    - Last completed phase (highest ID with `status: completed`)
