@@ -21,6 +21,146 @@ function safeResolve(relativePath) {
   return resolved;
 }
 
+/**
+ * Expand a glob pattern relative to srcDir.
+ * Supports `*` (wildcard within a single directory) and `**` (recursive).
+ * Returns sorted relative paths (posix separators).
+ */
+function expandGlob(pattern, srcDir) {
+  const segments = pattern.split('/');
+  const results = [];
+
+  function walk(dir, segIndex) {
+    if (segIndex >= segments.length) return;
+
+    const segment = segments[segIndex];
+    const isLast = segIndex === segments.length - 1;
+
+    if (segment === '**') {
+      // Match zero or more directories — try current level and recurse
+      // Try skipping ** (match zero dirs)
+      walk(dir, segIndex + 1);
+      // Recurse into subdirectories
+      let entries;
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          walk(path.join(dir, entry.name), segIndex); // stay on ** for deeper recursion
+        }
+      }
+    } else {
+      // Build regex from segment (handles * wildcard and literal chars)
+      const re = new RegExp(
+        '^' + segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*') + '$'
+      );
+
+      let entries;
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        if (!re.test(entry.name)) continue;
+
+        const fullPath = path.join(dir, entry.name);
+        if (isLast) {
+          if (entry.isFile()) {
+            results.push(path.relative(srcDir, fullPath));
+          }
+        } else {
+          if (entry.isDirectory()) {
+            walk(fullPath, segIndex + 1);
+          }
+        }
+      }
+    }
+  }
+
+  walk(srcDir, 0);
+  return results.sort();
+}
+
+/**
+ * Compute the output path for a source-relative path in a given runtime.
+ * Handles:
+ *   - snake_case agent naming for runtimes with agentNaming: 'snake_case'
+ *   - Prepending outputDir (skipped for './')
+ *   - Rewriting skills/shared/X → skills/X
+ */
+function computeOutputPath(srcRelPath, runtime) {
+  let outPath = srcRelPath;
+
+  // Rewrite skills/shared/X → skills/X
+  if (outPath.startsWith('skills/shared/')) {
+    outPath = 'skills/' + outPath.slice('skills/shared/'.length);
+  }
+
+  // For agent files, apply naming convention
+  if (outPath.startsWith('agents/') && runtime.agentNaming === 'snake_case') {
+    const dir = path.dirname(outPath);
+    const base = path.basename(outPath);
+    outPath = dir + '/' + base.replace(/-/g, '_');
+  }
+
+  // Prepend runtime outputDir (skip for './')
+  if (runtime.outputDir && runtime.outputDir !== './') {
+    outPath = runtime.outputDir + outPath;
+  }
+
+  return outPath;
+}
+
+/**
+ * Expand convention-based manifest rules into explicit entries.
+ *
+ * Three rule formats:
+ *   1. Legacy: has `outputs` field — passed through unchanged
+ *   2. Explicit src + runtimes: has `src` and `runtimes` (no `glob`) — expands to outputs per runtime
+ *   3. Glob: has `glob` and `runtimes` — scans srcDir, produces one entry per matched file
+ *
+ * Does NOT merge entries for the same source file — different rules may have different transforms.
+ */
+function expandManifest(rules, runtimes, srcDir) {
+  const entries = [];
+
+  for (const rule of rules) {
+    // Legacy format: pass through unchanged
+    if (rule.outputs) {
+      entries.push(rule);
+      continue;
+    }
+
+    // Determine source files to expand
+    let srcFiles;
+    if (rule.glob) {
+      srcFiles = expandGlob(rule.glob, srcDir);
+    } else {
+      srcFiles = [rule.src];
+    }
+
+    for (const srcRelPath of srcFiles) {
+      const outputs = {};
+      for (const runtimeName of rule.runtimes) {
+        const runtime = runtimes[runtimeName];
+        if (rule.outputName) {
+          // Use explicit outputName, but still prepend outputDir
+          let outPath = rule.outputName;
+          if (runtime.outputDir && runtime.outputDir !== './') {
+            outPath = runtime.outputDir + outPath;
+          }
+          outputs[runtimeName] = outPath;
+        } else {
+          outputs[runtimeName] = computeOutputPath(srcRelPath, runtime);
+        }
+      }
+      entries.push({
+        src: srcRelPath,
+        transforms: rule.transforms,
+        outputs,
+      });
+    }
+  }
+
+  return entries;
+}
+
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const diffMode = args.includes('--diff');
@@ -216,7 +356,12 @@ async function main() {
   if (stats.errors > 0) process.exit(1);
 }
 
-main().catch((err) => {
-  console.error('Generator failed:', err.message);
-  process.exit(1);
-});
+// Only run main() when executed directly (not when required as a module)
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Generator failed:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { expandManifest };
