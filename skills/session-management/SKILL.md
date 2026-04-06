@@ -23,12 +23,12 @@ Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-ho
 | Concern | Orchestration State | Hook State |
 | --- | --- | --- |
 | Location | `<MAESTRO_STATE_DIR>/state/` | `/tmp/maestro-hooks/<session-id>/` (Unix) or `<os.tmpdir()>/maestro-hooks/<session-id>/` (Windows) |
-| Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by `SessionStart` when an active session exists; active-agent file written by `BeforeAgent` and cleared by `AfterAgent`; stale directories pruned by both `SessionStart` and `BeforeAgent` |
+| Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by the session-start hook when an active session exists; active-agent file written by the pre-delegation hook and cleared by the post-delegation hook; stale directories pruned by both session-start and pre-delegation hooks |
 | Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
 | Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
 | Managed by | Orchestrator via session-management skill | The runtime's pre-delegation and post-delegation hooks |
 
-The `BeforeAgent` prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
+The pre-delegation hook prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
 
 The orchestrator does not read or write hook-level state directly. It interacts only with `<MAESTRO_STATE_DIR>` paths. The two state systems are independent and serve different concerns.
 
@@ -47,7 +47,7 @@ Where:
 ### File Location
 `<MAESTRO_STATE_DIR>/state/active-session.md`
 
-All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `<state_dir>` represents the resolved value of this variable.
+All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory (default: `docs/maestro`). In procedural steps, `<state_dir>` represents the resolved value of this variable.
 
 ### State File Access
 
@@ -217,6 +217,7 @@ When `MAESTRO_AUTO_ARCHIVE` is `false`, prompt the user after successful complet
 
 ### Archive Steps
 If `archive_session` appears in your available tools, use it — a single call handles all archival:
+
 1. Call `archive_session` with the session ID. The MCP tool atomically:
    - Updates session status to `completed`
    - Moves `active-session.md` to `<state_dir>/state/archive/<session-id>.md`
@@ -227,7 +228,7 @@ If `archive_session` appears in your available tools, use it — a single call h
 If `archive_session` is not available, fall back to manual file operations:
 1. Create `<state_dir>/plans/archive/` directory if it does not exist
 2. Create `<state_dir>/state/archive/` directory if it does not exist
-3. **MOVE** (not copy) design document from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — the original MUST be deleted. Use `run_shell_command` with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
+3. **MOVE** (not copy) design document from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — the original MUST be deleted. Use the shell-command tool from runtime context with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
 4. **MOVE** (not copy) implementation plan from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
 5. Update session state `status` to `completed`
 6. Update `updated` timestamp

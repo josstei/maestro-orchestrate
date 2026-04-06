@@ -7,9 +7,9 @@ description: Guides structured design conversations for complex engineering task
 
 **Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate design-dialogue. Return to the Express Workflow section.
 
-Activate this skill when beginning Phase 1 of Maestro orchestration. Immediately call `enter_plan_mode` to enter Plan Mode for the design phase. If the tool call fails or is unavailable, inform the user that Plan Mode is not enabled and provide activation instructions: "Plan Mode gives you a dedicated review surface for designs and plans. To enable it, run: `gemini --settings` and set `experimental.plan` to `true`, then restart this session." Ask the user if they want to pause and enable it, or continue without Plan Mode. If continuing without Plan Mode, use `ask_user` with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
+Activate this skill when beginning Phase 1 of Maestro orchestration. Use the plan mode tool from `get_runtime_context` (loaded at session start, step 0). If your runtime provides a Plan Mode surface, enter it now by calling `enter_plan_mode`. If Plan Mode is unavailable or the transition fails, continue without it and use the user-prompt tool from runtime context with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
 
-**User confirmation sequence**: Phase 1 entry triggers two user-facing confirmations — first the `activate_skill` consent dialog (required for non-builtin skills), then the `enter_plan_mode` transition. Both are expected; do not treat the second confirmation as redundant or skip it.
+**User confirmation sequence**: Phase 1 entry may trigger a Plan Mode confirmation when `enter_plan_mode` is available. That confirmation is expected; do not treat it as redundant or skip it. If your runtime does not provide Plan Mode, move directly into the depth selector and approval prompts.
 
 ## Design Depth Gate
 
@@ -105,30 +105,7 @@ Scale question coverage based on `task_complexity`:
 
 ### Question Format
 
-Use `ask_user` with `type: 'choice'` for structured selections.
-
-```json
-{
-  "questions": [
-    {
-      "header": "[Short Label]",
-      "question": "[Topic Area]: [Clear, specific question]",
-      "type": "choice",
-      "options": [
-        { "label": "[Option A]", "description": "(Recommended) [Why this is recommended, key benefits]" },
-        { "label": "[Option B]", "description": "[When this makes sense, trade-offs]" },
-        { "label": "[Option C]", "description": "[When this makes sense, trade-offs]" }
-      ]
-    }
-  ]
-}
-```
-
-- `header`: Short label displayed as a chip/tag. Must not exceed 16 characters (enforced by Gemini CLI validation). Examples: `Database`, `Auth`, `Runtime`.
-- `options`: 2-4 items, each with `label` (1-5 words) and `description`
-
-Include your recommendation rationale in the question text so the user has context before choosing.
-
+Prompt the user for a choice using the user-prompt tool from runtime context. Use `type: 'choice'` for structured selections with 2-4 options. Each option should have a short label (1-5 words) and a description explaining when it makes sense and its trade-offs. Include your recommendation rationale in the question text so the user has context before choosing.
 ### Enrichment Protocol
 
 After the user answers each question, apply depth-gated enrichment steps before advancing to the next topic:
@@ -242,19 +219,7 @@ Never skip Problem Statement, Approach, or Risk Assessment. If you believe other
 
 ### Validation Format
 
-After each section, use `ask_user` with `type: 'yesno'` for approval. Do not rely on a separate assistant message for the section content. The `question` body itself must include the section title and the full section summary so the user can review the material directly in the approval prompt.
-
-```json
-{
-  "questions": [
-    {
-      "header": "Approve",
-      "question": "Section: [section name]\n\n[200-300 word section content]\n\nDoes this section accurately capture our discussion? Any changes needed before I proceed to [next section name]?",
-      "type": "yesno"
-    }
-  ]
-}
-```
+After each section, prompt the user for approval using the user-prompt tool from runtime context with `type: 'yesno'`. Do not rely on a separate assistant message for the section content. The prompt body itself must include the section title and the full section summary (200-300 words) so the user can review the material directly in the approval prompt. End with: "Does this section accurately capture our discussion? Any changes needed before I proceed to [next section name]?"
 
 ### Revision Protocol
 - If user requests changes, revise the section and re-present
@@ -290,15 +255,16 @@ Apply depth-gated reasoning enrichment to design section content during the conv
 
 ### Output Location
 
-The write path depends on whether Plan Mode is active:
+The write path depends on whether your runtime provides a Plan Mode surface (check `get_runtime_context`, loaded at session start, step 0):
 
-- **Plan Mode active**: Write to `~/.gemini/tmp/<project>/plans/YYYY-MM-DD-<topic-slug>-design.md` (the only writable location during Plan Mode). After `exit_plan_mode` approval in Phase 2, the orchestrator copies it to the permanent location.
-- **Plan Mode not active**: Write directly to `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-design.md` (`<state_dir>` resolves from `MAESTRO_STATE_DIR`).
+- **Plan Mode active**: Some runtimes restrict writes to a temporary staging directory during Plan Mode. Write the design document there. After `exit_plan_mode` approval in Phase 2, copy it to the permanent location.
+- **Plan Mode not active or not available**: Write directly to the permanent location. If your runtime does not provide Plan Mode, track design progress using the plan-update mechanism from runtime context and use the user-prompt tool from runtime context for section approvals and final signoff.
+
+Permanent location: `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-design.md` (where `<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `docs/maestro`).
 
 Where:
 - `YYYY-MM-DD` is the current date
 - `<topic-slug>` is a lowercase, hyphenated summary of the task (e.g., `user-auth-system`, `data-pipeline-refactor`)
-- `<project>` is the CLI's internal project hash (resolved automatically by `write_file`)
 
 ### Document Structure
 Use the design document template from `templates/design-document.md`. Include the `design_depth` field in the frontmatter, set to the depth mode chosen during the Design Depth Gate.

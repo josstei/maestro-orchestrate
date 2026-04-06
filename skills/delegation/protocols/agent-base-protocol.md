@@ -113,7 +113,7 @@ Populate this section when your output feeds into subsequent phases. Read-only a
 
 ### Hook Enforcement
 
-The `AfterAgent` hook validates this contract at runtime. After every agent turn, the hook checks for both `## Task Report` and `## Downstream Context` headings in the response:
+The hooks system validates this contract at runtime. After every agent turn, the post-delegation hook checks for both `## Task Report` and `## Downstream Context` headings in the response:
 
 - **Missing either heading on first attempt**: The hook blocks the response and returns a retry request specifying which section is absent. The agent must re-produce the complete handoff report.
 - **Missing either heading on retry**: The hook allows the response through to prevent infinite loops, but logs a warning. The orchestrator receives the malformed output and must handle the missing context.

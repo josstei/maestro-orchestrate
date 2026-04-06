@@ -130,50 +130,53 @@ Explicitly state what the agent must NOT do:
 | Task Domain | Agent | Key Capability |
 |-------------|-------|---------------|
 | System architecture, component design | `architect` | Read-only analysis, architecture patterns |
-| API contracts, endpoint design | `api_designer` | Read-only, REST/GraphQL expertise |
+| API contracts, endpoint design | `api-designer` | Read-only, REST/GraphQL expertise |
 | Feature implementation, coding | `coder` | Full read/write/shell access |
-| Code quality assessment | `code_reviewer` | Read-only, verified findings |
-| Database schema, queries, ETL | `data_engineer` | Full read/write/shell access |
+| Code quality assessment | `code-reviewer` | Read-only, verified findings |
+| Database schema, queries, ETL | `data-engineer` | Full read/write/shell access |
 | Bug investigation, root cause | `debugger` | Read + shell for investigation |
-| CI/CD, infrastructure, deployment | `devops_engineer` | Full read/write/shell access |
-| Performance analysis, profiling | `performance_engineer` | Read + shell for profiling |
+| CI/CD, infrastructure, deployment | `devops-engineer` | Full read/write/shell access |
+| Performance analysis, profiling | `performance-engineer` | Read + shell for profiling |
 | Code restructuring, modernization | `refactor` | Read/write/shell, skill activation |
-| Security assessment, vulnerability | `security_engineer` | Read + shell for scanning |
+| Security assessment, vulnerability | `security-engineer` | Read + shell for scanning |
 | Test creation, TDD, coverage | `tester` | Full read/write/shell access |
-| Documentation, READMEs, guides | `technical_writer` | Read/write, no shell |
-| Technical SEO auditing | `seo_specialist` | Read + shell + web search/fetch |
+| Documentation, READMEs, guides | `technical-writer` | Read/write, no shell |
+| Technical SEO auditing | `seo-specialist` | Read + shell + web search/fetch |
 | Marketing copy, content writing | `copywriter` | Read/write |
-| Content planning, strategy | `content_strategist` | Read + web search/fetch |
-| User experience design | `ux_designer` | Read/write + web search |
-| WCAG compliance auditing | `accessibility_specialist` | Read + shell + web search |
-| Requirements, product strategy | `product_manager` | Read/write + web search |
-| Tracking, measurement | `analytics_engineer` | Full read/write/shell access |
-| Internationalization | `i18n_specialist` | Full read/write/shell access |
-| Design tokens, theming | `design_system_engineer` | Full read/write/shell access |
-| Legal, regulatory compliance | `compliance_reviewer` | Read + web search/fetch |
+| Content planning, strategy | `content-strategist` | Read + web search/fetch |
+| User experience design | `ux-designer` | Read/write + web search |
+| WCAG compliance auditing | `accessibility-specialist` | Read + shell + web search |
+| Requirements, product strategy | `product-manager` | Read/write + web search |
+| Tracking, measurement | `analytics-engineer` | Full read/write/shell access |
+| Internationalization | `i18n-specialist` | Full read/write/shell access |
+| Design tokens, theming | `design-system-engineer` | Full read/write/shell access |
+| Legal, regulatory compliance | `compliance-reviewer` | Read + web search/fetch |
 
 ## Agent Tool Dispatch Contract
 
-Every Maestro agent in the Agent Roster is registered as its own tool in the runtime. When delegating a phase, call the assigned agent's tool by its exact name — the tool name matches the agent name in the roster (e.g., `coder`, `design_system_engineer`, `tester`).
+Delegate to the assigned agent using the dispatch pattern from `get_runtime_context` (loaded at session start, step 0). Every Maestro agent in the Agent Roster carries its frontmatter configuration:
 
-This is mandatory because each agent tool carries its frontmatter configuration:
 - `temperature`: Controls output determinism (e.g., coder uses 0.2 for precise code)
 - `max_turns`: Prevents runaway sessions (e.g., 25 turns for implementation agents)
-- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot call write_file)
+- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot use file-writing tools)
 - Body: Contains the agent's specialized methodology and decision frameworks
 
-The built-in `generalist` tool bypasses all of this. It uses default temperature, has no turn limit, no tool restrictions, and no specialized methodology. Never use `generalist` for Maestro phase delegations.
+Using a generic/default agent tool bypasses all of this — it uses default temperature, has no turn limit, no tool restrictions, and no specialized methodology. Never use a generic agent tool for Maestro phase delegations.
 
-**Sequential dispatch:**
+Every delegation must include the required header fields:
+
 ```
-coder(query: "Agent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
+Agent: <agent_name>
+Phase: <id>/<total>
+Batch: <batch_id> (or "single" for sequential)
+Session: <session_id>
 ```
 
-**Parallel dispatch (contiguous calls in one turn):**
-```
-coder(query: "Agent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
-ux_designer(query: "Agent: ux_designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
-```
+**Sequential dispatch**: Invoke the agent using your runtime's dispatch mechanism with the full delegation prompt.
+
+**Parallel dispatch**: Emit contiguous agent dispatch calls in a single turn for all agents in the ready batch. Each call includes the same header format with the shared batch ID.
+
+The agent reference files at `${extensionPath}/agents/<agent-name>.md` are the source of truth for agent personas and scope boundaries. If your runtime does not register Maestro agents as named tools, read the matching agent reference and fold it into the delegation prompt.
 
 ## Parallel Delegation
 
@@ -261,16 +264,16 @@ Maestro hooks fire at agent boundaries during delegation, providing context inje
 
 ### Agent Tracking
 
-The `BeforeAgent` hook tracks which agent is currently executing:
+Before each agent dispatch, a hook tracks which agent is currently executing:
 
 - Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
 - Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
 
-The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `AfterAgent` hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
+The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
 
 ### Session Context Injection
 
-When an active orchestration session exists, the `BeforeAgent` hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
+When an active orchestration session exists, the pre-delegation hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
 
 ```
 Active session: current_phase=3, status=in_progress
@@ -280,7 +283,7 @@ This gives delegated agents awareness of where they sit in the orchestration wor
 
 ### Handoff Format Enforcement
 
-The `AfterAgent` hook validates that every subagent response contains both required handoff sections:
+After completion, the post-delegation hook validates that every subagent response contains both required handoff sections:
 
 - `## Task Report` (or `# Task Report`)
 - `## Downstream Context` (or `# Downstream Context`)
@@ -296,7 +299,7 @@ This enforcement is the runtime complement to the Output Handoff Contract define
 
 ## Validation Criteria Templates
 
-### For Implementation Agents (`coder`, `data_engineer`, `devops_engineer`)
+### For Implementation Agents (`coder`, `data-engineer`, `devops-engineer`)
 ```
 Validation: [build command] && [lint command] && [test command]
 ```
@@ -313,24 +316,24 @@ Validation: [test command]
 Verify: All new tests pass, report coverage metrics
 ```
 
-### For Assessment Agents (`architect`, `api_designer`, `code_reviewer`, `debugger`, `performance_engineer`, `security_engineer`, `seo_specialist`, `accessibility_specialist`, `content_strategist`, `compliance_reviewer`)
+### For Assessment Agents (`architect`, `api-designer`, `code-reviewer`, `debugger`, `performance-engineer`, `security-engineer`, `seo-specialist`, `accessibility-specialist`, `content-strategist`, `compliance-reviewer`)
 ```
 Validation: N/A (assessment-only — no write tools)
 Verify: Findings reference specific files and line numbers
 ```
 
-### For Documentation Agents (`technical_writer`, `copywriter`)
+### For Documentation Agents (`technical-writer`, `copywriter`)
 ```
 Validation: Verify all links resolve, code examples are syntactically valid
 ```
 
-### For Design and Product Agents (`ux_designer`, `product_manager`)
+### For Design and Product Agents (`ux-designer`, `product-manager`)
 ```
 Validation: N/A (design and requirements artifacts)
 Verify: Deliverables reference user needs and acceptance criteria
 ```
 
-### For Implementation Specialists (`analytics_engineer`, `i18n_specialist`, `design_system_engineer`)
+### For Implementation Specialists (`analytics-engineer`, `i18n-specialist`, `design-system-engineer`)
 ```
 Validation: [build command] && [lint command] && [test command]
 Verify: Domain-specific integration validated (tracking fires, locales render, tokens apply)

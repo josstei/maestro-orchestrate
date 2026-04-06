@@ -77,12 +77,12 @@ Before finalizing agent assignments, verify each phase's agent can deliver its r
 
 | Phase Deliverable | Required Tier | Compatible Agents |
 |-------------------|--------------|-------------------|
-| Creates/modifies files | Full Access or Read+Write | coder, data_engineer, devops_engineer, tester, refactor, design_system_engineer, i18n_specialist, analytics_engineer, technical_writer, product_manager, ux_designer, copywriter |
-| Runs shell commands | Full Access or Read+Shell | coder, data_engineer, devops_engineer, tester, refactor, design_system_engineer, i18n_specialist, analytics_engineer, debugger, performance_engineer, security_engineer, seo_specialist, accessibility_specialist |
+| Creates/modifies files | Full Access or Read+Write | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer, technical-writer, product-manager, ux-designer, copywriter |
+| Runs shell commands | Full Access or Read+Shell | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer, debugger, performance-engineer, security-engineer, seo-specialist, accessibility-specialist |
 | Analysis/review only | Any tier | All agents |
 
 <HARD-GATE>
-Read-Only agents (architect, api_designer, code_reviewer, content_strategist, compliance_reviewer)
+Read-Only agents (architect, api-designer, code-reviewer, content-strategist, compliance-reviewer)
 CANNOT be assigned to phases that create or modify files. If a phase requires file creation
 and domain expertise from a Read-Only agent, split it: the Read-Only agent produces a spec
 or analysis, then a write-capable agent (typically coder) implements the files based on that output.
@@ -180,27 +180,27 @@ If `validate_plan` is available, review its `parallelization_profile` and `redun
 | Task Domain | Primary Agent | Secondary Agent | Rationale |
 |-------------|--------------|-----------------|-----------|
 | System design, architecture | `architect` | - | Read-only analysis, design expertise |
-| API contracts, endpoints | `api_designer` | `coder` | Design then implement |
+| API contracts, endpoints | `api-designer` | `coder` | Design then implement |
 | Feature implementation | `coder` | - | Full implementation access |
-| Code quality review | `code_reviewer` | - | Read-only verification |
-| Database schema, queries | `data_engineer` | - | Schema + implementation |
+| Code quality review | `code-reviewer` | - | Read-only verification |
+| Database schema, queries | `data-engineer` | - | Schema + implementation |
 | Bug investigation | `debugger` | - | Read + shell for investigation |
-| CI/CD, infrastructure | `devops_engineer` | - | Full DevOps access |
-| Performance analysis | `performance_engineer` | - | Read + shell for profiling |
+| CI/CD, infrastructure | `devops-engineer` | - | Full DevOps access |
+| Performance analysis | `performance-engineer` | - | Read + shell for profiling |
 | Code restructuring | `refactor` | - | Write + shell access (for validation) |
-| Security assessment | `security_engineer` | - | Read + shell for scanning |
+| Security assessment | `security-engineer` | - | Read + shell for scanning |
 | Test creation | `tester` | - | Full test implementation |
-| Documentation | `technical_writer` | - | Write access for docs |
-| Technical SEO audit | `seo_specialist` | - | Read + shell + web search |
+| Documentation | `technical-writer` | - | Write access for docs |
+| Technical SEO audit | `seo-specialist` | - | Read + shell + web search |
 | Marketing copy, content | `copywriter` | - | Read/write |
-| Content planning | `content_strategist` | - | Read + web search/fetch |
-| UX design, user flows | `ux_designer` | - | Read/write + web search |
-| WCAG compliance audit | `accessibility_specialist` | - | Read + shell + web search |
-| Requirements, product | `product_manager` | - | Read/write + web search |
-| Tracking, analytics | `analytics_engineer` | `coder` | Implement then instrument |
-| Internationalization | `i18n_specialist` | `coder` | Implement then localize |
-| Design tokens, theming | `design_system_engineer` | `coder` | Tokens then consume |
-| Legal, regulatory | `compliance_reviewer` | - | Read + web search/fetch |
+| Content planning | `content-strategist` | - | Read + web search/fetch |
+| UX design, user flows | `ux-designer` | - | Read/write + web search |
+| WCAG compliance audit | `accessibility-specialist` | - | Read + shell + web search |
+| Requirements, product | `product-manager` | - | Read/write + web search |
+| Tracking, analytics | `analytics-engineer` | `coder` | Implement then instrument |
+| Internationalization | `i18n-specialist` | `coder` | Implement then localize |
+| Design tokens, theming | `design-system-engineer` | `coder` | Tokens then consume |
+| Legal, regulatory | `compliance-reviewer` | - | Read + web search/fetch |
 
 ### Assignment Rules
 1. Match the primary task domain to the agent specialization
@@ -247,12 +247,14 @@ Include this table in every implementation plan:
 
 ### Output Location
 
-During Plan Mode, `write_file` is restricted to `.md` files within `~/.gemini/tmp/<project>/plans/` (where `<project>` is the CLI's internal project hash). Write the implementation plan there first, then copy to the project archive after approval:
+The write path depends on whether your runtime provides a Plan Mode surface (check `get_runtime_context`, loaded at session start, step 0).
 
-1. **During Plan Mode** (writable): `~/.gemini/tmp/<project>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
-2. **After approval** (permanent reference): `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (`<state_dir>` resolves from `MAESTRO_STATE_DIR`)
+- **Plan Mode active**: Some runtimes restrict writes to a temporary staging directory during Plan Mode. Write the plan there first, then copy to the permanent location after approval. Call `exit_plan_mode` with the plan path to present the plan for user approval.
+- **Plan Mode not active or not available**: Write the implementation plan directly to the project's plans directory.
 
-The `exit_plan_mode` tool validates that `plan_path` is within the project's temp plans directory. Always pass the tmp-directory path.
+Permanent location: `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (where `<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `docs/maestro`).
+
+If your runtime does not provide a Plan Mode transition, track planning progress using the plan-update mechanism from your runtime context, write directly to the final location, and use the user-prompt tool from runtime context for the approval gate.
 
 ### Document Structure
 Use the implementation plan template from `templates/implementation-plan.md`.
@@ -295,7 +297,7 @@ After writing the implementation plan:
 2. Present the dependency graph and execution strategy
 3. Highlight parallel execution opportunities
 4. Provide token budget estimates
-5. Call `exit_plan_mode` with `plan_path` set to the tmp-directory path (`~/.gemini/tmp/<project>/plans/...`) to present the plan for user approval
-6. After approval, copy the plan to `<state_dir>/plans/YYYY-MM-DD-<slug>-impl-plan.md` as a permanent project reference
+5. If your runtime provides Plan Mode, call `exit_plan_mode` with the plan path to present the plan for user approval. If Plan Mode is not available, present the completed plan for user approval using the user-prompt tool from runtime context.
+6. Ensure the approved plan is at `<state_dir>/plans/YYYY-MM-DD-<slug>-impl-plan.md` as the permanent project reference (copy from the staging directory if Plan Mode was used)
 7. Ask if the user is ready to proceed to execution (Phase 3)
 8. Upon approval, create the session state file via the session-management skill

@@ -14,7 +14,7 @@ Activate this skill during Phase 2 of Maestro orchestration, after the design do
 
 Do not generate an implementation plan from guesses about the repository.
 
-Use the built-in `Agent (Explore) / Grep / Glob` before phase decomposition when:
+Use the built-in `codebase_investigator` before phase decomposition when:
 - The task modifies an existing codebase
 - File ownership, integration points, or validation commands are still unclear after reading the approved design
 - Parallelization decisions depend on understanding current module boundaries or likely file overlap
@@ -248,11 +248,14 @@ Include this table in every implementation plan:
 
 ### Output Location
 
-Write the implementation plan directly to the project's plans directory:
+The write path depends on whether your runtime provides a Plan Mode surface (check `get_runtime_context`, loaded at session start, step 0).
 
-`docs/maestro/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
+- **Plan Mode active**: Some runtimes restrict writes to a temporary staging directory during Plan Mode. Write the plan there first, then copy to the permanent location after approval. Call `exit_plan_mode` with the plan path to present the plan for user approval.
+- **Plan Mode not active or not available**: Write the implementation plan directly to the project's plans directory.
 
-The path resolves from `MAESTRO_STATE_DIR` (default: `docs/maestro`). If Plan Mode is active, call `ExitPlanMode` with the plan path after approval. Unlike Gemini CLI (which uses a temporary staging directory), Claude Code writes directly to the final location.
+Permanent location: `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (where `<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `docs/maestro`).
+
+If your runtime does not provide a Plan Mode transition, track planning progress using the plan-update mechanism from your runtime context, write directly to the final location, and use the user-prompt tool from runtime context for the approval gate.
 
 ### Document Structure
 Use the implementation plan template from `templates/implementation-plan.md`.
@@ -295,7 +298,7 @@ After writing the implementation plan:
 2. Present the dependency graph and execution strategy
 3. Highlight parallel execution opportunities
 4. Provide token budget estimates
-5. Call `ExitPlanMode` with `plan_path` set to the tmp-directory path (`docs/maestro/plans/...`) to present the plan for user approval
-6. After approval, copy the plan to `docs/maestro/plans/YYYY-MM-DD-<slug>-impl-plan.md` as a permanent project reference
+5. If your runtime provides Plan Mode, call `exit_plan_mode` with the plan path to present the plan for user approval. If Plan Mode is not available, present the completed plan for user approval using the user-prompt tool from runtime context.
+6. Ensure the approved plan is at `<state_dir>/plans/YYYY-MM-DD-<slug>-impl-plan.md` as the permanent project reference (copy from the staging directory if Plan Mode was used)
 7. Ask if the user is ready to proceed to execution (Phase 3)
 8. Upon approval, create the session state file via the session-management skill

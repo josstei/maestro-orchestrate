@@ -33,11 +33,11 @@ module.exports = [
 
   // ── Shared skills ──────────────────────────────────────────────────
   { glob: 'skills/shared/**/SKILL.md',
-    transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'],
+    transforms: ['skill-metadata', 'replace-paths'],
     runtimes: ['gemini', 'claude', 'codex'] },
   // Delegation protocols (no skill-metadata needed)
   { glob: 'skills/shared/**/protocols/*.md',
-    transforms: ['strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'],
+    transforms: ['replace-paths'],
     runtimes: ['gemini', 'claude', 'codex'] },
 
   // ── MCP server ──────────────────────────────────────────────────────

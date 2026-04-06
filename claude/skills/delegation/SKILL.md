@@ -155,26 +155,29 @@ Explicitly state what the agent must NOT do:
 
 ## Agent Tool Dispatch Contract
 
-Every Maestro agent in the Agent Roster is registered as its own tool in the runtime with a `maestro:` prefix. When delegating a phase, call the assigned agent via the `Agent` tool using `subagent_type: "maestro:<name>"` — the name matches the agent name in the roster (e.g., `maestro:coder`, `maestro:design-system-engineer`, `maestro:tester`).
+Delegate to the assigned agent using the dispatch pattern from `get_runtime_context` (loaded at session start, step 0). Every Maestro agent in the Agent Roster carries its frontmatter configuration:
 
-This is mandatory because each agent carries its frontmatter configuration:
 - `temperature`: Controls output determinism (e.g., coder uses 0.2 for precise code)
 - `max_turns`: Prevents runaway sessions (e.g., 25 turns for implementation agents)
-- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot call Write/Edit)
+- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot use file-writing tools)
 - Body: Contains the agent's specialized methodology and decision frameworks
 
-Using bare agent names (without the `maestro:` prefix) will fail with "Agent type not found." Never use unprefixed names for Maestro delegations.
+Using a generic/default agent tool bypasses all of this — it uses default temperature, has no turn limit, no tool restrictions, and no specialized methodology. Never use a generic agent tool for Maestro phase delegations.
 
-**Sequential dispatch:**
+Every delegation must include the required header fields:
+
 ```
-Agent(subagent_type: "maestro:coder", prompt: "Agent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
+Agent: <agent_name>
+Phase: <id>/<total>
+Batch: <batch_id> (or "single" for sequential)
+Session: <session_id>
 ```
 
-**Parallel dispatch (multiple Agent calls in one turn):**
-```
-Agent(subagent_type: "maestro:coder", prompt: "Agent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
-Agent(subagent_type: "maestro:ux-designer", prompt: "Agent: ux-designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
-```
+**Sequential dispatch**: Invoke the agent using your runtime's dispatch mechanism with the full delegation prompt.
+
+**Parallel dispatch**: Emit contiguous agent dispatch calls in a single turn for all agents in the ready batch. Each call includes the same header format with the shared batch ID.
+
+The agent reference files at `${CLAUDE_PLUGIN_ROOT}/agents/<agent-name>.md` are the source of truth for agent personas and scope boundaries. If your runtime does not register Maestro agents as named tools, read the matching agent reference and fold it into the delegation prompt.
 
 ## Parallel Delegation
 
@@ -221,8 +224,8 @@ The tool restriction block template:
 TOOL RESTRICTIONS (MANDATORY):
 You are authorized to use ONLY the following tools: [list from agent frontmatter].
 Do NOT use any tools not listed above. Specifically:
-- Do NOT use `Write` or `Edit` unless explicitly authorized above
-- Do NOT use `Bash` unless explicitly authorized above
+- Do NOT use `write_file` or `replace` unless explicitly authorized above
+- Do NOT use `run_shell_command` unless explicitly authorized above
 - Do NOT create, modify, or delete files unless authorized above
 Violation of these restrictions constitutes a security boundary breach.
 ```
@@ -233,8 +236,8 @@ The file writing rules block template:
 
 ```
 FILE WRITING RULES (MANDATORY):
-Use ONLY `Write` to create files and `Edit` to modify files.
-Do NOT use `Bash` with cat, echo, printf, heredocs, or shell redirection (>, >>) to write file content.
+Use ONLY `write_file` to create files and `replace` to modify files.
+Do NOT use `run_shell_command` with cat, echo, printf, heredocs, or shell redirection (>, >>) to write file content.
 Shell interpretation corrupts YAML, Markdown, and special characters. This rule has NO exceptions.
 ```
 
@@ -262,16 +265,16 @@ Maestro hooks fire at agent boundaries during delegation, providing context inje
 
 ### Agent Tracking
 
-The `hooks system (PreToolUse)` hook tracks which agent is currently executing:
+Before each agent dispatch, a hook tracks which agent is currently executing:
 
 - Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
 - Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
 
-The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `orchestrator inline validation (no hook — see SKIP_EVENTS_CLAUDE)` hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
+The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
 
 ### Session Context Injection
 
-When an active orchestration session exists, the `hooks system (PreToolUse)` hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
+When an active orchestration session exists, the pre-delegation hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
 
 ```
 Active session: current_phase=3, status=in_progress
@@ -281,7 +284,7 @@ This gives delegated agents awareness of where they sit in the orchestration wor
 
 ### Handoff Format Enforcement
 
-The `orchestrator inline validation (no hook — see SKIP_EVENTS_CLAUDE)` hook validates that every subagent response contains both required handoff sections:
+After completion, the post-delegation hook validates that every subagent response contains both required handoff sections:
 
 - `## Task Report` (or `# Task Report`)
 - `## Downstream Context` (or `# Downstream Context`)

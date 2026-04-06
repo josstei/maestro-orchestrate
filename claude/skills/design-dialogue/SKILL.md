@@ -8,13 +8,13 @@ user-invocable: false
 
 **Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate design-dialogue. Return to the Express Workflow section.
 
-Activate this skill when beginning Phase 1 of Maestro orchestration. Immediately call `EnterPlanMode` to enter Plan Mode for the design phase. If that transition is unavailable, continue without Plan Mode and use `AskUserQuestion` with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
+Activate this skill when beginning Phase 1 of Maestro orchestration. Use the plan mode tool from `get_runtime_context` (loaded at session start, step 0). If your runtime provides a Plan Mode surface, enter it now by calling `enter_plan_mode`. If Plan Mode is unavailable or the transition fails, continue without it and use the user-prompt tool from runtime context with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
 
-**User confirmation sequence**: Phase 1 entry may trigger a Plan Mode confirmation when `EnterPlanMode` is available. That confirmation is expected; do not treat it as redundant or skip it.
+**User confirmation sequence**: Phase 1 entry may trigger a Plan Mode confirmation when `enter_plan_mode` is available. That confirmation is expected; do not treat it as redundant or skip it. If your runtime does not provide Plan Mode, move directly into the depth selector and approval prompts.
 
 ## Design Depth Gate
 
-Before asking any design questions, present the user with a depth selector to control the level of reasoning rigour applied throughout the design phase. Use `AskUserQuestion` with `type: 'choice'` to offer three modes. Lead with Standard as the recommended default.
+Before asking any design questions, present the user with a depth selector to control the level of reasoning rigour applied throughout the design phase. Use `ask_user` with `type: 'choice'` to offer three modes. Lead with Standard as the recommended default.
 
 **Modes:**
 
@@ -34,7 +34,7 @@ Before asking any design questions, present the user with a depth selector to co
 
 Before you start narrowing the architecture for work that touches an existing codebase, decide whether the task is already grounded.
 
-Use the built-in `Agent (Explore) / Grep / Glob` when any of the following are true:
+Use the built-in `codebase_investigator` when any of the following are true:
 - The request targets an existing project or subsystem
 - The current architecture, impacted modules, or integration seams are unclear
 - You need concrete validation commands, conventions, or ownership boundaries before presenting approaches
@@ -47,7 +47,7 @@ Ask the investigator for:
 - Validation commands already used by the repo
 - Parallelization or file-conflict risks that should shape the later implementation plan
 
-Skip `Agent (Explore) / Grep / Glob` for greenfield tasks, documentation-only work, or scopes that are already well understood from direct file reads in the current turn.
+Skip `codebase_investigator` for greenfield tasks, documentation-only work, or scopes that are already well understood from direct file reads in the current turn.
 
 Use the investigator's output to:
 - Tailor follow-up questions to the actual codebase
@@ -106,8 +106,7 @@ Scale question coverage based on `task_complexity`:
 
 ### Question Format
 
-Use `AskUserQuestion` with `type: 'choice'` for structured selections.
-
+Prompt the user for a choice using the user-prompt tool from runtime context. Use `type: 'choice'` for structured selections with 2-4 options. Each option should have a short label (1-5 words) and a description explaining when it makes sense and its trade-offs. Include your recommendation rationale in the question text so the user has context before choosing.
 ### Enrichment Protocol
 
 After the user answers each question, apply depth-gated enrichment steps before advancing to the next topic:
@@ -133,7 +132,7 @@ After the user answers each question, apply depth-gated enrichment steps before 
 ### When to Present Approaches
 Present 2-3 architectural approaches after gathering sufficient requirements (typically after covering scope, constraints, and technology preferences).
 
-If `Agent (Explore) / Grep / Glob` was used, present approaches only after incorporating its findings into the trade-off analysis. Do not treat the existing codebase structure as optional context.
+If `codebase_investigator` was used, present approaches only after incorporating its findings into the trade-off analysis. Do not treat the existing codebase structure as optional context.
 
 ### Approach Format
 
@@ -221,7 +220,7 @@ Never skip Problem Statement, Approach, or Risk Assessment. If you believe other
 
 ### Validation Format
 
-After each section, use `AskUserQuestion` with `type: 'yesno'` for approval. Do not rely on a separate assistant message for the section content. The `question` body itself must include the section title and the full section summary so the user can review the material directly in the approval prompt.
+After each section, prompt the user for approval using the user-prompt tool from runtime context with `type: 'yesno'`. Do not rely on a separate assistant message for the section content. The prompt body itself must include the section title and the full section summary (200-300 words) so the user can review the material directly in the approval prompt. End with: "Does this section accurately capture our discussion? Any changes needed before I proceed to [next section name]?"
 
 ### Revision Protocol
 - If user requests changes, revise the section and re-present
@@ -257,15 +256,16 @@ Apply depth-gated reasoning enrichment to design section content during the conv
 
 ### Output Location
 
-The write path depends on whether Plan Mode is active:
+The write path depends on whether your runtime provides a Plan Mode surface (check `get_runtime_context`, loaded at session start, step 0):
 
-- **Plan Mode active**: Write to `docs/maestro/plans/YYYY-MM-DD-<topic-slug>-design.md` (the only writable location during Plan Mode). After `ExitPlanMode` approval in Phase 2, the orchestrator copies it to the permanent location.
-- **Plan Mode not active**: Write directly to `docs/maestro/plans/YYYY-MM-DD-<topic-slug>-design.md` (`docs/maestro` resolves from `MAESTRO_STATE_DIR`).
+- **Plan Mode active**: Some runtimes restrict writes to a temporary staging directory during Plan Mode. Write the design document there. After `exit_plan_mode` approval in Phase 2, copy it to the permanent location.
+- **Plan Mode not active or not available**: Write directly to the permanent location. If your runtime does not provide Plan Mode, track design progress using the plan-update mechanism from runtime context and use the user-prompt tool from runtime context for section approvals and final signoff.
+
+Permanent location: `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-design.md` (where `<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `docs/maestro`).
 
 Where:
 - `YYYY-MM-DD` is the current date
 - `<topic-slug>` is a lowercase, hyphenated summary of the task (e.g., `user-auth-system`, `data-pipeline-refactor`)
-- `<project>` is the CLI's internal project hash (resolved automatically by `Write`)
 
 ### Document Structure
 Use the design document template from `templates/design-document.md`. Include the `design_depth` field in the frontmatter, set to the depth mode chosen during the Design Depth Gate.

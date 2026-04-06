@@ -45,7 +45,7 @@ Record these counts — they feed into the prompt.
 
 ### Step 3 — Determine the recommendation
 
-- If parallelizable phases ≤ 1 → auto-select **sequential**. Call `update_session` with `{ execution_mode: 'sequential', execution_backend: 'native' }`. Inform the user: "All phases are sequential — no parallel batches available." Skip to delegation. Do NOT prompt with a choice. Do NOT call `AskUserQuestion`. Do NOT present options. (Parallelism requires at least 2 phases at the same dependency depth; a single parallel-eligible phase has nothing to batch with.)
+- If parallelizable phases ≤ 1 → auto-select **sequential**. Call `update_session` with `{ execution_mode: 'sequential', execution_backend: 'native' }`. Inform the user: "All phases are sequential — no parallel batches available." Skip to delegation. Do NOT prompt with a choice. Do NOT call `ask_user`. Do NOT present options. (Parallelism requires at least 2 phases at the same dependency depth; a single parallel-eligible phase has nothing to batch with.)
 
 <ANTI-PATTERN>
 WRONG — 1 parallel-eligible phase but user still prompted:
@@ -58,11 +58,11 @@ and skip directly to delegation. Do not show a picker.
 
 - If parallelizable phases > 50% of total phases → recommend **parallel**
 - If parallelizable phases ≤ 50% but > 1 → recommend **sequential** (limited benefit)
-- The recommended option appears first in the `AskUserQuestion` options list with "(Recommended)" appended to its label. The non-recommended option MUST NOT include "(Recommended)" in its label.
+- The recommended option appears first in the `ask_user` options list with "(Recommended)" appended to its label. The non-recommended option MUST NOT include "(Recommended)" in its label.
 
 ### Step 4 — Prompt the user
 
-Call `AskUserQuestion` with `type: 'choice'` using exactly one of these option sets:
+Call `ask_user` with `type: 'choice'` using exactly one of these option sets:
 
 **When recommending parallel:**
   options:
@@ -87,6 +87,7 @@ WRONG — Both options labeled "(Recommended)":
 Only ONE option receives the "(Recommended)" suffix. Never both.
 </ANTI-PATTERN>
 
+Prompt the user for a choice using the user-prompt tool from runtime context. Replace `[N]`, `[M]`, and `[B]` with actual counts from Step 2. The prompt should convey the execution mode analysis and offer two options as described above.
 ### Step 5 — Record and proceed
 
 1. Call `update_session` with the selected `execution_mode` and `execution_backend: native`
@@ -106,7 +107,7 @@ If `execution_mode` is not present in session state at the point where delegatio
 
 When MCP state tools (`get_session_status`, `update_session`, `transition_phase`) are available, prefer them for state operations. They provide structured I/O and atomic transitions.
 
-When MCP tools are not available, state lives inside `<MAESTRO_STATE_DIR>` and is accessible through `Read` and `Write`.
+When MCP tools are not available, state lives inside `<MAESTRO_STATE_DIR>` and is accessible through `read_file` and `write_file`.
 
 Helper scripts remain available for shell-injected command prompts:
 
@@ -119,8 +120,7 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/read-active-session.js
 
 Hooks fire automatically at agent boundaries. The orchestrator does not invoke them directly.
 
-- `hooks system (PreToolUse)`: resolves active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context
-- `orchestrator inline validation (no hook — see SKIP_EVENTS_CLAUDE)`: validates that the response contains both `Task Report` and `Downstream Context`; requests one retry on the first malformed response
+The hooks system tracks which agent is currently executing. Before each agent dispatch, a hook resolves the active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context. After completion, a hook validates that the response contains both `Task Report` and `Downstream Context`; it requests one retry on the first malformed response.
 
 The hook state directory under `/tmp/maestro-hooks/<session-id>/` is transient and separate from orchestration state.
 
@@ -132,12 +132,12 @@ For a sequential phase:
 2. Mark the phase `in_progress`
 3. Update `current_phase`
 4. Set `current_batch: null`
-5. Update `TodoWrite / TaskCreate` before delegation
+5. Update the progress-tracking tool (use the tool names from `get_runtime_context`) before delegation
 6. Delegate to the assigned agent with the required header and full context
 7. Parse the returned handoff
 8. Update session state
 9. Mark the phase `completed` or `failed`
-10. Update `TodoWrite / TaskCreate` after the state update
+10. Update the progress-tracking tool after the state update
 
 ## Native Parallel Execution Protocol
 
@@ -158,7 +158,7 @@ Use native parallel execution only for sibling phases at the same dependency dep
 
 - The runtime only parallelizes contiguous agent calls in one turn
 - Native subagents currently run without user approval gates
-- `AskUserQuestion` remains available; a batch may pause while waiting for user input
+- `ask_user` remains available; a batch may pause while waiting for user input
 - If execution is interrupted, restart unfinished `in_progress` phases on resume instead of attempting to restore in-flight subagent interactions
 
 ## Progress Context
