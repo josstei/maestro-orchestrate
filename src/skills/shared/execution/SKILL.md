@@ -86,54 +86,7 @@ WRONG — Both options labeled "(Recommended)":
 Only ONE option receives the "(Recommended)" suffix. Never both.
 </ANTI-PATTERN>
 
-<!-- @feature geminiAskFormat -->
-When parallel is recommended:
-
-```json
-{
-  "questions": [{
-    "header": "Exec mode",
-    "question": "Execution Mode: [N] of [M] phases are parallelizable in [B] batches. How should phases be executed?",
-    "type": "choice",
-    "options": [
-      {
-        "label": "Parallel (Recommended)",
-        "description": "[N] phases run concurrently in [B] batches. Faster execution but agents run autonomously."
-      },
-      {
-        "label": "Sequential",
-        "description": "All [M] phases run one at a time in plan order. Slower but allows step-by-step review."
-      }
-    ]
-  }]
-}
-```
-
-When sequential is recommended (parallelizable ≤ 1):
-
-```json
-{
-  "questions": [{
-    "header": "Exec mode",
-    "question": "Execution Mode: Only [N] of [M] phases can run in parallel. How should phases be executed?",
-    "type": "choice",
-    "options": [
-      {
-        "label": "Sequential (Recommended)",
-        "description": "Phases run one at a time in plan order. Best for this plan's dependency structure."
-      },
-      {
-        "label": "Parallel",
-        "description": "Parallel batching available for [N] phase(s). Limited benefit for this plan."
-      }
-    ]
-  }]
-}
-```
-
-Replace `[N]`, `[M]`, and `[B]` with actual counts from Step 2.
-
-<!-- @end-feature -->
+Prompt the user for a choice using the user-prompt tool from runtime context. Replace `[N]`, `[M]`, and `[B]` with actual counts from Step 2. The prompt should convey the execution mode analysis and offer two options as described above.
 ### Step 5 — Record and proceed
 
 1. Call `update_session` with the selected `execution_mode` and `execution_backend: native`
@@ -166,14 +119,7 @@ node ${extensionPath}/scripts/read-active-session.js
 
 Hooks fire automatically at agent boundaries. The orchestrator does not invoke them directly.
 
-<!-- @feature geminiHookModel -->
-- `BeforeAgent`: resolves active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context
-- `AfterAgent`: validates that the response contains both `Task Report` and `Downstream Context`; requests one retry on the first malformed response
-<!-- @end-feature -->
-<!-- @feature claudeHookModel -->
-- `hooks system (PreToolUse)`: resolves active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context
-- `orchestrator inline validation (no hook — see SKIP_EVENTS_CLAUDE)`: validates that the response contains both `Task Report` and `Downstream Context`; requests one retry on the first malformed response
-<!-- @end-feature -->
+The hooks system tracks which agent is currently executing. Before each agent dispatch, a hook resolves the active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context. After completion, a hook validates that the response contains both `Task Report` and `Downstream Context`; it requests one retry on the first malformed response.
 
 The hook state directory under `/tmp/maestro-hooks/<session-id>/` is transient and separate from orchestration state.
 
@@ -185,22 +131,12 @@ For a sequential phase:
 2. Mark the phase `in_progress`
 3. Update `current_phase`
 4. Set `current_batch: null`
-<!-- @feature geminiToolExamples -->
-5. Update `write_todos` before delegation
-<!-- @end-feature -->
-<!-- @feature claudeToolExamples -->
-5. Update `TodoWrite / TaskCreate` before delegation
-<!-- @end-feature -->
+5. Update the progress-tracking tool (use the tool names from `get_runtime_context`) before delegation
 6. Delegate to the assigned agent with the required header and full context
 7. Parse the returned handoff
 8. Update session state
 9. Mark the phase `completed` or `failed`
-<!-- @feature geminiToolExamples -->
-10. Update `write_todos` after the state update
-<!-- @end-feature -->
-<!-- @feature claudeToolExamples -->
-10. Update `TodoWrite / TaskCreate` after the state update
-<!-- @end-feature -->
+10. Update the progress-tracking tool after the state update
 
 ## Native Parallel Execution Protocol
 
