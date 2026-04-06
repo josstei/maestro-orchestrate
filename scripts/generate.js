@@ -175,7 +175,6 @@ const diffMode = args.includes('--diff');
 const cleanMode = args.includes('--clean');
 
 async function main() {
-  const manifest = require(path.join(SRC, 'manifest'));
   const runtimeFiles = fs.readdirSync(path.join(SRC, 'runtimes'))
     .filter((f) => f.endsWith('.js') && f !== 'shared.js');
 
@@ -184,6 +183,9 @@ async function main() {
     const config = require(path.join(SRC, 'runtimes', file));
     runtimes[config.name] = config;
   }
+
+  const manifestRules = require(path.join(SRC, 'manifest'));
+  const manifest = expandManifest(manifestRules, runtimes, SRC);
 
   const stats = { written: 0, unchanged: 0, errors: 0 };
 
@@ -275,7 +277,6 @@ async function main() {
 
   if (!dryRun && !diffMode) {
     // Collect all manifest output paths into a Set
-    const manifest = require(path.join(SRC, 'manifest'));
     const manifestPaths = new Set();
     for (const entry of manifest) {
       for (const outputPath of Object.values(entry.outputs)) {

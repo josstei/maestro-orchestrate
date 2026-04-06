@@ -1,108 +1,64 @@
 const codex = (relativePath) => `plugins/maestro/${relativePath}`;
 
 module.exports = [
-  // lib/ shared files (output to all runtimes)
-  { src: 'lib/config/setting-resolver.js', transforms: ['copy'], outputs: { gemini: 'lib/config/setting-resolver.js', claude: 'claude/lib/config/setting-resolver.js', codex: codex('lib/config/setting-resolver.js') } },
-  { src: 'lib/core/agent-registry.js', transforms: ['copy'], outputs: { gemini: 'lib/core/agent-registry.js', claude: 'claude/lib/core/agent-registry.js', codex: codex('lib/core/agent-registry.js') } },
-  { src: 'lib/core/atomic-write.js', transforms: ['copy'], outputs: { gemini: 'lib/core/atomic-write.js', claude: 'claude/lib/core/atomic-write.js', codex: codex('lib/core/atomic-write.js') } },
-  { src: 'lib/core/env-file-parser.js', transforms: ['copy'], outputs: { gemini: 'lib/core/env-file-parser.js', claude: 'claude/lib/core/env-file-parser.js', codex: codex('lib/core/env-file-parser.js') } },
-  { src: 'lib/core/logger.js', transforms: ['copy'], outputs: { gemini: 'lib/core/logger.js', claude: 'claude/lib/core/logger.js', codex: codex('lib/core/logger.js') } },
-  { src: 'lib/core/project-root-resolver.js', transforms: ['copy'], outputs: { gemini: 'lib/core/project-root-resolver.js', claude: 'claude/lib/core/project-root-resolver.js', codex: codex('lib/core/project-root-resolver.js') } },
-  { src: 'lib/core/stdin-reader.js', transforms: ['copy'], outputs: { gemini: 'lib/core/stdin-reader.js', claude: 'claude/lib/core/stdin-reader.js', codex: codex('lib/core/stdin-reader.js') } },
-  { src: 'lib/hooks/after-agent-logic.js', transforms: ['copy'], outputs: { gemini: 'lib/hooks/after-agent-logic.js', claude: 'claude/lib/hooks/after-agent-logic.js', codex: codex('lib/hooks/after-agent-logic.js') } },
-  { src: 'lib/hooks/before-agent-logic.js', transforms: ['copy'], outputs: { gemini: 'lib/hooks/before-agent-logic.js', claude: 'claude/lib/hooks/before-agent-logic.js', codex: codex('lib/hooks/before-agent-logic.js') } },
-  { src: 'lib/hooks/hook-state.js', transforms: ['copy'], outputs: { gemini: 'lib/hooks/hook-state.js', claude: 'claude/lib/hooks/hook-state.js', codex: codex('lib/hooks/hook-state.js') } },
-  { src: 'lib/hooks/session-end-logic.js', transforms: ['copy'], outputs: { gemini: 'lib/hooks/session-end-logic.js', claude: 'claude/lib/hooks/session-end-logic.js', codex: codex('lib/hooks/session-end-logic.js') } },
-  { src: 'lib/hooks/session-start-logic.js', transforms: ['copy'], outputs: { gemini: 'lib/hooks/session-start-logic.js', claude: 'claude/lib/hooks/session-start-logic.js', codex: codex('lib/hooks/session-start-logic.js') } },
-  { src: 'lib/state/session-id-validator.js', transforms: ['copy'], outputs: { gemini: 'lib/state/session-id-validator.js', claude: 'claude/lib/state/session-id-validator.js', codex: codex('lib/state/session-id-validator.js') } },
-  { src: 'lib/state/session-state.js', transforms: ['copy'], outputs: { gemini: 'lib/state/session-state.js', claude: 'claude/lib/state/session-state.js', codex: codex('lib/state/session-state.js') } },
-  // lib/mcp/ — Gemini only
+  // ── Agents ──────────────────────────────────────────────────────────
+  // Gemini/Claude get full transforms; Codex gets strip-feature only
+  { glob: 'agents/*.md',
+    transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'],
+    runtimes: ['gemini', 'claude'] },
+  { glob: 'agents/*.md',
+    transforms: ['strip-feature'],
+    runtimes: ['codex'] },
+
+  // ── Shared lib ──────────────────────────────────────────────────────
+  // Byte-identical copies to all runtimes, EXCLUDING lib/mcp/ (Gemini-only)
+  { glob: 'lib/config/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+  { glob: 'lib/core/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+  { glob: 'lib/hooks/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+  { glob: 'lib/state/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+  // lib/mcp/ — Gemini only (Claude/Codex get_skill_content is feature-flagged in MCP server)
   { src: 'lib/mcp/handlers/get-skill-content.js', transforms: ['copy'], outputs: { gemini: 'lib/mcp/handlers/get-skill-content.js' } },
-  // scripts/ shared files (output to all runtimes)
-  { src: 'scripts/ensure-workspace.js', transforms: ['copy'], outputs: { gemini: 'scripts/ensure-workspace.js', claude: 'claude/scripts/ensure-workspace.js', codex: codex('scripts/ensure-workspace.js') } },
-  { src: 'scripts/read-active-session.js', transforms: ['copy'], outputs: { gemini: 'scripts/read-active-session.js', claude: 'claude/scripts/read-active-session.js', codex: codex('scripts/read-active-session.js') } },
-  { src: 'scripts/read-setting.js', transforms: ['copy'], outputs: { gemini: 'scripts/read-setting.js', claude: 'claude/scripts/read-setting.js', codex: codex('scripts/read-setting.js') } },
-  { src: 'scripts/read-state.js', transforms: ['copy'], outputs: { gemini: 'scripts/read-state.js', claude: 'claude/scripts/read-state.js', codex: codex('scripts/read-state.js') } },
-  { src: 'scripts/write-state.js', transforms: ['copy'], outputs: { gemini: 'scripts/write-state.js', claude: 'claude/scripts/write-state.js', codex: codex('scripts/write-state.js') } },
-  // templates/ shared files (output to all runtimes)
-  { src: 'templates/design-document.md', transforms: ['copy'], outputs: { gemini: 'templates/design-document.md', claude: 'claude/templates/design-document.md', codex: codex('templates/design-document.md') } },
-  { src: 'templates/implementation-plan.md', transforms: ['copy'], outputs: { gemini: 'templates/implementation-plan.md', claude: 'claude/templates/implementation-plan.md', codex: codex('templates/implementation-plan.md') } },
-  { src: 'templates/session-state.md', transforms: ['copy'], outputs: { gemini: 'templates/session-state.md', claude: 'claude/templates/session-state.md', codex: codex('templates/session-state.md') } },
-  // references/ shared files (output to all runtimes)
-  { src: 'references/orchestration-steps.md', transforms: ['copy'], outputs: { gemini: 'references/orchestration-steps.md', claude: 'claude/references/orchestration-steps.md', codex: codex('references/orchestration-steps.md') } },
-  { src: 'references/architecture.md', transforms: ['strip-feature', 'replace-agent-names', 'replace-paths'], outputs: { gemini: 'references/architecture.md', claude: 'claude/references/architecture.md', codex: codex('references/architecture.md') } },
-  // agents/ — native agents for Gemini/Claude, reference docs for Codex
-  { src: 'agents/accessibility-specialist.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/accessibility_specialist.md', claude: 'claude/agents/accessibility-specialist.md' } },
-  { src: 'agents/analytics-engineer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/analytics_engineer.md', claude: 'claude/agents/analytics-engineer.md' } },
-  { src: 'agents/api-designer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/api_designer.md', claude: 'claude/agents/api-designer.md' } },
-  { src: 'agents/architect.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/architect.md', claude: 'claude/agents/architect.md' } },
-  { src: 'agents/code-reviewer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/code_reviewer.md', claude: 'claude/agents/code-reviewer.md' } },
-  { src: 'agents/coder.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/coder.md', claude: 'claude/agents/coder.md' } },
-  { src: 'agents/compliance-reviewer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/compliance_reviewer.md', claude: 'claude/agents/compliance-reviewer.md' } },
-  { src: 'agents/content-strategist.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/content_strategist.md', claude: 'claude/agents/content-strategist.md' } },
-  { src: 'agents/copywriter.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/copywriter.md', claude: 'claude/agents/copywriter.md' } },
-  { src: 'agents/data-engineer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/data_engineer.md', claude: 'claude/agents/data-engineer.md' } },
-  { src: 'agents/debugger.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/debugger.md', claude: 'claude/agents/debugger.md' } },
-  { src: 'agents/design-system-engineer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/design_system_engineer.md', claude: 'claude/agents/design-system-engineer.md' } },
-  { src: 'agents/devops-engineer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/devops_engineer.md', claude: 'claude/agents/devops-engineer.md' } },
-  { src: 'agents/i18n-specialist.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/i18n_specialist.md', claude: 'claude/agents/i18n-specialist.md' } },
-  { src: 'agents/performance-engineer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/performance_engineer.md', claude: 'claude/agents/performance-engineer.md' } },
-  { src: 'agents/product-manager.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/product_manager.md', claude: 'claude/agents/product-manager.md' } },
-  { src: 'agents/refactor.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/refactor.md', claude: 'claude/agents/refactor.md' } },
-  { src: 'agents/security-engineer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/security_engineer.md', claude: 'claude/agents/security-engineer.md' } },
-  { src: 'agents/seo-specialist.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/seo_specialist.md', claude: 'claude/agents/seo-specialist.md' } },
-  { src: 'agents/technical-writer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/technical_writer.md', claude: 'claude/agents/technical-writer.md' } },
-  { src: 'agents/tester.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/tester.md', claude: 'claude/agents/tester.md' } },
-  { src: 'agents/ux-designer.md', transforms: ['inject-frontmatter', 'strip-feature', 'replace-tool-names', 'replace-agent-names'], outputs: { gemini: 'agents/ux_designer.md', claude: 'claude/agents/ux-designer.md' } },
-  { src: 'agents/accessibility-specialist.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/accessibility-specialist.md') } },
-  { src: 'agents/analytics-engineer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/analytics-engineer.md') } },
-  { src: 'agents/api-designer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/api-designer.md') } },
-  { src: 'agents/architect.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/architect.md') } },
-  { src: 'agents/code-reviewer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/code-reviewer.md') } },
-  { src: 'agents/coder.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/coder.md') } },
-  { src: 'agents/compliance-reviewer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/compliance-reviewer.md') } },
-  { src: 'agents/content-strategist.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/content-strategist.md') } },
-  { src: 'agents/copywriter.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/copywriter.md') } },
-  { src: 'agents/data-engineer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/data-engineer.md') } },
-  { src: 'agents/debugger.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/debugger.md') } },
-  { src: 'agents/design-system-engineer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/design-system-engineer.md') } },
-  { src: 'agents/devops-engineer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/devops-engineer.md') } },
-  { src: 'agents/i18n-specialist.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/i18n-specialist.md') } },
-  { src: 'agents/performance-engineer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/performance-engineer.md') } },
-  { src: 'agents/product-manager.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/product-manager.md') } },
-  { src: 'agents/refactor.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/refactor.md') } },
-  { src: 'agents/security-engineer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/security-engineer.md') } },
-  { src: 'agents/seo-specialist.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/seo-specialist.md') } },
-  { src: 'agents/technical-writer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/technical-writer.md') } },
-  { src: 'agents/tester.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/tester.md') } },
-  { src: 'agents/ux-designer.md', transforms: ['strip-feature'], outputs: { codex: codex('agents/ux-designer.md') } },
-  // skills/ shared files (output to all runtimes)
-  { src: 'skills/shared/code-review/SKILL.md', transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/code-review/SKILL.md', claude: 'claude/skills/code-review/SKILL.md', codex: codex('skills/code-review/SKILL.md') } },
-  { src: 'skills/shared/delegation/SKILL.md', transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/delegation/SKILL.md', claude: 'claude/skills/delegation/SKILL.md', codex: codex('skills/delegation/SKILL.md') } },
-  { src: 'skills/shared/design-dialogue/SKILL.md', transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/design-dialogue/SKILL.md', claude: 'claude/skills/design-dialogue/SKILL.md', codex: codex('skills/design-dialogue/SKILL.md') } },
-  { src: 'skills/shared/execution/SKILL.md', transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/execution/SKILL.md', claude: 'claude/skills/execution/SKILL.md', codex: codex('skills/execution/SKILL.md') } },
-  { src: 'skills/shared/implementation-planning/SKILL.md', transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/implementation-planning/SKILL.md', claude: 'claude/skills/implementation-planning/SKILL.md', codex: codex('skills/implementation-planning/SKILL.md') } },
-  { src: 'skills/shared/session-management/SKILL.md', transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/session-management/SKILL.md', claude: 'claude/skills/session-management/SKILL.md', codex: codex('skills/session-management/SKILL.md') } },
-  { src: 'skills/shared/validation/SKILL.md', transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/validation/SKILL.md', claude: 'claude/skills/validation/SKILL.md', codex: codex('skills/validation/SKILL.md') } },
-  // delegation protocols (no skill-metadata needed)
-  { src: 'skills/shared/delegation/protocols/agent-base-protocol.md', transforms: ['strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/delegation/protocols/agent-base-protocol.md', claude: 'claude/skills/delegation/protocols/agent-base-protocol.md', codex: codex('skills/delegation/protocols/agent-base-protocol.md') } },
-  { src: 'skills/shared/delegation/protocols/filesystem-safety-protocol.md', transforms: ['strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'], outputs: { gemini: 'skills/delegation/protocols/filesystem-safety-protocol.md', claude: 'claude/skills/delegation/protocols/filesystem-safety-protocol.md', codex: codex('skills/delegation/protocols/filesystem-safety-protocol.md') } },
-  // hooks/ — Gemini runtime only
+
+  // ── Shared scripts ──────────────────────────────────────────────────
+  { glob: 'scripts/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+
+  // ── Shared templates ────────────────────────────────────────────────
+  { glob: 'templates/*.md', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+
+  // ── Shared references ───────────────────────────────────────────────
+  { src: 'references/orchestration-steps.md', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+  { src: 'references/architecture.md',
+    transforms: ['strip-feature', 'replace-agent-names', 'replace-paths'],
+    runtimes: ['gemini', 'claude', 'codex'] },
+
+  // ── Shared skills ──────────────────────────────────────────────────
+  { glob: 'skills/shared/**/SKILL.md',
+    transforms: ['skill-metadata', 'strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'],
+    runtimes: ['gemini', 'claude', 'codex'] },
+  // Delegation protocols (no skill-metadata needed)
+  { glob: 'skills/shared/**/protocols/*.md',
+    transforms: ['strip-feature', 'replace-tool-names', 'replace-paths', 'replace-agent-names'],
+    runtimes: ['gemini', 'claude', 'codex'] },
+
+  // ── MCP server ──────────────────────────────────────────────────────
+  { src: 'mcp/maestro-server.js', transforms: ['strip-feature'], runtimes: ['gemini', 'claude', 'codex'] },
+
+  // ── Hooks — Gemini runtime only ─────────────────────────────────────
   { src: 'hooks/runtime-only/gemini/hook-adapter.js', transforms: ['copy'], outputs: { gemini: 'hooks/hook-adapter.js' } },
   { src: 'hooks/runtime-only/gemini/after-agent.js', transforms: ['copy'], outputs: { gemini: 'hooks/after-agent.js' } },
   { src: 'hooks/runtime-only/gemini/before-agent.js', transforms: ['copy'], outputs: { gemini: 'hooks/before-agent.js' } },
   { src: 'hooks/runtime-only/gemini/session-start.js', transforms: ['copy'], outputs: { gemini: 'hooks/session-start.js' } },
   { src: 'hooks/runtime-only/gemini/session-end.js', transforms: ['copy'], outputs: { gemini: 'hooks/session-end.js' } },
   { src: 'hooks/hook-configs/gemini.json', transforms: ['copy'], outputs: { gemini: 'hooks/hooks.json' } },
-  // hooks/ — Claude runtime only
+
+  // ── Hooks — Claude runtime only ─────────────────────────────────────
   { src: 'hooks/runtime-only/claude/hook-adapter.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/hook-adapter.js' } },
   { src: 'hooks/runtime-only/claude/before-agent.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/before-agent.js' } },
   { src: 'hooks/runtime-only/claude/session-start.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/session-start.js' } },
   { src: 'hooks/runtime-only/claude/session-end.js', transforms: ['copy'], outputs: { claude: 'claude/scripts/session-end.js' } },
   { src: 'hooks/hook-configs/claude.json', transforms: ['copy'], outputs: { claude: 'claude/hooks/claude-hooks.json' } },
-  // mcp/ — MCP server (feature-flagged for get-skill-content handler)
-  { src: 'mcp/maestro-server.js', transforms: ['strip-feature'], outputs: { gemini: 'mcp/maestro-server.js', claude: 'claude/mcp/maestro-server.js', codex: codex('mcp/maestro-server.js') } },
-  // runtime-only/gemini/ — Gemini-only files
+
+  // ── Runtime-only: Gemini ────────────────────────────────────────────
   { src: 'runtime-only/gemini/README.md', transforms: ['copy'], outputs: { gemini: 'README.md' } },
   { src: 'runtime-only/gemini/GEMINI.md', transforms: ['copy'], outputs: { gemini: 'GEMINI.md' } },
   { src: 'runtime-only/gemini/gemini-extension.json', transforms: ['copy'], outputs: { gemini: 'gemini-extension.json' } },
@@ -120,7 +76,8 @@ module.exports = [
   { src: 'runtime-only/gemini/commands/maestro/security-audit.toml', transforms: ['copy'], outputs: { gemini: 'commands/maestro/security-audit.toml' } },
   { src: 'runtime-only/gemini/commands/maestro/seo-audit.toml', transforms: ['copy'], outputs: { gemini: 'commands/maestro/seo-audit.toml' } },
   { src: 'runtime-only/gemini/commands/maestro/status.toml', transforms: ['copy'], outputs: { gemini: 'commands/maestro/status.toml' } },
-  // runtime-only/claude/ — Claude-only files
+
+  // ── Runtime-only: Claude ────────────────────────────────────────────
   { src: 'runtime-only/claude/README.md', transforms: ['copy'], outputs: { claude: 'claude/README.md' } },
   { src: 'runtime-only/claude/.claude-plugin/plugin.json', transforms: ['copy'], outputs: { claude: 'claude/.claude-plugin/plugin.json' } },
   { src: 'runtime-only/claude/.mcp.json', transforms: ['copy'], outputs: { claude: 'claude/.mcp.json' } },
@@ -139,7 +96,8 @@ module.exports = [
   { src: 'runtime-only/claude/skills/security-audit/SKILL.md', transforms: ['copy'], outputs: { claude: 'claude/skills/security-audit/SKILL.md' } },
   { src: 'runtime-only/claude/skills/seo-audit/SKILL.md', transforms: ['copy'], outputs: { claude: 'claude/skills/seo-audit/SKILL.md' } },
   { src: 'runtime-only/claude/skills/status/SKILL.md', transforms: ['copy'], outputs: { claude: 'claude/skills/status/SKILL.md' } },
-  // runtime-only/codex/ — Codex plugin files
+
+  // ── Runtime-only: Codex ─────────────────────────────────────────────
   { src: 'runtime-only/codex/README.md', transforms: ['copy'], outputs: { codex: codex('README.md') } },
   { src: 'runtime-only/codex/.codex-plugin/plugin.json', transforms: ['copy'], outputs: { codex: codex('.codex-plugin/plugin.json') } },
   { src: 'runtime-only/codex/.app.json', transforms: ['copy'], outputs: { codex: codex('.app.json') } },
