@@ -14,13 +14,14 @@ Before delegating, activate the `delegation` skill to ensure agent-base-protocol
 
 ## Workflow
 
-1. Reproduce or narrow the failure signal.
-2. Form concrete hypotheses.
-3. Gather evidence from code, logs, tests, and runtime behavior.
-4. Isolate the most likely root cause.
-5. Verify the conclusion and present the recommended fix or next step.
+1. Establish the failing behavior, repro path, and expected behavior
+2. Form concrete hypotheses (2-3 likely root causes)
+3. Gather evidence from code, logs, tests, and runtime behavior before proposing fixes
+4. Isolate the most likely root cause and trace the execution path from trigger to failure
+5. Verify the conclusion explains all symptoms and present the recommended fix with specific code location
 
 ## Constraints
 
-- Prefer evidence over speculation.
-- Make uncertainty explicit when the issue cannot be reproduced.
+- Prefer evidence over speculation
+- Make uncertainty explicit when the issue cannot be reproduced
+- Return root cause, affected files, confidence level, and the smallest defensible next action

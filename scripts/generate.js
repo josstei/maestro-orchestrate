@@ -169,6 +169,123 @@ function expandManifest(rules, runtimes, srcDir) {
   return entries;
 }
 
+/**
+ * Produce a human-readable title from a kebab-case name.
+ *   "review"           → "Review"
+ *   "security-audit"   → "Security Audit"
+ *   "perf-check"       → "Perf Check"
+ *   "a11y-audit"       → "Accessibility Audit"
+ *   "seo-audit"        → "SEO Audit"
+ *   "compliance-check" → "Compliance Check"
+ */
+function toTitle(name) {
+  const special = {
+    'a11y-audit': 'Accessibility Audit',
+    'seo-audit': 'SEO Audit',
+  };
+  if (special[name]) return special[name];
+  return name
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/**
+ * Expand the entry-point registry through a runtime-specific template.
+ * Returns an array of { outputPath, content } objects.
+ */
+function expandEntryPoints(runtimeName) {
+  const registry = require(path.join(SRC, 'entry-points', 'registry'));
+  const templateDir = path.join(SRC, 'entry-points', 'templates');
+
+  let templateFile, outputPathFn;
+  if (runtimeName === 'gemini') {
+    templateFile = path.join(templateDir, 'gemini-command.toml.tmpl');
+    outputPathFn = (entry) => `commands/maestro/${entry.name}.toml`;
+  } else if (runtimeName === 'claude') {
+    templateFile = path.join(templateDir, 'claude-skill.md.tmpl');
+    outputPathFn = (entry) => `claude/skills/${entry.name}/SKILL.md`;
+  } else if (runtimeName === 'codex') {
+    templateFile = path.join(templateDir, 'codex-skill.md.tmpl');
+    outputPathFn = (entry) => `plugins/maestro/skills/maestro-${entry.name}/SKILL.md`;
+  } else {
+    throw new Error(`Unknown runtime for entry-point expansion: "${runtimeName}"`);
+  }
+
+  const template = fs.readFileSync(templateFile, 'utf8');
+
+  return registry.map((entry) => {
+    let content = template;
+
+    // ── Simple variables ──────────────────────────────────────────────
+    content = content.replace(/\{\{name\}\}/g, entry.name);
+    content = content.replace(/\{\{Name\}\}/g, toTitle(entry.name));
+    content = content.replace(/\{\{description\}\}/g, entry.description);
+
+    // ── Workflow numbered list ────────────────────────────────────────
+    const workflowNumbered = entry.workflow
+      .map((step, i) => `${i + 1}. ${step}`)
+      .join('\n');
+    content = content.replace(/\{\{workflow_numbered\}\}/g, workflowNumbered);
+
+    // ── Constraints bulleted list ────────────────────────────────────
+    const constraintsList = (entry.constraints || [])
+      .map((c) => `- ${c}`)
+      .join('\n');
+    content = content.replace(/\{\{constraints_list\}\}/g, constraintsList);
+
+    // ── Gemini: skills_block ─────────────────────────────────────────
+    // Activate skills and reference delegation protocol.
+    if (runtimeName === 'gemini') {
+      const skills = entry.skills || [];
+      let skillsBlock = '';
+      if (skills.length > 0) {
+        const skillList = skills.map((s) => `\`${s}\``).join(' and ');
+        skillsBlock = `Activate the ${skillList} skill${skills.length > 1 ? 's' : ''}. The delegation skill ensures agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.`;
+      }
+      content = content.replace(/\{\{skills_block\}\}/g, skillsBlock);
+    }
+
+    // ── Claude: protocol_block ───────────────────────────────────────
+    // If the entry has agents (needs delegation), include protocol section.
+    if (runtimeName === 'claude') {
+      let protocolBlock = '';
+      if (entry.agents && entry.agents.length > 0) {
+        protocolBlock =
+          '## Protocol\n\nBefore delegating, activate the `delegation` skill to ensure agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.\n';
+      }
+      content = content.replace(/\{\{protocol_block\}\}/g, protocolBlock);
+    }
+
+    // ── Codex: refs_list ─────────────────────────────────────────────
+    // Build Read directives for architecture, delegation skill, and agent files.
+    if (runtimeName === 'codex') {
+      const refs = [];
+      if (entry.refs && entry.refs.includes('architecture')) {
+        refs.push('Read `../../references/architecture.md`.');
+      }
+      if (entry.skills && entry.skills.includes('delegation')) {
+        refs.push('Read `../delegation/SKILL.md`.');
+      }
+      if (entry.agents && entry.agents.length > 0) {
+        for (const agent of entry.agents) {
+          refs.push(`Read \`../../agents/${agent}.md\`.`);
+        }
+      }
+      if (entry.skills && entry.skills.includes('session-management')) {
+        refs.push('Read `../session-management/SKILL.md`.');
+      }
+      const refsList = refs.join('\n');
+      content = content.replace(/\{\{refs_list\}\}/g, refsList);
+    }
+
+    return {
+      outputPath: outputPathFn(entry),
+      content,
+    };
+  });
+}
+
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const diffMode = args.includes('--diff');
@@ -269,6 +386,55 @@ async function main() {
     }
   }
 
+  // ── Generate entry-point files from registry + templates ───────────
+  for (const runtimeName of Object.keys(runtimes)) {
+    const entryPoints = expandEntryPoints(runtimeName);
+    for (const { outputPath, content } of entryPoints) {
+      const absOutputPath = safeResolve(outputPath);
+
+      try {
+        if (diffMode) {
+          if (!fs.existsSync(absOutputPath)) {
+            console.log(`+++ NEW: ${outputPath}`);
+          } else {
+            const current = fs.readFileSync(absOutputPath, 'utf8');
+            if (current !== content) {
+              const tmpPath = absOutputPath + '.gen-tmp';
+              fs.writeFileSync(tmpPath, content, 'utf8');
+              try {
+                execFileSync('diff', ['-u', absOutputPath, tmpPath], { encoding: 'utf8' });
+              } catch (err) {
+                console.log(`--- ${outputPath}`);
+                console.log(err.stdout);
+              } finally {
+                fs.unlinkSync(tmpPath);
+              }
+            }
+          }
+        } else if (dryRun) {
+          const exists = fs.existsSync(absOutputPath);
+          const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
+          const status = !exists ? 'CREATE' : current === content ? 'UNCHANGED' : 'UPDATE';
+          console.log(`[${status}] ${outputPath}`);
+        } else {
+          fs.mkdirSync(path.dirname(absOutputPath), { recursive: true });
+          const exists = fs.existsSync(absOutputPath);
+          const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
+
+          if (current === content) {
+            stats.unchanged++;
+          } else {
+            fs.writeFileSync(absOutputPath, content, 'utf8');
+            stats.written++;
+          }
+        }
+      } catch (err) {
+        console.error(`ERROR processing entry-point -> ${outputPath}: ${err.message}`);
+        stats.errors++;
+      }
+    }
+  }
+
   if (dryRun) {
     console.log('\n(dry-run — no files written)');
   } else if (!diffMode) {
@@ -280,6 +446,14 @@ async function main() {
     const manifestPaths = new Set();
     for (const entry of manifest) {
       for (const outputPath of Object.values(entry.outputs)) {
+        manifestPaths.add(outputPath);
+      }
+    }
+
+    // Also add entry-point output paths
+    for (const runtimeName of Object.keys(runtimes)) {
+      const entryPoints = expandEntryPoints(runtimeName);
+      for (const { outputPath } of entryPoints) {
         manifestPaths.add(outputPath);
       }
     }
@@ -373,4 +547,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { expandManifest };
+module.exports = { expandManifest, expandEntryPoints };
