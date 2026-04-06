@@ -43,11 +43,13 @@ module.exports = {
     claudeHookModel: true,
     geminiDelegation: false,
     claudeDelegation: true,
+    codexDelegation: false,
     geminiToolExamples: false,
     claudeToolExamples: true,
     geminiAskFormat: false,
     geminiStateContract: false,
     claudeStateContract: true,
+    codexStateContract: false,
   },
 
   paths: {

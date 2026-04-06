@@ -48,7 +48,9 @@ function injectFrontmatter(content, runtime, _options) {
   // Build output frontmatter lines
   const lines = [];
   lines.push('---');
-  lines.push(`name: ${name}`);
+  if (name != null && name !== '') {
+    lines.push(`name: ${name}`);
+  }
 
   // Gemini: kind after name, before description
   if (fm.kind) {
@@ -164,11 +166,12 @@ function parseValue(raw) {
   }
 
   // Quoted string
-  if (
-    (raw.startsWith('"') && raw.endsWith('"')) ||
-    (raw.startsWith("'") && raw.endsWith("'"))
-  ) {
-    return raw.slice(1, -1);
+  if (raw.startsWith('"') && raw.endsWith('"')) {
+    return parseDoubleQuotedValue(raw.slice(1, -1));
+  }
+
+  if (raw.startsWith("'") && raw.endsWith("'")) {
+    return raw.slice(1, -1).replace(/''/g, "'");
   }
 
   // Numeric
@@ -178,6 +181,48 @@ function parseValue(raw) {
   }
 
   return raw;
+}
+
+function parseDoubleQuotedValue(raw) {
+  let value = '';
+
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw[i];
+    const next = raw[i + 1];
+
+    if (char !== '\\' || next == null) {
+      value += char;
+      continue;
+    }
+
+    switch (next) {
+      case '"':
+        value += '"';
+        i++;
+        break;
+      case '\\':
+        value += '\\';
+        i++;
+        break;
+      case 'n':
+        value += '\n';
+        i++;
+        break;
+      case 'r':
+        value += '\r';
+        i++;
+        break;
+      case 't':
+        value += '\t';
+        i++;
+        break;
+      default:
+        value += char;
+        break;
+    }
+  }
+
+  return value;
 }
 
 /**
@@ -236,6 +281,9 @@ function extractExamples(body) {
   let remaining = remainingLines.join('\n');
   // Collapse triple+ newlines into double
   remaining = remaining.replace(/\n{3,}/g, '\n\n');
+  // If examples were removed from the start of the body, keep a single
+  // leading blank line between frontmatter and content.
+  remaining = remaining.replace(/^\n{2,}/, '\n');
 
   return { examples, remaining };
 }

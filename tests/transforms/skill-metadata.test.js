@@ -81,12 +81,10 @@ describe('skill-metadata transform', () => {
   });
 
   it('should not add user-invocable for unknown runtime names', () => {
-    // The function only checks for 'gemini' to return early;
-    // for any other runtime name, it inserts user-invocable
     const content = '---\nname: test\n---\nbody';
     const runtime = { name: 'other' };
     const result = skillMetadata(content, runtime, {});
-    assert.ok(result.includes('user-invocable: false'));
+    assert.equal(result, content);
   });
 
   it('should handle content with no frontmatter gracefully', () => {

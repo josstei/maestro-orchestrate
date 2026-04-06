@@ -91,4 +91,34 @@ describe('replace-paths transform', () => {
     assert.ok(result.includes('${CLAUDE_PROJECT_DIR}/state'));
     assert.ok(result.includes('${CLAUDE_PLUGIN_ROOT}/skills'));
   });
+
+  it('resolves extensionPath relative to the Codex plugin root for nested files', () => {
+    const content = 'Load from ${extensionPath}/skills/delegation/protocols/';
+    const runtime = {
+      name: 'codex',
+      outputDir: 'plugins/maestro/',
+      env: { extensionPath: '.' },
+      relativeExtensionPath: true,
+    };
+    const result = replacePaths(content, runtime, {
+      outputPath: 'plugins/maestro/skills/delegation/SKILL.md',
+    });
+
+    assert.equal(result, 'Load from ../../skills/delegation/protocols/');
+  });
+
+  it('resolves extensionPath to . for files at the Codex plugin root', () => {
+    const content = 'Read ${extensionPath}/skills/';
+    const runtime = {
+      name: 'codex',
+      outputDir: 'plugins/maestro/',
+      env: { extensionPath: '.' },
+      relativeExtensionPath: true,
+    };
+    const result = replacePaths(content, runtime, {
+      outputPath: 'plugins/maestro/README.md',
+    });
+
+    assert.equal(result, 'Read ./skills/');
+  });
 });

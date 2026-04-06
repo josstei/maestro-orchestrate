@@ -262,6 +262,13 @@ Write the implementation plan directly to the project's plans directory:
 
 The path resolves from `MAESTRO_STATE_DIR` (default: `docs/maestro`). If Plan Mode is active, call `exit_plan_mode` with the plan path after approval. Unlike Gemini CLI (which uses a temporary staging directory), Claude Code writes directly to the final location.
 <!-- @end-feature -->
+<!-- @feature codexStateContract -->
+Write the implementation plan directly to the project's plans directory:
+
+`docs/maestro/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
+
+Codex does not provide a Maestro-specific Plan Mode transition. Use `update_plan` to track planning progress, write the plan directly to the final location, and use `request_user_input` (or a direct approval question if needed) for the approval gate.
+<!-- @end-feature -->
 
 ### Document Structure
 Use the implementation plan template from `templates/implementation-plan.md`.
@@ -311,6 +318,10 @@ After writing the implementation plan:
 <!-- @feature claudeStateContract -->
 5. Call `exit_plan_mode` with `plan_path` set to the tmp-directory path (`docs/maestro/plans/...`) to present the plan for user approval
 6. After approval, copy the plan to `docs/maestro/plans/YYYY-MM-DD-<slug>-impl-plan.md` as a permanent project reference
+<!-- @end-feature -->
+<!-- @feature codexStateContract -->
+5. Present the completed plan for user approval using `request_user_input` (or a direct approval question if needed)
+6. Keep the approved plan at `docs/maestro/plans/YYYY-MM-DD-<slug>-impl-plan.md` as the permanent project reference
 <!-- @end-feature -->
 7. Ask if the user is ready to proceed to execution (Phase 3)
 8. Upon approval, create the session state file via the session-management skill

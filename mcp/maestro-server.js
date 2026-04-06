@@ -37425,15 +37425,15 @@ ${bodyContent || ""}`;
         workflow_mode: params.workflow_mode || "standard",
         design_document: params.design_document,
         implementation_plan: params.implementation_plan,
-        current_phase: params.phases && params.phases.length > 0 ? Number(params.phases[0].id) : null,
+        current_phase: params.phases && params.phases.length > 0 ? (Number.isFinite(Number(params.phases[0].id)) && Number(params.phases[0].id) > 0 ? Number(params.phases[0].id) : 1) : null,
         total_phases: params.phases.length,
         execution_mode: params.execution_mode || null,
         execution_backend: "native",
         current_batch: null,
         task_complexity: params.task_complexity || null,
         token_usage: { total_input: 0, total_output: 0, total_cached: 0, by_agent: {} },
-        phases: params.phases.map((p) => ({
-          id: Number(p.id),
+        phases: params.phases.map((p, idx) => ({
+          id: Number.isFinite(Number(p.id)) && Number(p.id) > 0 ? Number(p.id) : idx + 1,
           name: p.name,
           status: "pending",
           agents: p.agent ? [p.agent] : [],

@@ -8,9 +8,9 @@ user-invocable: false
 
 **Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate design-dialogue. Return to the Express Workflow section.
 
-Activate this skill when beginning Phase 1 of Maestro orchestration. Immediately call `EnterPlanMode` to enter Plan Mode for the design phase. If the tool call fails or is unavailable, inform the user that Plan Mode is not enabled and provide activation instructions: "Plan Mode gives you a dedicated review surface for designs and plans. To enable it, run: `gemini --settings` and set `experimental.plan` to `true`, then restart this session." Ask the user if they want to pause and enable it, or continue without Plan Mode. If continuing without Plan Mode, use `AskUserQuestion` with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
+Activate this skill when beginning Phase 1 of Maestro orchestration. Immediately call `EnterPlanMode` to enter Plan Mode for the design phase. If that transition is unavailable, continue without Plan Mode and use `AskUserQuestion` with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
 
-**User confirmation sequence**: Phase 1 entry triggers two user-facing confirmations — first the `Skill` consent dialog (required for non-builtin skills), then the `EnterPlanMode` transition. Both are expected; do not treat the second confirmation as redundant or skip it.
+**User confirmation sequence**: Phase 1 entry may trigger a Plan Mode confirmation when `EnterPlanMode` is available. That confirmation is expected; do not treat it as redundant or skip it.
 
 ## Design Depth Gate
 

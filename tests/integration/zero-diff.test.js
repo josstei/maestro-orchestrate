@@ -1,17 +1,17 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-
-const ROOT = path.resolve(__dirname, '../..');
+const { DRY_RUN_MARKER, parseDryRunReport, runGenerator } = require('./helpers');
 
 describe('zero-diff validation', () => {
   it('generator output matches committed files exactly', () => {
-    execSync('node scripts/generate.js', { cwd: ROOT, encoding: 'utf8' });
-    const diff = execSync('git diff --name-only', { cwd: ROOT, encoding: 'utf8' }).trim();
-    if (diff) {
-      const details = execSync('git diff --stat', { cwd: ROOT, encoding: 'utf8' });
-      assert.fail(`Generator output differs from committed files:\n${diff}\n\n${details}`);
-    }
+    const report = parseDryRunReport(runGenerator(['--dry-run']));
+
+    assert.equal(report.marker, DRY_RUN_MARKER);
+    assert.ok(report.statusLines.length > 0, 'Expected generator to inspect manifest outputs');
+    assert.deepEqual(
+      report.driftLines,
+      [],
+      `Generator output drift detected:\n${report.driftLines.join('\n')}`
+    );
   });
 });

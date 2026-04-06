@@ -63,6 +63,9 @@ All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory.
 <!-- @feature claudeStateContract -->
 All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `docs/maestro` represents the resolved value of this variable.
 <!-- @end-feature -->
+<!-- @feature codexStateContract -->
+All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `docs/maestro` represents the resolved value of this variable.
+<!-- @end-feature -->
 
 ### State File Access
 
@@ -92,6 +95,9 @@ Use `write_file` directly. When content must be piped from a shell command, use 
 <!-- @feature claudeStateContract -->
 2. Create `docs/maestro/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
 <!-- @end-feature -->
+<!-- @feature codexStateContract -->
+2. Create `docs/maestro/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
+<!-- @end-feature -->
 3. Verify no existing `active-session.md` — if one exists, alert the user and offer to archive or resume
 4. Generate session state using the template from `templates/session-state.md`
 5. Initialize all phases as `pending`
@@ -115,6 +121,10 @@ design_document: "<state_dir>/plans/<design-doc-filename>"
 implementation_plan: "<state_dir>/plans/<impl-plan-filename>"
 <!-- @end-feature -->
 <!-- @feature claudeStateContract -->
+design_document: "docs/maestro/plans/<design-doc-filename>"
+implementation_plan: "docs/maestro/plans/<impl-plan-filename>"
+<!-- @end-feature -->
+<!-- @feature codexStateContract -->
 design_document: "docs/maestro/plans/<design-doc-filename>"
 implementation_plan: "docs/maestro/plans/<impl-plan-filename>"
 <!-- @end-feature -->
@@ -278,6 +288,29 @@ If `archive_session` is not available, fall back to manual file operations:
 1. Create `docs/maestro/plans/archive/` directory if it does not exist
 2. Create `docs/maestro/state/archive/` directory if it does not exist
 3. **MOVE** (not copy) design document from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — the original MUST be deleted. Use `run_shell_command` with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
+4. **MOVE** (not copy) implementation plan from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
+5. Update session state `status` to `completed`
+6. Update `updated` timestamp
+7. **MOVE** (not copy) `active-session.md` from `docs/maestro/state/` to `docs/maestro/state/archive/<session-id>.md` — delete the original.
+8. Confirm archival to user with summary of what was archived
+
+### Archive Verification
+After archival, verify ALL of the following (archive is incomplete if any check fails):
+- No `active-session.md` exists in `docs/maestro/state/`
+- No plan files remain in `docs/maestro/plans/` (only the `archive/` subdirectory should be present)
+<!-- @end-feature -->
+<!-- @feature codexStateContract -->
+1. Call `archive_session` with the session ID. The MCP tool atomically:
+   - Updates session status to `completed`
+   - Moves `active-session.md` to `docs/maestro/state/archive/<session-id>.md`
+   - Moves design document to `docs/maestro/plans/archive/` (if it exists and is non-null)
+   - Moves implementation plan to `docs/maestro/plans/archive/` (if it exists and is non-null)
+2. Confirm archival to user with summary of what was archived (use the `archived_files` array in the response)
+
+If `archive_session` is not available, fall back to manual file operations:
+1. Create `docs/maestro/plans/archive/` directory if it does not exist
+2. Create `docs/maestro/state/archive/` directory if it does not exist
+3. **MOVE** (not copy) design document from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — the original MUST be deleted. Use `exec_command` with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
 4. **MOVE** (not copy) implementation plan from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
 5. Update session state `status` to `completed`
 6. Update `updated` timestamp

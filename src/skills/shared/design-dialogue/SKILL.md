@@ -7,9 +7,21 @@ description: Guides structured design conversations for complex engineering task
 
 **Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate design-dialogue. Return to the Express Workflow section.
 
+<!-- @feature geminiStateContract -->
 Activate this skill when beginning Phase 1 of Maestro orchestration. Immediately call `enter_plan_mode` to enter Plan Mode for the design phase. If the tool call fails or is unavailable, inform the user that Plan Mode is not enabled and provide activation instructions: "Plan Mode gives you a dedicated review surface for designs and plans. To enable it, run: `gemini --settings` and set `experimental.plan` to `true`, then restart this session." Ask the user if they want to pause and enable it, or continue without Plan Mode. If continuing without Plan Mode, use `ask_user` with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
 
 **User confirmation sequence**: Phase 1 entry triggers two user-facing confirmations — first the `activate_skill` consent dialog (required for non-builtin skills), then the `enter_plan_mode` transition. Both are expected; do not treat the second confirmation as redundant or skip it.
+<!-- @end-feature -->
+<!-- @feature claudeStateContract -->
+Activate this skill when beginning Phase 1 of Maestro orchestration. Immediately call `enter_plan_mode` to enter Plan Mode for the design phase. If that transition is unavailable, continue without Plan Mode and use `ask_user` with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
+
+**User confirmation sequence**: Phase 1 entry may trigger a Plan Mode confirmation when `enter_plan_mode` is available. That confirmation is expected; do not treat it as redundant or skip it.
+<!-- @end-feature -->
+<!-- @feature codexStateContract -->
+Activate this skill when beginning Phase 1 of Maestro orchestration. Codex does not provide a separate Maestro Plan Mode surface, so track progress with `update_plan`, write the design document directly to `docs/maestro/plans/`, and use `request_user_input` with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
+
+**User confirmation sequence**: Once this skill is active, move directly into the depth selector and approval prompts. No additional Maestro-specific Plan Mode confirmation is required.
+<!-- @end-feature -->
 
 ## Design Depth Gate
 
@@ -313,6 +325,14 @@ Where:
 - `YYYY-MM-DD` is the current date
 - `<topic-slug>` is a lowercase, hyphenated summary of the task (e.g., `user-auth-system`, `data-pipeline-refactor`)
 - `<project>` is the CLI's internal project hash (resolved automatically by `write_file`)
+<!-- @end-feature -->
+<!-- @feature codexStateContract -->
+- Write directly to `docs/maestro/plans/YYYY-MM-DD-<topic-slug>-design.md`.
+- Codex does not have a separate Maestro-specific Plan Mode surface. Track design progress with `update_plan`, then use `request_user_input` (or a direct approval question if needed) for section approvals and final signoff.
+
+Where:
+- `YYYY-MM-DD` is the current date
+- `<topic-slug>` is a lowercase, hyphenated summary of the task (e.g., `user-auth-system`, `data-pipeline-refactor`)
 <!-- @end-feature -->
 
 ### Document Structure

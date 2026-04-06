@@ -1,5 +1,5 @@
 function skillMetadata(content, runtime) {
-  if (runtime.name === 'gemini') return content;
+  if (runtime.name !== 'claude') return content;
   // Insert user-invocable: false before the closing ---
   return content.replace(
     /^(---\n[\s\S]*?)(^---)/m,

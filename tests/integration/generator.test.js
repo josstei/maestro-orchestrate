@@ -1,26 +1,22 @@
-const { describe, it, before, after } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
-
-const ROOT = path.resolve(__dirname, '../..');
-const TMP = path.join(ROOT, 'tests', 'integration', '_tmp');
+const {
+  DRY_RUN_MARKER,
+  getGitStatus,
+  parseDryRunReport,
+  runGenerator,
+} = require('./helpers');
 
 describe('generator integration', () => {
-  before(() => {
-    fs.mkdirSync(TMP, { recursive: true });
-  });
+  it('--dry-run reports manifest status without mutating the worktree', () => {
+    const beforeStatus = getGitStatus();
+    const result = runGenerator(['--dry-run']);
+    const afterStatus = getGitStatus();
+    const report = parseDryRunReport(result);
 
-  after(() => {
-    fs.rmSync(TMP, { recursive: true, force: true });
-  });
-
-  it('--dry-run produces no file writes', () => {
-    const result = execSync('node scripts/generate.js --dry-run', {
-      cwd: ROOT,
-      encoding: 'utf8',
-    });
-    assert.ok(result.includes('dry-run'));
+    assert.equal(afterStatus, beforeStatus);
+    assert.equal(report.marker, DRY_RUN_MARKER);
+    assert.ok(report.statusLines.length > 0, 'Expected dry-run to report manifest output status');
+    assert.deepEqual(report.nonStatusLines, []);
   });
 });

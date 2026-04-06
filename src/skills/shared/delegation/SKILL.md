@@ -198,6 +198,31 @@ Agent(subagent_type: "maestro:coder", prompt: "Agent: coder\nPhase: 2/6\nBatch: 
 Agent(subagent_type: "maestro:ux-designer", prompt: "Agent: ux-designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
 ```
 <!-- @end-feature -->
+<!-- @feature codexDelegation -->
+Codex does not bundle Maestro custom subagents through the plugin itself. The generated `agents/` directory is the source of truth for agent personas and scope boundaries, and delegation should use Codex's native subagent system.
+
+When delegating a phase:
+- Read the matching agent reference from `${extensionPath}/agents/<agent-name>.md`
+- Use the built-in subagent flow (`spawn_agent` when available, or the runtime's native delegated-agent path) with that reference folded into the prompt
+- Preserve the Maestro agent name from the roster in the delegation header even though the runtime-specific subagent identifier may differ
+
+This is mandatory because the generated agent reference still defines the intended methodology, tool surface, and role boundary for the delegated work even when the runtime does not register a Maestro-specific agent type automatically.
+
+Preferred pattern:
+
+**Sequential dispatch:**
+```
+spawn_agent(message: "You are fulfilling the Maestro `coder` role.\nUse the methodology and scope the parent loaded from `../../agents/coder.md`.\n\nAgent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
+```
+
+**Parallel dispatch:**
+```
+spawn_agent(message: "You are fulfilling the Maestro `coder` role.\nUse the methodology and scope the parent loaded from `../../agents/coder.md`.\n\nAgent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
+spawn_agent(message: "You are fulfilling the Maestro `ux-designer` role.\nUse the methodology and scope the parent loaded from `../../agents/ux-designer.md`.\n\nAgent: ux-designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
+```
+
+When Codex-native role selectors such as `explorer` or `worker` fit the task, map the Maestro persona onto that role rather than inventing a new runtime-specific methodology. Keep the Maestro agent file as the behavioral contract.
+<!-- @end-feature -->
 
 ## Parallel Delegation
 

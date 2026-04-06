@@ -48,26 +48,62 @@ describe('inject-frontmatter transform', () => {
     },
   };
 
+  function parseDocument(result) {
+    const lines = result.split('\n');
+    assert.equal(lines[0], '---');
+
+    const closingIdx = lines.indexOf('---', 1);
+    assert.notEqual(closingIdx, -1, 'Expected a closing frontmatter fence');
+
+    return {
+      frontmatter: lines.slice(1, closingIdx),
+      body: lines.slice(closingIdx + 1).join('\n'),
+    };
+  }
+
+  function assertDocument(result, expectedFrontmatter, expectedBody) {
+    const { frontmatter, body } = parseDocument(result);
+    assert.deepEqual(frontmatter, expectedFrontmatter);
+    assert.equal(body, expectedBody);
+  }
+
   it('produces gemini frontmatter with kind, temperature, timeout', () => {
     const result = injectFrontmatter(canonicalAgent, geminiRuntime, {});
-    assert.ok(result.includes('name: code_reviewer'));
-    assert.ok(result.includes('kind: local'));
-    assert.ok(result.includes('temperature: 0.2'));
-    assert.ok(result.includes('timeout_mins: 5'));
-    assert.ok(result.includes('max_turns: 15'));
-    assert.ok(!result.includes('color:'));
-    assert.ok(result.includes('## Methodology'));
+    assertDocument(
+      result,
+      [
+        'name: code_reviewer',
+        'kind: local',
+        'description: "Code review specialist."',
+        'tools:',
+        '  - read_file',
+        '  - glob',
+        '  - grep_search',
+        'temperature: 0.2',
+        'max_turns: 15',
+        'timeout_mins: 5',
+      ],
+      '\n## Methodology\nReview code carefully.'
+    );
   });
 
   it('produces claude frontmatter with model, color, maxTurns', () => {
     const result = injectFrontmatter(canonicalAgent, claudeRuntime, {});
-    assert.ok(result.includes('name: code-reviewer'));
-    assert.ok(result.includes('model: inherit'));
-    assert.ok(result.includes('color: blue'));
-    assert.ok(result.includes('maxTurns: 15'));
-    assert.ok(!result.includes('temperature'));
-    assert.ok(!result.includes('timeout_mins'));
-    assert.ok(!result.includes('kind:'));
+    assertDocument(
+      result,
+      [
+        'name: code-reviewer',
+        'description: "Code review specialist."',
+        'model: inherit',
+        'color: blue',
+        'maxTurns: 15',
+        'tools:',
+        '  - Read',
+        '  - Glob',
+        '  - Grep',
+      ],
+      '\n## Methodology\nReview code carefully.'
+    );
   });
 
   it('uses tools.<runtime> override when present', () => {
@@ -117,12 +153,26 @@ describe('inject-frontmatter transform', () => {
       'Review code carefully.',
     ].join('\n');
     const result = injectFrontmatter(agentWithExamples, claudeRuntime, {});
-    assert.ok(result.includes('description: |'));
-    assert.ok(result.includes('  <example>'));
-    assert.ok(result.includes('  Context: User wants a review.'));
-    // Examples should NOT appear in body after frontmatter
-    const afterFrontmatter = result.split('---\n').slice(2).join('---\n');
-    assert.ok(!afterFrontmatter.includes('<example>'));
+    assertDocument(
+      result,
+      [
+        'name: code-reviewer',
+        'description: |',
+        '  Code review specialist.',
+        '  ',
+        '  <example>',
+        '  Context: User wants a review.',
+        '  </example>',
+        'model: inherit',
+        'color: blue',
+        'maxTurns: 15',
+        'tools:',
+        '  - Read',
+        '  - Glob',
+        '  - Grep',
+      ],
+      '\n## Methodology\nReview code carefully.'
+    );
   });
 
   it('keeps examples in body for gemini (no embedding)', () => {
@@ -145,8 +195,22 @@ describe('inject-frontmatter transform', () => {
       'Review code carefully.',
     ].join('\n');
     const result = injectFrontmatter(agentWithExamples, geminiRuntime, {});
-    assert.ok(!result.includes('description: |'));
-    assert.ok(result.includes('description: "Code review specialist."'));
+    assertDocument(
+      result,
+      [
+        'name: code_reviewer',
+        'kind: local',
+        'description: "Code review specialist."',
+        'tools:',
+        '  - read_file',
+        '  - glob',
+        '  - grep_search',
+        'temperature: 0.2',
+        'max_turns: 15',
+        'timeout_mins: 5',
+      ],
+      '\n<example>\nContext: User wants a review.\n</example>\n\n## Methodology\nReview code carefully.'
+    );
   });
 
   it('flattens array tool mappings when no per-runtime override', () => {
@@ -229,24 +293,34 @@ describe('inject-frontmatter transform', () => {
       'Body.',
     ].join('\n');
     const result = injectFrontmatter(noDescAgent, claudeRuntime, {});
-    // Should produce description: "" (empty quoted string in Claude, since no newlines)
-    assert.ok(result.includes('description:'));
+    const { frontmatter } = parseDocument(result);
+    assert.ok(frontmatter.includes('description: ""'));
   });
 
   it('should handle content with no frontmatter', () => {
     const noFrontmatter = 'Just body content.\nNo frontmatter here.';
     const result = injectFrontmatter(noFrontmatter, claudeRuntime, {});
-    // parseFrontmatter returns empty frontmatter + full body
-    // injectFrontmatter should produce minimal frontmatter
-    assert.ok(result.includes('---'));
-    assert.ok(result.includes('Just body content.'));
+    assertDocument(
+      result,
+      [
+        'description: ""',
+        'model: inherit',
+      ],
+      'Just body content.\nNo frontmatter here.'
+    );
   });
 
   it('should handle content with unclosed frontmatter (no closing ---)', () => {
     const badFrontmatter = '---\nname: test\nno closing fence';
     const result = injectFrontmatter(badFrontmatter, claudeRuntime, {});
-    // parseFrontmatter returns empty frontmatter + full body for unclosed
-    assert.ok(result.includes('---'));
+    assertDocument(
+      result,
+      [
+        'description: ""',
+        'model: inherit',
+      ],
+      '---\nname: test\nno closing fence'
+    );
   });
 
   it('should produce correct gemini field ordering: name, kind, description, tools, temperature, max_turns, timeout', () => {
@@ -392,9 +466,24 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    // This tests that parseValue and stripQuotes handle the value
     const result = injectFrontmatter(quotedDesc, geminiRuntime, {});
-    assert.ok(result.includes('description:'));
+    const { frontmatter } = parseDocument(result);
+    assert.ok(frontmatter.includes('description: "Tests things \\"carefully\\"."'));
+  });
+
+  it('should round-trip escaped quotes and literal backslashes in quoted descriptions', () => {
+    const escapedDesc = [
+      '---',
+      'name: tester',
+      'description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"',
+      'tools: [read_file]',
+      'max_turns: 10',
+      '---',
+      '',
+      'Body.',
+    ].join('\n');
+    const result = injectFrontmatter(escapedDesc, geminiRuntime, {});
+    assert.ok(result.includes('description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"'));
   });
 
   it('should handle numeric values in frontmatter correctly', () => {

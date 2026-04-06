@@ -72,7 +72,7 @@ async function main() {
         let content = sourceContent;
         for (const transformName of entry.transforms) {
           const { fn, param } = resolveTransform(transformName);
-          content = fn(content, runtime, { src: entry.src, param });
+          content = fn(content, runtime, { src: entry.src, param, outputPath });
         }
 
         const absOutputPath = safeResolve(outputPath);
@@ -139,6 +139,7 @@ async function main() {
     const ownedDirs = [
       'agents',
       'claude/agents',
+      'plugins/maestro',
       'skills',
       'claude/skills',
       'lib',
@@ -172,7 +173,7 @@ async function main() {
       .filter((f) => f.endsWith('.js') && f !== 'generate.js')
       .map((f) => `scripts/${f}`);
 
-    // Also add claude/.claude-plugin/ directory
+    // Also add runtime-specific plugin directories
     ownedDirs.push('claude/.claude-plugin');
 
     function walkDir(dir) {
