@@ -37678,6 +37678,41 @@ var require_resolve_settings = __commonJS({
   }
 });
 
+// plugins/maestro/src/lib/mcp/handlers/get-runtime-context.js
+var require_get_runtime_context = __commonJS({
+  "plugins/maestro/src/lib/mcp/handlers/get-runtime-context.js"(exports2, module2) {
+    "use strict";
+    var { KNOWN_AGENTS: KNOWN_AGENTS2, AGENT_CAPABILITIES: AGENT_CAPABILITIES2 } = require_agent_registry();
+    var MCP_PREFIXES2 = {
+      gemini: "mcp_maestro_",
+      claude: "mcp__plugin_maestro_maestro__",
+      codex: "mcp__maestro_maestro__"
+    };
+    function createHandler2(runtimeConfig) {
+      var agentNames2 = KNOWN_AGENTS2.map(function(name) {
+        return runtimeConfig.agentNaming === "snake_case" ? name : name.replace(/_/g, "-");
+      });
+      var prefix2 = runtimeConfig.name === "claude" ? "maestro:" : runtimeConfig.name === "codex" ? "" : "";
+      return function handleGetRuntimeContext2(_params) {
+        return {
+          runtime: runtimeConfig.name,
+          tools: runtimeConfig.tools || {},
+          agent_dispatch: {
+            pattern: runtimeConfig.delegationPattern || "",
+            naming: runtimeConfig.agentNaming || "kebab-case",
+            prefix: prefix2
+          },
+          mcp_prefix: MCP_PREFIXES2[runtimeConfig.name] || "",
+          paths: runtimeConfig.paths || {},
+          agents: agentNames2,
+          agent_capabilities: AGENT_CAPABILITIES2
+        };
+      };
+    }
+    module2.exports = { createHandler: createHandler2 };
+  }
+});
+
 // @feature mcpSkillContentHandler
 // plugins/maestro/src/mcp/handlers/get-skill-content.js
 var require_get_skill_content = __commonJS({
@@ -37954,6 +37989,21 @@ registerTool({
     required: ["resources"]
   }
 }, handleGetSkillContent);
+// @end-feature
+// @feature geminiRuntimeConfig
+var __gemini_rt_cfg = { name: "gemini", tools: { read_file: "read_file", list_directory: "list_directory", glob: "glob", grep_search: "grep_search", google_web_search: "google_web_search", web_fetch: "web_fetch", write_file: "write_file", replace: "replace", run_shell_command: "run_shell_command", ask_user: "ask_user", read_many_files: "read_many_files", write_todos: "write_todos", activate_skill: "activate_skill", enter_plan_mode: "enter_plan_mode", exit_plan_mode: "exit_plan_mode", codebase_investigator: "codebase_investigator" }, agentNaming: "snake_case", delegationPattern: "{{agent}}(query: \"...\")", paths: { skills: "${extensionPath}/skills/", hooks: "${extensionPath}/hooks/" }, env: { extensionPath: "extensionPath", workspacePath: "workspacePath" } };
+var { createHandler: __createRtCtx1 } = require_get_runtime_context();
+registerTool({ name: "get_runtime_context", description: "Returns tool mappings, agent dispatch syntax, MCP prefixes, and path variables for the current Maestro runtime. Call once at session start (step 0) and carry the returned context through the session.", inputSchema: { type: "object", properties: {} } }, __createRtCtx1(__gemini_rt_cfg));
+// @end-feature
+// @feature claudeRuntimeConfig
+var __claude_rt_cfg = { name: "claude", tools: { read_file: "Read", list_directory: "Glob", glob: "Glob", grep_search: "Grep", google_web_search: "WebSearch", web_fetch: "WebFetch", write_file: "Write", replace: "Edit", run_shell_command: "Bash", ask_user: "AskUserQuestion", read_many_files: "Read", write_todos: ["TaskCreate", "TaskUpdate", "TaskList"], activate_skill: "Skill", enter_plan_mode: "EnterPlanMode", exit_plan_mode: "ExitPlanMode", codebase_investigator: "Agent (Explore) / Grep / Glob" }, agentNaming: "kebab-case", delegationPattern: "Agent(subagent_type: \"maestro:{{agent}}\", prompt: \"...\")", paths: { skills: "${CLAUDE_PLUGIN_ROOT}/skills/", hooks: "${CLAUDE_PLUGIN_ROOT}/scripts/" }, env: { extensionPath: "CLAUDE_PLUGIN_ROOT", workspacePath: "CLAUDE_PROJECT_DIR" } };
+var { createHandler: __createRtCtx2 } = require_get_runtime_context();
+registerTool({ name: "get_runtime_context", description: "Returns tool mappings, agent dispatch syntax, MCP prefixes, and path variables for the current Maestro runtime. Call once at session start (step 0) and carry the returned context through the session.", inputSchema: { type: "object", properties: {} } }, __createRtCtx2(__claude_rt_cfg));
+// @end-feature
+// @feature codexRuntimeConfig
+var __codex_rt_cfg = { name: "codex", tools: { read_file: "direct file reads", list_directory: "exec_command (`rg --files` or `ls`)", glob: "exec_command (`rg --files` or `find`)", grep_search: "exec_command (`rg`)", google_web_search: "web search", web_fetch: "web fetch", write_file: "apply_patch", replace: "apply_patch", run_shell_command: "exec_command", ask_user: "request_user_input", read_many_files: "direct file reads", write_todos: "update_plan", activate_skill: "open the referenced skill and follow it", enter_plan_mode: "update_plan", exit_plan_mode: "request_user_input approval", codebase_investigator: "local inspection or spawn_agent" }, agentNaming: "kebab-case", delegationPattern: "spawn_agent(...) with generated agent references from ./agents/", paths: { skills: "./skills/", hooks: "./scripts/" }, env: { extensionPath: "." } };
+var { createHandler: __createRtCtx3 } = require_get_runtime_context();
+registerTool({ name: "get_runtime_context", description: "Returns tool mappings, agent dispatch syntax, MCP prefixes, and path variables for the current Maestro runtime. Call once at session start (step 0) and carry the returned context through the session.", inputSchema: { type: "object", properties: {} } }, __createRtCtx3(__codex_rt_cfg));
 // @end-feature
 async function main() {
   log("info", "MCP server starting");

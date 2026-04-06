@@ -52,6 +52,9 @@ module.exports = {
     geminiStateContract: true,
     claudeStateContract: false,
     codexStateContract: false,
+    geminiRuntimeConfig: true,
+    claudeRuntimeConfig: false,
+    codexRuntimeConfig: false,
   },
 
   paths: {
