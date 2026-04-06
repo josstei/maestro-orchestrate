@@ -1,4 +1,5 @@
 STARTUP (Turn 1 — tool calls only, no text output)
+ 0. If get_runtime_context appears in your available tools, call it. Carry the returned mappings (tool names, agent dispatch syntax, MCP prefix, paths) through the entire session. If unavailable, use the fallback mappings in the entry-point skill preamble.
  1. Call resolve_settings.
  2. Call initialize_workspace with resolved state_dir.
  3. Call get_session_status — if active, present status and offer resume/archive.
