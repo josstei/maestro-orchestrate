@@ -23,22 +23,12 @@ Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-ho
 | Concern | Orchestration State | Hook State |
 | --- | --- | --- |
 | Location | `<MAESTRO_STATE_DIR>/state/` | `/tmp/maestro-hooks/<session-id>/` (Unix) or `<os.tmpdir()>/maestro-hooks/<session-id>/` (Windows) |
-<!-- @feature geminiHookModel -->
-| Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by `SessionStart` when an active session exists; active-agent file written by `BeforeAgent` and cleared by `AfterAgent`; stale directories pruned by both `SessionStart` and `BeforeAgent` |
-<!-- @end-feature -->
-<!-- @feature claudeHookModel -->
-| Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by `hooks system (SessionStart)` when an active session exists; active-agent file written by `hooks system (PreToolUse)` and cleared by `orchestrator inline validation (no hook — see SKIP_EVENTS_CLAUDE)`; stale directories pruned by both `hooks system (SessionStart)` and `hooks system (PreToolUse)` |
-<!-- @end-feature -->
+| Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by the session-start hook when an active session exists; active-agent file written by the pre-delegation hook and cleared by the post-delegation hook; stale directories pruned by both session-start and pre-delegation hooks |
 | Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
 | Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
 | Managed by | Orchestrator via session-management skill | The runtime's pre-delegation and post-delegation hooks |
 
-<!-- @feature geminiHookModel -->
-The `BeforeAgent` prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
-<!-- @end-feature -->
-<!-- @feature claudeHookModel -->
-The `hooks system (PreToolUse)` prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
-<!-- @end-feature -->
+The pre-delegation hook prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
 
 The orchestrator does not read or write hook-level state directly. It interacts only with `<MAESTRO_STATE_DIR>` paths. The two state systems are independent and serve different concerns.
 
@@ -57,15 +47,7 @@ Where:
 ### File Location
 `<MAESTRO_STATE_DIR>/state/active-session.md`
 
-<!-- @feature geminiStateContract -->
-All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `<state_dir>` represents the resolved value of this variable.
-<!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `docs/maestro` represents the resolved value of this variable.
-<!-- @end-feature -->
-<!-- @feature codexStateContract -->
-All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory. In procedural steps, `docs/maestro` represents the resolved value of this variable.
-<!-- @end-feature -->
+All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory (default: `docs/maestro`). In procedural steps, `<state_dir>` represents the resolved value of this variable.
 
 ### State File Access
 
@@ -89,15 +71,7 @@ Use `write_file` directly. When content must be piped from a shell command, use 
 
 ### Initialization Steps
 1. Resolve state directory from `MAESTRO_STATE_DIR`
-<!-- @feature geminiStateContract -->
 2. Create `<state_dir>/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
-<!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-2. Create `docs/maestro/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
-<!-- @end-feature -->
-<!-- @feature codexStateContract -->
-2. Create `docs/maestro/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
-<!-- @end-feature -->
 3. Verify no existing `active-session.md` — if one exists, alert the user and offer to archive or resume
 4. Generate session state using the template from `templates/session-state.md`
 5. Initialize all phases as `pending`
@@ -116,18 +90,8 @@ created: "<ISO 8601 timestamp>"
 updated: "<ISO 8601 timestamp>"
 status: "in_progress"
 workflow_mode: "<standard|express>"
-<!-- @feature geminiStateContract -->
 design_document: "<state_dir>/plans/<design-doc-filename>"
 implementation_plan: "<state_dir>/plans/<impl-plan-filename>"
-<!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-design_document: "docs/maestro/plans/<design-doc-filename>"
-implementation_plan: "docs/maestro/plans/<impl-plan-filename>"
-<!-- @end-feature -->
-<!-- @feature codexStateContract -->
-design_document: "docs/maestro/plans/<design-doc-filename>"
-implementation_plan: "docs/maestro/plans/<impl-plan-filename>"
-<!-- @end-feature -->
 current_phase: 1
 total_phases: <integer from impl plan>
 execution_mode: null
@@ -253,7 +217,7 @@ When `MAESTRO_AUTO_ARCHIVE` is `false`, prompt the user after successful complet
 
 ### Archive Steps
 If `archive_session` appears in your available tools, use it — a single call handles all archival:
-<!-- @feature geminiStateContract -->
+
 1. Call `archive_session` with the session ID. The MCP tool atomically:
    - Updates session status to `completed`
    - Moves `active-session.md` to `<state_dir>/state/archive/<session-id>.md`
@@ -264,7 +228,7 @@ If `archive_session` appears in your available tools, use it — a single call h
 If `archive_session` is not available, fall back to manual file operations:
 1. Create `<state_dir>/plans/archive/` directory if it does not exist
 2. Create `<state_dir>/state/archive/` directory if it does not exist
-3. **MOVE** (not copy) design document from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — the original MUST be deleted. Use `run_shell_command` with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
+3. **MOVE** (not copy) design document from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — the original MUST be deleted. Use the shell-command tool from runtime context with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
 4. **MOVE** (not copy) implementation plan from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
 5. Update session state `status` to `completed`
 6. Update `updated` timestamp
@@ -275,53 +239,6 @@ If `archive_session` is not available, fall back to manual file operations:
 After archival, verify ALL of the following (archive is incomplete if any check fails):
 - No `active-session.md` exists in `<state_dir>/state/`
 - No plan files remain in `<state_dir>/plans/` (only the `archive/` subdirectory should be present)
-<!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-1. Call `archive_session` with the session ID. The MCP tool atomically:
-   - Updates session status to `completed`
-   - Moves `active-session.md` to `docs/maestro/state/archive/<session-id>.md`
-   - Moves design document to `docs/maestro/plans/archive/` (if it exists and is non-null)
-   - Moves implementation plan to `docs/maestro/plans/archive/` (if it exists and is non-null)
-2. Confirm archival to user with summary of what was archived (use the `archived_files` array in the response)
-
-If `archive_session` is not available, fall back to manual file operations:
-1. Create `docs/maestro/plans/archive/` directory if it does not exist
-2. Create `docs/maestro/state/archive/` directory if it does not exist
-3. **MOVE** (not copy) design document from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — the original MUST be deleted. Use `run_shell_command` with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
-4. **MOVE** (not copy) implementation plan from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
-5. Update session state `status` to `completed`
-6. Update `updated` timestamp
-7. **MOVE** (not copy) `active-session.md` from `docs/maestro/state/` to `docs/maestro/state/archive/<session-id>.md` — delete the original.
-8. Confirm archival to user with summary of what was archived
-
-### Archive Verification
-After archival, verify ALL of the following (archive is incomplete if any check fails):
-- No `active-session.md` exists in `docs/maestro/state/`
-- No plan files remain in `docs/maestro/plans/` (only the `archive/` subdirectory should be present)
-<!-- @end-feature -->
-<!-- @feature codexStateContract -->
-1. Call `archive_session` with the session ID. The MCP tool atomically:
-   - Updates session status to `completed`
-   - Moves `active-session.md` to `docs/maestro/state/archive/<session-id>.md`
-   - Moves design document to `docs/maestro/plans/archive/` (if it exists and is non-null)
-   - Moves implementation plan to `docs/maestro/plans/archive/` (if it exists and is non-null)
-2. Confirm archival to user with summary of what was archived (use the `archived_files` array in the response)
-
-If `archive_session` is not available, fall back to manual file operations:
-1. Create `docs/maestro/plans/archive/` directory if it does not exist
-2. Create `docs/maestro/state/archive/` directory if it does not exist
-3. **MOVE** (not copy) design document from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — the original MUST be deleted. Use `exec_command` with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
-4. **MOVE** (not copy) implementation plan from `docs/maestro/plans/` to `docs/maestro/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
-5. Update session state `status` to `completed`
-6. Update `updated` timestamp
-7. **MOVE** (not copy) `active-session.md` from `docs/maestro/state/` to `docs/maestro/state/archive/<session-id>.md` — delete the original.
-8. Confirm archival to user with summary of what was archived
-
-### Archive Verification
-After archival, verify ALL of the following (archive is incomplete if any check fails):
-- No `active-session.md` exists in `docs/maestro/state/`
-- No plan files remain in `docs/maestro/plans/` (only the `archive/` subdirectory should be present)
-<!-- @end-feature -->
 - Archived files are readable at their new locations in `archive/`
 - If files still exist in the original locations, delete them now — the archive step used copy instead of move
 
