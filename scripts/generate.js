@@ -127,6 +127,14 @@ function expandManifest(rules, runtimes, srcDir) {
       continue;
     }
 
+    // Validate required fields before expansion
+    if (!rule.runtimes || !Array.isArray(rule.runtimes)) {
+      throw new Error(`Manifest rule missing "runtimes": ${JSON.stringify(rule)}`);
+    }
+    if (!rule.glob && !rule.src) {
+      throw new Error(`Manifest rule needs "glob" or "src": ${JSON.stringify(rule)}`);
+    }
+
     // Determine source files to expand
     let srcFiles;
     if (rule.glob) {

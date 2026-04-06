@@ -78,6 +78,20 @@ describe('expandManifest', () => {
     assert.deepEqual(entries[0], entry);
   });
 
+  it('throws on malformed rule missing glob and src', () => {
+    assert.throws(
+      () => expandManifest([{ transforms: ['copy'], runtimes: ['gemini'] }], {}, '/unused'),
+      { message: /needs "glob" or "src"/ }
+    );
+  });
+
+  it('throws on rule missing runtimes', () => {
+    assert.throws(
+      () => expandManifest([{ glob: 'agents/*.md', transforms: ['copy'] }], {}, '/unused'),
+      { message: /missing "runtimes"/ }
+    );
+  });
+
   it('handles outputName override for hook configs', () => {
     const rule = {
       src: 'hooks/hook-configs/gemini.json',
