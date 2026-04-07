@@ -33870,16 +33870,39 @@ var require_logger = __commonJS({
 var require_project_root_resolver = __commonJS({
   "plugins/maestro/src/lib/core/project-root-resolver.js"(exports2, module2) {
     "use strict";
+    var fs = require("fs");
+    var path = require("path");
     var { execSync } = require("child_process");
+    function resolveGitRoot2(baseDir) {
+      return execSync("git rev-parse --show-toplevel", {
+        cwd: baseDir,
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"]
+      }).trim();
+    }
     function resolveProjectRoot2() {
-      if (process.env.MAESTRO_WORKSPACE_PATH && !process.env.MAESTRO_WORKSPACE_PATH.includes("${")) {
-        return process.env.MAESTRO_WORKSPACE_PATH;
+      const candidates = [
+        process.env.MAESTRO_WORKSPACE_PATH,
+        process.env.CLAUDE_PROJECT_DIR,
+        process.env.PWD,
+        process.env.INIT_CWD
+      ];
+      for (const candidate of candidates) {
+        if (!candidate || candidate.includes("${")) {
+          continue;
+        }
+        const resolvedCandidate = path.resolve(candidate);
+        if (!fs.existsSync(resolvedCandidate)) {
+          continue;
+        }
+        try {
+          return resolveGitRoot2(resolvedCandidate);
+        } catch {
+          return resolvedCandidate;
+        }
       }
       try {
-        return execSync("git rev-parse --show-toplevel", {
-          encoding: "utf8",
-          stdio: ["pipe", "pipe", "pipe"]
-        }).trim();
+        return resolveGitRoot2(process.cwd());
       } catch {
         return process.cwd();
       }

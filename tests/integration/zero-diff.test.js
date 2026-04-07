@@ -16,6 +16,10 @@ describe('zero-diff validation', () => {
       report.statusLines.includes('[UNCHANGED] plugins/maestro/lib/mcp/tool-packs/index.js'),
       'Expected codex lib outputs to be generated and unchanged'
     );
+    assert.ok(
+      report.statusLines.includes('[UNCHANGED] plugins/maestro/src/references/orchestration-steps.md'),
+      'Expected codex canonical MCP content outputs to be generated and unchanged'
+    );
     assert.deepEqual(
       report.driftLines,
       [],

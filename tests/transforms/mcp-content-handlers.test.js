@@ -6,6 +6,8 @@ const path = require('node:path');
 
 const { createHandler: createSkillContentHandler } = require('../../src/lib/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/lib/mcp/handlers/get-agent');
+const { createHandler: createPackagedSkillContentHandler } = require('../../plugins/maestro/lib/mcp/handlers/get-skill-content');
+const { createHandler: createPackagedAgentHandler } = require('../../plugins/maestro/lib/mcp/handlers/get-agent');
 const { getRuntimeConfig } = require('../../src/lib/mcp/runtime/runtime-config-map');
 
 function withExtensionRoot(root, fn) {
@@ -111,5 +113,34 @@ describe('get_agent handler', () => {
     assert.ok(result.agents.coder.body.includes('Methodology body.'));
     assert.ok(!result.agents.coder.body.includes('tools:'));
     assert.ok(!result.agents.coder.body.includes('Example block'));
+  });
+});
+
+describe('codex plugin bundle content handlers', () => {
+  it('reads canonical shared content from the generated codex plugin bundle', () => {
+    const pluginRoot = path.resolve(__dirname, '../..', 'plugins', 'maestro');
+    const handler = createPackagedSkillContentHandler();
+
+    const result = withExtensionRoot(pluginRoot, () =>
+      handler({ resources: ['delegation', 'architecture', 'orchestration-steps'] })
+    );
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(result.contents.delegation.includes('# Delegation Skill'));
+    assert.ok(result.contents.architecture.includes('workspace root'));
+    assert.ok(result.contents['orchestration-steps'].includes('STARTUP'));
+  });
+
+  it('reads canonical agent methodology from the generated codex plugin bundle', () => {
+    const pluginRoot = path.resolve(__dirname, '../..', 'plugins', 'maestro');
+    const handler = createPackagedAgentHandler();
+
+    const result = withExtensionRoot(pluginRoot, () =>
+      handler({ agents: ['coder'] })
+    );
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(result.agents.coder.body.includes('Senior Software Engineer'));
+    assert.ok(!result.agents.coder.body.includes('Agent methodology loaded via MCP'));
   });
 });

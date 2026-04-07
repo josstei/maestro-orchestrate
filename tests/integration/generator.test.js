@@ -25,6 +25,10 @@ describe('generator integration', () => {
       report.statusLines.some((line) => line.includes('plugins/maestro/lib/mcp/tool-packs/index.js')),
       'Expected codex lib outputs to be included in the dry-run report'
     );
+    assert.ok(
+      report.statusLines.some((line) => line.includes('plugins/maestro/src/references/orchestration-steps.md')),
+      'Expected codex canonical MCP content outputs to be included in the dry-run report'
+    );
     assert.deepEqual(report.nonStatusLines, []);
   });
 });
