@@ -6,6 +6,7 @@ const path = require('node:path');
 
 const { createHandler: createSkillContentHandler } = require('../../src/lib/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/lib/mcp/handlers/get-agent');
+const { getRuntimeConfig } = require('../../src/lib/mcp/runtime/runtime-config-map');
 
 function withExtensionRoot(root, fn) {
   const previous = process.env.MAESTRO_EXTENSION_PATH;
@@ -32,12 +33,7 @@ describe('get_skill_content handler', () => {
       'utf8'
     );
 
-    const handler = createSkillContentHandler({
-      name: 'claude',
-      agentNaming: 'kebab-case',
-      env: { extensionPath: 'CLAUDE_PLUGIN_ROOT' },
-      features: { geminiStateContract: false, claudeStateContract: true, codexStateContract: false },
-    }, 'src');
+    const handler = createSkillContentHandler(getRuntimeConfig('claude'), 'src');
 
     const result = withExtensionRoot(root, () => handler({ resources: ['delegation'] }));
     const content = result.contents.delegation;
@@ -65,10 +61,8 @@ describe('get_skill_content handler', () => {
     );
 
     const handler = createSkillContentHandler({
-      name: 'gemini',
-      agentNaming: 'snake_case',
+      ...getRuntimeConfig('gemini'),
       env: { extensionPath: 'PLUGIN_ROOT' },
-      features: { geminiStateContract: true, claudeStateContract: false, codexStateContract: false },
     }, 'src');
 
     const result = withExtensionRoot(root, () => handler({ resources: ['architecture'] }));
@@ -103,9 +97,11 @@ describe('get_agent handler', () => {
     );
 
     const handler = createAgentHandler({
-      name: 'claude',
-      tools: { read_file: 'Read', write_file: 'Write' },
-      features: { exampleBlocks: false },
+      ...getRuntimeConfig('claude'),
+      features: {
+        ...getRuntimeConfig('claude').features,
+        exampleBlocks: false,
+      },
     }, 'src');
 
     const result = withExtensionRoot(root, () => handler({ agents: ['coder'] }));

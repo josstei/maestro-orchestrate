@@ -139,6 +139,10 @@ function expandManifest(rules, runtimes, srcDir) {
     let srcFiles;
     if (rule.glob) {
       srcFiles = expandGlob(rule.glob, srcDir);
+      if (rule.exclude) {
+        const excludeSet = new Set(rule.exclude);
+        srcFiles = srcFiles.filter((f) => !excludeSet.has(f));
+      }
     } else {
       srcFiles = [rule.src];
     }

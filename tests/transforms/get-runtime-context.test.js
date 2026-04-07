@@ -1,5 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const { getRuntimeConfig } = require('../../src/lib/mcp/runtime/runtime-config-map');
 
 describe('get-runtime-context handler', () => {
   it('returns structured runtime config with required fields', () => {
@@ -73,5 +74,15 @@ describe('get-runtime-context handler', () => {
     assert.equal(result.agent_dispatch.naming, 'kebab-case');
     assert.equal(result.agent_dispatch.prefix, '');
     assert.equal(result.tools.run_shell_command, 'exec_command');
+  });
+
+  it('accepts a runtime name and resolves it through the shared runtime config map', () => {
+    const { createHandler } = require('../../src/lib/mcp/handlers/get-runtime-context');
+    const handler = createHandler('codex');
+    const result = handler({});
+
+    assert.equal(result.runtime, getRuntimeConfig('codex').name);
+    assert.equal(result.mcp_prefix, 'mcp__maestro_maestro__');
+    assert.equal(result.tools.read_file, 'direct file reads');
   });
 });

@@ -18,6 +18,12 @@ module.exports = [
     transforms: ['skill-discovery-stub'],
     runtimes: ['claude', 'codex'] },
 
+  // ── Shared source lib ───────────────────────────────────────────────
+  { glob: 'lib/**/*.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'],
+    exclude: ['lib/mcp/runtime/runtime-config-map.js'] },
+  { src: 'lib/mcp/runtime/runtime-config-map.js', transforms: ['inline-runtime'],
+    runtimes: ['gemini', 'claude', 'codex'] },
+
   // ── MCP server ──────────────────────────────────────────────────────
   { src: 'mcp/maestro-server.js', transforms: ['strip-feature'], runtimes: ['gemini', 'claude', 'codex'] },
 

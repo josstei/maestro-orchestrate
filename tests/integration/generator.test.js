@@ -17,6 +17,14 @@ describe('generator integration', () => {
     assert.equal(afterStatus, beforeStatus);
     assert.equal(report.marker, DRY_RUN_MARKER);
     assert.ok(report.statusLines.length > 0, 'Expected dry-run to report manifest output status');
+    assert.ok(
+      report.statusLines.some((line) => line.includes('lib/mcp/core/create-server.js')),
+      'Expected generated lib outputs to be included in the dry-run report'
+    );
+    assert.ok(
+      report.statusLines.some((line) => line.includes('plugins/maestro/lib/mcp/tool-packs/index.js')),
+      'Expected codex lib outputs to be included in the dry-run report'
+    );
     assert.deepEqual(report.nonStatusLines, []);
   });
 });

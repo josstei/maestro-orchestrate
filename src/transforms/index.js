@@ -7,6 +7,7 @@ const injectFrontmatter = require('./inject-frontmatter');
 const skillMetadata = require('./skill-metadata');
 const agentStub = require('./agent-stub');
 const skillDiscoveryStub = require('./skill-discovery-stub');
+const inlineRuntime = require('./inline-runtime');
 
 const transforms = {
   copy,
@@ -18,6 +19,7 @@ const transforms = {
   'skill-metadata': skillMetadata,
   'agent-stub': agentStub,
   'skill-discovery-stub': skillDiscoveryStub,
+  'inline-runtime': inlineRuntime,
 };
 
 /**
