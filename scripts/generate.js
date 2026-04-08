@@ -252,7 +252,7 @@ function expandEntryPoints(runtimeName) {
     outputPathFn = (entry) => `claude/skills/${entry.name}/SKILL.md`;
   } else if (runtimeName === 'codex') {
     templateFile = path.join(templateDir, 'codex-skill.md.tmpl');
-    outputPathFn = (entry) => `plugins/maestro/skills/maestro-${entry.name}/SKILL.md`;
+    outputPathFn = (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`;
   } else {
     throw new Error(`Unknown runtime for entry-point expansion: "${runtimeName}"`);
   }

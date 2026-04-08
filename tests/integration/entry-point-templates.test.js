@@ -23,13 +23,13 @@ describe('expandEntryPoints', () => {
     assert.ok(debug.content.includes('get_skill_content'));
   });
 
-  it('produces codex SKILL.md with maestro- prefix', () => {
+  it('produces codex SKILL.md with unprefixed skill names', () => {
     const results = expandEntryPoints('codex');
     assert.ok(results.length >= 9);
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review);
-    assert.ok(review.outputPath === 'plugins/maestro/skills/maestro-review/SKILL.md');
-    assert.ok(review.content.includes('name: maestro-review'));
+    assert.ok(review.outputPath === 'plugins/maestro/skills/review/SKILL.md');
+    assert.ok(review.content.includes('name: review'));
     assert.ok(review.content.includes('get_skill_content'));
   });
 

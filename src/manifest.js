@@ -72,7 +72,7 @@ module.exports = [
   { src: 'templates/mcp-registry.js.tmpl', transforms: ['build-mcp-registry:resources'], outputs: { codex: codex('lib/mcp/generated/resource-registry.js') } },
   { src: 'templates/mcp-registry.js.tmpl', transforms: ['build-mcp-registry:agents'], outputs: { codex: codex('lib/mcp/generated/agent-registry.js') } },
   { src: 'runtime-only/codex/references/runtime-guide.md', transforms: ['copy'], outputs: { codex: codex('references/runtime-guide.md') } },
-  { src: 'runtime-only/codex/skills/maestro-execute/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/maestro-execute/SKILL.md') } },
-  { src: 'runtime-only/codex/skills/maestro-orchestrate/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/maestro-orchestrate/SKILL.md') } },
-  { src: 'runtime-only/codex/skills/maestro-resume/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/maestro-resume/SKILL.md') } },
+  { src: 'runtime-only/codex/skills/execute/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/execute/SKILL.md') } },
+  { src: 'runtime-only/codex/skills/orchestrate/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/orchestrate/SKILL.md') } },
+  { src: 'runtime-only/codex/skills/resume/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/resume/SKILL.md') } },
 ];

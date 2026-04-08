@@ -1,5 +1,5 @@
 ---
-name: maestro-orchestrate
+name: orchestrate
 description: Run the full Maestro workflow for tasks that need design dialogue, implementation planning, shared session state, delegated execution, and review
 ---
 

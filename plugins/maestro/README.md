@@ -5,23 +5,23 @@ This directory is the generated Codex runtime for Maestro.
 Codex shares the same canonical `src/` authoring source as the Gemini CLI and Claude Code outputs, but its packaged content model differs:
 - shared methodology, references, templates, and MCP server source are generated from `src/`
 - packaged shared content is served from bundled MCP registries first, with filesystem fallback reserved for repo-local and workspace scenarios
-- Codex-specific behavior is isolated to this plugin's runtime guide and public `maestro-*` entry skills
+- Codex-specific behavior is isolated to this plugin's runtime guide and public entry skills, exposed under the plugin namespace as `$maestro:<skill>`
 - agent personas are generated under `./agents/` as reference documents so Codex delegation stays aligned without creating a hand-maintained fork
 
 ## Public skills
 
-- `maestro-orchestrate`
-- `maestro-execute`
-- `maestro-resume`
-- `maestro-status`
-- `maestro-archive`
-- `maestro-review`
-- `maestro-debug`
-- `maestro-security-audit`
-- `maestro-perf-check`
-- `maestro-seo-audit`
-- `maestro-a11y-audit`
-- `maestro-compliance-check`
+- `orchestrate`
+- `execute`
+- `resume`
+- `status`
+- `archive`
+- `review`
+- `debug`
+- `security-audit`
+- `perf-check`
+- `seo-audit`
+- `a11y-audit`
+- `compliance-check`
 
 ## Runtime notes
 

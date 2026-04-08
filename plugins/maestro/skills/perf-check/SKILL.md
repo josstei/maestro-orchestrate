@@ -1,5 +1,5 @@
 ---
-name: maestro-perf-check
+name: perf-check
 description: Run a Maestro-style performance assessment for hotspots, regressions, and optimization planning
 ---
 

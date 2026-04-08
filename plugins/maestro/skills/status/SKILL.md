@@ -1,5 +1,5 @@
 ---
-name: maestro-status
+name: status
 description: Summarize the active Maestro session without mutating state
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: maestro-compliance-check
+name: compliance-check
 description: Run a Maestro-style regulatory compliance review for GDPR/CCPA, cookie consent, data handling, and licensing
 ---
 

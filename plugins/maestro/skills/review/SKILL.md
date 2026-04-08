@@ -1,5 +1,5 @@
 ---
-name: maestro-review
+name: review
 description: Perform a Maestro-style code review with findings ordered by severity and concrete file references
 ---
 

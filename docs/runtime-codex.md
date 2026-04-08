@@ -63,16 +63,16 @@ The runtime guide recommends mapping Maestro agents to Codex delegation modes:
 
 19 Markdown skills in `plugins/maestro/skills/`:
 
-**Core (3)** — prefixed with `maestro-`:
-- `maestro-orchestrate/SKILL.md`
-- `maestro-execute/SKILL.md`
-- `maestro-resume/SKILL.md`
+**Core (3)** — unprefixed in the plugin, invoked as `$maestro:<name>`:
+- `orchestrate/SKILL.md`
+- `execute/SKILL.md`
+- `resume/SKILL.md`
 
-**Entry-point (9)** — prefixed with `maestro-`:
-- `maestro-review/SKILL.md`, `maestro-debug/SKILL.md`, `maestro-archive/SKILL.md`
-- `maestro-status/SKILL.md`, `maestro-security-audit/SKILL.md`
-- `maestro-perf-check/SKILL.md`, `maestro-seo-audit/SKILL.md`
-- `maestro-a11y-audit/SKILL.md`, `maestro-compliance-check/SKILL.md`
+**Entry-point (9)** — unprefixed in the plugin, invoked as `$maestro:<name>`:
+- `review/SKILL.md`, `debug/SKILL.md`, `archive/SKILL.md`
+- `status/SKILL.md`, `security-audit/SKILL.md`
+- `perf-check/SKILL.md`, `seo-audit/SKILL.md`
+- `a11y-audit/SKILL.md`, `compliance-check/SKILL.md`
 
 **Infrastructure (7)** — NOT prefixed:
 - `code-review/SKILL.md`, `delegation/SKILL.md`, `design-dialogue/SKILL.md`
@@ -174,7 +174,7 @@ plugins/maestro/
 | Delegation | Direct function call | Agent subagent | spawn_agent |
 | Hooks | 4 events, no matchers | PreToolUse + matchers | None |
 | Policies | TOML rules | JS hook enforcer | None |
-| Skill prefix | N/A (commands) | None | `maestro-` |
+| Skill surface | N/A (commands) | None | plugin namespace `maestro:` |
 | Path style | Variable passthrough | Env var refs | Relative |
 | Extra files | — | policy-enforcer | 2 bundled content registries |
 | Total files | ~79 | ~85 | ~83 |

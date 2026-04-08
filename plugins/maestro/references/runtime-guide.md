@@ -8,7 +8,7 @@ This guide explains how the shared Maestro methodology maps onto Codex.
 - Codex content loading is registry-first with filesystem fallback for repo-local and workspace scenarios where canonical `src/` is intentionally present.
 - Generated agent role references under `../agents/` are registration stubs only.
 
-Public `maestro-*` skills should load shared assets through MCP instead of duplicating methodology.
+Public Codex skills should load shared assets through MCP instead of duplicating methodology. Codex adds the plugin namespace at invocation time, so these surface as `$maestro:<skill>`.
 
 ## State contract
 
@@ -73,15 +73,15 @@ When delegating, include the relevant agent reference content or instructions fr
 
 Use these entry points for user-facing workflows:
 
-- `maestro-orchestrate`
-- `maestro-execute`
-- `maestro-resume`
-- `maestro-status`
-- `maestro-archive`
-- `maestro-review`
-- `maestro-debug`
-- `maestro-security-audit`
-- `maestro-perf-check`
-- `maestro-seo-audit`
-- `maestro-a11y-audit`
-- `maestro-compliance-check`
+- `orchestrate`
+- `execute`
+- `resume`
+- `status`
+- `archive`
+- `review`
+- `debug`
+- `security-audit`
+- `perf-check`
+- `seo-audit`
+- `a11y-audit`
+- `compliance-check`

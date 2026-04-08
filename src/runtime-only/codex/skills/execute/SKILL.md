@@ -1,5 +1,5 @@
 ---
-name: maestro-execute
+name: execute
 description: Execute an approved Maestro implementation plan using the shared session-state contract
 ---
 

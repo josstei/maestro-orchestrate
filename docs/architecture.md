@@ -92,7 +92,7 @@ Each runtime (`src/runtimes/*.js`) declares:
 
 - Gemini: TOML commands in `commands/maestro/`
 - Claude: Markdown skills in `claude/skills/`
-- Codex: Markdown skills in `plugins/maestro/skills/maestro-*/`
+- Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 

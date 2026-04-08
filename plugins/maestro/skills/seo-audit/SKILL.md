@@ -1,5 +1,5 @@
 ---
-name: maestro-seo-audit
+name: seo-audit
 description: Run a Maestro-style SEO assessment for meta tags, structured data, crawlability, and Core Web Vitals
 ---
 

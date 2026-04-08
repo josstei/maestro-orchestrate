@@ -1,5 +1,5 @@
 ---
-name: maestro-resume
+name: resume
 description: Resume the active Maestro session from docs/maestro state
 ---
 

@@ -116,22 +116,22 @@ Skills are Markdown-based slash commands:
 
 ### Codex
 
-Skills are prefixed with `maestro-`:
+Skills are invoked through the plugin namespace:
 
 | Command | Purpose |
 |---------|---------|
-| `maestro-orchestrate` | Full orchestration workflow |
-| `maestro-execute` | Execute an approved plan |
-| `maestro-resume` | Resume interrupted session |
-| `maestro-review` | Code review |
-| `maestro-debug` | Debugging workflow |
-| `maestro-archive` | Archive active session |
-| `maestro-status` | Show session status |
-| `maestro-security-audit` | Security assessment |
-| `maestro-perf-check` | Performance assessment |
-| `maestro-seo-audit` | SEO audit |
-| `maestro-a11y-audit` | Accessibility audit |
-| `maestro-compliance-check` | Compliance review |
+| `$maestro:orchestrate` | Full orchestration workflow |
+| `$maestro:execute` | Execute an approved plan |
+| `$maestro:resume` | Resume interrupted session |
+| `$maestro:review` | Code review |
+| `$maestro:debug` | Debugging workflow |
+| `$maestro:archive` | Archive active session |
+| `$maestro:status` | Show session status |
+| `$maestro:security-audit` | Security assessment |
+| `$maestro:perf-check` | Performance assessment |
+| `$maestro:seo-audit` | SEO audit |
+| `$maestro:a11y-audit` | Accessibility audit |
+| `$maestro:compliance-check` | Compliance review |
 
 ## State Directory Structure
 
