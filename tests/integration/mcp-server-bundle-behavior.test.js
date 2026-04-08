@@ -1,7 +1,5 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { ROOT } = require('./helpers');
@@ -40,50 +38,40 @@ describe('mcp server bundle behavior', () => {
     }
   });
 
-  it('serves filesystem-backed shared content from the gemini runtime bundle', async () => {
-    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
-      const result = await client.callTool('get_skill_content', {
-        resources: ['delegation'],
+  it('serves canonical src content from every runtime bundle', async () => {
+    const runtimes = [
+      {
+        cwd: ROOT,
+        relativePath: 'mcp/maestro-server.js',
+        expectSkill: '# Delegation Skill',
+      },
+      {
+        cwd: ROOT,
+        relativePath: 'claude/mcp/maestro-server.js',
+        expectSkill: 'user-invocable: false',
+      },
+      {
+        cwd: path.join(ROOT, 'plugins', 'maestro'),
+        relativePath: 'mcp/maestro-server.js',
+        expectSkill: '# Delegation Skill',
+      },
+    ];
+
+    for (const runtime of runtimes) {
+      await withServer(runtime, async (client) => {
+        const skillResult = await client.callTool('get_skill_content', {
+          resources: ['delegation', 'architecture'],
+        });
+        const agentResult = await client.callTool('get_agent', {
+          agents: ['coder'],
+        });
+
+        assert.ok(skillResult.parsed.contents.delegation.includes(runtime.expectSkill));
+        assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
+        assert.deepEqual(skillResult.parsed.errors, {});
+        assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
+        assert.deepEqual(agentResult.parsed.errors, {});
       });
-
-      assert.ok(result.parsed.contents.delegation.includes('# Delegation Skill'));
-      assert.deepEqual(result.parsed.errors, {});
-    });
-  });
-
-  it('serves filesystem-backed shared content from the claude runtime bundle', async () => {
-    await withServer({ cwd: ROOT, relativePath: 'claude/mcp/maestro-server.js' }, async (client) => {
-      const result = await client.callTool('get_skill_content', {
-        resources: ['delegation'],
-      });
-
-      assert.ok(result.parsed.contents.delegation.includes('# Delegation Skill'));
-      assert.ok(result.parsed.contents.delegation.includes('user-invocable: false'));
-      assert.deepEqual(result.parsed.errors, {});
-    });
-  });
-
-  it('serves bundled content from an isolated codex runtime bundle without a src tree', async () => {
-    const pluginRoot = path.join(ROOT, 'plugins', 'maestro');
-    const isolatedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-mcp-'));
-
-    fs.cpSync(pluginRoot, isolatedRoot, { recursive: true });
-
-    assert.equal(fs.existsSync(path.join(isolatedRoot, 'src')), false);
-
-    await withServer({ cwd: isolatedRoot, relativePath: 'mcp/maestro-server.js' }, async (client) => {
-      const skillResult = await client.callTool('get_skill_content', {
-        resources: ['delegation', 'architecture'],
-      });
-      const agentResult = await client.callTool('get_agent', {
-        agents: ['coder'],
-      });
-
-      assert.ok(skillResult.parsed.contents.delegation.includes('# Delegation Skill'));
-      assert.ok(skillResult.parsed.contents.architecture.includes('workspace root'));
-      assert.deepEqual(skillResult.parsed.errors, {});
-      assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
-      assert.deepEqual(agentResult.parsed.errors, {});
-    });
+    }
   });
 });

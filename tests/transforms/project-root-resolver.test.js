@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { resolveProjectRoot } = require('../../src/lib/core/project-root-resolver');
+const { resolveProjectRoot } = require('../../src/core/project-root-resolver');
 
 function withEnv(overrides, fn) {
   const previous = {

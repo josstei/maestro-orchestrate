@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const { resolveSetting } = require('../lib/config/setting-resolver');
-const { resolveProjectRoot } = require('../lib/core/project-root-resolver');
-const { fatal } = require('../lib/core/logger');
+const { resolveSetting } = require('../config/setting-resolver');
+const { resolveProjectRoot } = require('../core/project-root-resolver');
+const { fatal } = require('../core/logger');
 
 const settingName = process.argv[2];
 if (!settingName) {

@@ -3,17 +3,14 @@
 ## Development Commands
 
 ```bash
-# Build the MCP core artifact from source
-node scripts/build-mcp-core.js
-
 # Regenerate runtime files from source
 node scripts/generate.js
 
-# Build + regenerate using package scripts
+# Generate runtime adapters using package scripts
 npm run build
 
-# Check generated artifacts without writing tracked files
-npm run check:generated
+# Run the architecture and runtime validation suite
+node --test tests/transforms/*.test.js tests/integration/*.test.js
 
 # Show unified diff of changes
 node scripts/generate.js --diff
@@ -43,11 +40,10 @@ just release <version>
 ## Editing Workflow
 
 1. Edit files in `src/`, never in root, `claude/`, or `plugins/maestro/` directly
-2. Run `node scripts/build-mcp-core.js` if the MCP server core source changed
-3. Run `node scripts/generate.js` or `npm run build` to regenerate output
-4. Run `npm run check:generated` before committing
-5. Commit both source and generated output together
-6. CI will fail if generated output doesn't match source (zero-drift check)
+2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
+3. Run `node --test tests/transforms/*.test.js tests/integration/*.test.js` before committing
+4. Commit both canonical source and generated adapter output together
+5. CI will fail if runtime adapters drift from canonical `src/`
 
 ## Configuration
 

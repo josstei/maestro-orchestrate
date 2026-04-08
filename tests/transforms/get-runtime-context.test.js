@@ -1,10 +1,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { getRuntimeConfig } = require('../../src/lib/mcp/runtime/runtime-config-map');
+const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 describe('get-runtime-context handler', () => {
   it('returns structured runtime config with required fields', () => {
-    const { createHandler } = require('../../src/lib/mcp/handlers/get-runtime-context');
+    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
 
     const handler = createHandler({
       name: 'claude',
@@ -30,7 +30,7 @@ describe('get-runtime-context handler', () => {
   });
 
   it('includes MCP prefix for claude runtime', () => {
-    const { createHandler } = require('../../src/lib/mcp/handlers/get-runtime-context');
+    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler({
       name: 'claude',
       tools: {},
@@ -44,7 +44,7 @@ describe('get-runtime-context handler', () => {
   });
 
   it('returns gemini MCP prefix for gemini runtime', () => {
-    const { createHandler } = require('../../src/lib/mcp/handlers/get-runtime-context');
+    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler({
       name: 'gemini',
       tools: {},
@@ -59,7 +59,7 @@ describe('get-runtime-context handler', () => {
   });
 
   it('returns codex MCP prefix and kebab-case naming for codex runtime', () => {
-    const { createHandler } = require('../../src/lib/mcp/handlers/get-runtime-context');
+    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler({
       name: 'codex',
       tools: { run_shell_command: 'exec_command' },
@@ -77,7 +77,7 @@ describe('get-runtime-context handler', () => {
   });
 
   it('accepts a runtime name and resolves it through the shared runtime config map', () => {
-    const { createHandler } = require('../../src/lib/mcp/handlers/get-runtime-context');
+    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler('codex');
     const result = handler({});
 

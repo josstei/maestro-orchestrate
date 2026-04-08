@@ -19,7 +19,7 @@ The Gemini CLI extension lives at the repository root. It is the primary runtime
 }
 ```
 
-The bundled server at `mcp/maestro-server.js` is a thin wrapper over `mcp/maestro-server-core.js`. Gemini declares `primary: filesystem` and `fallback: none`, so shared content is read from `./src/` via `srcRelativePath="src"`.
+The public server at `mcp/maestro-server.js` is a thin adapter. It loads `mcp/canonical-source.js`, resolves the canonical `src/mcp/maestro-server.js`, and runs the Gemini runtime against shared source in `src/`. Gemini declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 
@@ -42,9 +42,9 @@ architect(query: "Design the auth system...")
 
 | Command | Source |
 |---------|--------|
-| `orchestrate.toml` | `src/runtime-only/gemini/commands/` |
-| `execute.toml` | `src/runtime-only/gemini/commands/` |
-| `resume.toml` | `src/runtime-only/gemini/commands/` |
+| `orchestrate.toml` | `src/platforms/gemini/commands/` |
+| `execute.toml` | `src/platforms/gemini/commands/` |
+| `resume.toml` | `src/platforms/gemini/commands/` |
 | `review.toml` | Entry-point registry |
 | `debug.toml` | Entry-point registry |
 | `archive.toml` | Entry-point registry |
@@ -146,14 +146,13 @@ timeout_mins: 10
 
 Fields: `kind` (always "local"), `temperature`, `max_turns`, `timeout_mins`.
 
-## Generated Files (~79 total)
+## Generated Files
 
 ```
 agents/                    22 agent stubs (snake_case)
 commands/maestro/          12 TOML commands
-hooks/                     6 files (5 scripts + hooks.json)
-lib/                       32 shared library files
-mcp/                       1 bundled server
+hooks/                     runtime hook adapters + canonical-source helper + hooks.json
+mcp/                       public MCP entrypoint + canonical-source helper
 policies/                  1 TOML policy file
 README.md, GEMINI.md, gemini-extension.json, .geminiignore
 ```

@@ -8,7 +8,6 @@ const skillMetadata = require('./skill-metadata');
 const agentStub = require('./agent-stub');
 const skillDiscoveryStub = require('./skill-discovery-stub');
 const inlineRuntime = require('./inline-runtime');
-const buildMcpRegistry = require('./build-mcp-registry');
 
 const transforms = {
   copy,
@@ -21,7 +20,6 @@ const transforms = {
   'agent-stub': agentStub,
   'skill-discovery-stub': skillDiscoveryStub,
   'inline-runtime': inlineRuntime,
-  'build-mcp-registry': buildMcpRegistry,
 };
 
 /**

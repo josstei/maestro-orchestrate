@@ -4,11 +4,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createHandler: createSkillContentHandler } = require('../../src/lib/mcp/handlers/get-skill-content');
-const { createHandler: createAgentHandler } = require('../../src/lib/mcp/handlers/get-agent');
-const { createHandler: createPackagedSkillContentHandler } = require('../../plugins/maestro/lib/mcp/handlers/get-skill-content');
-const { createHandler: createPackagedAgentHandler } = require('../../plugins/maestro/lib/mcp/handlers/get-agent');
-const { getRuntimeConfig } = require('../../src/lib/mcp/runtime/runtime-config-map');
+const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
+const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
+const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 function withExtensionRoot(root, fn) {
   const previous = process.env.MAESTRO_EXTENSION_PATH;
@@ -35,7 +33,7 @@ describe('get_skill_content handler', () => {
       'utf8'
     );
 
-    const handler = createSkillContentHandler(getRuntimeConfig('claude'), 'src');
+    const handler = createSkillContentHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () => handler({ resources: ['delegation'] }));
     const content = result.contents.delegation;
@@ -65,7 +63,7 @@ describe('get_skill_content handler', () => {
     const handler = createSkillContentHandler({
       ...getRuntimeConfig('gemini'),
       env: { extensionPath: 'PLUGIN_ROOT' },
-    }, 'src');
+    }, path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () => handler({ resources: ['architecture'] }));
     const content = result.contents.architecture;
@@ -104,7 +102,7 @@ describe('get_agent handler', () => {
         ...getRuntimeConfig('claude').features,
         exampleBlocks: false,
       },
-    }, 'src');
+    }, path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () => handler({ agents: ['coder'] }));
 
@@ -113,59 +111,5 @@ describe('get_agent handler', () => {
     assert.ok(result.agents.coder.body.includes('Methodology body.'));
     assert.ok(!result.agents.coder.body.includes('tools:'));
     assert.ok(!result.agents.coder.body.includes('Example block'));
-  });
-});
-
-describe('codex plugin bundle content handlers', () => {
-  it('reads canonical shared content from the generated codex plugin bundle', () => {
-    const pluginRoot = path.resolve(__dirname, '../..', 'plugins', 'maestro');
-    const handler = createPackagedSkillContentHandler();
-
-    const result = withExtensionRoot(pluginRoot, () =>
-      handler({ resources: ['delegation', 'architecture', 'orchestration-steps'] })
-    );
-
-    assert.deepEqual(result.errors, {});
-    assert.ok(result.contents.delegation.includes('# Delegation Skill'));
-    assert.ok(result.contents.architecture.includes('workspace root'));
-    assert.ok(result.contents['orchestration-steps'].includes('STARTUP'));
-  });
-
-  it('reads canonical agent methodology from the generated codex plugin bundle', () => {
-    const pluginRoot = path.resolve(__dirname, '../..', 'plugins', 'maestro');
-    const handler = createPackagedAgentHandler();
-
-    const result = withExtensionRoot(pluginRoot, () =>
-      handler({ agents: ['coder'] })
-    );
-
-    assert.deepEqual(result.errors, {});
-    assert.ok(result.agents.coder.body.includes('Senior Software Engineer'));
-    assert.ok(!result.agents.coder.body.includes('Agent methodology loaded via MCP'));
-  });
-
-  it('reads bundled content from an isolated codex plugin install without a src tree', () => {
-    const pluginRoot = path.resolve(__dirname, '../..', 'plugins', 'maestro');
-    const isolatedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-plugin-'));
-
-    fs.cpSync(pluginRoot, isolatedRoot, { recursive: true });
-
-    const skillHandler = createPackagedSkillContentHandler();
-    const agentHandler = createPackagedAgentHandler();
-
-    const skillResult = withExtensionRoot(isolatedRoot, () =>
-      skillHandler({ resources: ['delegation', 'architecture', 'orchestration-steps'] })
-    );
-    const agentResult = withExtensionRoot(isolatedRoot, () =>
-      agentHandler({ agents: ['coder'] })
-    );
-
-    assert.equal(fs.existsSync(path.join(isolatedRoot, 'src')), false);
-    assert.deepEqual(skillResult.errors, {});
-    assert.deepEqual(agentResult.errors, {});
-    assert.ok(skillResult.contents.delegation.includes('# Delegation Skill'));
-    assert.ok(skillResult.contents.architecture.includes('workspace root'));
-    assert.ok(skillResult.contents['orchestration-steps'].includes('STARTUP'));
-    assert.ok(agentResult.agents.coder.body.includes('Senior Software Engineer'));
   });
 });

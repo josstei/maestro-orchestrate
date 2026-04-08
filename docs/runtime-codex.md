@@ -20,7 +20,7 @@ The Codex plugin lives in `plugins/maestro/`.
 }
 ```
 
-The bundled server at `plugins/maestro/mcp/maestro-server.js` still passes `srcRelativePath="../../src"` for filesystem fallback, but the packaged runtime now prefers bundled content registries under `plugins/maestro/lib/mcp/generated/`.
+The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. It loads `plugins/maestro/mcp/canonical-source.js`, resolves the canonical `src/mcp/maestro-server.js`, and runs the Codex runtime against shared source in `src/`. Codex declares `primary: filesystem` and `fallback: none`, the same as Gemini and Claude.
 
 ### Plugin Manifest
 
@@ -93,9 +93,7 @@ The runtime guide states:
 
 > If Maestro MCP tools are available, prefer them for stateful operations. If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
 
-This MCP-first with filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server.
-
-In the packaged plugin, shared methodology and agent bodies are served from bundled registries first, then fall back to filesystem reads only when a registry is unavailable.
+This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are still resolved from canonical `src/`; there is no packaged registry copy.
 
 ## Tool Mapping
 
@@ -139,26 +137,22 @@ Codex uses relative paths (`relativeExtensionPath: true`):
 
 This differs from Gemini (passthrough variables) and Claude (environment variable references).
 
-## Bundled Content Registries
+## Canonical Filesystem Content
 
-The Codex plugin no longer mirrors canonical source files into `plugins/maestro/src/`.
+Codex follows the same source-of-truth model as the other runtimes:
 
-Instead, generation produces two runtime-ready registry modules under `plugins/maestro/lib/mcp/generated/`:
-- `resource-registry.js` for shared skills, protocols, templates, and references
-- `agent-registry.js` for agent methodology bodies and Codex-mapped tool lists
+- shared skills, protocols, templates, references, and agent bodies live in canonical `src/`
+- generated `plugins/maestro/skills/` files are public entrypoints or discovery stubs only
+- generated `plugins/maestro/agents/` files are registration stubs only
+- no tracked `plugins/maestro/lib/` mirror or bundled content registry is part of the runtime
 
-These registries are generated from canonical `src/` content at build time and are the primary packaged content source for `get_skill_content` and `get_agent`.
-
-Codex now declares this explicitly in runtime config as `primary: registry` with `fallback: filesystem`. The filesystem path remains for repo-local and workspace scenarios where canonical `src/` is intentionally available, but packaged installs are expected to succeed from the bundled registries alone.
-
-## Generated Files (~83 total)
+## Generated Files
 
 ```
 plugins/maestro/
 ├── agents/                22 agent stubs (kebab-case)
 ├── skills/                19 skill directories
-├── lib/                   36 shared/runtime files (including content registries)
-├── mcp/                   1 bundled server
+├── mcp/                   public MCP entrypoint + canonical-source helper
 ├── references/            1 runtime guide
 ├── .codex-plugin/         1 plugin manifest
 ├── .mcp.json
@@ -176,5 +170,5 @@ plugins/maestro/
 | Policies | TOML rules | JS hook enforcer | None |
 | Skill surface | N/A (commands) | None | plugin namespace `maestro:` |
 | Path style | Variable passthrough | Env var refs | Relative |
-| Extra files | — | policy-enforcer | 2 bundled content registries |
+| Extra files | TOML policy rules | policy-enforcer | runtime guide |
 | Total files | ~79 | ~85 | ~83 |

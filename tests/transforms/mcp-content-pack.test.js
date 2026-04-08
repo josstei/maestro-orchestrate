@@ -4,9 +4,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { createServer } = require('../../src/lib/mcp/core/create-server');
-const { createToolPack } = require('../../src/lib/mcp/tool-packs/content');
-const { getRuntimeConfig } = require('../../src/lib/mcp/runtime/runtime-config-map');
+const { createServer } = require('../../src/mcp/core/create-server');
+const { createToolPack } = require('../../src/mcp/tool-packs/content');
+const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
 function withExtensionRoot(root, fn) {
   const previous = process.env.MAESTRO_EXTENSION_PATH;
@@ -27,7 +29,9 @@ describe('content tool pack', () => {
   it('registers the content and runtime metadata tools', () => {
     const server = createServer({
       runtimeConfig: getRuntimeConfig('claude'),
-      services: {},
+      services: {
+        canonicalSrcRoot: path.join(REPO_ROOT, 'src'),
+      },
       toolPacks: [createToolPack],
     });
 
@@ -63,7 +67,9 @@ describe('content tool pack', () => {
 
     const server = createServer({
       runtimeConfig: getRuntimeConfig('claude'),
-      services: {},
+      services: {
+        canonicalSrcRoot: path.join(root, 'src'),
+      },
       toolPacks: [createToolPack],
     });
 

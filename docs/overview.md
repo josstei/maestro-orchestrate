@@ -31,7 +31,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 3 |
-| Source transforms | 10 |
+| Source transforms | 9 |
 | Test cases | 159 |
 
 ## Project Structure
@@ -43,18 +43,16 @@ maestro-orchestrate/
 │   ├── skills/shared/            # 7 shared methodology modules + protocols
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
-│   ├── transforms/               # 10 content transforms
-│   ├── runtimes/                 # 3 runtime definitions + shared config
+│   ├── transforms/               # Generator transform library
 │   ├── entry-points/             # 9 entry-point registry + 3 templates
-│   ├── lib/                      # Shared library (MCP handlers, hooks, state, core)
-│   ├── mcp/                      # Thin MCP wrapper + generated core artifact
-│   ├── hooks/                    # Hook system
+│   ├── config/                   # Canonical config helpers
+│   ├── core/                     # Shared runtime helpers and resolvers
+│   ├── state/                    # Session-state helpers
+│   ├── hooks/                    # Hook configs + canonical hook logic
 │   │   ├── hook-configs/         # gemini.json, claude.json
-│   │   └── runtime-only/         # Runtime-specific hook scripts
-│   ├── runtime-only/             # Files unique to one runtime
-│   │   ├── gemini/               #   Commands, policies, README
-│   │   ├── claude/               #   Skills, hooks, policy-enforcer
-│   │   └── codex/                #   Skills, runtime guide
+│   │   └── logic/                # Shared hook implementations
+│   ├── mcp/                      # Canonical MCP server modules
+│   ├── platforms/                # Runtime adapters, manifests, and public shells
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/
 │   └── generate.js               # Generator (manifest → output)
@@ -62,23 +60,20 @@ maestro-orchestrate/
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
-├── hooks/                        # [generated] Gemini hook scripts
-├── lib/                          # [generated] Gemini shared library
-├── mcp/                          # [generated] Gemini MCP server
+├── hooks/                        # [generated] Gemini hook adapters
+├── mcp/                          # [generated] Gemini MCP adapter
 ├── policies/                     # [generated] Gemini shell policies
 │
 ├── claude/                       # [generated] Claude Code plugin
 │   ├── agents/                   # Claude agent stubs
 │   ├── skills/                   # Claude skills (19)
 │   ├── scripts/                  # Claude hook scripts
-│   ├── lib/                      # Claude shared library
-│   └── mcp/                      # Claude MCP server
+│   └── mcp/                      # Claude MCP adapter
 │
 └── plugins/maestro/              # [generated] Codex plugin
     ├── agents/                   # Codex agent stubs
     ├── skills/                   # Codex skills (19)
-    ├── lib/                      # Codex shared library + bundled MCP registries
-    ├── mcp/                      # Codex MCP server
+    ├── mcp/                      # Codex MCP adapter
     └── README.md
 ```
 
@@ -117,7 +112,7 @@ A bundled Model Context Protocol server providing 12 tools across 3 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific output. It applies 10 transforms (frontmatter injection, agent stubs, feature stripping, tool/path/name mapping, registry generation, etc.), enforces runtime-specific content-source contracts, and maintains a zero-drift guarantee enforced by CI.
+A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, feature, tool, path, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
 
 ### State Management
 

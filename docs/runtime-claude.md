@@ -23,7 +23,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 }
 ```
 
-The bundled server at `claude/mcp/maestro-server.js` is a thin wrapper over `claude/mcp/maestro-server-core.js`. Claude declares `primary: filesystem` and `fallback: none`, so shared content is read from the canonical `src/` tree via `srcRelativePath="../src"`.
+The public server at `claude/mcp/maestro-server.js` is a thin adapter. It loads `claude/mcp/canonical-source.js`, resolves the canonical `src/mcp/maestro-server.js`, and runs the Claude runtime against shared source in `src/`. Claude declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 
@@ -44,7 +44,7 @@ Agent(subagent_type: "maestro:architect", prompt: "...")
 
 19 Markdown skills in `claude/skills/`:
 
-**Core (3)** — from `src/runtime-only/claude/`:
+**Core (3)** — from `src/platforms/claude/`:
 - `orchestrate/SKILL.md`
 - `execute/SKILL.md`
 - `resume/SKILL.md`
@@ -170,16 +170,15 @@ tools:
 
 Fields: `model` (always "inherit"), `color`, `maxTurns` (camelCase). No temperature or timeout.
 
-## Generated Files (~85 total)
+## Generated Files
 
 ```
 claude/
 ├── agents/                22 agent stubs (kebab-case)
 ├── skills/                19 skill directories
 ├── hooks/                 1 hook config (claude-hooks.json)
-├── scripts/               6 files (hook scripts + policy enforcer + test)
-├── lib/                   32 shared library files
-├── mcp/                   1 bundled server
+├── scripts/               hook adapters, policy enforcer, and canonical-source helper
+├── mcp/                   public MCP entrypoint + canonical-source helper
 ├── .claude-plugin/        1 plugin manifest
 ├── .mcp.json
 └── README.md

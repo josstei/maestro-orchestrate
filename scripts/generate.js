@@ -115,34 +115,21 @@ function buildRuntimeOutputPath(runtime, relativePath) {
   return runtime.outputDir + relativePath;
 }
 
-function runtimeUsesRegistry(runtime) {
-  const content = runtime.content || {};
-  return content.primary === 'registry' || content.fallback === 'registry';
-}
-
-function assertRuntimeContentOutputs(manifest, runtimes) {
-  const manifestPaths = new Set();
-
+function assertNoMirroredSharedOutputs(manifest) {
   for (const entry of manifest) {
     for (const outputPath of Object.values(entry.outputs)) {
-      manifestPaths.add(outputPath);
-    }
-  }
-
-  for (const runtime of Object.values(runtimes)) {
-    if (!runtimeUsesRegistry(runtime)) {
-      continue;
-    }
-
-    for (const relativePath of [
-      'lib/mcp/generated/resource-registry.js',
-      'lib/mcp/generated/agent-registry.js',
-    ]) {
-      const outputPath = buildRuntimeOutputPath(runtime, relativePath);
-      if (!manifestPaths.has(outputPath)) {
-        throw new Error(
-          `Runtime "${runtime.name}" declares a registry-backed content source but does not generate "${outputPath}"`
-        );
+      if (
+        outputPath === 'mcp/maestro-server-core.js' ||
+        outputPath === 'claude/mcp/maestro-server-core.js' ||
+        outputPath === 'plugins/maestro/mcp/maestro-server-core.js' ||
+        outputPath === 'lib/mcp/generated/resource-registry.js' ||
+        outputPath === 'plugins/maestro/lib/mcp/generated/resource-registry.js' ||
+        outputPath === 'plugins/maestro/lib/mcp/generated/agent-registry.js' ||
+        outputPath.startsWith('lib/') ||
+        outputPath.startsWith('claude/lib/') ||
+        outputPath.startsWith('plugins/maestro/lib/')
+      ) {
+        throw new Error(`Manifest output is not allowed in src-first mode: "${outputPath}"`);
       }
     }
   }
@@ -350,18 +337,20 @@ const diffMode = args.includes('--diff');
 const cleanMode = args.includes('--clean');
 
 async function main() {
-  const runtimeFiles = fs.readdirSync(path.join(SRC, 'runtimes'))
-    .filter((f) => f.endsWith('.js') && f !== 'shared.js');
+  const runtimeFiles = fs.readdirSync(path.join(SRC, 'platforms'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== 'shared')
+    .map((entry) => path.join(entry.name, 'runtime-config.js'))
+    .filter((relativePath) => fs.existsSync(path.join(SRC, 'platforms', relativePath)));
 
   const runtimes = {};
   for (const file of runtimeFiles) {
-    const config = require(path.join(SRC, 'runtimes', file));
+    const config = require(path.join(SRC, 'platforms', file));
     runtimes[config.name] = config;
   }
 
   const manifestRules = require(path.join(SRC, 'manifest'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);
-  assertRuntimeContentOutputs(manifest, runtimes);
+  assertNoMirroredSharedOutputs(manifest);
 
   const stats = { written: 0, unchanged: 0, errors: 0 };
 
@@ -522,7 +511,6 @@ async function main() {
       'agents',
       'claude/agents',
       'plugins/maestro',
-      'skills',
       'claude/skills',
       'lib',
       'claude/lib',
@@ -541,6 +529,7 @@ async function main() {
 
     // Generator-owned root-level files
     const ownedRootFiles = [
+      'README.md',
       'GEMINI.md',
       'gemini-extension.json',
       '.geminiignore',
@@ -624,9 +613,8 @@ if (require.main === module) {
 }
 
 module.exports = {
-  assertRuntimeContentOutputs,
+  assertNoMirroredSharedOutputs,
   buildRuntimeOutputPath,
   expandManifest,
   expandEntryPoints,
-  runtimeUsesRegistry,
 };

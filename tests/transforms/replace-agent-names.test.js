@@ -94,7 +94,7 @@ describe('replace-agent-names transform', () => {
   });
 
   it('should replace all 22 agent names that contain hyphens', () => {
-    const shared = require('../../src/runtimes/shared');
+    const shared = require('../../src/platforms/shared/agent-names');
     const hyphenated = shared.agentNames.filter((n) => n.includes('-'));
 
     // Verify we know how many to expect

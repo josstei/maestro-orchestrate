@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **single-source, multi-target** architecture. All content lives in `src/` and is transformed into three runtime-specific outputs by the generator.
+Maestro follows a **src-first, adapter-only** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, and `plugins/maestro/`) only contain the manifests, entrypoints, discovery stubs, and public adapter files each host requires.
 
 ```
                     ┌─────────────┐
@@ -27,13 +27,13 @@ Maestro follows a **single-source, multi-target** architecture. All content live
 
 ## Generator Pipeline
 
-The generator (`scripts/generate.js`, 568 lines) is the core build tool. It:
+The generator (`scripts/generate.js`) is the build boundary between canonical source and runtime adapters. It:
 
-1. Loads runtime configs from `src/runtimes/*.js`
-2. Expands manifest rules from `src/manifest.js` into concrete entries
-3. For each entry: reads source → applies transforms → writes output
-4. Expands entry-point registry into commands/skills per runtime
-5. Prunes stale files from owned directories
+1. Loads runtime configs from `src/platforms/*/runtime-config.js`
+2. Expands manifest rules from `src/manifest.js` into concrete runtime outputs
+3. Copies or transforms only the public adapter assets each runtime needs
+4. Expands the entry-point registry into runtime-specific command or skill surfaces
+5. Prunes stale generated adapter files from owned directories
 
 ### Manifest System
 
@@ -59,7 +59,7 @@ Or with glob patterns:
 
 ### Transform Pipeline
 
-10 transforms applied in order per manifest entry:
+The generator exposes 9 transforms. Current manifest entries use a subset depending on the target surface.
 
 | Transform | Purpose |
 |-----------|---------|
@@ -72,11 +72,11 @@ Or with glob patterns:
 | `replace-tool-names` | Map canonical tool names to runtime equivalents |
 | `replace-paths` | Substitute path placeholders with runtime env vars |
 | `skill-metadata` | Add `user-invocable: false` for Claude skills |
-| `inline-runtime` | Inline single-runtime config for bundled server |
+| `inline-runtime` | Inline a runtime-specific config snapshot when a target needs it |
 
 ### Runtime Definitions
 
-Each runtime (`src/runtimes/*.js`) declares:
+Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
 | Field | Gemini | Claude | Codex |
 |-------|--------|--------|-------|
@@ -96,16 +96,16 @@ Each runtime (`src/runtimes/*.js`) declares:
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
-Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/runtime-only/`.
+Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/platforms/`.
 
 ## MCP Server Architecture
 
-The MCP server is built from modular source in `src/lib/mcp/` and bundled into a single file per runtime via esbuild.
+The MCP server is authored directly in modular source under `src/mcp/`. Runtime roots expose thin public wrappers that resolve back into canonical `src/mcp/maestro-server.js`.
 
 ### Module Structure
 
 ```
-src/lib/mcp/
+src/mcp/
 ├── core/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
@@ -131,35 +131,29 @@ src/lib/mcp/
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) resolve content through a runtime-specific provider policy:
+The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime:
 
 - Gemini: `primary=filesystem`, `fallback=none`
 - Claude: `primary=filesystem`, `fallback=none`
-- Codex: `primary=registry`, `fallback=filesystem`
+- Codex: `primary=filesystem`, `fallback=none`
 
-Filesystem-backed reads still use the canonical `src/` tree:
+Runtime wrappers carry a local `canonical-source.js` helper. That helper walks upward from the active runtime root until it finds the canonical project root, then resolves the request back into `src/`.
 
-```
-resolveExtensionRoot() → path.dirname(process.argv[1]) + '..'
-resolveSrcRoot(relativePath) → extensionRoot + relativePath
-```
+This makes one architectural rule explicit:
 
-Each bundled server passes a different `srcRelativePath` when filesystem access is enabled:
-- Gemini (`mcp/maestro-server.js`): `"src"` → resolves to `./src/`
-- Claude (`claude/mcp/maestro-server.js`): `"../src"` → resolves to `./src/`
-- Codex (`plugins/maestro/mcp/maestro-server.js`): `"../../src"` → resolves to `./src/` as a workspace/dev fallback only
-
-Registry-backed reads load runtime-ready modules from `lib/mcp/generated/` inside the installed plugin bundle. That makes packaged Codex installs self-contained while preserving filesystem fallback for repo-local development.
+- shared logic lives under `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`
+- runtime roots do not contain tracked mirrors of shared executable JS
+- Codex follows the same canonical filesystem path as Gemini and Claude
 
 ### MCP Server Packaging
 
-Each runtime keeps the public entrypoint at `mcp/maestro-server.js`, but that file is now a thin wrapper:
+Each runtime keeps the public entrypoint at `mcp/maestro-server.js`, but that file is only a façade:
 
-- It loads the runtime-local generated config from `lib/mcp/runtime/runtime-config-map.js`
-- It picks the runtime's `srcRelativePath`
-- It delegates protocol handling and tool registration to `mcp/maestro-server-core.js`
+- it loads the local `canonical-source.js` helper
+- it resolves canonical `src/mcp/maestro-server.js`
+- it calls `runRuntimeServer(<runtime>)`
 
-`mcp/maestro-server-core.js` is a generated self-contained artifact built from `src/mcp/server-core-entry.js`. This keeps runtime entrypoints stable while ensuring live behavior comes from the decomposed `src/lib/mcp/**` source tree instead of a stale monolith.
+There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second source of truth.
 
 ### Tool Catalog (12 tools)
 

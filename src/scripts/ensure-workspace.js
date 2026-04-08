@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-const { ensureWorkspace, DEFAULT_STATE_DIR } = require('../lib/state/session-state');
-const { fatal } = require('../lib/core/logger');
+const { ensureWorkspace, DEFAULT_STATE_DIR } = require('../state/session-state');
+const { fatal } = require('../core/logger');
 
 const stateDir = process.argv[2] || DEFAULT_STATE_DIR;
 const basePath = process.cwd();

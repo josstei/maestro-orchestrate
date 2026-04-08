@@ -4,8 +4,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { createServer } = require('../../src/lib/mcp/core/create-server');
-const { createToolPack } = require('../../src/lib/mcp/tool-packs/workspace');
+const { createServer } = require('../../src/mcp/core/create-server');
+const { createToolPack } = require('../../src/mcp/tool-packs/workspace');
 
 const envKeysToRestore = [
   'MAESTRO_DISABLED_AGENTS',

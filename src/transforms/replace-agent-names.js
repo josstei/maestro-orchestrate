@@ -1,4 +1,4 @@
-const shared = require('../runtimes/shared');
+const shared = require('../platforms/shared/agent-names');
 
 function replaceAgentNames(content, runtime) {
   if (runtime.agentNaming === 'kebab-case') return content;
