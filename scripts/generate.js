@@ -107,6 +107,47 @@ function computeOutputPath(srcRelPath, runtime) {
   return outPath;
 }
 
+function buildRuntimeOutputPath(runtime, relativePath) {
+  if (!runtime.outputDir || runtime.outputDir === './') {
+    return relativePath;
+  }
+
+  return runtime.outputDir + relativePath;
+}
+
+function runtimeUsesRegistry(runtime) {
+  const content = runtime.content || {};
+  return content.primary === 'registry' || content.fallback === 'registry';
+}
+
+function assertRuntimeContentOutputs(manifest, runtimes) {
+  const manifestPaths = new Set();
+
+  for (const entry of manifest) {
+    for (const outputPath of Object.values(entry.outputs)) {
+      manifestPaths.add(outputPath);
+    }
+  }
+
+  for (const runtime of Object.values(runtimes)) {
+    if (!runtimeUsesRegistry(runtime)) {
+      continue;
+    }
+
+    for (const relativePath of [
+      'lib/mcp/generated/resource-registry.js',
+      'lib/mcp/generated/agent-registry.js',
+    ]) {
+      const outputPath = buildRuntimeOutputPath(runtime, relativePath);
+      if (!manifestPaths.has(outputPath)) {
+        throw new Error(
+          `Runtime "${runtime.name}" declares a registry-backed content source but does not generate "${outputPath}"`
+        );
+      }
+    }
+  }
+}
+
 /**
  * Expand convention-based manifest rules into explicit entries.
  *
@@ -320,6 +361,7 @@ async function main() {
 
   const manifestRules = require(path.join(SRC, 'manifest'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);
+  assertRuntimeContentOutputs(manifest, runtimes);
 
   const stats = { written: 0, unchanged: 0, errors: 0 };
 
@@ -507,12 +549,6 @@ async function main() {
       'claude/mcp-config.example.json',
     ];
 
-    // Generator-owned directories with filtering for scripts/
-    const scriptsDir = path.join(ROOT, 'scripts');
-    const ownedScriptFiles = fs.readdirSync(scriptsDir)
-      .filter((f) => f.endsWith('.js') && f !== 'generate.js')
-      .map((f) => `scripts/${f}`);
-
     // Also add runtime-specific plugin directories
     ownedDirs.push('claude/.claude-plugin');
 
@@ -540,16 +576,38 @@ async function main() {
       const abs = path.join(ROOT, f);
       if (fs.existsSync(abs)) allOwnedFiles.push(f);
     }
-    for (const f of ownedScriptFiles) {
-      allOwnedFiles.push(f);
-    }
-
     const staleFiles = allOwnedFiles.filter((f) => !manifestPaths.has(f));
     if (staleFiles.length > 0) {
       console.log('\nPruning stale files (not in manifest):');
       for (const f of staleFiles) {
         fs.unlinkSync(path.join(ROOT, f));
         console.log(`  PRUNED: ${f}`);
+      }
+    }
+
+    function walkSubdirs(dir) {
+      const results = [];
+      const absDir = path.join(ROOT, dir);
+      if (!fs.existsSync(absDir)) return results;
+      const entries = fs.readdirSync(absDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const relPath = `${dir}/${entry.name}`;
+        results.push(...walkSubdirs(relPath));
+        results.push(relPath);
+      }
+      return results;
+    }
+
+    const ownedSubdirs = ownedDirs
+      .flatMap((dir) => walkSubdirs(dir))
+      .sort((a, b) => b.length - a.length);
+
+    for (const dir of ownedSubdirs) {
+      const absDir = path.join(ROOT, dir);
+      if (!fs.existsSync(absDir)) continue;
+      if (fs.readdirSync(absDir).length === 0) {
+        fs.rmdirSync(absDir);
       }
     }
   }
@@ -565,4 +623,10 @@ if (require.main === module) {
   });
 }
 
-module.exports = { expandManifest, expandEntryPoints };
+module.exports = {
+  assertRuntimeContentOutputs,
+  buildRuntimeOutputPath,
+  expandManifest,
+  expandEntryPoints,
+  runtimeUsesRegistry,
+};

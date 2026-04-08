@@ -1,49 +1,4 @@
-const fs = require('node:fs');
-const path = require('node:path');
-
 const codex = (relativePath) => `plugins/maestro/${relativePath}`;
-
-function listRelativeFiles(relativeDir) {
-  const rootDir = path.join(__dirname, relativeDir);
-  const files = [];
-
-  function walk(currentDir, prefix = '') {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    for (const entry of entries) {
-      const nextPrefix = prefix
-        ? path.posix.join(prefix, entry.name)
-        : entry.name;
-      const nextPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        walk(nextPath, nextPrefix);
-        continue;
-      }
-
-      if (entry.isFile()) {
-        files.push(path.posix.join(relativeDir, nextPrefix));
-      }
-    }
-  }
-
-  walk(rootDir);
-  return files.sort();
-}
-
-function copyToCodexSrc(relativePath) {
-  return {
-    src: relativePath,
-    transforms: ['copy'],
-    outputs: { codex: codex(`src/${relativePath}`) },
-  };
-}
-
-const codexCanonicalMcpAssets = [
-  ...listRelativeFiles('agents'),
-  ...listRelativeFiles('skills/shared'),
-  ...listRelativeFiles('templates'),
-  ...listRelativeFiles('references'),
-].map(copyToCodexSrc);
 
 module.exports = [
   // ── Agents ──────────────────────────────────────────────────────────
@@ -70,7 +25,8 @@ module.exports = [
     runtimes: ['gemini', 'claude', 'codex'] },
 
   // ── MCP server ──────────────────────────────────────────────────────
-  { src: 'mcp/maestro-server.js', transforms: ['strip-feature'], runtimes: ['gemini', 'claude', 'codex'] },
+  { src: 'mcp/maestro-server.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
+  { src: 'mcp/maestro-server-core.js', transforms: ['copy'], runtimes: ['gemini', 'claude', 'codex'] },
 
   // ── Hooks — Gemini runtime only ─────────────────────────────────────
   { src: 'hooks/runtime-only/gemini/hook-adapter.js', transforms: ['copy'], outputs: { gemini: 'hooks/hook-adapter.js' } },
@@ -113,7 +69,8 @@ module.exports = [
   { src: 'runtime-only/codex/.codex-plugin/plugin.json', transforms: ['copy'], outputs: { codex: codex('.codex-plugin/plugin.json') } },
   { src: 'runtime-only/codex/.app.json', transforms: ['copy'], outputs: { codex: codex('.app.json') } },
   { src: 'runtime-only/codex/.mcp.json', transforms: ['copy'], outputs: { codex: codex('.mcp.json') } },
-  ...codexCanonicalMcpAssets,
+  { src: 'templates/mcp-registry.js.tmpl', transforms: ['build-mcp-registry:resources'], outputs: { codex: codex('lib/mcp/generated/resource-registry.js') } },
+  { src: 'templates/mcp-registry.js.tmpl', transforms: ['build-mcp-registry:agents'], outputs: { codex: codex('lib/mcp/generated/agent-registry.js') } },
   { src: 'runtime-only/codex/references/runtime-guide.md', transforms: ['copy'], outputs: { codex: codex('references/runtime-guide.md') } },
   { src: 'runtime-only/codex/skills/maestro-execute/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/maestro-execute/SKILL.md') } },
   { src: 'runtime-only/codex/skills/maestro-orchestrate/SKILL.md', transforms: ['copy'], outputs: { codex: codex('skills/maestro-orchestrate/SKILL.md') } },

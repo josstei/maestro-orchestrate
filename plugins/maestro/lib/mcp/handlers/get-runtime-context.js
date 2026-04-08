@@ -11,7 +11,7 @@ const MCP_PREFIXES = {
 
 /**
  * Create a get_runtime_context handler bound to a specific runtime config.
- * The runtime config is embedded at build time via feature flags in the MCP server bundle.
+ * Runtime bundles load the local generated runtime config module at startup.
  *
  * @param {object} runtimeConfig - the runtime configuration object from src/runtimes/*.js
  * @returns {function} MCP tool handler

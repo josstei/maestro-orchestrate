@@ -11,6 +11,10 @@ const config = {
     "extensionPath": "."
   },
   "relativeExtensionPath": true,
+  "content": {
+    "primary": "registry",
+    "fallback": "filesystem"
+  },
   "tools": {
     "read_file": "direct file reads",
     "list_directory": "exec_command (`rg --files` or `ls`)",

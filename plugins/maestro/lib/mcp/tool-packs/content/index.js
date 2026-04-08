@@ -8,6 +8,12 @@ const { getDefaultRuntimeConfig } = require('../../runtime/runtime-config-map');
 
 function createToolPack(context = {}) {
   const runtimeConfig = context.runtimeConfig || getDefaultRuntimeConfig();
+  const srcRelativePath =
+    context.services &&
+    typeof context.services.srcRelativePath === 'string' &&
+    context.services.srcRelativePath.length > 0
+      ? context.services.srcRelativePath
+      : 'src';
 
   return defineToolPack({
     name: 'content',
@@ -15,7 +21,7 @@ function createToolPack(context = {}) {
       {
         name: 'get_skill_content',
         description:
-          'Read one or more Maestro skills, protocols, templates, or references from canonical src/ content and apply runtime-specific transforms before returning them.',
+          'Read one or more Maestro skills, protocols, templates, or references from the runtime-configured Maestro content source and apply runtime-specific transforms before returning them.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -57,8 +63,8 @@ function createToolPack(context = {}) {
       },
     ],
     handlers: {
-      get_skill_content: createSkillContentHandler(runtimeConfig),
-      get_agent: createAgentHandler(runtimeConfig),
+      get_skill_content: createSkillContentHandler(runtimeConfig, srcRelativePath),
+      get_agent: createAgentHandler(runtimeConfig, srcRelativePath),
       get_runtime_context: createRuntimeContextHandler(runtimeConfig),
     },
   });

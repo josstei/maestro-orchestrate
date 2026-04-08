@@ -76,7 +76,7 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 }
 ```
 
-**Note:** Claude Code now uses the same `get_skill_content` MCP flow as the other runtimes for shared skills, templates, references, and delegation protocols. Runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
+**Note:** Claude is filesystem-backed for shared MCP content. Shared skills, templates, references, and delegation protocols come from the canonical `src/` tree through `get_skill_content`, while runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
 
 ## Quick Start
 

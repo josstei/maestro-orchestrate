@@ -96,4 +96,11 @@ describe('mcp server entrypoint startup', () => {
     assert.match(result.stderr, /\[info\] maestro: MCP server starting/);
     assert.match(result.stderr, /\[info\] maestro: MCP server connected/);
   });
+
+  it('starts the codex runtime server without external SDK installation', async () => {
+    const result = await waitForServerStartup('plugins/maestro/mcp/maestro-server.js');
+
+    assert.match(result.stderr, /\[info\] maestro: MCP server starting/);
+    assert.match(result.stderr, /\[info\] maestro: MCP server connected/);
+  });
 });

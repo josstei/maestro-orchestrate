@@ -9,6 +9,11 @@ module.exports = {
     workspacePath: 'workspacePath',
   },
 
+  content: {
+    primary: 'filesystem',
+    fallback: 'none',
+  },
+
   tools: {
     read_file: 'read_file',
     list_directory: 'list_directory',

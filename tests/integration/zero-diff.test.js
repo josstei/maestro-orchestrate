@@ -17,8 +17,24 @@ describe('zero-diff validation', () => {
       'Expected codex lib outputs to be generated and unchanged'
     );
     assert.ok(
-      report.statusLines.includes('[UNCHANGED] plugins/maestro/src/references/orchestration-steps.md'),
-      'Expected codex canonical MCP content outputs to be generated and unchanged'
+      report.statusLines.includes('[UNCHANGED] plugins/maestro/lib/mcp/generated/resource-registry.js'),
+      'Expected codex bundled resource registry output to be generated and unchanged'
+    );
+    assert.ok(
+      report.statusLines.includes('[UNCHANGED] plugins/maestro/lib/mcp/generated/agent-registry.js'),
+      'Expected codex bundled agent registry output to be generated and unchanged'
+    );
+    assert.ok(
+      report.statusLines.includes('[UNCHANGED] mcp/maestro-server-core.js'),
+      'Expected gemini MCP core output to be generated and unchanged'
+    );
+    assert.ok(
+      report.statusLines.includes('[UNCHANGED] claude/mcp/maestro-server-core.js'),
+      'Expected claude MCP core output to be generated and unchanged'
+    );
+    assert.ok(
+      report.statusLines.includes('[UNCHANGED] plugins/maestro/mcp/maestro-server-core.js'),
+      'Expected codex MCP core output to be generated and unchanged'
     );
     assert.deepEqual(
       report.driftLines,

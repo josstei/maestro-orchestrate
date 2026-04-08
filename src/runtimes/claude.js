@@ -9,6 +9,11 @@ module.exports = {
     workspacePath: 'CLAUDE_PROJECT_DIR',
   },
 
+  content: {
+    primary: 'filesystem',
+    fallback: 'none',
+  },
+
   tools: {
     read_file: 'Read',
     list_directory: 'Glob',

@@ -4,7 +4,8 @@ This guide explains how the shared Maestro methodology maps onto Codex.
 
 ## Source of truth
 
-- Shared skills, references, and templates live under `../../src/` and should be loaded through Maestro MCP tools (`get_skill_content`, `get_agent`).
+- Shared skills, references, templates, and agent bodies are authored in repository `src/` and compiled into the installed Codex plugin's bundled MCP content registries.
+- Codex content loading is registry-first with filesystem fallback for repo-local and workspace scenarios where canonical `src/` is intentionally present.
 - Generated agent role references under `../agents/` are registration stubs only.
 
 Public `maestro-*` skills should load shared assets through MCP instead of duplicating methodology.
@@ -17,13 +18,7 @@ Maestro state lives in `docs/maestro` in the workspace root:
 - plans: `docs/maestro/plans/`
 - archives: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
 
-Fallback scripts live under the canonical source tree:
-
-- `./src/scripts/ensure-workspace.js`
-- `./src/scripts/read-active-session.js`
-- `./src/scripts/read-state.js`
-- `./src/scripts/write-state.js`
-- `./src/scripts/read-setting.js`
+If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root.
 
 ## Tool mapping
 
@@ -56,7 +51,7 @@ If Maestro MCP tools are available, prefer them for stateful operations:
 - `archive_session`
 - `validate_plan`
 
-If the MCP server is unavailable in the current Codex environment, fall back to the generated scripts and direct file operations described by the shared skills.
+If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
 
 ## Delegation model
 

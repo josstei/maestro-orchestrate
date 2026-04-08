@@ -143,4 +143,29 @@ describe('codex plugin bundle content handlers', () => {
     assert.ok(result.agents.coder.body.includes('Senior Software Engineer'));
     assert.ok(!result.agents.coder.body.includes('Agent methodology loaded via MCP'));
   });
+
+  it('reads bundled content from an isolated codex plugin install without a src tree', () => {
+    const pluginRoot = path.resolve(__dirname, '../..', 'plugins', 'maestro');
+    const isolatedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-plugin-'));
+
+    fs.cpSync(pluginRoot, isolatedRoot, { recursive: true });
+
+    const skillHandler = createPackagedSkillContentHandler();
+    const agentHandler = createPackagedAgentHandler();
+
+    const skillResult = withExtensionRoot(isolatedRoot, () =>
+      skillHandler({ resources: ['delegation', 'architecture', 'orchestration-steps'] })
+    );
+    const agentResult = withExtensionRoot(isolatedRoot, () =>
+      agentHandler({ agents: ['coder'] })
+    );
+
+    assert.equal(fs.existsSync(path.join(isolatedRoot, 'src')), false);
+    assert.deepEqual(skillResult.errors, {});
+    assert.deepEqual(agentResult.errors, {});
+    assert.ok(skillResult.contents.delegation.includes('# Delegation Skill'));
+    assert.ok(skillResult.contents.architecture.includes('workspace root'));
+    assert.ok(skillResult.contents['orchestration-steps'].includes('STARTUP'));
+    assert.ok(agentResult.agents.coder.body.includes('Senior Software Engineer'));
+  });
 });

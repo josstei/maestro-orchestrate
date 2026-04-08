@@ -26,8 +26,24 @@ describe('generator integration', () => {
       'Expected codex lib outputs to be included in the dry-run report'
     );
     assert.ok(
-      report.statusLines.some((line) => line.includes('plugins/maestro/src/references/orchestration-steps.md')),
-      'Expected codex canonical MCP content outputs to be included in the dry-run report'
+      report.statusLines.some((line) => line.includes('plugins/maestro/lib/mcp/generated/resource-registry.js')),
+      'Expected codex bundled resource registry output to be included in the dry-run report'
+    );
+    assert.ok(
+      report.statusLines.some((line) => line.includes('plugins/maestro/lib/mcp/generated/agent-registry.js')),
+      'Expected codex bundled agent registry output to be included in the dry-run report'
+    );
+    assert.ok(
+      report.statusLines.some((line) => line.includes('mcp/maestro-server-core.js')),
+      'Expected gemini MCP core output to be included in the dry-run report'
+    );
+    assert.ok(
+      report.statusLines.some((line) => line.includes('claude/mcp/maestro-server-core.js')),
+      'Expected claude MCP core output to be included in the dry-run report'
+    );
+    assert.ok(
+      report.statusLines.some((line) => line.includes('plugins/maestro/mcp/maestro-server-core.js')),
+      'Expected codex MCP core output to be included in the dry-run report'
     );
     assert.deepEqual(report.nonStatusLines, []);
   });

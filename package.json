@@ -3,6 +3,12 @@
   "version": "1.5.0",
   "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
   "license": "Apache-2.0",
+  "scripts": {
+    "build:mcp": "node scripts/build-mcp-core.js",
+    "generate": "node scripts/generate.js",
+    "build": "npm run build:mcp && npm run generate",
+    "check:generated": "node scripts/build-mcp-core.js --check && node scripts/generate.js --dry-run"
+  },
   "keywords": [
     "orchestration",
     "multi-agent",
@@ -12,6 +18,7 @@
   "files": [
     "agents/",
     "commands/",
+    "docs/",
     "hooks/",
     "lib/",
     "mcp/",
