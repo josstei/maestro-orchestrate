@@ -13,7 +13,8 @@ describe('transforms/index resolve', () => {
     const names = [
       'copy', 'strip-feature', 'replace-agent-names',
       'replace-tool-names', 'replace-paths', 'inject-frontmatter',
-      'skill-metadata',
+      'skill-metadata', 'agent-stub', 'skill-discovery-stub',
+      'build-mcp-registry',
     ];
     for (const name of names) {
       const { fn } = resolve(name);
@@ -44,6 +45,9 @@ describe('transforms/index resolve', () => {
     assert.equal(typeof transforms['replace-paths'], 'function');
     assert.equal(typeof transforms['inject-frontmatter'], 'function');
     assert.equal(typeof transforms['skill-metadata'], 'function');
+    assert.equal(typeof transforms['agent-stub'], 'function');
+    assert.equal(typeof transforms['skill-discovery-stub'], 'function');
+    assert.equal(typeof transforms['build-mcp-registry'], 'function');
   });
 
   it('should throw for parameterized unknown transform', () => {

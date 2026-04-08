@@ -12,6 +12,13 @@ function runGenerator(args = []) {
   });
 }
 
+function runMcpCoreBuild(args = []) {
+  return execFileSync('node', ['scripts/build-mcp-core.js', ...args], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+}
+
 function getGitStatus() {
   return execFileSync('git', ['status', '--short', '--untracked-files=all'], {
     cwd: ROOT,
@@ -40,4 +47,5 @@ module.exports = {
   getGitStatus,
   parseDryRunReport,
   runGenerator,
+  runMcpCoreBuild,
 };

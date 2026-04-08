@@ -6,21 +6,21 @@ description: Run a Maestro-style accessibility audit for WCAG compliance, ARIA u
 
 # Maestro Accessibility Audit
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`.
+Call `get_skill_content` with resources: ["architecture"].
 
 ## Protocol
 
-Before delegating, activate the `delegation` skill to ensure agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.
+Before delegating, call `get_skill_content` with resources: ["delegation"] and follow the returned methodology.
 
 ## Workflow
 
-1. Define the accessibility audit scope and target conformance level.
-2. Identify UI components, pages, and interactive elements.
-3. Audit WCAG compliance: ARIA usage, keyboard navigation, color contrast, screen reader compatibility.
-4. Present findings with WCAG criterion, severity, location, and remediation code patterns.
-5. Offer to apply remediations if approved.
+1. Define the accessibility audit scope and target conformance level (A, AA, AAA)
+2. Identify UI components, pages, and interactive elements
+3. Audit WCAG compliance: ARIA usage, keyboard navigation, focus management, color contrast, screen reader compatibility
+4. Present findings with WCAG criterion reference, severity, user impact, location, and remediation code patterns
+5. Note any manual verification gaps if the environment cannot exercise the UI directly
 
 ## Constraints
 
-- Present findings before proposing remediation.
-- Do not modify code without explicit user approval.
+- Present findings before proposing remediation
+- Do not modify code without explicit user approval

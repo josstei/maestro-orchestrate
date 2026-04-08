@@ -9,6 +9,11 @@ module.exports = {
     workspacePath: 'CLAUDE_PROJECT_DIR',
   },
 
+  content: {
+    primary: 'filesystem',
+    fallback: 'none',
+  },
+
   tools: {
     read_file: 'Read',
     list_directory: 'Glob',
@@ -36,7 +41,7 @@ module.exports = {
   delegationPattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
 
   features: {
-    mcpSkillContentHandler: false,
+    mcpSkillContentHandler: true,
     policyEnforcer: true,
     exampleBlocks: true,
     geminiHookModel: false,
@@ -50,6 +55,9 @@ module.exports = {
     geminiStateContract: false,
     claudeStateContract: true,
     codexStateContract: false,
+    geminiRuntimeConfig: false,
+    claudeRuntimeConfig: true,
+    codexRuntimeConfig: false,
   },
 
   paths: {

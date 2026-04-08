@@ -6,21 +6,21 @@ description: Run a Maestro-style regulatory compliance review for GDPR/CCPA, coo
 
 # Maestro Compliance Check
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`.
+Call `get_skill_content` with resources: ["architecture"].
 
 ## Protocol
 
-Before delegating, activate the `delegation` skill to ensure agent-base-protocol and filesystem-safety-protocol are injected into the delegation prompt.
+Before delegating, call `get_skill_content` with resources: ["delegation"] and follow the returned methodology.
 
 ## Workflow
 
-1. Identify applicable regulations and define audit scope.
-2. Identify data handling patterns, user-facing policies, and third-party integrations.
-3. Audit regulatory compliance: GDPR/CCPA, cookie consent, data handling practices, licensing.
-4. Present findings with regulatory reference, severity, and recommended actions.
-5. Offer to generate policy documents or apply code fixes if approved.
+1. Identify applicable regulations and define audit scope
+2. Review data handling patterns, user disclosures, consent flows, retention policies, and third-party integrations
+3. Audit regulatory compliance: GDPR/CCPA, cookie consent, data residency, licensing, and open-source obligations
+4. Present findings with regulatory reference, severity, compliance risk, and recommended actions
+5. Distinguish legal-risk observations from code-level bugs
 
 ## Constraints
 
-- Present findings before proposing remediation.
-- Do not modify code without explicit user approval.
+- Present findings before proposing remediation
+- Do not modify code without explicit user approval

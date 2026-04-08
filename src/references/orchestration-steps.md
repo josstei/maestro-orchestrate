@@ -1,4 +1,5 @@
 STARTUP (Turn 1 — tool calls only, no text output)
+ 0. If get_runtime_context appears in your available tools, call it. Carry the returned mappings (tool names, agent dispatch syntax, MCP prefix, paths) through the entire session. If unavailable, use the fallback mappings in the entry-point skill preamble.
  1. Call resolve_settings.
  2. Call initialize_workspace with resolved state_dir.
  3. Call get_session_status — if active, present status and offer resume/archive.
@@ -13,7 +14,7 @@ CLASSIFICATION (Turn 2)
 
 DESIGN (Phase 1)
 10. Enter Plan Mode. If unavailable, follow the runtime preamble's Plan Mode fallback instructions.
-11. Load the design-dialogue skill. Follow its protocol for:
+11. Call `get_skill_content` with resources: ["design-dialogue"]. Follow the loaded protocol for:
     - Design depth selector (first design question)
     - Repository grounding (for existing codebases, skip for greenfield)
     - One question at a time via user prompt
@@ -36,11 +37,11 @@ DESIGN (Phase 1)
     proceeding to the next. Do NOT present the full design as a single block.
     Quick depth may combine sections. Standard/Deep MUST validate individually.
     </HARD-GATE>
-13. Load the design-document template: ["design-document"]. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path).
+13. Call `get_skill_content` with resources: ["design-document"]. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path).
 14. If Plan Mode is active, exit Plan Mode with the plan path. Copy approved document to <state_dir>/plans/.
 
 PLANNING (Phase 2)
-15. Load the implementation-planning skill and the implementation-plan template: ["implementation-planning", "implementation-plan"]. Follow the skill's protocol.
+15. Call `get_skill_content` with resources: ["implementation-planning", "implementation-plan"]. Follow the loaded skill protocol.
 16. Call validate_plan with the generated plan and task_complexity.
     <HARD-GATE>
     You MUST call validate_plan BEFORE presenting the plan for approval. Do NOT
@@ -55,18 +56,18 @@ PLANNING (Phase 2)
 18. Write approved implementation plan to <state_dir>/plans/.
 
 EXECUTION SETUP (Phase 3 — pre-delegation)
-19. Load the execution skill. Follow its Execution Mode Gate.
+19. Call `get_skill_content` with resources: ["execution"]. Follow its Execution Mode Gate.
     <HARD-GATE>
     Present ONLY "Parallel" and "Sequential" as execution mode options.
     Do NOT present "Ask" as a user-facing choice — "ask" is a setting value
     that means "prompt the user", not an execution mode the user selects.
     </HARD-GATE>
-20. Load the session-management skill and session-state template: ["session-management", "session-state"].
+20. Call `get_skill_content` with resources: ["session-management", "session-state"].
 21. Create session via create_session with resolved execution_mode. Do NOT create before mode is resolved.
-22. Load delegation, validation, agent-base-protocol, and filesystem-safety-protocol.
+22. Call `get_skill_content` with resources: ["delegation", "validation", "agent-base-protocol", "filesystem-safety-protocol"].
 
 EXECUTION (Phase 3 — delegation loop)
-23. For each phase (or parallel batch): delegate to the assigned agent.
+23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology and tool restrictions.
     <HARD-GATE>
     Dispatch by calling the agent's registered tool directly.
     Do NOT use the built-in generalist tool or invoke agents by bare name.
@@ -87,7 +88,7 @@ EXECUTION (Phase 3 — delegation loop)
 26. Repeat steps 23-25 until all phases complete.
 
 COMPLETION (Phase 4)
-27. Load the code-review skill.
+27. Call `get_skill_content` with resources: ["code-review"].
 28. If execution changed non-documentation files, delegate to the code reviewer agent. Block on Critical/Major findings.
     <HARD-GATE>
     If Critical/Major findings: re-delegate to the implementing agent to fix.
@@ -129,7 +130,7 @@ EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, arch
     </HARD-GATE>
 34. On approval, create session with workflow_mode: "express", exactly 1 phase.
     On rejection, revise. On second rejection, escalate to Standard → step 10.
-35. Load agent-base-protocol and filesystem-safety-protocol. Prepend to delegation prompt.
+35. Call `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"] and prepend them to the delegation prompt.
 36. Delegate to the assigned agent.
     <HARD-GATE>
     Same dispatch rule as step 23: call agent by registered tool name, not generalist.

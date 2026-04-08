@@ -1,62 +1,56 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const { getDefaultRuntimeConfig } = require('../runtime/runtime-config-map');
+const {
+  RESOURCE_ALLOWLIST,
+  applyRuntimeTransforms,
+} = require('../content/runtime-content');
+const { createContentProvider } = require('../content/provider');
 
-const RESOURCE_ALLOWLIST = Object.freeze({
-  'delegation':               'skills/delegation/SKILL.md',
-  'execution':                'skills/execution/SKILL.md',
-  'validation':               'skills/validation/SKILL.md',
-  'session-management':       'skills/session-management/SKILL.md',
-  'implementation-planning':  'skills/implementation-planning/SKILL.md',
-  'code-review':              'skills/code-review/SKILL.md',
-  'design-dialogue':          'skills/design-dialogue/SKILL.md',
-  'agent-base-protocol':      'skills/delegation/protocols/agent-base-protocol.md',
-  'filesystem-safety-protocol': 'skills/delegation/protocols/filesystem-safety-protocol.md',
-  'design-document':          'templates/design-document.md',
-  'implementation-plan':      'templates/implementation-plan.md',
-  'session-state':            'templates/session-state.md',
-  'architecture':             'references/architecture.md',
-  'orchestration-steps':      'references/orchestration-steps.md',
-});
+const DEFAULT_RUNTIME_CONFIG = getDefaultRuntimeConfig();
 
-function resolveExtensionRoot() {
-  if (process.env.MAESTRO_EXTENSION_PATH) {
-    return process.env.MAESTRO_EXTENSION_PATH;
-  }
-  const serverFile = process.argv[1];
-  if (serverFile) {
-    return path.resolve(path.dirname(serverFile), '..');
-  }
-  return process.cwd();
-}
+const DEFAULT_SRC_RELATIVE_PATH = 'src';
 
-function handleGetSkillContent(params) {
-  const resources = params.resources;
-  if (!Array.isArray(resources) || resources.length === 0) {
-    throw new Error('resources must be a non-empty array of resource identifiers');
-  }
-
-  const extensionRoot = resolveExtensionRoot();
-  const contents = {};
-  const errors = {};
-
-  for (const id of resources) {
-    const relativePath = RESOURCE_ALLOWLIST[id];
-    if (!relativePath) {
-      errors[id] = `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCE_ALLOWLIST).join(', ')}`;
-      continue;
+function createHandler(
+  runtimeConfig = DEFAULT_RUNTIME_CONFIG,
+  srcRelativePath = DEFAULT_SRC_RELATIVE_PATH
+) {
+  return function handleGetSkillContent(params) {
+    const resources = params.resources;
+    if (!Array.isArray(resources) || resources.length === 0) {
+      throw new Error('resources must be a non-empty array of resource identifiers');
     }
 
-    const absolutePath = path.join(extensionRoot, relativePath);
-    try {
-      contents[id] = fs.readFileSync(absolutePath, 'utf8');
-    } catch (err) {
-      errors[id] = `Failed to read resource "${id}": ${err.code || 'UNKNOWN'}`;
-    }
-  }
+    const provider = createContentProvider(runtimeConfig, srcRelativePath);
+    const contents = {};
+    const errors = {};
 
-  return { contents, errors };
+    for (const id of resources) {
+      if (!RESOURCE_ALLOWLIST[id]) {
+        errors[id] = `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCE_ALLOWLIST).join(', ')}`;
+        continue;
+      }
+
+      const result = provider.readResource(id);
+      if (result.error) {
+        errors[id] = result.error;
+        continue;
+      }
+
+      contents[id] = result.content;
+    }
+
+    return { contents, errors };
+  };
 }
 
-module.exports = { handleGetSkillContent, RESOURCE_ALLOWLIST };
+const handleGetSkillContent = createHandler();
+
+module.exports = {
+  RESOURCE_ALLOWLIST,
+  DEFAULT_RUNTIME_CONFIG,
+  DEFAULT_SRC_RELATIVE_PATH,
+  applyRuntimeTransforms,
+  createHandler,
+  handleGetSkillContent,
+};

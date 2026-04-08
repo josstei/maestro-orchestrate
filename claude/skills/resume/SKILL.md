@@ -22,27 +22,16 @@ allowed-tools:
 
 **REQUIRED: Read the orchestrator instructions below before any action.**
 
-## MCP Tool Name Mapping
+## Setup
 
-Maestro MCP tools are registered with a namespace prefix in Claude Code. When instructions reference bare tool names, use the prefixed version:
-
-| Referenced as | Actual tool name |
-|--------------|-----------------|
-| `initialize_workspace` | `mcp__plugin_maestro_maestro__initialize_workspace` |
-| `resolve_settings` | `mcp__plugin_maestro_maestro__resolve_settings` |
-| `assess_task_complexity` | `mcp__plugin_maestro_maestro__assess_task_complexity` |
-| `get_session_status` | `mcp__plugin_maestro_maestro__get_session_status` |
-| `create_session` | `mcp__plugin_maestro_maestro__create_session` |
-| `update_session` | `mcp__plugin_maestro_maestro__update_session` |
-| `transition_phase` | `mcp__plugin_maestro_maestro__transition_phase` |
-| `archive_session` | `mcp__plugin_maestro_maestro__archive_session` |
-| `validate_plan` | `mcp__plugin_maestro_maestro__validate_plan` |
-
-When any skill says "If `X` appears in your available tools, call it", search your available tools for the prefixed version.
-
-## Agent Name Mapping
-
-Maestro agents are registered with a `maestro:` prefix. When delegating via the `Agent` tool, ALWAYS use the prefixed name (e.g., `maestro:coder`, `maestro:code-reviewer`, `maestro:tester`). Bare names like `coder` will fail with "Agent type not found."
+1. Call `get_runtime_context` if it appears in your available tools. Use the returned tool mappings,
+   agent dispatch syntax, MCP prefix, and paths throughout this session.
+2. If `get_runtime_context` is unavailable, use this compact fallback:
+   - Core tools: read_file=Read, write_file=Write, replace=Edit, run_shell_command=Bash, glob=Glob, grep_search=Grep, activate_skill=Skill, ask_user=AskUserQuestion, enter_plan_mode=EnterPlanMode, exit_plan_mode=ExitPlanMode
+   - Extended tools: google_web_search=WebSearch, web_fetch=WebFetch, write_todos=[TaskCreate,TaskUpdate,TaskList], read_many_files=Read, list_directory=Glob, codebase_investigator=Agent (Explore) / Grep / Glob
+   - Agent dispatch: Agent(subagent_type: "maestro:<name>", prompt: "...")
+   - MCP prefix: mcp__plugin_maestro_maestro__
+   - Shared skills/templates/references/protocols: call `get_skill_content(resources: ["<name>"])`
 
 # Maestro TechLead Orchestrator
 
@@ -72,51 +61,8 @@ Before running orchestration commands:
 3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning.
 4. Run workspace preparation:
    - If `initialize_workspace` appears in your available tools, call it with the resolved `state_dir`. This is the preferred path.
-   - Otherwise, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/ensure-workspace.js docs/maestro` as fallback.
+   - Otherwise, run `node ${CLAUDE_PLUGIN_ROOT}/../src/scripts/ensure-workspace.js docs/maestro` as fallback.
    - Stop and report if either fails.
-
-## Skill Entry Points
-
-Prefer these bundled entry-point skills:
-
-- `orchestrate`: full design -> plan -> execute workflow
-- `execute`: execute an approved implementation plan
-- `resume`: resume the active Maestro session
-- `status`: summarize the active Maestro session without mutating state
-- `archive`: archive the active Maestro session
-- `review`: standalone code review
-- `debug`: focused debugging workflow
-- `security-audit`: standalone security assessment
-- `perf-check`: standalone performance assessment
-- `seo-audit`: standalone SEO assessment
-- `a11y-audit`: standalone accessibility compliance check
-- `compliance-check`: standalone legal/regulatory review
-
-## Settings Reference
-
-| Setting | envVar | Default | Usage |
-| --- | --- | --- | --- |
-| Disabled Agents | `MAESTRO_DISABLED_AGENTS` | none | Exclude agents from assignment |
-| Max Retries | `MAESTRO_MAX_RETRIES` | `2` | Phase retry limit |
-| Auto Archive | `MAESTRO_AUTO_ARCHIVE` | `true` | Auto archive on success |
-| Validation | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Validation gating mode |
-| State Directory | `MAESTRO_STATE_DIR` | `docs/maestro` | Session and plan state root |
-| Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Parallel batch chunk size (`0` means dispatch the entire ready batch) |
-| Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
-
-## Skill Loading
-
-When a workflow phase says "Activate `<skill>`", read the skill file from `${CLAUDE_PLUGIN_ROOT}/skills/` using the `Read` tool and follow its full methodology. Do not skip this step — the methodology files contain the structured questions, formats, and protocols that each phase requires.
-
-| Skill | File |
-| --- | --- |
-| `design-dialogue` | `${CLAUDE_PLUGIN_ROOT}/skills/design-dialogue/SKILL.md` |
-| `implementation-planning` | `${CLAUDE_PLUGIN_ROOT}/skills/implementation-planning/SKILL.md` |
-| `execution` | `${CLAUDE_PLUGIN_ROOT}/skills/execution/SKILL.md` |
-| `delegation` | `${CLAUDE_PLUGIN_ROOT}/skills/delegation/SKILL.md` |
-| `session-management` | `${CLAUDE_PLUGIN_ROOT}/skills/session-management/SKILL.md` |
-| `code-review` | `${CLAUDE_PLUGIN_ROOT}/skills/code-review/SKILL.md` |
-| `validation` | `${CLAUDE_PLUGIN_ROOT}/skills/validation/SKILL.md` |
 
 ## Task Complexity Classification
 
@@ -389,11 +335,9 @@ Constraints:
 
 When building delegation prompts:
 
-1. Use agent frontmatter defaults from `${CLAUDE_PLUGIN_ROOT}/agents/<name>.md`. Use the exact agent name format specified in the Agent Roster section.
+1. Call `get_agent` with the kebab-case agent name and use the returned methodology body and tool list. Use the exact agent name format specified in the Agent Roster section.
 2. Do not rely on Maestro-level model, temperature, turn, or timeout overrides. Use agent frontmatter and runtime-level agent configuration for native tuning.
-3. Inject shared protocols from:
-   - `${CLAUDE_PLUGIN_ROOT}/skills/delegation/protocols/agent-base-protocol.md`
-   - `${CLAUDE_PLUGIN_ROOT}/skills/delegation/protocols/filesystem-safety-protocol.md`
+3. Inject shared protocols by calling `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"].
 4. Include dependency downstream context from session state.
 5. Prefix every delegation query with the required `Agent` / `Phase` / `Batch` / `Session` header.
 
@@ -417,7 +361,7 @@ Resolve `docs/maestro` from `MAESTRO_STATE_DIR`:
 
 When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `Read` for reads and `Write`/`Edit` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
 
-`/maestro:status` and `/maestro:resume` use `node ${CLAUDE_PLUGIN_ROOT}/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
+`/maestro:status` and `/maestro:resume` use `node ${CLAUDE_PLUGIN_ROOT}/../src/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
 
 ## Session State Access
 
@@ -468,12 +412,12 @@ All agent names in Claude Code use **kebab-case** (hyphens, not underscores). Wh
 
 ## Reference Files
 
-Read these files when the task needs deeper Maestro context:
+Load these resources via `get_skill_content` when the task needs deeper Maestro context:
 
-- `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`
-- `${CLAUDE_PLUGIN_ROOT}/templates/design-document.md`
-- `${CLAUDE_PLUGIN_ROOT}/templates/implementation-plan.md`
-- `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md`
+- `architecture`
+- `design-document`
+- `implementation-plan`
+- `session-state`
 - Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, and session state management. See `mcp-config.example.json` for setup instructions.
 
 
@@ -482,11 +426,11 @@ Read these files when the task needs deeper Maestro context:
 
 # Maestro Resume
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md` and `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md`.
+Call `get_skill_content` with resources: ["architecture", "session-state"].
 
 ## Workflow
 
-1. If `get_session_status` appears in your available tools, call it. Otherwise, read `node ${CLAUDE_PLUGIN_ROOT}/scripts/read-active-session.js` output or inspect `docs/maestro/state/active-session.md` directly via `Read`.
+1. If `get_session_status` appears in your available tools, call it. Otherwise, read `node ${CLAUDE_PLUGIN_ROOT}/../src/scripts/read-active-session.js` output or inspect `docs/maestro/state/active-session.md` directly via `Read`.
 2. Summarize completed, pending, in-progress, and failed phases.
 3. Identify unresolved errors and partial work before continuing.
 3b. **Check Workflow Mode**: If `workflow_mode` is `express` in session state, follow the Express Resume protocol from the Express Workflow section in the orchestrator template. Do not resolve the execution-mode gate — Express bypasses it. Skip the remaining Standard resume steps below.

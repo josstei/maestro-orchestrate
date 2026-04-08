@@ -22,114 +22,16 @@ allowed-tools:
 
 **REQUIRED: Read the orchestrator instructions below before any action.**
 
-## Runtime: Claude Code
+## Setup
 
-This preamble maps generic step references to Claude Code tool syntax.
-
-| Action | How |
-|--------|-----|
-| Load skill | `Read ${CLAUDE_PLUGIN_ROOT}/skills/<name>/SKILL.md` |
-| Load reference/template | `Read ${CLAUDE_PLUGIN_ROOT}/references/<name>.md` or `${CLAUDE_PLUGIN_ROOT}/templates/<name>.md` |
-| Delegate to agent | `Agent(subagent_type: "maestro:<name>", prompt: "...")` |
-| MCP tools | `mcp__plugin_maestro_maestro__<tool_name>` |
-| Enter Plan Mode | `EnterPlanMode` — if unavailable, continue with `AskUserQuestion` for approvals. |
-| Exit Plan Mode | `ExitPlanMode` with plan path |
-| User prompt (choose) | `AskUserQuestion` with options |
-| User prompt (approve) | `AskUserQuestion` with yes/no |
-| Agent name prefix | All agent names require `maestro:` prefix (e.g., `maestro:coder`) |
-
-## MCP Tool Name Mapping
-
-Maestro provides MCP tools via a plugin-scoped MCP server. In Claude Code, these tools are registered with a namespace prefix. When skills or instructions reference bare tool names like `initialize_workspace` or `resolve_settings`, look for the actual tool name with a `mcp__` prefix pattern (e.g., `mcp__plugin_maestro_maestro__initialize_workspace`). The mapping:
-
-| Referenced as | Actual tool name |
-|--------------|-----------------|
-| `initialize_workspace` | `mcp__plugin_maestro_maestro__initialize_workspace` |
-| `resolve_settings` | `mcp__plugin_maestro_maestro__resolve_settings` |
-| `assess_task_complexity` | `mcp__plugin_maestro_maestro__assess_task_complexity` |
-| `get_session_status` | `mcp__plugin_maestro_maestro__get_session_status` |
-| `create_session` | `mcp__plugin_maestro_maestro__create_session` |
-| `update_session` | `mcp__plugin_maestro_maestro__update_session` |
-| `transition_phase` | `mcp__plugin_maestro_maestro__transition_phase` |
-| `archive_session` | `mcp__plugin_maestro_maestro__archive_session` |
-| `validate_plan` | `mcp__plugin_maestro_maestro__validate_plan` |
-| `get_skill_content` | N/A — Claude uses `Read` tool directly for skill/reference loading |
-
-When any skill says "If `X` appears in your available tools, call it", search your available tools for the prefixed version.
-
-## Agent Name Mapping
-
-Maestro agents are registered in Claude Code with a `maestro:` namespace prefix. When delegating to agents via the `Agent` tool, ALWAYS use the prefixed name. Bare names like `coder` will fail with "Agent type not found."
-
-| Referenced as | Use with Agent tool |
-|--------------|-------------------|
-| `coder` | `maestro:coder` |
-| `code-reviewer` | `maestro:code-reviewer` |
-| `architect` | `maestro:architect` |
-| `tester` | `maestro:tester` |
-| `debugger` | `maestro:debugger` |
-| `refactor` | `maestro:refactor` |
-| `security-engineer` | `maestro:security-engineer` |
-| `performance-engineer` | `maestro:performance-engineer` |
-| `data-engineer` | `maestro:data-engineer` |
-| `devops-engineer` | `maestro:devops-engineer` |
-| `technical-writer` | `maestro:technical-writer` |
-| `api-designer` | `maestro:api-designer` |
-| `ux-designer` | `maestro:ux-designer` |
-| `design-system-engineer` | `maestro:design-system-engineer` |
-| `product-manager` | `maestro:product-manager` |
-| `content-strategist` | `maestro:content-strategist` |
-| `copywriter` | `maestro:copywriter` |
-| `seo-specialist` | `maestro:seo-specialist` |
-| `accessibility-specialist` | `maestro:accessibility-specialist` |
-| `compliance-reviewer` | `maestro:compliance-reviewer` |
-| `i18n-specialist` | `maestro:i18n-specialist` |
-| `analytics-engineer` | `maestro:analytics-engineer` |
-
-**Rule:** When dispatching ANY agent, prepend `maestro:` to the agent name. This applies to all delegation — Express workflow, Standard workflow, code review, and fix re-delegation.
-
-## Skill Entry Points
-
-Prefer these bundled entry-point skills:
-
-- `orchestrate`: full design -> plan -> execute workflow
-- `execute`: execute an approved implementation plan
-- `resume`: resume the active Maestro session
-- `status`: summarize the active Maestro session without mutating state
-- `archive`: archive the active Maestro session
-- `review`: standalone code review
-- `debug`: focused debugging workflow
-- `security-audit`: standalone security assessment
-- `perf-check`: standalone performance assessment
-- `seo-audit`: standalone SEO assessment
-- `a11y-audit`: standalone accessibility compliance check
-- `compliance-check`: standalone legal/regulatory review
-
-## Settings Reference
-
-| Setting | envVar | Default | Usage |
-| --- | --- | --- | --- |
-| Disabled Agents | `MAESTRO_DISABLED_AGENTS` | none | Exclude agents from assignment |
-| Max Retries | `MAESTRO_MAX_RETRIES` | `2` | Phase retry limit |
-| Auto Archive | `MAESTRO_AUTO_ARCHIVE` | `true` | Auto archive on success |
-| Validation | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Validation gating mode |
-| State Directory | `MAESTRO_STATE_DIR` | `docs/maestro` | Session and plan state root |
-| Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Parallel batch chunk size (`0` means dispatch the entire ready batch) |
-| Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
-
-## Skill Loading
-
-When a workflow step says "Load the `<skill>` skill", read the skill file from `${CLAUDE_PLUGIN_ROOT}/skills/` using the `Read` tool and follow its full methodology. Do not skip this step — the methodology files contain the structured questions, formats, and protocols that each phase requires.
-
-| Skill | File |
-| --- | --- |
-| `design-dialogue` | `${CLAUDE_PLUGIN_ROOT}/skills/design-dialogue/SKILL.md` |
-| `implementation-planning` | `${CLAUDE_PLUGIN_ROOT}/skills/implementation-planning/SKILL.md` |
-| `execution` | `${CLAUDE_PLUGIN_ROOT}/skills/execution/SKILL.md` |
-| `delegation` | `${CLAUDE_PLUGIN_ROOT}/skills/delegation/SKILL.md` |
-| `session-management` | `${CLAUDE_PLUGIN_ROOT}/skills/session-management/SKILL.md` |
-| `code-review` | `${CLAUDE_PLUGIN_ROOT}/skills/code-review/SKILL.md` |
-| `validation` | `${CLAUDE_PLUGIN_ROOT}/skills/validation/SKILL.md` |
+1. Call `get_runtime_context` if it appears in your available tools. Use the returned tool mappings,
+   agent dispatch syntax, MCP prefix, and paths throughout this session.
+2. If `get_runtime_context` is unavailable, use this compact fallback:
+   - Core tools: read_file=Read, write_file=Write, replace=Edit, run_shell_command=Bash, glob=Glob, grep_search=Grep, activate_skill=Skill, ask_user=AskUserQuestion, enter_plan_mode=EnterPlanMode, exit_plan_mode=ExitPlanMode
+   - Extended tools: google_web_search=WebSearch, web_fetch=WebFetch, write_todos=[TaskCreate,TaskUpdate,TaskList], read_many_files=Read, list_directory=Glob, codebase_investigator=Agent (Explore) / Grep / Glob
+   - Agent dispatch: Agent(subagent_type: "maestro:<name>", prompt: "...")
+   - MCP prefix: mcp__plugin_maestro_maestro__
+   - Shared skills/templates/references/protocols: call `get_skill_content(resources: ["<name>"])`
 
 ## Task Complexity Classification
 
@@ -213,13 +115,13 @@ Apply domain analysis proportional to `task_complexity`:
 
 ## Execute
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/orchestration-steps.md` and follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them.
+Call `get_skill_content` with resources: ["orchestration-steps"] and follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them.
 
 ---
 
 # Maestro Orchestrate
 
-Read `${CLAUDE_PLUGIN_ROOT}/references/architecture.md`, `${CLAUDE_PLUGIN_ROOT}/templates/design-document.md`, `${CLAUDE_PLUGIN_ROOT}/templates/implementation-plan.md`, and `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md` before starting.
+Call `get_skill_content` with resources: ["architecture", "design-document", "implementation-plan", "session-state"] before starting.
 
 ## Workflow Routing
 
@@ -264,7 +166,7 @@ Do not do any of the following on the first turn:
 ## Workflow
 
 1. Resolve `docs/maestro` from `MAESTRO_STATE_DIR`.
-2. If `initialize_workspace` appears in your available tools, call it. Otherwise, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/ensure-workspace.js docs/maestro`. Do this before writing plan or session files.
+2. If `initialize_workspace` appears in your available tools, call it. Otherwise, run `node ${CLAUDE_PLUGIN_ROOT}/../src/scripts/ensure-workspace.js docs/maestro`. Do this before writing plan or session files.
 3. If `docs/maestro/state/active-session.md` already exists, summarize it and offer to resume or archive before starting a new orchestration.
 4. Ground the task in the repository before asking high-impact questions.
 5. Run the four Maestro phases:
@@ -273,7 +175,7 @@ Do not do any of the following on the first turn:
    - Execute
    - Complete
 6. Write approved design and implementation plan documents into `docs/maestro/plans/` using the shared templates.
-7. Create or update active session state using `${CLAUDE_PLUGIN_ROOT}/templates/session-state.md`.
+7. Create or update active session state using the `session-state` template loaded via `get_skill_content`.
 8. Resolve the execution mode from `MAESTRO_EXECUTION_MODE` or the execution-mode picker after plan approval.
 9. Execute the approved plan through child agents using the selected execution mode.
 

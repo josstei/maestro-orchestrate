@@ -12,8 +12,8 @@ Activate this skill when delegating work to subagents during orchestration execu
 Before constructing any delegation prompt, inject the shared agent base protocol:
 
 ### Injection Steps
-1. Read `agent-base-protocol.md` from `${extensionPath}/skills/delegation/protocols/`
-2. Read `filesystem-safety-protocol.md` from `${extensionPath}/skills/delegation/protocols/`
+1. Load `agent-base-protocol` via `get_skill_content`
+2. Load `filesystem-safety-protocol` via `get_skill_content`
 3. Prepend both protocols to the delegation prompt (base protocol first, then filesystem safety) — these appear before the task-specific content
 4. For each phase listed in the current phase's `blocked_by`, read `phases[].downstream_context` from session state and include it in the prompt
 5. If any required `downstream_context` is missing, include an explicit placeholder noting the missing dependency context (never omit silently)
@@ -154,75 +154,29 @@ Explicitly state what the agent must NOT do:
 
 ## Agent Tool Dispatch Contract
 
-<!-- @feature geminiDelegation -->
-Every Maestro agent in the Agent Roster is registered as its own tool in the runtime. When delegating a phase, call the assigned agent's tool by its exact name — the tool name matches the agent name in the roster (e.g., `coder`, `design-system-engineer`, `tester`).
+Delegate to the assigned agent using the dispatch pattern from `get_runtime_context` (loaded at session start, step 0). Every Maestro agent in the Agent Roster carries its frontmatter configuration:
 
-This is mandatory because each agent tool carries its frontmatter configuration:
 - `temperature`: Controls output determinism (e.g., coder uses 0.2 for precise code)
 - `max_turns`: Prevents runaway sessions (e.g., 25 turns for implementation agents)
-- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot call write_file)
+- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot use file-writing tools)
 - Body: Contains the agent's specialized methodology and decision frameworks
 
-The built-in `generalist` tool bypasses all of this. It uses default temperature, has no turn limit, no tool restrictions, and no specialized methodology. Never use `generalist` for Maestro phase delegations.
+Using a generic/default agent tool bypasses all of this — it uses default temperature, has no turn limit, no tool restrictions, and no specialized methodology. Never use a generic agent tool for Maestro phase delegations.
 
-**Sequential dispatch:**
-```
-coder(query: "Agent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
-```
+Every delegation must include the required header fields:
 
-**Parallel dispatch (contiguous calls in one turn):**
 ```
-coder(query: "Agent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
-ux-designer(query: "Agent: ux-designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
-```
-<!-- @end-feature -->
-<!-- @feature claudeDelegation -->
-Every Maestro agent in the Agent Roster is registered as its own tool in the runtime with a `maestro:` prefix. When delegating a phase, call the assigned agent via the `Agent` tool using `subagent_type: "maestro:<name>"` — the name matches the agent name in the roster (e.g., `maestro:coder`, `maestro:design-system-engineer`, `maestro:tester`).
-
-This is mandatory because each agent carries its frontmatter configuration:
-- `temperature`: Controls output determinism (e.g., coder uses 0.2 for precise code)
-- `max_turns`: Prevents runaway sessions (e.g., 25 turns for implementation agents)
-- `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot call Write/Edit)
-- Body: Contains the agent's specialized methodology and decision frameworks
-
-Using bare agent names (without the `maestro:` prefix) will fail with "Agent type not found." Never use unprefixed names for Maestro delegations.
-
-**Sequential dispatch:**
-```
-Agent(subagent_type: "maestro:coder", prompt: "Agent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
+Agent: <agent_name>
+Phase: <id>/<total>
+Batch: <batch_id> (or "single" for sequential)
+Session: <session_id>
 ```
 
-**Parallel dispatch (multiple Agent calls in one turn):**
-```
-Agent(subagent_type: "maestro:coder", prompt: "Agent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
-Agent(subagent_type: "maestro:ux-designer", prompt: "Agent: ux-designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
-```
-<!-- @end-feature -->
-<!-- @feature codexDelegation -->
-Codex does not bundle Maestro custom subagents through the plugin itself. The generated `agents/` directory is the source of truth for agent personas and scope boundaries, and delegation should use Codex's native subagent system.
+**Sequential dispatch**: Invoke the agent using your runtime's dispatch mechanism with the full delegation prompt.
 
-When delegating a phase:
-- Read the matching agent reference from `${extensionPath}/agents/<agent-name>.md`
-- Use the built-in subagent flow (`spawn_agent` when available, or the runtime's native delegated-agent path) with that reference folded into the prompt
-- Preserve the Maestro agent name from the roster in the delegation header even though the runtime-specific subagent identifier may differ
+**Parallel dispatch**: Emit contiguous agent dispatch calls in a single turn for all agents in the ready batch. Each call includes the same header format with the shared batch ID.
 
-This is mandatory because the generated agent reference still defines the intended methodology, tool surface, and role boundary for the delegated work even when the runtime does not register a Maestro-specific agent type automatically.
-
-Preferred pattern:
-
-**Sequential dispatch:**
-```
-spawn_agent(message: "You are fulfilling the Maestro `coder` role.\nUse the methodology and scope the parent loaded from `../../agents/coder.md`.\n\nAgent: coder\nPhase: 2/6\nBatch: single\nSession: my-session\n\n[full delegation prompt]")
-```
-
-**Parallel dispatch:**
-```
-spawn_agent(message: "You are fulfilling the Maestro `coder` role.\nUse the methodology and scope the parent loaded from `../../agents/coder.md`.\n\nAgent: coder\nPhase: 2/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 2]")
-spawn_agent(message: "You are fulfilling the Maestro `ux-designer` role.\nUse the methodology and scope the parent loaded from `../../agents/ux-designer.md`.\n\nAgent: ux-designer\nPhase: 3/6\nBatch: batch-1\nSession: my-session\n\n[prompt for phase 3]")
-```
-
-When Codex-native role selectors such as `explorer` or `worker` fit the task, map the Maestro persona onto that role rather than inventing a new runtime-specific methodology. Keep the Maestro agent file as the behavioral contract.
-<!-- @end-feature -->
+Call `get_agent` with the matching kebab-case agent name to load the agent methodology body and declared tool restrictions. Runtime-local agent files remain registration stubs only; do not rely on them for the full methodology body.
 
 ## Parallel Delegation
 
@@ -249,14 +203,14 @@ Maestro enforces tool permissions at two levels:
 
 **Level 1: Native enforcement (primary)**
 
-Tool permissions are enforced natively via the `tools:` array in each agent's YAML frontmatter definition (`${extensionPath}/agents/<agent-name>.md`). The runtime restricts each subagent to exactly those tools listed, regardless of what the prompt requests. This works for both sequential and parallel delegation.
+Tool permissions are enforced natively via each agent's registered frontmatter stub. Use the `tools` array returned by `get_agent` when you mirror that restriction in the prompt. This works for both sequential and parallel delegation.
 
 **Level 2: Prompt-based enforcement (defense-in-depth)**
 
 Native tool permissions remain the primary boundary. As defense-in-depth, every delegation prompt should still include an explicit tool restriction block so the agent sees its allowed surface in plain language.
 
-1. Agent Base Protocol (read `agent-base-protocol.md` from `${extensionPath}/skills/delegation/protocols/`)
-2. Filesystem Safety Protocol (read `filesystem-safety-protocol.md` from `${extensionPath}/skills/delegation/protocols/`)
+1. Agent Base Protocol (load `agent-base-protocol` via `get_skill_content`)
+2. Filesystem Safety Protocol (load `filesystem-safety-protocol` via `get_skill_content`)
 3. **TOOL RESTRICTIONS block (immediately here, before any task content)**
 4. **FILE WRITING RULES block (immediately after tool restrictions)**
 5. Context chain from prior phases
@@ -275,7 +229,7 @@ Do NOT use any tools not listed above. Specifically:
 Violation of these restrictions constitutes a security boundary breach.
 ```
 
-Populate the tool list by reading the agent's definition file (`${extensionPath}/agents/<agent-name>.md`) and extracting the `tools` array from the YAML frontmatter.
+Populate the tool list from the `tools` array returned by `get_agent` for the delegated agent.
 
 The file writing rules block template:
 
@@ -310,30 +264,16 @@ Maestro hooks fire at agent boundaries during delegation, providing context inje
 
 ### Agent Tracking
 
-<!-- @feature geminiHookModel -->
-The `BeforeAgent` hook tracks which agent is currently executing:
+Before each agent dispatch, a hook tracks which agent is currently executing:
 
 - Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
 - Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
 
-The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `AfterAgent` hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
+The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
 
 ### Session Context Injection
 
-When an active orchestration session exists, the `BeforeAgent` hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
-<!-- @end-feature -->
-<!-- @feature claudeHookModel -->
-The `hooks system (PreToolUse)` hook tracks which agent is currently executing:
-
-- Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
-- Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
-
-The detected agent name is persisted to `/tmp/maestro-hooks/<session-id>/active-agent` and cleared by the `orchestrator inline validation (no hook — see SKIP_EVENTS_CLAUDE)` hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
-
-### Session Context Injection
-
-When an active orchestration session exists, the `hooks system (PreToolUse)` hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
-<!-- @end-feature -->
+When an active orchestration session exists, the pre-delegation hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
 
 ```
 Active session: current_phase=3, status=in_progress
@@ -343,12 +283,7 @@ This gives delegated agents awareness of where they sit in the orchestration wor
 
 ### Handoff Format Enforcement
 
-<!-- @feature geminiHookModel -->
-The `AfterAgent` hook validates that every subagent response contains both required handoff sections:
-<!-- @end-feature -->
-<!-- @feature claudeHookModel -->
-The `orchestrator inline validation (no hook — see SKIP_EVENTS_CLAUDE)` hook validates that every subagent response contains both required handoff sections:
-<!-- @end-feature -->
+After completion, the post-delegation hook validates that every subagent response contains both required handoff sections:
 
 - `## Task Report` (or `# Task Report`)
 - `## Downstream Context` (or `# Downstream Context`)

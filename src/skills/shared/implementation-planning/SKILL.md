@@ -247,31 +247,17 @@ Include this table in every implementation plan:
 
 ### Output Location
 
-<!-- @feature geminiStateContract -->
-During Plan Mode, `write_file` is restricted to `.md` files within `~/.gemini/tmp/<project>/plans/` (where `<project>` is the CLI's internal project hash). Write the implementation plan there first, then copy to the project archive after approval:
+The write path depends on whether your runtime provides a Plan Mode surface (check `get_runtime_context`, loaded at session start, step 0).
 
-1. **During Plan Mode** (writable): `~/.gemini/tmp/<project>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
-2. **After approval** (permanent reference): `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (`<state_dir>` resolves from `MAESTRO_STATE_DIR`)
+- **Plan Mode active**: Some runtimes restrict writes to a temporary staging directory during Plan Mode. Write the plan there first, then copy to the permanent location after approval. Call `exit_plan_mode` with the plan path to present the plan for user approval.
+- **Plan Mode not active or not available**: Write the implementation plan directly to the project's plans directory.
 
-The `exit_plan_mode` tool validates that `plan_path` is within the project's temp plans directory. Always pass the tmp-directory path.
-<!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-Write the implementation plan directly to the project's plans directory:
+Permanent location: `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md` (where `<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `docs/maestro`).
 
-`docs/maestro/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
-
-The path resolves from `MAESTRO_STATE_DIR` (default: `docs/maestro`). If Plan Mode is active, call `exit_plan_mode` with the plan path after approval. Unlike Gemini CLI (which uses a temporary staging directory), Claude Code writes directly to the final location.
-<!-- @end-feature -->
-<!-- @feature codexStateContract -->
-Write the implementation plan directly to the project's plans directory:
-
-`docs/maestro/plans/YYYY-MM-DD-<topic-slug>-impl-plan.md`
-
-Codex does not provide a Maestro-specific Plan Mode transition. Use `update_plan` to track planning progress, write the plan directly to the final location, and use `request_user_input` (or a direct approval question if needed) for the approval gate.
-<!-- @end-feature -->
+If your runtime does not provide a Plan Mode transition, track planning progress using the plan-update mechanism from your runtime context, write directly to the final location, and use the user-prompt tool from runtime context for the approval gate.
 
 ### Document Structure
-Use the implementation plan template from `templates/implementation-plan.md`.
+Use the `implementation-plan` template loaded via `get_skill_content`.
 
 ### Required Sections
 
@@ -311,17 +297,7 @@ After writing the implementation plan:
 2. Present the dependency graph and execution strategy
 3. Highlight parallel execution opportunities
 4. Provide token budget estimates
-<!-- @feature geminiStateContract -->
-5. Call `exit_plan_mode` with `plan_path` set to the tmp-directory path (`~/.gemini/tmp/<project>/plans/...`) to present the plan for user approval
-6. After approval, copy the plan to `<state_dir>/plans/YYYY-MM-DD-<slug>-impl-plan.md` as a permanent project reference
-<!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-5. Call `exit_plan_mode` with `plan_path` set to the tmp-directory path (`docs/maestro/plans/...`) to present the plan for user approval
-6. After approval, copy the plan to `docs/maestro/plans/YYYY-MM-DD-<slug>-impl-plan.md` as a permanent project reference
-<!-- @end-feature -->
-<!-- @feature codexStateContract -->
-5. Present the completed plan for user approval using `request_user_input` (or a direct approval question if needed)
-6. Keep the approved plan at `docs/maestro/plans/YYYY-MM-DD-<slug>-impl-plan.md` as the permanent project reference
-<!-- @end-feature -->
+5. If your runtime provides Plan Mode, call `exit_plan_mode` with the plan path to present the plan for user approval. If Plan Mode is not available, present the completed plan for user approval using the user-prompt tool from runtime context.
+6. Ensure the approved plan is at `<state_dir>/plans/YYYY-MM-DD-<slug>-impl-plan.md` as the permanent project reference (copy from the staging directory if Plan Mode was used)
 7. Ask if the user is ready to proceed to execution (Phase 3)
 8. Upon approval, create the session state file via the session-management skill

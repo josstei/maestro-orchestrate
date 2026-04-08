@@ -44,6 +44,6 @@ tmp/
 temp/
 
 # Maestro session state (may contain user task descriptions)
-docs/maestro/state/
-
+docs/maestro/
+docs/superpowers/
 hooks/permissions.json

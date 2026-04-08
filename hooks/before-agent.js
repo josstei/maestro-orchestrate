@@ -1,7 +1,7 @@
 'use strict';
 
 const { normalizeInput, formatOutput, readBoundedStdin } = require('./hook-adapter');
-const { handleBeforeAgent } = require('../lib/hooks/before-agent-logic.js');
+const { handleBeforeAgent } = require('../src/lib/hooks/before-agent-logic.js');
 
 readBoundedStdin()
   .then((raw) => {
