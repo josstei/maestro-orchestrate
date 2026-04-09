@@ -114,11 +114,22 @@ function applyStripFeature(content, runtimeConfig) {
   ).replace(/\n{3,}/g, '\n\n');
 }
 
+const AGENT_NAME_RESOURCES = new Set([
+  'references/architecture.md',
+  'skills/shared/delegation/SKILL.md',
+  'skills/shared/execution/SKILL.md',
+  'skills/shared/validation/SKILL.md',
+  'skills/shared/code-review/SKILL.md',
+]);
+
 function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
   let result = content;
 
   if (resourcePath === 'references/architecture.md') {
     result = applyStripFeature(result, runtimeConfig);
+  }
+
+  if (AGENT_NAME_RESOURCES.has(resourcePath)) {
     result = applyReplaceAgentNames(result, runtimeConfig);
   }
 
