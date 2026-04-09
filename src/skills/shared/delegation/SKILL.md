@@ -176,7 +176,7 @@ Session: <session_id>
 
 **Parallel dispatch**: Emit contiguous agent dispatch calls in a single turn for all agents in the ready batch. Each call includes the same header format with the shared batch ID.
 
-Call `get_agent` with the matching kebab-case agent name to load the agent methodology body and declared tool restrictions. Runtime-local agent files remain registration stubs only; do not rely on them for the full methodology body.
+Call `get_agent` with the agent name (as it appears in the implementation plan or Agent Roster) to load the agent methodology body, declared tool restrictions, and the runtime-specific `tool_name`. Use the returned `tool_name` as the dispatch target when invoking the agent tool. Runtime-local agent files remain registration stubs only; do not rely on them for the full methodology body.
 
 ## Parallel Delegation
 
