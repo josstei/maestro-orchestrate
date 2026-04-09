@@ -72,6 +72,32 @@ describe('get_skill_content handler', () => {
     assert.ok(content.includes('code_reviewer'));
     assert.ok(!content.includes('Codex keeps'));
   });
+
+  it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-delegation-names-'));
+    const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, 'SKILL.md'),
+      '---\nname: delegation\ndescription: test\n---\nDelegate to `code-reviewer` and `ux-designer`.\n',
+      'utf8'
+    );
+
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('gemini'),
+      path.join(root, 'src')
+    );
+
+    const result = withExtensionRoot(root, () =>
+      handler({ resources: ['delegation'] })
+    );
+    const content = result.contents.delegation;
+
+    assert.ok(content.includes('code_reviewer'), 'code-reviewer should be replaced with code_reviewer');
+    assert.ok(content.includes('ux_designer'), 'ux-designer should be replaced with ux_designer');
+    assert.ok(!content.includes('code-reviewer'), 'kebab-case should not remain');
+    assert.ok(!content.includes('ux-designer'), 'kebab-case should not remain');
+  });
 });
 
 describe('get_agent handler', () => {
