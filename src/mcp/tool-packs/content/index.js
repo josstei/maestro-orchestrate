@@ -38,7 +38,7 @@ function createToolPack(context = {}) {
       {
         name: 'get_agent',
         description:
-          'Read one or more Maestro agent methodology definitions by kebab-case name. Returns the runtime-appropriate methodology body plus declared tool restrictions.',
+          'Read one or more Maestro agent methodology definitions. Returns the methodology body, declared tool restrictions, and a runtime-specific tool_name for dispatch.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -46,7 +46,7 @@ function createToolPack(context = {}) {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Agent names (kebab-case): "coder", "code-reviewer", "architect", etc.',
+                'Agent identifiers (kebab-case or snake_case): "coder", "code-reviewer" / "code_reviewer", "ux-designer" / "ux_designer", etc.',
             },
           },
           required: ['agents'],
