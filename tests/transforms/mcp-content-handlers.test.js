@@ -112,4 +112,116 @@ describe('get_agent handler', () => {
     assert.ok(!result.agents.coder.body.includes('tools:'));
     assert.ok(!result.agents.coder.body.includes('Example block'));
   });
+
+  it('accepts snake_case agent names and normalizes to kebab-case for lookup', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-snake-'));
+    const agentDir = path.join(root, 'src', 'agents');
+    fs.mkdirSync(agentDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(agentDir, 'ux-designer.md'),
+      [
+        '---',
+        'name: ux-designer',
+        'tools: [read_file, write_file]',
+        '---',
+        '',
+        'UX methodology body.',
+      ].join('\n'),
+      'utf8'
+    );
+
+    const handler = createAgentHandler(
+      getRuntimeConfig('gemini'),
+      path.join(root, 'src')
+    );
+
+    const result = withExtensionRoot(root, () =>
+      handler({ agents: ['ux_designer'] })
+    );
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(result.agents.ux_designer, 'response keyed by original input name');
+    assert.ok(result.agents.ux_designer.body.includes('UX methodology body.'));
+  });
+
+  it('returns tool_name matching runtime agentNaming convention', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-toolname-'));
+    const agentDir = path.join(root, 'src', 'agents');
+    fs.mkdirSync(agentDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(agentDir, 'code-reviewer.md'),
+      [
+        '---',
+        'name: code-reviewer',
+        'tools: [read_file]',
+        '---',
+        '',
+        'Review methodology.',
+      ].join('\n'),
+      'utf8'
+    );
+
+    // Gemini runtime: agentNaming is 'snake_case'
+    const geminiHandler = createAgentHandler(
+      getRuntimeConfig('gemini'),
+      path.join(root, 'src')
+    );
+    const geminiResult = withExtensionRoot(root, () =>
+      geminiHandler({ agents: ['code-reviewer'] })
+    );
+
+    assert.equal(
+      geminiResult.agents['code-reviewer'].tool_name,
+      'code_reviewer',
+      'Gemini tool_name should be snake_case'
+    );
+
+    // Claude runtime: agentNaming is 'kebab-case'
+    const claudeHandler = createAgentHandler(
+      getRuntimeConfig('claude'),
+      path.join(root, 'src')
+    );
+    const claudeResult = withExtensionRoot(root, () =>
+      claudeHandler({ agents: ['code-reviewer'] })
+    );
+
+    assert.equal(
+      claudeResult.agents['code-reviewer'].tool_name,
+      'code-reviewer',
+      'Claude tool_name should be kebab-case'
+    );
+  });
+
+  it('returns correct tool_name when input is snake_case', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-snaketool-'));
+    const agentDir = path.join(root, 'src', 'agents');
+    fs.mkdirSync(agentDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(agentDir, 'ux-designer.md'),
+      [
+        '---',
+        'name: ux-designer',
+        'tools: [read_file]',
+        '---',
+        '',
+        'UX body.',
+      ].join('\n'),
+      'utf8'
+    );
+
+    const handler = createAgentHandler(
+      getRuntimeConfig('gemini'),
+      path.join(root, 'src')
+    );
+
+    const result = withExtensionRoot(root, () =>
+      handler({ agents: ['ux_designer'] })
+    );
+
+    assert.equal(
+      result.agents.ux_designer.tool_name,
+      'ux_designer',
+      'tool_name for snake_case input on Gemini should be snake_case'
+    );
+  });
 });
