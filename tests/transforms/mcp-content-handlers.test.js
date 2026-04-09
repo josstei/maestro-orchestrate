@@ -250,4 +250,46 @@ describe('get_agent handler', () => {
       'tool_name for snake_case input on Gemini should be snake_case'
     );
   });
+
+  it('replays Gemini ux_designer delegation scenario end-to-end', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-replay-'));
+    const agentDir = path.join(root, 'src', 'agents');
+    fs.mkdirSync(agentDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(agentDir, 'ux-designer.md'),
+      [
+        '---',
+        'name: ux-designer',
+        'tools: [read_file, write_file, replace]',
+        '---',
+        '',
+        'UX Designer methodology.',
+      ].join('\n'),
+      'utf8'
+    );
+
+    const handler = createAgentHandler(
+      getRuntimeConfig('gemini'),
+      path.join(root, 'src')
+    );
+
+    // Simulate what the Gemini orchestrator did: called with snake_case from plan
+    const result = withExtensionRoot(root, () =>
+      handler({ agents: ['ux_designer'] })
+    );
+
+    // Should succeed (not error like the original bug)
+    assert.deepEqual(result.errors, {});
+
+    // Response keyed by original input
+    const agent = result.agents.ux_designer;
+    assert.ok(agent, 'agent should be returned keyed by ux_designer');
+    assert.ok(agent.body.includes('UX Designer methodology.'));
+
+    // tool_name should be the Gemini dispatch name
+    assert.equal(agent.tool_name, 'ux_designer');
+
+    // Tools should be runtime-mapped for Gemini
+    assert.deepEqual(agent.tools, ['read_file', 'write_file', 'replace']);
+  });
 });
