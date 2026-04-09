@@ -39,10 +39,10 @@ just release <version>
 
 ## Editing Workflow
 
-1. Edit files in `src/`, never in root, `claude/`, or `plugins/maestro/` directly
+1. Edit generated runtime source in `src/`. Maintain root docs (`README.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/` or `plugins/maestro/` output.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
 3. Run `node --test tests/transforms/*.test.js tests/integration/*.test.js` before committing
-4. Commit both canonical source and generated adapter output together
+4. Commit canonical source, directly owned root docs, and generated adapter output together
 5. CI will fail if runtime adapters drift from canonical `src/`
 
 ## Configuration
@@ -69,6 +69,7 @@ All settings are resolved with precedence: environment variable > workspace `.en
 | `MAESTRO_WORKSPACE_PATH` | Gemini | Workspace root (set by Gemini CLI) |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
 | `CLAUDE_PROJECT_DIR` | Claude | Project directory (set by Claude Code) |
+| `—` | Codex | No runtime-specific environment variables are required; the plugin uses relative paths |
 
 ## Invoking Maestro
 

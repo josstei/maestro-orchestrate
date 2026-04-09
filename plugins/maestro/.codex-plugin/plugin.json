@@ -1,6 +1,6 @@
 {
   "name": "maestro",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
   "author": {
     "name": "josstei",

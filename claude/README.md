@@ -1,6 +1,6 @@
 # Maestro — Claude Code Plugin
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/josstei/maestro-orchestrate/releases)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache-2.0-green)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-orange)](https://docs.anthropic.com/en/docs/claude-code)
 
@@ -16,8 +16,6 @@ Add the maestro marketplace, then install the plugin:
 claude plugin marketplace add josstei/maestro-orchestrate
 claude plugin install maestro@maestro-orchestrator --scope user
 ```
-
-The marketplace must be configured before installing. See the main [README](../README.md) for marketplace setup details.
 
 ### Installation Scopes
 
@@ -143,7 +141,7 @@ All agents share a baseline tool set: `Read`, `Glob`, `Grep`, `Skill`. Tool tier
 | content-strategist | Content | Content planning, editorial calendars | Read-Only |
 | copywriter | Content | Persuasive copy, landing pages | Read + Write |
 | seo-specialist | SEO | Technical SEO audits, schema markup | Read + Shell |
-| accessibility-specialist | Compliance | WCAG compliance, ARIA review | Read + Shell |
+| accessibility-specialist | Design | WCAG compliance, ARIA review | Read + Shell |
 | compliance-reviewer | Compliance | GDPR/CCPA auditing, license checks | Read-Only |
 | i18n-specialist | Internationalization | String extraction, locale management | Full Access |
 | analytics-engineer | Analytics | Event tracking, conversion funnels | Full Access |
@@ -169,7 +167,7 @@ Claude Code hooks are registered in `hooks/claude-hooks.json`:
 
 ## Configuration
 
-Same environment variables as the Gemini CLI extension. See the main [README](../README.md) for the full configuration table.
+Supported settings include `MAESTRO_STATE_DIR`, `MAESTRO_DISABLED_AGENTS`, `MAESTRO_EXECUTION_MODE`, `MAESTRO_VALIDATION_STRICTNESS`, `MAESTRO_AUTO_ARCHIVE`, `MAESTRO_MAX_RETRIES`, and `MAESTRO_MAX_CONCURRENT`. Claude-specific runtime paths come from `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PROJECT_DIR`.
 
 ## License
 

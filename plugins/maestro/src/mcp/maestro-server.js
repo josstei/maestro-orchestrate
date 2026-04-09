@@ -12,7 +12,7 @@ const { resolveCanonicalSrcFromExtensionRoot } = require('./utils/extension-root
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
-  version: '1.5.0',
+  version: '1.6.0',
 });
 
 function writeMessage(output, message) {

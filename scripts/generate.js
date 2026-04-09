@@ -563,7 +563,6 @@ async function main() {
 
     // Generator-owned root-level files
     const ownedRootFiles = [
-      'README.md',
       'GEMINI.md',
       'gemini-extension.json',
       '.geminiignore',

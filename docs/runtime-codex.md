@@ -5,7 +5,7 @@ The Codex plugin lives in `plugins/maestro/`.
 ## Configuration
 
 **Manifest**: `plugins/maestro/.codex-plugin/plugin.json`
-**Version**: 1.5.0
+**Version**: 1.6.0
 **MCP Config**: `plugins/maestro/.mcp.json`
 **App Config**: `plugins/maestro/.app.json`
 **Runtime Guide**: `plugins/maestro/references/runtime-guide.md`
@@ -27,7 +27,7 @@ The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. 
 ```json
 {
   "name": "maestro",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
   "author": { "name": "josstei", "url": "https://github.com/josstei" },
   "homepage": "https://github.com/josstei/maestro-orchestrate",
@@ -181,7 +181,7 @@ plugins/maestro/
 | Delegation | Direct function call | Agent subagent | spawn_agent |
 | Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | None |
 | Policies | TOML rules | JS hook enforcer | None |
-| Skill surface | N/A (commands) | 19 skills | plugin namespace `maestro:` |
+| Skill surface | N/A (commands) | 19 skills | plugin namespace `$maestro:*` |
 | Path style | Variable passthrough | Env var refs | Relative |
 | Extra files | TOML policy rules | policy-enforcer | runtime guide |
 | Runtime payload | adapter-only | adapter-only | adapter files + generated `src/` mirror |

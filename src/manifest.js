@@ -49,7 +49,6 @@ module.exports = [
   { src: 'hooks/hook-configs/claude.json', transforms: ['copy'], outputs: { claude: 'claude/hooks/claude-hooks.json' } },
 
   // ── Platform-specific public assets ────────────────────────────────
-  { src: 'platforms/gemini/README.md', transforms: ['copy'], outputs: { gemini: 'README.md' } },
   { src: 'platforms/gemini/GEMINI.md', transforms: ['copy'], outputs: { gemini: 'GEMINI.md' } },
   { src: 'platforms/gemini/gemini-extension.json', transforms: ['copy'], outputs: { gemini: 'gemini-extension.json' } },
   { src: 'platforms/gemini/.geminiignore', transforms: ['copy'], outputs: { gemini: '.geminiignore' } },

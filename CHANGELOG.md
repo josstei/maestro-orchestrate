@@ -7,21 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-04-09
+
 ### Added
 
+- **Codex runtime target** (`plugins/maestro/`) — Complete third runtime for OpenAI Codex with plugin manifest, 22 agent stubs, 19 skills, MCP entry-point, and runtime guide; agents use kebab-case names and `spawn_agent(...)` delegation
+- **Canonical source architecture** — Single `src/` tree serves all three runtimes (Gemini, Claude, Codex) via `requireFromCanonicalSrc()` dynamic resolution, eliminating verbatim lib copies and runtime-specific source directories
 - **`get_agent` MCP tool** — Returns agent methodology content by name, enabling runtime access to agent definitions without filesystem reads
 - **`get_runtime_context` MCP tool** — Returns runtime-specific configuration (delegation patterns, tool mappings, environment variables) for the active platform
-- **Canonical source architecture** — Single `src/` tree serves all three runtimes (Gemini, Claude, Codex) via `requireFromCanonicalSrc()` dynamic resolution, eliminating verbatim lib copies and runtime-specific source directories
+- **Entry-point generation system** (`src/entry-points/`) — Registry of 9 entry-point commands with 3 per-runtime templates (Gemini TOML, Claude SKILL.md, Codex SKILL.md); entry-point commands are now generated rather than hand-maintained
+- **4 new transforms** — `agent-stub` (generates lightweight stubs that load methodology via MCP), `inline-runtime` (injects runtime-specific content blocks), `skill-discovery-stub` (generates skill stubs that load content via MCP), `copy` (verbatim file copy)
+- **`canonical-source.js` utility** (`src/core/`) — `requireFromCanonicalSrc()` resolves the canonical `src/` directory from any runtime entry-point by walking parent directories; deployed as thin shims in each runtime's `mcp/` and `scripts/` directories
+- **`project-root-resolver.js` rewrite** (`src/core/`) — Multi-strategy workspace resolution supporting all three runtimes: env vars (`MAESTRO_WORKSPACE_PATH`, `CLAUDE_PROJECT_DIR`), git root detection, and cwd fallback
+- **Justfile** — Development commands: `just test`, `just check`, `just test-transforms`, `just test-integration`; replaces ad-hoc npm scripts
+- **Documentation suite** (`docs/`) — 7 focused docs replacing old plans/specs: `overview.md`, `architecture.md`, `flow.md`, `usage.md`, `runtime-gemini.md`, `runtime-claude.md`, `runtime-codex.md`
+- **27 new test files** — MCP handler tests (content provider, runtime context, kernel, session pack, workspace pack, content pack, pack composition), transform tests (copy, index, project-root-resolver), integration tests (entry-point templates, hook entry-points, glob manifest, source of truth, MCP server bundle behavior, MCP server entry-point, MCP stdio client helper)
+- **CI release workflow** (`.github/workflows/release.yml`) — Automated GitHub releases from version tags using `CHANGELOG.md` content
 
 ### Changed
 
-- **MCP content serving** — Hardcoded relative paths (`"src"`, `"../src"`, `"../../src"`) replaced by `requireFromCanonicalSrc()` utility that dynamically resolves the canonical `src/` directory from any runtime entry-point
-- **Codex MCP fallback** — `plugins/maestro/src/` verbatim copies eliminated; Codex MCP now resolves canonical source at runtime via `requireFromCanonicalSrc()`
+- **MCP server decomposed** — Monolithic ~38k-line bundles (`mcp/maestro-server.js`, `claude/mcp/maestro-server.js`) replaced by ~14-line entry-points delegating to modular `src/mcp/` tree: 8 handlers, 3 tool-packs (workspace, session, content), core modules (server creation, tool registry, recovery hints), and utilities (extension root resolution)
+- **Generator rewrite** (`scripts/generate.js`) — Updated to support manifest expansion with glob patterns, transform pipeline across three runtimes, entry-point rendering from templates, platform file mapping, and stale file pruning
+- **`src/manifest.js` expanded** — Glob patterns, per-runtime platform file mappings, entry-point generation rules, and self-contained Codex `src/` payload rules
+- **Codex skill names** — Dropped `maestro-` prefix from all skill names; skills use plugin namespace directly (`$maestro:orchestrate` instead of `$maestro:maestro-orchestrate`)
+- **Shared skills restructured** — All 7 methodology skills (delegation, design-dialogue, execution, implementation-planning, session-management, code-review, validation) updated to load protocols and references via `get_skill_content` MCP tool instead of filesystem reads
+- **Agent methodologies** — All 22 agents updated with explicit tool access declarations in frontmatter; Claude and Codex runtimes serve methodology content via MCP at runtime rather than inlining full definitions
+- **Hook entry-points** — All 10 hook scripts (5 Gemini, 5 Claude) now use `requireFromCanonicalSrc()` to resolve logic modules from canonical source instead of runtime-local `lib/` copies
+- **CI generator check** (`.github/workflows/generator-check.yml`) — Updated for three-runtime architecture with Codex output verification
+- **Shared skill content** — Delegation protocols, design-dialogue, execution, implementation-planning, and session-management skills updated with runtime-agnostic path references and MCP-first content loading patterns
+- **`GEMINI.md`** — Updated pointers to canonical source locations
+- **62 documentation audit findings resolved** — Cross-referenced all docs against codebase; corrected stale paths, outdated counts, missing entries, and inaccurate descriptions across 12 files
 
 ### Removed
 
+- **`lib/` directory** (root) — `lib/core/`, `lib/hooks/` modules relocated to `src/core/`, `src/hooks/logic/`; root-level `lib/` eliminated
+- **`src/lib/` directory** — All 14 modules (`config/`, `core/`, `hooks/`, `mcp/`, `state/`) relocated to canonical `src/` locations; entire directory removed
+- **`claude/lib/` directory** — Runtime-specific `core/` and `hooks/` copies removed; Claude runtime delegates to canonical source via `requireFromCanonicalSrc()`
+- **`src/runtime-only/` directory** — 9 Claude skill stubs and 9 Gemini command stubs replaced by entry-point generation system
+- **Monolithic MCP bundles** — `mcp/maestro-server.js` and `claude/mcp/maestro-server.js` reduced from ~38k lines each to ~14-line entry-points; bundled source replaced by modular `src/mcp/` tree
 - **Library drift detection** (`scripts/check-claude-lib-drift.sh`) — Superseded by the runtime generator; canonical source architecture makes drift impossible
-- **`plugins/maestro/src/` copies** — 36 verbatim source copies for Codex MCP fallback replaced by canonical-source resolution
+- **Root-level utility scripts** — `scripts/ensure-workspace.js`, `scripts/read-active-session.js`, `scripts/read-setting.js`, `scripts/read-state.js` relocated to `src/scripts/`
+- **`references/` directory** (root) — `architecture.md` and `orchestration-steps.md` moved to `src/references/`
+- **`templates/` directory** (root) — `design-document.md`, `implementation-plan.md`, `session-state.md` moved to `src/templates/`
+- **`claude/scripts/write-state.js`** — Consolidated into `src/scripts/write-state.js`
+- **`claude/skills/delegation/protocols/`** — Protocol files removed from runtime output; loaded via MCP `get_skill_content` from canonical source
+- **Old planning docs** — `docs/plans/2026-04-04-runtime-generator.md` and `docs/specs/2026-04-04-runtime-generator-design.md` replaced by focused documentation suite
 
 ## [1.5.0] - 2026-04-01
 
