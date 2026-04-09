@@ -8,7 +8,7 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
   return function handleGetAgent(params) {
     const requestedAgents = params.agents;
     if (!Array.isArray(requestedAgents) || requestedAgents.length === 0) {
-      throw new Error('agents must be a non-empty array of kebab-case agent identifiers');
+      throw new Error('agents must be a non-empty array of agent identifiers');
     }
 
     const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
@@ -16,20 +16,27 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
     const errors = {};
 
     for (const rawName of requestedAgents) {
-      const agentName = String(rawName || '').trim();
-      if (!AGENT_ALLOWLIST.includes(agentName)) {
-        errors[agentName || '(empty)'] =
-          `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`;
+      const inputName = String(rawName || '').trim();
+      const canonicalName = inputName.replace(/_/g, '-');
+
+      if (!AGENT_ALLOWLIST.includes(canonicalName)) {
+        errors[inputName || '(empty)'] =
+          `Unknown agent identifier: "${inputName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`;
         continue;
       }
 
-      const result = provider.readAgent(agentName);
+      const result = provider.readAgent(canonicalName);
       if (result.error) {
-        errors[agentName] = result.error;
+        errors[inputName] = result.error;
         continue;
       }
 
-      agents[agentName] = result.agent;
+      const toolName =
+        runtimeConfig.agentNaming === 'snake_case'
+          ? canonicalName.replace(/-/g, '_')
+          : canonicalName;
+
+      agents[inputName] = { ...result.agent, tool_name: toolName };
     }
 
     return { agents, errors };
