@@ -5,6 +5,24 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`get_agent` MCP tool** — Returns agent methodology content by name, enabling runtime access to agent definitions without filesystem reads
+- **`get_runtime_context` MCP tool** — Returns runtime-specific configuration (delegation patterns, tool mappings, environment variables) for the active platform
+- **Canonical source architecture** — Single `src/` tree serves all three runtimes (Gemini, Claude, Codex) via `requireFromCanonicalSrc()` dynamic resolution, eliminating verbatim lib copies and runtime-specific source directories
+
+### Changed
+
+- **MCP content serving** — Hardcoded relative paths (`"src"`, `"../src"`, `"../../src"`) replaced by `requireFromCanonicalSrc()` utility that dynamically resolves the canonical `src/` directory from any runtime entry-point
+- **Codex MCP fallback** — `plugins/maestro/src/` verbatim copies eliminated; Codex MCP now resolves canonical source at runtime via `requireFromCanonicalSrc()`
+
+### Removed
+
+- **Library drift detection** (`scripts/check-claude-lib-drift.sh`) — Superseded by the runtime generator; canonical source architecture makes drift impossible
+- **`plugins/maestro/src/` copies** — 36 verbatim source copies for Codex MCP fallback replaced by canonical-source resolution
+
 ## [1.5.0] - 2026-04-01
 
 ### Added
@@ -19,7 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Agent name mapping** — Orchestrator commands include mapping for Claude Code's `maestro:` agent prefix (e.g., `maestro:coder`, `maestro:code-reviewer`)
 - **Claude Code hook adapter** (`claude/scripts/hook-adapter.js`) — Normalizes Claude Code's PreToolUse/SessionStart/SessionEnd hook contract to Maestro's internal format
 - **Policy enforcer** (`claude/scripts/policy-enforcer.js`) — Blocks destructive shell commands via Claude Code's PreToolUse hook on Bash tool calls
-- **Library drift detection** (`scripts/check-claude-lib-drift.sh`) — CI script that validates shared `lib/` files haven't diverged between Gemini and Claude runtimes (superseded by the runtime generator in v1.5.1)
 
 ### Changed
 

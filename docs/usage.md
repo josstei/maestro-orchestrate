@@ -9,7 +9,7 @@ node scripts/generate.js
 # Generate runtime adapters using package scripts
 npm run build
 
-# Run the architecture and runtime validation suite
+# Run all 169 tests across 25 files
 node --test tests/transforms/*.test.js tests/integration/*.test.js
 
 # Show unified diff of changes
@@ -18,7 +18,7 @@ node scripts/generate.js --diff
 # Delete all generated files and regenerate
 node scripts/generate.js --clean
 
-# Run all tests
+# Run CI test subset (12 files, 120 tests)
 just test
 
 # Run only transform unit tests
@@ -154,21 +154,64 @@ Active sessions use YAML frontmatter + Markdown body:
 ---
 session_id: "2024-03-15-auth-system"
 task: "Implement user authentication"
+created: "2024-03-15T10:00:00Z"
+updated: "2024-03-15T11:30:00Z"
 status: "in_progress"
 workflow_mode: "standard"
+design_document: "docs/maestro/plans/2024-03-15-auth-system-design.md"
+implementation_plan: "docs/maestro/plans/2024-03-15-auth-system-impl-plan.md"
 current_phase: 2
 total_phases: 4
 execution_mode: "sequential"
+execution_backend: null
+current_batch: null
 task_complexity: "medium"
+
+token_usage:
+  total_input: 0
+  total_output: 0
+  total_cached: 0
+  by_agent: {}
+
 phases:
   - id: 1
     name: "Foundation"
     status: "completed"
     agents: ["architect"]
+    parallel: false
+    started: "2024-03-15T10:05:00Z"
+    completed: "2024-03-15T10:45:00Z"
+    blocked_by: []
+    files_created: ["src/services/user.ts"]
+    files_modified: []
+    files_deleted: []
+    downstream_context:
+      key_interfaces_introduced: ["UserService"]
+      patterns_established: ["Repository pattern"]
+      integration_points: ["/api/users"]
+      assumptions: []
+      warnings: []
+    errors: []
+    retry_count: 0
   - id: 2
     name: "Implementation"
     status: "in_progress"
     agents: ["coder"]
+    parallel: false
+    started: "2024-03-15T10:50:00Z"
+    completed: null
+    blocked_by: [1]
+    files_created: []
+    files_modified: []
+    files_deleted: []
+    downstream_context:
+      key_interfaces_introduced: []
+      patterns_established: []
+      integration_points: []
+      assumptions: []
+      warnings: []
+    errors: []
+    retry_count: 0
 ---
 
 # Auth System Orchestration Log

@@ -28,13 +28,24 @@ The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. 
 {
   "name": "maestro",
   "version": "1.5.0",
+  "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
+  "author": { "name": "josstei", "url": "https://github.com/josstei" },
+  "homepage": "https://github.com/josstei/maestro-orchestrate",
+  "repository": "https://github.com/josstei/maestro-orchestrate",
+  "license": "Apache-2.0",
+  "keywords": ["orchestration", "multi-agent", "planning", "execution", "coding"],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "apps": "./.app.json",
   "interface": {
     "displayName": "Maestro",
+    "shortDescription": "Multi-agent coding orchestration for Codex",
+    "longDescription": "Generated Codex runtime for Maestro. ...",
+    "developerName": "josstei",
     "category": "Coding",
     "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/josstei/maestro-orchestrate",
+    "defaultPrompt": ["Use Maestro to orchestrate a feature...", "..."],
     "brandColor": "#2563EB"
   }
 }
@@ -166,9 +177,9 @@ plugins/maestro/
 |--------|--------|--------|-------|
 | Agent names | snake_case | kebab-case | kebab-case |
 | Delegation | Direct function call | Agent subagent | spawn_agent |
-| Hooks | 4 events, no matchers | PreToolUse + matchers | None |
+| Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | None |
 | Policies | TOML rules | JS hook enforcer | None |
-| Skill surface | N/A (commands) | None | plugin namespace `maestro:` |
+| Skill surface | N/A (commands) | 19 skills | plugin namespace `maestro:` |
 | Path style | Variable passthrough | Env var refs | Relative |
 | Extra files | TOML policy rules | policy-enforcer | runtime guide |
-| Total files | ~79 | ~85 | ~83 |
+| Total files | ~48 | ~55 | ~48 |

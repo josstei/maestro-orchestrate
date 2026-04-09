@@ -31,8 +31,8 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 3 |
-| Source transforms | 9 |
-| Test cases | 159 |
+| Source transforms | 10 |
+| Test cases | 169 |
 
 ## Project Structure
 
@@ -53,10 +53,11 @@ maestro-orchestrate/
 │   │   └── logic/                # Shared hook implementations
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime adapters, manifests, and public shells
+│   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/
 │   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 21 test files, 159 tests
+├── tests/                        # 25 test files, 169 tests
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
@@ -67,13 +68,20 @@ maestro-orchestrate/
 ├── claude/                       # [generated] Claude Code plugin
 │   ├── agents/                   # Claude agent stubs
 │   ├── skills/                   # Claude skills (19)
+│   ├── hooks/                    # Hook config (claude-hooks.json)
 │   ├── scripts/                  # Claude hook scripts
-│   └── mcp/                      # Claude MCP adapter
+│   ├── mcp/                      # Claude MCP adapter
+│   ├── .claude-plugin/           # Plugin manifest
+│   └── .mcp.json                 # MCP server config
 │
 └── plugins/maestro/              # [generated] Codex plugin
     ├── agents/                   # Codex agent stubs
     ├── skills/                   # Codex skills (19)
     ├── mcp/                      # Codex MCP adapter
+    ├── references/               # Runtime guide
+    ├── .codex-plugin/            # Plugin manifest
+    ├── .mcp.json                 # MCP server config
+    ├── .app.json                 # App config
     └── README.md
 ```
 

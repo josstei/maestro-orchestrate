@@ -11,7 +11,7 @@ help:
     @echo "  just clean            Delete all generated files and regenerate"
     @echo ""
     @echo "Testing:"
-    @echo "  just test             Run all 111 tests"
+    @echo "  just test             Run all 120 tests"
     @echo "  just test-transforms  Run only transform unit tests"
     @echo "  just test-integration Run only integration tests"
     @echo ""

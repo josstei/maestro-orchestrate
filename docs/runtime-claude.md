@@ -86,9 +86,12 @@ Infrastructure skills have `user-invocable: false` — they surface in Claude's 
 | Claude Field | Internal Field |
 |-------------|----------------|
 | `session_id` | `sessionId` |
+| `cwd` | `cwd` |
+| `hook_event_name` | `event` |
 | `tool_input.subagent_type` | `agentName` |
 | `tool_input.prompt` | `agentInput` |
 | `tool_result` | `agentResult` |
+| (hardcoded false) | `stopHookActive` |
 
 Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?: string, reason?: string }`
 
@@ -177,9 +180,10 @@ claude/
 ├── agents/                22 agent stubs (kebab-case)
 ├── skills/                19 skill directories
 ├── hooks/                 1 hook config (claude-hooks.json)
-├── scripts/               hook adapters, policy enforcer, and canonical-source helper
+├── scripts/               hook adapters, policy enforcer, policy-enforcer.test.js, and canonical-source helper
 ├── mcp/                   public MCP entrypoint + canonical-source helper
 ├── .claude-plugin/        1 plugin manifest
 ├── .mcp.json
+├── mcp-config.example.json
 └── README.md
 ```

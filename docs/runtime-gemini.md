@@ -42,9 +42,9 @@ architect(query: "Design the auth system...")
 
 | Command | Source |
 |---------|--------|
-| `orchestrate.toml` | `src/platforms/gemini/commands/` |
-| `execute.toml` | `src/platforms/gemini/commands/` |
-| `resume.toml` | `src/platforms/gemini/commands/` |
+| `orchestrate.toml` | `src/platforms/gemini/commands/maestro/` |
+| `execute.toml` | `src/platforms/gemini/commands/maestro/` |
+| `resume.toml` | `src/platforms/gemini/commands/maestro/` |
 | `review.toml` | Entry-point registry |
 | `debug.toml` | Entry-point registry |
 | `archive.toml` | Entry-point registry |
@@ -70,7 +70,7 @@ architect(query: "Design the auth system...")
 
 Gemini has a post-delegation validation hook that Claude lacks:
 
-- Checks for both `## Task Report` and `## Downstream Context` headings
+- Checks for `## Task Report` (or `# Task Report`) and `## Downstream Context` headings
 - First failure: blocks and requests retry
 - Second failure (stopHookActive=true): allows through with warning
 
@@ -81,6 +81,9 @@ Gemini has a post-delegation validation hook that Claude lacks:
 | Gemini Field | Internal Field |
 |-------------|----------------|
 | `session_id` | `sessionId` |
+| `cwd` | `cwd` |
+| `hook_event_name` | `event` |
+| (hardcoded null) | `agentName` |
 | `prompt` | `agentInput` |
 | `prompt_response` | `agentResult` |
 | `stop_hook_active` | `stopHookActive` |
@@ -107,12 +110,22 @@ Gemini tools use canonical names (identity mapping):
 
 | Canonical | Gemini |
 |-----------|--------|
-| `read_file` / `read_many_files` | `read_file` / `read_many_files` |
-| `write_file` | `write_file` |
+| `read_file` | `read_file` |
+| `read_many_files` | `read_many_files` |
+| `list_directory` | `list_directory` |
 | `glob` | `glob` |
 | `grep_search` | `grep_search` |
+| `google_web_search` | `google_web_search` |
+| `web_fetch` | `web_fetch` |
+| `write_file` | `write_file` |
+| `replace` | `replace` |
 | `run_shell_command` | `run_shell_command` |
 | `ask_user` | `ask_user` |
+| `write_todos` | `write_todos` |
+| `activate_skill` | `activate_skill` |
+| `enter_plan_mode` | `enter_plan_mode` |
+| `exit_plan_mode` | `exit_plan_mode` |
+| `codebase_investigator` | `codebase_investigator` |
 
 ## Feature Flags
 

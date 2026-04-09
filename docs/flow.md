@@ -1,6 +1,6 @@
 # Maestro Orchestration Flow
 
-The orchestration workflow is defined by 40 steps in `src/references/orchestration-steps.md`. Two modes exist: **Standard** (medium/complex tasks) and **Express** (simple tasks).
+The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `src/references/orchestration-steps.md`. Two modes exist: **Standard** (medium/complex tasks) and **Express** (simple tasks).
 
 ## Standard Workflow
 
@@ -10,6 +10,7 @@ The orchestration workflow is defined by 40 steps in `src/references/orchestrati
 │  Turn 1: get_runtime_context → resolve_settings │
 │          → initialize_workspace → check session │
 │          → assess_task_complexity                │
+│          → parse MAESTRO_DISABLED_AGENTS         │
 │          → STOP (no output in Turn 1)           │
 └───────────────────────┬─────────────────────────┘
                         ▼
@@ -217,12 +218,11 @@ Non-negotiable checkpoints that block progression:
 | Agent dispatch | Step 23 | Must dispatch by agent's registered tool directly |
 | transition_phase | Step 25 | Must be called individually for EVERY completed phase |
 | Code review | Step 28 | Critical/Major findings block completion |
-| archive_session | Step 29 | Must archive if MAESTRO_AUTO_ARCHIVE=true |
 | Express 1-phase | Step 31 | Express sessions must have exactly one phase |
 | Express questions | Step 32 | Each question must use user prompt tool |
 | Express brief | Step 33 | Must present as plain text + separate approval prompt |
-| Express rejection | Step 34 | Second rejection escalates to Standard workflow |
 | Express agent | Step 36 | Must delegate by specific agent tool, not generalist |
+| Express transition_phase | Step 37 | Must call transition_phase after implementing agent returns |
 | Express review | Step 38 | Re-delegate on Critical/Major findings (1 retry) |
 
 ## Error Handling

@@ -59,7 +59,7 @@ Or with glob patterns:
 
 ### Transform Pipeline
 
-The generator exposes 9 transforms. Current manifest entries use a subset depending on the target surface.
+The generator exposes 10 transforms. Current manifest entries use a subset depending on the target surface.
 
 | Transform | Purpose |
 |-----------|---------|
@@ -82,7 +82,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 |-------|--------|--------|-------|
 | `outputDir` | `./` | `claude/` | `plugins/maestro/` |
 | `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` |
-| `delegationPattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}")` | `spawn_agent(...)` |
+| `delegationPattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` |
 | `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) |
 | `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | (not used) |
 
@@ -106,6 +106,10 @@ The MCP server is authored directly in modular source under `src/mcp/`. Runtime 
 
 ```
 src/mcp/
+├── maestro-server.js           # Server entry-point (runRuntimeServer)
+├── content/
+│   ├── provider.js             # Content provider abstraction
+│   └── runtime-content.js      # Runtime-specific content resolution
 ├── core/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
@@ -119,7 +123,9 @@ src/mcp/
 │   ├── validate-plan.js        # Plan validation + dependency DAG
 │   ├── resolve-settings.js     # Config resolution
 │   └── session-state-tools.js  # Session CRUD (5 tools)
-├── tool-packs/                 # Tool grouping
+├── tool-packs/
+│   ├── index.js                # Tool pack aggregation
+│   ├── contracts.js            # Tool schema contracts
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 5 tools
 │   └── content/index.js        # 3 tools
@@ -273,11 +279,11 @@ Ephemeral state stored in `/tmp/maestro-hooks-<uid>/`:
 
 ### Test Suite
 
-21 test files with 159 tests using Node.js built-in `node:test`:
+25 test files with 169 tests using Node.js built-in `node:test`:
 
-- 16 transform/unit tests
-- 5 integration tests
-- CI runs 12 of 21 files (121 of 159 tests); 9 files (38 tests) not yet wired into CI
+- 17 transform/unit tests
+- 8 integration tests
+- CI runs 12 of 25 files (120 of 169 tests); 13 files (49 tests) not yet wired into CI
 
 ### Zero-Drift Guarantee
 
@@ -287,4 +293,4 @@ CI validates that generated output matches committed state:
 2. Check `git diff --exit-code`
 3. Fail if any generated file differs from source
 
-Note: CI and `just test` run 12 of 21 test files (121 of 159 tests). The remaining 38 tests (MCP pack tests, entry-point templates, glob manifest, server entrypoint) are not yet wired into CI.
+Note: CI and `just test` run 12 of 25 test files (120 of 169 tests). The remaining 49 tests (MCP pack tests, entry-point templates, glob manifest, server entrypoint) are not yet wired into CI.

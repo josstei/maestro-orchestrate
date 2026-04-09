@@ -460,7 +460,7 @@ flowchart TD
 
 ### Component Model
 
-Maestro is built from seven primary layers plus shared resources (MCP server, templates, references). See ARCHITECTURE.md for the full nine-layer technical model. The Gemini CLI layout is at repo root; Claude Code mirrors it in `claude/` with platform-specific adaptations.
+Maestro is built from seven primary layers plus shared resources (MCP server, templates, references). See ARCHITECTURE.md for a guide to the project's technical documentation. The Gemini CLI layout is at repo root; Claude Code mirrors it in `claude/` with platform-specific adaptations.
 
 | Layer | Gemini Directory | Claude Directory | Purpose |
 |-------|-----------------|-----------------|---------|
@@ -563,7 +563,7 @@ All agents share a baseline read/search/question capability set. The tool tiers 
 | Content Strategist | Content | Content planning, editorial calendars, audience targeting | Read-Only |
 | Copywriter | Content | Persuasive copy, landing pages, CTAs, brand voice | Read + Write |
 | SEO Specialist | SEO | Technical SEO audits, schema markup, crawlability | Read + Shell |
-| Accessibility Specialist | Compliance | WCAG compliance, ARIA review, keyboard navigation | Read + Shell |
+| Accessibility Specialist | Design | WCAG compliance, ARIA review, keyboard navigation | Read + Shell |
 | Compliance Reviewer | Compliance | GDPR/CCPA auditing, license checks, data handling | Read-Only |
 | I18n Specialist | Internationalization | String extraction, locale management, RTL support | Full Access |
 | Analytics Engineer | Analytics | Event tracking, conversion funnels, A/B test design | Full Access |
