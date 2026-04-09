@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, adapter-only** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, and `plugins/maestro/`) only contain the manifests, entrypoints, discovery stubs, and public adapter files each host requires.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, and `plugins/maestro/`) contain the manifests, entrypoints, discovery stubs, public adapter files, and any generator-owned runtime payloads each host requires.
 
 ```
                     ┌─────────────┐
@@ -31,7 +31,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads runtime configs from `src/platforms/*/runtime-config.js`
 2. Expands manifest rules from `src/manifest.js` into concrete runtime outputs
-3. Copies or transforms only the public adapter assets each runtime needs
+3. Copies or transforms the public adapter assets and any generator-owned runtime payloads each runtime needs
 4. Expands the entry-point registry into runtime-specific command or skill surfaces
 5. Prunes stale generated adapter files from owned directories
 
@@ -100,7 +100,7 @@ Plus 3 core commands (orchestrate, execute, resume) maintained separately in `sr
 
 ## MCP Server Architecture
 
-The MCP server is authored directly in modular source under `src/mcp/`. Runtime roots expose thin public wrappers that resolve back into canonical `src/mcp/maestro-server.js`.
+The MCP server is authored directly in modular source under `src/mcp/`. Runtime roots expose thin public wrappers that resolve into the nearest generator-owned `src/mcp/maestro-server.js` payload.
 
 ### Module Structure
 
@@ -143,23 +143,24 @@ The content tools (`get_agent`, `get_skill_content`) are filesystem-only in ever
 - Claude: `primary=filesystem`, `fallback=none`
 - Codex: `primary=filesystem`, `fallback=none`
 
-Runtime wrappers carry a local `canonical-source.js` helper. That helper walks upward from the active runtime root until it finds the canonical project root, then resolves the request back into `src/`.
+Runtime wrappers carry a local `canonical-source.js` helper. That helper walks upward from the active runtime root until it finds the nearest generator-owned `src/` payload. In the repo root that is canonical `src/`; in the published Codex plugin that is generated `plugins/maestro/src/`.
 
 This makes one architectural rule explicit:
 
 - shared logic lives under `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`
-- runtime roots do not contain tracked mirrors of shared executable JS
-- Codex follows the same canonical filesystem path as Gemini and Claude
+- root `src/` is the only human-authored source of truth
+- generator-owned runtime-local mirrors are allowed when a bundled runtime needs self-containment
+- no hand-maintained runtime forks are allowed
 
 ### MCP Server Packaging
 
 Each runtime keeps the public entrypoint at `mcp/maestro-server.js`, but that file is only a façade:
 
 - it loads the local `canonical-source.js` helper
-- it resolves canonical `src/mcp/maestro-server.js`
+- it resolves the nearest generator-owned `src/mcp/maestro-server.js`
 - it calls `runRuntimeServer(<runtime>)`
 
-There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second source of truth.
+There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
 ### Tool Catalog (12 tools)
 

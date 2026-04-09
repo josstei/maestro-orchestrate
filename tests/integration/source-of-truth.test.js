@@ -9,6 +9,14 @@ const manifestRules = require('../../src/manifest');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 describe('src-first architecture invariants', () => {
+  it('ships a generated codex-local src payload for self-contained plugin installs', () => {
+    assert.equal(
+      fs.existsSync(path.join(ROOT, 'plugins/maestro/src/mcp/maestro-server.js')),
+      true,
+      'Expected generated Codex-local src mirror to exist'
+    );
+  });
+
   it('removes mirrored runtime lib trees and generated MCP core artifacts', () => {
     const forbiddenPaths = [
       'lib',

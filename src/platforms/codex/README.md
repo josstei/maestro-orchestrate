@@ -4,7 +4,7 @@ This directory is the generated Codex runtime for Maestro.
 
 Codex shares the same canonical `src/` source tree as the Gemini CLI and Claude Code outputs:
 - shared methodology, references, templates, hooks, and MCP server logic are authored only in `src/`
-- this plugin contains public entry skills, manifests, and thin adapters that resolve back into canonical `src/`
+- this plugin contains public entry skills, manifests, thin adapters, and a generated `./src/` runtime payload derived from canonical `src/`
 - Codex-specific behavior is isolated to this plugin's runtime guide and public entry skills, exposed under the plugin namespace as `$maestro:<skill>`
 - agent personas are generated under `./agents/` as reference documents so Codex delegation stays aligned without creating a hand-maintained fork
 
@@ -25,7 +25,7 @@ Codex shares the same canonical `src/` source tree as the Gemini CLI and Claude 
 
 ## Runtime notes
 
-- Shared methodology, references, templates, and agent bodies are served from canonical `src/` through the MCP adapter when MCP is available.
+- Shared methodology, references, templates, and agent bodies are authored in root `src/` and mirrored into generated `./src/` for self-contained Codex installs.
 - Maestro session state lives in `docs/maestro` in the workspace root.
 - The plugin ships `.mcp.json` for MCP-first operation, but the generated skills also include direct filesystem fallbacks under `docs/maestro` when MCP tools are unavailable.
 - Custom Codex subagents normally live in `.codex/agents`. This plugin does not write there. Instead, it ships `./agents/*.md` as registration stubs while `get_agent` serves the canonical methodology bodies.

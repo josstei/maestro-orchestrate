@@ -25,6 +25,10 @@ describe('zero-diff validation', () => {
       'Expected codex MCP helper to be generated and unchanged'
     );
     assert.ok(
+      report.statusLines.includes('[UNCHANGED] plugins/maestro/src/mcp/maestro-server.js'),
+      'Expected codex local src payload to be generated and unchanged'
+    );
+    assert.ok(
       report.statusLines.every((line) => !line.includes('/lib/')),
       'Did not expect mirrored lib outputs in dry-run status'
     );

@@ -107,6 +107,30 @@ function computeOutputPath(srcRelPath, runtime) {
   return outPath;
 }
 
+function normalizeOutputBase(outputBase, runtimeName) {
+  if (!outputBase) {
+    return '';
+  }
+
+  if (typeof outputBase === 'string') {
+    return outputBase;
+  }
+
+  if (typeof outputBase === 'object') {
+    return outputBase[runtimeName] || '';
+  }
+
+  throw new Error(`Invalid outputBase: ${JSON.stringify(outputBase)}`);
+}
+
+function joinRelativePath(base, relativePath) {
+  if (!base) {
+    return relativePath;
+  }
+
+  return path.posix.join(base, relativePath);
+}
+
 function buildRuntimeOutputPath(runtime, relativePath) {
   if (!runtime.outputDir || runtime.outputDir === './') {
     return relativePath;
@@ -186,8 +210,18 @@ function expandManifest(rules, runtimes, srcDir) {
             outPath = runtime.outputDir + outPath;
           }
           outputs[runtimeName] = outPath;
+        } else if (rule.preserveSourcePath) {
+          const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
+          outputs[runtimeName] = buildRuntimeOutputPath(
+            runtime,
+            joinRelativePath(outputBase, srcRelPath)
+          );
         } else {
-          outputs[runtimeName] = computeOutputPath(srcRelPath, runtime);
+          const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
+          outputs[runtimeName] = buildRuntimeOutputPath(
+            runtime,
+            joinRelativePath(outputBase, computeOutputPath(srcRelPath, { ...runtime, outputDir: './' }))
+          );
         }
       }
       entries.push({

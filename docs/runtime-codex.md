@@ -20,7 +20,7 @@ The Codex plugin lives in `plugins/maestro/`.
 }
 ```
 
-The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. It loads `plugins/maestro/mcp/canonical-source.js`, resolves the canonical `src/mcp/maestro-server.js`, and runs the Codex runtime against shared source in `src/`. Codex declares `primary: filesystem` and `fallback: none`, the same as Gemini and Claude.
+The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. It loads `plugins/maestro/mcp/canonical-source.js`, resolves the generated local `plugins/maestro/src/mcp/maestro-server.js`, and runs the Codex runtime against a self-contained bundle derived from canonical root `src/`. Codex declares `primary: filesystem` and `fallback: none`, the same as Gemini and Claude.
 
 ### Plugin Manifest
 
@@ -104,7 +104,7 @@ The runtime guide states:
 
 > If Maestro MCP tools are available, prefer them for stateful operations. If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
 
-This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are still resolved from canonical `src/`; there is no packaged registry copy.
+This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are resolved from generated local `plugins/maestro/src/`, which is produced from canonical root `src/`; there is no hand-maintained packaged registry copy.
 
 ## Tool Mapping
 
@@ -152,7 +152,8 @@ This differs from Gemini (passthrough variables) and Claude (environment variabl
 
 Codex follows the same source-of-truth model as the other runtimes:
 
-- shared skills, protocols, templates, references, and agent bodies live in canonical `src/`
+- shared skills, protocols, templates, references, and agent bodies are authored in canonical root `src/`
+- generated `plugins/maestro/src/` is the self-contained runtime payload for published Codex bundles
 - generated `plugins/maestro/skills/` files are public entrypoints or discovery stubs only
 - generated `plugins/maestro/agents/` files are registration stubs only
 - no tracked `plugins/maestro/lib/` mirror or bundled content registry is part of the runtime
@@ -163,6 +164,7 @@ Codex follows the same source-of-truth model as the other runtimes:
 plugins/maestro/
 ├── agents/                22 agent stubs (kebab-case)
 ├── skills/                19 skill directories
+├── src/                   generated self-contained runtime payload
 ├── mcp/                   public MCP entrypoint + canonical-source helper
 ├── references/            1 runtime guide
 ├── .codex-plugin/         1 plugin manifest
@@ -182,4 +184,4 @@ plugins/maestro/
 | Skill surface | N/A (commands) | 19 skills | plugin namespace `maestro:` |
 | Path style | Variable passthrough | Env var refs | Relative |
 | Extra files | TOML policy rules | policy-enforcer | runtime guide |
-| Total files | ~48 | ~55 | ~48 |
+| Runtime payload | adapter-only | adapter-only | adapter files + generated `src/` mirror |

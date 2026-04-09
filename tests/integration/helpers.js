@@ -1,3 +1,5 @@
+const fs = require('node:fs');
+const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
@@ -34,10 +36,24 @@ function parseDryRunReport(output) {
   };
 }
 
+async function withIsolatedCodexPlugin(fn) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-plugin-'));
+  const pluginRoot = path.join(tempRoot, 'maestro');
+
+  fs.cpSync(path.join(ROOT, 'plugins', 'maestro'), pluginRoot, { recursive: true });
+
+  try {
+    return await fn(pluginRoot);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 module.exports = {
   DRY_RUN_MARKER,
   ROOT,
   getGitStatus,
   parseDryRunReport,
   runGenerator,
+  withIsolatedCodexPlugin,
 };

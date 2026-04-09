@@ -37,6 +37,10 @@ describe('generator integration', () => {
       'Expected codex MCP entrypoint to be included in the dry-run report'
     );
     assert.ok(
+      report.statusLines.some((line) => line.includes('plugins/maestro/src/mcp/maestro-server.js')),
+      'Expected codex local src payload to be included in the dry-run report'
+    );
+    assert.ok(
       report.statusLines.every((line) => !line.includes('/lib/')),
       'Did not expect dry-run to mention mirrored lib outputs'
     );
