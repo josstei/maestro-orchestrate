@@ -1,12 +1,12 @@
 const codex = (relativePath) => `plugins/maestro/${relativePath}`;
 
 module.exports = [
-  // ── Codex self-contained runtime payload ───────────────────────────
+  // ── Self-contained runtime payloads ────────────────────────────────
   { glob: '**/*',
     transforms: ['copy'],
-    runtimes: ['codex'],
+    runtimes: ['claude', 'codex'],
     preserveSourcePath: true,
-    outputBase: 'src' },
+    outputBase: { claude: 'src', codex: 'src' } },
 
   // ── Agents ──────────────────────────────────────────────────────────
   { glob: 'agents/*.md',

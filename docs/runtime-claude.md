@@ -23,7 +23,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 }
 ```
 
-The public server at `claude/mcp/maestro-server.js` is a thin adapter. It loads `claude/mcp/canonical-source.js`, resolves the canonical `src/mcp/maestro-server.js`, and runs the Claude runtime against shared source in `src/`. Claude declares `primary: filesystem` and `fallback: none`.
+The public server at `claude/mcp/maestro-server.js` is a thin adapter. It loads `claude/mcp/canonical-source.js`, resolves the nearest generated local `src/mcp/maestro-server.js`, and runs the Claude runtime against a self-contained bundle derived from canonical root `src/`. Claude declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 

@@ -21,6 +21,10 @@ describe('zero-diff validation', () => {
       'Expected claude MCP helper to be generated and unchanged'
     );
     assert.ok(
+      report.statusLines.includes('[UNCHANGED] claude/src/mcp/maestro-server.js'),
+      'Expected claude local src payload to be generated and unchanged'
+    );
+    assert.ok(
       report.statusLines.includes('[UNCHANGED] plugins/maestro/mcp/canonical-source.js'),
       'Expected codex MCP helper to be generated and unchanged'
     );
