@@ -5,7 +5,7 @@ The Codex plugin lives in `plugins/maestro/`.
 ## Configuration
 
 **Manifest**: `plugins/maestro/.codex-plugin/plugin.json`
-**Version**: 1.6.0
+**Version**: 1.6.1
 **MCP Config**: `plugins/maestro/.mcp.json`
 **App Config**: `plugins/maestro/.app.json`
 **Runtime Guide**: `plugins/maestro/references/runtime-guide.md`
@@ -34,7 +34,7 @@ That keeps Maestro state rooted under the actual workspace `docs/maestro` path e
 ```json
 {
   "name": "maestro",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
   "author": { "name": "josstei", "url": "https://github.com/josstei" },
   "homepage": "https://github.com/josstei/maestro-orchestrate",

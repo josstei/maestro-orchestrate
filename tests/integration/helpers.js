@@ -49,11 +49,25 @@ async function withIsolatedCodexPlugin(fn) {
   }
 }
 
+async function withIsolatedClaudePlugin(fn) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-plugin-'));
+  const pluginRoot = path.join(tempRoot, 'maestro');
+
+  fs.cpSync(path.join(ROOT, 'claude'), pluginRoot, { recursive: true });
+
+  try {
+    return await fn(pluginRoot);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 module.exports = {
   DRY_RUN_MARKER,
   ROOT,
   getGitStatus,
   parseDryRunReport,
   runGenerator,
+  withIsolatedClaudePlugin,
   withIsolatedCodexPlugin,
 };

@@ -33,6 +33,10 @@ describe('generator integration', () => {
       'Expected claude MCP entrypoint to be included in the dry-run report'
     );
     assert.ok(
+      report.statusLines.some((line) => line.includes('claude/src/mcp/maestro-server.js')),
+      'Expected claude local src payload to be included in the dry-run report'
+    );
+    assert.ok(
       report.statusLines.some((line) => line.includes('plugins/maestro/mcp/maestro-server.js')),
       'Expected codex MCP entrypoint to be included in the dry-run report'
     );

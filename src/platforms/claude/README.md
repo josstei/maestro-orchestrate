@@ -1,6 +1,6 @@
 # Maestro — Claude Code Plugin
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue)](https://github.com/josstei/maestro-orchestrate/releases)
+[![Version](https://img.shields.io/badge/version-1.6.1-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache-2.0-green)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-orange)](https://docs.anthropic.com/en/docs/claude-code)
 
@@ -74,7 +74,7 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 }
 ```
 
-**Note:** Claude is filesystem-backed for shared MCP content. Shared skills, templates, references, and delegation protocols come from the canonical `src/` tree through `get_skill_content`, while runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
+**Note:** Claude is filesystem-backed for shared MCP content. Published Claude bundles carry a generated local `src/` payload derived from the canonical source tree, and shared skills, templates, references, and delegation protocols are loaded from that local payload through `get_skill_content`. Runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
 
 ## Quick Start
 

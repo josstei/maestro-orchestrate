@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
-const { ROOT, withIsolatedCodexPlugin } = require('./helpers');
+const { ROOT, withIsolatedClaudePlugin, withIsolatedCodexPlugin } = require('./helpers');
 const { spawnMcpServer } = require('./mcp-stdio-client');
 
 async function withServer(options, fn) {
@@ -45,6 +45,19 @@ describe('mcp server bundle behavior', () => {
         const skillTool = tools.find((tool) => tool.name === 'get_skill_content');
 
         assert.ok(skillTool, 'Expected get_skill_content for isolated codex bundle');
+        assert.match(
+          skillTool.description,
+          /runtime-configured Maestro content source/
+        );
+      });
+    });
+
+    await withIsolatedClaudePlugin(async (pluginRoot) => {
+      await withServer({ cwd: pluginRoot, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+        const tools = await client.listTools();
+        const skillTool = tools.find((tool) => tool.name === 'get_skill_content');
+
+        assert.ok(skillTool, 'Expected get_skill_content for isolated claude bundle');
         assert.match(
           skillTool.description,
           /runtime-configured Maestro content source/
@@ -99,6 +112,29 @@ describe('mcp server bundle behavior', () => {
           });
 
           assert.ok(skillResult.parsed.contents.delegation.includes('# Delegation Skill'));
+          assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
+          assert.deepEqual(skillResult.parsed.errors, {});
+          assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
+          assert.deepEqual(agentResult.parsed.errors, {});
+        }
+      );
+    });
+
+    await withIsolatedClaudePlugin(async (pluginRoot) => {
+      await withServer(
+        {
+          cwd: pluginRoot,
+          relativePath: 'mcp/maestro-server.js',
+        },
+        async (client) => {
+          const skillResult = await client.callTool('get_skill_content', {
+            resources: ['delegation', 'architecture'],
+          });
+          const agentResult = await client.callTool('get_agent', {
+            agents: ['coder'],
+          });
+
+          assert.ok(skillResult.parsed.contents.delegation.includes('user-invocable: false'));
           assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
           assert.deepEqual(skillResult.parsed.errors, {});
           assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));

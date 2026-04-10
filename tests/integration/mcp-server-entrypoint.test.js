@@ -2,7 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 
-const { ROOT, withIsolatedCodexPlugin } = require('./helpers');
+const { ROOT, withIsolatedClaudePlugin, withIsolatedCodexPlugin } = require('./helpers');
 
 function waitForServerStartup(relativePath, cwd = ROOT) {
   return new Promise((resolve, reject) => {
@@ -91,6 +91,15 @@ describe('mcp server entrypoint startup', () => {
 
   it('starts the claude runtime server without external SDK installation', async () => {
     const result = await waitForServerStartup('claude/mcp/maestro-server.js');
+
+    assert.match(result.stderr, /\[info\] maestro: MCP server starting/);
+    assert.match(result.stderr, /\[info\] maestro: MCP server connected/);
+  });
+
+  it('starts the installed claude runtime server from an isolated plugin bundle', async () => {
+    const result = await withIsolatedClaudePlugin((pluginRoot) =>
+      waitForServerStartup('mcp/maestro-server.js', pluginRoot)
+    );
 
     assert.match(result.stderr, /\[info\] maestro: MCP server starting/);
     assert.match(result.stderr, /\[info\] maestro: MCP server connected/);
