@@ -21,7 +21,8 @@
     "seo_specialist": "gemini-3.1-pro-preview",
     "technical_writer": "gemini-3-flash-preview",
     "tester": "gemini-3.1-pro-preview",
-    "ux_designer": "gemini-3.1-pro-preview"
+    "ux_designer": "gemini-3.1-pro-preview",
+    "codebase_investigator": "gemini-3.1-pro-preview"
   },
   "balanced": {
     "accessibility_specialist": "gemini-3-flash-preview",
@@ -45,7 +46,8 @@
     "seo_specialist": "gemini-3-flash-preview",
     "technical_writer": "gemini-3-flash-preview",
     "tester": "gemini-3-flash-preview",
-    "ux_designer": "gemini-3-flash-preview"
+    "ux_designer": "gemini-3-flash-preview",
+    "codebase_investigator": "gemini-3-flash-preview"
   },
   "economic": {
     "accessibility_specialist": "gemini-3.1-flash-lite-preview",
@@ -69,6 +71,7 @@
     "seo_specialist": "gemini-3.1-flash-lite-preview",
     "technical_writer": "gemini-3.1-flash-lite-preview",
     "tester": "gemini-3-flash-preview",
-    "ux_designer": "gemini-3-flash-preview"
+    "ux_designer": "gemini-3-flash-preview",
+    "codebase_investigator": "gemini-3.1-flash-lite-preview"
   }
 }
