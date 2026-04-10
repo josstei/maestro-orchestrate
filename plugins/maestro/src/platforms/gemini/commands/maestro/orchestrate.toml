@@ -18,11 +18,11 @@ This preamble maps generic step references to Gemini CLI tool syntax.
 | Load template/reference/protocol | `get_skill_content(resources: ["<name>"])` |
 | Delegate to agent | Call agent tool by name: `coder(query: "...")`, `tester(query: "...")`, `design_system_engineer(query: "...")` |
 | MCP tools | `mcp_maestro_<tool_name>` (Gemini CLI also accepts bare names like `resolve_settings`) |
-| Enter Plan Mode | `enter_plan_mode` |
+| Enter Plan Mode | `enter_plan_mode` — if unavailable, tell user: "Run `gemini --settings` and set `experimental.plan` to `true`, then Request Restart." Offer to continue without Plan Mode using `ask_user` for approvals. |
 | Exit Plan Mode | `exit_plan_mode` with `plan_filename` |
 | User prompt (choose) | `ask_user` with `type: 'choice'` |
 | User prompt (approve) | `ask_user` with `type: 'yesno'` |
-| Define Agent Models | No Action (NOOP) |
+| Define Agent Models | `ask_user` for valid mode (`quality`, `balanced`, `economic`, `skip`) and call `setup_models` with the selected mode. Then Request Restart. |
 | Request Restart | STOP here and wait for the user to restart and signal to continue. Do NOT proceed. |
 
 ## Execute
