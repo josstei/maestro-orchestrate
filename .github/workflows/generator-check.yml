@@ -1,0 +1,31 @@
+name: Source Of Truth Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate runtime adapters
+        run: node scripts/generate.js
+
+      - name: Check adapter drift
+        run: |
+          if ! git diff --exit-code --name-only; then
+            echo "::error::Runtime adapters are out of sync with canonical src. Run 'node scripts/generate.js' and commit the changes."
+            git diff --stat
+            exit 1
+          fi
+
+      - name: Run architecture checks
+        run: node --test tests/transforms/*.test.js tests/integration/*.test.js

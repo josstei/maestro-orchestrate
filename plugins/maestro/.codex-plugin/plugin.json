@@ -1,0 +1,40 @@
+{
+  "name": "maestro",
+  "version": "1.6.0",
+  "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
+  "author": {
+    "name": "josstei",
+    "url": "https://github.com/josstei"
+  },
+  "homepage": "https://github.com/josstei/maestro-orchestrate",
+  "repository": "https://github.com/josstei/maestro-orchestrate",
+  "license": "Apache-2.0",
+  "keywords": [
+    "orchestration",
+    "multi-agent",
+    "planning",
+    "execution",
+    "coding"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Maestro",
+    "shortDescription": "Multi-agent coding orchestration for Codex",
+    "longDescription": "Generated Codex runtime for Maestro. Shared methodology, templates, references, and agent personas stay aligned with the Gemini CLI and Claude Code runtimes while Codex-specific delegation and state handling stay isolated to this plugin.",
+    "developerName": "josstei",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/josstei/maestro-orchestrate",
+    "defaultPrompt": [
+      "Use Maestro to orchestrate a feature from design through implementation and review.",
+      "Use Maestro to review my changes and block on critical or major findings.",
+      "Use Maestro to debug a failing workflow and route investigation to the right specialist."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

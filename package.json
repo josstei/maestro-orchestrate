@@ -1,8 +1,12 @@
 {
   "name": "@maestro-orchestrator/gemini-extension",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
   "license": "Apache-2.0",
+  "scripts": {
+    "generate": "node scripts/generate.js",
+    "build": "npm run generate"
+  },
   "keywords": [
     "orchestration",
     "multi-agent",
@@ -12,14 +16,12 @@
   "files": [
     "agents/",
     "commands/",
+    "docs/",
     "hooks/",
-    "lib/",
     "mcp/",
     "policies/",
     "scripts/",
-    "skills/",
-    "templates/",
-    "references/",
+    "src/",
     "GEMINI.md",
     "gemini-extension.json",
     "README.md",
