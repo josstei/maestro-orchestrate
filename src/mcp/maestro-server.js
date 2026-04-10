@@ -15,7 +15,7 @@ const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
 const CLIENT_REQUEST_TIMEOUT_MS = 1000;
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
-  version: '1.6.0',
+  version: '1.6.1',
 });
 
 function writeMessage(output, message) {

@@ -1,6 +1,6 @@
 # Maestro — Gemini CLI Extension
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue)](https://github.com/josstei/maestro-orchestrate/releases)
+[![Version](https://img.shields.io/badge/version-1.6.1-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
 
