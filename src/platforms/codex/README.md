@@ -2,6 +2,27 @@
 
 This directory is the generated Codex runtime for Maestro.
 
+## Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/josstei/maestro-orchestrate
+   cd maestro-orchestrate
+   ```
+
+2. Start Codex and install the plugin:
+
+   ```
+   /plugins
+   ```
+
+3. Select **Maestro** and choose **Install**.
+
+This installation process will evolve as Codex adds easier plugin installation mechanisms.
+
+## Architecture
+
 Codex shares the same canonical `src/` source tree as the Gemini CLI and Claude Code outputs:
 - shared methodology, references, templates, hooks, and MCP server logic are authored only in `src/`
 - this plugin contains public entry skills, manifests, thin adapters, and a generated `./src/` runtime payload derived from canonical `src/`
