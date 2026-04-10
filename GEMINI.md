@@ -29,6 +29,17 @@ Before running orchestration commands:
    - If `initialize_workspace` appears in your available tools, call it with the resolved `state_dir`. This is the preferred path.
    - Otherwise, run `node ${extensionPath}/src/scripts/ensure-workspace.js <resolved-state-dir>` as fallback.
    - Stop and report if either fails.
+5. Subagent model assignment:
+    - Use `ask_user` with `type: 'choice'` to prompt for operating mode:
+      - **Quality**: Higher accuracy, higher cost
+      - **Balanced**: Balanced performance and cost
+      - **Economic**: Lowest cost, lower performance
+      - **Skip**: Use existing configuration if available, otherwise Gemini client decides
+    - After selection:
+      - If **Skip** was selected, do NOT call `setup_models`.
+      - Otherwise, call the `setup_models` MCP tool with the `mode` parameter set to the selected mode to create the file with the appropriate agent overrides.
+    - **Halt Execution**: Inform the user: "A restart of the Gemini client is necessary to activate the subagent model configuration. Restart the client and resume the session. I'll be waiting here."
+    - **Wait for signal**: STOP here and wait for the user to restart and signal to continue. Do NOT proceed to Step 4 in this turn.
 
 ## Gemini CLI Integration Constraints
 
