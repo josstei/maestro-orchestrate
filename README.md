@@ -72,7 +72,24 @@ More Claude-specific setup and plugin management lives in [claude/README.md](cla
 
 #### Codex
 
-Maestro also ships a Codex runtime under `plugins/maestro/`. Public skill names, runtime behavior, and packaging details are documented in [docs/runtime-codex.md](docs/runtime-codex.md). This README intentionally does not publish Codex installation steps.
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/josstei/maestro-orchestrate
+   cd maestro-orchestrate
+   ```
+
+2. Start Codex and install the plugin:
+
+   ```
+   /plugins
+   ```
+
+3. Select **Maestro** and choose **Install**.
+
+This installation process will evolve as Codex adds easier plugin installation mechanisms.
+
+More Codex-specific setup and runtime details live in [plugins/maestro/README.md](plugins/maestro/README.md) and [docs/runtime-codex.md](docs/runtime-codex.md).
 
 ### Quick Start
 
