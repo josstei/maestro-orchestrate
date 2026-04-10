@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-04-10
+
+### Added
+
+- **Self-contained Claude runtime payload** (`src/manifest.js`) — Added `'claude'` to the self-contained runtime payload manifest rule (already used by Codex) so the full `src/` tree is bundled into `claude/src/`; canonical-source resolution now succeeds from plugin caches outside the repo tree
+- **`withIsolatedClaudePlugin` test helper** (`tests/integration/helpers.js`) — Copies the generated `claude/` directory into an isolated temp directory for testing plugin behavior outside the repo tree; mirrors the existing `withIsolatedCodexPlugin` helper
+- **Isolated Claude bundle integration tests** — Hook entrypoint boot test, MCP server startup test, MCP tool listing and content serving tests, all running against an isolated plugin bundle
+
+### Fixed
+
+- **Claude plugin canonical-source resolution from plugin cache** — `requireFromCanonicalSrc(__dirname)` in hook scripts (`session-start.js`, `before-agent.js`, `session-end.js`) and MCP entry-point walked up from `~/.claude/plugins/cache/` looking for `src/mcp/maestro-server.js` but never found it because the Claude runtime did not bundle `src/`; resolved by the self-contained payload rule above
+
 ## [1.6.0] - 2026-04-09
 
 ### Added
