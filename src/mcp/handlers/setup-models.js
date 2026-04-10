@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { atomicWriteSync } = require('../../core/atomic-write');
+const { resolveExtensionRoot } = require('../utils/extension-root');
 
 /**
  * Handle setup_models tool call.
@@ -25,7 +26,6 @@ async function handleSetupModels(params, projectRoot) {
 
   const settingsPath = path.join(projectRoot, '.gemini', 'settings.json');
 
-  const { resolveExtensionRoot } = require('../utils/extension-root');
   const extensionRoot = resolveExtensionRoot();
   const modesPath = path.join(extensionRoot, 'src', 'config', 'agent-modes.json');
 
