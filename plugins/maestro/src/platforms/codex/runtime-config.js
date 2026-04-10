@@ -6,6 +6,7 @@ module.exports = {
 
   env: {
     extensionPath: '.',
+    workspacePath: 'MAESTRO_WORKSPACE_PATH',
   },
 
   relativeExtensionPath: true,

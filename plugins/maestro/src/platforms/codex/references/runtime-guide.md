@@ -19,6 +19,12 @@ Maestro state lives in `docs/maestro` in the workspace root:
 - plans: `docs/maestro/plans/`
 - archives: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
 
+Resolve that workspace root in this order:
+
+1. `MAESTRO_WORKSPACE_PATH`, when the host exports it and it points to a real path
+2. the first valid local `file://` root returned by the MCP client `roots/list` request
+3. inherited env or `cwd` fallback heuristics from the shared resolver
+
 If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root.
 
 ## Tool mapping

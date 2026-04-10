@@ -1,15 +1,18 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const readline = require('node:readline');
 
 const { log, fatal } = require('../core/logger');
-const { resolveProjectRoot } = require('../core/project-root-resolver');
+const { resolveProjectRootForRuntime } = require('../core/project-root-resolver');
 const { createServer } = require('./core/create-server');
 const { DEFAULT_TOOL_PACKS } = require('./tool-packs');
 const { getRuntimeConfig, getDefaultRuntimeConfig } = require('./runtime/runtime-config-map');
 const { resolveCanonicalSrcFromExtensionRoot } = require('./utils/extension-root');
 
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
+const CLIENT_REQUEST_TIMEOUT_MS = 1000;
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
   version: '1.6.0',
@@ -76,9 +79,56 @@ function createLineDispatcher(stdin, onMessage) {
   return lineReader;
 }
 
-function createProtocolHandlers(server, getProjectRoot, stdout) {
+function createProtocolHandlers(server, getProjectRoot, stdout, callbacks = {}) {
+  const pendingClientRequests = new Map();
+  let nextClientRequestId = 1;
+
+  function settleClientRequest(message) {
+    if (!message || message.id == null) {
+      return false;
+    }
+
+    const entry = pendingClientRequests.get(message.id);
+    if (!entry) {
+      return false;
+    }
+
+    pendingClientRequests.delete(message.id);
+    clearTimeout(entry.timeout);
+
+    if (message.error) {
+      entry.reject(new Error(message.error.message || JSON.stringify(message.error)));
+      return true;
+    }
+
+    entry.resolve(message.result);
+    return true;
+  }
+
+  function requestFromClient(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      const id = `server-${nextClientRequestId++}`;
+      const timeout = setTimeout(() => {
+        pendingClientRequests.delete(id);
+        reject(new Error(`Timed out waiting for client response to ${method}`));
+      }, CLIENT_REQUEST_TIMEOUT_MS);
+
+      pendingClientRequests.set(id, { resolve, reject, timeout });
+      writeMessage(stdout, {
+        jsonrpc: '2.0',
+        id,
+        method,
+        params,
+      });
+    });
+  }
+
   async function respond(message) {
     if (!message || typeof message !== 'object') {
+      return;
+    }
+
+    if (settleClientRequest(message)) {
       return;
     }
 
@@ -87,6 +137,10 @@ function createProtocolHandlers(server, getProjectRoot, stdout) {
     }
 
     if (message.method === 'initialize') {
+      if (typeof callbacks.onInitialize === 'function') {
+        await Promise.resolve(callbacks.onInitialize(message.params || {}));
+      }
+
       writeMessage(stdout, {
         jsonrpc: '2.0',
         id: message.id,
@@ -95,10 +149,22 @@ function createProtocolHandlers(server, getProjectRoot, stdout) {
       return;
     }
 
+    if (message.method === 'notifications/initialized') {
+      if (typeof callbacks.onInitialized === 'function') {
+        await Promise.resolve(callbacks.onInitialized());
+      }
+      return;
+    }
+
+    if (message.method === 'notifications/roots/list_changed') {
+      if (typeof callbacks.onRootsListChanged === 'function') {
+        await Promise.resolve(callbacks.onRootsListChanged());
+      }
+      return;
+    }
+
     if (
-      message.method === 'notifications/initialized' ||
       message.method === 'notifications/cancelled' ||
-      message.method === 'notifications/roots/list_changed' ||
       message.method === '$/cancelRequest'
     ) {
       return;
@@ -130,7 +196,8 @@ function createProtocolHandlers(server, getProjectRoot, stdout) {
         message.params && message.params.arguments && typeof message.params.arguments === 'object'
           ? message.params.arguments
           : {};
-      const outcome = await server.callTool(name, args, getProjectRoot());
+      const projectRoot = await getProjectRoot();
+      const outcome = await server.callTool(name, args, projectRoot);
 
       if (outcome.ok) {
         writeMessage(stdout, {
@@ -164,7 +231,7 @@ function createProtocolHandlers(server, getProjectRoot, stdout) {
     });
   }
 
-  return { respond };
+  return { requestFromClient, respond };
 }
 
 function normalizeRuntimeConfig(runtimeConfig) {
@@ -191,9 +258,68 @@ function runRuntimeServer(runtimeConfig, options = {}) {
   const stdout = options.stdout || process.stdout;
 
   let cachedProjectRoot;
-  function getProjectRoot() {
+  let cachedClientRoots;
+  let clientRootsPromise;
+  let clientSupportsRoots = false;
+
+  function hasExplicitWorkspaceEnv() {
+    const workspaceEnvName =
+      resolvedRuntimeConfig && resolvedRuntimeConfig.env
+        ? resolvedRuntimeConfig.env.workspacePath
+        : null;
+    const workspaceEnvValue = workspaceEnvName ? process.env[workspaceEnvName] : null;
+    if (!workspaceEnvValue || workspaceEnvValue.includes('${')) {
+      return false;
+    }
+
+    return fs.existsSync(path.resolve(workspaceEnvValue));
+  }
+
+  async function fetchClientRoots(force = false) {
+    if (hasExplicitWorkspaceEnv()) {
+      return [];
+    }
+
+    if (!clientSupportsRoots) {
+      return [];
+    }
+
+    if (cachedClientRoots !== undefined && !force) {
+      return cachedClientRoots;
+    }
+
+    if (clientRootsPromise && !force) {
+      return clientRootsPromise;
+    }
+
+    clientRootsPromise = requestFromClient('roots/list', {})
+      .then((result) => {
+        const roots =
+          result && Array.isArray(result.roots)
+            ? result.roots
+            : [];
+        cachedClientRoots = roots;
+        return roots;
+      })
+      .catch(() => {
+        cachedClientRoots = [];
+        return cachedClientRoots;
+      })
+      .finally(() => {
+        clientRootsPromise = null;
+      });
+
+    return clientRootsPromise;
+  }
+
+  async function getProjectRoot() {
     if (!cachedProjectRoot) {
-      cachedProjectRoot = resolveProjectRoot();
+      const clientRoots = hasExplicitWorkspaceEnv() ? [] : await fetchClientRoots();
+      cachedProjectRoot = resolveProjectRootForRuntime(resolvedRuntimeConfig, {
+        env: process.env,
+        clientRoots,
+        cwd: process.cwd(),
+      });
     }
 
     return cachedProjectRoot;
@@ -207,7 +333,26 @@ function runRuntimeServer(runtimeConfig, options = {}) {
     toolPacks,
   });
 
-  const { respond } = createProtocolHandlers(server, getProjectRoot, stdout);
+  const { requestFromClient, respond } = createProtocolHandlers(server, getProjectRoot, stdout, {
+    onInitialize(params) {
+      clientSupportsRoots = Boolean(
+        params &&
+          params.capabilities &&
+          params.capabilities.roots
+      );
+    },
+    async onInitialized() {
+      if (!hasExplicitWorkspaceEnv()) {
+        await fetchClientRoots(true);
+        cachedProjectRoot = undefined;
+      }
+    },
+    onRootsListChanged() {
+      cachedClientRoots = undefined;
+      clientRootsPromise = null;
+      cachedProjectRoot = undefined;
+    },
+  });
   const lineReader = createLineDispatcher(stdin, (message) => {
     Promise.resolve(respond(message)).catch((error) => {
       log('error', `Failed to handle MCP message: ${error.message}`);

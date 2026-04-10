@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { fileURLToPath } = require('node:url');
 
 function resolveGitRoot(baseDir) {
   return execSync('git rev-parse --show-toplevel', {
@@ -12,36 +13,111 @@ function resolveGitRoot(baseDir) {
   }).trim();
 }
 
-function resolveProjectRoot() {
-  const candidates = [
-    process.env.MAESTRO_WORKSPACE_PATH,
-    process.env.CLAUDE_PROJECT_DIR,
-    process.env.PWD,
-    process.env.INIT_CWD,
-  ];
+function resolveExistingRoot(candidate) {
+  if (!candidate || candidate.includes('${')) {
+    return null;
+  }
 
+  const resolvedCandidate = path.resolve(candidate);
+  if (!fs.existsSync(resolvedCandidate)) {
+    return null;
+  }
+
+  try {
+    return resolveGitRoot(resolvedCandidate);
+  } catch {
+    return resolvedCandidate;
+  }
+}
+
+function resolveProjectRootFromCandidates(candidates) {
   for (const candidate of candidates) {
-    if (!candidate || candidate.includes('${')) {
-      continue;
+    const resolvedRoot = resolveExistingRoot(candidate);
+    if (resolvedRoot) {
+      return resolvedRoot;
     }
+  }
 
-    const resolvedCandidate = path.resolve(candidate);
-    if (!fs.existsSync(resolvedCandidate)) {
+  return null;
+}
+
+function extractClientRootCandidates(clientRoots) {
+  if (!Array.isArray(clientRoots)) {
+    return [];
+  }
+
+  const candidates = [];
+  for (const clientRoot of clientRoots) {
+    const uri =
+      typeof clientRoot === 'string'
+        ? clientRoot
+        : clientRoot && typeof clientRoot.uri === 'string'
+          ? clientRoot.uri
+          : null;
+
+    if (!uri) {
       continue;
     }
 
     try {
-      return resolveGitRoot(resolvedCandidate);
+      const parsed = new URL(uri);
+      if (parsed.protocol !== 'file:') {
+        continue;
+      }
+
+      candidates.push(fileURLToPath(parsed));
     } catch {
-      return resolvedCandidate;
+      continue;
     }
   }
 
-  try {
-    return resolveGitRoot(process.cwd());
-  } catch {
-    return process.cwd();
-  }
+  return candidates;
 }
 
-module.exports = { resolveProjectRoot };
+function resolveProjectRootFromEnv(env, cwd) {
+  const candidates = [
+    env.MAESTRO_WORKSPACE_PATH,
+    env.CLAUDE_PROJECT_DIR,
+    env.PWD,
+    env.INIT_CWD,
+  ];
+
+  const resolvedRoot = resolveProjectRootFromCandidates(candidates);
+  if (resolvedRoot) {
+    return resolvedRoot;
+  }
+
+  return resolveExistingRoot(cwd) || path.resolve(cwd);
+}
+
+function resolveProjectRootForRuntime(runtimeConfig = {}, options = {}) {
+  const env = options.env || process.env;
+  const cwd = options.cwd || process.cwd();
+  const workspaceEnvName =
+    runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
+  const explicitWorkspacePath =
+    workspaceEnvName && env[workspaceEnvName] ? env[workspaceEnvName] : null;
+
+  const explicitRoot = resolveExistingRoot(explicitWorkspacePath);
+  if (explicitRoot) {
+    return explicitRoot;
+  }
+
+  const clientRoot = resolveProjectRootFromCandidates(
+    extractClientRootCandidates(options.clientRoots)
+  );
+  if (clientRoot) {
+    return clientRoot;
+  }
+
+  return resolveProjectRootFromEnv(env, cwd);
+}
+
+function resolveProjectRoot() {
+  return resolveProjectRootFromEnv(process.env, process.cwd());
+}
+
+module.exports = {
+  resolveProjectRoot,
+  resolveProjectRootForRuntime,
+};

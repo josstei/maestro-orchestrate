@@ -7,6 +7,23 @@ const { ROOT } = require('./helpers');
 function spawnMcpServer(options) {
   const cwd = options.cwd || ROOT;
   const relativePath = options.relativePath;
+  const roots = Array.isArray(options.roots)
+    ? options.roots.map((root) => {
+        if (typeof root === 'string') {
+          return {
+            uri: pathToFileURL(root).href,
+            name: path.basename(root) || root,
+          };
+        }
+
+        return root;
+      })
+    : [
+        {
+          uri: pathToFileURL(cwd).href,
+          name: path.basename(cwd) || cwd,
+        },
+      ];
   const child = spawn(process.execPath, [relativePath], {
     cwd,
     env: {
@@ -68,12 +85,7 @@ function spawnMcpServer(options) {
 
     if (message && message.method === 'roots/list' && message.id != null) {
       sendResponse(message.id, {
-        roots: [
-          {
-            uri: pathToFileURL(cwd).href,
-            name: path.basename(cwd) || cwd,
-          },
-        ],
+        roots,
       });
     }
   }

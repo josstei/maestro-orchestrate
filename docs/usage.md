@@ -67,9 +67,9 @@ All settings are resolved with precedence: environment variable > workspace `.en
 |----------|---------|---------|
 | `MAESTRO_EXTENSION_PATH` | Gemini | Override extension root path |
 | `MAESTRO_WORKSPACE_PATH` | Gemini | Workspace root (set by Gemini CLI) |
+| `MAESTRO_WORKSPACE_PATH` | Codex | Optional workspace root override; otherwise Codex uses MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
 | `CLAUDE_PROJECT_DIR` | Claude | Project directory (set by Claude Code) |
-| `—` | Codex | No runtime-specific environment variables are required; the plugin uses relative paths |
 
 ## Invoking Maestro
 

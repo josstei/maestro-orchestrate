@@ -22,6 +22,13 @@ The Codex plugin lives in `plugins/maestro/`.
 
 The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. It loads `plugins/maestro/mcp/canonical-source.js`, resolves the generated local `plugins/maestro/src/mcp/maestro-server.js`, and runs the Codex runtime against a self-contained bundle derived from canonical root `src/`. Codex declares `primary: filesystem` and `fallback: none`, the same as Gemini and Claude.
 
+For workspace resolution, Codex now follows the shared runtime contract:
+- use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
+- otherwise fall back to the MCP client `roots/list` response
+- only then fall back to inherited env and `cwd` heuristics
+
+That keeps Maestro state rooted under the actual workspace `docs/maestro` path even when the Codex plugin is launched from an isolated bundle directory.
+
 ### Plugin Manifest
 
 ```json
@@ -144,9 +151,12 @@ All Gemini-specific and Claude-specific flags are `false`.
 Codex uses relative paths (`relativeExtensionPath: true`):
 
 - `env.extensionPath`: `.` (plugin root)
+- `env.workspacePath`: `MAESTRO_WORKSPACE_PATH` when available
 - Path references in generated content are computed relative to the output file's location
 
 This differs from Gemini (passthrough variables) and Claude (environment variable references).
+
+When `MAESTRO_WORKSPACE_PATH` is not set, the MCP server uses the first valid local `file://` root from the client `roots/list` response before falling back to legacy env and `cwd` detection.
 
 ## Canonical Filesystem Content
 

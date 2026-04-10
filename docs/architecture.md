@@ -84,7 +84,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` |
 | `delegationPattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` |
 | `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) |
-| `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | (not used) |
+| `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` |
 
 ### Entry-Point Registry
 
@@ -161,6 +161,8 @@ Each runtime keeps the public entrypoint at `mcp/maestro-server.js`, but that fi
 - it calls `runRuntimeServer(<runtime>)`
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
+
+Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
 ### Tool Catalog (12 tools)
 
