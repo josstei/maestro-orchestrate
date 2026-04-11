@@ -31,8 +31,8 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 3 |
-| Source transforms | 10 |
-| Test cases | 169 |
+| Source transforms | 4 |
+| Test cases | 121 |
 
 ## Project Structure
 
@@ -44,20 +44,19 @@ maestro-orchestrate/
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
 │   ├── transforms/               # Generator transform library
-│   ├── entry-points/             # 9 entry-point registry + 3 templates
+│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 6 templates
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
 │   ├── state/                    # Session-state helpers
-│   ├── hooks/                    # Hook configs + canonical hook logic
-│   │   ├── hook-configs/         # gemini.json, claude.json
-│   │   └── logic/                # Shared hook implementations
+│   ├── hooks/                    # Shared hook logic modules
+│   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime adapters, manifests, and public shells
 │   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/
 │   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 25 test files, 169 tests
+├── tests/                        # 22 test files, 121 tests
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
@@ -75,7 +74,6 @@ maestro-orchestrate/
 │   └── .mcp.json                 # MCP server config
 │
 └── plugins/maestro/              # [generated] Codex plugin
-    ├── agents/                   # Codex agent stubs
     ├── skills/                   # Codex skills (19)
     ├── src/                      # generated detached runtime payload
     ├── mcp/                      # Codex MCP adapter
@@ -121,7 +119,7 @@ A bundled Model Context Protocol server providing 12 tools across 3 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, feature, tool, path, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
+A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
 
 ### State Management
 
