@@ -370,8 +370,9 @@ function runRuntimeServer(runtimeConfig, options = {}) {
   };
 }
 
-function main(runtimeConfig = getDefaultRuntimeConfig()) {
-  runRuntimeServer(runtimeConfig);
+function main(runtimeConfig) {
+  const resolved = runtimeConfig || process.env.MAESTRO_RUNTIME || getDefaultRuntimeConfig();
+  runRuntimeServer(resolved);
 }
 
 if (require.main === module) {

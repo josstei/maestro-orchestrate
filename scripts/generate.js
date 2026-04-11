@@ -9,6 +9,100 @@ const { resolve: resolveTransform } = require('../src/transforms');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
+const DETACHED_PAYLOAD_ALLOWLIST = [
+  'core/',
+  'config/',
+  'hooks/',
+  'mcp/',
+  'platforms/shared/',
+  'platforms/claude/runtime-config.js',
+  'platforms/codex/runtime-config.js',
+  'platforms/gemini/runtime-config.js',
+  'state/',
+  'agents/',
+  'skills/',
+  'references/',
+  'templates/',
+  'entry-points/',
+];
+
+function shouldIncludeInPayload(relativePath) {
+  return DETACHED_PAYLOAD_ALLOWLIST.some((prefix) => relativePath.startsWith(prefix));
+}
+
+function shouldDescendInto(relativeDir) {
+  const dir = relativeDir.endsWith('/') ? relativeDir : `${relativeDir}/`;
+  return DETACHED_PAYLOAD_ALLOWLIST.some(
+    (prefix) => prefix.startsWith(dir) || dir.startsWith(prefix)
+  );
+}
+
+function buildDetachedPayload(srcDir, outputDir) {
+  const stats = { copied: 0, removed: 0, skipped: 0 };
+  const keptOutputs = new Set();
+
+  function walkAndCopy(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = path.relative(srcDir, fullPath).split(path.sep).join('/');
+
+      if (entry.isDirectory()) {
+        if (shouldDescendInto(relativePath)) {
+          walkAndCopy(fullPath);
+        } else {
+          stats.skipped++;
+        }
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      if (!shouldIncludeInPayload(relativePath)) {
+        stats.skipped++;
+        continue;
+      }
+
+      keptOutputs.add(relativePath);
+      const outputPath = path.join(outputDir, relativePath);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf8') : null;
+      if (existing !== content) {
+        fs.writeFileSync(outputPath, content, 'utf8');
+        stats.copied++;
+      }
+    }
+  }
+
+  function cleanStale(dir) {
+    if (!fs.existsSync(dir)) {
+      return;
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = path.relative(outputDir, fullPath).split(path.sep).join('/');
+      if (entry.isDirectory()) {
+        cleanStale(fullPath);
+        if (fs.existsSync(fullPath) && fs.readdirSync(fullPath).length === 0) {
+          fs.rmdirSync(fullPath);
+        }
+      } else if (!keptOutputs.has(relativePath)) {
+        fs.unlinkSync(fullPath);
+        stats.removed++;
+      }
+    }
+  }
+
+  walkAndCopy(srcDir);
+  cleanStale(outputDir);
+  return stats;
+}
+
 /**
  * Resolve an output path safely within the project root.
  * Throws if the resolved path escapes the project directory.
@@ -256,26 +350,85 @@ function toTitle(name) {
     .join(' ');
 }
 
-/**
- * Expand the entry-point registry through a runtime-specific template.
- * Returns an array of { outputPath, content } objects.
- */
+const ENTRY_POINT_TEMPLATE_MAP = {
+  gemini: { file: 'gemini-command.toml.tmpl', outputPath: (e) => `commands/maestro/${e.name}.toml` },
+  claude: { file: 'claude-skill.md.tmpl', outputPath: (e) => `claude/skills/${e.name}/SKILL.md` },
+  codex: { file: 'codex-skill.md.tmpl', outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md` },
+};
+
+const PREAMBLE_PLACEHOLDER_MAP = {
+  gemini: 'skills_block',
+  claude: 'protocol_block',
+  codex: 'refs_list',
+};
+
 function expandEntryPoints(runtimeName) {
   const registry = require(path.join(SRC, 'entry-points', 'registry'));
+  const preambleBuilders = require(path.join(SRC, 'entry-points', 'preamble-builders'));
+  const templateDir = path.join(SRC, 'entry-points', 'templates');
+
+  const mapping = ENTRY_POINT_TEMPLATE_MAP[runtimeName];
+  if (!mapping) {
+    throw new Error(`Unknown runtime for entry-point expansion: "${runtimeName}"`);
+  }
+
+  const template = fs.readFileSync(path.join(templateDir, mapping.file), 'utf8');
+  const buildPreamble = preambleBuilders[runtimeName];
+  const placeholder = PREAMBLE_PLACEHOLDER_MAP[runtimeName];
+
+  return registry.map((entry) => {
+    let content = template;
+
+    content = content.replace(/\{\{name\}\}/g, entry.name);
+    content = content.replace(/\{\{Name\}\}/g, toTitle(entry.name));
+    content = content.replace(/\{\{description\}\}/g, entry.description);
+
+    const workflowNumbered = entry.workflow
+      .map((step, i) => `${i + 1}. ${step}`)
+      .join('\n');
+    content = content.replace(/\{\{workflow_numbered\}\}/g, workflowNumbered);
+
+    const constraintsList = (entry.constraints || [])
+      .map((c) => `- ${c}`)
+      .join('\n');
+    content = content.replace(/\{\{constraints_list\}\}/g, constraintsList);
+
+    const preamble = buildPreamble(entry);
+    content = content.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'), preamble);
+
+    return {
+      outputPath: mapping.outputPath(entry),
+      content,
+    };
+  });
+}
+
+const GEMINI_SESSION_STATE_BLOCK = `The current session state is provided below:
+
+<session-state>
+!{extension_root="\${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
+</session-state>
+
+Use the injected session state above as the source of truth for resume position.
+
+`;
+
+function expandCoreCommands(runtimeName) {
+  const registry = require(path.join(SRC, 'entry-points', 'core-command-registry'));
   const templateDir = path.join(SRC, 'entry-points', 'templates');
 
   let templateFile, outputPathFn;
   if (runtimeName === 'gemini') {
-    templateFile = path.join(templateDir, 'gemini-command.toml.tmpl');
+    templateFile = path.join(templateDir, 'gemini-core-command.toml.tmpl');
     outputPathFn = (entry) => `commands/maestro/${entry.name}.toml`;
   } else if (runtimeName === 'claude') {
-    templateFile = path.join(templateDir, 'claude-skill.md.tmpl');
+    templateFile = path.join(templateDir, 'claude-core-command.md.tmpl');
     outputPathFn = (entry) => `claude/skills/${entry.name}/SKILL.md`;
   } else if (runtimeName === 'codex') {
-    templateFile = path.join(templateDir, 'codex-skill.md.tmpl');
+    templateFile = path.join(templateDir, 'codex-core-command.md.tmpl');
     outputPathFn = (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`;
   } else {
-    throw new Error(`Unknown runtime for entry-point expansion: "${runtimeName}"`);
+    throw new Error(`Unknown runtime for core-command expansion: "${runtimeName}"`);
   }
 
   const template = fs.readFileSync(templateFile, 'utf8');
@@ -283,80 +436,19 @@ function expandEntryPoints(runtimeName) {
   return registry.map((entry) => {
     let content = template;
 
-    // ── Simple variables ──────────────────────────────────────────────
     content = content.replace(/\{\{name\}\}/g, entry.name);
-    content = content.replace(/\{\{Name\}\}/g, toTitle(entry.name));
     content = content.replace(/\{\{description\}\}/g, entry.description);
+    content = content.replace(/\{\{firstLine\}\}/g, entry.firstLine);
+    content = content.replace(/\{\{requestType\}\}/g, entry.requestType);
+    content = content.replace(/\{\{executeInstructions\}\}/g, entry.executeInstructions);
 
-    // ── Workflow numbered list ────────────────────────────────────────
-    const workflowNumbered = entry.workflow
-      .map((step, i) => `${i + 1}. ${step}`)
-      .join('\n');
-    content = content.replace(/\{\{workflow_numbered\}\}/g, workflowNumbered);
+    const preloadList = entry.preload.map((r) => `"${r}"`).join(', ');
+    content = content.replace(/\{\{preloadList\}\}/g, preloadList);
 
-    // ── Constraints bulleted list ────────────────────────────────────
-    const constraintsList = (entry.constraints || [])
-      .map((c) => `- ${c}`)
-      .join('\n');
-    content = content.replace(/\{\{constraints_list\}\}/g, constraintsList);
-
-    // ── Gemini: skills_block ─────────────────────────────────────────
-    // Load shared methodology through MCP from canonical src/.
-    if (runtimeName === 'gemini') {
-      const resources = [];
-      if (entry.refs && entry.refs.includes('architecture')) {
-        resources.push('architecture');
-      }
-      for (const skill of entry.skills || []) {
-        resources.push(skill);
-      }
-
-      let skillsBlock = '';
-      if (resources.length > 0) {
-        const resourceList = resources.map((r) => `"${r}"`).join(', ');
-        skillsBlock = `Call \`get_skill_content\` with resources: [${resourceList}].`;
-      }
-      content = content.replace(/\{\{skills_block\}\}/g, skillsBlock);
-    }
-
-    // ── Claude: protocol_block ───────────────────────────────────────
-    // If the entry has agents (needs delegation), load delegation through MCP.
-    if (runtimeName === 'claude') {
-      let protocolBlock = '';
-      if (entry.agents && entry.agents.length > 0) {
-        protocolBlock =
-          '## Protocol\n\nBefore delegating, call `get_skill_content` with resources: ["delegation"] and follow the returned methodology.\n';
-      }
-      content = content.replace(/\{\{protocol_block\}\}/g, protocolBlock);
-    }
-
-    // ── Codex: refs_list ─────────────────────────────────────────────
-    // Build MCP preload directives for shared methodology and agent bodies.
-    if (runtimeName === 'codex') {
-      const refs = [];
-      const resources = [];
-
-      if (entry.refs && entry.refs.includes('architecture')) {
-        resources.push('architecture');
-      }
-      for (const skill of entry.skills || []) {
-        resources.push(skill);
-      }
-
-      if (resources.length > 0) {
-        refs.push(
-          `Call \`get_skill_content\` with resources: [${resources.map((r) => `"${r}"`).join(', ')}].`
-        );
-      }
-      if (entry.agents && entry.agents.length > 0) {
-        refs.push(
-          `Call \`get_agent\` with agents: [${entry.agents.map((agent) => `"${agent}"`).join(', ')}].`
-        );
-      }
-
-      const refsList = refs.join('\n');
-      content = content.replace(/\{\{refs_list\}\}/g, refsList);
-    }
+    const sessionBlock = (runtimeName === 'gemini' && entry.geminiSessionStateInjection)
+      ? GEMINI_SESSION_STATE_BLOCK
+      : '';
+    content = content.replace(/\{\{sessionStateBlock\}\}/g, sessionBlock);
 
     return {
       outputPath: outputPathFn(entry),
@@ -468,51 +560,58 @@ async function main() {
     }
   }
 
-  // ── Generate entry-point files from registry + templates ───────────
-  for (const runtimeName of Object.keys(runtimes)) {
-    const entryPoints = expandEntryPoints(runtimeName);
-    for (const { outputPath, content } of entryPoints) {
-      const absOutputPath = safeResolve(outputPath);
+  // ── Generate registry-driven files (entry-points + core commands) ──
+  const registryExpanders = [
+    { label: 'entry-point', fn: expandEntryPoints },
+    { label: 'core-command', fn: expandCoreCommands },
+  ];
 
-      try {
-        if (diffMode) {
-          if (!fs.existsSync(absOutputPath)) {
-            console.log(`+++ NEW: ${outputPath}`);
-          } else {
-            const current = fs.readFileSync(absOutputPath, 'utf8');
-            if (current !== content) {
-              const tmpPath = absOutputPath + '.gen-tmp';
-              fs.writeFileSync(tmpPath, content, 'utf8');
-              try {
-                execFileSync('diff', ['-u', absOutputPath, tmpPath], { encoding: 'utf8' });
-              } catch (err) {
-                console.log(`--- ${outputPath}`);
-                console.log(err.stdout);
-              } finally {
-                fs.unlinkSync(tmpPath);
+  for (const { label, fn } of registryExpanders) {
+    for (const runtimeName of Object.keys(runtimes)) {
+      const expanded = fn(runtimeName);
+      for (const { outputPath, content } of expanded) {
+        const absOutputPath = safeResolve(outputPath);
+
+        try {
+          if (diffMode) {
+            if (!fs.existsSync(absOutputPath)) {
+              console.log(`+++ NEW: ${outputPath}`);
+            } else {
+              const current = fs.readFileSync(absOutputPath, 'utf8');
+              if (current !== content) {
+                const tmpPath = absOutputPath + '.gen-tmp';
+                fs.writeFileSync(tmpPath, content, 'utf8');
+                try {
+                  execFileSync('diff', ['-u', absOutputPath, tmpPath], { encoding: 'utf8' });
+                } catch (err) {
+                  console.log(`--- ${outputPath}`);
+                  console.log(err.stdout);
+                } finally {
+                  fs.unlinkSync(tmpPath);
+                }
               }
             }
-          }
-        } else if (dryRun) {
-          const exists = fs.existsSync(absOutputPath);
-          const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
-          const status = !exists ? 'CREATE' : current === content ? 'UNCHANGED' : 'UPDATE';
-          console.log(`[${status}] ${outputPath}`);
-        } else {
-          fs.mkdirSync(path.dirname(absOutputPath), { recursive: true });
-          const exists = fs.existsSync(absOutputPath);
-          const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
-
-          if (current === content) {
-            stats.unchanged++;
+          } else if (dryRun) {
+            const exists = fs.existsSync(absOutputPath);
+            const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
+            const status = !exists ? 'CREATE' : current === content ? 'UNCHANGED' : 'UPDATE';
+            console.log(`[${status}] ${outputPath}`);
           } else {
-            fs.writeFileSync(absOutputPath, content, 'utf8');
-            stats.written++;
+            fs.mkdirSync(path.dirname(absOutputPath), { recursive: true });
+            const exists = fs.existsSync(absOutputPath);
+            const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
+
+            if (current === content) {
+              stats.unchanged++;
+            } else {
+              fs.writeFileSync(absOutputPath, content, 'utf8');
+              stats.written++;
+            }
           }
+        } catch (err) {
+          console.error(`ERROR processing ${label} -> ${outputPath}: ${err.message}`);
+          stats.errors++;
         }
-      } catch (err) {
-        console.error(`ERROR processing entry-point -> ${outputPath}: ${err.message}`);
-        stats.errors++;
       }
     }
   }
@@ -532,11 +631,11 @@ async function main() {
       }
     }
 
-    // Also add entry-point output paths
-    for (const runtimeName of Object.keys(runtimes)) {
-      const entryPoints = expandEntryPoints(runtimeName);
-      for (const { outputPath } of entryPoints) {
-        manifestPaths.add(outputPath);
+    for (const fn of [expandEntryPoints, expandCoreCommands]) {
+      for (const runtimeName of Object.keys(runtimes)) {
+        for (const { outputPath } of fn(runtimeName)) {
+          manifestPaths.add(outputPath);
+        }
       }
     }
 
@@ -544,35 +643,13 @@ async function main() {
     const ownedDirs = [
       'agents',
       'claude/agents',
-      'plugins/maestro',
       'claude/skills',
-      'lib',
-      'claude/lib',
-      'claude/scripts',
-      'templates',
-      'claude/templates',
-      'references',
-      'claude/references',
-      'hooks',
-      'claude/hooks',
-      'mcp',
-      'claude/mcp',
+      'plugins/maestro/skills',
       'commands',
-      'policies',
     ];
 
     // Generator-owned root-level files
-    const ownedRootFiles = [
-      'GEMINI.md',
-      'gemini-extension.json',
-      '.geminiignore',
-      'claude/README.md',
-      'claude/.mcp.json',
-      'claude/mcp-config.example.json',
-    ];
-
-    // Also add runtime-specific plugin directories
-    ownedDirs.push('claude/.claude-plugin');
+    const ownedRootFiles = [];
 
     function walkDir(dir) {
       const results = [];
@@ -634,6 +711,15 @@ async function main() {
     }
   }
 
+  if (!dryRun && !diffMode) {
+    const claudePayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'claude', 'src'));
+    const codexPayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'plugins', 'maestro', 'src'));
+    console.log(
+      `\nDetached payloads: claude/src (${claudePayloadStats.copied} updated, ${claudePayloadStats.removed} removed), ` +
+      `plugins/maestro/src (${codexPayloadStats.copied} updated, ${codexPayloadStats.removed} removed)`
+    );
+  }
+
   if (stats.errors > 0) process.exit(1);
 }
 
@@ -648,6 +734,10 @@ if (require.main === module) {
 module.exports = {
   assertNoMirroredSharedOutputs,
   buildRuntimeOutputPath,
+  buildDetachedPayload,
+  expandCoreCommands,
   expandManifest,
   expandEntryPoints,
+  shouldDescendInto,
+  shouldIncludeInPayload,
 };

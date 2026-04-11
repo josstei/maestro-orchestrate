@@ -1,14 +1,4 @@
 'use strict';
 
-const { requireFromCanonicalSrc } = require('./canonical-source');
-
-function main() {
-  const { runRuntimeServer } = requireFromCanonicalSrc('mcp/maestro-server.js', __dirname);
-  runRuntimeServer('gemini');
-}
-
-if (require.main === module) {
-  main();
-}
-
-module.exports = { main };
+process.env.MAESTRO_RUNTIME = process.env.MAESTRO_RUNTIME || 'gemini';
+require('../src/mcp/maestro-server').main();

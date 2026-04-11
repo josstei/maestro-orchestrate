@@ -35,7 +35,7 @@ module.exports = {
     codebase_investigator: 'local inspection or spawn_agent',
   },
 
-  delegationPattern: 'spawn_agent(...) with generated agent references from ./agents/',
+  delegationPattern: 'spawn_agent(...)',
 
   features: {
     mcpSkillContentHandler: true,

@@ -1,4 +1,4 @@
-description = "Start a full Maestro orchestration for a complex engineering task"
+description = "Run the full Maestro workflow for complex engineering tasks that need a mandatory design dialogue, approved implementation plan, and then execution with shared session state"
 
 prompt = """Activate Maestro orchestration mode for the following task:
 
@@ -25,4 +25,6 @@ This preamble maps generic step references to Gemini CLI tool syntax.
 
 ## Execute
 
-Call `get_skill_content` with resources: ["orchestration-steps"] and follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them."""
+Call `get_skill_content` with resources: ["orchestration-steps"].
+
+Follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them."""

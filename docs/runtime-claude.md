@@ -23,7 +23,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 }
 ```
 
-The public server at `claude/mcp/maestro-server.js` is a thin adapter. It loads `claude/mcp/canonical-source.js`, resolves the nearest generated local `src/mcp/maestro-server.js`, and runs the Claude runtime against a self-contained bundle derived from canonical root `src/`. Claude declares `primary: filesystem` and `fallback: none`.
+The public server at `claude/mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=claude`, prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `claude/src/mcp/maestro-server.js` for detached marketplace or copied installs. Claude declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 
@@ -44,7 +44,7 @@ Agent(subagent_type: "maestro:architect", prompt: "...")
 
 19 Markdown skills in `claude/skills/`:
 
-**Core (3)** — from `src/platforms/claude/`:
+**Core (3)** — generated public entry points from the core command registry:
 - `orchestrate/SKILL.md`
 - `execute/SKILL.md`
 - `resume/SKILL.md`
@@ -67,10 +67,10 @@ Infrastructure skills have `user-invocable: false` — they surface in Claude's 
 
 | Event | Matcher | Script | Timeout |
 |-------|---------|--------|---------|
-| `SessionStart` | — | scripts/session-start.js | 10s |
-| `PreToolUse` | `Agent` | scripts/before-agent.js | 10s |
+| `SessionStart` | — | `scripts/hook-runner.js claude session-start` | 10s |
+| `PreToolUse` | `Agent` | `scripts/hook-runner.js claude before-agent` | 10s |
 | `PreToolUse` | `Bash` | scripts/policy-enforcer.js | 5s |
-| `SessionEnd` | — | scripts/session-end.js | 10s |
+| `SessionEnd` | — | `scripts/hook-runner.js claude session-end` | 10s |
 
 ### Key Differences from Gemini
 
@@ -81,7 +81,7 @@ Infrastructure skills have `user-invocable: false` — they surface in Claude's 
 
 ### Hook Adapter
 
-`claude/scripts/hook-adapter.js` normalizes Claude Code stdin:
+`claude/scripts/adapters/claude-adapter.js` normalizes Claude Code stdin:
 
 | Claude Field | Internal Field |
 |-------------|----------------|
@@ -180,8 +180,9 @@ claude/
 ├── agents/                22 agent stubs (kebab-case)
 ├── skills/                19 skill directories
 ├── hooks/                 1 hook config (claude-hooks.json)
-├── scripts/               hook adapters, policy enforcer, policy-enforcer.test.js, and canonical-source helper
-├── mcp/                   public MCP entrypoint + canonical-source helper
+├── scripts/               thin hook wrapper, adapter wrapper, policy enforcer, policy-enforcer.test.js
+├── mcp/                   thin MCP entrypoint
+├── src/                   generated detached runtime payload for isolated installs
 ├── .claude-plugin/        1 plugin manifest
 ├── .mcp.json
 ├── mcp-config.example.json

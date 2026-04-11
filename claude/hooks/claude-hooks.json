@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/session-end.js",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/hook-runner.js claude session-end",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/session-start.js",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/hook-runner.js claude session-start",
             "timeout": 10
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/before-agent.js",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/hook-runner.js claude before-agent",
             "timeout": 10
           }
         ],

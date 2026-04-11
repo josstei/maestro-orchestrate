@@ -25,9 +25,22 @@ describe('codex installer integration', () => {
     try {
       const output = runInstaller(homeDir);
       const pluginManifest = path.join(homeDir, '.codex', 'plugins', 'maestro', '.codex-plugin', 'plugin.json');
+      const pluginSrcEntry = path.join(
+        homeDir,
+        '.codex',
+        'plugins',
+        'maestro',
+        'src',
+        'mcp',
+        'maestro-server.js'
+      );
       const marketplaceFile = path.join(homeDir, '.agents', 'plugins', 'marketplace.json');
 
       assert.ok(fs.existsSync(pluginManifest), 'Expected installer to copy the Codex plugin bundle');
+      assert.ok(
+        fs.existsSync(pluginSrcEntry),
+        'Expected installer to copy the detached Codex src payload'
+      );
       assert.ok(fs.existsSync(marketplaceFile), 'Expected installer to create the personal marketplace file');
 
       const marketplace = JSON.parse(fs.readFileSync(marketplaceFile, 'utf8'));

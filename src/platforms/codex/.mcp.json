@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "maestro": {
-      "command": "node",
-      "args": ["./mcp/maestro-server.js"],
-      "cwd": "."
-    }
-  }
-}

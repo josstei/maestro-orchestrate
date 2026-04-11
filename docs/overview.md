@@ -77,7 +77,7 @@ maestro-orchestrate/
 └── plugins/maestro/              # [generated] Codex plugin
     ├── agents/                   # Codex agent stubs
     ├── skills/                   # Codex skills (19)
-    ├── src/                      # generated self-contained runtime payload
+    ├── src/                      # generated detached runtime payload
     ├── mcp/                      # Codex MCP adapter
     ├── references/               # Runtime guide
     ├── .codex-plugin/            # Plugin manifest

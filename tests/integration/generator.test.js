@@ -21,28 +21,16 @@ describe('generator integration', () => {
     assert.equal(report.marker, DRY_RUN_MARKER);
     assert.ok(report.statusLines.length > 0, 'Expected dry-run to report manifest output status');
     assert.ok(
-      report.statusLines.some((line) => line.includes('mcp/maestro-server.js')),
-      'Expected public MCP entrypoints to be included in the dry-run report'
+      report.statusLines.some((line) => line.includes('agents/architect.md')),
+      'Expected agent stubs in dry-run report'
     );
     assert.ok(
-      report.statusLines.some((line) => line.includes('hooks/canonical-source.js')),
-      'Expected runtime adapter helpers to be included in the dry-run report'
+      report.statusLines.some((line) => line.includes('claude/agents/architect.md')),
+      'Expected claude agent stubs in dry-run report'
     );
     assert.ok(
-      report.statusLines.some((line) => line.includes('claude/mcp/maestro-server.js')),
-      'Expected claude MCP entrypoint to be included in the dry-run report'
-    );
-    assert.ok(
-      report.statusLines.some((line) => line.includes('claude/src/mcp/maestro-server.js')),
-      'Expected claude local src payload to be included in the dry-run report'
-    );
-    assert.ok(
-      report.statusLines.some((line) => line.includes('plugins/maestro/mcp/maestro-server.js')),
-      'Expected codex MCP entrypoint to be included in the dry-run report'
-    );
-    assert.ok(
-      report.statusLines.some((line) => line.includes('plugins/maestro/src/mcp/maestro-server.js')),
-      'Expected codex local src payload to be included in the dry-run report'
+      report.statusLines.every((line) => !line.includes('canonical-source.js')),
+      'Did not expect dry-run to include canonical-source copies'
     );
     assert.ok(
       report.statusLines.every((line) => !line.includes('/lib/')),
@@ -51,30 +39,23 @@ describe('generator integration', () => {
     assert.deepEqual(report.nonStatusLines, []);
   });
 
-  it('generated runtime wrappers resolve canonical src through local adapter helpers', () => {
-    const wrapperFiles = [
-      'hooks/session-start.js',
-      'hooks/before-agent.js',
-      'hooks/after-agent.js',
-      'hooks/session-end.js',
+  it('thin MCP entrypoints resolve canonical src without canonical-source helpers', () => {
+    const entrypoints = [
       'mcp/maestro-server.js',
-      'claude/scripts/session-start.js',
-      'claude/scripts/before-agent.js',
-      'claude/scripts/session-end.js',
       'claude/mcp/maestro-server.js',
       'plugins/maestro/mcp/maestro-server.js',
     ];
 
-    for (const relativePath of wrapperFiles) {
+    for (const relativePath of entrypoints) {
       const content = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 
       assert.ok(
-        content.includes("require('./canonical-source')"),
-        `Expected ${relativePath} to use the canonical source helper`
+        !content.includes("require('./canonical-source')"),
+        `Expected ${relativePath} to NOT use canonical-source helper`
       );
       assert.ok(
-        !content.includes('/lib/'),
-        `Expected ${relativePath} to avoid mirrored lib imports`
+        content.includes('MAESTRO_RUNTIME'),
+        `Expected ${relativePath} to set MAESTRO_RUNTIME`
       );
     }
   });
