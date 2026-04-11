@@ -59,20 +59,14 @@ Or with glob patterns:
 
 ### Transform Pipeline
 
-The generator exposes 10 transforms. Current manifest entries use a subset depending on the target surface.
+The generator exposes 4 transforms. Current manifest entries use a subset depending on the target surface.
 
 | Transform | Purpose |
 |-----------|---------|
-| `copy` | Pass-through (no modification) |
 | `inject-frontmatter` | Rebuild YAML frontmatter per runtime (tools, fields, examples) |
 | `agent-stub` | Replace agent body with MCP delegation directive |
 | `skill-discovery-stub` | Create minimal skill header pointing to MCP |
-| `strip-feature` | Remove/keep feature-flagged blocks per runtime |
-| `replace-agent-names` | Convert between kebab-case and snake_case |
-| `replace-tool-names` | Map canonical tool names to runtime equivalents |
-| `replace-paths` | Substitute path placeholders with runtime env vars |
 | `skill-metadata` | Add `user-invocable: false` for Claude skills |
-| `inline-runtime` | Inline a runtime-specific config snapshot when a target needs it |
 
 ### Runtime Definitions
 
@@ -96,7 +90,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
-Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/platforms/`.
+Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/entry-points/core-command-registry.js`.
 
 ## MCP Server Architecture
 
@@ -143,7 +137,7 @@ The content tools (`get_agent`, `get_skill_content`) are filesystem-only in ever
 - Claude: `primary=filesystem`, `fallback=none`
 - Codex: `primary=filesystem`, `fallback=none`
 
-Runtime wrappers carry a local `canonical-source.js` helper. That helper walks upward from the active runtime root until it finds the nearest generator-owned `src/` payload. In the repo root that is canonical `src/`; in the published Codex plugin that is generated `plugins/maestro/src/`.
+Each runtime's thin entrypoint at `mcp/maestro-server.js` uses direct `require()` calls to resolve `src/mcp/maestro-server.js`. Gemini's entrypoint sets `MAESTRO_RUNTIME=gemini` and requires `../src/mcp/maestro-server` directly. Claude and Codex use dual-resolution: they prefer the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and fall back to the bundled detached payload (`claude/src/mcp/maestro-server.js` or `plugins/maestro/src/mcp/maestro-server.js`) when running outside the repo.
 
 This makes one architectural rule explicit:
 
@@ -154,11 +148,11 @@ This makes one architectural rule explicit:
 
 ### MCP Server Packaging
 
-Each runtime keeps the public entrypoint at `mcp/maestro-server.js`, but that file is only a façade:
+Each runtime keeps the public entrypoint at `mcp/maestro-server.js`, but that file is only a thin wrapper:
 
-- it loads the local `canonical-source.js` helper
-- it resolves the nearest generator-owned `src/mcp/maestro-server.js`
-- it calls `runRuntimeServer(<runtime>)`
+- **Gemini** (`mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=gemini`, directly requires `../src/mcp/maestro-server` and calls `.main()`
+- **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
+- **Codex** (`plugins/maestro/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=codex`, uses the same dual-resolution as Claude — prefers repo `../../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
@@ -282,11 +276,11 @@ Ephemeral state stored in `/tmp/maestro-hooks-<uid>/`:
 
 ### Test Suite
 
-25 test files with 169 tests using Node.js built-in `node:test`:
+22 test files with 121 tests using Node.js built-in `node:test`:
 
-- 17 transform/unit tests
-- 8 integration tests
-- CI runs 12 of 25 files (120 of 169 tests); 13 files (49 tests) not yet wired into CI
+- 12 transform/unit tests
+- 10 integration tests
+- The justfile `just test` lists 12 test files, but 5 of those reference deleted transform tests (copy, strip-feature, replace-agent-names, replace-tool-names, replace-paths). Only 7 of the 12 listed files still exist. 15 of 22 total test files are not yet wired into CI.
 
 ### Zero-Drift Guarantee
 
@@ -296,4 +290,4 @@ CI validates that generated output matches committed state:
 2. Check `git diff --exit-code`
 3. Fail if any generated file differs from source
 
-Note: CI and `just test` run 12 of 25 test files (120 of 169 tests). The remaining 49 tests (MCP pack tests, entry-point templates, glob manifest, server entrypoint) are not yet wired into CI.
+Note: The justfile `just test` lists 12 test files, but 5 reference deleted transforms and will fail. Of the 22 current test files, only 7 are wired into CI via the justfile. The justfile needs updating to remove stale entries and add the remaining test files.
