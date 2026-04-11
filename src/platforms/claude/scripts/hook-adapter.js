@@ -33,18 +33,41 @@ function readBoundedStdin() {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let totalBytes = 0;
-    process.stdin.on('data', (chunk) => {
+
+    function cleanup() {
+      process.stdin.off('data', onData);
+      process.stdin.off('end', onEnd);
+      process.stdin.off('error', onError);
+    }
+
+    function onError(error) {
+      cleanup();
+      reject(error);
+    }
+
+    function onData(chunk) {
       totalBytes += chunk.length;
       if (totalBytes > MAX_STDIN_BYTES) {
+        cleanup();
         process.stdin.destroy();
         reject(new Error('Stdin payload too large'));
         return;
       }
       chunks.push(chunk);
-    });
-    process.stdin.on('end', () => {
-      resolve(JSON.parse(Buffer.concat(chunks).toString()));
-    });
+    }
+
+    function onEnd() {
+      cleanup();
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString()));
+      } catch (error) {
+        reject(new Error('Invalid JSON on stdin: ' + error.message));
+      }
+    }
+
+    process.stdin.on('data', onData);
+    process.stdin.on('end', onEnd);
+    process.stdin.on('error', onError);
   });
 }
 
