@@ -9,7 +9,7 @@ node scripts/generate.js
 # Generate runtime adapters using package scripts
 npm run build
 
-# Run all 169 tests across 25 files
+# Run all 121 tests across 22 files
 node --test tests/transforms/*.test.js tests/integration/*.test.js
 
 # Show unified diff of changes
@@ -18,7 +18,7 @@ node scripts/generate.js --diff
 # Delete all generated files and regenerate
 node scripts/generate.js --clean
 
-# Run CI test subset (12 files, 120 tests)
+# Run CI test subset (see justfile for current file list)
 just test
 
 # Run only transform unit tests
@@ -39,7 +39,7 @@ just release <version>
 
 ## Editing Workflow
 
-1. Edit generated runtime source in `src/`. Maintain root docs (`README.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/` or `plugins/maestro/` output.
+1. Edit canonical source in `src/`. Maintain root docs (`README.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/` or `plugins/maestro/` output.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
 3. Run `node --test tests/transforms/*.test.js tests/integration/*.test.js` before committing
 4. Commit canonical source, directly owned root docs, and generated adapter output together

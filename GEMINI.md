@@ -220,10 +220,10 @@ Maestro uses Gemini CLI hooks from `hooks/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
-| SessionStart | `hooks/session-start.js` | Prune stale sessions, initialize hook state when active session exists |
-| BeforeAgent | `hooks/before-agent.js` | Prune stale sessions, track active agent, inject compact session context |
-| AfterAgent | `hooks/after-agent.js` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
-| SessionEnd | `hooks/session-end.js` | Clean up hook state for ended session |
+| SessionStart | `hooks/hook-runner.js gemini session-start` | Prune stale sessions, initialize hook state when active session exists |
+| BeforeAgent | `hooks/hook-runner.js gemini before-agent` | Prune stale sessions, track active agent, inject compact session context |
+| AfterAgent | `hooks/hook-runner.js gemini after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
+| SessionEnd | `hooks/hook-runner.js gemini session-end` | Clean up hook state for ended session |
 
 ## Alignment Notes
 

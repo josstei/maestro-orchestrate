@@ -128,7 +128,7 @@ Maestro classifies the task, chooses Express or Standard workflow, asks the requ
 ## Documentation
 
 - [docs/overview.md](docs/overview.md) for the project model and generated structure
-- [docs/architecture.md](docs/architecture.md) for orchestration internals and canonical-source layout
+- [docs/architecture.md](docs/architecture.md) for orchestration internals and architecture layout
 - [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces
 - [docs/runtime-gemini.md](docs/runtime-gemini.md) for Gemini runtime specifics
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
