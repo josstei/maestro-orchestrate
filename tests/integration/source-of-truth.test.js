@@ -9,11 +9,27 @@ const manifestRules = require('../../src/manifest');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 describe('src-first architecture invariants', () => {
-  it('ships a generated codex-local src payload for self-contained plugin installs', () => {
+  it('ships a detached src payload for Claude isolated installs', () => {
+    assert.equal(
+      fs.existsSync(path.join(ROOT, 'claude/src/mcp/maestro-server.js')),
+      true,
+      'Expected detached Claude src payload to exist'
+    );
+  });
+
+  it('ships a detached src payload for Codex isolated installs', () => {
     assert.equal(
       fs.existsSync(path.join(ROOT, 'plugins/maestro/src/mcp/maestro-server.js')),
       true,
-      'Expected generated Codex-local src mirror to exist'
+      'Expected detached Codex src payload to exist'
+    );
+  });
+
+  it('does not ship Codex agent stubs (Codex uses skills, not agent files)', () => {
+    assert.equal(
+      fs.existsSync(path.join(ROOT, 'plugins/maestro/agents')),
+      false,
+      'Expected plugins/maestro/agents/ to not exist'
     );
   });
 

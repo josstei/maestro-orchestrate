@@ -1,37 +1,36 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
-const path = require('node:path');
 
 const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
 
-function runHook(relativePath, payload, cwd = ROOT) {
-  return spawnSync('node', [relativePath], {
+function runHook(relativePath, runtime, hookName, payload, cwd = ROOT) {
+  return spawnSync('node', [relativePath, runtime, hookName], {
     cwd,
     input: `${JSON.stringify(payload)}\n`,
     encoding: 'utf8',
   });
 }
 
-describe('generated hook entrypoints', () => {
+describe('hook entrypoints', () => {
   it('boots gemini hook adapters against canonical src hook logic', () => {
     const payload = {
       cwd: ROOT,
       session_id: 'hook-test-session',
     };
 
-    const hookFiles = [
-      'hooks/session-start.js',
-      'hooks/before-agent.js',
-      'hooks/after-agent.js',
-      'hooks/session-end.js',
+    const hookNames = [
+      'session-start',
+      'before-agent',
+      'after-agent',
+      'session-end',
     ];
 
-    for (const relativePath of hookFiles) {
-      const result = runHook(relativePath, payload);
+    for (const hookName of hookNames) {
+      const result = runHook('hooks/hook-runner.js', 'gemini', hookName, payload);
 
-      assert.equal(result.status, 0, `${relativePath} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${relativePath}`);
+      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
     }
   });
 
@@ -41,17 +40,17 @@ describe('generated hook entrypoints', () => {
       session_id: 'hook-test-session',
     };
 
-    const hookFiles = [
-      'claude/scripts/session-start.js',
-      'claude/scripts/before-agent.js',
-      'claude/scripts/session-end.js',
+    const hookNames = [
+      'session-start',
+      'before-agent',
+      'session-end',
     ];
 
-    for (const relativePath of hookFiles) {
-      const result = runHook(relativePath, payload);
+    for (const hookName of hookNames) {
+      const result = runHook('claude/scripts/hook-runner.js', 'claude', hookName, payload);
 
-      assert.equal(result.status, 0, `${relativePath} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${relativePath}`);
+      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
     }
   });
 
@@ -62,17 +61,17 @@ describe('generated hook entrypoints', () => {
         session_id: 'hook-test-session',
       };
 
-      const hookFiles = [
-        'scripts/session-start.js',
-        'scripts/before-agent.js',
-        'scripts/session-end.js',
+      const hookNames = [
+        'session-start',
+        'before-agent',
+        'session-end',
       ];
 
-      for (const relativePath of hookFiles) {
-        const result = runHook(relativePath, payload, pluginRoot);
+      for (const hookName of hookNames) {
+        const result = runHook('scripts/hook-runner.js', 'claude', hookName, payload, pluginRoot);
 
-        assert.equal(result.status, 0, `${relativePath} exited non-zero: ${result.stderr}`);
-        assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${relativePath}`);
+        assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+        assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
       }
     });
   });

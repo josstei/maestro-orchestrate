@@ -19,7 +19,7 @@ The Gemini CLI extension lives at the repository root. It is the primary runtime
 }
 ```
 
-The public server at `mcp/maestro-server.js` is a thin adapter. It loads `mcp/canonical-source.js`, resolves the canonical `src/mcp/maestro-server.js`, and runs the Gemini runtime against shared source in `src/`. Gemini declares `primary: filesystem` and `fallback: none`.
+The public server at `mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=gemini`, requires canonical `src/mcp/maestro-server.js` directly, and runs the Gemini runtime against shared source in `src/`. Gemini declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 
@@ -42,9 +42,9 @@ architect(query: "Design the auth system...")
 
 | Command | Source |
 |---------|--------|
-| `orchestrate.toml` | `src/platforms/gemini/commands/maestro/` |
-| `execute.toml` | `src/platforms/gemini/commands/maestro/` |
-| `resume.toml` | `src/platforms/gemini/commands/maestro/` |
+| `orchestrate.toml` | Core command registry |
+| `execute.toml` | Core command registry |
+| `resume.toml` | Core command registry |
 | `review.toml` | Entry-point registry |
 | `debug.toml` | Entry-point registry |
 | `archive.toml` | Entry-point registry |
@@ -61,10 +61,10 @@ architect(query: "Design the auth system...")
 
 | Event | Script | Purpose |
 |-------|--------|---------|
-| `SessionStart` | hooks/session-start.js | Initialize hook state, prune stale sessions |
-| `BeforeAgent` | hooks/before-agent.js | Detect agent, inject session context |
-| `AfterAgent` | hooks/after-agent.js | Validate Task Report + Downstream Context |
-| `SessionEnd` | hooks/session-end.js | Clean up hook state |
+| `SessionStart` | `hooks/hook-runner.js gemini session-start` | Initialize hook state, prune stale sessions |
+| `BeforeAgent` | `hooks/hook-runner.js gemini before-agent` | Detect agent, inject session context |
+| `AfterAgent` | `hooks/hook-runner.js gemini after-agent` | Validate Task Report + Downstream Context |
+| `SessionEnd` | `hooks/hook-runner.js gemini session-end` | Clean up hook state |
 
 ### AfterAgent Validation
 
@@ -76,7 +76,7 @@ Gemini has a post-delegation validation hook that Claude lacks:
 
 ### Hook Adapter
 
-`hooks/hook-adapter.js` normalizes Gemini CLI JSON input:
+`hooks/adapters/gemini-adapter.js` normalizes Gemini CLI JSON input:
 
 | Gemini Field | Internal Field |
 |-------------|----------------|
@@ -111,7 +111,7 @@ Gemini tools use canonical names (identity mapping):
 | Canonical | Gemini |
 |-----------|--------|
 | `read_file` | `read_file` |
-| `read_many_files` | `read_many_files` |
+| `read_many_files` | `read_file (called per-file)` |
 | `list_directory` | `list_directory` |
 | `glob` | `glob` |
 | `grep_search` | `grep_search` |
@@ -121,7 +121,7 @@ Gemini tools use canonical names (identity mapping):
 | `replace` | `replace` |
 | `run_shell_command` | `run_shell_command` |
 | `ask_user` | `ask_user` |
-| `write_todos` | `write_todos` |
+| `write_todos` | `not available — track progress in model context` |
 | `activate_skill` | `activate_skill` |
 | `enter_plan_mode` | `enter_plan_mode` |
 | `exit_plan_mode` | `exit_plan_mode` |
@@ -164,8 +164,8 @@ Fields: `kind` (always "local"), `temperature`, `max_turns`, `timeout_mins`.
 ```
 agents/                    22 agent stubs (snake_case)
 commands/maestro/          12 TOML commands
-hooks/                     runtime hook adapters + canonical-source helper + hooks.json
-mcp/                       public MCP entrypoint + canonical-source helper
+hooks/                     thin hook runner, adapter wrapper, hooks.json
+mcp/                       thin MCP entrypoint
 policies/                  1 TOML policy file
 README.md, GEMINI.md, gemini-extension.json, .geminiignore
 ```

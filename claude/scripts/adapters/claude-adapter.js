@@ -1,55 +1,7 @@
 'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
 
-/**
- * Claude Code hook I/O adapter.
- * Normalizes Claude Code stdin JSON to the internal context contract
- * and formats internal responses for Claude Code stdout.
- */
-
-function normalizeInput(raw) {
-  return {
-    sessionId: raw.session_id || '',
-    cwd: raw.cwd || '',
-    event: raw.hook_event_name || '',
-    agentName: raw.tool_input?.subagent_type || null,
-    agentInput: raw.tool_input?.prompt || null,
-    agentResult: raw.tool_result || null,
-    stopHookActive: false,
-  };
-}
-
-function formatOutput(result) {
-  return {
-    continue: result.action !== 'deny',
-    systemMessage: result.message || result.reason || undefined,
-    decision: result.action === 'deny' ? 'block' : 'approve',
-    reason: result.reason || undefined,
-  };
-}
-
-function errorFallback() {
-  return { continue: true, decision: 'approve' };
-}
-
-const MAX_STDIN_BYTES = 1024 * 1024;
-
-function readBoundedStdin() {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let totalBytes = 0;
-    process.stdin.on('data', (chunk) => {
-      totalBytes += chunk.length;
-      if (totalBytes > MAX_STDIN_BYTES) {
-        process.stdin.destroy();
-        reject(new Error('Stdin payload too large'));
-        return;
-      }
-      chunks.push(chunk);
-    });
-    process.stdin.on('end', () => {
-      resolve(JSON.parse(Buffer.concat(chunks).toString()));
-    });
-  });
-}
-
-module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin };
+const repoEntry = path.resolve(__dirname, '../../../src/platforms/shared/adapters/claude-adapter.js');
+const bundledEntry = path.resolve(__dirname, '../../src/platforms/shared/adapters/claude-adapter.js');
+module.exports = require(fs.existsSync(repoEntry) ? repoEntry : bundledEntry);

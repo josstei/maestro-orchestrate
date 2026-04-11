@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "maestro": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js"],
-      "cwd": "${CLAUDE_PLUGIN_ROOT}"
-    }
-  }
-}

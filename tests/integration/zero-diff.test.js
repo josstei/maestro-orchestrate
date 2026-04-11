@@ -9,28 +9,20 @@ describe('zero-diff validation', () => {
     assert.equal(report.marker, DRY_RUN_MARKER);
     assert.ok(report.statusLines.length > 0, 'Expected generator to inspect manifest outputs');
     assert.ok(
-      report.statusLines.includes('[UNCHANGED] hooks/canonical-source.js'),
-      'Expected gemini hook helper to be generated and unchanged'
+      report.statusLines.some((line) => line.includes('agents/architect.md')),
+      'Expected gemini agent stubs in generator output'
     );
     assert.ok(
-      report.statusLines.includes('[UNCHANGED] mcp/canonical-source.js'),
-      'Expected gemini MCP helper to be generated and unchanged'
+      report.statusLines.some((line) => line.includes('claude/agents/architect.md')),
+      'Expected claude agent stubs in generator output'
     );
     assert.ok(
-      report.statusLines.includes('[UNCHANGED] claude/mcp/canonical-source.js'),
-      'Expected claude MCP helper to be generated and unchanged'
+      report.statusLines.every((line) => !line.includes('canonical-source.js')),
+      'Did not expect canonical-source copies in generator output'
     );
     assert.ok(
-      report.statusLines.includes('[UNCHANGED] plugins/maestro/mcp/canonical-source.js'),
-      'Expected codex MCP helper to be generated and unchanged'
-    );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('claude/src/')),
-      'Did not expect claude src bundle copies in generator output'
-    );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('plugins/maestro/src/')),
-      'Did not expect codex src bundle copies in generator output'
+      report.statusLines.every((line) => !line.includes('hooks/hook-runner.js')),
+      'Did not expect generated hook-runner in generator output'
     );
     assert.ok(
       report.statusLines.every((line) => !line.includes('/lib/')),

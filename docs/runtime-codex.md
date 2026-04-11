@@ -20,7 +20,7 @@ The Codex plugin lives in `plugins/maestro/`.
 }
 ```
 
-The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. It loads `plugins/maestro/mcp/canonical-source.js`, resolves the generated local `plugins/maestro/src/mcp/maestro-server.js`, and runs the Codex runtime against a self-contained bundle derived from canonical root `src/`. Codex declares `primary: filesystem` and `fallback: none`, the same as Gemini and Claude.
+The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=codex`, prefers canonical repo `src/mcp/maestro-server.js` when the plugin is launched from the repository, and falls back to bundled `plugins/maestro/src/mcp/maestro-server.js` for detached installs. Codex declares `primary: filesystem` and `fallback: none`, the same as Gemini and Claude.
 
 For workspace resolution, Codex now follows the shared runtime contract:
 - use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
@@ -60,16 +60,14 @@ That keeps Maestro state rooted under the actual workspace `docs/maestro` path e
 
 ## Agent Naming
 
-Codex uses **kebab-case** for agent names (same as Claude): `code-reviewer`, `api-designer`.
-
-Agent files are generated at `plugins/maestro/agents/*.md`.
+Codex uses **kebab-case** agent identifiers in runtime context and MCP-served methodology content, matching Claude: `code-reviewer`, `api-designer`.
 
 ## Delegation
 
-Codex-native `spawn_agent` with generated agent references:
+Codex-native `spawn_agent(...)`:
 
 ```
-spawn_agent(...) with generated agent references from ./agents/
+spawn_agent(...)
 ```
 
 The runtime guide recommends mapping Maestro agents to Codex delegation modes:
@@ -111,7 +109,7 @@ The runtime guide states:
 
 > If Maestro MCP tools are available, prefer them for stateful operations. If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
 
-This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are resolved from generated local `plugins/maestro/src/`, which is produced from canonical root `src/`; there is no hand-maintained packaged registry copy.
+This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are resolved from generated local `plugins/maestro/src/`, which is produced from canonical root `src/`; there is no hand-maintained packaged registry copy and no plugin-level `agents/` directory.
 
 ## Tool Mapping
 
@@ -163,19 +161,18 @@ When `MAESTRO_WORKSPACE_PATH` is not set, the MCP server uses the first valid lo
 Codex follows the same source-of-truth model as the other runtimes:
 
 - shared skills, protocols, templates, references, and agent bodies are authored in canonical root `src/`
-- generated `plugins/maestro/src/` is the self-contained runtime payload for published Codex bundles
+- generated `plugins/maestro/src/` is the detached runtime payload for published Codex bundles
 - generated `plugins/maestro/skills/` files are public entrypoints or discovery stubs only
-- generated `plugins/maestro/agents/` files are registration stubs only
+- Codex does not consume plugin agent files; `get_agent` serves the canonical methodology bodies
 - no tracked `plugins/maestro/lib/` mirror or bundled content registry is part of the runtime
 
 ## Generated Files
 
 ```
 plugins/maestro/
-├── agents/                22 agent stubs (kebab-case)
 ├── skills/                19 skill directories
-├── src/                   generated self-contained runtime payload
-├── mcp/                   public MCP entrypoint + canonical-source helper
+├── src/                   generated detached runtime payload
+├── mcp/                   thin MCP entrypoint
 ├── references/            1 runtime guide
 ├── .codex-plugin/         1 plugin manifest
 ├── .mcp.json
@@ -194,4 +191,4 @@ plugins/maestro/
 | Skill surface | N/A (commands) | 19 skills | plugin namespace `$maestro:*` |
 | Path style | Variable passthrough | Env var refs | Relative |
 | Extra files | TOML policy rules | policy-enforcer | runtime guide |
-| Runtime payload | adapter-only | adapter-only | adapter files + generated `src/` mirror |
+| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | thin entrypoint + detached `src/` payload |

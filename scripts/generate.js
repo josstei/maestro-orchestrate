@@ -9,6 +9,100 @@ const { resolve: resolveTransform } = require('../src/transforms');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
+const DETACHED_PAYLOAD_ALLOWLIST = [
+  'core/',
+  'config/',
+  'hooks/',
+  'mcp/',
+  'platforms/shared/',
+  'platforms/claude/runtime-config.js',
+  'platforms/codex/runtime-config.js',
+  'platforms/gemini/runtime-config.js',
+  'state/',
+  'agents/',
+  'skills/',
+  'references/',
+  'templates/',
+  'entry-points/',
+];
+
+function shouldIncludeInPayload(relativePath) {
+  return DETACHED_PAYLOAD_ALLOWLIST.some((prefix) => relativePath.startsWith(prefix));
+}
+
+function shouldDescendInto(relativeDir) {
+  const dir = relativeDir.endsWith('/') ? relativeDir : `${relativeDir}/`;
+  return DETACHED_PAYLOAD_ALLOWLIST.some(
+    (prefix) => prefix.startsWith(dir) || dir.startsWith(prefix)
+  );
+}
+
+function buildDetachedPayload(srcDir, outputDir) {
+  const stats = { copied: 0, removed: 0, skipped: 0 };
+  const keptOutputs = new Set();
+
+  function walkAndCopy(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = path.relative(srcDir, fullPath).split(path.sep).join('/');
+
+      if (entry.isDirectory()) {
+        if (shouldDescendInto(relativePath)) {
+          walkAndCopy(fullPath);
+        } else {
+          stats.skipped++;
+        }
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      if (!shouldIncludeInPayload(relativePath)) {
+        stats.skipped++;
+        continue;
+      }
+
+      keptOutputs.add(relativePath);
+      const outputPath = path.join(outputDir, relativePath);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, 'utf8') : null;
+      if (existing !== content) {
+        fs.writeFileSync(outputPath, content, 'utf8');
+        stats.copied++;
+      }
+    }
+  }
+
+  function cleanStale(dir) {
+    if (!fs.existsSync(dir)) {
+      return;
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = path.relative(outputDir, fullPath).split(path.sep).join('/');
+      if (entry.isDirectory()) {
+        cleanStale(fullPath);
+        if (fs.existsSync(fullPath) && fs.readdirSync(fullPath).length === 0) {
+          fs.rmdirSync(fullPath);
+        }
+      } else if (!keptOutputs.has(relativePath)) {
+        fs.unlinkSync(fullPath);
+        stats.removed++;
+      }
+    }
+  }
+
+  walkAndCopy(srcDir);
+  cleanStale(outputDir);
+  return stats;
+}
+
 /**
  * Resolve an output path safely within the project root.
  * Throws if the resolved path escapes the project directory.
@@ -549,36 +643,13 @@ async function main() {
     const ownedDirs = [
       'agents',
       'claude/agents',
-      'plugins/maestro',
       'claude/skills',
-      'claude/src',
-      'lib',
-      'claude/lib',
-      'claude/scripts',
-      'templates',
-      'claude/templates',
-      'references',
-      'claude/references',
-      'hooks',
-      'claude/hooks',
-      'mcp',
-      'claude/mcp',
+      'plugins/maestro/skills',
       'commands',
-      'policies',
     ];
 
     // Generator-owned root-level files
-    const ownedRootFiles = [
-      'GEMINI.md',
-      'gemini-extension.json',
-      '.geminiignore',
-      'claude/README.md',
-      'claude/.mcp.json',
-      'claude/mcp-config.example.json',
-    ];
-
-    // Also add runtime-specific plugin directories
-    ownedDirs.push('claude/.claude-plugin');
+    const ownedRootFiles = [];
 
     function walkDir(dir) {
       const results = [];
@@ -640,6 +711,15 @@ async function main() {
     }
   }
 
+  if (!dryRun && !diffMode) {
+    const claudePayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'claude', 'src'));
+    const codexPayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'plugins', 'maestro', 'src'));
+    console.log(
+      `\nDetached payloads: claude/src (${claudePayloadStats.copied} updated, ${claudePayloadStats.removed} removed), ` +
+      `plugins/maestro/src (${codexPayloadStats.copied} updated, ${codexPayloadStats.removed} removed)`
+    );
+  }
+
   if (stats.errors > 0) process.exit(1);
 }
 
@@ -654,7 +734,10 @@ if (require.main === module) {
 module.exports = {
   assertNoMirroredSharedOutputs,
   buildRuntimeOutputPath,
+  buildDetachedPayload,
   expandCoreCommands,
   expandManifest,
   expandEntryPoints,
+  shouldDescendInto,
+  shouldIncludeInPayload,
 };
