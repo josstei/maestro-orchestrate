@@ -1,6 +1,6 @@
 ---
-name: orchestrate
-description: Run the full Maestro workflow for complex engineering tasks that need a mandatory design dialogue, approved implementation plan, and then execution with shared session state
+name: {{name}}
+description: {{description}}
 allowed-tools:
   - Read
   - Write
@@ -33,6 +33,6 @@ allowed-tools:
 
 ## Execute
 
-Call `get_skill_content` with resources: ["orchestration-steps"].
+Call `get_skill_content` with resources: [{{preloadList}}].
 
-Follow the returned step sequence exactly. The steps are the sole procedural authority — do not improvise, skip, or reorder them.
+{{executeInstructions}}

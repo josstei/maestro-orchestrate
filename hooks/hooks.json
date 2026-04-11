@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${extensionPath}/hooks/session-start.js",
+            "command": "node ${extensionPath}/hooks/hook-runner.js gemini session-start",
             "name": "maestro-session-start",
             "description": "Initialize hook state and prune stale sessions",
             "timeout": 10000
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${extensionPath}/hooks/before-agent.js",
+            "command": "node ${extensionPath}/hooks/hook-runner.js gemini before-agent",
             "name": "maestro-before-agent",
             "description": "Inject session context into agent turns",
             "timeout": 10000
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${extensionPath}/hooks/after-agent.js",
+            "command": "node ${extensionPath}/hooks/hook-runner.js gemini after-agent",
             "name": "maestro-after-agent",
             "description": "Validate handoff report format with retry on malformed output",
             "timeout": 10000
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${extensionPath}/hooks/session-end.js",
+            "command": "node ${extensionPath}/hooks/hook-runner.js gemini session-end",
             "name": "maestro-session-end",
             "description": "Clean up hook state for ended session",
             "timeout": 10000

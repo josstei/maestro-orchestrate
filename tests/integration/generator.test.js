@@ -33,16 +33,16 @@ describe('generator integration', () => {
       'Expected claude MCP entrypoint to be included in the dry-run report'
     );
     assert.ok(
-      report.statusLines.some((line) => line.includes('claude/src/mcp/maestro-server.js')),
-      'Expected claude local src payload to be included in the dry-run report'
-    );
-    assert.ok(
       report.statusLines.some((line) => line.includes('plugins/maestro/mcp/maestro-server.js')),
       'Expected codex MCP entrypoint to be included in the dry-run report'
     );
     assert.ok(
-      report.statusLines.some((line) => line.includes('plugins/maestro/src/mcp/maestro-server.js')),
-      'Expected codex local src payload to be included in the dry-run report'
+      report.statusLines.every((line) => !line.includes('claude/src/')),
+      'Did not expect dry-run to include claude src bundle copies'
+    );
+    assert.ok(
+      report.statusLines.every((line) => !line.includes('plugins/maestro/src/')),
+      'Did not expect dry-run to include codex src bundle copies'
     );
     assert.ok(
       report.statusLines.every((line) => !line.includes('/lib/')),
@@ -53,14 +53,9 @@ describe('generator integration', () => {
 
   it('generated runtime wrappers resolve canonical src through local adapter helpers', () => {
     const wrapperFiles = [
-      'hooks/session-start.js',
-      'hooks/before-agent.js',
-      'hooks/after-agent.js',
-      'hooks/session-end.js',
+      'hooks/hook-runner.js',
       'mcp/maestro-server.js',
-      'claude/scripts/session-start.js',
-      'claude/scripts/before-agent.js',
-      'claude/scripts/session-end.js',
+      'claude/scripts/hook-runner.js',
       'claude/mcp/maestro-server.js',
       'plugins/maestro/mcp/maestro-server.js',
     ];
