@@ -8,7 +8,7 @@ const { log, fatal } = require('../core/logger');
 const { resolveProjectRootForRuntime } = require('../core/project-root-resolver');
 const { createServer } = require('./core/create-server');
 const { DEFAULT_TOOL_PACKS } = require('./tool-packs');
-const { getRuntimeConfig, getDefaultRuntimeConfig } = require('./runtime/runtime-config-map');
+const { getDefaultRuntimeConfig, normalizeRuntimeConfig } = require('./runtime/runtime-config-map');
 const { resolveCanonicalSrcFromExtensionRoot } = require('./utils/extension-root');
 
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
@@ -232,22 +232,6 @@ function createProtocolHandlers(server, getProjectRoot, stdout, callbacks = {}) 
   }
 
   return { requestFromClient, respond };
-}
-
-function normalizeRuntimeConfig(runtimeConfig) {
-  if (!runtimeConfig) {
-    return getDefaultRuntimeConfig();
-  }
-
-  if (typeof runtimeConfig === 'string') {
-    return getRuntimeConfig(runtimeConfig);
-  }
-
-  if (typeof runtimeConfig === 'object' && runtimeConfig.name) {
-    return runtimeConfig;
-  }
-
-  return getDefaultRuntimeConfig();
 }
 
 function runRuntimeServer(runtimeConfig, options = {}) {

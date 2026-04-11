@@ -1,36 +1,59 @@
 'use strict';
 
-const gemini = require('../../platforms/gemini/runtime-config');
-const claude = require('../../platforms/claude/runtime-config');
-const codex = require('../../platforms/codex/runtime-config');
+const path = require('path');
 
-const RUNTIME_CONFIG_MAP = Object.freeze({
-  gemini,
-  claude,
-  codex,
-});
+const RUNTIME_NAMES = ['gemini', 'claude', 'codex'];
+const DEFAULT_RUNTIME = 'gemini';
 
-function getRuntimeConfig(name) {
-  const config = RUNTIME_CONFIG_MAP[name];
+const configCache = Object.create(null);
 
-  if (!config) {
-    throw new Error(`Unknown runtime config: ${name}`);
+function loadRuntimeConfig(name) {
+  if (configCache[name]) {
+    return configCache[name];
   }
 
+  const configPath = path.resolve(__dirname, '..', '..', 'platforms', name, 'runtime-config.js');
+  const config = require(configPath);
+  configCache[name] = config;
   return config;
 }
 
+function getRuntimeConfig(name) {
+  if (!RUNTIME_NAMES.includes(name)) {
+    throw new Error(`Unknown runtime config: ${name}`);
+  }
+
+  return loadRuntimeConfig(name);
+}
+
 function getDefaultRuntimeConfig() {
-  return RUNTIME_CONFIG_MAP.gemini;
+  const runtime = process.env.MAESTRO_RUNTIME || DEFAULT_RUNTIME;
+  return loadRuntimeConfig(RUNTIME_NAMES.includes(runtime) ? runtime : DEFAULT_RUNTIME);
 }
 
 function listRuntimeConfigs() {
-  return Object.keys(RUNTIME_CONFIG_MAP);
+  return RUNTIME_NAMES.slice();
+}
+
+function normalizeRuntimeConfig(runtimeConfig) {
+  if (!runtimeConfig) {
+    return getDefaultRuntimeConfig();
+  }
+
+  if (typeof runtimeConfig === 'string') {
+    return getRuntimeConfig(runtimeConfig);
+  }
+
+  if (typeof runtimeConfig === 'object' && runtimeConfig.name) {
+    return runtimeConfig;
+  }
+
+  return getDefaultRuntimeConfig();
 }
 
 module.exports = {
-  RUNTIME_CONFIG_MAP,
   getRuntimeConfig,
   getDefaultRuntimeConfig,
   listRuntimeConfigs,
+  normalizeRuntimeConfig,
 };

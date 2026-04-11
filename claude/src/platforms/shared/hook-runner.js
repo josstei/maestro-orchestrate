@@ -1,8 +1,16 @@
 'use strict';
 
+const fs = require('node:fs');
 const path = require('node:path');
 
-const VALID_RUNTIMES = new Set(['gemini', 'claude']);
+// Derive valid hook runtimes from available adapter files.
+// Codex CLI does not use the hook system today — no codex-adapter.js exists.
+const ADAPTERS_DIR = path.join(__dirname, 'adapters');
+const VALID_RUNTIMES = new Set(
+  fs.readdirSync(ADAPTERS_DIR)
+    .filter((f) => f.endsWith('-adapter.js'))
+    .map((f) => f.replace(/-adapter\.js$/, ''))
+);
 
 const HOOK_MAP = {
   'session-start': { module: 'hooks/logic/session-start-logic.js', fn: 'handleSessionStart' },
