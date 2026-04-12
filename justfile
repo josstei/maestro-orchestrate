@@ -11,7 +11,7 @@ help:
     @echo "  just clean            Delete all generated files and regenerate"
     @echo ""
     @echo "Testing:"
-    @echo "  just test             Run all 120 tests"
+    @echo "  just test             Run all tests"
     @echo "  just test-transforms  Run only transform unit tests"
     @echo "  just test-integration Run only integration tests"
     @echo ""
@@ -41,11 +41,11 @@ clean:
 
 # Run all tests
 test:
-    node --test tests/transforms/copy.test.js tests/transforms/strip-feature.test.js tests/transforms/replace-agent-names.test.js tests/transforms/replace-tool-names.test.js tests/transforms/replace-paths.test.js tests/transforms/inject-frontmatter.test.js tests/transforms/skill-metadata.test.js tests/transforms/index.test.js tests/transforms/mcp-content-handlers.test.js tests/transforms/project-root-resolver.test.js tests/integration/generator.test.js tests/integration/zero-diff.test.js
+    node --test tests/transforms/copy.test.js tests/transforms/strip-feature.test.js tests/transforms/replace-agent-names.test.js tests/transforms/replace-tool-names.test.js tests/transforms/replace-paths.test.js tests/transforms/inject-frontmatter.test.js tests/transforms/skill-metadata.test.js tests/transforms/index.test.js tests/transforms/mcp-content-handlers.test.js tests/transforms/project-root-resolver.test.js tests/transforms/runtime-config-map.test.js tests/integration/generator.test.js tests/integration/zero-diff.test.js
 
 # Run only transform unit tests
 test-transforms:
-    node --test tests/transforms/copy.test.js tests/transforms/strip-feature.test.js tests/transforms/replace-agent-names.test.js tests/transforms/replace-tool-names.test.js tests/transforms/replace-paths.test.js tests/transforms/inject-frontmatter.test.js tests/transforms/skill-metadata.test.js tests/transforms/index.test.js tests/transforms/mcp-content-handlers.test.js tests/transforms/project-root-resolver.test.js
+    node --test tests/transforms/copy.test.js tests/transforms/strip-feature.test.js tests/transforms/replace-agent-names.test.js tests/transforms/replace-tool-names.test.js tests/transforms/replace-paths.test.js tests/transforms/inject-frontmatter.test.js tests/transforms/skill-metadata.test.js tests/transforms/index.test.js tests/transforms/mcp-content-handlers.test.js tests/transforms/project-root-resolver.test.js tests/transforms/runtime-config-map.test.js
 
 # Run only integration tests
 test-integration:

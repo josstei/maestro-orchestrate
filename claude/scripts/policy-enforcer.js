@@ -5,78 +5,17 @@
  * Reads stdin (Claude Code PreToolUse hook input for Bash),
  * checks tool_input.command against deny and ask patterns,
  * and outputs a decision JSON to stdout.
+ *
+ * Rules are loaded from the canonical source (src/core/policy-rules.js)
+ * with a fallback to the bundled copy for detached installs.
  */
 
-const DENY_RULES = [
-  {
-    "matchType": "prefix",
-    "pattern": "rm -rf",
-    "reason": "Recursive force delete"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "rm -fr",
-    "reason": "Recursive force delete (flag reorder)"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "sudo rm -rf",
-    "reason": "Privileged recursive force delete"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "sudo rm -fr",
-    "reason": "Privileged recursive force delete (flag reorder)"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "git reset --hard",
-    "reason": "Discards uncommitted changes"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "git checkout --",
-    "reason": "Discards uncommitted file changes"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "git clean -fd",
-    "reason": "Removes untracked files permanently"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "git clean -df",
-    "reason": "Removes untracked files permanently (flag reorder)"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "git clean -xfd",
-    "reason": "Removes untracked and ignored files permanently"
-  },
-  {
-    "matchType": "prefix",
-    "pattern": "git clean -xdf",
-    "reason": "Removes untracked and ignored files permanently (flag reorder)"
-  },
-  {
-    "matchType": "regex",
-    "pattern": "<<",
-    "reason": "Heredoc corrupts structured content (YAML, Markdown, JSON) — use Write instead"
-  }
-];
+const fs = require('node:fs');
+const path = require('node:path');
 
-const ASK_RULES = [
-  {
-    "matchType": "word",
-    "pattern": "tee",
-    "reason": "Writes to file and stdout"
-  },
-  {
-    "matchType": "regex",
-    "pattern": "\\s>>?\\s|\\s>>?$|^>>?\\s|\\d>>?\\s",
-    "reason": "Shell output redirection"
-  }
-];
+const repoRules = path.resolve(__dirname, '../../src/core/policy-rules.js');
+const bundledRules = path.resolve(__dirname, '../src/core/policy-rules.js');
+const { DENY_RULES, ASK_RULES } = require(fs.existsSync(repoRules) ? repoRules : bundledRules);
 
 function splitCommands(command) {
   const parts = [];

@@ -42,4 +42,27 @@ function readJson() {
   });
 }
 
-module.exports = { readText, readJson };
+/**
+ * Read stdin as a raw Buffer and parse as JSON. No TTY guard — intended for
+ * hook adapters that always receive piped input.
+ */
+function readBoundedJson() {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalBytes = 0;
+    process.stdin.on('data', (chunk) => {
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_STDIN_BYTES) {
+        process.stdin.destroy();
+        reject(new Error('Stdin payload too large'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    process.stdin.on('end', () => {
+      resolve(JSON.parse(Buffer.concat(chunks).toString()));
+    });
+  });
+}
+
+module.exports = { readText, readJson, readBoundedJson };

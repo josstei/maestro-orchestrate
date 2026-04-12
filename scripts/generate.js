@@ -9,15 +9,12 @@ const { resolve: resolveTransform } = require('../src/transforms');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
-const DETACHED_PAYLOAD_ALLOWLIST = [
+const DETACHED_PAYLOAD_BASE_ALLOWLIST = [
   'core/',
   'config/',
   'hooks/',
   'mcp/',
   'platforms/shared/',
-  'platforms/claude/runtime-config.js',
-  'platforms/codex/runtime-config.js',
-  'platforms/gemini/runtime-config.js',
   'state/',
   'agents/',
   'skills/',
@@ -26,18 +23,28 @@ const DETACHED_PAYLOAD_ALLOWLIST = [
   'entry-points/',
 ];
 
-function shouldIncludeInPayload(relativePath) {
-  return DETACHED_PAYLOAD_ALLOWLIST.some((prefix) => relativePath.startsWith(prefix));
+function buildPayloadAllowlist(runtimeName) {
+  return [
+    ...DETACHED_PAYLOAD_BASE_ALLOWLIST,
+    `platforms/${runtimeName}/runtime-config.js`,
+  ];
 }
 
-function shouldDescendInto(relativeDir) {
+function shouldIncludeInPayload(relativePath, allowlist) {
+  const list = allowlist || DETACHED_PAYLOAD_BASE_ALLOWLIST;
+  return list.some((prefix) => relativePath.startsWith(prefix));
+}
+
+function shouldDescendInto(relativeDir, allowlist) {
   const dir = relativeDir.endsWith('/') ? relativeDir : `${relativeDir}/`;
-  return DETACHED_PAYLOAD_ALLOWLIST.some(
+  const list = allowlist || DETACHED_PAYLOAD_BASE_ALLOWLIST;
+  return list.some(
     (prefix) => prefix.startsWith(dir) || dir.startsWith(prefix)
   );
 }
 
-function buildDetachedPayload(srcDir, outputDir) {
+function buildDetachedPayload(srcDir, outputDir, runtimeName) {
+  const allowlist = runtimeName ? buildPayloadAllowlist(runtimeName) : DETACHED_PAYLOAD_BASE_ALLOWLIST;
   const stats = { copied: 0, removed: 0, skipped: 0 };
   const keptOutputs = new Set();
 
@@ -48,7 +55,7 @@ function buildDetachedPayload(srcDir, outputDir) {
       const relativePath = path.relative(srcDir, fullPath).split(path.sep).join('/');
 
       if (entry.isDirectory()) {
-        if (shouldDescendInto(relativePath)) {
+        if (shouldDescendInto(relativePath, allowlist)) {
           walkAndCopy(fullPath);
         } else {
           stats.skipped++;
@@ -60,7 +67,7 @@ function buildDetachedPayload(srcDir, outputDir) {
         continue;
       }
 
-      if (!shouldIncludeInPayload(relativePath)) {
+      if (!shouldIncludeInPayload(relativePath, allowlist)) {
         stats.skipped++;
         continue;
       }
@@ -712,8 +719,8 @@ async function main() {
   }
 
   if (!dryRun && !diffMode) {
-    const claudePayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'claude', 'src'));
-    const codexPayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'plugins', 'maestro', 'src'));
+    const claudePayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'claude', 'src'), 'claude');
+    const codexPayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'plugins', 'maestro', 'src'), 'codex');
     console.log(
       `\nDetached payloads: claude/src (${claudePayloadStats.copied} updated, ${claudePayloadStats.removed} removed), ` +
       `plugins/maestro/src (${codexPayloadStats.copied} updated, ${codexPayloadStats.removed} removed)`
@@ -733,6 +740,7 @@ if (require.main === module) {
 
 module.exports = {
   assertNoMirroredSharedOutputs,
+  buildPayloadAllowlist,
   buildRuntimeOutputPath,
   buildDetachedPayload,
   expandCoreCommands,
