@@ -17,6 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Generate runtime adapters
         run: node scripts/generate.js
@@ -29,8 +30,8 @@ jobs:
             exit 1
           fi
 
-      - name: Run architecture checks
-        run: node --test tests/transforms/*.test.js tests/integration/*.test.js
+      - name: Run full test suite
+        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
       - name: Extract version from tag
         id: version
@@ -55,3 +56,9 @@ jobs:
           name: ${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
+
+      - name: Publish to npm
+        if: secrets.NPM_TOKEN != ''
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

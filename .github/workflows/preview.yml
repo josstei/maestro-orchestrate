@@ -1,0 +1,40 @@
+name: Preview Build
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: github.event.label.name == 'preview'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Generate runtime adapters
+        run: node scripts/generate.js
+
+      - name: Run full test suite
+        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+
+      - name: Set preview version
+        if: secrets.NPM_TOKEN != ''
+        run: |
+          BASE=$(node -p "require('./package.json').version")
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          PREVIEW="${BASE}-preview.${SHORT_SHA}"
+          npm version "$PREVIEW" --no-git-tag-version
+
+      - name: Publish preview
+        if: secrets.NPM_TOKEN != ''
+        run: npm publish --tag preview --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

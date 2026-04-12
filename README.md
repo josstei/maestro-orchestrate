@@ -72,22 +72,23 @@ More Claude-specific setup and plugin management lives in [claude/README.md](cla
 
 #### Codex
 
-1. Clone the repository:
+Via npm (recommended):
 
-   ```bash
-   git clone https://github.com/josstei/maestro-orchestrate
-   cd maestro-orchestrate
-   ```
+```bash
+npx -p @maestro-orchestrator/maestro maestro-install-codex
+```
 
-2. Start Codex and install the plugin:
+Then start Codex, run `/plugins`, and select **Maestro** → **Install**.
 
-   ```
-   /plugins
-   ```
+From source:
 
-3. Select **Maestro** and choose **Install**.
+```bash
+git clone https://github.com/josstei/maestro-orchestrate
+cd maestro-orchestrate
+node scripts/install-codex-plugin.js
+```
 
-This installation process will evolve as Codex adds easier plugin installation mechanisms.
+Then start Codex, run `/plugins`, and select **Maestro** → **Install**.
 
 More Codex-specific setup and runtime details live in [plugins/maestro/README.md](plugins/maestro/README.md) and [docs/runtime-codex.md](docs/runtime-codex.md).
 

@@ -27,5 +27,5 @@ jobs:
             exit 1
           fi
 
-      - name: Run architecture checks
-        run: node --test tests/transforms/*.test.js tests/integration/*.test.js
+      - name: Run full test suite
+        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js

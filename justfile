@@ -41,15 +41,39 @@ clean:
 
 # Run all tests
 test:
-    node --test tests/transforms/copy.test.js tests/transforms/strip-feature.test.js tests/transforms/replace-agent-names.test.js tests/transforms/replace-tool-names.test.js tests/transforms/replace-paths.test.js tests/transforms/inject-frontmatter.test.js tests/transforms/skill-metadata.test.js tests/transforms/index.test.js tests/transforms/mcp-content-handlers.test.js tests/transforms/project-root-resolver.test.js tests/transforms/runtime-config-map.test.js tests/integration/generator.test.js tests/integration/zero-diff.test.js
+    #!/usr/bin/env bash
+    set -euo pipefail
+    shopt -s nullglob
+    files=(tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js)
+    if [ ${#files[@]} -eq 0 ]; then echo "No test files found"; exit 1; fi
+    node --test "${files[@]}"
+
+# Run only unit tests (core modules, hooks, handlers)
+test-unit:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    shopt -s nullglob
+    files=(tests/unit/*.test.js)
+    if [ ${#files[@]} -eq 0 ]; then echo "No unit test files found"; exit 1; fi
+    node --test "${files[@]}"
 
 # Run only transform unit tests
 test-transforms:
-    node --test tests/transforms/copy.test.js tests/transforms/strip-feature.test.js tests/transforms/replace-agent-names.test.js tests/transforms/replace-tool-names.test.js tests/transforms/replace-paths.test.js tests/transforms/inject-frontmatter.test.js tests/transforms/skill-metadata.test.js tests/transforms/index.test.js tests/transforms/mcp-content-handlers.test.js tests/transforms/project-root-resolver.test.js tests/transforms/runtime-config-map.test.js
+    #!/usr/bin/env bash
+    set -euo pipefail
+    shopt -s nullglob
+    files=(tests/transforms/*.test.js)
+    if [ ${#files[@]} -eq 0 ]; then echo "No transform test files found"; exit 1; fi
+    node --test "${files[@]}"
 
 # Run only integration tests
 test-integration:
-    node --test tests/integration/generator.test.js tests/integration/zero-diff.test.js
+    #!/usr/bin/env bash
+    set -euo pipefail
+    shopt -s nullglob
+    files=(tests/integration/*.test.js)
+    if [ ${#files[@]} -eq 0 ]; then echo "No integration test files found"; exit 1; fi
+    node --test "${files[@]}"
 
 # Generate and verify zero drift (what CI runs)
 check: generate

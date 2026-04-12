@@ -1,0 +1,47 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Generate runtime adapters
+        run: node scripts/generate.js
+
+      - name: Check adapter drift
+        run: |
+          if ! git diff --exit-code --name-only; then
+            echo "::error::Nightly drift detected"
+            git diff --stat
+            exit 1
+          fi
+
+      - name: Run full test suite
+        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+
+      - name: Set nightly version
+        if: secrets.NPM_TOKEN != ''
+        run: |
+          BASE=$(node -p "require('./package.json').version")
+          NIGHTLY="${BASE}-nightly.$(date +%Y%m%d)"
+          npm version "$NIGHTLY" --no-git-tag-version
+
+      - name: Publish nightly
+        if: secrets.NPM_TOKEN != ''
+        run: npm publish --tag nightly --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
