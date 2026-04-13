@@ -61,9 +61,8 @@ async function handleSetupModels(params, projectRoot) {
 
   for (const [agent, model] of Object.entries(mapping)) {
     settings.agents.overrides[agent] = {
-      modelConfig: {
-        model,
-      },
+      ...(settings.agents.overrides[agent] || {}),
+      modelConfig: { model },
     };
   }
 
