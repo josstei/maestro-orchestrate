@@ -11,6 +11,8 @@ This guide explains how the shared Maestro methodology maps onto Codex.
 
 Public Codex skills should load shared assets through MCP instead of duplicating methodology. Codex adds the plugin namespace at invocation time, so these surface as `$maestro:<skill>`.
 
+Codex also reserves built-in `/review`, `/debug`, and `/resume` commands, so Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` instead of those bare names.
+
 ## State contract
 
 Maestro state lives in `docs/maestro` in the workspace root:
@@ -82,11 +84,11 @@ Use these entry points for user-facing workflows:
 
 - `orchestrate`
 - `execute`
-- `resume`
+- `resume-session`
 - `status`
 - `archive`
-- `review`
-- `debug`
+- `review-code`
+- `debug-workflow`
 - `security-audit`
 - `perf-check`
 - `seo-audit`

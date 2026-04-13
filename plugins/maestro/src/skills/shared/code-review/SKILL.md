@@ -5,7 +5,7 @@ description: Standalone code review methodology for structured, severity-classif
 
 # Code Review Skill
 
-Activate this skill when performing standalone code reviews via the `/maestro:review` command or during orchestration quality gates (post-phase checks and final completion gate). This skill provides the methodology for scoping, executing, and reporting code reviews.
+Activate this skill when performing standalone code reviews via the runtime-specific Maestro review entrypoint or during orchestration quality gates (post-phase checks and final completion gate). This skill provides the methodology for scoping, executing, and reporting code reviews.
 
 ## Scope Detection Protocol
 
