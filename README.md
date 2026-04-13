@@ -110,16 +110,18 @@ Maestro classifies the task, chooses Express or Standard workflow, asks the requ
 |------------|------------|-------------|-------|
 | Orchestrate | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` |
 | Execute | `/maestro:execute` | `/execute` | `$maestro:execute` |
-| Resume | `/maestro:resume` | `/resume` | `$maestro:resume` |
+| Resume | `/maestro:resume` | `/resume` | `$maestro:resume-session` |
 | Status | `/maestro:status` | `/status` | `$maestro:status` |
 | Archive | `/maestro:archive` | `/archive` | `$maestro:archive` |
-| Review | `/maestro:review` | `/review` | `$maestro:review` |
-| Debug | `/maestro:debug` | `/debug` | `$maestro:debug` |
+| Review | `/maestro:review` | `/review` | `$maestro:review-code` |
+| Debug | `/maestro:debug` | `/debug` | `$maestro:debug-workflow` |
 | Security Audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` |
 | Performance Check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` |
 | SEO Audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` |
 | Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` |
 | Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` |
+
+For Codex, Maestro intentionally avoids bare skill names that collide with host commands. Use `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` so Codex's built-in `/review`, `/debug`, and `/resume` commands keep working.
 
 ## Workflow
 

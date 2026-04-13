@@ -373,6 +373,31 @@ const PREAMBLE_PLACEHOLDER_MAP = {
   codex: 'refs_list',
 };
 
+const ENTRY_POINT_NAME_OVERRIDES = {
+  codex: {
+    debug: 'debug-workflow',
+    review: 'review-code',
+    resume: 'resume-session',
+  },
+};
+
+const RESERVED_PUBLIC_SKILL_NAMES = {
+  codex: new Set(['review', 'debug', 'resume']),
+};
+
+function getEntryPointRuntimeName(entryName, runtimeName) {
+  return ENTRY_POINT_NAME_OVERRIDES[runtimeName]?.[entryName] || entryName;
+}
+
+function assertRuntimePublicSkillNameAvailable(skillName, runtimeName) {
+  const reservedNames = RESERVED_PUBLIC_SKILL_NAMES[runtimeName];
+  if (reservedNames && reservedNames.has(skillName)) {
+    throw new Error(
+      `Reserved ${runtimeName} public skill name "${skillName}" must be remapped before generation`
+    );
+  }
+}
+
 function expandEntryPoints(runtimeName) {
   const registry = require(path.join(SRC, 'entry-points', 'registry'));
   const preambleBuilders = require(path.join(SRC, 'entry-points', 'preamble-builders'));
@@ -388,27 +413,32 @@ function expandEntryPoints(runtimeName) {
   const placeholder = PREAMBLE_PLACEHOLDER_MAP[runtimeName];
 
   return registry.map((entry) => {
+    const runtimeEntry = {
+      ...entry,
+      name: getEntryPointRuntimeName(entry.name, runtimeName),
+    };
+    assertRuntimePublicSkillNameAvailable(runtimeEntry.name, runtimeName);
     let content = template;
 
-    content = content.replace(/\{\{name\}\}/g, entry.name);
-    content = content.replace(/\{\{Name\}\}/g, toTitle(entry.name));
-    content = content.replace(/\{\{description\}\}/g, entry.description);
+    content = content.replace(/\{\{name\}\}/g, runtimeEntry.name);
+    content = content.replace(/\{\{Name\}\}/g, toTitle(runtimeEntry.name));
+    content = content.replace(/\{\{description\}\}/g, runtimeEntry.description);
 
-    const workflowNumbered = entry.workflow
+    const workflowNumbered = runtimeEntry.workflow
       .map((step, i) => `${i + 1}. ${step}`)
       .join('\n');
     content = content.replace(/\{\{workflow_numbered\}\}/g, workflowNumbered);
 
-    const constraintsList = (entry.constraints || [])
+    const constraintsList = (runtimeEntry.constraints || [])
       .map((c) => `- ${c}`)
       .join('\n');
     content = content.replace(/\{\{constraints_list\}\}/g, constraintsList);
 
-    const preamble = buildPreamble(entry);
+    const preamble = buildPreamble(runtimeEntry);
     content = content.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'), preamble);
 
     return {
-      outputPath: mapping.outputPath(entry),
+      outputPath: mapping.outputPath(runtimeEntry),
       content,
     };
   });
@@ -445,24 +475,29 @@ function expandCoreCommands(runtimeName) {
   const template = fs.readFileSync(templateFile, 'utf8');
 
   return registry.map((entry) => {
+    const runtimeEntry = {
+      ...entry,
+      name: getEntryPointRuntimeName(entry.name, runtimeName),
+    };
+    assertRuntimePublicSkillNameAvailable(runtimeEntry.name, runtimeName);
     let content = template;
 
-    content = content.replace(/\{\{name\}\}/g, entry.name);
-    content = content.replace(/\{\{description\}\}/g, entry.description);
-    content = content.replace(/\{\{firstLine\}\}/g, entry.firstLine);
-    content = content.replace(/\{\{requestType\}\}/g, entry.requestType);
-    content = content.replace(/\{\{executeInstructions\}\}/g, entry.executeInstructions);
+    content = content.replace(/\{\{name\}\}/g, runtimeEntry.name);
+    content = content.replace(/\{\{description\}\}/g, runtimeEntry.description);
+    content = content.replace(/\{\{firstLine\}\}/g, runtimeEntry.firstLine);
+    content = content.replace(/\{\{requestType\}\}/g, runtimeEntry.requestType);
+    content = content.replace(/\{\{executeInstructions\}\}/g, runtimeEntry.executeInstructions);
 
-    const preloadList = entry.preload.map((r) => `"${r}"`).join(', ');
+    const preloadList = runtimeEntry.preload.map((r) => `"${r}"`).join(', ');
     content = content.replace(/\{\{preloadList\}\}/g, preloadList);
 
-    const sessionBlock = (runtimeName === 'gemini' && entry.geminiSessionStateInjection)
+    const sessionBlock = (runtimeName === 'gemini' && runtimeEntry.geminiSessionStateInjection)
       ? GEMINI_SESSION_STATE_BLOCK
       : '';
     content = content.replace(/\{\{sessionStateBlock\}\}/g, sessionBlock);
 
     return {
-      outputPath: outputPathFn(entry),
+      outputPath: outputPathFn(runtimeEntry),
       content,
     };
   });

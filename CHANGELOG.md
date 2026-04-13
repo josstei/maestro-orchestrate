@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Codex plugin packaging** — Removed unused `plugins/maestro/agents/` stubs; Codex now relies on skills, MCP tools, and `get_agent` for methodology instead of plugin-level agent files
 - **Runtime documentation** — Updated Gemini, Claude, and Codex runtime docs to describe thin entrypoints plus detached payloads rather than generated helper copies
 
+### Fixed
+
+- **Codex public skill naming collisions** — Renamed the public Codex skills to `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` so installing Maestro does not shadow or break Codex's built-in `/review`, `/debug`, and `/resume` commands
+
 ## [1.6.1] - 2026-04-10
 
 ### Added

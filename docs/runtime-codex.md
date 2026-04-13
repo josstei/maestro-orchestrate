@@ -79,13 +79,15 @@ The runtime guide recommends mapping Maestro agents to Codex delegation modes:
 
 19 Markdown skills in `plugins/maestro/skills/`:
 
+Codex keeps built-in `/review`, `/debug`, and `/resume` commands, so Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` instead of those bare names.
+
 **Core (3)** — unprefixed in the plugin, invoked as `$maestro:<name>`:
 - `orchestrate/SKILL.md`
 - `execute/SKILL.md`
-- `resume/SKILL.md`
+- `resume-session/SKILL.md`
 
 **Entry-point (9)** — unprefixed in the plugin, invoked as `$maestro:<name>`:
-- `review/SKILL.md`, `debug/SKILL.md`, `archive/SKILL.md`
+- `review-code/SKILL.md`, `debug-workflow/SKILL.md`, `archive/SKILL.md`
 - `status/SKILL.md`, `security-audit/SKILL.md`
 - `perf-check/SKILL.md`, `seo-audit/SKILL.md`
 - `a11y-audit/SKILL.md`, `compliance-check/SKILL.md`

@@ -119,9 +119,9 @@ Skills are invoked through the plugin namespace:
 |---------|---------|
 | `$maestro:orchestrate` | Full orchestration workflow |
 | `$maestro:execute` | Execute an approved plan |
-| `$maestro:resume` | Resume interrupted session |
-| `$maestro:review` | Code review |
-| `$maestro:debug` | Debugging workflow |
+| `$maestro:resume-session` | Resume interrupted session |
+| `$maestro:review-code` | Code review |
+| `$maestro:debug-workflow` | Debugging workflow |
 | `$maestro:archive` | Archive active session |
 | `$maestro:status` | Show session status |
 | `$maestro:security-audit` | Security assessment |
@@ -129,6 +129,8 @@ Skills are invoked through the plugin namespace:
 | `$maestro:seo-audit` | SEO audit |
 | `$maestro:a11y-audit` | Accessibility audit |
 | `$maestro:compliance-check` | Compliance review |
+
+Codex keeps its built-in `/review`, `/debug`, and `/resume` commands. Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` to avoid colliding with those host commands.
 
 ## State Directory Structure
 

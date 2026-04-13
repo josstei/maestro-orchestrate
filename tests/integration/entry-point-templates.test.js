@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { expandEntryPoints } = require('../../scripts/generate');
+const { expandCoreCommands, expandEntryPoints } = require('../../scripts/generate');
 
 describe('expandEntryPoints', () => {
   it('produces gemini TOML for each registry entry', () => {
@@ -23,14 +23,34 @@ describe('expandEntryPoints', () => {
     assert.ok(debug.content.includes('get_skill_content'));
   });
 
-  it('produces codex SKILL.md with unprefixed skill names', () => {
+  it('produces codex SKILL.md with a non-conflicting review skill name', () => {
     const results = expandEntryPoints('codex');
     assert.ok(results.length >= 9);
-    const review = results.find((r) => r.outputPath.includes('review'));
+    const review = results.find((r) => r.outputPath === 'plugins/maestro/skills/review-code/SKILL.md');
     assert.ok(review);
-    assert.ok(review.outputPath === 'plugins/maestro/skills/review/SKILL.md');
-    assert.ok(review.content.includes('name: review'));
+    assert.ok(!results.some((r) => r.outputPath === 'plugins/maestro/skills/review/SKILL.md'));
+    assert.ok(review.content.includes('name: review-code'));
     assert.ok(review.content.includes('get_skill_content'));
+  });
+
+  it('produces codex SKILL.md with a non-conflicting debug skill name', () => {
+    const results = expandEntryPoints('codex');
+    assert.ok(results.length >= 9);
+    const debug = results.find((r) => r.outputPath === 'plugins/maestro/skills/debug-workflow/SKILL.md');
+    assert.ok(debug);
+    assert.ok(!results.some((r) => r.outputPath === 'plugins/maestro/skills/debug/SKILL.md'));
+    assert.ok(debug.content.includes('name: debug-workflow'));
+    assert.ok(debug.content.includes('get_agent'));
+  });
+
+  it('produces codex core SKILL.md with a non-conflicting resume skill name', () => {
+    const results = expandCoreCommands('codex');
+    assert.ok(results.length >= 3);
+    const resume = results.find((r) => r.outputPath === 'plugins/maestro/skills/resume-session/SKILL.md');
+    assert.ok(resume);
+    assert.ok(!results.some((r) => r.outputPath === 'plugins/maestro/skills/resume/SKILL.md'));
+    assert.ok(resume.content.includes('name: resume-session'));
+    assert.ok(resume.content.includes('get_skill_content'));
   });
 
   it('gemini skills_block activates correct skills', () => {
@@ -71,8 +91,27 @@ describe('expandEntryPoints', () => {
 
   it('codex workflow steps are numbered', () => {
     const results = expandEntryPoints('codex');
-    const debug = results.find((r) => r.outputPath.includes('debug'));
+    const debug = results.find((r) => r.outputPath.includes('debug-workflow'));
     assert.ok(debug.content.includes('1. '));
     assert.ok(debug.content.includes('2. '));
+  });
+
+  it('codex public skills avoid reserved host command names', () => {
+    const publicSkills = [
+      ...expandEntryPoints('codex'),
+      ...expandCoreCommands('codex'),
+    ];
+    const reserved = ['review', 'debug', 'resume'];
+
+    for (const name of reserved) {
+      assert.ok(
+        !publicSkills.some((skill) => skill.outputPath === `plugins/maestro/skills/${name}/SKILL.md`),
+        `Expected codex public skills to avoid reserved name "${name}"`
+      );
+      assert.ok(
+        !publicSkills.some((skill) => new RegExp(`^name: ${name}$`, 'm').test(skill.content)),
+        `Expected codex public skill frontmatter to avoid reserved name "${name}"`
+      );
+    }
   });
 });
