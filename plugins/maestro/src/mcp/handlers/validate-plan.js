@@ -6,6 +6,7 @@ const {
   getAgentCapability,
   canCreateFiles,
 } = require('../../core/agent-registry');
+const { StateError } = require('../../lib/errors');
 
 const PHASE_LIMITS = {
   simple: 3,
@@ -35,7 +36,7 @@ function computeDepths(phases, phaseById) {
       ...phase.blocked_by.map((blockedPhaseId) => {
         const depth = getDepth(blockedPhaseId);
         if (depth === -1) {
-          throw new Error('computeDepths: unexpected cycle detected');
+          throw new StateError('computeDepths: unexpected cycle detected');
         }
         return depth;
       })

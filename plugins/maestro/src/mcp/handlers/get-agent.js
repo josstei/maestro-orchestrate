@@ -3,12 +3,14 @@
 const { DEFAULT_RUNTIME_CONFIG } = require('./get-skill-content');
 const { AGENT_ALLOWLIST } = require('../content/runtime-content');
 const { createContentProvider } = require('../content/provider');
+const { ValidationError } = require('../../lib/errors');
+const { toSnakeCase, toKebabCase } = require('../../lib/naming');
 
 function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot) {
   return function handleGetAgent(params) {
     const requestedAgents = params.agents;
     if (!Array.isArray(requestedAgents) || requestedAgents.length === 0) {
-      throw new Error('agents must be a non-empty array of agent identifiers');
+      throw new ValidationError('agents must be a non-empty array of agent identifiers');
     }
 
     const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
@@ -17,7 +19,7 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
 
     for (const rawName of requestedAgents) {
       const inputName = String(rawName || '').trim();
-      const canonicalName = inputName.replace(/_/g, '-');
+      const canonicalName = toKebabCase(inputName);
 
       if (!AGENT_ALLOWLIST.includes(canonicalName)) {
         errors[inputName || '(empty)'] =
@@ -33,7 +35,7 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
 
       const toolName =
         runtimeConfig.agentNaming === 'snake_case'
-          ? canonicalName.replace(/-/g, '_')
+          ? toSnakeCase(canonicalName)
           : canonicalName;
 
       agents[inputName] = { ...result.agent, tool_name: toolName };

@@ -2,6 +2,7 @@
 
 const { KNOWN_AGENTS, AGENT_CAPABILITIES } = require('../../core/agent-registry');
 const { normalizeRuntimeConfig } = require('../runtime/runtime-config-map');
+const { toKebabCase } = require('../../lib/naming');
 
 const MCP_PREFIXES = {
   gemini: 'mcp_maestro_',
@@ -13,7 +14,7 @@ function createHandler(runtimeConfig) {
   const resolvedRuntimeConfig = normalizeRuntimeConfig(runtimeConfig);
   const agentNames = KNOWN_AGENTS.map((name) =>
     resolvedRuntimeConfig.agentNaming === 'kebab-case'
-      ? name.replace(/_/g, '-')
+      ? toKebabCase(name)
       : name
   );
 

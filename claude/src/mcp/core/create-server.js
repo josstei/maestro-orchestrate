@@ -2,6 +2,7 @@
 
 const { createToolRegistry } = require('./tool-registry');
 const { getRecoveryHint } = require('./recovery-hints');
+const { MaestroError } = require('../../lib/errors');
 
 function sanitizeErrorMessage(error) {
   const message = error && error.message ? error.message : String(error);
@@ -45,6 +46,12 @@ function createServer(options = {}) {
           result,
         };
       } catch (error) {
+        if (error instanceof MaestroError) {
+          return {
+            content: [{ type: 'text', text: `Error [${error.code}]: ${error.message}` }],
+            isError: true,
+          };
+        }
         const sanitized = sanitizeErrorMessage(error);
         return {
           ok: false,

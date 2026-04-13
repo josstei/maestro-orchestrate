@@ -2,8 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { parseFrontmatterOnly } = require('../../core/frontmatter-parser');
-const { replaceInContent } = require('../../core/agent-names');
+const { parseFrontmatterOnly } = require('../../lib/frontmatter');
+const { replaceInContent } = require('../../lib/naming');
 const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');
 
 const agentRegistry = require('../../generated/agent-registry.json');
@@ -110,7 +110,7 @@ function parseInlineArray(raw) {
 }
 
 function parseFrontmatter(content) {
-  return parseFrontmatterOnly(content);
+  return parseFrontmatterOnly(content).frontmatter;
 }
 
 function mapTools(frontmatter, runtimeConfig) {
