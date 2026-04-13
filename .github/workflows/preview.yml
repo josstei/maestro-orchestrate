@@ -53,9 +53,11 @@ jobs:
 
       - name: Set preview version
         if: steps.publish_gate.outputs.enabled == 'true'
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           BASE=$(node -p "require('./package.json').version")
-          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          SHORT_SHA=$(printf '%s' "$HEAD_SHA" | cut -c1-7)
           PREVIEW="${BASE}-preview.${SHORT_SHA}"
           npm version "$PREVIEW" --no-git-tag-version
 
@@ -69,22 +71,25 @@ jobs:
         if: steps.publish_gate.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          SHA="${{ github.event.pull_request.head.sha }}"
+          SHA="$HEAD_SHA"
           BODY="Preview published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
 
           Built from \`${SHA}\`"
 
-          EXISTING=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+          EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
             --jq 'map(select(.body | startswith("Preview published:"))) | .[0].id')
 
           if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            gh api repos/${{ github.repository }}/issues/comments/$EXISTING \
+            gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
               -X PATCH \
               -f body="$BODY"
           else
-            gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
               -X POST \
               -f body="$BODY"
           fi

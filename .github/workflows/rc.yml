@@ -81,23 +81,26 @@ jobs:
         if: steps.publish_gate.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VERSION: ${{ steps.rc.outputs.version }}
         run: |
-          VERSION="${{ steps.rc.outputs.version }}"
-          SHA="${{ github.event.pull_request.head.sha }}"
+          SHA="$HEAD_SHA"
           SHORT_SHA=$(echo "$SHA" | cut -c1-7)
           BODY="Release candidate published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
 
           Built from \`${SHORT_SHA}\`"
 
-          EXISTING=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+          EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
             --jq 'map(select(.body | startswith("Release candidate published:"))) | .[0].id')
 
           if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            gh api repos/${{ github.repository }}/issues/comments/$EXISTING \
+            gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
               -X PATCH \
               -f body="$BODY"
           else
-            gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
               -X POST \
               -f body="$BODY"
           fi

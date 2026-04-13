@@ -57,11 +57,23 @@ jobs:
 
       - name: Resolve target version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INFERRED_VERSION: ${{ steps.infer.outputs.version }}
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
           else
-            echo "version=${{ steps.infer.outputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "version=$INFERRED_VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate target version
+        env:
+          TARGET_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [[ ! "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must match major.minor.patch; received '$TARGET_VERSION'"
+            exit 1
           fi
 
       - name: Validate CHANGELOG has unreleased content
@@ -84,12 +96,15 @@ jobs:
         run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
       - name: Create release branch
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           git checkout -b "release/v${VERSION}"
 
       - name: Update version files
-        run: node scripts/update-versions.js ${{ steps.version.outputs.version }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/update-versions.js "$VERSION"
 
       - name: Regenerate with new version
         run: |
@@ -97,31 +112,34 @@ jobs:
           npm install --package-lock-only
 
       - name: Commit release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "release: v${VERSION}"
 
       - name: Push release branch
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           git push origin "release/v${VERSION}"
 
       - name: Open PR to dev and enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           gh pr create \
-            --repo "${{ github.repository }}" \
+            --repo "$REPOSITORY" \
             --base dev \
             --head "release/v${VERSION}" \
             --title "chore: merge release v${VERSION} into dev" \
             --body "Automated merge of version bump into dev."
           gh pr merge \
-            --repo "${{ github.repository }}" \
+            --repo "$REPOSITORY" \
             --merge \
             --auto \
             "release/v${VERSION}"
@@ -129,11 +147,16 @@ jobs:
       - name: Open release PR to main
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          CHANGELOG_EXCERPT=$(awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md)
+          CHANGELOG_EXCERPT=$(awk -v version="$VERSION" '
+            $0 == "## [" version "]" { found=1; next }
+            /^## \[/ && found { exit }
+            found { print }
+          ' CHANGELOG.md)
           gh pr create \
-            --repo "${{ github.repository }}" \
+            --repo "$REPOSITORY" \
             --base main \
             --head "release/v${VERSION}" \
             --title "release: v${VERSION}" \
@@ -147,16 +170,17 @@ jobs:
       - name: Label release PR
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           PR_NUMBER=$(gh pr list \
-            --repo "${{ github.repository }}" \
+            --repo "$REPOSITORY" \
             --base main \
             --head "release/v${VERSION}" \
             --json number \
             --jq '.[0].number')
           gh pr edit \
-            --repo "${{ github.repository }}" \
+            --repo "$REPOSITORY" \
             "$PR_NUMBER" \
             --add-label release \
             --add-label rc

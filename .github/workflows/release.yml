@@ -22,13 +22,16 @@ jobs:
         id: detect
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
-          PR_JSON=$(gh api -H "Accept: application/vnd.github+json" repos/${{ github.repository }}/commits/${{ github.sha }}/pulls \
-            --jq '[.[] | select(.merged_at != null and .merge_commit_sha == "${{ github.sha }}" and .base.ref == "main" and (.labels | map(.name) | index("release")))] | .[0]')
+          PR_JSON=$(gh api -H "Accept: application/vnd.github+json" "repos/$REPOSITORY/commits/$GITHUB_SHA/pulls" | \
+            jq -c --arg sha "$GITHUB_SHA" \
+              '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == "main" and (.labels | map(.name) | index("release")))] | .[0]')
 
           if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
             echo "is_release=false" >> "$GITHUB_OUTPUT"
-            echo "No labeled release PR found for commit ${{ github.sha }}. Skipping."
+            echo "No labeled release PR found for commit $GITHUB_SHA. Skipping."
             exit 0
           fi
 
@@ -56,16 +59,18 @@ jobs:
       - name: Extract and validate version
         if: steps.detect.outputs.is_release == 'true'
         id: version
+        env:
+          PR_HEAD_REF: ${{ steps.detect.outputs.pr_head_ref }}
+          PR_TITLE: ${{ steps.detect.outputs.pr_title }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
           echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
 
-          if ! grep -q "^## \[$PKG_VERSION\]" CHANGELOG.md; then
+          if ! grep -Fq "## [$PKG_VERSION]" CHANGELOG.md; then
             echo "::error::CHANGELOG.md missing section for [$PKG_VERSION]"
             exit 1
           fi
 
-          PR_HEAD_REF="${{ steps.detect.outputs.pr_head_ref }}"
           if [[ "$PR_HEAD_REF" =~ ^release/v(.+)$ ]]; then
             BRANCH_VERSION="${BASH_REMATCH[1]}"
             if [ "$PKG_VERSION" != "$BRANCH_VERSION" ]; then
@@ -74,7 +79,6 @@ jobs:
             fi
           fi
 
-          PR_TITLE="${{ steps.detect.outputs.pr_title }}"
           if [[ "$PR_TITLE" =~ ^release:\ v(.+)$ ]]; then
             TITLE_VERSION="${BASH_REMATCH[1]}"
             if [ "$PKG_VERSION" != "$TITLE_VERSION" ]; then
@@ -104,28 +108,33 @@ jobs:
         if: steps.detect.outputs.is_release == 'true'
         env:
           VERSION: v${{ steps.version.outputs.version }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           if git rev-parse "$VERSION" >/dev/null 2>&1; then
             EXISTING_SHA=$(git rev-parse "$VERSION^{commit}")
-            if [ "$EXISTING_SHA" = "${{ github.sha }}" ]; then
+            if [ "$EXISTING_SHA" = "$GITHUB_SHA" ]; then
               echo "Tag $VERSION already exists at $EXISTING_SHA. Skipping."
               exit 0
             fi
 
-            echo "::error::Tag $VERSION already exists at $EXISTING_SHA, not ${{ github.sha }}"
+            echo "::error::Tag $VERSION already exists at $EXISTING_SHA, not $GITHUB_SHA"
             exit 1
           fi
 
-          git tag "$VERSION" "${{ github.sha }}"
+          git tag "$VERSION" "$GITHUB_SHA"
           git push origin "$VERSION"
 
       - name: Extract changelog for version
         if: steps.detect.outputs.is_release == 'true'
         id: changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          ESCAPED_VERSION=$(printf '%s' "$VERSION" | sed 's/[.[\\]\\(*+?{|^$]/\\&/g')
-          NOTES=$(awk "/^## \[${ESCAPED_VERSION}\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md)
+          NOTES=$(awk -v version="$VERSION" '
+            $0 == "## [" version "]" { found=1; next }
+            /^## \[/ && found { exit }
+            found { print }
+          ' CHANGELOG.md)
           DELIMITER="CHANGELOG_NOTES_$(date +%s)"
           {
             echo "notes<<$DELIMITER"
@@ -153,9 +162,10 @@ jobs:
         if: steps.detect.outputs.is_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          EXISTING=$(gh pr list --repo "${{ github.repository }}" --base dev --head main --state open --json number --jq '.[0].number')
+          EXISTING=$(gh pr list --repo "$REPOSITORY" --base dev --head main --state open --json number --jq '.[0].number')
 
           if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
             echo "Back-merge PR #$EXISTING already open. Skipping."
@@ -163,7 +173,7 @@ jobs:
           fi
 
           gh pr create \
-            --repo "${{ github.repository }}" \
+            --repo "$REPOSITORY" \
             --base dev \
             --head main \
             --title "chore: back-merge v${VERSION} into dev" \
