@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Maestro. This guide covers everyt
 
 ## Prerequisites
 
-- **Node.js 18+**
+- **Node.js 20+**
 - **One supported runtime**: [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), or [Codex](https://github.com/openai/codex)
 - [Just](https://github.com/casey/just) command runner (optional but recommended)
 
