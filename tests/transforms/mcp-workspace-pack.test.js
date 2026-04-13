@@ -42,6 +42,7 @@ describe('workspace tool pack', () => {
         'assess_task_complexity',
         'validate_plan',
         'resolve_settings',
+        'setup_models',
       ]
     );
   });
