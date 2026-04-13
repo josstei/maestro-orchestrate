@@ -159,7 +159,24 @@ function handleGetSessionStatus(_params, projectRoot) {
   };
 }
 
+function coerceNumber(value) {
+  if (value == null || typeof value === 'number') return value;
+  if (typeof value !== 'string') return value;
+  const num = Number(value);
+  // Only coerce positive integers — reject empty strings, floats, booleans, whitespace
+  return Number.isFinite(num) && Number.isInteger(num) && num > 0 ? num : value;
+}
+
 function handleTransitionPhase(params, projectRoot) {
+  // Coerce LLM-generated string IDs so phase.id === comparisons succeed.
+  // LLMs often emit `next_phase_id: "2"` instead of `next_phase_id: 2`,
+  // which breaks the strict-equality (===) comparisons below.
+  params.next_phase_id = coerceNumber(params.next_phase_id);
+  params.completed_phase_id = coerceNumber(params.completed_phase_id);
+  if (Array.isArray(params.next_phase_ids)) {
+    params.next_phase_ids = params.next_phase_ids.map(coerceNumber);
+  }
+
   if (params.session_id && !validateSessionId(params.session_id)) {
     throw new Error('Invalid session_id: must match pattern [a-zA-Z0-9_-]+');
   }
@@ -422,4 +439,5 @@ module.exports = {
   handleUpdateSession,
   parseSessionState,
   serializeSessionState,
+  coerceNumber,
 };
