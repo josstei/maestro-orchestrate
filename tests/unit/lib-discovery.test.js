@@ -14,7 +14,7 @@ const {
   collectFiles,
 } = require('../../src/lib/discovery');
 
-const { parse } = require('../../src/core/frontmatter-parser');
+const { parse } = require('../../src/lib/frontmatter');
 
 const WORKTREE_ROOT = path.resolve(__dirname, '..', '..');
 const SRC_DIR = path.join(WORKTREE_ROOT, 'src');

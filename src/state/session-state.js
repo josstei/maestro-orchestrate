@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { atomicWriteSync } = require('../core/atomic-write');
+const { atomicWriteSync } = require('../lib/io');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
 

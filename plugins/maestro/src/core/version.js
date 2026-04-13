@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { readJsonSafe } = require('./file-utils');
+const { readJsonSafe } = require('../lib/io');
 
 const PACKAGE_NAME = '@maestro-orchestrator/maestro';
 const VERSION_JSON_FILENAME = 'version.json';

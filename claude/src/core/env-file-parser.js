@@ -1,6 +1,6 @@
 'use strict';
 
-const { readFileSafe } = require('./file-utils');
+const { readFileSafe } = require('../lib/io');
 
 function trimQuotes(value) {
   if ((value.startsWith('"') && value.endsWith('"')) ||

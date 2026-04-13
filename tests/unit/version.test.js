@@ -55,11 +55,9 @@ describe('resolveVersion', () => {
       'utf8'
     );
     fs.copyFileSync(path.join(ROOT, 'src', 'core', 'version.js'), copiedModulePath);
-    fs.copyFileSync(path.join(ROOT, 'src', 'core', 'file-utils.js'), path.join(coreDir, 'file-utils.js'));
     fs.copyFileSync(path.join(ROOT, 'src', 'lib', 'io', 'index.js'), path.join(libIoDir, 'index.js'));
 
     delete require.cache[copiedModulePath];
-    delete require.cache[path.join(coreDir, 'file-utils.js')];
     delete require.cache[path.join(libIoDir, 'index.js')];
     const { resolveVersion: resolveVersionFromTemp } = require(copiedModulePath);
 

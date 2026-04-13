@@ -12,8 +12,6 @@ const {
   replaceInContent,
 } = require('../../src/lib/naming');
 
-const originalAgentNames = require('../../src/core/agent-names');
-
 const AGENT_NAMES = [
   'accessibility-specialist',
   'analytics-engineer',
@@ -231,40 +229,7 @@ describe('replaceInContent', () => {
   });
 });
 
-describe('Parity: toSnakeCase matches core/agent-names.toSnakeCase', () => {
-  for (const name of AGENT_NAMES) {
-    it(`toSnakeCase('${name}') matches original`, () => {
-      assert.equal(toSnakeCase(name), originalAgentNames.toSnakeCase(name));
-    });
-  }
-});
-
-describe('Parity: toKebabCase matches core/agent-names.toKebabCase', () => {
-  for (const name of AGENT_NAMES) {
-    it(`toKebabCase for snake form of '${name}' matches original`, () => {
-      const snakeForm = originalAgentNames.toSnakeCase(name);
-      assert.equal(toKebabCase(snakeForm), originalAgentNames.toKebabCase(snakeForm));
-    });
-  }
-});
-
-describe('Parity: replaceInContent matches core/agent-names.replaceInContent', () => {
-  const testContent = AGENT_NAMES.map((n) => `Delegate to ${n} now.`).join('\n');
-
-  it('produces identical output for snake_case target', () => {
-    const libResult = replaceInContent(testContent, AGENT_NAMES, 'snake_case');
-    const origResult = originalAgentNames.replaceInContent(testContent, AGENT_NAMES, 'snake_case');
-    assert.equal(libResult, origResult);
-  });
-
-  it('produces identical output for kebab-case target (no-op)', () => {
-    const libResult = replaceInContent(testContent, AGENT_NAMES, 'kebab-case');
-    const origResult = originalAgentNames.replaceInContent(testContent, AGENT_NAMES, 'kebab-case');
-    assert.equal(libResult, origResult);
-  });
-});
-
-describe('Parity: toPascalCase matches registry-scanner hookNameToFunctionName (minus handle prefix)', () => {
+describe('toPascalCase matches registry-scanner hookNameToFunctionName (minus handle prefix)', () => {
   for (const hookName of HOOK_NAMES) {
     it(`toPascalCase('${hookName}') === '${HOOK_PASCAL_EXPECTED[hookName]}'`, () => {
       assert.equal(toPascalCase(hookName), HOOK_PASCAL_EXPECTED[hookName]);
@@ -272,7 +237,7 @@ describe('Parity: toPascalCase matches registry-scanner hookNameToFunctionName (
   }
 });
 
-describe('Parity: toTitleCase matches entry-point-expander toTitle', () => {
+describe('toTitleCase matches entry-point-expander toTitle', () => {
   for (const epName of ENTRY_POINT_NAMES) {
     it(`toTitleCase('${epName}') === '${ENTRY_POINT_TITLE_EXPECTED[epName]}'`, () => {
       assert.equal(toTitleCase(epName), ENTRY_POINT_TITLE_EXPECTED[epName]);

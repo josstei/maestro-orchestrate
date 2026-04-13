@@ -2,8 +2,6 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
-const fs = require('node:fs');
 
 const {
   parse,
@@ -14,10 +12,6 @@ const {
   parseValue,
   parseDoubleQuotedValue,
 } = require('../../src/lib/frontmatter');
-
-const coreFrontmatter = require('../../src/core/frontmatter-parser');
-
-const AGENTS_DIR = path.join(__dirname, '..', '..', 'src', 'agents');
 
 describe('parseDoubleQuotedValue', () => {
   it('handles \\n escape sequence', () => {
@@ -447,84 +441,3 @@ describe('escapeYaml', () => {
   });
 });
 
-describe('Parity: parse() vs core/frontmatter-parser parse()', () => {
-  const agentFiles = fs.readdirSync(AGENTS_DIR)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => path.join(AGENTS_DIR, f));
-
-  assert.ok(agentFiles.length > 0, 'Expected at least one agent file');
-
-  for (const filePath of agentFiles) {
-    const fileName = path.basename(filePath);
-
-    it(`produces identical output for ${fileName}`, () => {
-      const content = fs.readFileSync(filePath, 'utf8');
-      const expected = coreFrontmatter.parse(content);
-      const actual = parse(content);
-      assert.deepEqual(actual.frontmatter, expected.frontmatter);
-      assert.equal(actual.body, expected.body);
-    });
-  }
-});
-
-describe('Parity: parseFrontmatterOnly() vs core/frontmatter-parser parseFrontmatterOnly()', () => {
-  const agentFiles = fs.readdirSync(AGENTS_DIR)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => path.join(AGENTS_DIR, f));
-
-  for (const filePath of agentFiles) {
-    const fileName = path.basename(filePath);
-
-    it(`produces identical frontmatter for ${fileName}`, () => {
-      const content = fs.readFileSync(filePath, 'utf8');
-      const expectedFm = coreFrontmatter.parseFrontmatterOnly(content);
-      const actual = parseFrontmatterOnly(content);
-      assert.deepEqual(actual.frontmatter, expectedFm);
-    });
-  }
-});
-
-describe('Parity: extractValue() vs core/frontmatter-parser extractValue()', () => {
-  const agentFiles = fs.readdirSync(AGENTS_DIR)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => path.join(AGENTS_DIR, f));
-
-  const keysToTest = ['name', 'description', 'capabilities', 'color', 'max_turns', 'temperature'];
-
-  for (const filePath of agentFiles) {
-    const fileName = path.basename(filePath);
-
-    for (const key of keysToTest) {
-      it(`extracts "${key}" identically for ${fileName}`, () => {
-        const content = fs.readFileSync(filePath, 'utf8');
-        const expected = coreFrontmatter.extractValue(content, key);
-        const actual = extractValue(content, key);
-        assert.equal(actual, expected);
-      });
-    }
-  }
-});
-
-describe('Parity: escapeYaml round-trip with parseDoubleQuotedValue', () => {
-  const agentFiles = fs.readdirSync(AGENTS_DIR)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => path.join(AGENTS_DIR, f));
-
-  for (const filePath of agentFiles) {
-    const fileName = path.basename(filePath);
-
-    it(`round-trips description for ${fileName}`, () => {
-      const content = fs.readFileSync(filePath, 'utf8');
-      const fm = coreFrontmatter.parseFrontmatterOnly(content);
-      if (fm.description) {
-        let desc = fm.description;
-        if (desc.startsWith('"') && desc.endsWith('"')) {
-          desc = coreFrontmatter.parseDoubleQuotedValue(desc.slice(1, -1));
-        }
-        const escaped = escapeYaml(desc);
-        const restored = parseDoubleQuotedValue(escaped);
-        assert.equal(restored, desc, `round-trip failed for description in ${fileName}`);
-      }
-    });
-  }
-});
