@@ -47,6 +47,8 @@
     "docs/",
     "GEMINI.md",
     "gemini-extension.json",
+    "QWEN.md",
+    "qwen-extension.json",
     "CHANGELOG.md"
   ]
 }
