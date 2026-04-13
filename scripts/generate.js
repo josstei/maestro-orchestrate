@@ -8,6 +8,7 @@ const { resolve: resolveTransform } = require('../src/transforms');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
+const VERSION_JSON_FILENAME = 'version.json';
 
 const DETACHED_PAYLOAD_BASE_ALLOWLIST = [
   'core/',
@@ -106,6 +107,9 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName) {
   }
 
   walkAndCopy(srcDir);
+  if (runtimeName) {
+    keptOutputs.add(VERSION_JSON_FILENAME);
+  }
   cleanStale(outputDir);
   return stats;
 }
@@ -721,6 +725,18 @@ async function main() {
   if (!dryRun && !diffMode) {
     const claudePayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'claude', 'src'), 'claude');
     const codexPayloadStats = buildDetachedPayload(SRC, path.join(ROOT, 'plugins', 'maestro', 'src'), 'codex');
+    const pkgVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+    const versionContent = JSON.stringify({ version: pkgVersion }, null, 2) + '\n';
+
+    for (const payloadDir of [path.join(ROOT, 'claude', 'src'), path.join(ROOT, 'plugins', 'maestro', 'src')]) {
+      const versionPath = path.join(payloadDir, VERSION_JSON_FILENAME);
+      const existingContent = fs.existsSync(versionPath) ? fs.readFileSync(versionPath, 'utf8') : null;
+
+      if (existingContent !== versionContent) {
+        fs.writeFileSync(versionPath, versionContent, 'utf8');
+      }
+    }
+
     console.log(
       `\nDetached payloads: claude/src (${claudePayloadStats.copied} updated, ${claudePayloadStats.removed} removed), ` +
       `plugins/maestro/src (${codexPayloadStats.copied} updated, ${codexPayloadStats.removed} removed)`

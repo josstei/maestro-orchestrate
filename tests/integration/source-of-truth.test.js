@@ -15,6 +15,11 @@ describe('src-first architecture invariants', () => {
       true,
       'Expected detached Claude src payload to exist'
     );
+    assert.equal(
+      fs.existsSync(path.join(ROOT, 'claude/src/version.json')),
+      true,
+      'Expected detached Claude src payload version metadata to exist'
+    );
   });
 
   it('ships a detached src payload for Codex isolated installs', () => {
@@ -22,6 +27,11 @@ describe('src-first architecture invariants', () => {
       fs.existsSync(path.join(ROOT, 'plugins/maestro/src/mcp/maestro-server.js')),
       true,
       'Expected detached Codex src payload to exist'
+    );
+    assert.equal(
+      fs.existsSync(path.join(ROOT, 'plugins/maestro/src/version.json')),
+      true,
+      'Expected detached Codex src payload version metadata to exist'
     );
   });
 

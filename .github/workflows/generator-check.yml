@@ -2,15 +2,16 @@ name: Source Of Truth Check
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   check-architecture:
+    name: source-of-truth-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - uses: actions/setup-node@v4
         with:
@@ -27,5 +28,5 @@ jobs:
             exit 1
           fi
 
-      - name: Run architecture checks
-        run: node --test tests/transforms/*.test.js tests/integration/*.test.js
+      - name: Run full test suite
+        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js

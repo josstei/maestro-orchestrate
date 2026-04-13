@@ -1,0 +1,106 @@
+name: Release Candidate
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  rc:
+    if: >-
+      github.event.pull_request.base.ref == 'main' &&
+      contains(github.event.pull_request.labels.*.name, 'rc') &&
+      contains(github.event.pull_request.labels.*.name, 'release') &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: rc-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Generate runtime adapters
+        run: node scripts/generate.js
+
+      - name: Check adapter drift
+        run: |
+          if ! git diff --exit-code --name-only; then
+            echo "::error::RC drift detected"
+            git diff --stat
+            exit 1
+          fi
+
+      - name: Run full test suite
+        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+
+      - name: Determine publish eligibility
+        id: publish_gate
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine RC version
+        if: steps.publish_gate.outputs.enabled == 'true'
+        id: rc
+        run: |
+          BASE=$(node -p "require('./package.json').version")
+          EXISTING=$(npm view "@maestro-orchestrator/maestro" versions --json 2>/dev/null || echo '[]')
+          RC_NUM=1
+
+          while echo "$EXISTING" | grep -q "\"${BASE}-rc.${RC_NUM}\""; do
+            RC_NUM=$((RC_NUM + 1))
+          done
+
+          RC_VERSION="${BASE}-rc.${RC_NUM}"
+          echo "version=$RC_VERSION" >> "$GITHUB_OUTPUT"
+          npm version "$RC_VERSION" --no-git-tag-version
+
+      - name: Publish RC
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: npm publish --tag rc --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+
+      - name: Upsert PR comment
+        if: steps.publish_gate.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VERSION: ${{ steps.rc.outputs.version }}
+        run: |
+          SHA="$HEAD_SHA"
+          SHORT_SHA=$(echo "$SHA" | cut -c1-7)
+          BODY="Release candidate published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
+
+          Built from \`${SHORT_SHA}\`"
+
+          EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq 'map(select(.body | startswith("Release candidate published:"))) | .[0].id')
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
+              -X PATCH \
+              -f body="$BODY"
+          else
+            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+              -X POST \
+              -f body="$BODY"
+          fi

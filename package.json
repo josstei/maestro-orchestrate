@@ -1,32 +1,49 @@
 {
-  "name": "@maestro-orchestrator/gemini-extension",
+  "name": "@maestro-orchestrator/maestro",
   "version": "1.6.1",
-  "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
+  "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase workflows, 3 runtime targets (Gemini CLI, Claude Code, OpenAI Codex)",
   "license": "Apache-2.0",
+  "author": {
+    "name": "josstei",
+    "url": "https://github.com/josstei"
+  },
+  "homepage": "https://github.com/josstei/maestro-orchestrate",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/josstei/maestro-orchestrate.git"
+  },
+  "bin": {
+    "maestro-install-codex": "./scripts/install-codex-plugin.js"
+  },
   "scripts": {
     "generate": "node scripts/generate.js",
-    "build": "npm run generate"
+    "build": "npm run generate",
+    "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
+    "prepack": "npm run generate"
   },
   "keywords": [
     "orchestration",
     "multi-agent",
     "planning",
-    "execution"
+    "execution",
+    "gemini",
+    "claude",
+    "codex",
+    "mcp"
   ],
   "files": [
+    "src/",
+    "scripts/",
     "agents/",
+    "claude/",
+    "plugins/",
     "commands/",
-    "docs/",
     "hooks/",
     "mcp/",
     "policies/",
-    "scripts/",
-    "src/",
+    "docs/",
     "GEMINI.md",
     "gemini-extension.json",
-    "README.md",
-    "USAGE.md",
-    "OVERVIEW.md",
-    "ARCHITECTURE.md"
+    "CHANGELOG.md"
   ]
 }

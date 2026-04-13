@@ -2,26 +2,97 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release PR from commit
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          PR_JSON=$(gh api -H "Accept: application/vnd.github+json" "repos/$REPOSITORY/commits/$GITHUB_SHA/pulls" | \
+            jq -c --arg sha "$GITHUB_SHA" \
+              '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == "main" and (.labels | map(.name) | index("release")))] | .[0]')
+
+          if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+            echo "No labeled release PR found for commit $GITHUB_SHA. Skipping."
+            exit 0
+          fi
+
+          echo "is_release=true" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$(echo "$PR_JSON" | jq -r '.number')" >> "$GITHUB_OUTPUT"
+          echo "pr_title=$(echo "$PR_JSON" | jq -r '.title')" >> "$GITHUB_OUTPUT"
+          echo "pr_head_ref=$(echo "$PR_JSON" | jq -r '.head.ref')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
+        if: steps.detect.outputs.is_release == 'true'
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Determine publish eligibility
+        if: steps.detect.outputs.is_release == 'true'
+        id: publish_gate
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract and validate version
+        if: steps.detect.outputs.is_release == 'true'
+        id: version
+        env:
+          PR_HEAD_REF: ${{ steps.detect.outputs.pr_head_ref }}
+          PR_TITLE: ${{ steps.detect.outputs.pr_title }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+
+          if ! grep -Fq "## [$PKG_VERSION]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md missing section for [$PKG_VERSION]"
+            exit 1
+          fi
+
+          if [[ "$PR_HEAD_REF" =~ ^release/v(.+)$ ]]; then
+            BRANCH_VERSION="${BASH_REMATCH[1]}"
+            if [ "$PKG_VERSION" != "$BRANCH_VERSION" ]; then
+              echo "::error::package.json version ($PKG_VERSION) does not match release branch version ($BRANCH_VERSION)"
+              exit 1
+            fi
+          fi
+
+          if [[ "$PR_TITLE" =~ ^release:\ v(.+)$ ]]; then
+            TITLE_VERSION="${BASH_REMATCH[1]}"
+            if [ "$PKG_VERSION" != "$TITLE_VERSION" ]; then
+              echo "::error::package.json version ($PKG_VERSION) does not match PR title version ($TITLE_VERSION)"
+              exit 1
+            fi
+          fi
 
       - name: Generate runtime adapters
+        if: steps.detect.outputs.is_release == 'true'
         run: node scripts/generate.js
 
       - name: Check adapter drift
+        if: steps.detect.outputs.is_release == 'true'
         run: |
           if ! git diff --exit-code --name-only; then
             echo "::error::Runtime adapters are out of sync with canonical src. Run 'node scripts/generate.js' and commit the changes."
@@ -29,19 +100,41 @@ jobs:
             exit 1
           fi
 
-      - name: Run architecture checks
-        run: node --test tests/transforms/*.test.js tests/integration/*.test.js
+      - name: Run full test suite
+        if: steps.detect.outputs.is_release == 'true'
+        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+      - name: Create and push tag
+        if: steps.detect.outputs.is_release == 'true'
+        env:
+          VERSION: v${{ steps.version.outputs.version }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            EXISTING_SHA=$(git rev-parse "$VERSION^{commit}")
+            if [ "$EXISTING_SHA" = "$GITHUB_SHA" ]; then
+              echo "Tag $VERSION already exists at $EXISTING_SHA. Skipping."
+              exit 0
+            fi
+
+            echo "::error::Tag $VERSION already exists at $EXISTING_SHA, not $GITHUB_SHA"
+            exit 1
+          fi
+
+          git tag "$VERSION" "$GITHUB_SHA"
+          git push origin "$VERSION"
 
       - name: Extract changelog for version
+        if: steps.detect.outputs.is_release == 'true'
         id: changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
-          ESCAPED_TAG=$(printf '%s' "$TAG" | sed 's/[.[\\]\\(*+?{|^$]/\\&/g')
-          NOTES=$(awk "/^## \[${ESCAPED_TAG}\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md)
+          NOTES=$(awk -v version="$VERSION" '
+            $0 == "## [" version "]" { found=1; next }
+            /^## \[/ && found { exit }
+            found { print }
+          ' CHANGELOG.md)
           DELIMITER="CHANGELOG_NOTES_$(date +%s)"
           {
             echo "notes<<$DELIMITER"
@@ -50,8 +143,38 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
+        if: steps.detect.outputs.is_release == 'true'
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
-          name: ${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
+
+      - name: Publish to npm
+        if: steps.detect.outputs.is_release == 'true' && steps.publish_gate.outputs.enabled == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+
+      - name: Open back-merge PR
+        if: steps.detect.outputs.is_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          EXISTING=$(gh pr list --repo "$REPOSITORY" --base dev --head main --state open --json number --jq '.[0].number')
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            echo "Back-merge PR #$EXISTING already open. Skipping."
+            exit 0
+          fi
+
+          gh pr create \
+            --repo "$REPOSITORY" \
+            --base dev \
+            --head main \
+            --title "chore: back-merge v${VERSION} into dev" \
+            --body "Automated back-merge of release v${VERSION} into dev."
