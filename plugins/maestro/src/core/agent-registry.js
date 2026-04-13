@@ -1,20 +1,21 @@
 'use strict';
 
+const { toSnakeCase } = require('../lib/naming');
 const agentRegistryData = require('../generated/agent-registry.json');
 
 const KNOWN_AGENTS = Object.freeze(
-  agentRegistryData.map((entry) => entry.name.replace(/-/g, '_'))
+  agentRegistryData.map((entry) => toSnakeCase(entry.name))
 );
 
 const AGENT_CAPABILITIES = Object.freeze(
   Object.fromEntries(
-    agentRegistryData.map((entry) => [entry.name.replace(/-/g, '_'), entry.capabilities])
+    agentRegistryData.map((entry) => [toSnakeCase(entry.name), entry.capabilities])
   )
 );
 
 function normalizeAgentName(name) {
   if (typeof name !== 'string') return '';
-  return name.toLowerCase().replace(/-/g, '_');
+  return toSnakeCase(name.toLowerCase());
 }
 
 const AGENT_PATTERNS = KNOWN_AGENTS.map((agent) => {
