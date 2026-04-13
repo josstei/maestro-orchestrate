@@ -1,6 +1,7 @@
 'use strict';
 
-const { toSnakeCase } = require('../core/agent-names');
+const { toSnakeCase } = require('../lib/naming');
+const { escapeYaml } = require('../lib/frontmatter');
 
 /**
  * Transform: rebuild-frontmatter
@@ -58,7 +59,7 @@ function rebuildFrontmatterTransform(_content, runtime, options) {
       lines.push(`  ${dl}`);
     }
   } else {
-    lines.push(`description: "${escapeYamlString(frontmatter.description || '')}"`);
+    lines.push(`description: "${escapeYaml(frontmatter.description || '')}"`);
   }
 
   if (fm.model) {
@@ -100,16 +101,6 @@ function rebuildFrontmatterTransform(_content, runtime, options) {
   lines.push('---');
 
   return lines.join('\n') + '\n' + outputBody;
-}
-
-/**
- * Escape special characters in a YAML string value.
- * @param {string} val - Value to escape
- * @returns {string} Escaped value
- */
-function escapeYamlString(val) {
-  if (typeof val !== 'string') return String(val);
-  return val.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 module.exports = rebuildFrontmatterTransform;

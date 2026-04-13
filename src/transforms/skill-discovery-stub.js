@@ -1,4 +1,4 @@
-const { extractValue } = require('../core/frontmatter-parser');
+const { extractValue } = require('../lib/frontmatter');
 
 function skillDiscoveryStub(content, runtime) {
   const name = extractValue(content, 'name');

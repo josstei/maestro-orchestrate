@@ -1,6 +1,6 @@
 'use strict';
 
-const { parse } = require('../core/frontmatter-parser');
+const { parse } = require('../lib/frontmatter');
 
 /**
  * Transform: parse-frontmatter

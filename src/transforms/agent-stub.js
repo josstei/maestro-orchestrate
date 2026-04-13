@@ -1,5 +1,5 @@
-const { extractValue } = require('../core/frontmatter-parser');
-const { toKebabCase } = require('../core/agent-names');
+const { extractValue, splitAtBoundary } = require('../lib/frontmatter');
+const { toKebabCase } = require('../lib/naming');
 
 function canonicalAgentName(name, runtime) {
   if (!name) return name;
@@ -10,16 +10,14 @@ function canonicalAgentName(name, runtime) {
 }
 
 function replaceBodyWithStub(content, stubBody) {
-  if (!content.startsWith('---\n')) {
-    return stubBody;
+  const { raw } = splitAtBoundary(content);
+  if (raw) {
+    return '---\n' + raw + '\n---\n\n' + stubBody;
   }
-
-  const end = content.indexOf('\n---\n', 4);
-  if (end === -1) {
+  if (content.startsWith('---\n')) {
     return content + '\n' + stubBody;
   }
-
-  return content.slice(0, end + 5) + '\n' + stubBody;
+  return stubBody;
 }
 
 function agentStub(content, runtime) {
