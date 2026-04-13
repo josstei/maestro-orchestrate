@@ -9,6 +9,7 @@ const {
 } = require('../../handlers/assess-task-complexity');
 const { handleValidatePlan } = require('../../handlers/validate-plan');
 const { handleResolveSettings } = require('../../handlers/resolve-settings');
+const { handleSetupModels } = require('../../handlers/setup-models');
 
 function createToolPack() {
   return defineToolPack({
@@ -76,12 +77,29 @@ function createToolPack() {
           },
         },
       },
+      {
+        name: 'setup_models',
+        description:
+          'Configure Maestro subagent models in .gemini/settings.json based on selected mode.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            mode: {
+              type: 'string',
+              enum: ['quality', 'balanced', 'economic', 'skip'],
+              description: 'The operating mode to configure.',
+            },
+          },
+          required: ['mode'],
+        },
+      },
     ],
     handlers: {
       initialize_workspace: handleInitializeWorkspace,
       assess_task_complexity: handleAssessTaskComplexity,
       validate_plan: handleValidatePlan,
       resolve_settings: handleResolveSettings,
+      setup_models: handleSetupModels,
     },
   });
 }
