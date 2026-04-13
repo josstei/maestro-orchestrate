@@ -159,7 +159,26 @@ function handleGetSessionStatus(_params, projectRoot) {
   };
 }
 
+function coerceNumber(value) {
+  if (value == null) return value;
+  if (typeof value === 'number') return value;
+  const num = Number(value);
+  return Number.isNaN(num) ? value : num;
+}
+
 function handleTransitionPhase(params, projectRoot) {
+  // Coerce LLM-generated string numbers to actual numbers before schema validation
+  // LLMs often emit `next_phase_id: "2"` instead of `next_phase_id: 2`
+  if (params.next_phase_id != null && typeof params.next_phase_id !== 'number') {
+    params.next_phase_id = coerceNumber(params.next_phase_id);
+  }
+  if (params.completed_phase_id != null && typeof params.completed_phase_id !== 'number') {
+    params.completed_phase_id = coerceNumber(params.completed_phase_id);
+  }
+  if (Array.isArray(params.next_phase_ids)) {
+    params.next_phase_ids = params.next_phase_ids.map(coerceNumber);
+  }
+
   if (params.session_id && !validateSessionId(params.session_id)) {
     throw new Error('Invalid session_id: must match pattern [a-zA-Z0-9_-]+');
   }
