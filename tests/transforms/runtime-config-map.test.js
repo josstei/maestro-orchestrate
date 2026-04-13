@@ -10,7 +10,7 @@ describe('runtime-config-map', () => {
   it('discovers runtimes from platforms/ directory', () => {
     const { getRuntimeConfig } = require(configMapPath);
 
-    const expected = ['claude', 'codex', 'gemini'];
+    const expected = ['claude', 'codex', 'gemini', 'qwen'];
     for (const name of expected) {
       const config = getRuntimeConfig(name);
       assert.equal(config.name, name, `Expected config.name to be '${name}'`);

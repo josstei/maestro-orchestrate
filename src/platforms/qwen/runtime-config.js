@@ -1,6 +1,6 @@
 module.exports = {
   name: 'qwen',
-  outputDir: './',
+  outputDir: 'qwen/',
 
   agentNaming: 'snake_case',
 

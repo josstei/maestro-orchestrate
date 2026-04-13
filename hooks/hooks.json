@@ -11,17 +11,6 @@
             "timeout": 10000
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${extensionPath}/hooks/hook-runner.js qwen session-start",
-            "name": "maestro-session-start-qwen",
-            "description": "Initialize hook state and prune stale sessions (Qwen Code)",
-            "timeout": 10000
-          }
-        ]
       }
     ],
     "BeforeAgent": [
@@ -32,17 +21,6 @@
             "command": "node ${extensionPath}/hooks/hook-runner.js gemini before-agent",
             "name": "maestro-before-agent",
             "description": "Inject session context into agent turns",
-            "timeout": 10000
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${extensionPath}/hooks/hook-runner.js qwen before-agent",
-            "name": "maestro-before-agent-qwen",
-            "description": "Inject session context into agent turns (Qwen Code)",
             "timeout": 10000
           }
         ]
@@ -59,17 +37,6 @@
             "timeout": 10000
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${extensionPath}/hooks/hook-runner.js qwen after-agent",
-            "name": "maestro-after-agent-qwen",
-            "description": "Validate handoff report format with retry on malformed output (Qwen Code)",
-            "timeout": 10000
-          }
-        ]
       }
     ],
     "SessionEnd": [
@@ -80,17 +47,6 @@
             "command": "node ${extensionPath}/hooks/hook-runner.js gemini session-end",
             "name": "maestro-session-end",
             "description": "Clean up hook state for ended session",
-            "timeout": 10000
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${extensionPath}/hooks/hook-runner.js qwen session-end",
-            "name": "maestro-session-end-qwen",
-            "description": "Clean up hook state for ended session (Qwen Code)",
             "timeout": 10000
           }
         ]

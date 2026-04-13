@@ -112,7 +112,7 @@ Workflow:
 1. Identify the ready batch from the approved plan. Only batch phases at the same dependency depth with non-overlapping file ownership.
 2. Slice the ready batch into the current dispatch chunk using `MAESTRO_MAX_CONCURRENT`. `0` means dispatch the entire ready batch in one turn.
 3. Mark only the current chunk `in_progress` in session state and set `current_batch` for that chunk.
-4. Call `write_todos` once for the current chunk.
+4. Call `todo_write` once for the current chunk.
 5. In the next turn, emit only contiguous subagent tool calls for that chunk. Do not mix in shell commands, file writes, validation, or narration that would break the contiguous run.
 6. Every delegation query must begin with:
    - `Agent: <agent_name>`
@@ -162,7 +162,7 @@ When building delegation prompts:
 For structured content and source files:
 
 - Use `write_file` for create
-- Use `replace` for modify
+- Use `edit` for modify
 - Do not use shell redirection/heredoc/echo/printf to write file content
 
 Use `run_shell_command` for command execution only (tests, builds, scripts, git ops).
@@ -175,7 +175,7 @@ Resolve `<state_dir>` from `MAESTRO_STATE_DIR`:
 - Plans: `<state_dir>/plans/`
 - Archives: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
-When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`replace` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
+When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`edit` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
 
 `/maestro:status` and `/maestro:resume` use `node ${extensionPath}/src/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
 
@@ -226,13 +226,13 @@ All agent names use **snake_case** (underscores, not hyphens). When delegating, 
 
 ## Hooks
 
-Maestro uses Qwen Code hooks from `hooks/hooks.json`:
+Maestro uses Qwen Code hooks from `qwen/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
 | SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale sessions, initialize hook state when active session exists |
-| BeforeAgent | `hooks/hook-runner.js qwen before-agent` | Prune stale sessions, track active agent, inject compact session context |
-| AfterAgent | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
+| SubagentStart | `hooks/hook-runner.js qwen before-agent` | Prune stale sessions, track active agent, inject compact session context |
+| SubagentStop | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
 | SessionEnd | `hooks/hook-runner.js qwen session-end` | Clean up hook state for ended session |
 
 ## Alignment Notes
