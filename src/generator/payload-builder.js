@@ -12,6 +12,7 @@ const VERSION_JSON_FILENAME = 'version.json';
  */
 const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
   'core/',
+  'lib/',
   'config/',
   'hooks/',
   'mcp/',
