@@ -1,8 +1,10 @@
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
-const { parse } = require('../core/frontmatter-parser');
+const { parse } = require('../lib/frontmatter');
+const { toPascalCase } = require('../lib/naming');
+const { writeIfChanged } = require('../lib/io');
+const { discover } = require('../lib/discovery');
 
 /**
  * @typedef {Object} AgentEntry
@@ -32,23 +34,21 @@ const { parse } = require('../core/frontmatter-parser');
  * @returns {AgentEntry[]}
  */
 function scanAgents(srcDir) {
-  const agentsDir = path.join(srcDir, 'agents');
-  const files = fs.readdirSync(agentsDir)
-    .filter((f) => f.endsWith('.md'))
-    .sort();
-
-  return files.map((file) => {
-    const content = fs.readFileSync(path.join(agentsDir, file), 'utf8');
-    const { frontmatter } = parse(content);
-
-    const name = frontmatter.name || path.basename(file, '.md');
-    const capabilities = frontmatter.capabilities || 'read_only';
-
-    const rawTools = frontmatter.tools || [];
-    const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-
-    return { name, capabilities, tools };
+  const entries = discover({
+    dir: path.join(srcDir, 'agents'),
+    pattern: '*.md',
+    identity: (filepath) => path.basename(filepath, '.md'),
+    metadata: (filepath, content) => {
+      const { frontmatter } = parse(content);
+      const name = frontmatter.name || path.basename(filepath, '.md');
+      const capabilities = frontmatter.capabilities || 'read_only';
+      const rawTools = frontmatter.tools || [];
+      const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
+      return { name, capabilities, tools };
+    },
   });
+
+  return entries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
 }
 
 /**
@@ -59,83 +59,49 @@ function scanAgents(srcDir) {
  * @returns {ResourceRegistry}
  */
 function scanResources(srcDir) {
+  const skillsParentDir = path.join(srcDir, 'skills');
+
+  const skillEntries = discover({
+    dir: path.join(srcDir, 'skills', 'shared'),
+    pattern: '**/*.md',
+    identity: (filepath) => {
+      if (path.basename(filepath) === 'SKILL.md') {
+        return path.basename(path.dirname(filepath));
+      }
+      return path.basename(filepath, '.md');
+    },
+    metadata: (filepath) => {
+      const relativePath = 'skills/' + path.relative(skillsParentDir, filepath)
+        .split(path.sep)
+        .join('/');
+      return { relativePath };
+    },
+  });
+
+  const templateEntries = discover({
+    dir: path.join(srcDir, 'templates'),
+    pattern: '*.md',
+    identity: (filepath) => path.basename(filepath, '.md'),
+    metadata: (filepath) => ({
+      relativePath: `templates/${path.basename(filepath)}`,
+    }),
+  });
+
+  const referenceEntries = discover({
+    dir: path.join(srcDir, 'references'),
+    pattern: '*.md',
+    identity: (filepath) => path.basename(filepath, '.md'),
+    metadata: (filepath) => ({
+      relativePath: `references/${path.basename(filepath)}`,
+    }),
+  });
+
   const registry = {};
-
-  const skillsDir = path.join(srcDir, 'skills', 'shared');
-  if (fs.existsSync(skillsDir)) {
-    walkSkills(skillsDir, skillsDir, registry);
-  }
-
-  const templatesDir = path.join(srcDir, 'templates');
-  if (fs.existsSync(templatesDir)) {
-    const files = fs.readdirSync(templatesDir).filter((f) => f.endsWith('.md'));
-    for (const file of files) {
-      const key = path.basename(file, '.md');
-      registry[key] = `templates/${file}`;
-    }
-  }
-
-  const referencesDir = path.join(srcDir, 'references');
-  if (fs.existsSync(referencesDir)) {
-    const files = fs.readdirSync(referencesDir).filter((f) => f.endsWith('.md'));
-    for (const file of files) {
-      const key = path.basename(file, '.md');
-      registry[key] = `references/${file}`;
-    }
+  for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
+    registry[entry.id] = entry.relativePath;
   }
 
   return registry;
-}
-
-/**
- * Walk the shared skills directory tree recursively, registering SKILL.md
- * files by their parent directory name, and protocol .md files by their
- * filename stem.
- * @param {string} dir - Current directory to walk
- * @param {string} skillsRoot - Root of the skills/shared/ directory
- * @param {ResourceRegistry} registry - Mutable registry being built
- */
-function walkSkills(dir, skillsRoot, registry) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-
-    if (entry.isDirectory()) {
-      walkSkills(fullPath, skillsRoot, registry);
-      continue;
-    }
-
-    if (!entry.name.endsWith('.md')) {
-      continue;
-    }
-
-    const relativePath = 'skills/' + path.relative(path.dirname(skillsRoot), fullPath)
-      .split(path.sep)
-      .join('/');
-
-    if (entry.name === 'SKILL.md') {
-      const key = path.basename(dir);
-      registry[key] = relativePath;
-    } else {
-      const key = path.basename(entry.name, '.md');
-      registry[key] = relativePath;
-    }
-  }
-}
-
-/**
- * Derive a PascalCase handler function name from a hook name.
- *   "session-start" -> "handleSessionStart"
- * @param {string} hookName
- * @returns {string}
- */
-function hookNameToFunctionName(hookName) {
-  const pascal = hookName
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('');
-  return `handle${pascal}`;
 }
 
 /**
@@ -145,20 +111,23 @@ function hookNameToFunctionName(hookName) {
  * @returns {HookRegistry}
  */
 function scanHooks(srcDir) {
-  const logicDir = path.join(srcDir, 'hooks', 'logic');
-  const files = fs.readdirSync(logicDir)
-    .filter((f) => f.endsWith('-logic.js'))
-    .sort();
+  const entries = discover({
+    dir: path.join(srcDir, 'hooks', 'logic'),
+    pattern: '*-logic.js',
+    identity: (filepath) => path.basename(filepath).replace(/-logic\.js$/, ''),
+    metadata: (filepath) => {
+      const file = path.basename(filepath);
+      const hookName = file.replace(/-logic\.js$/, '');
+      return {
+        module: `hooks/logic/${file}`,
+        fn: `handle${toPascalCase(hookName)}`,
+      };
+    },
+  });
 
   const registry = {};
-
-  for (const file of files) {
-    const hookName = file.replace(/-logic\.js$/, '');
-    const fn = hookNameToFunctionName(hookName);
-    registry[hookName] = {
-      module: `hooks/logic/${file}`,
-      fn,
-    };
+  for (const entry of entries) {
+    registry[entry.id] = { module: entry.module, fn: entry.fn };
   }
 
   return registry;
@@ -171,7 +140,6 @@ function scanHooks(srcDir) {
  */
 function generateRegistries(srcDir) {
   const generatedDir = path.join(srcDir, 'generated');
-  fs.mkdirSync(generatedDir, { recursive: true });
 
   const agents = scanAgents(srcDir);
   const resources = scanResources(srcDir);
@@ -189,21 +157,6 @@ function generateRegistries(srcDir) {
     path.join(generatedDir, 'hook-registry.json'),
     JSON.stringify(hooks, null, 2) + '\n'
   );
-}
-
-/**
- * Write content to a file only when it differs from the existing content.
- * @param {string} filePath
- * @param {string} content
- */
-function writeIfChanged(filePath, content) {
-  const existing = fs.existsSync(filePath)
-    ? fs.readFileSync(filePath, 'utf8')
-    : null;
-
-  if (existing !== content) {
-    fs.writeFileSync(filePath, content, 'utf8');
-  }
 }
 
 module.exports = {

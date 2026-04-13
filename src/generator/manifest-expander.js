@@ -2,6 +2,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const { toSnakeCase } = require('../lib/naming');
 
 /**
  * Expand a glob pattern relative to srcDir.
@@ -76,7 +77,7 @@ function computeOutputPath(srcRelPath, runtime) {
   if (outPath.startsWith('agents/') && runtime.agentNaming === 'snake_case') {
     const dir = path.dirname(outPath);
     const base = path.basename(outPath);
-    outPath = dir + '/' + base.replace(/-/g, '_');
+    outPath = dir + '/' + toSnakeCase(base);
   }
 
   if (runtime.outputDir && runtime.outputDir !== './') {

@@ -2,8 +2,8 @@
 
 const { log } = require('../../core/logger');
 const { detectAgentFromPrompt } = require('../../core/agent-registry');
-const { validateSessionId } = require('../../state/session-id-validator');
-const { readFileSafe } = require('../../core/file-utils');
+const { assertSessionId } = require('../../lib/validation');
+const { readFileSafe } = require('../../lib/io');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
 
@@ -25,7 +25,10 @@ function handleBeforeAgent(ctx) {
 
   const agentName = detectAgentFromPrompt(ctx.agentInput);
 
-  if (agentName && validateSessionId(ctx.sessionId)) {
+  let validSession = false;
+  try { assertSessionId(ctx.sessionId); validSession = true; } catch (_) {}
+
+  if (agentName && validSession) {
     hookState.setActiveAgent(ctx.sessionId, agentName);
     log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }

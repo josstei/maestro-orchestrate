@@ -99,7 +99,7 @@ describe('discovery-parity: hook-registry.json byte-for-byte', () => {
 });
 
 describe('discovery-parity: resource-registry.json byte-for-byte', () => {
-  it('generateRegistry() serializes scanResources() data identically to src/generated/resource-registry.json', () => {
+  it('generateRegistry() produces byte-identical output to src/generated/resource-registry.json', () => {
     const expectedPath = path.join(GENERATED_DIR, 'resource-registry.json');
     const actualPath = path.join(tmpDir, 'resource-registry.json');
 
@@ -114,56 +114,16 @@ describe('discovery-parity: resource-registry.json byte-for-byte', () => {
     );
   });
 
-  it('discover() produces structurally identical resource data to scanResources()', () => {
-    const skillsSharedDir = path.join(SRC_DIR, 'skills', 'shared');
-    const skillsParentDir = path.join(SRC_DIR, 'skills');
+  it('scanResources() keys are sorted within each source group', () => {
+    const registry = registryScanner.scanResources(SRC_DIR);
+    const keys = Object.keys(registry);
 
-    const skillEntries = discover({
-      dir: skillsSharedDir,
-      pattern: '**/*.md',
-      identity: (fp) => {
-        const filename = path.basename(fp);
-        if (filename === 'SKILL.md') {
-          return path.basename(path.dirname(fp));
-        }
-        return path.basename(fp, '.md');
-      },
-      metadata: (fp) => {
-        const relativePath = 'skills/' + path.relative(skillsParentDir, fp)
-          .split(path.sep)
-          .join('/');
-        return { relativePath };
-      },
-    });
+    const skillKeys = keys.filter((k) => registry[k].startsWith('skills/'));
+    const templateKeys = keys.filter((k) => registry[k].startsWith('templates/'));
+    const referenceKeys = keys.filter((k) => registry[k].startsWith('references/'));
 
-    const templatesDir = path.join(SRC_DIR, 'templates');
-    const templateEntries = discover({
-      dir: templatesDir,
-      pattern: '*.md',
-      identity: (fp) => path.basename(fp, '.md'),
-      metadata: (fp) => {
-        const file = path.basename(fp);
-        return { relativePath: `templates/${file}` };
-      },
-    });
-
-    const referencesDir = path.join(SRC_DIR, 'references');
-    const referenceEntries = discover({
-      dir: referencesDir,
-      pattern: '*.md',
-      identity: (fp) => path.basename(fp, '.md'),
-      metadata: (fp) => {
-        const file = path.basename(fp);
-        return { relativePath: `references/${file}` };
-      },
-    });
-
-    const discovered = {};
-    for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
-      discovered[entry.id] = entry.relativePath;
-    }
-
-    const expected = registryScanner.scanResources(SRC_DIR);
-    assert.deepStrictEqual(discovered, expected);
+    assert.deepStrictEqual(skillKeys, [...skillKeys].sort());
+    assert.deepStrictEqual(templateKeys, [...templateKeys].sort());
+    assert.deepStrictEqual(referenceKeys, [...referenceKeys].sort());
   });
 });

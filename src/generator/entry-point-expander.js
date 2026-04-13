@@ -2,24 +2,9 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const { toTitleCase } = require('../lib/naming');
 
 const DEFAULT_SRC = path.resolve(__dirname, '..');
-
-/**
- * @param {string} name
- * @returns {string}
- */
-function toTitle(name) {
-  const special = {
-    'a11y-audit': 'Accessibility Audit',
-    'seo-audit': 'SEO Audit',
-  };
-  if (special[name]) return special[name];
-  return name
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
 
 const ENTRY_POINT_TEMPLATE_MAP = {
   gemini: { file: 'gemini-command.toml.tmpl', outputPath: (e) => `commands/maestro/${e.name}.toml` },
@@ -106,7 +91,7 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
     let content = template;
 
     content = content.replace(/\{\{name\}\}/g, runtimeEntry.name);
-    content = content.replace(/\{\{Name\}\}/g, toTitle(runtimeEntry.name));
+    content = content.replace(/\{\{Name\}\}/g, toTitleCase(runtimeEntry.name));
     content = content.replace(/\{\{description\}\}/g, runtimeEntry.description);
 
     const workflowNumbered = runtimeEntry.workflow
