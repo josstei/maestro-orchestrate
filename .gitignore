@@ -47,3 +47,4 @@ temp/
 docs/maestro/
 docs/superpowers/
 hooks/permissions.json
+.worktrees

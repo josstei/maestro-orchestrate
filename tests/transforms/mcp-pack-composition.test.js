@@ -20,6 +20,7 @@ describe('mcp pack composition', () => {
         'assess_task_complexity',
         'validate_plan',
         'resolve_settings',
+        'setup_models',
         'create_session',
         'get_session_status',
         'update_session',

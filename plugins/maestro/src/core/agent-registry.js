@@ -4,6 +4,7 @@ const KNOWN_AGENTS = Object.freeze([
   'architect',
   'api_designer',
   'code_reviewer',
+  'codebase_investigator', // Native to gemini-cli
   'coder',
   'data_engineer',
   'debugger',
