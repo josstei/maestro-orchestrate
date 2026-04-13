@@ -304,49 +304,69 @@ describe('parse', () => {
 });
 
 describe('parseFrontmatterOnly', () => {
-  it('parses key-value pairs as raw strings', () => {
+  it('parses key-value pairs as raw strings with body', () => {
     const content = '---\nname: my-agent\ntimeout: 30\n---\nBody.';
     const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result, { name: 'my-agent', timeout: '30' });
+    assert.deepEqual(result.frontmatter, { name: 'my-agent', timeout: '30' });
+    assert.equal(result.body, 'Body.');
   });
 
   it('does not coerce numeric values', () => {
     const content = '---\ncount: 42\n---\n';
     const result = parseFrontmatterOnly(content);
-    assert.strictEqual(result.count, '42');
+    assert.strictEqual(result.frontmatter.count, '42');
   });
 
   it('does not parse inline arrays', () => {
     const content = '---\ntools: [read, write]\n---\n';
     const result = parseFrontmatterOnly(content);
-    assert.strictEqual(result.tools, '[read, write]');
+    assert.strictEqual(result.frontmatter.tools, '[read, write]');
   });
 
-  it('returns empty object when no opening delimiter', () => {
-    const result = parseFrontmatterOnly('No frontmatter here.');
-    assert.deepEqual(result, {});
+  it('returns empty frontmatter and full body when no opening delimiter', () => {
+    const content = 'No frontmatter here.';
+    const result = parseFrontmatterOnly(content);
+    assert.deepEqual(result.frontmatter, {});
+    assert.equal(result.body, content);
   });
 
-  it('returns empty object when no closing delimiter', () => {
-    const result = parseFrontmatterOnly('---\nname: orphan\nno closing');
-    assert.deepEqual(result, {});
+  it('returns empty frontmatter and full body when no closing delimiter', () => {
+    const content = '---\nname: orphan\nno closing';
+    const result = parseFrontmatterOnly(content);
+    assert.deepEqual(result.frontmatter, {});
+    assert.equal(result.body, content);
   });
 
-  it('requires trailing newline after closing delimiter', () => {
-    const result = parseFrontmatterOnly('---\nkey: val\n---');
-    assert.deepEqual(result, {});
+  it('returns empty frontmatter and full body when no trailing newline after closing delimiter', () => {
+    const content = '---\nkey: val\n---';
+    const result = parseFrontmatterOnly(content);
+    assert.deepEqual(result.frontmatter, {});
+    assert.equal(result.body, content);
   });
 
   it('skips lines without a colon', () => {
     const content = '---\nname: test\ninvalid\ntier: full\n---\n';
     const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result, { name: 'test', tier: 'full' });
+    assert.deepEqual(result.frontmatter, { name: 'test', tier: 'full' });
   });
 
   it('handles values containing colons', () => {
     const content = '---\ndesc: a: b: c\n---\n';
     const result = parseFrontmatterOnly(content);
-    assert.equal(result.desc, 'a: b: c');
+    assert.equal(result.frontmatter.desc, 'a: b: c');
+  });
+
+  it('returns empty body string when body is empty after frontmatter', () => {
+    const content = '---\nkey: val\n---\n';
+    const result = parseFrontmatterOnly(content);
+    assert.deepEqual(result.frontmatter, { key: 'val' });
+    assert.equal(result.body, '');
+  });
+
+  it('preserves multiline body', () => {
+    const content = '---\nkey: val\n---\nLine 1\nLine 2';
+    const result = parseFrontmatterOnly(content);
+    assert.equal(result.body, 'Line 1\nLine 2');
   });
 });
 
@@ -455,11 +475,11 @@ describe('Parity: parseFrontmatterOnly() vs core/frontmatter-parser parseFrontma
   for (const filePath of agentFiles) {
     const fileName = path.basename(filePath);
 
-    it(`produces identical output for ${fileName}`, () => {
+    it(`produces identical frontmatter for ${fileName}`, () => {
       const content = fs.readFileSync(filePath, 'utf8');
-      const expected = coreFrontmatter.parseFrontmatterOnly(content);
+      const expectedFm = coreFrontmatter.parseFrontmatterOnly(content);
       const actual = parseFrontmatterOnly(content);
-      assert.deepEqual(actual, expected);
+      assert.deepEqual(actual.frontmatter, expectedFm);
     });
   }
 });

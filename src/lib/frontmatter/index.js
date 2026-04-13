@@ -189,30 +189,36 @@ function parse(content) {
  * Parse frontmatter returning raw string values without type coercion (simple parser).
  *
  * Uses substring-based boundary detection (`---\n` prefix and `\n---\n`
- * closing). Returns a plain object whose values are always raw strings.
+ * closing). Returns a wrapper object with a frontmatter map (raw string
+ * values) and the remaining body text.
  *
  * This intentionally uses stricter boundary detection than {@link parse} or
  * {@link splitAtBoundary}: it requires a newline after the closing `---`
  * delimiter. This preserves the historical contract where content ending
- * exactly at `---` (no trailing newline) returns an empty object.
+ * exactly at `---` (no trailing newline) returns empty frontmatter with the
+ * full content as body.
  *
- * Returns an empty object when no valid frontmatter block is found.
+ * Returns empty frontmatter and the full content as body when no valid
+ * frontmatter block is found.
  *
  * @param {string} content - The full content string with optional frontmatter.
- * @returns {Object<string, string>} Key-value map of raw frontmatter entries.
+ * @returns {{ frontmatter: Object<string, string>, body: string }} Raw frontmatter map and remaining body.
  */
 function parseFrontmatterOnly(content) {
   if (!content.startsWith('---\n')) {
-    return {};
+    return { frontmatter: {}, body: content };
   }
 
   const end = content.indexOf('\n---\n', 4);
   if (end === -1) {
-    return {};
+    return { frontmatter: {}, body: content };
   }
 
   const lines = content.slice(4, end).split('\n');
-  return parseLines(lines, (v) => v);
+  const frontmatter = parseLines(lines, (v) => v);
+  const body = content.slice(end + 5);
+
+  return { frontmatter, body };
 }
 
 /**
