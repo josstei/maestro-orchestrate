@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { parseFrontmatterOnly } = require('../../lib/frontmatter');
+const { parseFrontmatterOnly, splitAtBoundary } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
 const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');
 
@@ -81,16 +81,11 @@ function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
 }
 
 function stripFrontmatter(content) {
-  if (!content.startsWith('---\n')) {
+  const { raw, body } = splitAtBoundary(content);
+  if (!raw) {
     return content;
   }
-
-  const end = content.indexOf('\n---\n', 4);
-  if (end === -1) {
-    return content;
-  }
-
-  return content.slice(end + 5);
+  return body;
 }
 
 function stripFeatureBlocks(content, runtimeConfig) {

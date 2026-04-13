@@ -1,40 +1,21 @@
 'use strict';
 
 const path = require('node:path');
+const fs = require('node:fs');
+const { discover, generateRegistry } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
 const { toPascalCase } = require('../lib/naming');
-const { writeIfChanged } = require('../lib/io');
-const { discover } = require('../lib/discovery');
 
 /**
- * @typedef {Object} AgentEntry
- * @property {string} name
- * @property {string} capabilities
- * @property {string[]} tools
- */
-
-/**
- * @typedef {Object<string, string>} ResourceRegistry
- */
-
-/**
- * @typedef {Object} HookEntry
- * @property {string} module
- * @property {string} fn
- */
-
-/**
- * @typedef {Object<string, HookEntry>} HookRegistry
- */
-
-/**
- * Scan agent Markdown files and extract name, capabilities, and tools from
- * frontmatter. Returns a sorted array of agent entries.
+ * Run all discovery scans and write the resulting JSON registry files to
+ * src/generated/.
  * @param {string} srcDir - Absolute path to the src/ directory
- * @returns {AgentEntry[]}
  */
-function scanAgents(srcDir) {
-  const entries = discover({
+function generateRegistries(srcDir) {
+  const generatedDir = path.join(srcDir, 'generated');
+  fs.mkdirSync(generatedDir, { recursive: true });
+
+  const agentEntries = discover({
     dir: path.join(srcDir, 'agents'),
     pattern: '*.md',
     identity: (filepath) => path.basename(filepath, '.md'),
@@ -47,20 +28,10 @@ function scanAgents(srcDir) {
       return { name, capabilities, tools };
     },
   });
+  const agents = agentEntries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
+  generateRegistry(agents, path.join(generatedDir, 'agent-registry.json'));
 
-  return entries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
-}
-
-/**
- * Scan skills, templates, references, and protocol directories to build a
- * resource allowlist mapping resource identifiers to their source-relative
- * paths.
- * @param {string} srcDir - Absolute path to the src/ directory
- * @returns {ResourceRegistry}
- */
-function scanResources(srcDir) {
   const skillsParentDir = path.join(srcDir, 'skills');
-
   const skillEntries = discover({
     dir: path.join(srcDir, 'skills', 'shared'),
     pattern: '**/*.md',
@@ -96,22 +67,13 @@ function scanResources(srcDir) {
     }),
   });
 
-  const registry = {};
+  const resources = {};
   for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
-    registry[entry.id] = entry.relativePath;
+    resources[entry.id] = entry.relativePath;
   }
+  generateRegistry(resources, path.join(generatedDir, 'resource-registry.json'));
 
-  return registry;
-}
-
-/**
- * Scan hook logic files and build a hook registry mapping hook names to
- * their module paths and exported function names.
- * @param {string} srcDir - Absolute path to the src/ directory
- * @returns {HookRegistry}
- */
-function scanHooks(srcDir) {
-  const entries = discover({
+  const hookEntries = discover({
     dir: path.join(srcDir, 'hooks', 'logic'),
     pattern: '*-logic.js',
     identity: (filepath) => path.basename(filepath).replace(/-logic\.js$/, ''),
@@ -125,43 +87,11 @@ function scanHooks(srcDir) {
     },
   });
 
-  const registry = {};
-  for (const entry of entries) {
-    registry[entry.id] = { module: entry.module, fn: entry.fn };
+  const hooks = {};
+  for (const entry of hookEntries) {
+    hooks[entry.id] = { module: entry.module, fn: entry.fn };
   }
-
-  return registry;
+  generateRegistry(hooks, path.join(generatedDir, 'hook-registry.json'));
 }
 
-/**
- * Run all scanners and write the resulting JSON registry files to
- * src/generated/.
- * @param {string} srcDir - Absolute path to the src/ directory
- */
-function generateRegistries(srcDir) {
-  const generatedDir = path.join(srcDir, 'generated');
-
-  const agents = scanAgents(srcDir);
-  const resources = scanResources(srcDir);
-  const hooks = scanHooks(srcDir);
-
-  writeIfChanged(
-    path.join(generatedDir, 'agent-registry.json'),
-    JSON.stringify(agents, null, 2) + '\n'
-  );
-  writeIfChanged(
-    path.join(generatedDir, 'resource-registry.json'),
-    JSON.stringify(resources, null, 2) + '\n'
-  );
-  writeIfChanged(
-    path.join(generatedDir, 'hook-registry.json'),
-    JSON.stringify(hooks, null, 2) + '\n'
-  );
-}
-
-module.exports = {
-  scanAgents,
-  scanResources,
-  scanHooks,
-  generateRegistries,
-};
+module.exports = { generateRegistries };

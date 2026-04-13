@@ -14,9 +14,6 @@ function replaceBodyWithStub(content, stubBody) {
   if (raw) {
     return '---\n' + raw + '\n---\n\n' + stubBody;
   }
-  if (content.startsWith('---\n')) {
-    return content + '\n' + stubBody;
-  }
   return stubBody;
 }
 
