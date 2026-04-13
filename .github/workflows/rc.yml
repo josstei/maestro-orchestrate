@@ -1,4 +1,4 @@
-name: Preview Build
+name: Release Candidate
 
 on:
   pull_request:
@@ -9,11 +9,15 @@ permissions:
   pull-requests: write
 
 jobs:
-  preview:
-    if: contains(github.event.pull_request.labels.*.name, 'preview')
+  rc:
+    if: >-
+      github.event.pull_request.base.ref == 'main' &&
+      contains(github.event.pull_request.labels.*.name, 'rc') &&
+      contains(github.event.pull_request.labels.*.name, 'release') &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
     runs-on: ubuntu-latest
     concurrency:
-      group: preview-${{ github.event.pull_request.number }}
+      group: rc-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -34,7 +38,7 @@ jobs:
       - name: Check adapter drift
         run: |
           if ! git diff --exit-code --name-only; then
-            echo "::error::Preview drift detected"
+            echo "::error::RC drift detected"
             git diff --stat
             exit 1
           fi
@@ -51,17 +55,25 @@ jobs:
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set preview version
+      - name: Determine RC version
         if: steps.publish_gate.outputs.enabled == 'true'
+        id: rc
         run: |
           BASE=$(node -p "require('./package.json').version")
-          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
-          PREVIEW="${BASE}-preview.${SHORT_SHA}"
-          npm version "$PREVIEW" --no-git-tag-version
+          EXISTING=$(npm view "@maestro-orchestrator/maestro" versions --json 2>/dev/null || echo '[]')
+          RC_NUM=1
 
-      - name: Publish preview
+          while echo "$EXISTING" | grep -q "\"${BASE}-rc.${RC_NUM}\""; do
+            RC_NUM=$((RC_NUM + 1))
+          done
+
+          RC_VERSION="${BASE}-rc.${RC_NUM}"
+          echo "version=$RC_VERSION" >> "$GITHUB_OUTPUT"
+          npm version "$RC_VERSION" --no-git-tag-version
+
+      - name: Publish RC
         if: steps.publish_gate.outputs.enabled == 'true'
-        run: npm publish --tag preview --access public
+        run: npm publish --tag rc --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
@@ -70,14 +82,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="${{ steps.rc.outputs.version }}"
           SHA="${{ github.event.pull_request.head.sha }}"
-          BODY="Preview published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
+          SHORT_SHA=$(echo "$SHA" | cut -c1-7)
+          BODY="Release candidate published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
 
-          Built from \`${SHA}\`"
+          Built from \`${SHORT_SHA}\`"
 
           EXISTING=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
-            --jq 'map(select(.body | startswith("Preview published:"))) | .[0].id')
+            --jq 'map(select(.body | startswith("Release candidate published:"))) | .[0].id')
 
           if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
             gh api repos/${{ github.repository }}/issues/comments/$EXISTING \

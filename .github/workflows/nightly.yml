@@ -11,8 +11,12 @@ permissions:
 jobs:
   nightly:
     runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: refs/heads/dev
 
       - uses: actions/setup-node@v4
         with:
@@ -25,7 +29,7 @@ jobs:
       - name: Check adapter drift
         run: |
           if ! git diff --exit-code --name-only; then
-            echo "::error::Nightly drift detected"
+            echo "::error::Nightly drift detected on dev"
             git diff --stat
             exit 1
           fi
@@ -33,15 +37,24 @@ jobs:
       - name: Run full test suite
         run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
+      - name: Determine publish eligibility
+        id: publish_gate
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set nightly version
-        if: secrets.NPM_TOKEN != ''
+        if: steps.publish_gate.outputs.enabled == 'true'
         run: |
           BASE=$(node -p "require('./package.json').version")
           NIGHTLY="${BASE}-nightly.$(date +%Y%m%d)"
           npm version "$NIGHTLY" --no-git-tag-version
 
       - name: Publish nightly
-        if: secrets.NPM_TOKEN != ''
+        if: steps.publish_gate.outputs.enabled == 'true'
         run: npm publish --tag nightly --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}

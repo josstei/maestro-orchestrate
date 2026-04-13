@@ -19,8 +19,8 @@ help:
     @echo "  just check            Generate + verify zero drift"
     @echo "  just ci               Full CI equivalent (check + test)"
     @echo ""
-    @echo "Release:"
-    @echo "  just release <ver>    Tag and push (e.g. just release 1.5.1)"
+    @echo "Maintenance:"
+    @echo "  just cleanup-branches Delete local branches whose remote is gone"
 
 # Generate all runtime files from src/
 generate:
@@ -88,7 +88,18 @@ check: generate
 # Generate, test, and verify — full CI equivalent
 ci: check test
 
-# Tag and push a release
-release version:
-    git tag v{{version}}
-    git push origin v{{version}}
+# Delete local branches whose remote tracking ref is gone
+cleanup-branches:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git fetch --prune
+    GONE=$(git branch -vv | grep ': gone]' | awk '{print $1}' || true)
+    if [ -n "$GONE" ]; then
+        echo "Deleting branches with gone remotes:"
+        echo "$GONE" | xargs git branch -d
+    else
+        echo "No branches with gone remotes."
+    fi
+    echo ""
+    echo "Unmerged branches (review manually):"
+    git branch --no-merged dev 2>/dev/null || echo "  (none)"

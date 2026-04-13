@@ -6,6 +6,7 @@ const readline = require('node:readline');
 
 const { log, fatal } = require('../core/logger');
 const { resolveProjectRootForRuntime } = require('../core/project-root-resolver');
+const { resolveVersion } = require('../core/version');
 const { createServer } = require('./core/create-server');
 const { DEFAULT_TOOL_PACKS } = require('./tool-packs');
 const { getDefaultRuntimeConfig, normalizeRuntimeConfig } = require('./runtime/runtime-config-map');
@@ -15,7 +16,7 @@ const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
 const CLIENT_REQUEST_TIMEOUT_MS = 1000;
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
-  version: '1.6.1',
+  version: resolveVersion(__dirname),
 });
 
 function writeMessage(output, message) {
