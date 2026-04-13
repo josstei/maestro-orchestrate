@@ -21,6 +21,9 @@
     "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
     "prepack": "npm run generate"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "keywords": [
     "orchestration",
     "multi-agent",
