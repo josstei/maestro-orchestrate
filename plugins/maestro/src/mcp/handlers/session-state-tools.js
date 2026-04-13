@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const markdownState = require('../../core/markdown-state');
 
 const {
   readState,
@@ -13,24 +14,15 @@ const { validateSessionId } = require('../../state/session-id-validator');
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 
 function parseSessionState(content) {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) {
-    throw new Error('No YAML frontmatter found in session state');
-  }
-
-  return JSON.parse(match[1]);
+  return markdownState.parse(content).data;
 }
 
 function serializeSessionState(data, bodyContent) {
-  return `---
-${JSON.stringify(data, null, 2)}
----
-${bodyContent || ''}`;
+  return markdownState.serialize(data, bodyContent);
 }
 
 function extractBody(content) {
-  const match = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
-  return match ? match[1] : '';
+  return markdownState.parse(content).body;
 }
 
 function getBasePath(projectRoot) {

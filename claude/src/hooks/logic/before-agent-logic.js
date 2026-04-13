@@ -1,9 +1,9 @@
 'use strict';
 
-const fs = require('fs');
 const { log } = require('../../core/logger');
 const { detectAgentFromPrompt } = require('../../core/agent-registry');
 const { validateSessionId } = require('../../state/session-id-validator');
+const { readFileSafe } = require('../../core/file-utils');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
 
@@ -33,8 +33,8 @@ function handleBeforeAgent(ctx) {
   const sessionPath = state.resolveActiveSessionPath(ctx.cwd);
   let contextParts = '';
 
-  try {
-    const content = fs.readFileSync(sessionPath, 'utf8');
+  const content = readFileSafe(sessionPath, '');
+  if (content) {
     const parts = [];
     const phaseMatch = content.match(/current_phase:\s*(\S+)/);
     if (phaseMatch) parts.push(`current_phase=${phaseMatch[1]}`);
@@ -43,7 +43,7 @@ function handleBeforeAgent(ctx) {
     if (parts.length > 0) {
       contextParts = `Active session: ${parts.join(', ')}`;
     }
-  } catch {}
+  }
 
   if (contextParts) {
     return { action: 'allow', message: contextParts, reason: null };

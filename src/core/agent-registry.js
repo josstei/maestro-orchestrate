@@ -1,54 +1,16 @@
 'use strict';
 
-const KNOWN_AGENTS = Object.freeze([
-  'architect',
-  'api_designer',
-  'code_reviewer',
-  'coder',
-  'data_engineer',
-  'debugger',
-  'devops_engineer',
-  'performance_engineer',
-  'refactor',
-  'security_engineer',
-  'technical_writer',
-  'tester',
-  'seo_specialist',
-  'copywriter',
-  'content_strategist',
-  'ux_designer',
-  'accessibility_specialist',
-  'product_manager',
-  'analytics_engineer',
-  'i18n_specialist',
-  'design_system_engineer',
-  'compliance_reviewer',
-]);
+const agentRegistryData = require('../generated/agent-registry.json');
 
-const AGENT_CAPABILITIES = Object.freeze({
-  architect: 'read_only',
-  api_designer: 'read_only',
-  code_reviewer: 'read_only',
-  content_strategist: 'read_only',
-  compliance_reviewer: 'read_only',
-  debugger: 'read_shell',
-  performance_engineer: 'read_shell',
-  security_engineer: 'read_shell',
-  seo_specialist: 'read_shell',
-  accessibility_specialist: 'read_shell',
-  technical_writer: 'read_write',
-  product_manager: 'read_write',
-  ux_designer: 'read_write',
-  copywriter: 'read_write',
-  coder: 'full',
-  data_engineer: 'full',
-  devops_engineer: 'full',
-  tester: 'full',
-  refactor: 'full',
-  design_system_engineer: 'full',
-  i18n_specialist: 'full',
-  analytics_engineer: 'full',
-});
+const KNOWN_AGENTS = Object.freeze(
+  agentRegistryData.map((entry) => entry.name.replace(/-/g, '_'))
+);
+
+const AGENT_CAPABILITIES = Object.freeze(
+  Object.fromEntries(
+    agentRegistryData.map((entry) => [entry.name.replace(/-/g, '_'), entry.capabilities])
+  )
+);
 
 function normalizeAgentName(name) {
   if (typeof name !== 'string') return '';

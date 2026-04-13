@@ -8,6 +8,7 @@ tools.claude: [Read, Write, Edit, Glob, Grep]
 max_turns: 20
 temperature: 0.3
 timeout_mins: 8
+capabilities: read_write
 ---
 <!-- @feature exampleBlocks -->
 <example>

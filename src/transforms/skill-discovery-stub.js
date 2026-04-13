@@ -1,11 +1,8 @@
-function getFrontmatterValue(content, key) {
-  const match = content.match(new RegExp(`(?:^|\\n)${key}:\\s*(.+)$`, 'm'));
-  return match ? match[1].trim() : null;
-}
+const { extractValue } = require('../core/frontmatter-parser');
 
 function skillDiscoveryStub(content, runtime) {
-  const name = getFrontmatterValue(content, 'name');
-  const description = getFrontmatterValue(content, 'description');
+  const name = extractValue(content, 'name');
+  const description = extractValue(content, 'description');
   const lines = ['---'];
 
   if (name) {

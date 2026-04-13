@@ -8,6 +8,7 @@ tools.claude: [Read, Write, Edit, Glob, Grep, WebSearch, TaskCreate, TaskUpdate,
 max_turns: 15
 temperature: 0.3
 timeout_mins: 5
+capabilities: read_write
 ---
 <!-- @feature exampleBlocks -->
 <example>

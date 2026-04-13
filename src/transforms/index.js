@@ -1,10 +1,14 @@
-const injectFrontmatter = require('./inject-frontmatter');
+const parseFrontmatter = require('./parse-frontmatter');
+const extractExamples = require('./extract-examples');
+const rebuildFrontmatter = require('./rebuild-frontmatter');
 const skillMetadata = require('./skill-metadata');
 const agentStub = require('./agent-stub');
 const skillDiscoveryStub = require('./skill-discovery-stub');
 
 const transforms = {
-  'inject-frontmatter': injectFrontmatter,
+  'parse-frontmatter': parseFrontmatter,
+  'extract-examples': extractExamples,
+  'rebuild-frontmatter': rebuildFrontmatter,
   'skill-metadata': skillMetadata,
   'agent-stub': agentStub,
   'skill-discovery-stub': skillDiscoveryStub,

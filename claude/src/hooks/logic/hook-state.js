@@ -6,6 +6,7 @@ const os = require('os');
 const { log } = require('../../core/logger');
 const { validateSessionId } = require('../../state/session-id-validator');
 const { atomicWriteSync } = require('../../core/atomic-write');
+const { readFileSafe } = require('../../core/file-utils');
 
 const HOOK_STATE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -63,11 +64,7 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   function getActiveAgent(sessionId) {
     if (!validateSessionId(sessionId)) return '';
     const agentFile = path.join(baseDir, sessionId, 'active-agent');
-    try {
-      return fs.readFileSync(agentFile, 'utf8').trim();
-    } catch {
-      return '';
-    }
+    return readFileSafe(agentFile, '').trim();
   }
 
   function clearActiveAgent(sessionId) {

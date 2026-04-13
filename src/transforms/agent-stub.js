@@ -1,12 +1,10 @@
-function extractName(content) {
-  const match = content.match(/(?:^|\n)name:\s*("?)([^\n"]+)\1/);
-  return match ? match[2].trim() : '';
-}
+const { extractValue } = require('../core/frontmatter-parser');
+const { toKebabCase } = require('../core/agent-names');
 
 function canonicalAgentName(name, runtime) {
   if (!name) return name;
   if (runtime.agentNaming === 'snake_case') {
-    return name.replace(/_/g, '-');
+    return toKebabCase(name);
   }
   return name;
 }
@@ -25,7 +23,7 @@ function replaceBodyWithStub(content, stubBody) {
 }
 
 function agentStub(content, runtime) {
-  const name = canonicalAgentName(extractName(content), runtime);
+  const name = canonicalAgentName(extractValue(content, 'name') || '', runtime);
   const stubBody =
     `Agent methodology loaded via MCP tool \`get_agent\`. ` +
     `Call \`get_agent(agents: ["${name}"])\` to read the full methodology at delegation time.\n`;

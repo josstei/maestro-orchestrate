@@ -2,17 +2,10 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { readJsonSafe } = require('./file-utils');
 
 const PACKAGE_NAME = '@maestro-orchestrator/maestro';
 const VERSION_JSON_FILENAME = 'version.json';
-
-function readJsonFile(filePath) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return null;
-  }
-}
 
 function findPackageJsonVersion(startDir) {
   let currentDir = path.resolve(startDir);
@@ -21,7 +14,7 @@ function findPackageJsonVersion(startDir) {
     const candidate = path.join(currentDir, 'package.json');
 
     if (fs.existsSync(candidate)) {
-      const pkg = readJsonFile(candidate);
+      const pkg = readJsonSafe(candidate);
       if (pkg && pkg.name === PACKAGE_NAME && typeof pkg.version === 'string') {
         return pkg.version;
       }
@@ -38,7 +31,7 @@ function findPackageJsonVersion(startDir) {
 
 function findVersionJsonFallback() {
   const versionJsonPath = path.join(__dirname, '..', VERSION_JSON_FILENAME);
-  const versionData = readJsonFile(versionJsonPath);
+  const versionData = readJsonSafe(versionJsonPath);
 
   if (versionData && typeof versionData.version === 'string') {
     return versionData.version;

@@ -12,12 +12,7 @@ const VALID_RUNTIMES = new Set(
     .map((f) => f.replace(/-adapter\.js$/, ''))
 );
 
-const HOOK_MAP = {
-  'session-start': { module: 'hooks/logic/session-start-logic.js', fn: 'handleSessionStart' },
-  'session-end':   { module: 'hooks/logic/session-end-logic.js',   fn: 'handleSessionEnd'   },
-  'before-agent':  { module: 'hooks/logic/before-agent-logic.js',  fn: 'handleBeforeAgent'  },
-  'after-agent':   { module: 'hooks/logic/after-agent-logic.js',   fn: 'handleAfterAgent'   },
-};
+const HOOK_MAP = require('../../generated/hook-registry.json');
 
 const runtime  = process.argv[2];
 const hookName = process.argv[3];

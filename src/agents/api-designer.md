@@ -8,6 +8,7 @@ tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 max_turns: 15
 temperature: 0.3
 timeout_mins: 5
+capabilities: read_only
 ---
 <!-- @feature exampleBlocks -->
 <example>
