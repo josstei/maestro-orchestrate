@@ -3,18 +3,11 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { discover, generateRegistry } = require('../lib/discovery');
+const { serializeRegistry } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
 const { toPascalCase } = require('../lib/naming');
 
-/**
- * Run all discovery scans and write the resulting JSON registry files to
- * src/generated/.
- * @param {string} srcDir - Absolute path to the src/ directory
- */
-function generateRegistries(srcDir) {
-  const generatedDir = path.join(srcDir, 'generated');
-  fs.mkdirSync(generatedDir, { recursive: true });
-
+function buildAgentRegistry(srcDir) {
   const agentEntries = discover({
     dir: path.join(srcDir, 'agents'),
     pattern: '*.md',
@@ -28,9 +21,11 @@ function generateRegistries(srcDir) {
       return { name, capabilities, tools };
     },
   });
-  const agents = agentEntries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
-  generateRegistry(agents, path.join(generatedDir, 'agent-registry.json'));
 
+  return agentEntries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
+}
+
+function buildResourceRegistry(srcDir) {
   const skillsParentDir = path.join(srcDir, 'skills');
   const skillEntries = discover({
     dir: path.join(srcDir, 'skills', 'shared'),
@@ -71,8 +66,11 @@ function generateRegistries(srcDir) {
   for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
     resources[entry.id] = entry.relativePath;
   }
-  generateRegistry(resources, path.join(generatedDir, 'resource-registry.json'));
 
+  return resources;
+}
+
+function buildHookRegistry(srcDir) {
   const hookEntries = discover({
     dir: path.join(srcDir, 'hooks', 'logic'),
     pattern: '*-logic.js',
@@ -91,7 +89,42 @@ function generateRegistries(srcDir) {
   for (const entry of hookEntries) {
     hooks[entry.id] = { module: entry.module, fn: entry.fn };
   }
-  generateRegistry(hooks, path.join(generatedDir, 'hook-registry.json'));
+
+  return hooks;
 }
 
-module.exports = { generateRegistries };
+function buildRegistries(srcDir) {
+  return [
+    { fileName: 'agent-registry.json', data: buildAgentRegistry(srcDir) },
+    { fileName: 'resource-registry.json', data: buildResourceRegistry(srcDir) },
+    { fileName: 'hook-registry.json', data: buildHookRegistry(srcDir) },
+  ];
+}
+
+function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
+  const generatedDir = path.join(srcDir, 'generated');
+
+  return buildRegistries(srcDir).map(({ fileName, data }) => ({
+    outputPath: path.relative(rootDir, path.join(generatedDir, fileName)),
+    content: serializeRegistry(data),
+  }));
+}
+
+/**
+ * Run all discovery scans and write the resulting JSON registry files to
+ * src/generated/.
+ * @param {string} srcDir - Absolute path to the src/ directory
+ */
+function generateRegistries(srcDir) {
+  const generatedDir = path.join(srcDir, 'generated');
+  fs.mkdirSync(generatedDir, { recursive: true });
+
+  for (const { fileName, data } of buildRegistries(srcDir)) {
+    generateRegistry(data, path.join(generatedDir, fileName));
+  }
+}
+
+module.exports = {
+  collectRegistryOutputs,
+  generateRegistries,
+};

@@ -4,6 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   DRY_RUN_MARKER,
+  createTempRepoCopy,
   getGitStatus,
   parseDryRunReport,
   ROOT,
@@ -57,6 +58,50 @@ describe('generator integration', () => {
         content.includes('MAESTRO_RUNTIME'),
         `Expected ${relativePath} to set MAESTRO_RUNTIME`
       );
+    }
+  });
+
+  it('--dry-run does not rewrite registry files even when registry content would change', () => {
+    const repoRoot = createTempRepoCopy('maestro-generator-dry-run-');
+
+    try {
+      const registryPath = path.join(repoRoot, 'src/generated/agent-registry.json');
+      const before = fs.readFileSync(registryPath, 'utf8');
+
+      fs.writeFileSync(
+        path.join(repoRoot, 'src/agents/registry-dry-run-test.md'),
+        '---\nname: registry-dry-run-test\ncapabilities: read_only\n---\nBody\n',
+        'utf8'
+      );
+
+      runGenerator(['--dry-run'], { cwd: repoRoot });
+
+      const after = fs.readFileSync(registryPath, 'utf8');
+      assert.equal(after, before);
+    } finally {
+      fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
+    }
+  });
+
+  it('--diff does not rewrite registry files even when registry content would change', () => {
+    const repoRoot = createTempRepoCopy('maestro-generator-diff-');
+
+    try {
+      const registryPath = path.join(repoRoot, 'src/generated/agent-registry.json');
+      const before = fs.readFileSync(registryPath, 'utf8');
+
+      fs.writeFileSync(
+        path.join(repoRoot, 'src/agents/registry-diff-test.md'),
+        '---\nname: registry-diff-test\ncapabilities: read_only\n---\nBody\n',
+        'utf8'
+      );
+
+      runGenerator(['--diff'], { cwd: repoRoot });
+
+      const after = fs.readFileSync(registryPath, 'utf8');
+      assert.equal(after, before);
+    } finally {
+      fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
     }
   });
 });

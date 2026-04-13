@@ -116,6 +116,7 @@ function executeWrite(absOutputPath, content, stats) {
 function createFileWriter(opts) {
   const { rootDir, dryRun = false, diffMode = false } = opts;
   const stats = { written: 0, unchanged: 0, errors: 0 };
+  const readOnlyMode = dryRun || diffMode;
 
   /**
    * @param {string} outputPath - Relative path from rootDir
@@ -141,6 +142,10 @@ function createFileWriter(opts) {
    * @param {string[]} outputPaths - Relative paths from rootDir to delete
    */
   function clean(outputPaths) {
+    if (readOnlyMode) {
+      return;
+    }
+
     for (const outputPath of outputPaths) {
       const absPath = safeResolve(outputPath, rootDir);
       if (fs.existsSync(absPath)) {

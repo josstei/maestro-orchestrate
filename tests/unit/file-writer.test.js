@@ -288,6 +288,26 @@ describe('FileWriter clean', () => {
     assert.equal(fs.existsSync(fileB), false);
   });
 
+  it('does not delete files in dryRun mode', () => {
+    const filePath = path.join(tempRoot, 'dry-run-clean.txt');
+    fs.writeFileSync(filePath, 'keep', 'utf8');
+
+    const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
+    writer.clean(['dry-run-clean.txt']);
+
+    assert.equal(fs.existsSync(filePath), true);
+  });
+
+  it('does not delete files in diffMode', () => {
+    const filePath = path.join(tempRoot, 'diff-clean.txt');
+    fs.writeFileSync(filePath, 'keep', 'utf8');
+
+    const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
+    writer.clean(['diff-clean.txt']);
+
+    assert.equal(fs.existsSync(filePath), true);
+  });
+
   it('validates paths through safeResolve', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
 

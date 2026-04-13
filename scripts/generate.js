@@ -4,11 +4,11 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { resolve: resolveTransform } = require('../src/transforms');
-const { createFileWriter } = require('../src/generator/file-writer');
+const { createGenerationSession } = require('../src/generator/generation-session');
 const { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } = require('../src/generator/manifest-expander');
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload, stampVersion, buildPayloadAllowlist, shouldIncludeInPayload, shouldDescendInto } = require('../src/generator/payload-builder');
-const { generateRegistries } = require('../src/generator/registry-scanner');
+const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -47,57 +47,69 @@ function collectManifestPaths(manifest, runtimes) {
   return paths;
 }
 
+function processManifestEntry(entry, runtimes, session) {
+  const srcPath = path.join(SRC, entry.src);
+  if (!fs.existsSync(srcPath)) {
+    session.reportError(`Source not found: ${entry.src}`);
+    return;
+  }
+
+  const sourceContent = fs.readFileSync(srcPath, 'utf8');
+  for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
+    const runtime = runtimes[runtimeName];
+    if (!runtime) {
+      session.reportError(`Unknown runtime "${runtimeName}" for ${entry.src}`);
+      continue;
+    }
+
+    try {
+      let content = sourceContent;
+      const state = {};
+      for (const transformName of entry.transforms) {
+        const { fn, param } = resolveTransform(transformName);
+        content = fn(content, runtime, { src: entry.src, param, outputPath, state });
+      }
+      session.write(outputPath, content);
+    } catch (err) {
+      session.reportError(`processing ${entry.src} -> ${outputPath}`, err);
+    }
+  }
+}
+
+function processEntryPoints(runtimes, session) {
+  for (const fn of ENTRY_POINT_EXPANDERS) {
+    for (const runtimeName of Object.keys(runtimes)) {
+      for (const { outputPath, content } of fn(runtimeName, SRC)) {
+        session.write(outputPath, content);
+      }
+    }
+  }
+}
+
 async function main() {
   const runtimes = loadRuntimes();
-  generateRegistries(SRC);
-
   const manifestRules = require(path.join(SRC, 'manifest'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   assertNoMirroredSharedOutputs(manifest);
 
-  const writer = createFileWriter({ rootDir: ROOT, dryRun, diffMode });
+  const session = createGenerationSession({ rootDir: ROOT, dryRun, diffMode });
+  session.writeAll(collectRegistryOutputs(SRC, ROOT));
 
-  if (cleanMode && !dryRun) {
-    writer.clean(manifest.flatMap((entry) => Object.values(entry.outputs)));
+  if (cleanMode) {
+    session.clean(manifest.flatMap((entry) => Object.values(entry.outputs)));
+  }
+
+  if (cleanMode && !session.isReadOnlyMode()) {
     console.log('Cleaned all generator-owned files.');
   }
 
   for (const entry of manifest) {
-    const srcPath = path.join(SRC, entry.src);
-    if (!fs.existsSync(srcPath)) {
-      console.error(`ERROR: Source not found: ${entry.src}`);
-      continue;
-    }
-    const sourceContent = fs.readFileSync(srcPath, 'utf8');
-    for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
-      const runtime = runtimes[runtimeName];
-      if (!runtime) {
-        console.error(`ERROR: Unknown runtime "${runtimeName}" for ${entry.src}`);
-        continue;
-      }
-      try {
-        let content = sourceContent;
-        const state = {};
-        for (const transformName of entry.transforms) {
-          const { fn, param } = resolveTransform(transformName);
-          content = fn(content, runtime, { src: entry.src, param, outputPath, state });
-        }
-        writer.write(outputPath, content);
-      } catch (err) {
-        console.error(`ERROR processing ${entry.src} -> ${outputPath}: ${err.message}`);
-      }
-    }
+    processManifestEntry(entry, runtimes, session);
   }
 
-  for (const fn of ENTRY_POINT_EXPANDERS) {
-    for (const runtimeName of Object.keys(runtimes)) {
-      for (const { outputPath, content } of fn(runtimeName, SRC)) {
-        writer.write(outputPath, content);
-      }
-    }
-  }
+  processEntryPoints(runtimes, session);
 
-  const stats = writer.getStats();
+  const stats = session.getStats();
 
   if (dryRun) {
     console.log('\n(dry-run — no files written)');
@@ -105,7 +117,7 @@ async function main() {
     console.log(`\nGeneration complete: ${stats.written} written, ${stats.unchanged} unchanged, ${stats.errors} errors`);
   }
 
-  if (!dryRun && !diffMode) {
+  if (!session.isReadOnlyMode()) {
     const manifestPaths = collectManifestPaths(manifest, runtimes);
     const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS });
     if (pruned.length > 0) {

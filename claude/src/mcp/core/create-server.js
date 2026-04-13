@@ -1,13 +1,12 @@
 'use strict';
 
 const { createToolRegistry } = require('./tool-registry');
-const { getRecoveryHint } = require('./recovery-hints');
-const { MaestroError } = require('../../lib/errors');
-
-function sanitizeErrorMessage(error) {
-  const message = error && error.message ? error.message : String(error);
-  return message.replace(/\/[^\s'"]+/g, '[path]');
-}
+const {
+  createToolSuccess,
+  createUnknownToolFailure,
+  normalizeToolError,
+  sanitizeErrorMessage,
+} = require('./tool-outcome');
 
 function createServer(options = {}) {
   const { runtimeConfig = {}, services = {} } = options;
@@ -32,32 +31,14 @@ function createServer(options = {}) {
     async callTool(name, args = {}, projectRoot) {
       const handler = registry.handlers[name];
       if (!handler) {
-        return {
-          ok: false,
-          error: `Unknown tool: ${name}`,
-          recovery_hint: null,
-        };
+        return createUnknownToolFailure(name);
       }
 
       try {
         const result = await handler(args, projectRoot);
-        return {
-          ok: true,
-          result,
-        };
+        return createToolSuccess(result);
       } catch (error) {
-        if (error instanceof MaestroError) {
-          return {
-            content: [{ type: 'text', text: `Error [${error.code}]: ${error.message}` }],
-            isError: true,
-          };
-        }
-        const sanitized = sanitizeErrorMessage(error);
-        return {
-          ok: false,
-          error: sanitized,
-          recovery_hint: getRecoveryHint(name, sanitized),
-        };
+        return normalizeToolError(name, error);
       }
     },
   };

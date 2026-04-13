@@ -148,13 +148,24 @@ function discover({ dir, pattern, identity, metadata, validate, recursive = fals
  * @returns {boolean} True if the file was written, false if content was identical
  */
 function generateRegistry(data, outputPath) {
-  const content = JSON.stringify(data, null, 2) + '\n';
+  const content = serializeRegistry(data);
   return writeIfChanged(outputPath, content);
+}
+
+/**
+ * Serialize registry data to stable, newline-terminated JSON.
+ *
+ * @param {*} data - Any JSON-serializable registry value
+ * @returns {string} JSON content ready to write
+ */
+function serializeRegistry(data) {
+  return JSON.stringify(data, null, 2) + '\n';
 }
 
 module.exports = {
   discover,
   generateRegistry,
+  serializeRegistry,
   patternToRegex,
   parsePattern,
   collectFiles,

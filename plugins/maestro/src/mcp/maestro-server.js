@@ -33,15 +33,33 @@ function createInitializeResult(protocolVersion) {
   };
 }
 
-function createToolErrorResult(error, recoveryHint) {
+function createToolErrorResult(errorOrOutcome, recoveryHint) {
+  const outcome =
+    errorOrOutcome &&
+    typeof errorOrOutcome === 'object' &&
+    !Array.isArray(errorOrOutcome) &&
+    Object.prototype.hasOwnProperty.call(errorOrOutcome, 'error')
+      ? errorOrOutcome
+      : { error: errorOrOutcome, recovery_hint: recoveryHint };
+
+  const payload = {
+    error: outcome.error,
+    recovery_hint: outcome.recovery_hint ?? null,
+  };
+
+  if (outcome.code) {
+    payload.code = outcome.code;
+  }
+
+  if (outcome.details !== undefined) {
+    payload.details = outcome.details;
+  }
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({
-          error,
-          recovery_hint: recoveryHint,
-        }),
+        text: JSON.stringify(payload),
       },
     ],
     isError: true,
@@ -213,7 +231,7 @@ function createProtocolHandlers(server, getProjectRoot, stdout, callbacks = {}) 
       writeMessage(stdout, {
         jsonrpc: '2.0',
         id: message.id,
-        result: createToolErrorResult(outcome.error, outcome.recovery_hint),
+        result: createToolErrorResult(outcome),
       });
       return;
     }
