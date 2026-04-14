@@ -274,6 +274,8 @@ Ephemeral state stored in `/tmp/maestro-hooks-<uid>/`:
 
 ## CI and Testing
 
+For detailed documentation of all six GitHub Actions workflows, the release pipeline chain, and Mermaid flow diagrams, see [docs/cicd.md](cicd.md).
+
 ### Test Suite
 
 22 test files with 121 tests using Node.js built-in `node:test`:

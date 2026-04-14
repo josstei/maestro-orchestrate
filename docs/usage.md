@@ -1,5 +1,7 @@
 # Maestro Usage
 
+For detailed CI/CD pipeline documentation including workflow diagrams, the release process, and npm publishing strategy, see [docs/cicd.md](cicd.md).
+
 ## Development Commands
 
 ```bash

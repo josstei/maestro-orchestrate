@@ -133,6 +133,8 @@ For Codex, Maestro intentionally avoids bare skill names that collide with host 
 - [docs/overview.md](docs/overview.md) for the project model and generated structure
 - [docs/architecture.md](docs/architecture.md) for orchestration internals and architecture layout
 - [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces
+- [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
+- [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
 - [docs/runtime-gemini.md](docs/runtime-gemini.md) for Gemini runtime specifics
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
 - [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
