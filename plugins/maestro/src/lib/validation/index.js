@@ -103,10 +103,22 @@ function assertContainedIn(p, base) {
   }
 }
 
+/**
+ * @param {*} value
+ * @returns {*}
+ */
+function coercePositiveInteger(value) {
+  if (value == null || typeof value === 'number') return value;
+  if (typeof value !== 'string') return value;
+  const num = Number(value);
+  return Number.isFinite(num) && Number.isInteger(num) && num > 0 ? num : value;
+}
+
 module.exports = {
   assertNonEmptyArray,
   assertSessionId,
   assertAllowlisted,
   assertRelativePath,
   assertContainedIn,
+  coercePositiveInteger,
 };

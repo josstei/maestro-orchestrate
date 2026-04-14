@@ -9,7 +9,7 @@ const {
   writeState,
   resolveStateDirPath,
 } = require('../../state/session-state');
-const { assertSessionId } = require('../../lib/validation');
+const { assertSessionId, coercePositiveInteger } = require('../../lib/validation');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
 
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
@@ -151,6 +151,12 @@ function handleGetSessionStatus(_params, projectRoot) {
 }
 
 function handleTransitionPhase(params, projectRoot) {
+  params.next_phase_id = coercePositiveInteger(params.next_phase_id);
+  params.completed_phase_id = coercePositiveInteger(params.completed_phase_id);
+  if (Array.isArray(params.next_phase_ids)) {
+    params.next_phase_ids = params.next_phase_ids.map(coercePositiveInteger);
+  }
+
   if (params.session_id) {
     assertSessionId(params.session_id);
   }
