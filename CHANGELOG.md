@@ -7,16 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **npm publishing workflows** — Nightly (cron), preview (PR label), RC (release PR), and stable release pipelines with `NPM_TOKEN` gating
+- **Community standards** — Code of Conduct (Contributor Covenant v2.1), Contributing Guide, Security Policy, issue/PR templates
+- **CI/CD pipeline documentation** (`docs/cicd.md`) — Mermaid workflow diagrams, job breakdowns, release pipeline chain, and cross-references from existing docs
+- **`lib/` foundation layer** — 6 shared modules (`errors`, `io`, `naming`, `frontmatter`, `validation`, `discovery`) extracted from duplicated implementations across the codebase
+- **Exhaustive test coverage** — 121 tests across 22 files wired into CI; previously only transforms and integration tests ran in CI
+- **Build-time auto-discovered registries** — `agent-registry.json`, `resource-registry.json`, `hook-registry.json` scanned at generate time, replacing hardcoded allowlists
+
 ### Changed
 
 - **Thin multi-runtime entrypoints** — Replaced generated `canonical-source.js`, MCP entrypoint, hook-runner, and adapter copies with hand-authored wrappers that default `MAESTRO_RUNTIME` per runtime and use bounded repo-first / bundled-fallback resolution for detached Claude and Codex installs
 - **Generator architecture** (`src/manifest.js`, `scripts/generate.js`) — Simplified the manifest to 2 discovery rules, reduced the generation-time transform registry from 10 entries to 4, and added an explicit detached-payload pack step for `claude/src/` and `plugins/maestro/src/`
+- **Generator decomposed** — 807-line monolith split into focused modules: `file-writer`, `manifest-expander`, `stale-pruner`, `payload-builder`, `registry-scanner`, `entry-point-expander`
 - **Codex plugin packaging** — Removed unused `plugins/maestro/agents/` stubs; Codex now relies on skills, MCP tools, and `get_agent` for methodology instead of plugin-level agent files
+- **Centralized policy rules** — Claude policy-enforcer imports from canonical `src/core/policy-rules.js` with bundled fallback; deduplicated `readBoundedStdin` into `core/stdin-reader.js`
+- **Lazy-loaded runtime configs** — Runtime configs loaded on demand with per-runtime detached payload filtering
+- **Minimum Node.js version** — Raised to 20 (Node 18 EOL); `engines` field declared in `package.json`
+- **Package renamed** — From `@maestro-orchestrator/gemini-extension` to `@maestro-orchestrator/maestro`
 - **Runtime documentation** — Updated Gemini, Claude, and Codex runtime docs to describe thin entrypoints plus detached payloads rather than generated helper copies
+- **Documentation aligned** — All docs updated to match post-consolidation codebase state
 
 ### Fixed
 
 - **Codex public skill naming collisions** — Renamed the public Codex skills to `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` so installing Maestro does not shadow or break Codex's built-in `/review`, `/debug`, and `/resume` commands
+- **LLM string-to-integer coercion** — Phase IDs sent as strings by LLMs in `transition_phase` now parsed correctly before phase lookups
 
 ## [1.6.1] - 2026-04-10
 
