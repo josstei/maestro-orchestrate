@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate branch
-        if: github.ref != 'refs/heads/dev'
+        if: github.ref != 'refs/heads/main'
         run: |
-          echo "::error::This workflow must be run from the dev branch"
+          echo "::error::This workflow must be run from the main branch"
           exit 1
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -87,7 +87,7 @@ jobs:
         run: |
           node scripts/generate.js
           if ! git diff --exit-code --name-only; then
-            echo "::error::Generated files have drift on dev. Fix before releasing."
+            echo "::error::Generated files have drift on main. Fix before releasing."
             git diff --stat
             exit 1
           fi
@@ -125,24 +125,6 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           git push origin "release/v${VERSION}"
-
-      - name: Open PR to dev and enable auto-merge
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          gh pr create \
-            --repo "$REPOSITORY" \
-            --base dev \
-            --head "release/v${VERSION}" \
-            --title "chore: merge release v${VERSION} into dev" \
-            --body "Automated merge of version bump into dev."
-          gh pr merge \
-            --repo "$REPOSITORY" \
-            --merge \
-            --auto \
-            "release/v${VERSION}"
 
       - name: Open release PR to main
         env:

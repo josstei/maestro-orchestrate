@@ -158,23 +158,3 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
-      - name: Open back-merge PR
-        if: steps.detect.outputs.is_release == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          EXISTING=$(gh pr list --repo "$REPOSITORY" --base dev --head main --state open --json number --jq '.[0].number')
-
-          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            echo "Back-merge PR #$EXISTING already open. Skipping."
-            exit 0
-          fi
-
-          gh pr create \
-            --repo "$REPOSITORY" \
-            --base dev \
-            --head main \
-            --title "chore: back-merge v${VERSION} into dev" \
-            --body "Automated back-merge of release v${VERSION} into dev."
