@@ -106,4 +106,4 @@ cleanup-branches:
     fi
     echo ""
     echo "Unmerged branches (review manually):"
-    git branch --no-merged dev 2>/dev/null || echo "  (none)"
+    git branch --no-merged main 2>/dev/null || echo "  (none)"

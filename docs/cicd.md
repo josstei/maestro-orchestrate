@@ -9,18 +9,17 @@ Maestro uses six GitHub Actions workflows organized around a **source-of-truth e
 ```mermaid
 graph LR
     subgraph "Continuous Integration"
-        A["Push / PR to main or dev"] --> B["Source Of Truth Check"]
+        A["Push / PR to main"] --> B["Source Of Truth Check"]
     end
 
     subgraph "Pre-release Publishing"
         C["PR labeled 'preview'"] --> D["Preview Build"]
-        E["Manual dispatch from dev"] --> F["Prepare Release"]
+        E["Manual dispatch from main"] --> F["Prepare Release"]
         F --> |"Creates release/vX.Y.Z branch<br/>Opens PR to main with<br/>'release' + 'rc' labels"| G["Release Candidate"]
     end
 
     subgraph "Release Publishing"
         G --> |"PR merged to main"| H["Release"]
-        H --> |"Back-merge PR<br/>main into dev"| I["dev branch updated"]
     end
 
     subgraph "Scheduled"
@@ -34,20 +33,20 @@ All six workflows share a common validation core: generate runtime adapters, che
 
 ### Purpose
 
-The foundational CI gate. Enforces that all generated runtime adapters (Gemini, Claude Code, Codex) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main` or `dev`.
+The foundational CI gate. Enforces that all generated runtime adapters (Gemini, Claude Code, Codex) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
 
 ### Trigger
 
 | Event | Branches |
 |-------|----------|
-| `push` | `main`, `dev` |
-| `pull_request` | `main`, `dev` |
+| `push` | `main` |
+| `pull_request` | `main` |
 
 ### Flow
 
 ```mermaid
 graph TD
-    A["Push or PR to main/dev"] --> B["Checkout repository"]
+    A["Push or PR to main"] --> B["Checkout repository"]
     B --> C["Setup Node.js 20"]
     C --> D["Generate runtime adapters"]
     D --> E{"Adapter drift?"}
@@ -89,7 +88,7 @@ None produced or consumed.
 
 ### Purpose
 
-Publishes a nightly snapshot of the `dev` branch to npm under the `nightly` dist-tag. Validates the `dev` branch has no drift and passes all tests before publishing. Runs on a daily schedule and can be triggered manually.
+Publishes a nightly snapshot of the `main` branch to npm under the `nightly` dist-tag. Validates the `main` branch has no drift and passes all tests before publishing. Runs on a daily schedule and can be triggered manually.
 
 ### Trigger
 
@@ -102,11 +101,11 @@ Publishes a nightly snapshot of the `dev` branch to npm under the `nightly` dist
 
 ```mermaid
 graph TD
-    A["Schedule or manual dispatch"] --> B["Checkout dev branch"]
+    A["Schedule or manual dispatch"] --> B["Checkout main branch"]
     B --> C["Setup Node.js 20 with npm registry"]
     C --> D["Generate runtime adapters"]
     D --> E{"Adapter drift?"}
-    E --> |"Yes"| F["Fail: nightly drift on dev"]
+    E --> |"Yes"| F["Fail: nightly drift on main"]
     E --> |"No"| G["Run full test suite"]
     G --> H{"Tests pass?"}
     H --> |"No"| I["Fail: test failures"]
@@ -122,10 +121,10 @@ graph TD
 
 | Step | Description |
 |------|-------------|
-| Checkout | Checks out `refs/heads/dev` explicitly, pinned to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` |
+| Checkout | Checks out `refs/heads/main` explicitly, pinned to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` |
 | Setup Node.js | Node.js 20 with `registry-url` set to `https://registry.npmjs.org` |
 | Generate runtime adapters | Runs `node scripts/generate.js` |
-| Check adapter drift | Fails with `::error::Nightly drift detected on dev` if generated files differ |
+| Check adapter drift | Fails with `::error::Nightly drift detected on main` if generated files differ |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Sets `enabled=true` output if `NPM_TOKEN` secret is present |
 | Set nightly version | Computes version as `{base}-nightly.{YYYYMMDD}` using `npm version --no-git-tag-version` |
@@ -146,7 +145,7 @@ Publishes `@maestro-orchestrator/maestro@X.Y.Z-nightly.YYYYMMDD` to npm with the
 
 ### Key Behaviors
 
-- Always checks out the `dev` branch regardless of what triggered it.
+- Always checks out the `main` branch regardless of what triggered it.
 - The version string includes the date stamp, so each nightly replaces the previous day's version on the `nightly` tag.
 - When `NPM_TOKEN` is absent, the workflow still validates drift and runs tests, providing health checks for forks.
 
@@ -228,21 +227,21 @@ Publishes `@maestro-orchestrator/maestro@X.Y.Z-preview.SHORT_SHA` to npm with th
 
 ### Purpose
 
-Orchestrates the release preparation process. Creates a release branch from `dev`, bumps version numbers, and opens two pull requests: one auto-merged back into `dev` (carrying the version bump) and one targeting `main` (the actual release PR). This is the entry point for the release pipeline.
+Orchestrates the release preparation process. Creates a release branch from `main`, bumps version numbers, and opens a pull request targeting `main` (the actual release PR). This is the entry point for the release pipeline.
 
 ### Trigger
 
 | Event | Details |
 |-------|---------|
-| `workflow_dispatch` | Manual trigger from the `dev` branch only |
+| `workflow_dispatch` | Manual trigger from the `main` branch only |
 | **Input** | `version` (optional string): explicit version to release; when omitted, the version is inferred from commit history |
 
 ### Flow
 
 ```mermaid
 graph TD
-    A["Manual dispatch from dev"] --> B{"Running on dev branch?"}
-    B --> |"No"| C["Fail: must run from dev"]
+    A["Manual dispatch from main"] --> B{"Running on main branch?"}
+    B --> |"No"| C["Fail: must run from main"]
     B --> |"Yes"| D["Checkout with full history"]
     D --> E{"Version input provided?"}
     E --> |"Yes"| F["Use provided version"]
@@ -257,9 +256,8 @@ graph TD
     M --> N["Regenerate with new version"]
     N --> O["Commit: 'release: vX.Y.Z'"]
     O --> P["Push release branch"]
-    P --> Q["Open PR to dev<br/>with auto-merge"]
-    Q --> R["Open PR to main<br/>with CHANGELOG excerpt"]
-    R --> S["Label main PR:<br/>'release' + 'rc'"]
+    P --> Q["Open PR to main<br/>with CHANGELOG excerpt"]
+    Q --> R["Label main PR:<br/>'release' + 'rc'"]
 ```
 
 ### Job Breakdown
@@ -268,21 +266,20 @@ graph TD
 
 | Step | Description |
 |------|-------------|
-| Validate branch | Fails if not running from `refs/heads/dev` |
+| Validate branch | Fails if not running from `refs/heads/main` |
 | Checkout | Full history (`fetch-depth: 0`) using `RELEASE_TOKEN` for push permissions |
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
 | Infer version from commits | Scans commit logs since last tag; determines bump level: `BREAKING CHANGE` or `!:` triggers major, `feat` triggers minor, otherwise patch |
 | Resolve target version | Uses explicit input if provided, otherwise uses inferred version |
 | Validate target version | Ensures version matches `X.Y.Z` semver pattern |
 | Validate CHANGELOG | Fails if the `[Unreleased]` section in `CHANGELOG.md` has no content |
-| Generate and check drift | Runs generator and fails if `dev` has uncommitted drift |
+| Generate and check drift | Runs generator and fails if `main` has uncommitted drift |
 | Run full test suite | Executes the full test suite |
-| Create release branch | Creates `release/vX.Y.Z` from current `dev` |
+| Create release branch | Creates `release/vX.Y.Z` from current `main` |
 | Update version files | Runs `node scripts/update-versions.js` with the target version |
 | Regenerate with new version | Reruns generator and `npm install --package-lock-only` to update lockfile |
 | Commit release | Commits all changes as `release: vX.Y.Z` using the `github-actions[bot]` identity |
 | Push release branch | Pushes `release/vX.Y.Z` to origin |
-| Open PR to dev | Creates a PR merging `release/vX.Y.Z` into `dev` with auto-merge enabled |
 | Open PR to main | Creates a PR merging `release/vX.Y.Z` into `main` with CHANGELOG excerpt as body |
 | Label release PR | Adds `release` and `rc` labels to the main-targeting PR |
 
@@ -296,14 +293,14 @@ graph TD
 
 ### Artifacts
 
-Creates the `release/vX.Y.Z` branch and two pull requests: one targeting `dev` (auto-merged) and one targeting `main` (manually reviewed and merged).
+Creates the `release/vX.Y.Z` branch and a pull request targeting `main` with the CHANGELOG excerpt.
 
 ### Key Behaviors
 
 - The version inference algorithm uses conventional commit patterns: `BREAKING CHANGE` or `!:` in commit messages triggers a major bump, `feat` commits trigger minor, everything else triggers patch.
 - The CHANGELOG validation ensures no release ships without documented changes.
 - The `release` and `rc` labels on the main-targeting PR are what trigger the Release Candidate workflow.
-- Uses `RELEASE_TOKEN` (not the default `GITHUB_TOKEN`) so that the push and PR creation events trigger downstream workflow runs (generator-check on the new PR, and rc.yml when labels are applied).
+- Uses `RELEASE_TOKEN` (not the default `GITHUB_TOKEN`) so that the push and PR creation events trigger downstream workflow runs (Source Of Truth Check on the new PR, and Release Candidate when labels are applied).
 
 ---
 
@@ -385,7 +382,7 @@ Publishes `@maestro-orchestrator/maestro@X.Y.Z-rc.N` to npm with the `rc` dist-t
 
 ### Purpose
 
-The final step of the release pipeline. Triggers on any push to `main`, but only acts when the push is a merged pull request carrying the `release` label. Creates a Git tag, publishes a GitHub Release with CHANGELOG notes, publishes the stable package to npm, and opens a back-merge PR from `main` into `dev`.
+The final step of the release pipeline. Triggers on any push to `main`, but only acts when the push is a merged pull request carrying the `release` label. Creates a Git tag, publishes a GitHub Release with CHANGELOG notes, and publishes the stable package to npm.
 
 ### Trigger
 
@@ -419,8 +416,6 @@ graph TD
     R --> S{"Publish enabled?"}
     S --> |"No"| T["Skip npm publish"]
     S --> |"Yes"| U["Publish to npm<br/>--access public"]
-    U --> V["Open back-merge PR<br/>main into dev"]
-    T --> V
 ```
 
 ### Job Breakdown
@@ -441,7 +436,6 @@ graph TD
 | Extract changelog | Extracts the version-specific section from `CHANGELOG.md` using `awk` |
 | Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body |
 | Publish to npm | Publishes stable release with `npm publish --access public` (no dist-tag, so it becomes `latest`) |
-| Open back-merge PR | Creates a PR from `main` into `dev` titled `chore: back-merge vX.Y.Z into dev`; skips if one already exists |
 
 ### Environment and Secrets
 
@@ -458,15 +452,12 @@ graph TD
 - Git tag `vX.Y.Z` pushed to origin
 - GitHub Release with CHANGELOG body
 - Stable npm package `@maestro-orchestrator/maestro@X.Y.Z` published with the `latest` dist-tag
-- Back-merge PR from `main` into `dev`
 
 ### Key Behaviors
 
 - The release detection uses the GitHub API to find the PR associated with the merge commit, filtering for the `release` label. Non-release pushes to `main` exit early and cleanly.
 - Version validation cross-checks `package.json` against the CHANGELOG (unconditional) and, when applicable, against the release branch name (`release/vX.Y.Z`) and the PR title (`release: vX.Y.Z`). A mismatch in any available source fails the workflow.
 - Tag creation is idempotent: if the tag already exists at the same commit, the step is skipped. If it exists at a different commit, the workflow fails to prevent overwriting a release.
-- The back-merge PR uses the default `GITHUB_TOKEN` (not `RELEASE_TOKEN`) since no downstream workflow trigger is needed.
-- Back-merge creation checks for existing open PRs from `main` to `dev` before opening a new one.
 
 ---
 
@@ -513,42 +504,36 @@ The release pipeline is a multi-workflow chain where each stage triggers the nex
 
 ```mermaid
 graph LR
-    A["Developer triggers<br/>Prepare Release<br/>on dev branch"] --> B["Prepare Release<br/>creates release/vX.Y.Z"]
-    B --> C["PR to dev<br/>auto-merged"]
+    A["Developer triggers<br/>Prepare Release<br/>on main branch"] --> B["Prepare Release<br/>creates release/vX.Y.Z"]
     B --> D["PR to main<br/>labeled 'release' + 'rc'"]
     D --> E["Source Of Truth Check<br/>runs on PR"]
     D --> F["Release Candidate<br/>publishes X.Y.Z-rc.N"]
     F --> |"RC validated<br/>PR merged to main"| G["Release<br/>publishes X.Y.Z"]
-    G --> H["Back-merge PR<br/>main into dev"]
 ```
 
 ### Step-by-Step Release Flow
 
-1. A maintainer manually triggers **Prepare Release** from the `dev` branch (optionally specifying a version).
-2. The workflow validates `dev` (drift check, tests, CHANGELOG content), creates a `release/vX.Y.Z` branch, bumps version files, and pushes the branch.
-3. Two PRs are opened:
-   - **PR to `dev`**: carries the version bump back into `dev`, auto-merge is enabled immediately.
+1. A maintainer manually triggers **Prepare Release** from the `main` branch (optionally specifying a version).
+2. The workflow validates `main` (drift check, tests, CHANGELOG content), creates a `release/vX.Y.Z` branch, bumps version files, and pushes the branch.
+3. One PR is opened:
    - **PR to `main`**: the release PR, labeled with `release` and `rc`, containing the CHANGELOG excerpt.
 4. The release PR triggers **Source Of Truth Check** (standard CI on PRs to `main`).
 5. The `release` + `rc` labels on a PR from `release/v*` to `main` trigger the **Release Candidate** workflow, which publishes an RC to npm.
 6. If additional commits are pushed to the release branch, both Source Of Truth Check and Release Candidate re-run (RC number auto-increments).
 7. When the release PR is merged to `main`, the push event triggers **Release**.
-8. Release detects the merged release PR via the GitHub API, validates version consistency, runs final checks, creates a Git tag, publishes a GitHub Release, publishes to npm, and opens a back-merge PR from `main` to `dev`.
+8. Release detects the merged release PR via the GitHub API, validates version consistency, runs final checks, creates a Git tag, publishes a GitHub Release, and publishes to npm.
 
 ### Branch Strategy
 
 ```mermaid
 graph LR
-    A["dev<br/>primary development"] --> |"Prepare Release"| B["release/vX.Y.Z<br/>short-lived"]
-    B --> |"Auto-merge PR"| A
-    B --> |"Release PR"| C["main<br/>stable releases"]
-    C --> |"Back-merge PR"| A
+    A["main<br/>primary development + releases"] --> |"Prepare Release"| B["release/vX.Y.Z<br/>short-lived"]
+    B --> |"Release PR"| A
 ```
 
 | Branch | Purpose | Protected |
 |--------|---------|-----------|
-| `dev` | Primary development branch; all feature work merges here | Yes (CI required) |
-| `main` | Stable release branch; only receives release PRs | Yes (CI required) |
+| `main` | Primary development and release branch; all feature work and releases merge here | Yes (CI required) |
 | `release/vX.Y.Z` | Short-lived release branches created by Prepare Release | Transient |
 
 ### Permissions and Secrets Summary
@@ -571,4 +556,4 @@ The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elev
 | `latest` | Stable release from `main` | `X.Y.Z` | Release |
 | `rc` | Release candidate from release PR | `X.Y.Z-rc.N` | Release Candidate |
 | `preview` | PR preview build | `X.Y.Z-preview.SHORT_SHA` | Preview Build |
-| `nightly` | Daily dev snapshot | `X.Y.Z-nightly.YYYYMMDD` | Nightly Build |
+| `nightly` | Daily main snapshot | `X.Y.Z-nightly.YYYYMMDD` | Nightly Build |
