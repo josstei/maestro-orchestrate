@@ -8,6 +8,7 @@ tools.claude: [Read, Glob, Grep]
 max_turns: 15
 temperature: 0.2
 timeout_mins: 5
+capabilities: read_only
 ---
 <!-- @feature exampleBlocks -->
 <example>

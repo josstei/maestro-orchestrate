@@ -1,9 +1,14 @@
+'use strict';
+
+const { splitAtBoundary } = require('../lib/frontmatter');
+
 function skillMetadata(content, runtime) {
   if (runtime.name !== 'claude') return content;
-  // Insert user-invocable: false before the closing ---
-  return content.replace(
-    /^(---\n[\s\S]*?)(^---)/m,
-    '$1user-invocable: false\n$2'
-  );
+
+  const { raw, body } = splitAtBoundary(content);
+  if (!raw) return content;
+
+  return '---\n' + raw + '\nuser-invocable: false\n---' + (body ? '\n' + body : '');
 }
+
 module.exports = skillMetadata;

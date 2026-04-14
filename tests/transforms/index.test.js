@@ -5,7 +5,9 @@ const { resolve, transforms } = require('../../src/transforms');
 describe('transforms/index resolve', () => {
   it('resolves all remaining registered transform names', () => {
     const names = [
-      'inject-frontmatter',
+      'parse-frontmatter',
+      'extract-examples',
+      'rebuild-frontmatter',
       'skill-metadata',
       'agent-stub',
       'skill-discovery-stub',
@@ -24,6 +26,7 @@ describe('transforms/index resolve', () => {
       'replace-tool-names',
       'replace-paths',
       'inline-runtime',
+      'inject-frontmatter',
       'nonexistent',
     ];
 
@@ -46,9 +49,11 @@ describe('transforms/index resolve', () => {
   it('exposes only the remaining transforms in the transforms object', () => {
     assert.deepEqual(
       Object.keys(transforms).sort(),
-      ['agent-stub', 'inject-frontmatter', 'skill-discovery-stub', 'skill-metadata']
+      ['agent-stub', 'extract-examples', 'parse-frontmatter', 'rebuild-frontmatter', 'skill-discovery-stub', 'skill-metadata']
     );
-    assert.equal(typeof transforms['inject-frontmatter'], 'function');
+    assert.equal(typeof transforms['parse-frontmatter'], 'function');
+    assert.equal(typeof transforms['extract-examples'], 'function');
+    assert.equal(typeof transforms['rebuild-frontmatter'], 'function');
     assert.equal(typeof transforms['skill-metadata'], 'function');
     assert.equal(typeof transforms['agent-stub'], 'function');
     assert.equal(typeof transforms['skill-discovery-stub'], 'function');

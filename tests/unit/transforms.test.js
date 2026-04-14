@@ -59,12 +59,13 @@ describe('agent-stub transform', () => {
     assert.ok(result.includes('get_agent'));
   });
 
-  it('handles content with unclosed frontmatter by appending the stub after existing content', () => {
+  it('handles content with unclosed frontmatter by discarding malformed block and returning stub', () => {
     const unclosed = '---\nname: my-agent\nno closing delimiter';
 
     const result = agentStub(unclosed, kebabRuntime);
 
-    assert.ok(result.includes('name: my-agent'));
+    assert.ok(!result.includes('name: my-agent'));
+    assert.ok(!result.startsWith('---'));
     assert.ok(result.includes('get_agent'));
     assert.ok(result.includes('"my-agent"'));
   });

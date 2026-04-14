@@ -1,6 +1,6 @@
 'use strict';
 
-const fs = require('fs');
+const { readFileSafe } = require('../lib/io');
 
 function trimQuotes(value) {
   if ((value.startsWith('"') && value.endsWith('"')) ||
@@ -33,10 +33,8 @@ function stripInlineComment(value) {
 
 function parseEnvFile(filePath) {
   const result = {};
-  let content;
-  try {
-    content = fs.readFileSync(filePath, 'utf8');
-  } catch {
+  const content = readFileSafe(filePath, null);
+  if (content === null) {
     return result;
   }
   const lines = content.split('\n');

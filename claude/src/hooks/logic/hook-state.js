@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { log } = require('../../core/logger');
-const { validateSessionId } = require('../../state/session-id-validator');
-const { atomicWriteSync } = require('../../core/atomic-write');
+const { assertSessionId } = require('../../lib/validation');
+const { atomicWriteSync, readFileSafe } = require('../../lib/io');
 
 const HOOK_STATE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -51,7 +51,9 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   }
 
   function setActiveAgent(sessionId, agentName) {
-    if (!validateSessionId(sessionId)) {
+    try {
+      assertSessionId(sessionId);
+    } catch {
       log('ERROR', 'Invalid session_id: contains unsafe characters');
       return false;
     }
@@ -61,17 +63,21 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   }
 
   function getActiveAgent(sessionId) {
-    if (!validateSessionId(sessionId)) return '';
-    const agentFile = path.join(baseDir, sessionId, 'active-agent');
     try {
-      return fs.readFileSync(agentFile, 'utf8').trim();
+      assertSessionId(sessionId);
     } catch {
       return '';
     }
+    const agentFile = path.join(baseDir, sessionId, 'active-agent');
+    return readFileSafe(agentFile, '').trim();
   }
 
   function clearActiveAgent(sessionId) {
-    if (!validateSessionId(sessionId)) return;
+    try {
+      assertSessionId(sessionId);
+    } catch {
+      return;
+    }
     const agentFile = path.join(baseDir, sessionId, 'active-agent');
     try {
       fs.unlinkSync(agentFile);
@@ -79,14 +85,22 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   }
 
   function ensureSessionDir(sessionId) {
-    if (!validateSessionId(sessionId)) return false;
+    try {
+      assertSessionId(sessionId);
+    } catch {
+      return false;
+    }
     ensureBaseDir(baseDir);
     fs.mkdirSync(path.join(baseDir, sessionId), { recursive: true, mode: 0o700 });
     return true;
   }
 
   function removeSessionDir(sessionId) {
-    if (!validateSessionId(sessionId)) return false;
+    try {
+      assertSessionId(sessionId);
+    } catch {
+      return false;
+    }
     try {
       fs.rmSync(path.join(baseDir, sessionId), { recursive: true, force: true });
     } catch {}

@@ -7,11 +7,30 @@ const ROOT = path.resolve(__dirname, '../..');
 const DRY_RUN_MARKER = '(dry-run — no files written)';
 const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
 
-function runGenerator(args = []) {
+function runGenerator(args = [], options = {}) {
+  const cwd = options.cwd || ROOT;
+
   return execFileSync('node', ['scripts/generate.js', ...args], {
-    cwd: ROOT,
+    cwd,
     encoding: 'utf8',
   });
+}
+
+function runGeneratorExpectFailure(args = [], options = {}) {
+  try {
+    runGenerator(args, options);
+    throw new Error('Expected generator command to fail');
+  } catch (error) {
+    if (error.message === 'Expected generator command to fail') {
+      throw error;
+    }
+
+    return {
+      status: error.status,
+      stdout: error.stdout ? String(error.stdout) : '',
+      stderr: error.stderr ? String(error.stderr) : '',
+    };
+  }
 }
 
 function getGitStatus() {
@@ -62,12 +81,34 @@ async function withIsolatedClaudePlugin(fn) {
   }
 }
 
+function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const repoRoot = path.join(tempRoot, 'repo');
+
+  fs.cpSync(ROOT, repoRoot, {
+    recursive: true,
+    filter: (source) => {
+      const relativePath = path.relative(ROOT, source);
+
+      if (!relativePath) {
+        return true;
+      }
+
+      return !relativePath.split(path.sep).includes('.git');
+    },
+  });
+
+  return repoRoot;
+}
+
 module.exports = {
   DRY_RUN_MARKER,
   ROOT,
+  createTempRepoCopy,
   getGitStatus,
   parseDryRunReport,
   runGenerator,
+  runGeneratorExpectFailure,
   withIsolatedClaudePlugin,
   withIsolatedCodexPlugin,
 };

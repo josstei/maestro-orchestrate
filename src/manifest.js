@@ -1,7 +1,7 @@
 module.exports = [
   // ── Agent discovery stubs — Gemini + Claude only ───────────────────
   { glob: 'agents/*.md',
-    transforms: ['inject-frontmatter', 'agent-stub'],
+    transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],
     runtimes: ['gemini', 'claude'] },
 
   // ── Shared skill discovery stubs — Claude + Codex only ─────────────

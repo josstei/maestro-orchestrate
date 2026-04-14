@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolRegistry } = require('../../src/mcp/core/tool-registry');
 const { defineToolPack } = require('../../src/mcp/tool-packs/contracts');
+const { ValidationError } = require('../../src/lib/errors');
 
 describe('mcp kernel', () => {
   it('assembles tool schemas and handlers in pack order', () => {
@@ -115,5 +116,32 @@ describe('mcp kernel', () => {
       result.recovery_hint,
       'Call get_session_status to check the current session, then archive_session if you want to start fresh.'
     );
+  });
+
+  it('normalizes MaestroError failures into the internal tool outcome contract', async () => {
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [
+        defineToolPack({
+          name: 'content',
+          tools: [{ name: 'get_agent' }],
+          handlers: {
+            get_agent: () => {
+              throw new ValidationError('agents must be a non-empty array of agent identifiers');
+            },
+          },
+        }),
+      ],
+    });
+
+    const result = await server.callTool('get_agent', { agents: [] });
+
+    assert.deepEqual(result, {
+      ok: false,
+      error: 'agents must be a non-empty array of agent identifiers',
+      code: 'VALIDATION_ERROR',
+      recovery_hint: null,
+    });
   });
 });

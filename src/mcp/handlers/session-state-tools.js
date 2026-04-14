@@ -2,35 +2,28 @@
 
 const fs = require('fs');
 const path = require('path');
+const markdownState = require('../../core/markdown-state');
 
 const {
   readState,
   writeState,
   resolveStateDirPath,
 } = require('../../state/session-state');
-const { validateSessionId } = require('../../state/session-id-validator');
+const { assertSessionId, coercePositiveInteger } = require('../../lib/validation');
+const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
 
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 
 function parseSessionState(content) {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) {
-    throw new Error('No YAML frontmatter found in session state');
-  }
-
-  return JSON.parse(match[1]);
+  return markdownState.parse(content).data;
 }
 
 function serializeSessionState(data, bodyContent) {
-  return `---
-${JSON.stringify(data, null, 2)}
----
-${bodyContent || ''}`;
+  return markdownState.serialize(data, bodyContent);
 }
 
 function extractBody(content) {
-  const match = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
-  return match ? match[1] : '';
+  return markdownState.parse(content).body;
 }
 
 function getBasePath(projectRoot) {
@@ -38,9 +31,7 @@ function getBasePath(projectRoot) {
 }
 
 function handleCreateSession(params, projectRoot) {
-  if (!validateSessionId(params.session_id)) {
-    throw new Error('Invalid session_id: must match pattern [a-zA-Z0-9_-]+');
-  }
+  assertSessionId(params.session_id);
 
   const basePath = getBasePath(projectRoot);
   const sessionPath = path.join(basePath, ACTIVE_SESSION_REL);
@@ -48,7 +39,7 @@ function handleCreateSession(params, projectRoot) {
   if (fs.existsSync(sessionPath)) {
     const existing = parseSessionState(fs.readFileSync(sessionPath, 'utf8'));
     if (existing.status === 'in_progress') {
-      throw new Error(
+      throw new StateError(
         `Active session '${existing.session_id}' already exists (status: in_progress). Archive it first with archive_session.`
       );
     }
@@ -159,26 +150,15 @@ function handleGetSessionStatus(_params, projectRoot) {
   };
 }
 
-function coerceNumber(value) {
-  if (value == null || typeof value === 'number') return value;
-  if (typeof value !== 'string') return value;
-  const num = Number(value);
-  // Only coerce positive integers — reject empty strings, floats, booleans, whitespace
-  return Number.isFinite(num) && Number.isInteger(num) && num > 0 ? num : value;
-}
-
 function handleTransitionPhase(params, projectRoot) {
-  // Coerce LLM-generated string IDs so phase.id === comparisons succeed.
-  // LLMs often emit `next_phase_id: "2"` instead of `next_phase_id: 2`,
-  // which breaks the strict-equality (===) comparisons below.
-  params.next_phase_id = coerceNumber(params.next_phase_id);
-  params.completed_phase_id = coerceNumber(params.completed_phase_id);
+  params.next_phase_id = coercePositiveInteger(params.next_phase_id);
+  params.completed_phase_id = coercePositiveInteger(params.completed_phase_id);
   if (Array.isArray(params.next_phase_ids)) {
-    params.next_phase_ids = params.next_phase_ids.map(coerceNumber);
+    params.next_phase_ids = params.next_phase_ids.map(coercePositiveInteger);
   }
 
-  if (params.session_id && !validateSessionId(params.session_id)) {
-    throw new Error('Invalid session_id: must match pattern [a-zA-Z0-9_-]+');
+  if (params.session_id) {
+    assertSessionId(params.session_id);
   }
 
   const basePath = getBasePath(projectRoot);
@@ -186,7 +166,7 @@ function handleTransitionPhase(params, projectRoot) {
   const state = parseSessionState(content);
 
   if (params.session_id && state.session_id !== params.session_id) {
-    throw new Error(
+    throw new StateError(
       `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
     );
   }
@@ -195,14 +175,14 @@ function handleTransitionPhase(params, projectRoot) {
   const hasNextPhaseIds =
     Array.isArray(params.next_phase_ids) && params.next_phase_ids.length > 0;
   if (hasNextPhaseId && hasNextPhaseIds) {
-    throw new Error(
+    throw new ValidationError(
       'next_phase_id and next_phase_ids are mutually exclusive'
     );
   }
 
   const hasCompletedPhase = params.completed_phase_id != null;
   if (!hasCompletedPhase && !hasNextPhaseIds && !hasNextPhaseId) {
-    throw new Error(
+    throw new ValidationError(
       'At least one of completed_phase_id, next_phase_id, or next_phase_ids is required'
     );
   }
@@ -213,7 +193,7 @@ function handleTransitionPhase(params, projectRoot) {
       (phase) => phase.id === params.completed_phase_id
     );
     if (!completedPhase) {
-      throw new Error(
+      throw new NotFoundError(
         `Phase ${params.completed_phase_id} not found in session state`
       );
     }
@@ -223,7 +203,7 @@ function handleTransitionPhase(params, projectRoot) {
   if (hasNextPhaseId) {
     nextPhase = state.phases.find((phase) => phase.id === params.next_phase_id);
     if (!nextPhase) {
-      throw new Error(
+      throw new NotFoundError(
         `next_phase_id ${params.next_phase_id} does not match any phase in session state`
       );
     }
@@ -234,10 +214,10 @@ function handleTransitionPhase(params, projectRoot) {
     for (const id of params.next_phase_ids) {
       const phase = state.phases.find((candidate) => candidate.id === id);
       if (!phase) {
-        throw new Error(`Phase ${id} not found in session state`);
+        throw new NotFoundError(`Phase ${id} not found in session state`);
       }
       if (phase.status === 'completed' || phase.status === 'failed') {
-        throw new Error(`Cannot start phase ${id}: status is '${phase.status}'`);
+        throw new StateError(`Cannot start phase ${id}: status is '${phase.status}'`);
       }
       if (phase.status === 'pending') {
         phasesToStart.push(phase);
@@ -314,9 +294,7 @@ function handleTransitionPhase(params, projectRoot) {
 }
 
 function handleArchiveSession(params, projectRoot) {
-  if (!validateSessionId(params.session_id)) {
-    throw new Error('Invalid session_id: must match pattern [a-zA-Z0-9_-]+');
-  }
+  assertSessionId(params.session_id);
 
   const basePath = getBasePath(projectRoot);
   const sourcePath = path.join(basePath, ACTIVE_SESSION_REL);
@@ -324,7 +302,7 @@ function handleArchiveSession(params, projectRoot) {
   const state = parseSessionState(content);
 
   if (state.session_id !== params.session_id) {
-    throw new Error(
+    throw new StateError(
       `Session mismatch: active session is '${state.session_id}', requested '${params.session_id}'`
     );
   }
@@ -384,16 +362,14 @@ function handleArchiveSession(params, projectRoot) {
 }
 
 function handleUpdateSession(params, projectRoot) {
-  if (!validateSessionId(params.session_id)) {
-    throw new Error('Invalid session_id: must match pattern [a-zA-Z0-9_-]+');
-  }
+  assertSessionId(params.session_id);
 
   const basePath = getBasePath(projectRoot);
   const content = readState(ACTIVE_SESSION_REL, basePath);
   const state = parseSessionState(content);
 
   if (state.session_id !== params.session_id) {
-    throw new Error(
+    throw new StateError(
       `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
     );
   }
@@ -413,7 +389,7 @@ function handleUpdateSession(params, projectRoot) {
   }
 
   if (updatedFields.length === 0) {
-    throw new Error(
+    throw new ValidationError(
       'At least one updatable field (execution_mode, execution_backend, current_batch) is required'
     );
   }
@@ -439,5 +415,4 @@ module.exports = {
   handleUpdateSession,
   parseSessionState,
   serializeSessionState,
-  coerceNumber,
 };

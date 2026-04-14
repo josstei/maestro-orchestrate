@@ -6,6 +6,7 @@ const {
   applyRuntimeTransforms,
 } = require('../content/runtime-content');
 const { createContentProvider } = require('../content/provider');
+const { ValidationError } = require('../../lib/errors');
 
 const DEFAULT_RUNTIME_CONFIG = getDefaultRuntimeConfig();
 
@@ -13,7 +14,7 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
   return function handleGetSkillContent(params) {
     const resources = params.resources;
     if (!Array.isArray(resources) || resources.length === 0) {
-      throw new Error('resources must be a non-empty array of resource identifiers');
+      throw new ValidationError('resources must be a non-empty array of resource identifiers');
     }
 
     const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);

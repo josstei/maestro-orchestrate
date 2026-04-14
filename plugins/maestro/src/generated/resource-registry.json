@@ -1,0 +1,16 @@
+{
+  "agent-base-protocol": "skills/shared/delegation/protocols/agent-base-protocol.md",
+  "code-review": "skills/shared/code-review/SKILL.md",
+  "delegation": "skills/shared/delegation/SKILL.md",
+  "design-dialogue": "skills/shared/design-dialogue/SKILL.md",
+  "execution": "skills/shared/execution/SKILL.md",
+  "filesystem-safety-protocol": "skills/shared/delegation/protocols/filesystem-safety-protocol.md",
+  "implementation-planning": "skills/shared/implementation-planning/SKILL.md",
+  "session-management": "skills/shared/session-management/SKILL.md",
+  "validation": "skills/shared/validation/SKILL.md",
+  "design-document": "templates/design-document.md",
+  "implementation-plan": "templates/implementation-plan.md",
+  "session-state": "templates/session-state.md",
+  "architecture": "references/architecture.md",
+  "orchestration-steps": "references/orchestration-steps.md"
+}

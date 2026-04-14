@@ -6,7 +6,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { validateSessionId } = require('../../src/state/session-id-validator');
 const {
   DEFAULT_STATE_DIR,
   validateContainment,
@@ -42,53 +41,6 @@ function withEnv(overrides, fn) {
     }
   }
 }
-
-describe('validateSessionId', () => {
-  it('returns true for alphanumeric strings', () => {
-    assert.equal(validateSessionId('abc123'), true);
-    assert.equal(validateSessionId('ABC'), true);
-    assert.equal(validateSessionId('123'), true);
-  });
-
-  it('returns true for strings with hyphens and underscores', () => {
-    assert.equal(validateSessionId('session-id_01'), true);
-    assert.equal(validateSessionId('a-b_c'), true);
-  });
-
-  it('returns false for null', () => {
-    assert.equal(validateSessionId(null), false);
-  });
-
-  it('returns false for undefined', () => {
-    assert.equal(validateSessionId(undefined), false);
-  });
-
-  it('returns false for non-string values', () => {
-    assert.equal(validateSessionId(42), false);
-    assert.equal(validateSessionId({}), false);
-  });
-
-  it('returns false for empty string', () => {
-    assert.equal(validateSessionId(''), false);
-  });
-
-  it('returns false for strings with spaces', () => {
-    assert.equal(validateSessionId('session id'), false);
-    assert.equal(validateSessionId(' '), false);
-  });
-
-  it('returns false for strings with special characters', () => {
-    assert.equal(validateSessionId('id!'), false);
-    assert.equal(validateSessionId('id@name'), false);
-    assert.equal(validateSessionId('id#1'), false);
-    assert.equal(validateSessionId('path/id'), false);
-    assert.equal(validateSessionId('id..next'), false);
-  });
-
-  it('returns false for path traversal attempts', () => {
-    assert.equal(validateSessionId('../etc'), false);
-  });
-});
 
 describe('session-state', () => {
   let tmpRoot;

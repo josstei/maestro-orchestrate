@@ -8,6 +8,7 @@ tools.claude: [Read, Write, Edit, Bash, Glob, Grep, TaskCreate, TaskUpdate, Task
 max_turns: 20
 temperature: 0.2
 timeout_mins: 8
+capabilities: full
 ---
 <!-- @feature exampleBlocks -->
 <example>

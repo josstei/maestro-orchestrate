@@ -20,6 +20,20 @@ async function withServer(options, fn) {
 }
 
 describe('mcp server bundle behavior', () => {
+  it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
+    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+      const result = await client.callTool('get_agent', { agents: [] });
+
+      assert.equal(result.raw.isError, true);
+      assert.equal(
+        result.parsed.error,
+        'agents must be a non-empty array of agent identifiers'
+      );
+      assert.equal(result.parsed.code, 'VALIDATION_ERROR');
+      assert.equal(result.parsed.recovery_hint, null);
+    });
+  });
+
   it('serves updated get_skill_content metadata from every runtime bundle', async () => {
     const staticRuntimes = [
       { cwd: ROOT, relativePath: 'mcp/maestro-server.js' },

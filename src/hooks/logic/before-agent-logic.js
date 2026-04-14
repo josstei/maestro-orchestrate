@@ -1,9 +1,9 @@
 'use strict';
 
-const fs = require('fs');
 const { log } = require('../../core/logger');
 const { detectAgentFromPrompt } = require('../../core/agent-registry');
-const { validateSessionId } = require('../../state/session-id-validator');
+const { assertSessionId } = require('../../lib/validation');
+const { readFileSafe } = require('../../lib/io');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
 
@@ -25,7 +25,10 @@ function handleBeforeAgent(ctx) {
 
   const agentName = detectAgentFromPrompt(ctx.agentInput);
 
-  if (agentName && validateSessionId(ctx.sessionId)) {
+  let validSession = false;
+  try { assertSessionId(ctx.sessionId); validSession = true; } catch (_) {}
+
+  if (agentName && validSession) {
     hookState.setActiveAgent(ctx.sessionId, agentName);
     log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }
@@ -33,8 +36,8 @@ function handleBeforeAgent(ctx) {
   const sessionPath = state.resolveActiveSessionPath(ctx.cwd);
   let contextParts = '';
 
-  try {
-    const content = fs.readFileSync(sessionPath, 'utf8');
+  const content = readFileSafe(sessionPath, '');
+  if (content) {
     const parts = [];
     const phaseMatch = content.match(/current_phase:\s*(\S+)/);
     if (phaseMatch) parts.push(`current_phase=${phaseMatch[1]}`);
@@ -43,7 +46,7 @@ function handleBeforeAgent(ctx) {
     if (parts.length > 0) {
       contextParts = `Active session: ${parts.join(', ')}`;
     }
-  } catch {}
+  }
 
   if (contextParts) {
     return { action: 'allow', message: contextParts, reason: null };

@@ -85,8 +85,12 @@ check: generate
     fi
     echo "No drift detected."
 
+# Verify lib/ layer boundary (no imports outside lib/ or node:*)
+check-layers:
+    node scripts/check-layer-boundaries.js
+
 # Generate, test, and verify — full CI equivalent
-ci: check test
+ci: check check-layers test
 
 # Delete local branches whose remote tracking ref is gone
 cleanup-branches:
