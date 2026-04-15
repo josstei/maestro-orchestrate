@@ -33,4 +33,8 @@ function errorFallback() {
   return { continue: true, decision: 'approve' };
 }
 
-module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson };
+function getExitCode() {
+  return 0;
+}
+
+module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson, getExitCode };
