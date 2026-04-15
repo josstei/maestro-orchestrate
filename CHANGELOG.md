@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-04-15
+
 ### Added
 
 - **Qwen Code runtime support** (#26) — Fourth runtime target with hook adapter, extension manifest (`qwen-extension.json`), context file (`QWEN.md`), 22 agent stubs, and `hooks.json` for `SubagentStart`/`SubagentStop` lifecycle events
