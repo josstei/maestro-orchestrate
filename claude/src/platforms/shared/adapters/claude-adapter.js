@@ -1,6 +1,7 @@
 'use strict';
 
 const { readBoundedJson } = require('../../../core/stdin-reader');
+const { EXIT_SUCCESS } = require('./exit-codes');
 
 /**
  * Claude Code hook I/O adapter.
@@ -33,4 +34,8 @@ function errorFallback() {
   return { continue: true, decision: 'approve' };
 }
 
-module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson };
+function getExitCode() {
+  return EXIT_SUCCESS;
+}
+
+module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson, getExitCode };

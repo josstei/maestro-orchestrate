@@ -99,6 +99,16 @@ describe('claude-adapter', () => {
       assert.deepEqual(result, { continue: true, decision: 'approve' });
     });
   });
+
+  describe('getExitCode', () => {
+    it('returns 0 for allow results', () => {
+      assert.equal(claudeAdapter.getExitCode({ action: 'allow' }), 0);
+    });
+
+    it('returns 0 for deny results', () => {
+      assert.equal(claudeAdapter.getExitCode({ action: 'deny' }), 0);
+    });
+  });
 });
 
 describe('gemini-adapter', () => {
@@ -175,6 +185,16 @@ describe('gemini-adapter', () => {
       const result = geminiAdapter.errorFallback();
 
       assert.deepEqual(result, { continue: true });
+    });
+  });
+
+  describe('getExitCode', () => {
+    it('returns 0 for allow results', () => {
+      assert.equal(geminiAdapter.getExitCode({ action: 'allow' }), 0);
+    });
+
+    it('returns 0 for deny results', () => {
+      assert.equal(geminiAdapter.getExitCode({ action: 'deny' }), 0);
     });
   });
 });

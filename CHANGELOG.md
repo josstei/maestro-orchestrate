@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Qwen Code runtime support** (#26) — Fourth runtime target with hook adapter, extension manifest (`qwen-extension.json`), context file (`QWEN.md`), 22 agent stubs, and `hooks.json` for `SubagentStart`/`SubagentStop` lifecycle events
+- **`getExitCode(result)` adapter contract** (#42) — Each hook adapter now owns its exit code semantics; shared `exit-codes.js` constants (`EXIT_SUCCESS`, `EXIT_BLOCK`) verified against Gemini CLI, Claude Code, and Codex CLI source
 - **npm publishing workflows** — Nightly (cron), preview (PR label), RC (release PR), and stable release pipelines with `NPM_TOKEN` gating
 - **Community standards** — Code of Conduct (Contributor Covenant v2.1), Contributing Guide, Security Policy, issue/PR templates
 - **CI/CD pipeline documentation** (`docs/cicd.md`) — Mermaid workflow diagrams, job breakdowns, release pipeline chain, and cross-references from existing docs
