@@ -1,6 +1,7 @@
 'use strict';
 
 const { readBoundedJson } = require('../../../core/stdin-reader');
+const { EXIT_SUCCESS, EXIT_BLOCK } = require('./exit-codes');
 
 /**
  * Qwen Code hook I/O adapter.
@@ -80,4 +81,8 @@ function errorFallback() {
   return { continue: true, decision: 'allow' };
 }
 
-module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson };
+function getExitCode(result) {
+  return result.action === 'deny' ? EXIT_BLOCK : EXIT_SUCCESS;
+}
+
+module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson, getExitCode };

@@ -122,4 +122,24 @@ describe('hook entrypoints', () => {
       reason: 'Handoff report validation failed: Missing Task Report section (expected ## Task Report heading); Missing Downstream Context section (expected ## Downstream Context heading). Please include both a ## Task Report section and a ## Downstream Context section in your response.',
     });
   });
+
+  it('gemini hooks always exit 0 even on deny (JSON carries decision)', () => {
+    const result = runHook('hooks/hook-runner.js', 'gemini', 'before-agent', {
+      cwd: ROOT,
+      session_id: 'hook-test-session',
+      hook_event_name: 'BeforeAgent',
+      prompt: 'agent: coder\n\nImplement the feature.',
+    });
+    assert.equal(result.status, 0, `before-agent exited non-zero: ${result.stderr}`);
+
+    const denyResult = runHook('hooks/hook-runner.js', 'gemini', 'after-agent', {
+      cwd: ROOT,
+      session_id: 'hook-test-session',
+      hook_event_name: 'AfterAgent',
+      prompt_response: 'Missing required sections',
+    });
+    assert.equal(denyResult.status, 0, `Expected exit 0 for gemini deny, got ${denyResult.status}`);
+    const parsed = JSON.parse(denyResult.stdout);
+    assert.equal(parsed.continue, false);
+  });
 });
