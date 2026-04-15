@@ -75,4 +75,51 @@ describe('hook entrypoints', () => {
       }
     });
   });
+
+  it('boots qwen hook adapters against canonical src hook logic', () => {
+    const cases = [
+      ['session-start', { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: 'SessionStart' }],
+      ['before-agent', { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: 'SubagentStart', agent_type: 'coder' }],
+      ['after-agent', {
+        cwd: ROOT,
+        session_id: 'hook-test-session',
+        hook_event_name: 'SubagentStop',
+        agent_type: 'coder',
+        last_assistant_message: '## Task Report\nDone.\n\n## Downstream Context\nNext steps.',
+      }],
+      ['session-end', { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: 'SessionEnd' }],
+    ];
+
+    for (const [hookName, payload] of cases) {
+      const result = runHook('hooks/hook-runner.js', 'qwen', hookName, payload);
+
+      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
+    }
+  });
+
+  it('exits with code 2 when a qwen hook denies execution', () => {
+    const start = runHook('hooks/hook-runner.js', 'qwen', 'before-agent', {
+      cwd: ROOT,
+      session_id: 'hook-test-session',
+      hook_event_name: 'SubagentStart',
+      agent_type: 'coder',
+    });
+    assert.equal(start.status, 0, `before-agent exited non-zero: ${start.stderr}`);
+
+    const result = runHook('hooks/hook-runner.js', 'qwen', 'after-agent', {
+      cwd: ROOT,
+      session_id: 'hook-test-session',
+      hook_event_name: 'SubagentStop',
+      agent_type: 'coder',
+      last_assistant_message: 'Missing required sections',
+    });
+
+    assert.equal(result.status, 2, `Expected deny exit code 2, got ${result.status}: ${result.stderr}`);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      continue: false,
+      decision: 'block',
+      reason: 'Handoff report validation failed: Missing Task Report section (expected ## Task Report heading); Missing Downstream Context section (expected ## Downstream Context heading). Please include both a ## Task Report section and a ## Downstream Context section in your response.',
+    });
+  });
 });

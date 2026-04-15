@@ -24,6 +24,7 @@ Thumbs.db
 
 # AI tooling
 .gemini/
+.gemini_security/
 .claude/
 .superpowers/
 docs/superpowers/

@@ -10,12 +10,14 @@ const ENTRY_POINT_TEMPLATE_MAP = {
   gemini: { file: 'gemini-command.toml.tmpl', outputPath: (e) => `commands/maestro/${e.name}.toml` },
   claude: { file: 'claude-skill.md.tmpl', outputPath: (e) => `claude/skills/${e.name}/SKILL.md` },
   codex: { file: 'codex-skill.md.tmpl', outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md` },
+  qwen: null,
 };
 
 const PREAMBLE_PLACEHOLDER_MAP = {
   gemini: 'skills_block',
   claude: 'protocol_block',
   codex: 'refs_list',
+  qwen: null,
 };
 
 const ENTRY_POINT_NAME_OVERRIDES = {
@@ -74,6 +76,9 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
   const templateDir = path.join(srcDir, 'entry-points', 'templates');
 
   const mapping = ENTRY_POINT_TEMPLATE_MAP[runtimeName];
+  if (mapping === null) {
+    return [];
+  }
   if (!mapping) {
     throw new Error(`Unknown runtime for entry-point expansion: "${runtimeName}"`);
   }
@@ -133,6 +138,8 @@ function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
   } else if (runtimeName === 'codex') {
     templateFile = path.join(templateDir, 'codex-core-command.md.tmpl');
     outputPathFn = (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`;
+  } else if (runtimeName === 'qwen') {
+    return [];
   } else {
     throw new Error(`Unknown runtime for core-command expansion: "${runtimeName}"`);
   }

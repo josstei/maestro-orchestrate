@@ -4,6 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const claudeAdapter = require('../../src/platforms/shared/adapters/claude-adapter');
 const geminiAdapter = require('../../src/platforms/shared/adapters/gemini-adapter');
+const qwenAdapter = require('../../src/platforms/shared/adapters/qwen-adapter');
 
 describe('claude-adapter', () => {
   describe('normalizeInput', () => {
@@ -174,6 +175,77 @@ describe('gemini-adapter', () => {
       const result = geminiAdapter.errorFallback();
 
       assert.deepEqual(result, { continue: true });
+    });
+  });
+});
+
+describe('qwen-adapter', () => {
+  describe('normalizeInput', () => {
+    it('maps session_id, cwd, and hook_event_name', () => {
+      const raw = {
+        session_id: 'qwen-123',
+        cwd: '/workspace/app',
+        hook_event_name: 'SubagentStart',
+      };
+
+      const result = qwenAdapter.normalizeInput(raw);
+
+      assert.equal(result.sessionId, 'qwen-123');
+      assert.equal(result.cwd, '/workspace/app');
+      assert.equal(result.event, 'SubagentStart');
+    });
+
+    it('maps agent_type to agentName and leaves agentInput null for SubagentStart', () => {
+      const result = qwenAdapter.normalizeInput({
+        hook_event_name: 'SubagentStart',
+        agent_type: 'coder',
+      });
+
+      assert.equal(result.agentName, 'coder');
+      assert.equal(result.agentInput, null);
+      assert.equal(result.agentResult, null);
+    });
+
+    it('maps last_assistant_message to agentResult for SubagentStop', () => {
+      const result = qwenAdapter.normalizeInput({
+        hook_event_name: 'SubagentStop',
+        agent_type: 'coder',
+        last_assistant_message: '## Task Report\nDone.\n\n## Downstream Context\nNext steps.',
+      });
+
+      assert.equal(result.agentName, 'coder');
+      assert.equal(result.agentInput, null);
+      assert.equal(result.agentResult, '## Task Report\nDone.\n\n## Downstream Context\nNext steps.');
+    });
+
+    it('maps stop_hook_active string "true" to stopHookActive true', () => {
+      const result = qwenAdapter.normalizeInput({ stop_hook_active: 'true' });
+
+      assert.equal(result.stopHookActive, true);
+    });
+  });
+
+  describe('formatOutput', () => {
+    it('maps deny action to block output', () => {
+      const result = qwenAdapter.formatOutput({ action: 'deny', reason: 'Blocked.' });
+
+      assert.equal(result.continue, false);
+      assert.equal(result.decision, 'block');
+      assert.equal(result.reason, 'Blocked.');
+    });
+
+    it('stores message in hookSpecificOutput.additionalContext', () => {
+      const result = qwenAdapter.formatOutput({ action: 'allow', message: 'Context.' });
+
+      assert.deepEqual(result.hookSpecificOutput, { additionalContext: 'Context.' });
+    });
+  });
+
+  describe('errorFallback', () => {
+    it('returns { continue: true, decision: "allow" }', () => {
+      const result = qwenAdapter.errorFallback();
+
+      assert.deepEqual(result, { continue: true, decision: 'allow' });
     });
   });
 });

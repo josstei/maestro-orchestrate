@@ -65,7 +65,7 @@ describe('src-first architecture invariants', () => {
   });
 
   it('keeps all runtime content policies filesystem-first with no registry fallback', () => {
-    for (const runtimeName of ['gemini', 'claude', 'codex']) {
+    for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen']) {
       const runtimeConfig = getRuntimeConfig(runtimeName);
       assert.equal(runtimeConfig.content.primary, 'filesystem');
       assert.equal(runtimeConfig.content.fallback, 'none');
@@ -77,6 +77,7 @@ describe('src-first architecture invariants', () => {
       gemini: getRuntimeConfig('gemini'),
       claude: getRuntimeConfig('claude'),
       codex: getRuntimeConfig('codex'),
+      qwen: getRuntimeConfig('qwen'),
     };
 
     const manifest = expandManifest(manifestRules, runtimes, path.join(ROOT, 'src'));

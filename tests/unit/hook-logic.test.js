@@ -164,6 +164,22 @@ describe('handleBeforeAgent', () => {
     const activeAgent = hookState.getActiveAgent(SESSION_ID);
     assert.equal(activeAgent, 'coder');
   });
+
+  it('uses normalized agentName when no prompt is available', () => {
+    delete process.env.MAESTRO_CURRENT_AGENT;
+    hookState.clearActiveAgent(SESSION_ID);
+
+    handleBeforeAgent({
+      sessionId: SESSION_ID,
+      cwd: fakeCwd,
+      agentName: 'code-reviewer',
+      agentInput: null,
+      event: 'SubagentStart',
+    });
+
+    const activeAgent = hookState.getActiveAgent(SESSION_ID);
+    assert.equal(activeAgent, 'code_reviewer');
+  });
 });
 
 describe('handleSessionStart', () => {

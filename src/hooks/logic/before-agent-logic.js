@@ -1,7 +1,7 @@
 'use strict';
 
 const { log } = require('../../core/logger');
-const { detectAgentFromPrompt } = require('../../core/agent-registry');
+const { detectAgentFromPrompt, normalizeAgentName } = require('../../core/agent-registry');
 const { assertSessionId } = require('../../lib/validation');
 const { readFileSafe } = require('../../lib/io');
 const hookState = require('./hook-state');
@@ -23,7 +23,7 @@ const state = require('../../state/session-state');
 function handleBeforeAgent(ctx) {
   hookState.pruneStale();
 
-  const agentName = detectAgentFromPrompt(ctx.agentInput);
+  const agentName = detectAgentFromPrompt(ctx.agentInput) || normalizeAgentName(ctx.agentName);
 
   let validSession = false;
   try { assertSessionId(ctx.sessionId); validSession = true; } catch (_) {}
