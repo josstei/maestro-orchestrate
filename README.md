@@ -72,16 +72,6 @@ More Claude-specific setup and plugin management lives in [claude/README.md](cla
 
 #### Codex
 
-Via npm (recommended):
-
-```bash
-npx -p @maestro-orchestrator/maestro maestro-install-codex
-```
-
-Then start Codex, run `/plugins`, and select **Maestro** → **Install**.
-
-From source:
-
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
 cd maestro-orchestrate

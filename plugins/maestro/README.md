@@ -4,23 +4,6 @@ This directory is the generated Codex runtime for Maestro.
 
 ## Installation
 
-### Via npm (recommended)
-
-```bash
-npx -p @maestro-orchestrator/maestro maestro-install-codex
-```
-
-Or install globally:
-
-```bash
-npm install -g @maestro-orchestrator/maestro
-maestro-install-codex
-```
-
-Then start Codex, run `/plugins`, and select **Maestro** → **Install**.
-
-### From source
-
 1. Clone the repository:
 
    ```bash
