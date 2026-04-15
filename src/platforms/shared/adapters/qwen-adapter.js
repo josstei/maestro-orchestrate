@@ -19,7 +19,7 @@ const { readBoundedJson } = require('../../../core/stdin-reader');
  *
  * Internal contract fields:
  *   event, sessionId, cwd, transcriptPath, permissionMode,
- *   agentId, agentType, source, model, reason, resultText, stopHookActive
+ *   agentId, agentName, agentInput, agentResult, source, model, reason, stopHookActive
  *
  * Output contract (for non-permission hooks):
  *   { continue, decision, reason?, hookSpecificOutput?: { additionalContext } }
@@ -35,13 +35,14 @@ function normalizeInput(raw) {
     transcriptPath: raw.transcript_path || '',
     permissionMode: raw.permission_mode || '',
     agentId: raw.agent_id || '',
-    agentType: raw.agent_type || null,
+    agentName: raw.agent_type || null,
+    agentInput: null,
+    agentResult: event === 'SubagentStop'
+      ? (raw.last_assistant_message || '')
+      : null,
     source: raw.source || '',
     model: raw.model || '',
     reason: raw.reason || '',
-    resultText: (event === 'SubagentStop')
-      ? (raw.last_assistant_message || '')
-      : '',
     stopHookActive: raw.stop_hook_active === true || raw.stop_hook_active === 'true',
   };
 }
