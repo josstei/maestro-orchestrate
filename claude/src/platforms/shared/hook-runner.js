@@ -3,13 +3,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-// Derive valid hook runtimes from available adapter files.
-// Codex CLI does not use the hook system today — no codex-adapter.js exists.
+const { isAdapterFile, extractRuntime } = require('./adapters/conventions');
+
 const ADAPTERS_DIR = path.join(__dirname, 'adapters');
 const VALID_RUNTIMES = new Set(
   fs.readdirSync(ADAPTERS_DIR)
-    .filter((f) => f.endsWith('-adapter.js'))
-    .map((f) => f.replace(/-adapter\.js$/, ''))
+    .filter(isAdapterFile)
+    .map(extractRuntime)
 );
 
 const HOOK_MAP = require('../../generated/hook-registry.json');
