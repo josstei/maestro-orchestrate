@@ -53,7 +53,9 @@ const HOOK_PASCAL_EXPECTED = {
 
 const ENTRY_POINT_NAMES = [
   'review',
+  'review-code',
   'debug',
+  'debug-workflow',
   'archive',
   'status',
   'security-audit',
@@ -64,11 +66,14 @@ const ENTRY_POINT_NAMES = [
   'orchestrate',
   'execute',
   'resume',
+  'resume-session',
 ];
 
 const ENTRY_POINT_TITLE_EXPECTED = {
   'review': 'Review',
+  'review-code': 'Review Code',
   'debug': 'Debug',
+  'debug-workflow': 'Debug Workflow',
   'archive': 'Archive',
   'status': 'Status',
   'security-audit': 'Security Audit',
@@ -79,6 +84,7 @@ const ENTRY_POINT_TITLE_EXPECTED = {
   'orchestrate': 'Orchestrate',
   'execute': 'Execute',
   'resume': 'Resume',
+  'resume-session': 'Resume Session',
 };
 
 describe('toSnakeCase', () => {

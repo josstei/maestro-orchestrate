@@ -20,37 +20,35 @@ const PREAMBLE_PLACEHOLDER_MAP = {
   qwen: null,
 };
 
-const ENTRY_POINT_NAME_OVERRIDES = {
-  codex: {
-    debug: 'debug-workflow',
-    review: 'review-code',
-    resume: 'resume-session',
-  },
-};
-
-const RESERVED_PUBLIC_SKILL_NAMES = {
+// Host platform names that must never appear as public skill names.
+// Confirmed: Claude /review shadows the built-in PR review command.
+// Confirmed: Codex review, debug, resume conflict with built-in commands.
+// Defensive: Claude debug and resume preemptively reserved.
+const HOST_RESERVED_NAMES = {
   codex: new Set(['review', 'debug', 'resume']),
+  claude: new Set(['review', 'debug', 'resume']),
 };
 
 /**
- * @param {string} entryName
+ * @param {{ name: string, runtimeNames?: Record<string, string> }} entry
  * @param {string} runtimeName
  * @returns {string}
  */
-function getEntryPointRuntimeName(entryName, runtimeName) {
-  return ENTRY_POINT_NAME_OVERRIDES[runtimeName]?.[entryName] || entryName;
+function getEntryPointRuntimeName(entry, runtimeName) {
+  return entry.runtimeNames?.[runtimeName] || entry.name;
 }
 
 /**
- * @param {string} skillName
+ * @param {string} resolvedName
  * @param {string} runtimeName
  * @throws {Error}
  */
-function assertRuntimePublicSkillNameAvailable(skillName, runtimeName) {
-  const reservedNames = RESERVED_PUBLIC_SKILL_NAMES[runtimeName];
-  if (reservedNames && reservedNames.has(skillName)) {
+function assertNotHostReserved(resolvedName, runtimeName) {
+  const reserved = HOST_RESERVED_NAMES[runtimeName];
+  if (reserved && reserved.has(resolvedName)) {
     throw new Error(
-      `Reserved ${runtimeName} public skill name "${skillName}" must be remapped before generation`
+      `Reserved ${runtimeName} host command name "${resolvedName}" conflicts with a built-in — ` +
+      'add a runtimeNames entry to the registry to remap it'
     );
   }
 }
@@ -90,9 +88,9 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
   return registry.map((entry) => {
     const runtimeEntry = {
       ...entry,
-      name: getEntryPointRuntimeName(entry.name, runtimeName),
+      name: getEntryPointRuntimeName(entry, runtimeName),
     };
-    assertRuntimePublicSkillNameAvailable(runtimeEntry.name, runtimeName);
+    assertNotHostReserved(runtimeEntry.name, runtimeName);
     let content = template;
 
     content = content.replace(/\{\{name\}\}/g, runtimeEntry.name);
@@ -149,9 +147,9 @@ function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
   return registry.map((entry) => {
     const runtimeEntry = {
       ...entry,
-      name: getEntryPointRuntimeName(entry.name, runtimeName),
+      name: getEntryPointRuntimeName(entry, runtimeName),
     };
-    assertRuntimePublicSkillNameAvailable(runtimeEntry.name, runtimeName);
+    assertNotHostReserved(runtimeEntry.name, runtimeName);
     let content = template;
 
     content = content.replace(/\{\{name\}\}/g, runtimeEntry.name);

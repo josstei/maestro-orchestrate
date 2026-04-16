@@ -13,6 +13,7 @@
 module.exports = [
   {
     name: 'review',
+    runtimeNames: { codex: 'review-code', claude: 'review-code' },
     description:
       'Perform a Maestro-style code review with findings ordered by severity and concrete file references',
     agents: ['code-reviewer'],
@@ -34,6 +35,7 @@ module.exports = [
 
   {
     name: 'debug',
+    runtimeNames: { codex: 'debug-workflow', claude: 'debug-workflow' },
     description:
       'Run the Maestro debugging workflow for investigation-heavy tasks',
     agents: ['debugger'],
