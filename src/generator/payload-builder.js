@@ -2,8 +2,30 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const { isAdapterFile, extractRuntime } = require('../platforms/shared/adapters/conventions');
 
 const VERSION_JSON_FILENAME = 'version.json';
+
+const ADAPTER_PATH_PREFIX = 'platforms/shared/adapters/';
+
+/**
+ * Determine whether a relative path is an adapter file belonging to a
+ * different runtime. Returns true when the file is a foreign adapter that
+ * should be excluded from the payload.
+ * @param {string} relativePath - Posix-style relative path from src/
+ * @param {string} runtimeName - Target runtime name
+ * @returns {boolean}
+ */
+function isForeignAdapter(relativePath, runtimeName) {
+  if (!relativePath.startsWith(ADAPTER_PATH_PREFIX)) {
+    return false;
+  }
+  const filename = relativePath.slice(ADAPTER_PATH_PREFIX.length);
+  if (!isAdapterFile(filename)) {
+    return false;
+  }
+  return extractRuntime(filename) !== runtimeName;
+}
 
 /**
  * Base allowlist of src/ prefixes included in detached payloads.
@@ -109,6 +131,11 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName) {
         continue;
       }
 
+      if (runtimeName && isForeignAdapter(relativePath, runtimeName)) {
+        stats.skipped++;
+        continue;
+      }
+
       keptOutputs.add(relativePath);
       const outputPath = path.join(outputDir, relativePath);
       fs.mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -183,6 +210,7 @@ module.exports = {
   DETACHED_PAYLOAD_BASE_ALLOWLIST,
   buildPayloadAllowlist,
   shouldIncludeInPayload,
+  isForeignAdapter,
   shouldDescendInto,
   buildDetachedPayload,
   stampVersion,

@@ -10,6 +10,7 @@ const {
   DETACHED_PAYLOAD_BASE_ALLOWLIST,
   buildPayloadAllowlist,
   shouldIncludeInPayload,
+  isForeignAdapter,
   shouldDescendInto,
   buildDetachedPayload,
   stampVersion,
@@ -93,6 +94,33 @@ describe('shouldIncludeInPayload', () => {
   it('defaults to base allowlist when no allowlist provided', () => {
     assert.ok(shouldIncludeInPayload('core/logger.js', undefined));
     assert.ok(!shouldIncludeInPayload('scripts/build.js', undefined));
+  });
+});
+
+describe('isForeignAdapter', () => {
+  it('returns false for paths outside the adapters directory', () => {
+    assert.ok(!isForeignAdapter('core/logger.js', 'claude'));
+    assert.ok(!isForeignAdapter('hooks/shared/hook-logic.js', 'claude'));
+  });
+
+  it('returns false for the matching runtime adapter', () => {
+    assert.ok(!isForeignAdapter('platforms/shared/adapters/claude-adapter.js', 'claude'));
+    assert.ok(!isForeignAdapter('platforms/shared/adapters/gemini-adapter.js', 'gemini'));
+  });
+
+  it('returns true for foreign runtime adapters', () => {
+    assert.ok(isForeignAdapter('platforms/shared/adapters/gemini-adapter.js', 'claude'));
+    assert.ok(isForeignAdapter('platforms/shared/adapters/qwen-adapter.js', 'claude'));
+    assert.ok(isForeignAdapter('platforms/shared/adapters/claude-adapter.js', 'gemini'));
+  });
+
+  it('returns false for non-adapter files in the adapters directory', () => {
+    assert.ok(!isForeignAdapter('platforms/shared/adapters/exit-codes.js', 'claude'));
+    assert.ok(!isForeignAdapter('platforms/shared/adapters/conventions.js', 'claude'));
+  });
+
+  it('returns false for nested paths under adapters/', () => {
+    assert.ok(!isForeignAdapter('platforms/shared/adapters/sub/claude-adapter.js', 'claude'));
   });
 });
 
@@ -261,6 +289,71 @@ describe('buildDetachedPayload', () => {
 
     assert.ok(fs.existsSync(path.join(outputDir, 'platforms', 'claude', 'runtime-config.js')));
     assert.ok(!fs.existsSync(path.join(outputDir, 'platforms', 'codex', 'runtime-config.js')));
+  });
+
+  it('includes only matching adapter and shared utilities for claude runtime', () => {
+    srcDir = createTempDir('maestro-payload-src-');
+    outputDir = createTempDir('maestro-payload-out-');
+
+    writeFile(srcDir, 'core/logger.js', 'content');
+    writeFile(srcDir, 'platforms/shared/adapters/claude-adapter.js', 'claude');
+    writeFile(srcDir, 'platforms/shared/adapters/gemini-adapter.js', 'gemini');
+    writeFile(srcDir, 'platforms/shared/adapters/qwen-adapter.js', 'qwen');
+    writeFile(srcDir, 'platforms/shared/adapters/exit-codes.js', 'codes');
+    writeFile(srcDir, 'platforms/shared/adapters/conventions.js', 'conventions');
+    writeFile(srcDir, 'platforms/shared/hook-runner.js', 'runner');
+
+    buildDetachedPayload(srcDir, outputDir, 'claude');
+
+    const adaptersDir = path.join(outputDir, 'platforms', 'shared', 'adapters');
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'claude-adapter.js')));
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'exit-codes.js')));
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'conventions.js')));
+    assert.ok(!fs.existsSync(path.join(adaptersDir, 'gemini-adapter.js')));
+    assert.ok(!fs.existsSync(path.join(adaptersDir, 'qwen-adapter.js')));
+    assert.ok(
+      fs.existsSync(path.join(outputDir, 'platforms', 'shared', 'hook-runner.js'))
+    );
+  });
+
+  it('includes only matching adapter and shared utilities for codex runtime', () => {
+    srcDir = createTempDir('maestro-payload-src-');
+    outputDir = createTempDir('maestro-payload-out-');
+
+    writeFile(srcDir, 'core/logger.js', 'content');
+    writeFile(srcDir, 'platforms/shared/adapters/claude-adapter.js', 'claude');
+    writeFile(srcDir, 'platforms/shared/adapters/gemini-adapter.js', 'gemini');
+    writeFile(srcDir, 'platforms/shared/adapters/qwen-adapter.js', 'qwen');
+    writeFile(srcDir, 'platforms/shared/adapters/codex-adapter.js', 'codex');
+    writeFile(srcDir, 'platforms/shared/adapters/exit-codes.js', 'codes');
+
+    buildDetachedPayload(srcDir, outputDir, 'codex');
+
+    const adaptersDir = path.join(outputDir, 'platforms', 'shared', 'adapters');
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'codex-adapter.js')));
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'exit-codes.js')));
+    assert.ok(!fs.existsSync(path.join(adaptersDir, 'claude-adapter.js')));
+    assert.ok(!fs.existsSync(path.join(adaptersDir, 'gemini-adapter.js')));
+    assert.ok(!fs.existsSync(path.join(adaptersDir, 'qwen-adapter.js')));
+  });
+
+  it('includes all adapter files when runtimeName is omitted', () => {
+    srcDir = createTempDir('maestro-payload-src-');
+    outputDir = createTempDir('maestro-payload-out-');
+
+    writeFile(srcDir, 'core/logger.js', 'content');
+    writeFile(srcDir, 'platforms/shared/adapters/claude-adapter.js', 'claude');
+    writeFile(srcDir, 'platforms/shared/adapters/gemini-adapter.js', 'gemini');
+    writeFile(srcDir, 'platforms/shared/adapters/qwen-adapter.js', 'qwen');
+    writeFile(srcDir, 'platforms/shared/adapters/exit-codes.js', 'codes');
+
+    buildDetachedPayload(srcDir, outputDir);
+
+    const adaptersDir = path.join(outputDir, 'platforms', 'shared', 'adapters');
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'claude-adapter.js')));
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'gemini-adapter.js')));
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'qwen-adapter.js')));
+    assert.ok(fs.existsSync(path.join(adaptersDir, 'exit-codes.js')));
   });
 
   it('cleans up empty directories after stale file removal', () => {
