@@ -67,7 +67,7 @@ Additional controls:
 
 ## Orchestration Workflow
 
-Orchestration workflow steps are loaded from `references/orchestration-steps.md` by the orchestrate command. See that file for the authoritative step sequence.
+Orchestration workflow steps are defined in `references/orchestration-steps.config.js` and rendered to markdown at runtime by the orchestrate command. See that file for the authoritative step definitions.
 
 ## Domain Analysis
 
@@ -171,7 +171,7 @@ When MCP state tools (`initialize_workspace`, `create_session`, `update_session`
 
 ## Skills Reference
 
-During orchestration, shared methodology skills, templates, references, and delegation protocols are loaded via `get_skill_content`. Agent methodology is loaded via `get_agent`. See `references/orchestration-steps.md` for the loading sequence.
+During orchestration, shared methodology skills, templates, references, and delegation protocols are loaded via `get_skill_content`. Agent methodology is loaded via `get_agent`. See `references/orchestration-steps.config.js` for the loading sequence.
 
 | Skill | Purpose |
 | --- | --- |

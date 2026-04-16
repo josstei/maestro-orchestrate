@@ -1,19 +1,11 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
 const config = require('../../src/references/orchestration-steps.config');
 const {
   buildStepIndex,
   renderSteps,
   validateConfig,
 } = require('../../src/references/orchestration-steps-renderer');
-
-const ORIGINAL_MD_PATH = path.resolve(
-  __dirname,
-  '../../src/references/orchestration-steps.md'
-);
 
 describe('orchestration-steps config', () => {
   it('passes structural validation with zero errors', () => {
@@ -110,19 +102,6 @@ describe('orchestration-steps config', () => {
 describe('orchestration-steps renderer', () => {
   it('renders without throwing', () => {
     assert.doesNotThrow(() => renderSteps(config));
-  });
-
-  it('rendered output matches the canonical markdown file', () => {
-    // This test validates that the config + renderer produce byte-identical
-    // output to the committed orchestration-steps.md. Once the .md is deleted,
-    // this test should be replaced with a snapshot assertion.
-    if (!fs.existsSync(ORIGINAL_MD_PATH)) {
-      return; // .md deleted — skip this comparison
-    }
-
-    const rendered = renderSteps(config);
-    const original = fs.readFileSync(ORIGINAL_MD_PATH, 'utf8');
-    assert.equal(rendered, original, 'Rendered output differs from committed orchestration-steps.md');
   });
 
   it('contains no unresolved {@ref} tokens in rendered output', () => {

@@ -1,6 +1,6 @@
 # Maestro Orchestration Flow
 
-The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `src/references/orchestration-steps.md`. Two modes exist: **Standard** (medium/complex tasks) and **Express** (simple tasks).
+The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `src/references/orchestration-steps.config.js`. The config is rendered to markdown at runtime by `orchestration-steps-renderer.js`. Two modes exist: **Standard** (medium/complex tasks) and **Express** (simple tasks).
 
 ## Standard Workflow
 
