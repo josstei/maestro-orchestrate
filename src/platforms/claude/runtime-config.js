@@ -41,23 +41,10 @@ module.exports = {
   delegationPattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
 
   features: {
-    mcpSkillContentHandler: true,
-    policyEnforcer: true,
     exampleBlocks: true,
-    geminiHookModel: false,
-    claudeHookModel: true,
-    geminiDelegation: false,
-    claudeDelegation: true,
-    codexDelegation: false,
-    geminiToolExamples: false,
-    claudeToolExamples: true,
-    geminiAskFormat: false,
-    geminiStateContract: false,
     claudeStateContract: true,
+    geminiStateContract: false,
     codexStateContract: false,
-    geminiRuntimeConfig: false,
-    claudeRuntimeConfig: true,
-    codexRuntimeConfig: false,
   },
 
   paths: {

@@ -38,23 +38,10 @@ module.exports = {
   delegationPattern: 'spawn_agent(...)',
 
   features: {
-    mcpSkillContentHandler: true,
-    policyEnforcer: false,
     exampleBlocks: false,
-    geminiHookModel: false,
-    claudeHookModel: false,
-    geminiDelegation: false,
-    claudeDelegation: false,
-    codexDelegation: true,
-    geminiToolExamples: false,
-    claudeToolExamples: false,
-    geminiAskFormat: false,
-    geminiStateContract: false,
     claudeStateContract: false,
+    geminiStateContract: false,
     codexStateContract: true,
-    geminiRuntimeConfig: false,
-    claudeRuntimeConfig: false,
-    codexRuntimeConfig: true,
   },
 
   paths: {
