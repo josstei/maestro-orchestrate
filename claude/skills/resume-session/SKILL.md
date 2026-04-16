@@ -1,5 +1,5 @@
 ---
-name: resume
+name: resume-session
 description: Resume an interrupted Maestro session using the existing active-session file and shared phase tracking
 allowed-tools:
   - Read

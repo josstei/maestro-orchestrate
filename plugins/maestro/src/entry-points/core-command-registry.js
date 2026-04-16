@@ -24,6 +24,7 @@ module.exports = [
   },
   {
     name: 'resume',
+    runtimeNames: { codex: 'resume-session', claude: 'resume-session' },
     description:
       'Resume an interrupted Maestro session using the existing active-session file and shared phase tracking',
     preload: ['session-management', 'execution', 'delegation', 'validation'],

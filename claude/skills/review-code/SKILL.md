@@ -1,10 +1,10 @@
 ---
-name: review
+name: review-code
 description: Perform a Maestro-style code review with findings ordered by severity and concrete file references
 ---
 
 
-# Maestro Review
+# Maestro Review Code
 
 Call `get_skill_content` with resources: ["architecture"].
 

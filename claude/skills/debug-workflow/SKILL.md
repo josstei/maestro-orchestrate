@@ -1,10 +1,10 @@
 ---
-name: debug
+name: debug-workflow
 description: Run the Maestro debugging workflow for investigation-heavy tasks
 ---
 
 
-# Maestro Debug
+# Maestro Debug Workflow
 
 Call `get_skill_content` with resources: ["architecture"].
 
