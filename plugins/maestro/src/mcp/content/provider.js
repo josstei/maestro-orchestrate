@@ -10,6 +10,7 @@ const CONTENT_SOURCES = Object.freeze({
   FILESYSTEM: 'filesystem',
   NONE: 'none',
 });
+
 function createFilesystemProvider(runtimeConfig, canonicalSrcRoot = resolveCanonicalSrcFromExtensionRoot()) {
   const srcRoot = canonicalSrcRoot;
 
@@ -33,59 +34,30 @@ function normalizeContentPolicy(runtimeConfig) {
   };
 }
 
-function createProviderForSource(source, runtimeConfig, canonicalSrcRoot) {
-  if (source === CONTENT_SOURCES.NONE) {
-    return null;
-  }
-
-  if (source === CONTENT_SOURCES.FILESYSTEM) {
-    return createFilesystemProvider(runtimeConfig, canonicalSrcRoot);
-  }
-
-  throw new Error(`Unknown content source: "${source}"`);
-}
-
+/**
+ * Every runtime configures `primary=filesystem, fallback=none`, so the
+ * chain collapses to the filesystem provider with a shaped error for
+ * `none`. If a future source is introduced, reintroduce chaining here.
+ */
 function createContentProvider(runtimeConfig, canonicalSrcRoot = resolveCanonicalSrcFromExtensionRoot()) {
-  const providers = [];
-  const { primary, fallback } = normalizeContentPolicy(runtimeConfig);
-  const seenSources = new Set();
+  const { primary } = normalizeContentPolicy(runtimeConfig);
 
-  for (const source of [primary, fallback]) {
-    if (seenSources.has(source)) {
-      continue;
-    }
-
-    seenSources.add(source);
-
-    const provider = createProviderForSource(source, runtimeConfig, canonicalSrcRoot);
-    if (provider) {
-      providers.push(provider);
-    }
+  if (primary === CONTENT_SOURCES.NONE) {
+    return {
+      readResource(id) {
+        return { error: `No content provider could read resource "${id}"` };
+      },
+      readAgent(agentName) {
+        return { error: `No content provider could read agent "${agentName}"` };
+      },
+    };
   }
 
-  return {
-    readResource(id) {
-      for (const provider of providers) {
-        const result = provider.readResource(id);
-        if (result) {
-          return result;
-        }
-      }
+  if (primary !== CONTENT_SOURCES.FILESYSTEM) {
+    throw new Error(`Unknown content source: "${primary}"`);
+  }
 
-      return { error: `No content provider could read resource "${id}"` };
-    },
-
-    readAgent(agentName) {
-      for (const provider of providers) {
-        const result = provider.readAgent(agentName);
-        if (result) {
-          return result;
-        }
-      }
-
-      return { error: `No content provider could read agent "${agentName}"` };
-    },
-  };
+  return createFilesystemProvider(runtimeConfig, canonicalSrcRoot);
 }
 
 module.exports = {
