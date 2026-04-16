@@ -131,7 +131,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           NOTES=$(awk -v version="$VERSION" '
-            $0 == "## [" version "]" { found=1; next }
+            index($0, "## [" version "]") == 1 { found=1; next }
             /^## \[/ && found { exit }
             found { print }
           ' CHANGELOG.md)
