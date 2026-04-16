@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { readBoundedJson } = require('../../core/stdin-reader');
 
 // Derive valid hook runtimes from available adapter files.
 // Codex CLI does not use the hook system today — no codex-adapter.js exists.
@@ -37,7 +38,7 @@ const adapter = require('./adapters/' + runtime + '-adapter');
 const logicModule = require(path.resolve(__dirname, '../../', hookEntry.module));
 const handler = logicModule[hookEntry.fn];
 
-adapter.readBoundedStdin()
+readBoundedJson()
   .then((raw) => {
     const ctx = adapter.normalizeInput(raw);
     return handler(ctx);

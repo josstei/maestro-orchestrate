@@ -151,6 +151,8 @@ function handleGetSessionStatus(_params, projectRoot) {
 }
 
 function handleTransitionPhase(params, projectRoot) {
+  const now = new Date().toISOString();
+
   params.next_phase_id = coercePositiveInteger(params.next_phase_id);
   params.completed_phase_id = coercePositiveInteger(params.completed_phase_id);
   if (Array.isArray(params.next_phase_ids)) {
@@ -227,7 +229,7 @@ function handleTransitionPhase(params, projectRoot) {
 
   if (completedPhase) {
     completedPhase.status = 'completed';
-    completedPhase.completed = new Date().toISOString();
+    completedPhase.completed = now;
     completedPhase.downstream_context =
       params.downstream_context ?? completedPhase.downstream_context;
     completedPhase.files_created =
@@ -240,7 +242,6 @@ function handleTransitionPhase(params, projectRoot) {
 
   let startedPhaseIds;
   if (hasNextPhaseIds) {
-    const now = new Date().toISOString();
     startedPhaseIds = [];
     for (const phase of phasesToStart) {
       phase.status = 'in_progress';
@@ -251,7 +252,7 @@ function handleTransitionPhase(params, projectRoot) {
   } else if (nextPhase) {
     if (nextPhase.status === 'pending') {
       nextPhase.status = 'in_progress';
-      nextPhase.started = new Date().toISOString();
+      nextPhase.started = now;
     }
     state.current_phase = params.next_phase_id;
   }
@@ -266,7 +267,7 @@ function handleTransitionPhase(params, projectRoot) {
     state.token_usage.total_cached += params.token_usage.cached || 0;
   }
 
-  state.updated = new Date().toISOString();
+  state.updated = now;
   writeState(
     ACTIVE_SESSION_REL,
     serializeSessionState(state, extractBody(content)),

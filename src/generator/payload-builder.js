@@ -137,10 +137,7 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName) {
         .join('/');
       if (entry.isDirectory()) {
         cleanStale(fullPath);
-        if (
-          fs.existsSync(fullPath) &&
-          fs.readdirSync(fullPath).length === 0
-        ) {
+        if (fs.readdirSync(fullPath).length === 0) {
           fs.rmdirSync(fullPath);
         }
       } else if (!keptOutputs.has(relativePath)) {

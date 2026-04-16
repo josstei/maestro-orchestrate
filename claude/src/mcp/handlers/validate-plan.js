@@ -222,9 +222,10 @@ function handleValidatePlan(params) {
     (violation) => violation.rule === 'cyclic_dependency'
   );
 
+  const depths = hasCycleViolation ? null : computeDepths(phases, phaseById);
+
   const parallelPhases = phases.filter((phase) => phase.parallel);
-  if (parallelPhases.length > 0 && !hasCycleViolation) {
-    const depths = computeDepths(phases, phaseById);
+  if (parallelPhases.length > 0 && depths) {
     const batchesByDepth = {};
 
     for (const phase of parallelPhases) {
@@ -296,8 +297,7 @@ function handleValidatePlan(params) {
   }
 
   let parallelization_profile = null;
-  if (!hasCycleViolation) {
-    const depths = computeDepths(phases, phaseById);
+  if (depths) {
     const batches = Object.entries(
       phases.reduce((acc, phase) => {
         const depth = depths[phase.id] || 0;
