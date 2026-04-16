@@ -124,12 +124,43 @@ function mapTools(frontmatter, runtimeConfig) {
   });
 }
 
+let _orchestrationStepsCache = null;
+
+function renderOrchestrationSteps(srcRoot) {
+  if (_orchestrationStepsCache) {
+    return _orchestrationStepsCache;
+  }
+
+  try {
+    const configPath = path.join(srcRoot, 'references', 'orchestration-steps.config.js');
+    // Clear require cache to pick up changes during development
+    delete require.cache[require.resolve(configPath)];
+    const config = require(configPath);
+    const { renderSteps } = require('../../references/orchestration-steps-renderer');
+    _orchestrationStepsCache = renderSteps(config);
+    return _orchestrationStepsCache;
+  } catch (_err) {
+    return null;
+  }
+}
+
 function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
   const relativePath = RESOURCE_ALLOWLIST[id];
   if (!relativePath) {
     return {
       error: `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCE_ALLOWLIST).join(', ')}`,
     };
+  }
+
+  // Render orchestration steps from config instead of reading static .md
+  if (id === 'orchestration-steps') {
+    const rendered = renderOrchestrationSteps(srcRoot);
+    if (rendered) {
+      return {
+        content: applyRuntimeTransforms(rendered, runtimeConfig, relativePath),
+      };
+    }
+    // Fall through to file-based read if config rendering fails
   }
 
   const absolutePath = path.join(srcRoot, relativePath);
@@ -183,6 +214,7 @@ module.exports = {
   parseInlineArray,
   parseFrontmatter,
   mapTools,
+  renderOrchestrationSteps,
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 };

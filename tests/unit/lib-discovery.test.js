@@ -575,8 +575,17 @@ describe('parity: resource registry', () => {
       },
     });
 
+    const configRenderedEntries = discover({
+      dir: referencesDir,
+      pattern: '*.config.js',
+      identity: (fp) => path.basename(fp, '.config.js'),
+      metadata: (fp) => ({
+        relativePath: `references/${path.basename(fp, '.config.js')}.md`,
+      }),
+    });
+
     const actual = {};
-    for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
+    for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries, ...configRenderedEntries]) {
       actual[entry.id] = entry.relativePath;
     }
 

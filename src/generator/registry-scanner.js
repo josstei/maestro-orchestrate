@@ -62,8 +62,21 @@ function buildResourceRegistry(srcDir) {
     }),
   });
 
+  // Config-rendered references: *.config.js files produce resources with the
+  // same ID as their basename (minus .config.js).  The resource registry still
+  // maps the ID to the .md path for backwards compatibility — the runtime
+  // content provider detects the config and renders on the fly.
+  const configRenderedEntries = discover({
+    dir: path.join(srcDir, 'references'),
+    pattern: '*.config.js',
+    identity: (filepath) => path.basename(filepath, '.config.js'),
+    metadata: (filepath) => ({
+      relativePath: `references/${path.basename(filepath, '.config.js')}.md`,
+    }),
+  });
+
   const resources = {};
-  for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
+  for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries, ...configRenderedEntries]) {
     resources[entry.id] = entry.relativePath;
   }
 
