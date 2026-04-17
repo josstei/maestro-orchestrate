@@ -35,6 +35,15 @@ module.exports = {
     codebase_investigator: 'local inspection or spawn_agent',
   },
 
+  delegation: {
+    pattern: 'spawn_agent(...)',
+    constraints: {
+      fork_full_context_incompatible_with: ['agent_type', 'model', 'reasoning_effort'],
+      result_surface: 'deferred',
+      child_cannot_prompt_user: true,
+    },
+  },
+
   delegationPattern: 'spawn_agent(...)',
 
   features: {
