@@ -28,6 +28,8 @@ describe('mcp pack composition', () => {
         'enter_design_gate',
         'record_design_approval',
         'get_design_gate_status',
+        'scan_phase_changes',
+        'reconcile_phase',
         'get_skill_content',
         'get_agent',
         'get_runtime_context',

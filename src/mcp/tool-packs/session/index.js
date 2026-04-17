@@ -14,6 +14,10 @@ const {
   handleRecordDesignApproval,
   handleGetDesignGateStatus,
 } = require('../../handlers/design-gate');
+const {
+  handleScanPhaseChanges,
+  handleReconcilePhase,
+} = require('../../handlers/reconciliation');
 
 function createToolPack() {
   return defineToolPack({
@@ -152,6 +156,37 @@ function createToolPack() {
           required: ['session_id'],
         },
       },
+      {
+        name: 'scan_phase_changes',
+        description:
+          'Scan the workspace for files created or modified since the phase started. Does not attribute files — returns candidates for the orchestrator to reconcile.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            phase_id: { type: 'integer' },
+          },
+          required: ['session_id', 'phase_id'],
+        },
+      },
+      {
+        name: 'reconcile_phase',
+        description:
+          'Record file manifests and downstream context for a phase that could not be handed off cleanly. Clears requires_reconciliation.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            phase_id: { type: 'integer' },
+            files_created: { type: 'array' },
+            files_modified: { type: 'array' },
+            files_deleted: { type: 'array' },
+            downstream_context: { type: 'object' },
+            reason: { type: 'string' },
+          },
+          required: ['session_id', 'phase_id'],
+        },
+      },
     ],
     handlers: {
       create_session: handleCreateSession,
@@ -162,6 +197,8 @@ function createToolPack() {
       enter_design_gate: handleEnterDesignGate,
       record_design_approval: handleRecordDesignApproval,
       get_design_gate_status: handleGetDesignGateStatus,
+      scan_phase_changes: handleScanPhaseChanges,
+      reconcile_phase: handleReconcilePhase,
     },
   });
 }

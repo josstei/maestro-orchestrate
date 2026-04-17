@@ -36,6 +36,8 @@ describe('session tool pack', () => {
         'enter_design_gate',
         'record_design_approval',
         'get_design_gate_status',
+        'scan_phase_changes',
+        'reconcile_phase',
       ]
     );
   });
