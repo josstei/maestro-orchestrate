@@ -17,16 +17,22 @@ function createToolPack() {
       {
         name: 'initialize_workspace',
         description:
-          'Initialize Maestro workspace directories (state, plans, archives). Idempotent.',
+          'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback. Writes a workspace marker for session persistence.',
         inputSchema: {
           type: 'object',
           properties: {
+            workspace_path: {
+              type: 'string',
+              description:
+                'Absolute path to the user workspace. Required. Must not be inside an extension cache directory.',
+            },
             state_dir: {
               type: 'string',
               description:
-                'State directory relative to project root. Defaults to docs/maestro.',
+                'State directory relative to workspace_path. Defaults to docs/maestro.',
             },
           },
+          required: ['workspace_path'],
         },
       },
       {
