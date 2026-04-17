@@ -1,5 +1,16 @@
 'use strict';
 
+const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
+
+class WorkspaceResolutionError extends Error {
+  constructor(message, { code = 'WORKSPACE_RESOLUTION_FAILED', details = null } = {}) {
+    super(message);
+    this.name = 'WorkspaceResolutionError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -117,7 +128,36 @@ function resolveProjectRoot() {
   return resolveProjectRootFromEnv(process.env, process.cwd());
 }
 
+function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
+  if (!workspacePath || typeof workspacePath !== 'string' || workspacePath.includes('${')) {
+    throw new WorkspaceResolutionError(
+      'initialize_workspace requires an explicit workspace_path. No implicit cwd or env fallback is used.',
+      { code: 'WORKSPACE_REQUIRED' }
+    );
+  }
+  const resolved = path.resolve(workspacePath);
+  if (!fs.existsSync(resolved)) {
+    throw new WorkspaceResolutionError(
+      `workspace_path does not exist: ${resolved}`,
+      { code: 'WORKSPACE_NOT_FOUND', details: { workspace_path: resolved } }
+    );
+  }
+  if (isExtensionCachePath(resolved)) {
+    throw new WorkspaceResolutionError(
+      `workspace_path resolves inside an extension cache directory: ${resolved}. Provide the user workspace path instead.`,
+      { code: 'WORKSPACE_IN_EXTENSION_CACHE', details: { workspace_path: resolved } }
+    );
+  }
+  try {
+    return resolveGitRoot(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
 module.exports = {
   resolveProjectRoot,
   resolveProjectRootForRuntime,
+  requireExplicitWorkspaceRoot,
+  WorkspaceResolutionError,
 };
