@@ -2,6 +2,7 @@
 
 const { toSnakeCase } = require('../lib/naming');
 const { escapeYaml } = require('../lib/frontmatter');
+const { emitBlockList } = require('../lib/yaml-emit');
 
 /**
  * Per-field emitters. Each returns the YAML line(s) to append, or an
@@ -36,10 +37,7 @@ const FIELDS = {
   color: (ctx) =>
     ctx.frontmatter.color ? [`color: ${ctx.frontmatter.color}`] : [],
 
-  tools: (ctx) => {
-    if (!ctx.tools || ctx.tools.length === 0) return [];
-    return ['tools:', ...ctx.tools.map((tool) => `  - ${tool}`)];
-  },
+  tools: (ctx) => emitBlockList('tools', ctx.tools),
 
   temperature: (ctx) =>
     ctx.fm.hasTemperature && ctx.frontmatter.temperature != null

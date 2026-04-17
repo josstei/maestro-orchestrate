@@ -3,22 +3,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { toTitleCase } = require('../lib/naming');
+const { emitInlineQuotedList } = require('../lib/yaml-emit');
 
 const DEFAULT_SRC = path.resolve(__dirname, '..');
-
-const ENTRY_POINT_TEMPLATE_MAP = {
-  gemini: { file: 'gemini-command.toml.tmpl', outputPath: (e) => `commands/maestro/${e.name}.toml` },
-  claude: { file: 'claude-skill.md.tmpl', outputPath: (e) => `claude/skills/${e.name}/SKILL.md` },
-  codex: { file: 'codex-skill.md.tmpl', outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md` },
-  qwen: null,
-};
-
-const PREAMBLE_PLACEHOLDER_MAP = {
-  gemini: 'skills_block',
-  claude: 'protocol_block',
-  codex: 'refs_list',
-  qwen: null,
-};
 
 // Host platform names that must never appear as public skill names.
 // Confirmed: Claude /review shadows the built-in PR review command.
@@ -28,6 +15,51 @@ const HOST_RESERVED_NAMES = {
   codex: new Set(['review', 'debug', 'resume']),
   claude: new Set(['review', 'debug', 'resume']),
 };
+
+const ENTRY_POINT_CONFIG = {
+  gemini: {
+    templateFile: 'gemini-command.toml.tmpl',
+    outputPath: (e) => `commands/maestro/${e.name}.toml`,
+    preamblePlaceholder: 'skills_block',
+  },
+  claude: {
+    templateFile: 'claude-skill.md.tmpl',
+    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
+    preamblePlaceholder: 'protocol_block',
+  },
+  codex: {
+    templateFile: 'codex-skill.md.tmpl',
+    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
+    preamblePlaceholder: 'refs_list',
+  },
+  qwen: null,
+};
+
+const CORE_COMMAND_CONFIG = {
+  gemini: {
+    templateFile: 'gemini-core-command.toml.tmpl',
+    outputPath: (e) => `commands/maestro/${e.name}.toml`,
+  },
+  claude: {
+    templateFile: 'claude-core-command.md.tmpl',
+    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
+  },
+  codex: {
+    templateFile: 'codex-core-command.md.tmpl',
+    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
+  },
+  qwen: null,
+};
+
+const GEMINI_SESSION_STATE_BLOCK = `The current session state is provided below:
+
+<session-state>
+!{extension_root="\${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
+</session-state>
+
+Use the injected session state above as the source of truth for resume position.
+
+`;
 
 /**
  * @param {{ name: string, runtimeNames?: Record<string, string> }} entry
@@ -53,15 +85,38 @@ function assertNotHostReserved(resolvedName, runtimeName) {
   }
 }
 
-const GEMINI_SESSION_STATE_BLOCK = `The current session state is provided below:
+function applySubstitutions(template, substitutions) {
+  let content = template;
+  for (const [key, value] of Object.entries(substitutions)) {
+    const pattern = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    content = content.replace(pattern, value);
+  }
+  return content;
+}
 
-<session-state>
-!{extension_root="\${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
-</session-state>
+function runTemplateExpansion({ runtimeName, registry, templatePath, outputPathFn, buildSubstitutions }) {
+  const template = fs.readFileSync(templatePath, 'utf8');
+  return registry.map((entry) => {
+    const runtimeEntry = {
+      ...entry,
+      name: getEntryPointRuntimeName(entry, runtimeName),
+    };
+    assertNotHostReserved(runtimeEntry.name, runtimeName);
+    return {
+      outputPath: outputPathFn(runtimeEntry),
+      content: applySubstitutions(template, buildSubstitutions(runtimeEntry)),
+    };
+  });
+}
 
-Use the injected session state above as the source of truth for resume position.
-
-`;
+function resolveRuntimeConfig(configMap, runtimeName, kind) {
+  const config = configMap[runtimeName];
+  if (config === null) return null;
+  if (!config) {
+    throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
+  }
+  return config;
+}
 
 /**
  * @param {string} runtimeName
@@ -69,51 +124,27 @@ Use the injected session state above as the source of truth for resume position.
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
+  const config = resolveRuntimeConfig(ENTRY_POINT_CONFIG, runtimeName, 'entry-point');
+  if (!config) return [];
+
   const registry = require(path.join(srcDir, 'entry-points', 'registry'));
   const preambleBuilders = require(path.join(srcDir, 'entry-points', 'preamble-builders'));
-  const templateDir = path.join(srcDir, 'entry-points', 'templates');
-
-  const mapping = ENTRY_POINT_TEMPLATE_MAP[runtimeName];
-  if (mapping === null) {
-    return [];
-  }
-  if (!mapping) {
-    throw new Error(`Unknown runtime for entry-point expansion: "${runtimeName}"`);
-  }
-
-  const template = fs.readFileSync(path.join(templateDir, mapping.file), 'utf8');
+  const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
   const buildPreamble = preambleBuilders[runtimeName];
-  const placeholder = PREAMBLE_PLACEHOLDER_MAP[runtimeName];
 
-  return registry.map((entry) => {
-    const runtimeEntry = {
-      ...entry,
-      name: getEntryPointRuntimeName(entry, runtimeName),
-    };
-    assertNotHostReserved(runtimeEntry.name, runtimeName);
-    let content = template;
-
-    content = content.replace(/\{\{name\}\}/g, runtimeEntry.name);
-    content = content.replace(/\{\{Name\}\}/g, toTitleCase(runtimeEntry.name));
-    content = content.replace(/\{\{description\}\}/g, runtimeEntry.description);
-
-    const workflowNumbered = runtimeEntry.workflow
-      .map((step, i) => `${i + 1}. ${step}`)
-      .join('\n');
-    content = content.replace(/\{\{workflow_numbered\}\}/g, workflowNumbered);
-
-    const constraintsList = (runtimeEntry.constraints || [])
-      .map((c) => `- ${c}`)
-      .join('\n');
-    content = content.replace(/\{\{constraints_list\}\}/g, constraintsList);
-
-    const preamble = buildPreamble(runtimeEntry);
-    content = content.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'), preamble);
-
-    return {
-      outputPath: mapping.outputPath(runtimeEntry),
-      content,
-    };
+  return runTemplateExpansion({
+    runtimeName,
+    registry,
+    templatePath,
+    outputPathFn: config.outputPath,
+    buildSubstitutions: (runtimeEntry) => ({
+      name: runtimeEntry.name,
+      Name: toTitleCase(runtimeEntry.name),
+      description: runtimeEntry.description,
+      workflow_numbered: runtimeEntry.workflow.map((step, i) => `${i + 1}. ${step}`).join('\n'),
+      constraints_list: (runtimeEntry.constraints || []).map((c) => `- ${c}`).join('\n'),
+      [config.preamblePlaceholder]: buildPreamble(runtimeEntry),
+    }),
   });
 }
 
@@ -123,53 +154,28 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
+  const config = resolveRuntimeConfig(CORE_COMMAND_CONFIG, runtimeName, 'core-command');
+  if (!config) return [];
+
   const registry = require(path.join(srcDir, 'entry-points', 'core-command-registry'));
-  const templateDir = path.join(srcDir, 'entry-points', 'templates');
+  const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
 
-  let templateFile, outputPathFn;
-  if (runtimeName === 'gemini') {
-    templateFile = path.join(templateDir, 'gemini-core-command.toml.tmpl');
-    outputPathFn = (entry) => `commands/maestro/${entry.name}.toml`;
-  } else if (runtimeName === 'claude') {
-    templateFile = path.join(templateDir, 'claude-core-command.md.tmpl');
-    outputPathFn = (entry) => `claude/skills/${entry.name}/SKILL.md`;
-  } else if (runtimeName === 'codex') {
-    templateFile = path.join(templateDir, 'codex-core-command.md.tmpl');
-    outputPathFn = (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`;
-  } else if (runtimeName === 'qwen') {
-    return [];
-  } else {
-    throw new Error(`Unknown runtime for core-command expansion: "${runtimeName}"`);
-  }
-
-  const template = fs.readFileSync(templateFile, 'utf8');
-
-  return registry.map((entry) => {
-    const runtimeEntry = {
-      ...entry,
-      name: getEntryPointRuntimeName(entry, runtimeName),
-    };
-    assertNotHostReserved(runtimeEntry.name, runtimeName);
-    let content = template;
-
-    content = content.replace(/\{\{name\}\}/g, runtimeEntry.name);
-    content = content.replace(/\{\{description\}\}/g, runtimeEntry.description);
-    content = content.replace(/\{\{firstLine\}\}/g, runtimeEntry.firstLine);
-    content = content.replace(/\{\{requestType\}\}/g, runtimeEntry.requestType);
-    content = content.replace(/\{\{executeInstructions\}\}/g, runtimeEntry.executeInstructions);
-
-    const preloadList = runtimeEntry.preload.map((r) => `"${r}"`).join(', ');
-    content = content.replace(/\{\{preloadList\}\}/g, preloadList);
-
-    const sessionBlock = (runtimeName === 'gemini' && runtimeEntry.geminiSessionStateInjection)
-      ? GEMINI_SESSION_STATE_BLOCK
-      : '';
-    content = content.replace(/\{\{sessionStateBlock\}\}/g, sessionBlock);
-
-    return {
-      outputPath: outputPathFn(runtimeEntry),
-      content,
-    };
+  return runTemplateExpansion({
+    runtimeName,
+    registry,
+    templatePath,
+    outputPathFn: config.outputPath,
+    buildSubstitutions: (runtimeEntry) => ({
+      name: runtimeEntry.name,
+      description: runtimeEntry.description,
+      firstLine: runtimeEntry.firstLine,
+      requestType: runtimeEntry.requestType,
+      executeInstructions: runtimeEntry.executeInstructions,
+      preloadList: emitInlineQuotedList(runtimeEntry.preload),
+      sessionStateBlock: (runtimeName === 'gemini' && runtimeEntry.geminiSessionStateInjection)
+        ? GEMINI_SESSION_STATE_BLOCK
+        : '',
+    }),
   });
 }
 

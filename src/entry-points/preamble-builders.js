@@ -1,5 +1,7 @@
 'use strict';
 
+const { emitInlineQuotedList } = require('../lib/yaml-emit');
+
 function buildGeminiPreamble(entry) {
   const resources = [];
   if (entry.refs && entry.refs.includes('architecture')) {
@@ -13,8 +15,7 @@ function buildGeminiPreamble(entry) {
     return '';
   }
 
-  const resourceList = resources.map((r) => `"${r}"`).join(', ');
-  return `Call \`get_skill_content\` with resources: [${resourceList}].`;
+  return `Call \`get_skill_content\` with resources: [${emitInlineQuotedList(resources)}].`;
 }
 
 function buildClaudePreamble(entry) {
@@ -37,14 +38,10 @@ function buildCodexPreamble(entry) {
   }
 
   if (resources.length > 0) {
-    refs.push(
-      `Call \`get_skill_content\` with resources: [${resources.map((r) => `"${r}"`).join(', ')}].`
-    );
+    refs.push(`Call \`get_skill_content\` with resources: [${emitInlineQuotedList(resources)}].`);
   }
   if (entry.agents && entry.agents.length > 0) {
-    refs.push(
-      `Call \`get_agent\` with agents: [${entry.agents.map((agent) => `"${agent}"`).join(', ')}].`
-    );
+    refs.push(`Call \`get_agent\` with agents: [${emitInlineQuotedList(entry.agents)}].`);
   }
 
   return refs.join('\n');
