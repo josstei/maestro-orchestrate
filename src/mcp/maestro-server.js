@@ -46,7 +46,10 @@ function runRuntimeServer(runtimeConfig, options = {}) {
 
   const server = createServer({
     runtimeConfig: resolvedRuntimeConfig,
-    services: { canonicalSrcRoot },
+    services: {
+      canonicalSrcRoot,
+      workspaceSuggestion: () => cache.workspaceSuggestion(),
+    },
     toolPacks,
   });
 
