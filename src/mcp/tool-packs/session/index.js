@@ -9,6 +9,11 @@ const {
   handleArchiveSession,
   handleUpdateSession,
 } = require('../../handlers/session-state-tools');
+const {
+  handleEnterDesignGate,
+  handleRecordDesignApproval,
+  handleGetDesignGateStatus,
+} = require('../../handlers/design-gate');
 
 function createToolPack() {
   return defineToolPack({
@@ -114,6 +119,39 @@ function createToolPack() {
           required: ['session_id'],
         },
       },
+      {
+        name: 'enter_design_gate',
+        description:
+          'Mark a session as having entered the design phase. Idempotent. Blocks create_session until record_design_approval is called.',
+        inputSchema: {
+          type: 'object',
+          properties: { session_id: { type: 'string' } },
+          required: ['session_id'],
+        },
+      },
+      {
+        name: 'record_design_approval',
+        description:
+          'Record user approval of the design document, clearing the design gate for session creation.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            design_document_path: { type: 'string' },
+          },
+          required: ['session_id', 'design_document_path'],
+        },
+      },
+      {
+        name: 'get_design_gate_status',
+        description:
+          'Read the design gate status for a session. Returns entered_at, approved_at, and design_document_path (all nullable).',
+        inputSchema: {
+          type: 'object',
+          properties: { session_id: { type: 'string' } },
+          required: ['session_id'],
+        },
+      },
     ],
     handlers: {
       create_session: handleCreateSession,
@@ -121,6 +159,9 @@ function createToolPack() {
       update_session: handleUpdateSession,
       transition_phase: handleTransitionPhase,
       archive_session: handleArchiveSession,
+      enter_design_gate: handleEnterDesignGate,
+      record_design_approval: handleRecordDesignApproval,
+      get_design_gate_status: handleGetDesignGateStatus,
     },
   });
 }
