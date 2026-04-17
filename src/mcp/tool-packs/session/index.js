@@ -1,6 +1,7 @@
 'use strict';
 
 const { defineToolPack } = require('../contracts');
+const { PHASE_ITEM_SCHEMA } = require('../../contracts/plan-schema');
 const {
   handleCreateSession,
   handleGetSessionStatus,
@@ -23,7 +24,11 @@ function createToolPack() {
             task: { type: 'string' },
             design_document: { type: ['string', 'null'] },
             implementation_plan: { type: ['string', 'null'] },
-            phases: { type: 'array' },
+            phases: {
+              type: 'array',
+              minItems: 1,
+              items: PHASE_ITEM_SCHEMA,
+            },
             task_complexity: {
               type: 'string',
               enum: ['simple', 'medium', 'complex'],

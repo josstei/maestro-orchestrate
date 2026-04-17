@@ -56,8 +56,8 @@ describe('session tool pack', () => {
         design_document: 'docs/maestro/plans/design.md',
         implementation_plan: 'docs/maestro/plans/plan.md',
         phases: [
-          { id: 1, name: 'Phase 1', agent: 'coder', blocked_by: [] },
-          { id: 2, name: 'Phase 2', agent: 'coder', blocked_by: [1] },
+          { id: 1, name: 'Phase 1', agent: 'coder', parallel: false, blocked_by: [] },
+          { id: 2, name: 'Phase 2', agent: 'coder', parallel: false, blocked_by: [1] },
         ],
       },
       projectRoot
@@ -109,6 +109,64 @@ describe('session tool pack', () => {
     assert.equal(sessionState.phases[1].status, 'in_progress');
   });
 
+  it('rejects create_session when a phase is missing required fields', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-session-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    const outcome = await server.callTool(
+      'create_session',
+      {
+        session_id: 'bad-plan',
+        task: 'missing field test',
+        phases: [{ id: 1, name: 'Only id/name' }],
+      },
+      projectRoot
+    );
+
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /missing_required_field|agent|parallel|blocked_by/i);
+  });
+
+  it('persists planned_files for every phase', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-session-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    await server.callTool(
+      'create_session',
+      {
+        session_id: 'with-planned',
+        task: 'planned-files test',
+        task_complexity: 'simple',
+        phases: [
+          {
+            id: 1,
+            name: 'Scaffold',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            files: ['src/foo.js', 'src/bar.js'],
+          },
+        ],
+      },
+      projectRoot
+    );
+
+    const session = readSessionFrontmatter(projectRoot);
+    assert.deepEqual(session.phases[0].planned_files, ['src/foo.js', 'src/bar.js']);
+  });
+
   it('archives the active session and associated plan files', async () => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-archive-'));
     ensureWorkspace('docs/maestro', projectRoot);
@@ -131,7 +189,7 @@ describe('session tool pack', () => {
         task: 'Archive test',
         design_document: 'docs/maestro/plans/design.md',
         implementation_plan: 'docs/maestro/plans/plan.md',
-        phases: [{ id: 1, name: 'Phase 1', agent: 'coder', blocked_by: [] }],
+        phases: [{ id: 1, name: 'Phase 1', agent: 'coder', parallel: false, blocked_by: [] }],
       },
       projectRoot
     );

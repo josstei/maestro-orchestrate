@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { assertSessionId, coercePositiveInteger } = require('../../lib/validation');
+const { validatePhases } = require('../contracts/plan-schema');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
 const {
   resolveBasePath,
@@ -19,6 +20,14 @@ const {
 
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
+
+  const phasesValidation = validatePhases(params.phases);
+  if (!phasesValidation.valid) {
+    const rules = phasesValidation.violations.map((v) => v.rule || v.field).join(', ');
+    throw new ValidationError(`Invalid phases payload: ${rules}`, {
+      details: phasesValidation.violations,
+    });
+  }
 
   const basePath = resolveBasePath(projectRoot);
   const sessionPath = resolveActiveSessionPath(basePath);
@@ -75,6 +84,7 @@ function handleCreateSession(params, projectRoot) {
       files_created: [],
       files_modified: [],
       files_deleted: [],
+      planned_files: phase.files || [],
       downstream_context: {
         key_interfaces_introduced: [],
         patterns_established: [],
