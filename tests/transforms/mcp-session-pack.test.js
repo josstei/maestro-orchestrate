@@ -226,4 +226,54 @@ describe('session tool pack', () => {
       true
     );
   });
+
+  it('transition_phase rejects completion with files but empty downstream_context', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handoff-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    await server.callTool(
+      'create_session',
+      {
+        session_id: 'handoff-test',
+        task: 'handoff validation',
+        task_complexity: 'simple',
+        phases: [
+          {
+            id: 1,
+            name: 'Phase 1',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            files: ['src/foo.js'],
+          },
+        ],
+      },
+      projectRoot
+    );
+
+    const outcome = await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'handoff-test',
+        completed_phase_id: 1,
+        files_created: ['src/foo.js'],
+        downstream_context: {
+          key_interfaces_introduced: [],
+          patterns_established: [],
+          integration_points: [],
+          assumptions: [],
+          warnings: [],
+        },
+      },
+      projectRoot
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /handoff_incomplete|downstream context/i);
+  });
 });
