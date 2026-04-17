@@ -278,11 +278,15 @@ For detailed documentation of all six GitHub Actions workflows, the release pipe
 
 ### Test Suite
 
-22 test files with 121 tests using Node.js built-in `node:test`:
+54 test files with 851 tests using Node.js built-in `node:test`:
 
-- 12 transform/unit tests
-- 10 integration tests
-- The justfile `just test` lists 12 test files, but 5 of those reference deleted transform tests (copy, strip-feature, replace-agent-names, replace-tool-names, replace-paths). Only 7 of the 12 listed files still exist. 15 of 22 total test files are not yet wired into CI.
+- 30 unit tests (`tests/unit/`)
+- 13 transform tests (`tests/transforms/`)
+- 11 integration tests (`tests/integration/`)
+
+The justfile's `just test` target uses glob expansion
+(`tests/unit/*.test.js`, `tests/transforms/*.test.js`, `tests/integration/*.test.js`),
+so every file under those directories is picked up automatically.
 
 ### Zero-Drift Guarantee
 
@@ -291,5 +295,3 @@ CI validates that generated output matches committed state:
 1. Run `node scripts/generate.js`
 2. Check `git diff --exit-code`
 3. Fail if any generated file differs from source
-
-Note: The justfile `just test` lists 12 test files, but 5 reference deleted transforms and will fail. Of the 22 current test files, only 7 are wired into CI via the justfile. The justfile needs updating to remove stale entries and add the remaining test files.
