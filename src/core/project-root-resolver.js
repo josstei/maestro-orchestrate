@@ -1,5 +1,10 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+const { fileURLToPath } = require('node:url');
+
 const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
 
 class WorkspaceResolutionError extends Error {
@@ -10,11 +15,6 @@ class WorkspaceResolutionError extends Error {
     this.details = details;
   }
 }
-
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const { fileURLToPath } = require('node:url');
 
 function resolveGitRoot(baseDir) {
   return execSync('git rev-parse --show-toplevel', {
