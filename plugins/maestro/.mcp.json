@@ -2,8 +2,7 @@
   "mcpServers": {
     "maestro": {
       "command": "node",
-      "args": ["./mcp/maestro-server.js"],
-      "cwd": "."
+      "args": ["./mcp/maestro-server.js"]
     }
   }
 }
