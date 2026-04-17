@@ -3,7 +3,7 @@
 const { log } = require('../../core/logger');
 
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
-const DEFAULT_CLIENT_REQUEST_TIMEOUT_MS = 1000;
+const DEFAULT_CLIENT_REQUEST_TIMEOUT_MS = 5000;
 
 function writeMessage(output, message) {
   output.write(JSON.stringify(message) + '\n');
