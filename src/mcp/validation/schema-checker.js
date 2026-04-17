@@ -1,5 +1,7 @@
 'use strict';
 
+const { validatePhases } = require('../contracts/plan-schema');
+
 const PHASE_LIMITS = {
   simple: 3,
   medium: 5,
@@ -81,10 +83,27 @@ function checkDanglingDependencies(phases) {
   return violations;
 }
 
+/**
+ * Delegate per-phase field validation to the shared `validatePhases` contract.
+ * Maps contract violations to the schema-checker violation shape.
+ */
+function checkPhaseFieldSchema(phases) {
+  const result = validatePhases(phases);
+  if (result.valid) return [];
+  return result.violations.map((violation) => ({
+    rule: violation.rule,
+    detail: `Phase ${violation.phase_id ?? '?'} field "${violation.field}" ${violation.rule.replace('_', ' ')}`,
+    severity: 'error',
+    phase_id: violation.phase_id,
+    field: violation.field,
+  }));
+}
+
 module.exports = {
   PHASE_LIMITS,
   checkPlanShape,
   checkPhaseCount,
   checkDuplicateIds,
   checkDanglingDependencies,
+  checkPhaseFieldSchema,
 };
