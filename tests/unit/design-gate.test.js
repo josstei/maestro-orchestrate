@@ -113,4 +113,68 @@ describe('design gate tools', () => {
     assert.equal(outcome.ok, true);
     assert.equal(outcome.result.entered_at, null);
   });
+
+  it('create_session rejects when design gate is entered but unapproved', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+
+    const outcome = await server.callTool(
+      'create_session',
+      {
+        session_id: 'alpha',
+        task: 'should fail',
+        phases: [
+          {
+            id: 1,
+            name: 'x',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            files: ['x'],
+          },
+        ],
+      },
+      workspace
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /design gate|approval/i);
+  });
+
+  it('create_session succeeds after record_design_approval', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+
+    const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
+    fs.mkdirSync(path.dirname(designPath), { recursive: true });
+    fs.writeFileSync(designPath, '# Design\n');
+    await server.callTool(
+      'record_design_approval',
+      { session_id: 'alpha', design_document_path: designPath },
+      workspace
+    );
+
+    const outcome = await server.callTool(
+      'create_session',
+      {
+        session_id: 'alpha',
+        task: 'should succeed',
+        phases: [
+          {
+            id: 1,
+            name: 'x',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            files: ['x'],
+          },
+        ],
+      },
+      workspace
+    );
+    assert.equal(outcome.ok, true);
+  });
 });

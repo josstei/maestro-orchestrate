@@ -33,6 +33,9 @@ describe('session tool pack', () => {
         'update_session',
         'transition_phase',
         'archive_session',
+        'enter_design_gate',
+        'record_design_approval',
+        'get_design_gate_status',
       ]
     );
   });

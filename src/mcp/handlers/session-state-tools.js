@@ -6,6 +6,7 @@ const path = require('path');
 const { assertSessionId, coercePositiveInteger } = require('../../lib/validation');
 const { validatePhases } = require('../contracts/plan-schema');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
+const { isDesignGateBlockingCreate } = require('./design-gate');
 const {
   resolveBasePath,
   resolveActiveSessionPath,
@@ -20,6 +21,13 @@ const {
 
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
+
+  if (isDesignGateBlockingCreate(projectRoot, params.session_id)) {
+    throw new StateError(
+      'Design gate entered but not approved. Call record_design_approval before create_session.',
+      { code: 'DESIGN_GATE_UNAPPROVED' }
+    );
+  }
 
   const phasesValidation = validatePhases(params.phases);
   if (!phasesValidation.valid) {
