@@ -16,6 +16,19 @@ function createServer(options = {}) {
     toolPacks: options.toolPacks,
   });
 
+  const postCallHandlers = new Map();
+
+  function invokePostCall(name, outcome, args) {
+    const handler = postCallHandlers.get(name);
+    if (typeof handler === 'function') {
+      try {
+        handler(outcome, args);
+      } catch {
+        // Post-call handlers must not mask tool results.
+      }
+    }
+  }
+
   return {
     runtimeConfig,
     services,
@@ -28,15 +41,19 @@ function createServer(options = {}) {
     getToolHandler(name) {
       return registry.handlers[name];
     },
+    onToolCall(name, handler) {
+      postCallHandlers.set(name, handler);
+    },
     async callTool(name, args = {}, projectRoot) {
       const handler = registry.handlers[name];
       if (!handler) {
         return createUnknownToolFailure(name);
       }
-
       try {
         const result = await handler(args, projectRoot);
-        return createToolSuccess(result);
+        const outcome = createToolSuccess(result);
+        invokePostCall(name, result, args);
+        return outcome;
       } catch (error) {
         return normalizeToolError(name, error);
       }

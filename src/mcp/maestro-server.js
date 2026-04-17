@@ -59,10 +59,7 @@ function runRuntimeServer(runtimeConfig, options = {}) {
         );
       },
       async onInitialized() {
-        if (!cache.hasExplicitWorkspaceEnv()) {
-          await cache.refreshClientRoots();
-          cache.invalidateProjectRoot();
-        }
+        await cache.refreshClientRoots();
       },
       onRootsListChanged() {
         cache.invalidateClientRoots();
@@ -71,6 +68,12 @@ function runRuntimeServer(runtimeConfig, options = {}) {
   });
 
   requestFromClient = handlers.requestFromClient;
+
+  server.onToolCall('initialize_workspace', (result) => {
+    if (result && result.success && result.workspace_path) {
+      cache.setExplicitWorkspacePath(result.workspace_path);
+    }
+  });
 
   const lineReader = createLineDispatcher(stdin, (message) => {
     Promise.resolve(handlers.respond(message)).catch((error) => {
