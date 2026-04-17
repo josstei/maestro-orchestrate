@@ -6,13 +6,12 @@ const { execSync } = require('child_process');
 const { fileURLToPath } = require('node:url');
 
 const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
+const { MaestroError } = require('../lib/errors');
 
-class WorkspaceResolutionError extends Error {
+class WorkspaceResolutionError extends MaestroError {
   constructor(message, { code = 'WORKSPACE_RESOLUTION_FAILED', details = null } = {}) {
-    super(message);
+    super(message, { code, details });
     this.name = 'WorkspaceResolutionError';
-    this.code = code;
-    this.details = details;
   }
 }
 

@@ -58,4 +58,11 @@ describe('handleInitializeWorkspace', () => {
       (err) => err instanceof WorkspaceResolutionError
     );
   });
+
+  it('accepts cachedProjectRoot as fallback when workspace_path is omitted', async () => {
+    const workspace = makeWorkspace();
+    const result = await handleInitializeWorkspace({}, workspace);
+    assert.equal(result.success, true);
+    assert.equal(result.workspace_path, workspace);
+  });
 });
