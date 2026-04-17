@@ -81,6 +81,21 @@ describe('plan-schema', () => {
     assert.equal(result.violations[0].field, 'blocked_by');
   });
 
+  it('rejects blocked_by items that are non-positive integers', () => {
+    const zero = validatePhases([
+      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [0] },
+    ]);
+    assert.equal(zero.valid, false);
+    assert.equal(zero.violations[0].rule, 'invalid_field_type');
+    assert.equal(zero.violations[0].field, 'blocked_by');
+
+    const negative = validatePhases([
+      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [-1] },
+    ]);
+    assert.equal(negative.valid, false);
+    assert.equal(negative.violations[0].field, 'blocked_by');
+  });
+
   it('treats files as optional but validates its shape when present', () => {
     const withEmpty = validatePhases([
       { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [], files: [''] },

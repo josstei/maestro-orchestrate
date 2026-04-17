@@ -34,11 +34,21 @@ function isValidPhaseId(value) {
 
 function isValidBlockerId(value) {
   if (typeof value === 'string') return value.length > 0;
-  return Number.isInteger(value);
+  return Number.isInteger(value) && value >= 1;
 }
 
 /**
  * Validate an array of plan-phase objects against the shared phase schema.
+ *
+ * Required fields per phase: id, name, agent, parallel, blocked_by.
+ *
+ * Optional field: `files` — the planning-time file manifest. When supplied,
+ * T9 `create_session` maps it to the session state's `planned_files` field
+ * for later reconciliation. The runtime-populated manifests
+ * (`files_created`, `files_modified`, `files_deleted`) are NOT plan inputs;
+ * they are set by `transition_phase` after an agent completes, and they
+ * pass through this schema via `additionalProperties: true` without
+ * validation. Plan authors should populate `files`, not the runtime fields.
  *
  * @param {unknown} phases - Input value expected to be an array of phase objects.
  * @returns {{ valid: boolean, violations: Array<object> }}
