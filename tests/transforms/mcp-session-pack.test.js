@@ -276,4 +276,56 @@ describe('session tool pack', () => {
     assert.equal(outcome.ok, false);
     assert.match(outcome.error || '', /handoff_incomplete|downstream context/i);
   });
+
+  it('archive_session blocks when a phase requires reconciliation', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-archive-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    await server.callTool(
+      'create_session',
+      {
+        session_id: 'arch-rec',
+        task: 'archive reconciliation test',
+        task_complexity: 'simple',
+        phases: [
+          {
+            id: 1,
+            name: 'Phase 1',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            files: ['src/foo.js'],
+          },
+        ],
+      },
+      projectRoot
+    );
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'arch-rec',
+        completed_phase_id: 1,
+        files_created: [],
+        files_modified: [],
+        files_deleted: [],
+        downstream_context: {},
+      },
+      projectRoot
+    );
+
+    const outcome = await server.callTool(
+      'archive_session',
+      { session_id: 'arch-rec' },
+      projectRoot
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /reconciliation/i);
+  });
 });

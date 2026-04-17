@@ -329,6 +329,16 @@ function handleArchiveSession(params, projectRoot) {
     );
   }
 
+  const pendingRec = (state.phases || []).find(
+    (phase) => phase.requires_reconciliation === true
+  );
+  if (pendingRec) {
+    throw new StateError(
+      `Phase ${pendingRec.id} requires reconciliation before archiving. Call scan_phase_changes or reconcile_phase to resolve.`,
+      { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
+    );
+  }
+
   state.status = 'completed';
   state.updated = new Date().toISOString();
   writeActiveSession(basePath, state, extractBody(content));

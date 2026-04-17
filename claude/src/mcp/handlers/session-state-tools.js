@@ -148,6 +148,18 @@ function handleGetSessionStatus(_params, projectRoot) {
   };
 }
 
+function isDownstreamContextPopulated(context) {
+  if (!context || typeof context !== 'object') return false;
+  const fields = [
+    'key_interfaces_introduced',
+    'patterns_established',
+    'integration_points',
+    'assumptions',
+    'warnings',
+  ];
+  return fields.some((field) => Array.isArray(context[field]) && context[field].length > 0);
+}
+
 function handleTransitionPhase(params, projectRoot) {
   params.next_phase_id = coercePositiveInteger(params.next_phase_id);
   params.completed_phase_id = coercePositiveInteger(params.completed_phase_id);
@@ -221,16 +233,37 @@ function handleTransitionPhase(params, projectRoot) {
     }
 
     if (completedPhase) {
+      const filesCreated = params.files_created ?? [];
+      const filesModified = params.files_modified ?? [];
+      const filesDeleted = params.files_deleted ?? [];
+      const hasFiles =
+        filesCreated.length + filesModified.length + filesDeleted.length > 0;
+      const contextProvided = isDownstreamContextPopulated(params.downstream_context);
+
+      if (hasFiles && !contextProvided) {
+        throw new ValidationError(
+          `Phase ${completedPhase.id} produced files but no downstream context. Re-request the agent's handoff including ## Downstream Context with interfaces/patterns/integration-points/assumptions/warnings.`,
+          {
+            code: 'HANDOFF_INCOMPLETE',
+            details: {
+              phase_id: completedPhase.id,
+              files_created_count: filesCreated.length,
+              files_modified_count: filesModified.length,
+              files_deleted_count: filesDeleted.length,
+            },
+          }
+        );
+      }
+
       completedPhase.status = 'completed';
       completedPhase.completed = new Date().toISOString();
       completedPhase.downstream_context =
         params.downstream_context ?? completedPhase.downstream_context;
-      completedPhase.files_created =
-        params.files_created ?? completedPhase.files_created;
-      completedPhase.files_modified =
-        params.files_modified ?? completedPhase.files_modified;
-      completedPhase.files_deleted =
-        params.files_deleted ?? completedPhase.files_deleted;
+      completedPhase.files_created = filesCreated;
+      completedPhase.files_modified = filesModified;
+      completedPhase.files_deleted = filesDeleted;
+      completedPhase.requires_reconciliation =
+        !hasFiles && !contextProvided ? true : false;
     }
 
     let startedPhaseIds;
@@ -293,6 +326,16 @@ function handleArchiveSession(params, projectRoot) {
   if (state.session_id !== params.session_id) {
     throw new StateError(
       `Session mismatch: active session is '${state.session_id}', requested '${params.session_id}'`
+    );
+  }
+
+  const pendingRec = (state.phases || []).find(
+    (phase) => phase.requires_reconciliation === true
+  );
+  if (pendingRec) {
+    throw new StateError(
+      `Phase ${pendingRec.id} requires reconciliation before archiving. Call scan_phase_changes or reconcile_phase to resolve.`,
+      { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
     );
   }
 
