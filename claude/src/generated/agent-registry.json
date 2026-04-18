@@ -60,22 +60,6 @@
     ]
   },
   {
-    "name": "chaos-engineer",
-    "capabilities": "read_shell",
-    "tools": [
-      "read_file",
-      "list_directory",
-      "glob",
-      "grep_search",
-      "run_shell_command",
-      "google_web_search",
-      "read_many_files",
-      "write_todos",
-      "ask_user",
-      "web_fetch"
-    ]
-  },
-  {
     "name": "cloud-architect",
     "capabilities": "read_only",
     "tools": [

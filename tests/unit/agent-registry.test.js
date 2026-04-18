@@ -46,8 +46,8 @@ describe('KNOWN_AGENTS', () => {
     assert.equal(Object.isFrozen(KNOWN_AGENTS), true);
   });
 
-  it('has exactly 40 entries', () => {
-    assert.equal(KNOWN_AGENTS.length, 40);
+  it('has exactly 39 entries', () => {
+    assert.equal(KNOWN_AGENTS.length, 39);
   });
 
   it('contains only strings', () => {
