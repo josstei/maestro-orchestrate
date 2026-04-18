@@ -337,3 +337,37 @@ describe('handleValidatePlan — parallelization profile', () => {
     assert.equal(profile.parallel_eligible, 2);
   });
 });
+
+describe('handleValidatePlan with strict phase schema', () => {
+  it('rejects a plan whose phase lacks required fields', () => {
+    const result = handleValidatePlan({
+      plan: {
+        phases: [{ id: 'p1', name: 'Missing fields' }],
+      },
+      task_complexity: 'simple',
+    });
+    assert.equal(result.valid, false);
+    const hasFieldViolation = result.violations.some(
+      (v) => v.rule === 'missing_required_field'
+    );
+    assert.equal(hasFieldViolation, true);
+  });
+
+  it('accepts a plan with fully-populated phases', () => {
+    const result = handleValidatePlan({
+      plan: {
+        phases: [
+          {
+            id: 'p1',
+            name: 'Scaffold',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+          },
+        ],
+      },
+      task_complexity: 'simple',
+    });
+    assert.equal(result.valid, true);
+  });
+});

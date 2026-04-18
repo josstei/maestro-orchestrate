@@ -6,7 +6,6 @@ module.exports = {
 
   env: {
     extensionPath: 'extensionPath',
-    workspacePath: 'workspacePath',
   },
 
   content: {
@@ -38,6 +37,14 @@ module.exports = {
     turnsField: 'max_turns',
     hasTemperature: true,
     hasTimeout: true,
+  },
+
+  delegation: {
+    pattern: '{{agent}}(query: "...")',
+    constraints: {
+      result_surface: 'synchronous',
+      child_cannot_prompt_user: false,
+    },
   },
 
   delegationPattern: '{{agent}}(query: "...")',

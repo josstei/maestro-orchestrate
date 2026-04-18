@@ -40,6 +40,14 @@ module.exports = {
     hasTimeout: true,
   },
 
+  delegation: {
+    pattern: '{{agent}}(query: "...")',
+    constraints: {
+      result_surface: 'synchronous',
+      child_cannot_prompt_user: false,
+    },
+  },
+
   delegationPattern: '{{agent}}(query: "...")',
 
   features: {

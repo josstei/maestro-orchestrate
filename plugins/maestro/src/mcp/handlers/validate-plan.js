@@ -5,6 +5,7 @@ const {
   checkPhaseCount,
   checkDuplicateIds,
   checkDanglingDependencies,
+  checkPhaseFieldSchema,
 } = require('../validation/schema-checker');
 const {
   checkUnknownAgents,
@@ -27,6 +28,11 @@ function handleValidatePlan(params) {
       valid: false,
       violations: shapeViolations,
     };
+  }
+
+  const fieldViolations = checkPhaseFieldSchema(plan.phases);
+  if (fieldViolations.length > 0) {
+    return { valid: false, violations: fieldViolations };
   }
 
   const phases = plan.phases;

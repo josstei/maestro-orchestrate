@@ -7,8 +7,12 @@ function resolveSetting(varName, projectRoot) {
   const envValue = process.env[varName];
   if (envValue !== undefined && envValue !== '') return envValue;
 
-  const projectEnv = parseEnvFile(path.join(projectRoot, '.env'));
-  if (projectEnv[varName] !== undefined && projectEnv[varName] !== '') return projectEnv[varName];
+  if (typeof projectRoot === 'string' && projectRoot.length > 0) {
+    const projectEnv = parseEnvFile(path.join(projectRoot, '.env'));
+    if (projectEnv[varName] !== undefined && projectEnv[varName] !== '') {
+      return projectEnv[varName];
+    }
+  }
 
   const extensionRoot = process.env.MAESTRO_EXTENSION_PATH || process.env.CLAUDE_PLUGIN_ROOT;
   if (extensionRoot) {

@@ -163,4 +163,44 @@ describe('project root resolver', () => {
 
     assert.equal(result, claudeRoot);
   });
+
+  const {
+    requireExplicitWorkspaceRoot,
+    WorkspaceResolutionError,
+  } = require('../../src/core/project-root-resolver');
+
+  it('requireExplicitWorkspaceRoot returns the explicit path when it exists', () => {
+    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-explicit-'));
+    const result = requireExplicitWorkspaceRoot({ workspacePath: workspaceRoot });
+    assert.equal(result, workspaceRoot);
+  });
+
+  it('requireExplicitWorkspaceRoot throws WorkspaceResolutionError when no explicit path is given', () => {
+    assert.throws(
+      () => requireExplicitWorkspaceRoot({}),
+      (err) => err instanceof WorkspaceResolutionError
+    );
+  });
+
+  it('requireExplicitWorkspaceRoot throws when the explicit path does not exist', () => {
+    assert.throws(
+      () => requireExplicitWorkspaceRoot({ workspacePath: '/nonexistent/path/abc123' }),
+      (err) => err instanceof WorkspaceResolutionError
+    );
+  });
+
+  it('requireExplicitWorkspaceRoot throws when the path is inside an extension cache', () => {
+    const cachePath = fs.mkdtempSync(path.join(os.tmpdir(), '.codex-plugins-cache-'));
+    const nested = path.join(
+      path.dirname(cachePath),
+      '.codex',
+      'plugins',
+      'maestro'
+    );
+    fs.mkdirSync(nested, { recursive: true });
+    assert.throws(
+      () => requireExplicitWorkspaceRoot({ workspacePath: nested }),
+      (err) => err instanceof WorkspaceResolutionError && /extension cache/i.test(err.message)
+    );
+  });
 });

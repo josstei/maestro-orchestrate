@@ -3,7 +3,7 @@
 const { log } = require('../../core/logger');
 
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
-const DEFAULT_CLIENT_REQUEST_TIMEOUT_MS = 1000;
+const DEFAULT_CLIENT_REQUEST_TIMEOUT_MS = 5000;
 
 function writeMessage(output, message) {
   output.write(JSON.stringify(message) + '\n');
@@ -201,7 +201,12 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
         message.params && message.params.arguments && typeof message.params.arguments === 'object'
           ? message.params.arguments
           : {};
-      const projectRoot = await getProjectRoot();
+      let projectRoot = null;
+      try {
+        projectRoot = await getProjectRoot();
+      } catch {
+        projectRoot = null;
+      }
       const outcome = await server.callTool(name, args, projectRoot);
 
       if (outcome.ok) {

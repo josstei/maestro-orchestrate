@@ -122,9 +122,16 @@ describe('Subclass contracts', () => {
         assert.deepEqual(err.context, context);
       });
 
-      it(`enforces code "${code}" even when caller passes a different code`, () => {
-        const err = new Class('override attempt', { code: 'SHOULD_BE_IGNORED' });
-        assert.equal(err.code, code);
+      it(`defaults to code "${code}" and allows caller to set a more specific subtype code`, () => {
+        const defaultErr = new Class('default code');
+        assert.equal(defaultErr.code, code);
+
+        const overridden = new Class('specific subtype', { code: 'MORE_SPECIFIC_SUBTYPE' });
+        assert.equal(overridden.code, 'MORE_SPECIFIC_SUBTYPE');
+        assert.ok(
+          overridden instanceof Class,
+          'instanceof relationship must survive code override'
+        );
       });
 
       it('is distinguishable from sibling subclasses via instanceof', () => {

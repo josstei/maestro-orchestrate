@@ -4,7 +4,21 @@ const fs = require('fs');
 const path = require('path');
 
 const { assertSessionId, coercePositiveInteger } = require('../../lib/validation');
+const { validatePhases } = require('../contracts/plan-schema');
+const {
+  createEmptyDownstreamContext,
+  normalizeDownstreamContext,
+  isDownstreamContextPopulated,
+  describeShape: describeDownstreamContextShape,
+} = require('../contracts/downstream-context');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
+const {
+  isDesignGateBlockingCreate,
+  getApprovedDesignDocumentPath,
+  ensureDesignDocumentInPlans,
+  writePlansDocumentContent,
+  removeDesignGate,
+} = require('./design-gate');
 const {
   resolveBasePath,
   resolveActiveSessionPath,
@@ -17,8 +31,113 @@ const {
   withSessionState,
 } = require('./session-state-core');
 
+/**
+ * Materialize a session document (design or plan) into `<state_dir>/plans/`.
+ * Mirrors the design-gate contract so both documents are reachable by
+ * `archive_session` regardless of where Plan Mode wrote them.
+ *
+ * Used at `create_session` time rather than `record_design_approval` because
+ * Gemini's parallel dispatch can fire a write and an MCP tool in the same
+ * turn; the write isn't yet visible when the MCP handler runs. Deferring the
+ * copy to `create_session` guarantees the file has settled on disk.
+ *
+ * @param {string} projectRoot
+ * @param {string} documentPath - absolute or workspace-relative path
+ * @param {'design_document' | 'implementation_plan'} documentKind
+ * @returns {string | null} absolute path to the canonical location inside plans/, or null if documentPath was absent
+ */
+function materializeSessionDocument(projectRoot, documentPath, documentKind) {
+  if (typeof documentPath !== 'string' || documentPath.length === 0) {
+    return null;
+  }
+  const absolutePath = path.isAbsolute(documentPath)
+    ? documentPath
+    : path.join(projectRoot, documentPath);
+  if (!fs.existsSync(absolutePath)) {
+    const context =
+      documentKind === 'design_document'
+        ? ' (recorded via record_design_approval but not found at create_session time — confirm the file was materialized after Plan Mode exit)'
+        : ' (confirm the plan was written to disk before calling create_session)';
+    throw new NotFoundError(`${documentKind} does not exist: ${absolutePath}${context}`);
+  }
+  return ensureDesignDocumentInPlans(projectRoot, absolutePath);
+}
+
+/**
+ * Resolve the caller's implementation-plan input to a canonical absolute path.
+ * At-most-one-of (implementation_plan) or (implementation_plan_content +
+ * implementation_plan_filename); absent entirely is valid and returns null
+ * (the session simply has no recorded plan). The content variant closes the
+ * same path-resolution gap that `resolveApprovedDesignDocument` addresses for
+ * design docs: a runtime whose write surface resolves relative paths against
+ * a different root than the MCP workspace cannot pass a path the server can
+ * find, so it passes content instead.
+ *
+ * @param {object} params
+ * @param {string} [params.implementation_plan]
+ * @param {string} [params.implementation_plan_content]
+ * @param {string} [params.implementation_plan_filename]
+ * @param {string} projectRoot
+ * @returns {string | null} canonical absolute path inside plans/, or null when no plan was supplied
+ * @throws {ValidationError} when both variants are provided or the content variant is incomplete
+ */
+function resolveImplementationPlan(params, projectRoot) {
+  const hasPath =
+    typeof params.implementation_plan === 'string' &&
+    params.implementation_plan.length > 0;
+  const hasContent =
+    typeof params.implementation_plan_content === 'string' &&
+    params.implementation_plan_content.length > 0;
+  const hasFilename =
+    typeof params.implementation_plan_filename === 'string' &&
+    params.implementation_plan_filename.length > 0;
+  const contentVariantProvided = hasContent || hasFilename;
+
+  if (hasPath && contentVariantProvided) {
+    throw new ValidationError(
+      'implementation_plan is mutually exclusive with implementation_plan_content/implementation_plan_filename'
+    );
+  }
+
+  if (contentVariantProvided) {
+    if (!hasContent) {
+      throw new ValidationError('implementation_plan_content is required');
+    }
+    if (!hasFilename) {
+      throw new ValidationError('implementation_plan_filename is required');
+    }
+    return writePlansDocumentContent(
+      projectRoot,
+      params.implementation_plan_filename,
+      params.implementation_plan_content,
+      'implementation_plan_filename'
+    );
+  }
+
+  if (hasPath) {
+    return materializeSessionDocument(projectRoot, params.implementation_plan, 'implementation_plan');
+  }
+
+  return null;
+}
+
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
+
+  if (isDesignGateBlockingCreate(projectRoot, params.session_id)) {
+    throw new StateError(
+      'Design gate entered but not approved. Call record_design_approval before create_session.',
+      { code: 'DESIGN_GATE_UNAPPROVED' }
+    );
+  }
+
+  const phasesValidation = validatePhases(params.phases);
+  if (!phasesValidation.valid) {
+    const rules = phasesValidation.violations.map((v) => v.rule || v.field).join(', ');
+    throw new ValidationError(`Invalid phases payload: ${rules}`, {
+      details: phasesValidation.violations,
+    });
+  }
 
   const basePath = resolveBasePath(projectRoot);
   const sessionPath = resolveActiveSessionPath(basePath);
@@ -32,6 +151,14 @@ function handleCreateSession(params, projectRoot) {
     }
   }
 
+  const designDocumentCandidate =
+    params.design_document ||
+    getApprovedDesignDocumentPath(projectRoot, params.session_id);
+  const resolvedDesignDocument = designDocumentCandidate
+    ? materializeSessionDocument(projectRoot, designDocumentCandidate, 'design_document')
+    : null;
+  const resolvedImplementationPlan = resolveImplementationPlan(params, projectRoot);
+
   const now = new Date().toISOString();
   const state = {
     session_id: params.session_id,
@@ -40,8 +167,8 @@ function handleCreateSession(params, projectRoot) {
     updated: now,
     status: 'in_progress',
     workflow_mode: params.workflow_mode || 'standard',
-    design_document: params.design_document,
-    implementation_plan: params.implementation_plan,
+    design_document: resolvedDesignDocument || null,
+    implementation_plan: resolvedImplementationPlan,
     current_phase:
       params.phases && params.phases.length > 0
         ? Number.isFinite(Number(params.phases[0].id)) &&
@@ -75,13 +202,8 @@ function handleCreateSession(params, projectRoot) {
       files_created: [],
       files_modified: [],
       files_deleted: [],
-      downstream_context: {
-        key_interfaces_introduced: [],
-        patterns_established: [],
-        integration_points: [],
-        assumptions: [],
-        warnings: [],
-      },
+      planned_files: phase.files || [],
+      downstream_context: createEmptyDownstreamContext(),
       errors: [],
       retry_count: 0,
     })),
@@ -203,16 +325,38 @@ function handleTransitionPhase(params, projectRoot) {
     }
 
     if (completedPhase) {
+      const filesCreated = params.files_created ?? [];
+      const filesModified = params.files_modified ?? [];
+      const filesDeleted = params.files_deleted ?? [];
+      const hasFiles =
+        filesCreated.length + filesModified.length + filesDeleted.length > 0;
+      const normalizedContext = normalizeDownstreamContext(params.downstream_context);
+      const contextProvided = isDownstreamContextPopulated(normalizedContext);
+
+      if (hasFiles && !contextProvided) {
+        throw new ValidationError(
+          `Phase ${completedPhase.id} produced files but downstream_context is empty after normalization. ${describeDownstreamContextShape()}`,
+          {
+            code: 'HANDOFF_INCOMPLETE',
+            details: {
+              phase_id: completedPhase.id,
+              files_created_count: filesCreated.length,
+              files_modified_count: filesModified.length,
+              files_deleted_count: filesDeleted.length,
+              received_downstream_context: params.downstream_context ?? null,
+            },
+          }
+        );
+      }
+
       completedPhase.status = 'completed';
       completedPhase.completed = new Date().toISOString();
-      completedPhase.downstream_context =
-        params.downstream_context ?? completedPhase.downstream_context;
-      completedPhase.files_created =
-        params.files_created ?? completedPhase.files_created;
-      completedPhase.files_modified =
-        params.files_modified ?? completedPhase.files_modified;
-      completedPhase.files_deleted =
-        params.files_deleted ?? completedPhase.files_deleted;
+      completedPhase.downstream_context = normalizedContext;
+      completedPhase.files_created = filesCreated;
+      completedPhase.files_modified = filesModified;
+      completedPhase.files_deleted = filesDeleted;
+      completedPhase.requires_reconciliation =
+        !hasFiles && !contextProvided ? true : false;
     }
 
     let startedPhaseIds;
@@ -278,6 +422,16 @@ function handleArchiveSession(params, projectRoot) {
     );
   }
 
+  const pendingRec = (state.phases || []).find(
+    (phase) => phase.requires_reconciliation === true
+  );
+  if (pendingRec) {
+    throw new StateError(
+      `Phase ${pendingRec.id} requires reconciliation before archiving. Call scan_phase_changes or reconcile_phase to resolve.`,
+      { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
+    );
+  }
+
   state.status = 'completed';
   state.updated = new Date().toISOString();
   writeActiveSession(basePath, state, extractBody(content));
@@ -320,6 +474,8 @@ function handleArchiveSession(params, projectRoot) {
       archivedFiles.push(destinationPath);
     }
   }
+
+  removeDesignGate(projectRoot, params.session_id);
 
   return {
     success: true,
