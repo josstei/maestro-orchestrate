@@ -276,6 +276,19 @@ function isDesignGateBlockingCreate(projectRoot, sessionId) {
 }
 
 /**
+ * Returns true when a gate artifact exists on disk for the given session_id,
+ * regardless of whether it is approved. Used by the orphan-gate guard in
+ * create_session to distinguish "orchestrator never entered this session's
+ * gate" from "orchestrator is in the normal approve-then-create flow".
+ * @param {string} projectRoot
+ * @param {string} sessionId
+ * @returns {boolean}
+ */
+function hasDesignGate(projectRoot, sessionId) {
+  return readGate(projectRoot, sessionId) !== null;
+}
+
+/**
  * Read the design document path persisted on the gate after approval. Used by
  * create_session to auto-populate `state.design_document` when the orchestrator
  * does not pass it explicitly — avoids losing the document during archival.
@@ -287,6 +300,65 @@ function getApprovedDesignDocumentPath(projectRoot, sessionId) {
   const gate = readGate(projectRoot, sessionId);
   if (!gate || !gate.approved_at) return null;
   return gate.design_document_path || null;
+}
+
+/**
+ * Enumerate every approved design gate currently persisted in the workspace.
+ * Reads the `state/` directory once and parses each `<session_id>.design-gate.json`
+ * artifact. Corrupt or unapproved gate files are skipped silently. Used by
+ * create_session to detect session_id drift across the enter_design_gate →
+ * record_design_approval → create_session sequence.
+ *
+ * @param {string} projectRoot
+ * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
+ */
+function listApprovedGates(projectRoot) {
+  const stateDir = path.join(resolveStateDirPath(projectRoot), 'state');
+  if (!fs.existsSync(stateDir)) return [];
+  let entries;
+  try {
+    entries = fs.readdirSync(stateDir);
+  } catch {
+    return [];
+  }
+  const gates = [];
+  for (const entry of entries) {
+    if (!entry.endsWith(GATE_FILENAME)) continue;
+    const sessionId = entry.slice(0, -GATE_FILENAME.length);
+    if (sessionId.length === 0) continue;
+    const filePath = path.join(stateDir, entry);
+    try {
+      const gate = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      if (gate && typeof gate.approved_at === 'string' && gate.approved_at.length > 0) {
+        gates.push({
+          session_id: sessionId,
+          approved_at: gate.approved_at,
+          design_document_path: gate.design_document_path || null,
+        });
+      }
+    } catch {
+      // unreadable or corrupt gate — skip; detection is best-effort.
+    }
+  }
+  return gates;
+}
+
+/**
+ * Find approved design gates whose session_id does not match the caller's.
+ * The orchestrator must use a single session_id from enter_design_gate through
+ * archive_session; a mismatched approved gate signals either (a) an in-flight
+ * workflow the caller forgot to continue with the original id or (b) an
+ * abandoned prior run. create_session uses this to fail fast rather than
+ * silently discard the approved design document.
+ *
+ * @param {string} projectRoot
+ * @param {string} currentSessionId
+ * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
+ */
+function findOrphanedApprovedGates(projectRoot, currentSessionId) {
+  return listApprovedGates(projectRoot).filter(
+    (gate) => gate.session_id !== currentSessionId
+  );
 }
 
 /**
@@ -310,7 +382,10 @@ module.exports = {
   handleRecordDesignApproval,
   handleGetDesignGateStatus,
   isDesignGateBlockingCreate,
+  hasDesignGate,
   getApprovedDesignDocumentPath,
+  listApprovedGates,
+  findOrphanedApprovedGates,
   ensureDesignDocumentInPlans,
   writePlansDocumentContent,
   plansDirPath,

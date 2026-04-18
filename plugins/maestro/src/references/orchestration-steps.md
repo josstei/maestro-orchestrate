@@ -23,7 +23,19 @@ CLASSIFICATION (Turn 2)
  9. Route: simple → Express (step 31). Medium/complex → continue to step 10.
 
 DESIGN GATE (Phase 1 pre-entry)
- 9a. Call `enter_design_gate(session_id)`. This blocks `create_session` until `record_design_approval` is called. Idempotent; safe to call on resume.
+ 9a. Finalize the session_id now and use it verbatim for every subsequent MCP call. Format: `YYYY-MM-DD-<kebab-task-slug>`. Then call `enter_design_gate(session_id)`. This blocks `create_session` until `record_design_approval` is called. Idempotent; safe to call on resume.
+    <HARD-GATE>
+    Session ID Invariance — the session_id chosen here MUST be passed unchanged
+    to every MCP call that accepts a session_id parameter for the remainder of
+    this workflow: `record_design_approval`, `get_design_gate_status`,
+    `create_session`, `update_session`, `get_session_status`, `transition_phase`,
+    `scan_phase_changes`, `reconcile_phase`, and `archive_session`. Do NOT
+    substitute a placeholder id for initial calls and a final id later — the
+    design gate is keyed by session_id, so a drift orphans the approved gate
+    and strands the design document. `create_session` rejects with
+    `DESIGN_GATE_SESSION_MISMATCH` when it detects an approved gate for a
+    different session_id than the one passed in.
+    </HARD-GATE>
 
 DESIGN (Phase 1)
 10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
