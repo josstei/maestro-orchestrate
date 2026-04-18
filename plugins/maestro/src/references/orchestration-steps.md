@@ -8,7 +8,17 @@ STARTUP (Turn 1 — tool calls only, no text output)
  6. STOP. Turn 1 is ONLY steps 1-5. No text, no design questions, no file reads.
 
 CLASSIFICATION (Turn 2)
- 7. Load the architecture reference: ["architecture"]. Do NOT load templates yet — they are loaded at their consumption points (steps 13, 15, 20).
+ 7. Pre-load architecture plus every skill used before Phase 3 in a single batch:
+    `get_skill_content(["architecture", "design-dialogue", "design-document", "implementation-planning", "implementation-plan"])`.
+    <HARD-GATE>
+    This batch MUST complete before any `enter_plan_mode` call. Some runtimes
+    (notably Gemini CLI) deregister MCP tools once Plan Mode is active —
+    attempting to fetch these skills from inside Plan Mode will fail with
+    "tool not found" and strand the orchestrator. Execution-phase templates
+    (session-management, session-state, execution, delegation, validation,
+    agent-base-protocol, filesystem-safety-protocol, code-review) still load
+    lazily at their consumption points because Phase 3 never enters Plan Mode.
+    </HARD-GATE>
  8. Classify task as simple/medium/complex. Present classification with rationale.
  9. Route: simple → Express (step 31). Medium/complex → continue to step 10.
 
@@ -17,7 +27,7 @@ DESIGN GATE (Phase 1 pre-entry)
 
 DESIGN (Phase 1)
 10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
-11. Call `get_skill_content` with resources: ["design-dialogue"]. Follow the loaded protocol for:
+11. Using the `design-dialogue` protocol already loaded in step 7, run the design conversation:
     - Design depth selector (first design question)
     - Repository grounding (for existing codebases, skip for greenfield)
     - One question at a time via user prompt
@@ -40,11 +50,12 @@ DESIGN (Phase 1)
     proceeding to the next. Do NOT present the full design as a single block.
     Quick depth may combine sections. Standard/Deep MUST validate individually.
     </HARD-GATE>
-13. Call `get_skill_content` with resources: ["design-document"]. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path). Then call `record_design_approval(session_id, design_document_path)` to clear the design gate. `create_session` in step 21 will reject without this call.
-14. If Plan Mode is active, exit Plan Mode with the plan path. Copy approved document to <state_dir>/plans/.
+13. Using the `design-document` template already loaded in step 7, write the approved design document to the runtime's write surface (Plan Mode tmp for Gemini, `<state_dir>/plans/` when Plan Mode is unavailable). Do NOT call `record_design_approval` while still inside Plan Mode — Gemini deregisters MCP tools during Plan Mode and the call will fail.
+14. If Plan Mode is active, exit Plan Mode with the plan path. MCP tools become available again at this point.
+14a. Call `record_design_approval(session_id, design_document_path)` to clear the design gate. The approval handler records the path without requiring the file to already be on disk; `create_session` in step 21 materializes the file into `<state_dir>/plans/` and will reject if the file is still missing at that point.
 
 PLANNING (Phase 2)
-15. Call `get_skill_content` with resources: ["implementation-planning", "implementation-plan"]. Follow the loaded skill protocol.
+15. Using the `implementation-planning` and `implementation-plan` resources already loaded in step 7, follow the planning protocol to draft the implementation plan. If the planning skill instructs you to re-enter Plan Mode for the plan-approval UI, write the plan document first; all subsequent MCP calls (including `validate_plan`) must happen after the next `exit_plan_mode`, not inside Plan Mode.
 16. Call validate_plan with the generated plan and task_complexity.
     <HARD-GATE>
     You MUST call validate_plan BEFORE presenting the plan for approval. Do NOT
