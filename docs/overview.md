@@ -1,6 +1,6 @@
 # Maestro Overview
 
-Maestro is a multi-agent development orchestration platform that coordinates 22 specialized AI agents through structured workflows. It runs as three runtime targets from a single canonical source tree:
+Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as three runtime targets from a single canonical source tree:
 
 - **Gemini CLI extension** (root directory)
 - **Claude Code plugin** (`claude/` subdirectory)
@@ -26,7 +26,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 
 | Metric | Count |
 |--------|-------|
-| Specialized agents | 22 |
+| Specialized agents | 39 |
 | MCP tools | 12 |
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
@@ -39,7 +39,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 ```
 maestro-orchestrate/
 ├── src/                          # Canonical source (edit here)
-│   ├── agents/                   # 22 agent definitions
+│   ├── agents/                   # 39 agent definitions
 │   ├── skills/shared/            # 7 shared methodology modules + protocols
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
@@ -88,14 +88,14 @@ maestro-orchestrate/
 
 ### Agents
 
-22 specialized agents, each with a defined methodology, tool restrictions, and capability tier:
+39 specialized agents, each with a defined methodology, tool restrictions, and capability tier:
 
 | Tier | Capability | Agents |
 |------|-----------|--------|
-| `read_only` | Read, search, analyze | architect, api-designer, code-reviewer, content-strategist, compliance-reviewer |
-| `read_shell` | Read + shell execution | debugger, performance-engineer, security-engineer, seo-specialist, accessibility-specialist |
-| `read_write` | Read + create/modify files | technical-writer, product-manager, ux-designer, copywriter |
-| `full` | All tools | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer |
+| `read_only` | Read, search, analyze | architect, api-designer, code-reviewer, content-strategist, compliance-reviewer, cloud-architect, solutions-architect |
+| `read_shell` | Read + shell execution | debugger, performance-engineer, security-engineer, seo-specialist, accessibility-specialist, database-administrator, site-reliability-engineer, db2-dba, zos-sysprog |
+| `read_write` | Read + create/modify files | technical-writer, product-manager, ux-designer, copywriter, release-manager, prompt-engineer |
+| `full` | All tools | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer, ml-engineer, mlops-engineer, mobile-engineer, cobol-engineer, observability-engineer, platform-engineer, integration-engineer, hlasm-assembler-specialist, ibm-i-specialist |
 
 ### MCP Server
 
