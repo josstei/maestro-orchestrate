@@ -83,7 +83,7 @@ describe('design gate tools', () => {
     assert.match(outcome.result.approved_at, /^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it('record_design_approval rejects missing design documents', async () => {
+  it('record_design_approval accepts paths to files that have not yet materialized (defers existence to create_session)', async () => {
     const workspace = makeWorkspace();
     const server = buildServer();
     await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
@@ -93,12 +93,41 @@ describe('design gate tools', () => {
       'record_design_approval',
       {
         session_id: 'alpha',
-        design_document_path: path.join(workspace, 'nope.md'),
+        design_document_path: path.join(workspace, 'not-yet-written.md'),
       },
       workspace
     );
-    assert.equal(outcome.ok, false);
-    assert.match(outcome.error || '', /not found|does not exist/i);
+    assert.equal(
+      outcome.ok,
+      true,
+      'approval must not race Plan Mode writes; file existence is enforced at create_session'
+    );
+    assert.equal(
+      outcome.result.design_document_path,
+      path.join(workspace, 'not-yet-written.md')
+    );
+  });
+
+  it('record_design_approval rejects empty or missing design_document_path', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+
+    const missing = await server.callTool(
+      'record_design_approval',
+      { session_id: 'alpha' },
+      workspace
+    );
+    assert.equal(missing.ok, false);
+    assert.match(missing.error || '', /design_document_path is required/i);
+
+    const empty = await server.callTool(
+      'record_design_approval',
+      { session_id: 'alpha', design_document_path: '' },
+      workspace
+    );
+    assert.equal(empty.ok, false);
   });
 
   it('get_design_gate_status returns null when gate was never entered', async () => {

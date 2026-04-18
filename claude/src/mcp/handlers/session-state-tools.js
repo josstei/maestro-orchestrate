@@ -30,23 +30,33 @@ const {
 } = require('./session-state-core');
 
 /**
- * Copy the implementation plan into `<state_dir>/plans/<basename>` when it
- * isn't already there. Mirrors the design-gate contract so both documents are
- * reachable by `archive_session` regardless of where Plan Mode wrote them.
+ * Materialize a session document (design or plan) into `<state_dir>/plans/`.
+ * Mirrors the design-gate contract so both documents are reachable by
+ * `archive_session` regardless of where Plan Mode wrote them.
+ *
+ * Used at `create_session` time rather than `record_design_approval` because
+ * Gemini's parallel dispatch can fire a write and an MCP tool in the same
+ * turn; the write isn't yet visible when the MCP handler runs. Deferring the
+ * copy to `create_session` guarantees the file has settled on disk.
  *
  * @param {string} projectRoot
- * @param {string} planPath - absolute or relative path to the plan document
- * @returns {string} absolute path to the canonical location inside plans/
+ * @param {string} documentPath - absolute or workspace-relative path
+ * @param {'design_document' | 'implementation_plan'} documentKind
+ * @returns {string | null} absolute path to the canonical location inside plans/, or null if documentPath was absent
  */
-function persistImplementationPlanPath(projectRoot, planPath) {
-  if (typeof planPath !== 'string' || planPath.length === 0) {
+function materializeSessionDocument(projectRoot, documentPath, documentKind) {
+  if (typeof documentPath !== 'string' || documentPath.length === 0) {
     return null;
   }
-  const absolutePath = path.isAbsolute(planPath)
-    ? planPath
-    : path.join(projectRoot, planPath);
+  const absolutePath = path.isAbsolute(documentPath)
+    ? documentPath
+    : path.join(projectRoot, documentPath);
   if (!fs.existsSync(absolutePath)) {
-    throw new NotFoundError(`implementation_plan does not exist: ${absolutePath}`);
+    const context =
+      documentKind === 'design_document'
+        ? ' (recorded via record_design_approval but not found at create_session time — confirm the file was materialized after Plan Mode exit)'
+        : ' (confirm the plan was written to disk before calling create_session)';
+    throw new NotFoundError(`${documentKind} does not exist: ${absolutePath}${context}`);
   }
   return ensureDesignDocumentInPlans(projectRoot, absolutePath);
 }
@@ -81,11 +91,14 @@ function handleCreateSession(params, projectRoot) {
     }
   }
 
-  const resolvedDesignDocument =
+  const designDocumentCandidate =
     params.design_document ||
     getApprovedDesignDocumentPath(projectRoot, params.session_id);
+  const resolvedDesignDocument = designDocumentCandidate
+    ? materializeSessionDocument(projectRoot, designDocumentCandidate, 'design_document')
+    : null;
   const resolvedImplementationPlan = params.implementation_plan
-    ? persistImplementationPlanPath(projectRoot, params.implementation_plan)
+    ? materializeSessionDocument(projectRoot, params.implementation_plan, 'implementation_plan')
     : null;
 
   const now = new Date().toISOString();

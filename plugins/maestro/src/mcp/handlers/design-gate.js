@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
-const { ValidationError, NotFoundError } = require('../../lib/errors');
+const { ValidationError } = require('../../lib/errors');
 const { resolveStateDirPath } = require('../../state/session-state');
 const { atomicWriteSync } = require('../../lib/io');
 
@@ -111,21 +111,12 @@ function handleEnterDesignGate(params, projectRoot) {
  */
 function handleRecordDesignApproval(params, projectRoot) {
   assertSessionId(params.session_id);
-  if (!params.design_document_path) {
+  if (typeof params.design_document_path !== 'string' || params.design_document_path.length === 0) {
     throw new ValidationError('design_document_path is required');
   }
   const absDesignPath = path.isAbsolute(params.design_document_path)
     ? params.design_document_path
     : path.join(projectRoot, params.design_document_path);
-  if (!fs.existsSync(absDesignPath)) {
-    throw new NotFoundError(`Design document does not exist: ${absDesignPath}`);
-  }
-  const stat = fs.statSync(absDesignPath);
-  if (!stat.isFile() || stat.size === 0) {
-    throw new ValidationError(`Design document is empty: ${absDesignPath}`);
-  }
-
-  const canonicalDesignPath = ensureDesignDocumentInPlans(projectRoot, absDesignPath);
 
   const gate = readGate(projectRoot, params.session_id) || {
     session_id: params.session_id,
@@ -134,14 +125,14 @@ function handleRecordDesignApproval(params, projectRoot) {
     design_document_path: null,
   };
   gate.approved_at = new Date().toISOString();
-  gate.design_document_path = canonicalDesignPath;
+  gate.design_document_path = absDesignPath;
   writeGate(projectRoot, params.session_id, gate);
 
   return {
     success: true,
     entered_at: gate.entered_at,
     approved_at: gate.approved_at,
-    design_document_path: canonicalDesignPath,
+    design_document_path: absDesignPath,
   };
 }
 

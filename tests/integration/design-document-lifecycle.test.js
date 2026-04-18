@@ -28,19 +28,14 @@ function writeFile(filePath, content) {
 }
 
 describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive', () => {
-  it('record_design_approval copies design doc into state_dir/plans/ when Plan Mode wrote it elsewhere', async () => {
+  it('record_design_approval records the path without requiring the file to exist (Plan Mode parallel-dispatch tolerance)', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-ws-'));
     const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-tmp-'));
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
-    writeFile(tmpDesignPath, '# Approved Design\n');
 
     const server = createServerForWorkspace();
     await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
-    await server.callTool(
-      'enter_design_gate',
-      { session_id: 'ddl-1' },
-      workspace
-    );
+    await server.callTool('enter_design_gate', { session_id: 'ddl-1' }, workspace);
 
     const approval = await server.callTool(
       'record_design_approval',
@@ -48,11 +43,92 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
       workspace
     );
 
-    assert.equal(approval.ok, true);
+    assert.equal(
+      approval.ok,
+      true,
+      'approval must succeed even when the source file has not yet materialized on disk'
+    );
+    assert.equal(approval.result.design_document_path, tmpDesignPath);
+    assert.equal(
+      fs.existsSync(path.join(workspace, 'docs', 'maestro', 'plans', 'design.md')),
+      false,
+      'no copy should occur at approval time'
+    );
+  });
+
+  it('create_session materializes the design doc from the gate path once it exists on disk', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-latewrite-'));
+    const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-latewrite-tmp-'));
+    const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
+
+    const server = createServerForWorkspace();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'ddl-late' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      { session_id: 'ddl-late', design_document_path: tmpDesignPath },
+      workspace
+    );
+
+    writeFile(tmpDesignPath, '# Design (written after approval)\n');
+
+    const create = await server.callTool(
+      'create_session',
+      {
+        session_id: 'ddl-late',
+        task: 'late materialize',
+        task_complexity: 'simple',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['index.html'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(create.ok, true);
+
     const canonicalPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
-    assert.equal(approval.result.design_document_path, canonicalPath);
-    assert.equal(fs.existsSync(canonicalPath), true, 'doc should be copied into plans/');
-    assert.equal(fs.existsSync(tmpDesignPath), true, 'source doc should remain intact in Plan Mode tmp');
+    assert.equal(fs.existsSync(canonicalPath), true, 'create_session should copy the design doc into plans/');
+    assert.equal(fs.existsSync(tmpDesignPath), true, 'Plan Mode tmp copy must remain intact');
+  });
+
+  it('create_session surfaces a sequenced NOT_FOUND error when the approved design doc never materialized', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-missing-'));
+    const phantomPath = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-missing-tmp-')),
+      'plans',
+      'never-written.md'
+    );
+
+    const server = createServerForWorkspace();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'ddl-missing' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      { session_id: 'ddl-missing', design_document_path: phantomPath },
+      workspace
+    );
+
+    const create = await server.callTool(
+      'create_session',
+      {
+        session_id: 'ddl-missing',
+        task: 'phantom design',
+        task_complexity: 'simple',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['index.html'] },
+        ],
+      },
+      workspace
+    );
+
+    assert.equal(create.ok, false);
+    assert.equal(create.code, 'NOT_FOUND');
+    assert.match(create.error, /design_document does not exist/i);
+    assert.match(
+      create.error,
+      /record_design_approval.*create_session/,
+      'error must name both endpoints so the caller understands the sequence'
+    );
   });
 
   it('create_session auto-populates state.design_document from the design gate when the param is omitted', async () => {
@@ -92,6 +168,11 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     assert.equal(
       state.design_document,
       path.join(workspace, 'docs', 'maestro', 'plans', 'auto-design.md')
+    );
+    assert.equal(
+      fs.existsSync(state.design_document),
+      true,
+      'create_session should have materialized the doc from the gate'
     );
   });
 
