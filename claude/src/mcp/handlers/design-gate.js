@@ -22,6 +22,44 @@ function gatePath(projectRoot, sessionId) {
 }
 
 /**
+ * Canonical location where approved design documents live. Runtimes (including
+ * Plan Mode) may write design docs to arbitrary temporary locations; this
+ * function is the single source of truth for the post-approval location so the
+ * archive flow can reliably find and move the document.
+ *
+ * @param {string} projectRoot
+ * @returns {string}
+ */
+function plansDirPath(projectRoot) {
+  return path.join(resolveStateDirPath(projectRoot), 'plans');
+}
+
+/**
+ * Copy a design document to `<state_dir>/plans/<basename>` when it isn't
+ * already there. Idempotent: returns the in-plans path regardless of whether a
+ * copy was needed. Preserves the source file so runtime-managed tmp locations
+ * (Plan Mode) remain intact.
+ *
+ * @param {string} projectRoot
+ * @param {string} sourcePath - absolute path to the approved design document
+ * @returns {string} absolute path to the canonical location inside plans/
+ */
+function ensureDesignDocumentInPlans(projectRoot, sourcePath) {
+  const plansDir = plansDirPath(projectRoot);
+  const resolvedPlansDir = path.resolve(plansDir) + path.sep;
+  const resolvedSource = path.resolve(sourcePath);
+
+  if (resolvedSource.startsWith(resolvedPlansDir)) {
+    return resolvedSource;
+  }
+
+  fs.mkdirSync(plansDir, { recursive: true });
+  const destination = path.join(plansDir, path.basename(resolvedSource));
+  fs.copyFileSync(resolvedSource, destination);
+  return destination;
+}
+
+/**
  * @param {string} projectRoot
  * @param {string} sessionId
  * @returns {{ session_id: string, entered_at: string | null, approved_at: string | null, design_document_path: string | null } | null}
@@ -87,6 +125,8 @@ function handleRecordDesignApproval(params, projectRoot) {
     throw new ValidationError(`Design document is empty: ${absDesignPath}`);
   }
 
+  const canonicalDesignPath = ensureDesignDocumentInPlans(projectRoot, absDesignPath);
+
   const gate = readGate(projectRoot, params.session_id) || {
     session_id: params.session_id,
     entered_at: new Date().toISOString(),
@@ -94,14 +134,14 @@ function handleRecordDesignApproval(params, projectRoot) {
     design_document_path: null,
   };
   gate.approved_at = new Date().toISOString();
-  gate.design_document_path = absDesignPath;
+  gate.design_document_path = canonicalDesignPath;
   writeGate(projectRoot, params.session_id, gate);
 
   return {
     success: true,
     entered_at: gate.entered_at,
     approved_at: gate.approved_at,
-    design_document_path: gate.design_document_path,
+    design_document_path: canonicalDesignPath,
   };
 }
 
@@ -136,9 +176,26 @@ function isDesignGateBlockingCreate(projectRoot, sessionId) {
   return !!(gate.entered_at && !gate.approved_at);
 }
 
+/**
+ * Read the design document path persisted on the gate after approval. Used by
+ * create_session to auto-populate `state.design_document` when the orchestrator
+ * does not pass it explicitly — avoids losing the document during archival.
+ * @param {string} projectRoot
+ * @param {string} sessionId
+ * @returns {string | null}
+ */
+function getApprovedDesignDocumentPath(projectRoot, sessionId) {
+  const gate = readGate(projectRoot, sessionId);
+  if (!gate || !gate.approved_at) return null;
+  return gate.design_document_path || null;
+}
+
 module.exports = {
   handleEnterDesignGate,
   handleRecordDesignApproval,
   handleGetDesignGateStatus,
   isDesignGateBlockingCreate,
+  getApprovedDesignDocumentPath,
+  ensureDesignDocumentInPlans,
+  plansDirPath,
 };
