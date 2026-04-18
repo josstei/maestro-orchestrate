@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **18 additional specialist agents** — Expanded the roster from 22 to 40 specialists:
+  - **ML / AI**: `ml-engineer`, `mlops-engineer`, `prompt-engineer`
+  - **Ops / reliability**: `site-reliability-engineer`, `observability-engineer`, `chaos-engineer`, `release-manager`
+  - **Platform**: `cloud-architect`, `platform-engineer`, `solutions-architect`, `integration-engineer`
+  - **Data / mobile**: `database-administrator`, `mobile-engineer`
+  - **Mainframe / legacy**: `cobol-engineer`, `db2-dba`, `zos-sysprog`, `hlasm-assembler-specialist`, `ibm-i-specialist`
+
 ## [1.6.2] - 2026-04-15
 
 ### Added
