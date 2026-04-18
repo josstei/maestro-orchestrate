@@ -45,6 +45,8 @@ describe('session tool pack', () => {
   it('creates, updates, and transitions session state on disk', async () => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-session-'));
     ensureWorkspace('docs/maestro', projectRoot);
+    fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/design.md'), '# Design\n');
+    fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/plan.md'), '# Plan\n');
 
     const server = createServer({
       runtimeConfig: { name: 'codex' },
@@ -276,7 +278,8 @@ describe('session tool pack', () => {
       projectRoot
     );
     assert.equal(outcome.ok, false);
-    assert.match(outcome.error || '', /handoff_incomplete|downstream context/i);
+    assert.equal(outcome.code, 'HANDOFF_INCOMPLETE');
+    assert.match(outcome.error || '', /downstream_context/i);
   });
 
   it('archive_session blocks when a phase requires reconciliation', async () => {

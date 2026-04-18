@@ -5,8 +5,18 @@ const path = require('path');
 
 const { assertSessionId, coercePositiveInteger } = require('../../lib/validation');
 const { validatePhases } = require('../contracts/plan-schema');
+const {
+  createEmptyDownstreamContext,
+  normalizeDownstreamContext,
+  isDownstreamContextPopulated,
+  describeShape: describeDownstreamContextShape,
+} = require('../contracts/downstream-context');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
-const { isDesignGateBlockingCreate } = require('./design-gate');
+const {
+  isDesignGateBlockingCreate,
+  getApprovedDesignDocumentPath,
+  ensureDesignDocumentInPlans,
+} = require('./design-gate');
 const {
   resolveBasePath,
   resolveActiveSessionPath,
@@ -18,6 +28,28 @@ const {
   writeActiveSession,
   withSessionState,
 } = require('./session-state-core');
+
+/**
+ * Copy the implementation plan into `<state_dir>/plans/<basename>` when it
+ * isn't already there. Mirrors the design-gate contract so both documents are
+ * reachable by `archive_session` regardless of where Plan Mode wrote them.
+ *
+ * @param {string} projectRoot
+ * @param {string} planPath - absolute or relative path to the plan document
+ * @returns {string} absolute path to the canonical location inside plans/
+ */
+function persistImplementationPlanPath(projectRoot, planPath) {
+  if (typeof planPath !== 'string' || planPath.length === 0) {
+    return null;
+  }
+  const absolutePath = path.isAbsolute(planPath)
+    ? planPath
+    : path.join(projectRoot, planPath);
+  if (!fs.existsSync(absolutePath)) {
+    throw new NotFoundError(`implementation_plan does not exist: ${absolutePath}`);
+  }
+  return ensureDesignDocumentInPlans(projectRoot, absolutePath);
+}
 
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
@@ -49,6 +81,13 @@ function handleCreateSession(params, projectRoot) {
     }
   }
 
+  const resolvedDesignDocument =
+    params.design_document ||
+    getApprovedDesignDocumentPath(projectRoot, params.session_id);
+  const resolvedImplementationPlan = params.implementation_plan
+    ? persistImplementationPlanPath(projectRoot, params.implementation_plan)
+    : null;
+
   const now = new Date().toISOString();
   const state = {
     session_id: params.session_id,
@@ -57,8 +96,8 @@ function handleCreateSession(params, projectRoot) {
     updated: now,
     status: 'in_progress',
     workflow_mode: params.workflow_mode || 'standard',
-    design_document: params.design_document,
-    implementation_plan: params.implementation_plan,
+    design_document: resolvedDesignDocument || null,
+    implementation_plan: resolvedImplementationPlan,
     current_phase:
       params.phases && params.phases.length > 0
         ? Number.isFinite(Number(params.phases[0].id)) &&
@@ -93,13 +132,7 @@ function handleCreateSession(params, projectRoot) {
       files_modified: [],
       files_deleted: [],
       planned_files: phase.files || [],
-      downstream_context: {
-        key_interfaces_introduced: [],
-        patterns_established: [],
-        integration_points: [],
-        assumptions: [],
-        warnings: [],
-      },
+      downstream_context: createEmptyDownstreamContext(),
       errors: [],
       retry_count: 0,
     })),
@@ -146,18 +179,6 @@ function handleGetSessionStatus(_params, projectRoot) {
     current_batch: state.current_batch ?? null,
     token_usage: state.token_usage,
   };
-}
-
-function isDownstreamContextPopulated(context) {
-  if (!context || typeof context !== 'object') return false;
-  const fields = [
-    'key_interfaces_introduced',
-    'patterns_established',
-    'integration_points',
-    'assumptions',
-    'warnings',
-  ];
-  return fields.some((field) => Array.isArray(context[field]) && context[field].length > 0);
 }
 
 function handleTransitionPhase(params, projectRoot) {
@@ -238,11 +259,12 @@ function handleTransitionPhase(params, projectRoot) {
       const filesDeleted = params.files_deleted ?? [];
       const hasFiles =
         filesCreated.length + filesModified.length + filesDeleted.length > 0;
-      const contextProvided = isDownstreamContextPopulated(params.downstream_context);
+      const normalizedContext = normalizeDownstreamContext(params.downstream_context);
+      const contextProvided = isDownstreamContextPopulated(normalizedContext);
 
       if (hasFiles && !contextProvided) {
         throw new ValidationError(
-          `Phase ${completedPhase.id} produced files but no downstream context. Re-request the agent's handoff including ## Downstream Context with interfaces/patterns/integration-points/assumptions/warnings.`,
+          `Phase ${completedPhase.id} produced files but downstream_context is empty after normalization. ${describeDownstreamContextShape()}`,
           {
             code: 'HANDOFF_INCOMPLETE',
             details: {
@@ -250,6 +272,7 @@ function handleTransitionPhase(params, projectRoot) {
               files_created_count: filesCreated.length,
               files_modified_count: filesModified.length,
               files_deleted_count: filesDeleted.length,
+              received_downstream_context: params.downstream_context ?? null,
             },
           }
         );
@@ -257,8 +280,7 @@ function handleTransitionPhase(params, projectRoot) {
 
       completedPhase.status = 'completed';
       completedPhase.completed = new Date().toISOString();
-      completedPhase.downstream_context =
-        params.downstream_context ?? completedPhase.downstream_context;
+      completedPhase.downstream_context = normalizedContext;
       completedPhase.files_created = filesCreated;
       completedPhase.files_modified = filesModified;
       completedPhase.files_deleted = filesDeleted;

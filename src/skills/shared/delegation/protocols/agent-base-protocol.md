@@ -111,6 +111,17 @@ Populate this section when your output feeds into subsequent phases. Read-only a
 - The orchestrator extracts Downstream Context from completed phases and includes relevant sections in subsequent delegation prompts, creating an information chain
 - Be specific in Downstream Context — reference exact file paths, function names, and type signatures rather than general descriptions
 
+### Canonical Shape for `transition_phase`
+
+When the orchestrator translates your Markdown Downstream Context into the `downstream_context` argument of `transition_phase`, the server enforces a fixed shape:
+
+- The object keys are exactly `key_interfaces_introduced`, `patterns_established`, `integration_points`, `assumptions`, `warnings` (snake_case). Other keys are dropped.
+- Each value is either a string or an array of strings. The server normalizes strings to single-element arrays.
+- The tokens `"none"`, `"n/a"`, `"not applicable"`, and empty strings are treated as absent.
+- A phase that produced files but whose normalized context has no non-empty field is rejected with `HANDOFF_INCOMPLETE` — the orchestrator must re-request a populated handoff.
+
+Prefer arrays when you have multiple discrete items so each item is preserved verbatim in session state.
+
 ### Hook Enforcement
 
 The hooks system validates this contract at runtime. After every agent turn, the post-delegation hook checks for both `## Task Report` and `## Downstream Context` headings in the response:
