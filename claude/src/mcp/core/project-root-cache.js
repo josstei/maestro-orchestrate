@@ -2,20 +2,22 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL, fileURLToPath } = require('node:url');
 
-const { resolveProjectRootForRuntime } = require('../../core/project-root-resolver');
+const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
 
 /**
- * Cache project-root resolution for the lifetime of the MCP session.
+ * Project-root cache for the MCP session.
  *
- * The MCP client may advertise workspace roots via the capability
- * handshake (`roots/list`), but some runtimes (Claude, Gemini) pin a
- * workspace directly via an env var. The cache prefers the explicit env
- * var when present and otherwise lazily fetches client roots.
+ * After this refactor, the workspace path is authoritative only when the
+ * orchestrator has passed it to `initialize_workspace`. Before that call,
+ * stateful tools reject with a structured error.
  *
- * Returned methods let the protocol dispatcher keep the cache coherent
- * across the `initialize`, `notifications/initialized`, and
- * `notifications/roots/list_changed` events.
+ * The cache also computes a `workspace_suggestion` from the env var declared
+ * by the runtime-config, any MCP roots supplied by the client, and the
+ * runtime's cwd. The suggestion is exposed through `get_runtime_context` so
+ * the orchestrator can pass it into `initialize_workspace`. It is never
+ * used as a fallback for other tools.
  */
 function createProjectRootCache(options) {
   const {
@@ -25,90 +27,94 @@ function createProjectRootCache(options) {
     getCwd = () => process.cwd(),
   } = options;
 
-  let cachedProjectRoot;
-  let cachedClientRoots;
-  let clientRootsPromise;
+  let explicitWorkspacePath = null;
+  let clientRoots = [];
   let clientSupportsRoots = false;
 
-  function hasExplicitWorkspaceEnv() {
-    const workspaceEnvName =
+  function envSuggestion() {
+    const envVarName =
       runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
-    const workspaceEnvValue = workspaceEnvName ? env[workspaceEnvName] : null;
-    if (!workspaceEnvValue || workspaceEnvValue.includes('${')) {
-      return false;
-    }
-
-    return fs.existsSync(path.resolve(workspaceEnvValue));
+    if (!envVarName) return null;
+    const value = env[envVarName];
+    if (!value || value.includes('${')) return null;
+    const resolved = path.resolve(value);
+    if (!fs.existsSync(resolved)) return null;
+    if (isExtensionCachePath(resolved)) return null;
+    return resolved;
   }
 
-  async function fetchClientRoots(force = false) {
-    if (hasExplicitWorkspaceEnv()) {
-      return [];
+  function rootsSuggestion() {
+    for (const root of clientRoots) {
+      const uri = typeof root === 'string' ? root : root && root.uri;
+      if (typeof uri !== 'string') continue;
+      try {
+        const parsed = new URL(uri);
+        if (parsed.protocol !== 'file:') continue;
+        const resolved = fileURLToPath(parsed);
+        if (!fs.existsSync(resolved)) continue;
+        if (isExtensionCachePath(resolved)) continue;
+        return resolved;
+      } catch {
+        continue;
+      }
     }
+    return null;
+  }
 
-    if (!clientSupportsRoots) {
-      return [];
+  function cwdSuggestion() {
+    const cwd = path.resolve(getCwd());
+    if (isExtensionCachePath(cwd)) return null;
+    return cwd;
+  }
+
+  async function refreshClientRoots() {
+    if (!clientSupportsRoots || typeof requestClientRoots !== 'function') {
+      clientRoots = [];
+      return clientRoots;
     }
-
-    if (cachedClientRoots !== undefined && !force) {
-      return cachedClientRoots;
+    try {
+      const result = await requestClientRoots();
+      clientRoots = result && Array.isArray(result.roots) ? result.roots : [];
+    } catch {
+      clientRoots = [];
     }
+    return clientRoots;
+  }
 
-    if (clientRootsPromise && !force) {
-      return clientRootsPromise;
-    }
+  function workspaceSuggestion() {
+    return envSuggestion() || rootsSuggestion() || cwdSuggestion();
+  }
 
-    clientRootsPromise = requestClientRoots()
-      .then((result) => {
-        const roots =
-          result && Array.isArray(result.roots) ? result.roots : [];
-        cachedClientRoots = roots;
-        return roots;
-      })
-      .catch(() => {
-        cachedClientRoots = [];
-        return cachedClientRoots;
-      })
-      .finally(() => {
-        clientRootsPromise = null;
-      });
-
-    return clientRootsPromise;
+  function setExplicitWorkspacePath(value) {
+    explicitWorkspacePath = value || null;
   }
 
   async function getProjectRoot() {
-    if (!cachedProjectRoot) {
-      const clientRoots = hasExplicitWorkspaceEnv() ? [] : await fetchClientRoots();
-      cachedProjectRoot = resolveProjectRootForRuntime(runtimeConfig, {
-        env,
-        clientRoots,
-        cwd: getCwd(),
-      });
+    if (!explicitWorkspacePath) {
+      const error = new Error(
+        'Workspace not initialized. Call initialize_workspace(workspace_path=...) before any stateful tool.'
+      );
+      error.code = 'WORKSPACE_NOT_INITIALIZED';
+      throw error;
     }
-
-    return cachedProjectRoot;
+    return explicitWorkspacePath;
   }
 
   return {
     getProjectRoot,
-    hasExplicitWorkspaceEnv,
+    setExplicitWorkspacePath,
+    workspaceSuggestion,
     setClientSupportsRoots(supports) {
       clientSupportsRoots = Boolean(supports);
     },
-    refreshClientRoots() {
-      return fetchClientRoots(true);
-    },
+    refreshClientRoots,
     invalidateProjectRoot() {
-      cachedProjectRoot = undefined;
+      explicitWorkspacePath = null;
     },
     invalidateClientRoots() {
-      cachedClientRoots = undefined;
-      clientRootsPromise = null;
-      cachedProjectRoot = undefined;
+      clientRoots = [];
     },
   };
 }
 
-module.exports = {
-  createProjectRootCache,
-};
+module.exports = { createProjectRootCache };

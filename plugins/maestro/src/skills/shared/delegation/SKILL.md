@@ -297,6 +297,36 @@ This enforcement is the runtime complement to the Output Handoff Contract define
 
 **Exception**: The TechLead/orchestrator agent is excluded from validation. Only delegated subagents are subject to format enforcement.
 
+## Delegation Constraints (per runtime)
+
+Read `delegation.constraints` from `get_runtime_context` before constructing any agent dispatch. Apply constraints to the dispatch:
+
+- `fork_full_context_incompatible_with`: list of field names. If the runtime is invoking a fork-style delegation with full-history inheritance, do NOT pass any of these fields. For Codex, this means omitting `agent_type`, `model`, and `reasoning_effort` whenever `fork_context: true` or `fork_turns: "all"` is used.
+- `result_surface: "synchronous"`: the parent receives the child's full text response in the dispatch return value. Parse the Task Report and Downstream Context directly from that text.
+- `result_surface: "deferred"`: the parent receives only identifiers. The parent MUST poll for completion (`wait_agent` or equivalent) with a bounded timeout. On timeout or empty return, invoke the Recovery Protocol in the execution skill.
+- `child_cannot_prompt_user: true`: child agents cannot call the user-prompt tool. All user questions must surface through the Blocker Protocol below.
+
+## Blocker Protocol (child-agent question surfacing)
+
+**MANDATORY** when `delegation.constraints.child_cannot_prompt_user` is true (Codex today). **RECOMMENDED** uniformly so the orchestrator remains the single approval point across runtimes.
+
+Every agent's Task Report may include a `## Blockers` section, placed between `## Task Report` and `## Downstream Context`:
+
+    ## Blockers
+    - BLOCKER: [question the agent cannot resolve]
+      Context: [why this question arose]
+      Required to proceed: [what answer unlocks continuation]
+
+When parsing an agent response:
+
+1. If `## Blockers` is present and non-empty, do NOT call `transition_phase`. Keep the phase `in_progress`.
+2. Aggregate blockers across the batch (if parallel).
+3. Ask the user via the runtime's user-prompt tool.
+4. Re-delegate the phase with the answer added to the Context block. The agent re-tries with the new information.
+5. On the next return, re-parse and proceed.
+
+An agent that returns neither a handoff nor a blocker is considered incomplete. Invoke the Recovery Protocol in the execution skill.
+
 ## Validation Criteria Templates
 
 ### For Implementation Agents (`coder`, `data-engineer`, `devops-engineer`)

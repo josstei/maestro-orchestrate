@@ -1,6 +1,7 @@
 'use strict';
 
 const { defineToolPack } = require('../contracts');
+const { PHASE_ITEM_SCHEMA } = require('../../contracts/plan-schema');
 const {
   handleCreateSession,
   handleGetSessionStatus,
@@ -8,6 +9,15 @@ const {
   handleArchiveSession,
   handleUpdateSession,
 } = require('../../handlers/session-state-tools');
+const {
+  handleEnterDesignGate,
+  handleRecordDesignApproval,
+  handleGetDesignGateStatus,
+} = require('../../handlers/design-gate');
+const {
+  handleScanPhaseChanges,
+  handleReconcilePhase,
+} = require('../../handlers/reconciliation');
 
 function createToolPack() {
   return defineToolPack({
@@ -23,7 +33,11 @@ function createToolPack() {
             task: { type: 'string' },
             design_document: { type: ['string', 'null'] },
             implementation_plan: { type: ['string', 'null'] },
-            phases: { type: 'array' },
+            phases: {
+              type: 'array',
+              minItems: 1,
+              items: PHASE_ITEM_SCHEMA,
+            },
             task_complexity: {
               type: 'string',
               enum: ['simple', 'medium', 'complex'],
@@ -109,6 +123,70 @@ function createToolPack() {
           required: ['session_id'],
         },
       },
+      {
+        name: 'enter_design_gate',
+        description:
+          'Mark a session as having entered the design phase. Idempotent. Blocks create_session until record_design_approval is called.',
+        inputSchema: {
+          type: 'object',
+          properties: { session_id: { type: 'string' } },
+          required: ['session_id'],
+        },
+      },
+      {
+        name: 'record_design_approval',
+        description:
+          'Record user approval of the design document, clearing the design gate for session creation.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            design_document_path: { type: 'string' },
+          },
+          required: ['session_id', 'design_document_path'],
+        },
+      },
+      {
+        name: 'get_design_gate_status',
+        description:
+          'Read the design gate status for a session. Returns entered_at, approved_at, and design_document_path (all nullable).',
+        inputSchema: {
+          type: 'object',
+          properties: { session_id: { type: 'string' } },
+          required: ['session_id'],
+        },
+      },
+      {
+        name: 'scan_phase_changes',
+        description:
+          'Scan the workspace for files created or modified since the phase started. Does not attribute files — returns candidates for the orchestrator to reconcile.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            phase_id: { type: 'integer' },
+          },
+          required: ['session_id', 'phase_id'],
+        },
+      },
+      {
+        name: 'reconcile_phase',
+        description:
+          'Record file manifests and downstream context for a phase that could not be handed off cleanly. Clears requires_reconciliation.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            phase_id: { type: 'integer' },
+            files_created: { type: 'array' },
+            files_modified: { type: 'array' },
+            files_deleted: { type: 'array' },
+            downstream_context: { type: 'object' },
+            reason: { type: 'string' },
+          },
+          required: ['session_id', 'phase_id'],
+        },
+      },
     ],
     handlers: {
       create_session: handleCreateSession,
@@ -116,6 +194,11 @@ function createToolPack() {
       update_session: handleUpdateSession,
       transition_phase: handleTransitionPhase,
       archive_session: handleArchiveSession,
+      enter_design_gate: handleEnterDesignGate,
+      record_design_approval: handleRecordDesignApproval,
+      get_design_gate_status: handleGetDesignGateStatus,
+      scan_phase_changes: handleScanPhaseChanges,
+      reconcile_phase: handleReconcilePhase,
     },
   });
 }

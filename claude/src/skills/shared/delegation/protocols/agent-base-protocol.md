@@ -119,3 +119,16 @@ The hooks system validates this contract at runtime. After every agent turn, the
 - **Missing either heading on retry**: The hook allows the response through to prevent infinite loops, but logs a warning. The orchestrator receives the malformed output and must handle the missing context.
 
 Always include both headings, even when Part 2 fields are all "none". Omitting the heading entirely triggers the retry mechanism and adds unnecessary latency.
+
+## Blockers
+
+If you cannot proceed because a user decision is required, emit a `## Blockers` section in your handoff, placed between `## Task Report` and `## Downstream Context`:
+
+    ## Blockers
+    - BLOCKER: [your question]
+      Context: [why this arose; what you tried]
+      Required to proceed: [the specific answer you need]
+
+Do NOT call a user-prompt tool yourself. The orchestrator will collect blockers, ask the user, and re-delegate the phase with the answer supplied in your next delegation Context.
+
+A handoff that lists blockers does NOT count as phase completion. Your phase stays `in_progress` until you return again without blockers.

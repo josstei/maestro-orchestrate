@@ -38,6 +38,14 @@ module.exports = {
     turnsField: 'maxTurns',
   },
 
+  delegation: {
+    pattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
+    constraints: {
+      result_surface: 'synchronous',
+      child_cannot_prompt_user: false,
+    },
+  },
+
   delegationPattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
 
   features: {
