@@ -201,7 +201,12 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
         message.params && message.params.arguments && typeof message.params.arguments === 'object'
           ? message.params.arguments
           : {};
-      const projectRoot = await getProjectRoot();
+      let projectRoot = null;
+      try {
+        projectRoot = await getProjectRoot();
+      } catch {
+        projectRoot = null;
+      }
       const outcome = await server.callTool(name, args, projectRoot);
 
       if (outcome.ok) {

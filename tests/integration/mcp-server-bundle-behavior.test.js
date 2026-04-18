@@ -176,6 +176,7 @@ describe('mcp server bundle behavior', () => {
             const implementationPlan = path.join(plansRoot, 'codex-impl.md');
 
             const initResult = await client.callTool('initialize_workspace', {
+              workspace_path: workspaceRoot,
               state_dir: 'docs/maestro',
             });
             assert.equal(initResult.parsed.success, true);
@@ -195,6 +196,8 @@ describe('mcp server bundle behavior', () => {
                   id: 1,
                   name: 'Implement',
                   agent: 'coder',
+                  parallel: false,
+                  blocked_by: [],
                 },
               ],
             });
