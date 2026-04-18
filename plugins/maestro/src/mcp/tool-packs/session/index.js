@@ -25,7 +25,8 @@ function createToolPack() {
     tools: [
       {
         name: 'create_session',
-        description: 'Create a new Maestro orchestration session.',
+        description:
+          'Create a new Maestro orchestration session. Supply the implementation plan either by path (implementation_plan) or by inline content (implementation_plan_content + implementation_plan_filename); the two variants are mutually exclusive. The content variant is required when the caller cannot guarantee the plan file is visible to the MCP server under the configured workspace (e.g. Gemini Plan Mode writes to a tmp root).',
         requiresWorkspace: true,
         inputSchema: {
           type: 'object',
@@ -34,6 +35,16 @@ function createToolPack() {
             task: { type: 'string' },
             design_document: { type: ['string', 'null'] },
             implementation_plan: { type: ['string', 'null'] },
+            implementation_plan_content: {
+              type: 'string',
+              description:
+                'Inline implementation-plan Markdown. Requires implementation_plan_filename; mutually exclusive with implementation_plan.',
+            },
+            implementation_plan_filename: {
+              type: 'string',
+              description:
+                'Basename-only filename (no separators, no \'..\') used when materializing implementation_plan_content into <state_dir>/plans/.',
+            },
             phases: {
               type: 'array',
               minItems: 1,
@@ -142,15 +153,29 @@ function createToolPack() {
       {
         name: 'record_design_approval',
         description:
-          'Record user approval of the design document, clearing the design gate for session creation.',
+          'Record user approval of the design document, clearing the design gate for session creation. Supply the document either by path (design_document_path) or by inline content (design_document_content + design_document_filename); exactly one variant is required. Use the content variant when the caller cannot guarantee the file is visible to the MCP server under the configured workspace (e.g. Gemini Plan Mode resolves relative paths against ~/.gemini/tmp/<uuid>/).',
         requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
             session_id: { type: 'string' },
-            design_document_path: { type: 'string' },
+            design_document_path: {
+              type: 'string',
+              description:
+                'Absolute or workspace-relative path to the approved design document. Mutually exclusive with design_document_content.',
+            },
+            design_document_content: {
+              type: 'string',
+              description:
+                'Inline design-document Markdown. Requires design_document_filename; mutually exclusive with design_document_path.',
+            },
+            design_document_filename: {
+              type: 'string',
+              description:
+                'Basename-only filename (no separators, no \'..\') used when materializing design_document_content into <state_dir>/plans/.',
+            },
           },
-          required: ['session_id', 'design_document_path'],
+          required: ['session_id'],
         },
       },
       {

@@ -61,7 +61,7 @@ describe('design gate tools', () => {
     assert.equal(second.result.entered_at, first.result.entered_at);
   });
 
-  it('record_design_approval requires the design document to exist and be non-empty', async () => {
+  it('record_design_approval accepts an existing path via the path variant', async () => {
     const workspace = makeWorkspace();
     const server = buildServer();
     await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
@@ -108,7 +108,7 @@ describe('design gate tools', () => {
     );
   });
 
-  it('record_design_approval rejects empty or missing design_document_path', async () => {
+  it('record_design_approval rejects when neither path nor content+filename is provided', async () => {
     const workspace = makeWorkspace();
     const server = buildServer();
     await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
@@ -120,7 +120,10 @@ describe('design gate tools', () => {
       workspace
     );
     assert.equal(missing.ok, false);
-    assert.match(missing.error || '', /design_document_path is required/i);
+    assert.match(
+      missing.error || '',
+      /either design_document_path or both design_document_content and design_document_filename/i
+    );
 
     const empty = await server.callTool(
       'record_design_approval',
@@ -128,6 +131,112 @@ describe('design gate tools', () => {
       workspace
     );
     assert.equal(empty.ok, false);
+    assert.match(
+      empty.error || '',
+      /either design_document_path or both design_document_content and design_document_filename/i
+    );
+  });
+
+  it('record_design_approval rejects when both path and content variants are supplied', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+
+    const both = await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'alpha',
+        design_document_path: path.join(workspace, 'design.md'),
+        design_document_content: '# Design\n',
+        design_document_filename: 'design.md',
+      },
+      workspace
+    );
+    assert.equal(both.ok, false);
+    assert.match(both.error || '', /mutually exclusive/i);
+  });
+
+  it('record_design_approval rejects the content variant when filename or content is missing', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+
+    const noFilename = await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'alpha',
+        design_document_content: '# Design\n',
+      },
+      workspace
+    );
+    assert.equal(noFilename.ok, false);
+    assert.match(noFilename.error || '', /design_document_filename is required/i);
+
+    const noContent = await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'alpha',
+        design_document_filename: 'design.md',
+      },
+      workspace
+    );
+    assert.equal(noContent.ok, false);
+    assert.match(noContent.error || '', /design_document_content is required/i);
+  });
+
+  it('record_design_approval rejects filenames that contain path separators or traversal', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+
+    const traversal = await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'alpha',
+        design_document_content: '# Design\n',
+        design_document_filename: '../escape.md',
+      },
+      workspace
+    );
+    assert.equal(traversal.ok, false);
+    assert.match(traversal.error || '', /basename/i);
+
+    const nested = await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'alpha',
+        design_document_content: '# Design\n',
+        design_document_filename: 'sub/nested.md',
+      },
+      workspace
+    );
+    assert.equal(nested.ok, false);
+    assert.match(nested.error || '', /basename/i);
+  });
+
+  it('record_design_approval content variant materializes the file atomically under plans/', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+
+    const body = '# Design\n\nApproved inline.\n';
+    const outcome = await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'alpha',
+        design_document_content: body,
+        design_document_filename: 'inline-design.md',
+      },
+      workspace
+    );
+    assert.equal(outcome.ok, true);
+    const canonical = path.join(workspace, 'docs', 'maestro', 'plans', 'inline-design.md');
+    assert.equal(outcome.result.design_document_path, canonical);
+    assert.equal(fs.readFileSync(canonical, 'utf8'), body);
   });
 
   it('get_design_gate_status returns null when gate was never entered', async () => {

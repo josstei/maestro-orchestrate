@@ -333,4 +333,170 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const state = JSON.parse(stateRaw.split('---')[1].trim());
     assert.equal(state.implementation_plan, planPath);
   });
+
+  it('content variant: record_design_approval + create_session materialize both docs without path resolution (Gemini Plan Mode flow)', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-content-'));
+    const designBody = '# Design (inline)\n\nPassed as content.\n';
+    const planBody = '# Plan (inline)\n\nPassed as content.\n';
+
+    const server = createServerForWorkspace();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'ddl-content' }, workspace);
+
+    const approval = await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'ddl-content',
+        design_document_content: designBody,
+        design_document_filename: 'design-content.md',
+      },
+      workspace
+    );
+    assert.equal(approval.ok, true);
+    const canonicalDesign = path.join(
+      workspace,
+      'docs',
+      'maestro',
+      'plans',
+      'design-content.md'
+    );
+    assert.equal(approval.result.design_document_path, canonicalDesign);
+    assert.equal(fs.readFileSync(canonicalDesign, 'utf8'), designBody);
+
+    const create = await server.callTool(
+      'create_session',
+      {
+        session_id: 'ddl-content',
+        task: 'content lifecycle',
+        task_complexity: 'simple',
+        implementation_plan_content: planBody,
+        implementation_plan_filename: 'plan-content.md',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(create.ok, true);
+
+    const canonicalPlan = path.join(
+      workspace,
+      'docs',
+      'maestro',
+      'plans',
+      'plan-content.md'
+    );
+    assert.equal(fs.readFileSync(canonicalPlan, 'utf8'), planBody);
+
+    const stateRaw = fs.readFileSync(
+      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
+      'utf8'
+    );
+    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    assert.equal(state.design_document, canonicalDesign);
+    assert.equal(state.implementation_plan, canonicalPlan);
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'ddl-content',
+        completed_phase_id: 1,
+        files_created: ['x.txt'],
+        downstream_context: { integration_points: 'x.txt' },
+      },
+      workspace
+    );
+    const archive = await server.callTool(
+      'archive_session',
+      { session_id: 'ddl-content' },
+      workspace
+    );
+    assert.equal(archive.ok, true);
+    const archiveRoot = path.join(workspace, 'docs', 'maestro');
+    assert.deepEqual(
+      archive.result.archived_files.sort(),
+      [
+        path.join(archiveRoot, 'plans', 'archive', 'design-content.md'),
+        path.join(archiveRoot, 'plans', 'archive', 'plan-content.md'),
+        path.join(archiveRoot, 'state', 'archive', 'ddl-content.md'),
+      ].sort()
+    );
+  });
+
+  it('create_session rejects both implementation_plan variants supplied together', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-planmutex-'));
+    const plansDir = path.join(workspace, 'docs', 'maestro', 'plans');
+    const planPath = path.join(plansDir, 'plan.md');
+    writeFile(planPath, '# Plan\n');
+
+    const server = createServerForWorkspace();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    const create = await server.callTool(
+      'create_session',
+      {
+        session_id: 'ddl-planmutex',
+        task: 'plan mutex',
+        task_complexity: 'simple',
+        implementation_plan: planPath,
+        implementation_plan_content: '# Plan\n',
+        implementation_plan_filename: 'plan.md',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(create.ok, false);
+    assert.match(create.error || '', /mutually exclusive/i);
+  });
+
+  it('create_session rejects incomplete implementation_plan content variant (missing filename)', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-planincomplete-'));
+    const server = createServerForWorkspace();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    const create = await server.callTool(
+      'create_session',
+      {
+        session_id: 'ddl-planincomplete',
+        task: 'plan partial',
+        task_complexity: 'simple',
+        implementation_plan_content: '# Plan\n',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(create.ok, false);
+    assert.match(create.error || '', /implementation_plan_filename is required/i);
+  });
+
+  it('create_session accepts no implementation plan (at-most-one-of semantics permits neither)', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-noplan-'));
+    const server = createServerForWorkspace();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    const create = await server.callTool(
+      'create_session',
+      {
+        session_id: 'ddl-noplan',
+        task: 'no plan',
+        task_complexity: 'simple',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(create.ok, true);
+
+    const stateRaw = fs.readFileSync(
+      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
+      'utf8'
+    );
+    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    assert.equal(state.implementation_plan, null);
+  });
 });

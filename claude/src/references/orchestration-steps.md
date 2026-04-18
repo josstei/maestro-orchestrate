@@ -52,7 +52,12 @@ DESIGN (Phase 1)
     </HARD-GATE>
 13. Using the `design-document` template already loaded in step 7, write the approved design document to the runtime's write surface (Plan Mode tmp for Gemini, `<state_dir>/plans/` when Plan Mode is unavailable). Do NOT call `record_design_approval` while still inside Plan Mode — Gemini deregisters MCP tools during Plan Mode and the call will fail.
 14. If Plan Mode is active, exit Plan Mode with the plan path. MCP tools become available again at this point.
-14a. Call `record_design_approval(session_id, design_document_path)` to clear the design gate. The approval handler records the path without requiring the file to already be on disk; `create_session` in step 21 materializes the file into `<state_dir>/plans/` and will reject if the file is still missing at that point.
+14a. Call `record_design_approval` to clear the design gate. Choose the variant by runtime:
+     - **Content variant (required for Gemini)**: pass `design_document_content` + `design_document_filename`. The MCP server materializes the canonical copy inside `<state_dir>/plans/` atomically. Required whenever the runtime's write surface resolves relative paths against a root the MCP server cannot reach — Gemini Plan Mode writes to `~/.gemini/tmp/<uuid>/...`, so a path handed back to the server never resolves to the same file.
+     - **Path variant (Codex, Claude direct writes)**: pass `design_document_path` (absolute or workspace-relative). The approval handler records the path without requiring the file to already be on disk; `create_session` in step 21 materializes the file into `<state_dir>/plans/` and will reject if the file is still missing at that point.
+     <HARD-GATE>
+     The two variants are mutually exclusive. Supplying both, or neither, fails with VALIDATION_ERROR.
+     </HARD-GATE>
 
 PLANNING (Phase 2)
 15. Using the `implementation-planning` and `implementation-plan` resources already loaded in step 7, follow the planning protocol to draft the implementation plan. If the planning skill instructs you to re-enter Plan Mode for the plan-approval UI, write the plan document first; all subsequent MCP calls (including `validate_plan`) must happen after the next `exit_plan_mode`, not inside Plan Mode.
@@ -77,7 +82,12 @@ EXECUTION SETUP (Phase 3 — pre-delegation)
     that means "prompt the user", not an execution mode the user selects.
     </HARD-GATE>
 20. Call `get_skill_content` with resources: ["session-management", "session-state"].
-21. Pass the exact plan object returned by `validate_plan` to `create_session`. Do not reshape phases — `create_session` rejects plans whose phases are missing required fields ({id, name, agent, parallel, blocked_by}). Set `execution_mode` to the value resolved in step 19.
+21. Pass the exact plan object returned by `validate_plan` to `create_session`. Do not reshape phases — `create_session` rejects plans whose phases are missing required fields ({id, name, agent, parallel, blocked_by}). Set `execution_mode` to the value resolved in step 19. Attach the implementation plan document by runtime:
+    - **Content variant (required for Gemini)**: pass `implementation_plan_content` + `implementation_plan_filename`. Mirrors the design-document content path in step 14a and closes the same runtime-tmp resolution gap when Plan Mode is used for plan approval.
+    - **Path variant (Codex, Claude direct writes)**: pass `implementation_plan` as an absolute or workspace-relative path. Requires the file to exist on disk at the workspace-resolved path when `create_session` runs.
+    <HARD-GATE>
+    The two variants are mutually exclusive. Supplying both fails with VALIDATION_ERROR. Supplying neither is valid — the session records no implementation plan.
+    </HARD-GATE>
 22. Call `get_skill_content` with resources: ["delegation", "validation", "agent-base-protocol", "filesystem-safety-protocol"].
 
 EXECUTION (Phase 3 — delegation loop)

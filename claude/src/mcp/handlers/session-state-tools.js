@@ -16,6 +16,7 @@ const {
   isDesignGateBlockingCreate,
   getApprovedDesignDocumentPath,
   ensureDesignDocumentInPlans,
+  writePlansDocumentContent,
   removeDesignGate,
 } = require('./design-gate');
 const {
@@ -62,6 +63,64 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind) {
   return ensureDesignDocumentInPlans(projectRoot, absolutePath);
 }
 
+/**
+ * Resolve the caller's implementation-plan input to a canonical absolute path.
+ * At-most-one-of (implementation_plan) or (implementation_plan_content +
+ * implementation_plan_filename); absent entirely is valid and returns null
+ * (the session simply has no recorded plan). The content variant closes the
+ * same path-resolution gap that `resolveApprovedDesignDocument` addresses for
+ * design docs: a runtime whose write surface resolves relative paths against
+ * a different root than the MCP workspace cannot pass a path the server can
+ * find, so it passes content instead.
+ *
+ * @param {object} params
+ * @param {string} [params.implementation_plan]
+ * @param {string} [params.implementation_plan_content]
+ * @param {string} [params.implementation_plan_filename]
+ * @param {string} projectRoot
+ * @returns {string | null} canonical absolute path inside plans/, or null when no plan was supplied
+ * @throws {ValidationError} when both variants are provided or the content variant is incomplete
+ */
+function resolveImplementationPlan(params, projectRoot) {
+  const hasPath =
+    typeof params.implementation_plan === 'string' &&
+    params.implementation_plan.length > 0;
+  const hasContent =
+    typeof params.implementation_plan_content === 'string' &&
+    params.implementation_plan_content.length > 0;
+  const hasFilename =
+    typeof params.implementation_plan_filename === 'string' &&
+    params.implementation_plan_filename.length > 0;
+  const contentVariantProvided = hasContent || hasFilename;
+
+  if (hasPath && contentVariantProvided) {
+    throw new ValidationError(
+      'implementation_plan is mutually exclusive with implementation_plan_content/implementation_plan_filename'
+    );
+  }
+
+  if (contentVariantProvided) {
+    if (!hasContent) {
+      throw new ValidationError('implementation_plan_content is required');
+    }
+    if (!hasFilename) {
+      throw new ValidationError('implementation_plan_filename is required');
+    }
+    return writePlansDocumentContent(
+      projectRoot,
+      params.implementation_plan_filename,
+      params.implementation_plan_content,
+      'implementation_plan_filename'
+    );
+  }
+
+  if (hasPath) {
+    return materializeSessionDocument(projectRoot, params.implementation_plan, 'implementation_plan');
+  }
+
+  return null;
+}
+
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
@@ -98,9 +157,7 @@ function handleCreateSession(params, projectRoot) {
   const resolvedDesignDocument = designDocumentCandidate
     ? materializeSessionDocument(projectRoot, designDocumentCandidate, 'design_document')
     : null;
-  const resolvedImplementationPlan = params.implementation_plan
-    ? materializeSessionDocument(projectRoot, params.implementation_plan, 'implementation_plan')
-    : null;
+  const resolvedImplementationPlan = resolveImplementationPlan(params, projectRoot);
 
   const now = new Date().toISOString();
   const state = {

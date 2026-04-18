@@ -60,6 +60,58 @@ function ensureDesignDocumentInPlans(projectRoot, sourcePath) {
 }
 
 /**
+ * Validate that a caller-provided filename is safe to join into the plans
+ * directory. Rejects anything that could escape the directory or collide with a
+ * nested path.
+ *
+ * @param {string} filename
+ * @param {string} paramName - name of the parameter for error messages (e.g. "design_document_filename")
+ * @throws {ValidationError}
+ */
+function assertPlansFilename(filename, paramName) {
+  if (typeof filename !== 'string' || filename.length === 0) {
+    throw new ValidationError(`${paramName} is required`);
+  }
+  if (filename.includes('\0')) {
+    throw new ValidationError(`${paramName} contains null bytes`, {
+      details: { value: filename },
+    });
+  }
+  if (filename !== path.basename(filename) || filename === '..' || filename === '.') {
+    throw new ValidationError(
+      `${paramName} must be a pure basename (no path separators, no '.' or '..')`,
+      { details: { value: filename } }
+    );
+  }
+}
+
+/**
+ * Write caller-supplied document content to `<state_dir>/plans/<filename>`
+ * atomically and return the canonical absolute path. The content-based
+ * counterpart to `ensureDesignDocumentInPlans` — callers that cannot guarantee
+ * filesystem visibility across runtime boundaries (e.g. Gemini Plan Mode writes
+ * to `~/.gemini/tmp/...`) use this to bypass path-resolution ambiguity
+ * entirely.
+ *
+ * @param {string} projectRoot
+ * @param {string} filename - basename-only, validated via assertPlansFilename
+ * @param {string} content - UTF-8 document content
+ * @param {string} filenameParam - parameter name for validation errors
+ * @returns {string} absolute canonical path inside plans/
+ */
+function writePlansDocumentContent(projectRoot, filename, content, filenameParam) {
+  assertPlansFilename(filename, filenameParam);
+  if (typeof content !== 'string' || content.length === 0) {
+    throw new ValidationError(
+      `${filenameParam.replace(/_filename$/, '_content')} must be a non-empty string`
+    );
+  }
+  const destination = path.join(plansDirPath(projectRoot), filename);
+  atomicWriteSync(destination, content);
+  return destination;
+}
+
+/**
  * @param {string} projectRoot
  * @param {string} sessionId
  * @returns {{ session_id: string, entered_at: string | null, approved_at: string | null, design_document_path: string | null } | null}
@@ -106,17 +158,73 @@ function handleEnterDesignGate(params, projectRoot) {
 }
 
 /**
- * @param {{ session_id: string, design_document_path: string }} params
+ * Resolve the caller's approved-design input to a canonical absolute path.
+ * Accepts exactly one of (design_document_path) or (design_document_content +
+ * design_document_filename). The content variant materializes the file
+ * immediately inside `<state_dir>/plans/`, eliminating the path-resolution
+ * ambiguity that arises when callers write through a runtime surface whose
+ * filesystem root differs from the MCP server's workspace (e.g. Gemini Plan
+ * Mode writes to `~/.gemini/tmp/<uuid>/...`).
+ *
+ * @param {object} params
+ * @param {string} [params.design_document_path]
+ * @param {string} [params.design_document_content]
+ * @param {string} [params.design_document_filename]
+ * @param {string} projectRoot
+ * @returns {string} canonical absolute path of the approved design document
+ * @throws {ValidationError} when neither or both input variants are supplied
+ */
+function resolveApprovedDesignDocument(params, projectRoot) {
+  const hasPath =
+    typeof params.design_document_path === 'string' &&
+    params.design_document_path.length > 0;
+  const hasContent =
+    typeof params.design_document_content === 'string' &&
+    params.design_document_content.length > 0;
+  const hasFilename =
+    typeof params.design_document_filename === 'string' &&
+    params.design_document_filename.length > 0;
+  const contentVariantProvided = hasContent || hasFilename;
+
+  if (hasPath && contentVariantProvided) {
+    throw new ValidationError(
+      'design_document_path is mutually exclusive with design_document_content/design_document_filename'
+    );
+  }
+
+  if (contentVariantProvided) {
+    if (!hasContent) {
+      throw new ValidationError('design_document_content is required');
+    }
+    if (!hasFilename) {
+      throw new ValidationError('design_document_filename is required');
+    }
+    return writePlansDocumentContent(
+      projectRoot,
+      params.design_document_filename,
+      params.design_document_content,
+      'design_document_filename'
+    );
+  }
+
+  if (!hasPath) {
+    throw new ValidationError(
+      'record_design_approval requires either design_document_path or both design_document_content and design_document_filename'
+    );
+  }
+
+  return path.isAbsolute(params.design_document_path)
+    ? params.design_document_path
+    : path.join(projectRoot, params.design_document_path);
+}
+
+/**
+ * @param {{ session_id: string, design_document_path?: string, design_document_content?: string, design_document_filename?: string }} params
  * @param {string} projectRoot
  */
 function handleRecordDesignApproval(params, projectRoot) {
   assertSessionId(params.session_id);
-  if (typeof params.design_document_path !== 'string' || params.design_document_path.length === 0) {
-    throw new ValidationError('design_document_path is required');
-  }
-  const absDesignPath = path.isAbsolute(params.design_document_path)
-    ? params.design_document_path
-    : path.join(projectRoot, params.design_document_path);
+  const absDesignPath = resolveApprovedDesignDocument(params, projectRoot);
 
   const gate = readGate(projectRoot, params.session_id) || {
     session_id: params.session_id,
@@ -204,6 +312,7 @@ module.exports = {
   isDesignGateBlockingCreate,
   getApprovedDesignDocumentPath,
   ensureDesignDocumentInPlans,
+  writePlansDocumentContent,
   plansDirPath,
   removeDesignGate,
 };
