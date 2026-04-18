@@ -1,7 +1,7 @@
 STARTUP (Turn 1 — tool calls only, no text output)
  0. If get_runtime_context appears in your available tools, call it. Carry the returned mappings (tool names, agent dispatch syntax, MCP prefix, paths) through the entire session. If unavailable, use the fallback mappings in the entry-point skill preamble.
  1. Call resolve_settings.
- 2. Call initialize_workspace with resolved state_dir.
+ 2. Read `workspace_suggestion` from the `get_runtime_context` response (populated from MCP roots and/or runtime env var). Call `initialize_workspace(workspace_path=<workspace_suggestion or explicit user workspace>, state_dir=<resolved>)`. If no suggestion is available, ask the user via the runtime's user-prompt tool. `initialize_workspace` rejects paths inside extension caches.
  3. Call get_session_status — if active, present status and offer resume/archive.
  4. Call assess_task_complexity.
  5. Parse MAESTRO_DISABLED_AGENTS from resolved settings. Exclude listed agents from all planning.
@@ -12,8 +12,11 @@ CLASSIFICATION (Turn 2)
  8. Classify task as simple/medium/complex. Present classification with rationale.
  9. Route: simple → Express (step 31). Medium/complex → continue to step 10.
 
+DESIGN GATE (Phase 1 pre-entry)
+ 9a. Call `enter_design_gate(session_id)`. This blocks `create_session` until `record_design_approval` is called. Idempotent; safe to call on resume.
+
 DESIGN (Phase 1)
-10. Enter Plan Mode. If unavailable, follow the runtime preamble's Plan Mode fallback instructions.
+10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
 11. Call `get_skill_content` with resources: ["design-dialogue"]. Follow the loaded protocol for:
     - Design depth selector (first design question)
     - Repository grounding (for existing codebases, skip for greenfield)
@@ -37,7 +40,7 @@ DESIGN (Phase 1)
     proceeding to the next. Do NOT present the full design as a single block.
     Quick depth may combine sections. Standard/Deep MUST validate individually.
     </HARD-GATE>
-13. Call `get_skill_content` with resources: ["design-document"]. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path).
+13. Call `get_skill_content` with resources: ["design-document"]. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path). Then call `record_design_approval(session_id, design_document_path)` to clear the design gate. `create_session` in step 21 will reject without this call.
 14. If Plan Mode is active, exit Plan Mode with the plan path. Copy approved document to <state_dir>/plans/.
 
 PLANNING (Phase 2)
@@ -63,19 +66,19 @@ EXECUTION SETUP (Phase 3 — pre-delegation)
     that means "prompt the user", not an execution mode the user selects.
     </HARD-GATE>
 20. Call `get_skill_content` with resources: ["session-management", "session-state"].
-21. Create session via create_session with resolved execution_mode. Do NOT create before mode is resolved.
+21. Pass the exact plan object returned by `validate_plan` to `create_session`. Do not reshape phases — `create_session` rejects plans whose phases are missing required fields ({id, name, agent, parallel, blocked_by}). Set `execution_mode` to the value resolved in step 19.
 22. Call `get_skill_content` with resources: ["delegation", "validation", "agent-base-protocol", "filesystem-safety-protocol"].
 
 EXECUTION (Phase 3 — delegation loop)
-23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology and tool restrictions.
+23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology and tool restrictions. Before constructing the dispatch, read `delegation.constraints` from the cached `get_runtime_context` and shape the call accordingly — omit `agent_type`/`model`/`reasoning_effort` when `fork_full_context_incompatible_with` includes them and you are spawning with full-history fork.
     <HARD-GATE>
     Dispatch by calling the agent's registered tool directly.
     Do NOT use the built-in generalist tool or invoke agents by bare name.
     Each Maestro agent carries specialized methodology, tool restrictions, temperature,
     and turn limits from its frontmatter that the generalist ignores.
     </HARD-GATE>
-24. After each agent returns, parse Task Report + Downstream Context from response.
-25. Call transition_phase to persist results.
+24. After each agent returns, parse the response. If a `## Blockers` section is present and non-empty, do NOT call `transition_phase`: aggregate blockers across the batch, ask the user via the user-prompt tool, and re-delegate the phase with the answer in the context block. Only when blockers are empty, parse Task Report + Downstream Context.
+25. Call transition_phase to persist results. `transition_phase` rejects with `HANDOFF_INCOMPLETE` if the phase produced files but downstream_context is empty — re-request the handoff. It sets `requires_reconciliation: true` when all manifests AND downstream_context are empty — in that case, invoke the Recovery Protocol in the execution skill (`scan_phase_changes` → user confirmation → `reconcile_phase`).
     <HARD-GATE>
     For parallel batches: call transition_phase INDIVIDUALLY for EVERY completed
     phase in the batch. The MCP tool writes files_created, files_modified,
