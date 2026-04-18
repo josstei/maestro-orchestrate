@@ -16,6 +16,7 @@ const {
   isDesignGateBlockingCreate,
   getApprovedDesignDocumentPath,
   ensureDesignDocumentInPlans,
+  removeDesignGate,
 } = require('./design-gate');
 const {
   resolveBasePath,
@@ -416,6 +417,8 @@ function handleArchiveSession(params, projectRoot) {
       archivedFiles.push(destinationPath);
     }
   }
+
+  removeDesignGate(projectRoot, params.session_id);
 
   return {
     success: true,

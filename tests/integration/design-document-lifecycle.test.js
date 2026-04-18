@@ -236,6 +236,73 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     assert.equal(fs.existsSync(archivedPlan), true);
   });
 
+  it('archive_session removes the design-gate artifact so reused session IDs start with a fresh gate', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-gate-cleanup-'));
+    const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
+    writeFile(designPath, '# Design\n');
+
+    const server = createServerForWorkspace();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'ddl-cleanup' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      { session_id: 'ddl-cleanup', design_document_path: designPath },
+      workspace
+    );
+
+    const gatePath = path.join(
+      workspace,
+      'docs',
+      'maestro',
+      'state',
+      'ddl-cleanup.design-gate.json'
+    );
+    assert.equal(fs.existsSync(gatePath), true, 'gate file exists during session');
+
+    await server.callTool(
+      'create_session',
+      {
+        session_id: 'ddl-cleanup',
+        task: 'gate cleanup',
+        task_complexity: 'simple',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['f.txt'] },
+        ],
+      },
+      workspace
+    );
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'ddl-cleanup',
+        completed_phase_id: 1,
+        files_created: ['f.txt'],
+        downstream_context: { integration_points: 'f.txt' },
+      },
+      workspace
+    );
+    const archive = await server.callTool(
+      'archive_session',
+      { session_id: 'ddl-cleanup' },
+      workspace
+    );
+    assert.equal(archive.ok, true);
+    assert.equal(
+      fs.existsSync(gatePath),
+      false,
+      'archive_session must remove the design-gate artifact'
+    );
+
+    const resumedGate = await server.callTool(
+      'get_design_gate_status',
+      { session_id: 'ddl-cleanup' },
+      workspace
+    );
+    assert.equal(resumedGate.ok, true);
+    assert.equal(resumedGate.result.entered_at, null, 'reused session id starts with a fresh gate');
+    assert.equal(resumedGate.result.approved_at, null);
+  });
+
   it('persists explicit implementation_plan params that already live in plans/ without copying', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-inplace-'));
     const plansDir = path.join(workspace, 'docs', 'maestro', 'plans');

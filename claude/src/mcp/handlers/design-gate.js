@@ -181,6 +181,22 @@ function getApprovedDesignDocumentPath(projectRoot, sessionId) {
   return gate.design_document_path || null;
 }
 
+/**
+ * Remove the design-gate artifact for a session. Called by archive_session so
+ * the gate doesn't linger in state/ after the session is archived — otherwise
+ * a future session reusing the same id would inherit a stale "already approved"
+ * gate from the prior run.
+ * @param {string} projectRoot
+ * @param {string} sessionId
+ * @returns {string | null} path of the removed gate file, or null if no gate existed
+ */
+function removeDesignGate(projectRoot, sessionId) {
+  const filePath = gatePath(projectRoot, sessionId);
+  if (!fs.existsSync(filePath)) return null;
+  fs.unlinkSync(filePath);
+  return filePath;
+}
+
 module.exports = {
   handleEnterDesignGate,
   handleRecordDesignApproval,
@@ -189,4 +205,5 @@ module.exports = {
   getApprovedDesignDocumentPath,
   ensureDesignDocumentInPlans,
   plansDirPath,
+  removeDesignGate,
 };
