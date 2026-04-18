@@ -39,6 +39,7 @@ function createToolPack() {
         name: 'assess_task_complexity',
         description:
           'Analyze repo structure and return factual signals for complexity classification. Does NOT classify — returns signals for the model to interpret.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {

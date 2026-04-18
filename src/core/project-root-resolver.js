@@ -127,6 +127,27 @@ function resolveProjectRoot() {
   return resolveProjectRootFromEnv(process.env, process.cwd());
 }
 
+/**
+ * Assert that a tool handler was invoked with a resolved workspace root.
+ * Used by handlers that cannot function without a workspace (session state,
+ * reconciliation, complexity assessment). The dispatcher calls this centrally
+ * when `requiresWorkspace` is declared on the tool schema; handlers may also
+ * call it directly for defense in depth.
+ *
+ * @param {string|null|undefined} projectRoot - resolved project root or nullish
+ * @param {string} toolName - tool name for the error message
+ * @throws {WorkspaceResolutionError} when projectRoot is absent
+ */
+function requireWorkspaceRoot(projectRoot, toolName) {
+  if (typeof projectRoot === 'string' && projectRoot.length > 0) {
+    return projectRoot;
+  }
+  throw new WorkspaceResolutionError(
+    `${toolName} requires an initialized workspace. Call initialize_workspace(workspace_path=...) first.`,
+    { code: 'WORKSPACE_NOT_INITIALIZED', details: { tool_name: toolName } }
+  );
+}
+
 function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
   if (!workspacePath || typeof workspacePath !== 'string' || workspacePath.includes('${')) {
     throw new WorkspaceResolutionError(
@@ -158,5 +179,6 @@ module.exports = {
   resolveProjectRoot,
   resolveProjectRootForRuntime,
   requireExplicitWorkspaceRoot,
+  requireWorkspaceRoot,
   WorkspaceResolutionError,
 };

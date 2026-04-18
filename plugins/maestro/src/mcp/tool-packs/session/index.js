@@ -26,6 +26,7 @@ function createToolPack() {
       {
         name: 'create_session',
         description: 'Create a new Maestro orchestration session.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -56,6 +57,7 @@ function createToolPack() {
         name: 'get_session_status',
         description:
           'Read current session status including workflow_mode. Returns { exists: false } if no active session, or { exists: true, ...status } if one exists.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -67,6 +69,7 @@ function createToolPack() {
         name: 'update_session',
         description:
           'Update session metadata fields (execution_mode, current_batch) after session creation. Use after execution-mode gate resolves.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -85,6 +88,7 @@ function createToolPack() {
         name: 'transition_phase',
         description:
           'Atomically mark a phase completed and start the next phase(s). Supports single or batch transitions.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -115,6 +119,7 @@ function createToolPack() {
         name: 'archive_session',
         description:
           'Move active session to archive. Also moves associated design document and implementation plan to plans/archive/ if they exist.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -127,6 +132,7 @@ function createToolPack() {
         name: 'enter_design_gate',
         description:
           'Mark a session as having entered the design phase. Idempotent. Blocks create_session until record_design_approval is called.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: { session_id: { type: 'string' } },
@@ -137,6 +143,7 @@ function createToolPack() {
         name: 'record_design_approval',
         description:
           'Record user approval of the design document, clearing the design gate for session creation.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -150,6 +157,7 @@ function createToolPack() {
         name: 'get_design_gate_status',
         description:
           'Read the design gate status for a session. Returns entered_at, approved_at, and design_document_path (all nullable).',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: { session_id: { type: 'string' } },
@@ -160,6 +168,7 @@ function createToolPack() {
         name: 'scan_phase_changes',
         description:
           'Scan the workspace for files created or modified since the phase started. Does not attribute files — returns candidates for the orchestrator to reconcile.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -173,6 +182,7 @@ function createToolPack() {
         name: 'reconcile_phase',
         description:
           'Record file manifests and downstream context for a phase that could not be handed off cleanly. Clears requires_reconciliation.',
+        requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {

@@ -33,6 +33,7 @@ function createToolRegistry(options = {}) {
   const schemas = [];
   const handlers = Object.create(null);
   const toolSources = Object.create(null);
+  const metadata = Object.create(null);
 
   for (const pack of toolPacks) {
     for (const schema of pack.tools) {
@@ -60,6 +61,9 @@ function createToolRegistry(options = {}) {
       toolSources[schema.name] = pack.name;
       schemas.push(schema);
       handlers[schema.name] = handler;
+      metadata[schema.name] = {
+        requiresWorkspace: schema.requiresWorkspace === true,
+      };
     }
   }
 
@@ -68,6 +72,7 @@ function createToolRegistry(options = {}) {
     toolPacks,
     schemas,
     handlers,
+    metadata,
   };
 }
 
