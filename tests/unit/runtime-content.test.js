@@ -32,9 +32,9 @@ describe('RESOURCE_ALLOWLIST', () => {
 });
 
 describe('AGENT_ALLOWLIST', () => {
-  it('is frozen with 22 entries, all kebab-case strings', () => {
+  it('is frozen with 39 entries, all kebab-case strings', () => {
     assert.equal(Object.isFrozen(AGENT_ALLOWLIST), true);
-    assert.equal(AGENT_ALLOWLIST.length, 22);
+    assert.equal(AGENT_ALLOWLIST.length, 39);
 
     for (const name of AGENT_ALLOWLIST) {
       assert.equal(typeof name, 'string');

@@ -60,6 +60,37 @@
     ]
   },
   {
+    "name": "cloud-architect",
+    "capabilities": "read_only",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "google_web_search",
+      "read_many_files",
+      "ask_user",
+      "web_fetch"
+    ]
+  },
+  {
+    "name": "cobol-engineer",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "read_many_files",
+      "ask_user",
+      "google_web_search"
+    ]
+  },
+  {
     "name": "code-reviewer",
     "capabilities": "read_only",
     "tools": [
@@ -148,6 +179,38 @@
     ]
   },
   {
+    "name": "database-administrator",
+    "capabilities": "read_shell",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "run_shell_command",
+      "google_web_search",
+      "read_many_files",
+      "write_todos",
+      "ask_user",
+      "web_fetch"
+    ]
+  },
+  {
+    "name": "db2-dba",
+    "capabilities": "read_shell",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "run_shell_command",
+      "google_web_search",
+      "read_many_files",
+      "write_todos",
+      "ask_user",
+      "web_fetch"
+    ]
+  },
+  {
     "name": "debugger",
     "capabilities": "read_shell",
     "tools": [
@@ -197,6 +260,23 @@
     ]
   },
   {
+    "name": "hlasm-assembler-specialist",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "read_many_files",
+      "ask_user",
+      "google_web_search"
+    ]
+  },
+  {
     "name": "i18n-specialist",
     "capabilities": "full",
     "tools": [
@@ -210,6 +290,113 @@
       "write_todos",
       "read_many_files",
       "ask_user"
+    ]
+  },
+  {
+    "name": "ibm-i-specialist",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "read_many_files",
+      "ask_user",
+      "google_web_search"
+    ]
+  },
+  {
+    "name": "integration-engineer",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "activate_skill",
+      "read_many_files",
+      "ask_user",
+      "google_web_search"
+    ]
+  },
+  {
+    "name": "ml-engineer",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "activate_skill",
+      "read_many_files",
+      "ask_user",
+      "google_web_search"
+    ]
+  },
+  {
+    "name": "mlops-engineer",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "read_many_files",
+      "ask_user",
+      "google_web_search",
+      "web_fetch"
+    ]
+  },
+  {
+    "name": "mobile-engineer",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "activate_skill",
+      "read_many_files",
+      "ask_user",
+      "google_web_search"
+    ]
+  },
+  {
+    "name": "observability-engineer",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "read_many_files",
+      "ask_user",
+      "google_web_search",
+      "web_fetch"
     ]
   },
   {
@@ -229,6 +416,25 @@
     ]
   },
   {
+    "name": "platform-engineer",
+    "capabilities": "full",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "run_shell_command",
+      "write_todos",
+      "activate_skill",
+      "read_many_files",
+      "ask_user",
+      "google_web_search",
+      "web_fetch"
+    ]
+  },
+  {
     "name": "product-manager",
     "capabilities": "read_write",
     "tools": [
@@ -241,6 +447,23 @@
       "google_web_search",
       "read_many_files",
       "ask_user"
+    ]
+  },
+  {
+    "name": "prompt-engineer",
+    "capabilities": "read_write",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "read_many_files",
+      "google_web_search",
+      "write_todos",
+      "ask_user",
+      "web_fetch"
     ]
   },
   {
@@ -258,6 +481,23 @@
       "activate_skill",
       "read_many_files",
       "ask_user"
+    ]
+  },
+  {
+    "name": "release-manager",
+    "capabilities": "read_write",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "write_file",
+      "replace",
+      "read_many_files",
+      "google_web_search",
+      "write_todos",
+      "ask_user",
+      "web_fetch"
     ]
   },
   {
@@ -290,6 +530,36 @@
       "write_todos",
       "read_many_files",
       "ask_user"
+    ]
+  },
+  {
+    "name": "site-reliability-engineer",
+    "capabilities": "read_shell",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "run_shell_command",
+      "google_web_search",
+      "read_many_files",
+      "write_todos",
+      "ask_user",
+      "web_fetch"
+    ]
+  },
+  {
+    "name": "solutions-architect",
+    "capabilities": "read_only",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "google_web_search",
+      "read_many_files",
+      "ask_user",
+      "web_fetch"
     ]
   },
   {
@@ -339,6 +609,22 @@
       "google_web_search",
       "read_many_files",
       "ask_user"
+    ]
+  },
+  {
+    "name": "zos-sysprog",
+    "capabilities": "read_shell",
+    "tools": [
+      "read_file",
+      "list_directory",
+      "glob",
+      "grep_search",
+      "run_shell_command",
+      "google_web_search",
+      "read_many_files",
+      "write_todos",
+      "ask_user",
+      "web_fetch"
     ]
   }
 ]

@@ -7,7 +7,7 @@
 [![Codex](https://img.shields.io/badge/Codex-plugin-black)](docs/runtime-codex.md)
 [![Qwen Code](https://img.shields.io/badge/Qwen_Code-extension-purple)](https://github.com/QwenLM/qwen-code)
 
-Maestro is a multi-agent development orchestration platform with 22 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Gemini CLI**, **Claude Code**, **Codex**, and **Qwen Code**.
+Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Gemini CLI**, **Claude Code**, **Codex**, and **Qwen Code**.
 
 ## Runtime Targets
 
