@@ -2,9 +2,16 @@
 
 /**
  * Emit `file_overlap` violations when two phases marked `parallel` at
- * the same dependency depth both declare the same file in
- * `files_created` or `files_modified`. Phases at different depths can
- * safely touch the same file because they run sequentially.
+ * the same dependency depth both declare ownership of the same file.
+ * Phases at different depths can safely touch the same file because
+ * they run sequentially.
+ *
+ * Ownership is the union of:
+ *   - `files` — the planning-time manifest (canonical plan input)
+ *   - `files_created` / `files_modified` — runtime-populated manifests
+ *     from previous executions of the plan (included for plans that
+ *     were already executed and are being re-validated against updated
+ *     rules).
  */
 function checkFileOverlap(phases, depths) {
   const parallelPhases = phases.filter((phase) => phase.parallel);
@@ -29,6 +36,7 @@ function checkFileOverlap(phases, depths) {
     const fileOwners = {};
     for (const phase of batch) {
       const files = [
+        ...(phase.files || []),
         ...(phase.files_created || []),
         ...(phase.files_modified || []),
       ];

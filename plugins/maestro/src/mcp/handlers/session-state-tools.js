@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { assertSessionId, coercePositiveInteger } = require('../../lib/validation');
+const { assertSessionId } = require('../../lib/validation');
 const { validatePhases } = require('../contracts/plan-schema');
 const {
   createEmptyDownstreamContext,
@@ -214,12 +214,7 @@ function handleCreateSession(params, projectRoot) {
     design_document: resolvedDesignDocument || null,
     implementation_plan: resolvedImplementationPlan,
     current_phase:
-      params.phases && params.phases.length > 0
-        ? Number.isFinite(Number(params.phases[0].id)) &&
-          Number(params.phases[0].id) > 0
-          ? Number(params.phases[0].id)
-          : 1
-        : null,
+      params.phases && params.phases.length > 0 ? params.phases[0].id : null,
     total_phases: params.phases.length,
     execution_mode: params.execution_mode || null,
     execution_backend: 'native',
@@ -231,11 +226,8 @@ function handleCreateSession(params, projectRoot) {
       total_cached: 0,
       by_agent: {},
     },
-    phases: params.phases.map((phase, index) => ({
-      id:
-        Number.isFinite(Number(phase.id)) && Number(phase.id) > 0
-          ? Number(phase.id)
-          : index + 1,
+    phases: params.phases.map((phase) => ({
+      id: phase.id,
       name: phase.name,
       status: 'pending',
       agents: phase.agent ? [phase.agent] : [],
@@ -297,12 +289,6 @@ function handleGetSessionStatus(_params, projectRoot) {
 }
 
 function handleTransitionPhase(params, projectRoot) {
-  params.next_phase_id = coercePositiveInteger(params.next_phase_id);
-  params.completed_phase_id = coercePositiveInteger(params.completed_phase_id);
-  if (Array.isArray(params.next_phase_ids)) {
-    params.next_phase_ids = params.next_phase_ids.map(coercePositiveInteger);
-  }
-
   if (params.session_id) {
     assertSessionId(params.session_id);
   }

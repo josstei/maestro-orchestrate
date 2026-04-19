@@ -7,6 +7,11 @@ const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
 const { readActiveSession, withSessionState } = require('./session-state-core');
 const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
+const { isValidPhaseId } = require('../contracts/plan-schema');
+const {
+  normalizeDownstreamContext,
+  isDownstreamContextPopulated,
+} = require('../contracts/downstream-context');
 
 const DEFAULT_IGNORE_DIRS = new Set([
   '.git',
@@ -112,8 +117,10 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
  */
 function handleScanPhaseChanges(params, projectRoot) {
   assertSessionId(params.session_id);
-  if (!Number.isInteger(params.phase_id) || params.phase_id < 1) {
-    throw new ValidationError('phase_id must be a positive integer');
+  if (!isValidPhaseId(params.phase_id)) {
+    throw new ValidationError(
+      'phase_id must be a positive integer or a non-empty string'
+    );
   }
   const { state } = readActiveSession(projectRoot);
 
@@ -153,9 +160,27 @@ function handleScanPhaseChanges(params, projectRoot) {
  */
 function handleReconcilePhase(params, projectRoot) {
   assertSessionId(params.session_id);
-  if (!Number.isInteger(params.phase_id) || params.phase_id < 1) {
-    throw new ValidationError('phase_id must be a positive integer');
+  if (!isValidPhaseId(params.phase_id)) {
+    throw new ValidationError(
+      'phase_id must be a positive integer or a non-empty string'
+    );
   }
+
+  const filesCreated = Array.isArray(params.files_created) ? params.files_created : [];
+  const filesModified = Array.isArray(params.files_modified) ? params.files_modified : [];
+  const filesDeleted = Array.isArray(params.files_deleted) ? params.files_deleted : [];
+  const hasFilesPayload =
+    filesCreated.length + filesModified.length + filesDeleted.length > 0;
+  const normalizedContext = normalizeDownstreamContext(params.downstream_context);
+  const hasContextPayload = isDownstreamContextPopulated(normalizedContext);
+
+  if (!hasFilesPayload && !hasContextPayload) {
+    throw new ValidationError(
+      'reconcile_phase requires at least one of files_created, files_modified, files_deleted, or a populated downstream_context. An empty payload cannot clear requires_reconciliation.',
+      { code: 'RECONCILIATION_EMPTY_PAYLOAD' }
+    );
+  }
+
   return withSessionState(projectRoot, ({ state }) => {
     if (state.session_id !== params.session_id) {
       throw new StateError(
@@ -167,11 +192,17 @@ function handleReconcilePhase(params, projectRoot) {
     if (!phase) {
       throw new NotFoundError(`Phase ${params.phase_id} not found`);
     }
-    phase.files_created = params.files_created || phase.files_created || [];
-    phase.files_modified = params.files_modified || phase.files_modified || [];
-    phase.files_deleted = params.files_deleted || phase.files_deleted || [];
-    if (params.downstream_context) {
-      phase.downstream_context = params.downstream_context;
+    if (params.files_created !== undefined) {
+      phase.files_created = filesCreated;
+    }
+    if (params.files_modified !== undefined) {
+      phase.files_modified = filesModified;
+    }
+    if (params.files_deleted !== undefined) {
+      phase.files_deleted = filesDeleted;
+    }
+    if (hasContextPayload) {
+      phase.downstream_context = normalizedContext;
     }
     phase.requires_reconciliation = false;
     if (params.reason) {

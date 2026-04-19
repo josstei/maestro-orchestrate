@@ -143,5 +143,6 @@ module.exports = {
   PHASE_ID_SCHEMA,
   PHASE_ITEM_SCHEMA,
   PHASE_REQUIRED_FIELDS,
+  isValidPhaseId,
   validatePhases,
 };

@@ -104,15 +104,15 @@ function createToolPack() {
           type: 'object',
           properties: {
             session_id: { type: 'string' },
-            completed_phase_id: { type: 'number' },
+            completed_phase_id: { type: ['number', 'string'] },
             downstream_context: { type: 'object' },
             files_created: { type: 'array' },
             files_modified: { type: 'array' },
             files_deleted: { type: 'array' },
-            next_phase_id: { type: ['number', 'null'] },
+            next_phase_id: { type: ['number', 'string', 'null'] },
             next_phase_ids: {
               type: 'array',
-              items: { type: 'number' },
+              items: { type: ['number', 'string'] },
               description:
                 'Start multiple phases (parallel batch). Mutually exclusive with next_phase_id.',
             },
@@ -198,7 +198,7 @@ function createToolPack() {
           type: 'object',
           properties: {
             session_id: { type: 'string' },
-            phase_id: { type: 'integer' },
+            phase_id: { type: ['integer', 'string'] },
           },
           required: ['session_id', 'phase_id'],
         },
@@ -206,13 +206,13 @@ function createToolPack() {
       {
         name: 'reconcile_phase',
         description:
-          'Record file manifests and downstream context for a phase that could not be handed off cleanly. Clears requires_reconciliation.',
+          'Record file manifests and downstream context for a phase that could not be handed off cleanly. Requires at least one of files_created/files_modified/files_deleted or a populated downstream_context. Clears requires_reconciliation on success.',
         requiresWorkspace: true,
         inputSchema: {
           type: 'object',
           properties: {
             session_id: { type: 'string' },
-            phase_id: { type: 'integer' },
+            phase_id: { type: ['integer', 'string'] },
             files_created: { type: 'array' },
             files_modified: { type: 'array' },
             files_deleted: { type: 'array' },

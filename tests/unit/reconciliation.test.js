@@ -89,6 +89,69 @@ describe('scan_phase_changes', () => {
   });
 });
 
+describe('reconcile_phase — empty payload', () => {
+  it('rejects a call with no files and no downstream_context', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-empty-'));
+    const server = setupSession(workspace);
+    await bootstrap(server, workspace);
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'recon-test',
+        completed_phase_id: 1,
+        files_created: [],
+        files_modified: [],
+        files_deleted: [],
+        downstream_context: {},
+      },
+      workspace
+    );
+
+    const outcome = await server.callTool(
+      'reconcile_phase',
+      { session_id: 'recon-test', phase_id: 1 },
+      workspace
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /reconcile_phase requires at least one/i);
+  });
+
+  it('rejects a call with empty arrays and an unpopulated downstream_context', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-empty2-'));
+    const server = setupSession(workspace);
+    await bootstrap(server, workspace);
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'recon-test',
+        completed_phase_id: 1,
+        files_created: [],
+        files_modified: [],
+        files_deleted: [],
+        downstream_context: {},
+      },
+      workspace
+    );
+
+    const outcome = await server.callTool(
+      'reconcile_phase',
+      {
+        session_id: 'recon-test',
+        phase_id: 1,
+        files_created: [],
+        files_modified: [],
+        files_deleted: [],
+        downstream_context: {},
+      },
+      workspace
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /reconcile_phase requires at least one/i);
+  });
+});
+
 describe('reconcile_phase', () => {
   it('clears requires_reconciliation and writes file manifests', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-e2e-'));

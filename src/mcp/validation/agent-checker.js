@@ -31,8 +31,9 @@ function checkUnknownAgents(phases) {
 /**
  * Catch mismatches between an agent's write capability and a phase's
  * file-touching workload. Read-only agents assigned to phases that
- * declare `files_created` or `files_modified` emit an error; read-only
- * agents assigned to phases whose name hints at creation emit a warning.
+ * declare `files` (planning-time), `files_created`, or `files_modified`
+ * emit an error; read-only agents assigned to phases whose name hints
+ * at creation emit a warning.
  */
 function checkAgentCapabilities(phases) {
   const violations = [];
@@ -43,6 +44,7 @@ function checkAgentCapabilities(phases) {
     }
 
     const touchesFiles =
+      (Array.isArray(phase.files) && phase.files.length > 0) ||
       (Array.isArray(phase.files_created) && phase.files_created.length > 0) ||
       (Array.isArray(phase.files_modified) && phase.files_modified.length > 0);
 

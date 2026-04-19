@@ -174,6 +174,76 @@ describe('session tool pack', () => {
     assert.deepEqual(session.phases[0].planned_files, ['src/foo.js', 'src/bar.js']);
   });
 
+  it('preserves string phase ids end-to-end through create_session and transition_phase', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-string-id-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    const createResult = await server.callTool(
+      'create_session',
+      {
+        session_id: 'string-id-test',
+        task: 'string-id round-trip',
+        task_complexity: 'simple',
+        phases: [
+          {
+            id: 'design',
+            name: 'Design phase',
+            agent: 'architect',
+            parallel: false,
+            blocked_by: [],
+          },
+          {
+            id: 'impl',
+            name: 'Implementation phase',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: ['design'],
+          },
+        ],
+      },
+      projectRoot
+    );
+    assert.equal(createResult.ok, true);
+
+    const session = readSessionFrontmatter(projectRoot);
+    assert.equal(session.current_phase, 'design');
+    assert.equal(session.phases[0].id, 'design');
+    assert.equal(session.phases[1].id, 'impl');
+    assert.deepEqual(session.phases[1].blocked_by, ['design']);
+
+    const transitionResult = await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'string-id-test',
+        completed_phase_id: 'design',
+        next_phase_id: 'impl',
+        files_created: [],
+        files_modified: [],
+        files_deleted: [],
+        downstream_context: {
+          key_interfaces_introduced: [],
+          patterns_established: [],
+          integration_points: [],
+          assumptions: [],
+          warnings: [],
+        },
+      },
+      projectRoot
+    );
+    assert.equal(transitionResult.ok, true);
+    assert.deepEqual(
+      transitionResult.result.session_state_summary.completed_phases,
+      ['design']
+    );
+    assert.equal(transitionResult.result.session_state_summary.current_phase, 'impl');
+  });
+
   it('archives the active session and associated plan files', async () => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-archive-'));
     ensureWorkspace('docs/maestro', projectRoot);
