@@ -44,7 +44,6 @@ describe('generator integration', () => {
     const entrypoints = [
       'mcp/maestro-server.js',
       'claude/mcp/maestro-server.js',
-      'plugins/maestro/mcp/maestro-server.js',
     ];
 
     for (const relativePath of entrypoints) {

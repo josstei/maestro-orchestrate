@@ -4,20 +4,20 @@ This directory is the generated Codex runtime for Maestro.
 
 ## Installation
 
-1. Clone the repository:
+1. Register the marketplace:
 
    ```bash
-   git clone https://github.com/josstei/maestro-orchestrate
-   cd maestro-orchestrate
+   codex marketplace add josstei/maestro-orchestrate
    ```
 
-2. Run the installer:
+2. Start Codex, run `/plugins`, and select **Maestro** → **Install**.
 
-   ```bash
-   node scripts/install-codex-plugin.js
-   ```
+For local development:
 
-3. Start Codex, run `/plugins`, and select **Maestro** → **Install**.
+```bash
+git clone https://github.com/josstei/maestro-orchestrate
+codex marketplace add /path/to/maestro-orchestrate
+```
 
 ## Architecture
 

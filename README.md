@@ -75,12 +75,17 @@ More Claude-specific setup and plugin management lives in [claude/README.md](cla
 #### Codex
 
 ```bash
-git clone https://github.com/josstei/maestro-orchestrate
-cd maestro-orchestrate
-node scripts/install-codex-plugin.js
+codex marketplace add josstei/maestro-orchestrate
 ```
 
 Then start Codex, run `/plugins`, and select **Maestro** → **Install**.
+
+Local development:
+
+```bash
+git clone https://github.com/josstei/maestro-orchestrate
+codex marketplace add /path/to/maestro-orchestrate
+```
 
 More Codex-specific setup and runtime details live in [plugins/maestro/README.md](plugins/maestro/README.md) and [docs/runtime-codex.md](docs/runtime-codex.md).
 

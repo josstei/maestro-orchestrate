@@ -7,14 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Codex MCP server invocation** — `plugins/maestro/.mcp.json` now spawns the server via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server`, matching the convention used by every curated Codex plugin. The previous relative-path spawn (`./mcp/maestro-server.js`) resolved against the user's workspace cwd rather than the plugin directory, causing MCP handshake failures in any workspace outside the repo checkout. The new invocation is location-independent.
+- **Codex installation path** — Primary install is now `codex marketplace add josstei/maestro-orchestrate` (uses the new root `.agents/plugins/marketplace.json`). `scripts/install-codex-plugin.js` remains as a legacy/offline fallback.
+
 ### Added
 
+- **`maestro-mcp-server` bin** (`bin/maestro-mcp-server.js`) — Thin Node entrypoint declared in `package.json` bin; sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then delegates to `src/mcp/maestro-server.js`. Invoked by Codex via `npx`.
+- **Root-level Codex marketplace manifest** (`.agents/plugins/marketplace.json`) — Makes the repo a valid marketplace target for `codex marketplace add`.
 - **17 additional specialist agents** — Expanded the roster from 22 to 39 specialists:
   - **ML / AI**: `ml-engineer`, `mlops-engineer`, `prompt-engineer`
   - **Ops / reliability**: `site-reliability-engineer`, `observability-engineer`, `release-manager`
   - **Platform**: `cloud-architect`, `platform-engineer`, `solutions-architect`, `integration-engineer`
   - **Data / mobile**: `database-administrator`, `mobile-engineer`
   - **Mainframe / legacy**: `cobol-engineer`, `db2-dba`, `zos-sysprog`, `hlasm-assembler-specialist`, `ibm-i-specialist`
+
+### Removed
+
+- **`plugins/maestro/mcp/maestro-server.js`** — No longer referenced; Codex invokes the server via `npx` rather than a local wrapper file.
+
+### Known limitations
+
+- **Local Codex plugin development iterates through GitHub.** `plugins/maestro/.mcp.json` always points `npx` at `github:josstei/maestro-orchestrate`, so running `codex marketplace add /path/to/maestro-orchestrate` still fetches the server from the default branch rather than the working tree. For iterating on server code, push the branch and test there, or invoke `bin/maestro-mcp-server.js` directly and point Codex at it with a hand-authored `.mcp.json`.
 
 ## [1.6.2] - 2026-04-15
 

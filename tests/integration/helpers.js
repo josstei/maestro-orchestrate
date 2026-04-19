@@ -55,19 +55,6 @@ function parseDryRunReport(output) {
   };
 }
 
-async function withIsolatedCodexPlugin(fn) {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-plugin-'));
-  const pluginRoot = path.join(tempRoot, 'maestro');
-
-  fs.cpSync(path.join(ROOT, 'plugins', 'maestro'), pluginRoot, { recursive: true });
-
-  try {
-    return await fn(pluginRoot);
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
-}
-
 async function withIsolatedClaudePlugin(fn) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-plugin-'));
   const pluginRoot = path.join(tempRoot, 'maestro');
@@ -110,5 +97,4 @@ module.exports = {
   runGenerator,
   runGeneratorExpectFailure,
   withIsolatedClaudePlugin,
-  withIsolatedCodexPlugin,
 };

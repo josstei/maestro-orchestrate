@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "maestro": {
-      "command": "node",
-      "args": ["./mcp/maestro-server.js"]
+      "command": "npx",
+      "args": ["-y", "github:josstei/maestro-orchestrate", "maestro-mcp-server"],
+      "env": {
+        "MAESTRO_RUNTIME": "codex"
+      }
     }
   }
 }

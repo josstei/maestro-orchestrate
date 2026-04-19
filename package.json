@@ -13,7 +13,8 @@
     "url": "https://github.com/josstei/maestro-orchestrate.git"
   },
   "bin": {
-    "maestro-install-codex": "./scripts/install-codex-plugin.js"
+    "maestro-install-codex": "./scripts/install-codex-plugin.js",
+    "maestro-mcp-server": "./bin/maestro-mcp-server.js"
   },
   "scripts": {
     "generate": "node scripts/generate.js",
@@ -37,6 +38,7 @@
   "files": [
     "src/",
     "scripts/",
+    "bin/",
     "agents/",
     "claude/",
     "plugins/",
@@ -45,6 +47,7 @@
     "mcp/",
     "policies/",
     "docs/",
+    ".agents/",
     "GEMINI.md",
     "gemini-extension.json",
     "QWEN.md",
