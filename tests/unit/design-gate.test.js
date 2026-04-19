@@ -13,6 +13,11 @@ const {
 const {
   createToolPack: createWorkspacePack,
 } = require('../../src/mcp/tool-packs/workspace');
+const {
+  listApprovedGates,
+  findOrphanedApprovedGates,
+  hasDesignGate,
+} = require('../../src/mcp/handlers/design-gate');
 
 function makeWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-gate-'));
@@ -314,5 +319,231 @@ describe('design gate tools', () => {
       workspace
     );
     assert.equal(outcome.ok, true);
+  });
+
+  it('create_session rejects when an approved gate exists for a different session_id and the current session has no gate', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'placeholder-id' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'placeholder-id',
+        design_document_content: '# Design\n',
+        design_document_filename: 'drift-design.md',
+      },
+      workspace
+    );
+
+    const outcome = await server.callTool(
+      'create_session',
+      {
+        session_id: 'real-session-id',
+        task: 'drifted session id',
+        task_complexity: 'simple',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x'] },
+        ],
+      },
+      workspace
+    );
+
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.code, 'DESIGN_GATE_SESSION_MISMATCH');
+    assert.match(outcome.error || '', /placeholder-id/);
+    assert.match(outcome.error || '', /real-session-id/);
+    assert.match(outcome.error || '', /Session IDs must match/i);
+  });
+
+  it('create_session succeeds when an orphan approved gate exists but the current session also has its own gate', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    await server.callTool('enter_design_gate', { session_id: 'prior-abandoned' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'prior-abandoned',
+        design_document_content: '# Old\n',
+        design_document_filename: 'old-design.md',
+      },
+      workspace
+    );
+
+    await server.callTool('enter_design_gate', { session_id: 'fresh-session' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'fresh-session',
+        design_document_content: '# New\n',
+        design_document_filename: 'new-design.md',
+      },
+      workspace
+    );
+
+    const outcome = await server.callTool(
+      'create_session',
+      {
+        session_id: 'fresh-session',
+        task: 'fresh session with abandoned orphan gate in workspace',
+        task_complexity: 'simple',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['y'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(
+      outcome.ok,
+      true,
+      'orphan detection must not false-positive when current session has its own gate'
+    );
+  });
+
+  it('create_session with no gates in the workspace proceeds normally (simple/express tasks skip the design gate)', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    const outcome = await server.callTool(
+      'create_session',
+      {
+        session_id: 'express-session',
+        task: 'simple task without gate',
+        task_complexity: 'simple',
+        workflow_mode: 'express',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['z'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(outcome.ok, true);
+  });
+
+  it('listApprovedGates enumerates only gates with a non-empty approved_at', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    await server.callTool('enter_design_gate', { session_id: 'entered-only' }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'approved-one' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'approved-one',
+        design_document_content: '# A\n',
+        design_document_filename: 'a.md',
+      },
+      workspace
+    );
+    await server.callTool('enter_design_gate', { session_id: 'approved-two' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'approved-two',
+        design_document_content: '# B\n',
+        design_document_filename: 'b.md',
+      },
+      workspace
+    );
+
+    const approved = listApprovedGates(workspace);
+    const ids = approved.map((g) => g.session_id).sort();
+    assert.deepEqual(ids, ['approved-one', 'approved-two']);
+    for (const gate of approved) {
+      assert.match(gate.approved_at, /^\d{4}-\d{2}-\d{2}T/);
+      assert.equal(typeof gate.design_document_path, 'string');
+    }
+  });
+
+  it('listApprovedGates returns an empty list when the state directory is absent', () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-no-state-'));
+    assert.deepEqual(listApprovedGates(workspace), []);
+  });
+
+  it('findOrphanedApprovedGates excludes the current session and skips unapproved gates', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    await server.callTool('enter_design_gate', { session_id: 'current' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'current',
+        design_document_content: '# C\n',
+        design_document_filename: 'c.md',
+      },
+      workspace
+    );
+    await server.callTool('enter_design_gate', { session_id: 'orphan-entered-only' }, workspace);
+    await server.callTool('enter_design_gate', { session_id: 'orphan-approved' }, workspace);
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'orphan-approved',
+        design_document_content: '# O\n',
+        design_document_filename: 'o.md',
+      },
+      workspace
+    );
+
+    const orphans = findOrphanedApprovedGates(workspace, 'current');
+    assert.deepEqual(
+      orphans.map((g) => g.session_id),
+      ['orphan-approved']
+    );
+  });
+
+  it('hasDesignGate reflects whether an entered-or-approved gate artifact exists for a session', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    assert.equal(hasDesignGate(workspace, 'never-entered'), false);
+
+    await server.callTool('enter_design_gate', { session_id: 'just-entered' }, workspace);
+    assert.equal(hasDesignGate(workspace, 'just-entered'), true);
+
+    await server.callTool(
+      'record_design_approval',
+      {
+        session_id: 'just-entered',
+        design_document_content: '# D\n',
+        design_document_filename: 'd.md',
+      },
+      workspace
+    );
+    assert.equal(hasDesignGate(workspace, 'just-entered'), true);
+  });
+
+  it('create_session with mismatched session_id and an unapproved (entered-only) orphan gate does not fire the mismatch check', async () => {
+    const workspace = makeWorkspace();
+    const server = buildServer();
+    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+    await server.callTool('enter_design_gate', { session_id: 'pending-approval' }, workspace);
+
+    const outcome = await server.callTool(
+      'create_session',
+      {
+        session_id: 'different-simple',
+        task: 'simple task alongside pending gate for unrelated session',
+        task_complexity: 'simple',
+        workflow_mode: 'express',
+        phases: [
+          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['w'] },
+        ],
+      },
+      workspace
+    );
+    assert.equal(
+      outcome.ok,
+      true,
+      'unapproved orphan gates should not trigger DESIGN_GATE_SESSION_MISMATCH — only approved ones indicate drift'
+    );
   });
 });
