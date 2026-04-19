@@ -1,6 +1,6 @@
 'use strict';
 
-const { createAdapter } = require('./factory');
+const { defineAdapter } = require('./factory');
 const { EXIT_SUCCESS, EXIT_BLOCK } = require('./exit-codes');
 
 /**
@@ -85,7 +85,7 @@ function getExitCode(result) {
   return result.action === 'deny' ? EXIT_BLOCK : EXIT_SUCCESS;
 }
 
-module.exports = createAdapter({
+module.exports = defineAdapter({
   normalizeInput,
   formatOutput,
   errorFallback,
