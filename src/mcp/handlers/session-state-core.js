@@ -63,12 +63,22 @@ function writeActiveSession(basePath, state, body) {
 
 /**
  * Read the active session, run a mutator against it, and conditionally
- * persist the result. Callers return `{ response, writeBack, body? }`:
+ * persist the result. Callers MUST return an outcome object of shape
+ * `{ response, writeBack, body? }`:
  *
  *   - `response` is what `withSessionState` will return to the caller.
  *   - `writeBack: true` persists the (mutated-in-place) state; the body
  *     defaults to the existing body unless `body` is set explicitly.
- *   - Omit `writeBack` for read-only flows.
+ *   - For read-only flows, return `{ response, writeBack: false }` (or
+ *     simply `{ response }`) — do NOT rely on returning `undefined` to
+ *     signal read-only, because the coalesce below silently discards
+ *     any in-memory state mutation the caller made before returning.
+ *
+ * Returning `undefined` is tolerated (the coalesce falls back to `{}`
+ * so the helper does not crash), but it is a footgun: a mutator that
+ * mutates `session.state` in place and forgets to return
+ * `{ writeBack: true }` will see its mutation silently dropped. Always
+ * return an explicit outcome object.
  */
 function withSessionState(projectRoot, mutator) {
   const session = readActiveSession(projectRoot);
@@ -86,7 +96,6 @@ function withSessionState(projectRoot, mutator) {
 }
 
 module.exports = {
-  ACTIVE_SESSION_REL,
   resolveBasePath,
   resolveActiveSessionPath,
   parseSessionState,

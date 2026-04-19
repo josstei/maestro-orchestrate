@@ -100,7 +100,6 @@ function checkPhaseFieldSchema(phases) {
 }
 
 module.exports = {
-  PHASE_LIMITS,
   checkPlanShape,
   checkPhaseCount,
   checkDuplicateIds,

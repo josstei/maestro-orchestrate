@@ -559,6 +559,4 @@ module.exports = {
   handleTransitionPhase,
   handleArchiveSession,
   handleUpdateSession,
-  parseSessionState,
-  serializeSessionState,
 };
