@@ -21,10 +21,7 @@ function createHandler(runtimeConfig, getWorkspaceSuggestion = () => null) {
   );
 
   const prefix = resolvedRuntimeConfig.name === 'claude' ? 'maestro:' : '';
-  const delegation = resolvedRuntimeConfig.delegation || {
-    pattern: resolvedRuntimeConfig.delegationPattern || '',
-    constraints: {},
-  };
+  const delegation = resolvedRuntimeConfig.delegation || { pattern: '', constraints: {} };
 
   return function handleGetRuntimeContext(_params) {
     return {

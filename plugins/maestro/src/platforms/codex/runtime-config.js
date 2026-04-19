@@ -44,12 +44,10 @@ module.exports = {
     },
   },
 
-  delegationPattern: 'spawn_agent(...)',
-
   features: {
     exampleBlocks: false,
     claudeStateContract: false,
-    geminiStateContract: false,
+    scriptBasedStateContract: false,
     codexStateContract: true,
   },
 

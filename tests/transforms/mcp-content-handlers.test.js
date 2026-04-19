@@ -50,7 +50,7 @@ describe('get_skill_content handler', () => {
     fs.writeFileSync(
       path.join(refDir, 'architecture.md'),
       [
-        '<!-- @feature geminiStateContract -->',
+        '<!-- @feature scriptBasedStateContract -->',
         'Gemini uses ${extensionPath} and code-reviewer.',
         '<!-- @end-feature -->',
         '<!-- @feature codexStateContract -->',

@@ -10,7 +10,9 @@ describe('get-runtime-context handler', () => {
       name: 'claude',
       tools: { read_file: 'Read', write_file: 'Write' },
       agentNaming: 'kebab-case',
-      delegationPattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
+      delegation: {
+        pattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
+      },
       paths: { skills: '${CLAUDE_PLUGIN_ROOT}/skills/' },
       env: { extensionPath: 'CLAUDE_PLUGIN_ROOT' },
     });
@@ -35,7 +37,7 @@ describe('get-runtime-context handler', () => {
       name: 'claude',
       tools: {},
       agentNaming: 'kebab-case',
-      delegationPattern: 'Agent(subagent_type: "maestro:{{agent}}")',
+      delegation: { pattern: 'Agent(subagent_type: "maestro:{{agent}}")' },
       paths: {},
       env: { extensionPath: 'CLAUDE_PLUGIN_ROOT' },
     });
@@ -49,7 +51,7 @@ describe('get-runtime-context handler', () => {
       name: 'gemini',
       tools: {},
       agentNaming: 'snake_case',
-      delegationPattern: '{{agent}}(query: "...")',
+      delegation: { pattern: '{{agent}}(query: "...")' },
       paths: {},
       env: { extensionPath: 'extensionPath' },
     });
@@ -64,7 +66,7 @@ describe('get-runtime-context handler', () => {
       name: 'codex',
       tools: { run_shell_command: 'exec_command' },
       agentNaming: 'kebab-case',
-      delegationPattern: 'spawn_agent(...)',
+      delegation: { pattern: 'spawn_agent(...)' },
       paths: { skills: './skills/' },
       env: { extensionPath: '.' },
     });

@@ -35,7 +35,10 @@ describe('runtime-config delegation.constraints', () => {
     assert.equal(typeof qwen.delegation.constraints.result_surface, 'string');
   });
 
-  it('gemini runtime-config no longer declares the bogus workspacePath env var', () => {
-    assert.equal(gemini.env.workspacePath, undefined);
+  it('gemini runtime-config does not bind workspacePath to an env var', () => {
+    assert.ok(
+      !gemini.env.workspacePath,
+      'gemini has no CLI-injected workspace env var; workspacePath must be falsy so project-root-resolver falls through to cwd/roots'
+    );
   });
 });

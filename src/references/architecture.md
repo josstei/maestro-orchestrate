@@ -42,7 +42,7 @@ Agent names use the format specified by the runtime's Agent Naming Convention se
 
 ## State Contract
 
-<!-- @feature geminiStateContract -->
+<!-- @feature scriptBasedStateContract -->
 Maestro maintains session state under `<state_dir>` (resolved from `MAESTRO_STATE_DIR`):
 
 - **Active session**: `<state_dir>/state/active-session.md`
