@@ -90,6 +90,7 @@ function runRuntimeServer(runtimeConfig, options = {}) {
   return {
     close() {
       lineReader.close();
+      handlers.drain();
     },
     server,
   };
