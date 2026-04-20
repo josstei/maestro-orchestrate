@@ -48,12 +48,10 @@ module.exports = {
     },
   },
 
-  delegationPattern: '{{agent}}(query: "...")',
-
   features: {
     exampleBlocks: false,
     claudeStateContract: false,
-    geminiStateContract: true,
+    scriptBasedStateContract: true,
     codexStateContract: false,
   },
 

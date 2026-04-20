@@ -1,6 +1,6 @@
 'use strict';
 
-const { createAdapter } = require('./factory');
+const { defineAdapter } = require('./factory');
 
 /**
  * Claude Code hook I/O adapter.
@@ -33,4 +33,4 @@ function errorFallback() {
   return { continue: true, decision: 'approve' };
 }
 
-module.exports = createAdapter({ normalizeInput, formatOutput, errorFallback });
+module.exports = defineAdapter({ normalizeInput, formatOutput, errorFallback });

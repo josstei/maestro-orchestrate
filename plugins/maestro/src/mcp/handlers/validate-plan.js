@@ -27,12 +27,17 @@ function handleValidatePlan(params) {
     return {
       valid: false,
       violations: shapeViolations,
+      parallelization_profile: null,
     };
   }
 
   const fieldViolations = checkPhaseFieldSchema(plan.phases);
   if (fieldViolations.length > 0) {
-    return { valid: false, violations: fieldViolations };
+    return {
+      valid: false,
+      violations: fieldViolations,
+      parallelization_profile: null,
+    };
   }
 
   const phases = plan.phases;

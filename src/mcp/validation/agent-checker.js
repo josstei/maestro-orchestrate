@@ -76,7 +76,6 @@ function checkAgentCapabilities(phases) {
 }
 
 module.exports = {
-  CREATION_SIGNAL_PATTERNS,
   checkUnknownAgents,
   checkAgentCapabilities,
 };

@@ -11,11 +11,13 @@ const { EXIT_SUCCESS } = require('./exit-codes');
  *   readBoundedStdin()   -> Promise   (parse stdin as JSON, bounded size)
  *   getExitCode(result)  -> number    (process exit code; defaults to 0)
  *
- * `createAdapter` centralizes the shared bits (stdin reader, success-exit
- * default) so each runtime adapter only declares its protocol-specific
- * normalize/format/fallback/exit logic.
+ * `defineAdapter` is a spec-assembler: it validates a caller-provided
+ * spec and fills in shared defaults (stdin reader, success-exit fallback)
+ * so each runtime adapter only declares its protocol-specific
+ * normalize/format/fallback/exit logic. Registry dispatch by runtime
+ * name is done separately by `hook-runner.js`.
  */
-function createAdapter(spec) {
+function defineAdapter(spec) {
   if (!spec || typeof spec.normalizeInput !== 'function') {
     throw new TypeError('Adapter spec must provide normalizeInput(raw)');
   }
@@ -35,4 +37,4 @@ function createAdapter(spec) {
   };
 }
 
-module.exports = { createAdapter };
+module.exports = { defineAdapter };

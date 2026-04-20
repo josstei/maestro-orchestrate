@@ -204,7 +204,13 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
       let projectRoot = null;
       try {
         projectRoot = await getProjectRoot();
-      } catch {
+      } catch (error) {
+        if (error && error.code !== 'WORKSPACE_NOT_INITIALIZED') {
+          log(
+            'warn',
+            `getProjectRoot failed unexpectedly while handling ${name || '(unknown)'}: ${error.message}`
+          );
+        }
         projectRoot = null;
       }
       const outcome = await server.callTool(name, args, projectRoot);
@@ -241,7 +247,20 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
     });
   }
 
-  return { requestFromClient, respond };
+  /**
+   * Clear all pending outbound client-request timeouts and reject their
+   * promises. Call during server shutdown so Node can exit promptly and
+   * callers do not receive late timeout rejections.
+   */
+  function drain() {
+    for (const [id, entry] of pendingClientRequests) {
+      clearTimeout(entry.timeout);
+      entry.reject(new Error(`MCP server closing; request ${id} aborted`));
+    }
+    pendingClientRequests.clear();
+  }
+
+  return { requestFromClient, respond, drain };
 }
 
 module.exports = {

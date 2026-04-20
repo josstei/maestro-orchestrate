@@ -46,12 +46,10 @@ module.exports = {
     },
   },
 
-  delegationPattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
-
   features: {
     exampleBlocks: true,
     claudeStateContract: true,
-    geminiStateContract: false,
+    scriptBasedStateContract: false,
     codexStateContract: false,
   },
 
