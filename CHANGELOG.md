@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-04-20
+
 ### Changed
 
 - **Codex MCP server invocation** — `plugins/maestro/.mcp.json` now spawns the server via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server`, matching the convention used by every curated Codex plugin. The previous relative-path spawn (`./mcp/maestro-server.js`) resolved against the user's workspace cwd rather than the plugin directory, causing MCP handshake failures in any workspace outside the repo checkout. The new invocation is location-independent.
