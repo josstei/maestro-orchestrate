@@ -1,12 +1,12 @@
-# Gemini Runtime
+# Qwen Runtime
 
-The Gemini CLI extension lives at the repository root. It is the primary runtime target.
+The Qwen Code extension lives at the repository root. It mirrors the Gemini CLI extension structure with Qwen-specific manifest, context, and tool mappings.
 
 ## Configuration
 
-**Manifest**: `gemini-extension.json`
+**Manifest**: `qwen-extension.json`
 **Version**: 1.6.3
-**Context File**: `GEMINI.md`
+**Context File**: `QWEN.md`
 
 ### MCP Server
 
@@ -19,11 +19,11 @@ The Gemini CLI extension lives at the repository root. It is the primary runtime
 }
 ```
 
-The public server at `mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=gemini`, requires canonical `src/mcp/maestro-server.js` directly, and runs the Gemini runtime against shared source in `src/`. Gemini declares `primary: filesystem` and `fallback: none`.
+The public server at `mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=qwen`, requires canonical `src/mcp/maestro-server.js` directly, and runs the Qwen runtime against shared source in `src/`. Qwen declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 
-Gemini uses **snake_case** for agent names: `code_reviewer`, `api_designer`, `accessibility_specialist`.
+Qwen uses **snake_case** for agent names (matching Gemini's convention): `code_reviewer`, `api_designer`, `accessibility_specialist`.
 
 Agent files are generated at `agents/*.md` with snake_case filenames.
 
@@ -57,42 +57,30 @@ architect(query: "Design the auth system...")
 
 ## Hooks
 
-4 hook events, no matchers, 10-second timeout:
+4 hook events (same lifecycle shape as Gemini):
 
 | Event | Script | Purpose |
 |-------|--------|---------|
-| `SessionStart` | `hooks/hook-runner.js gemini session-start` | Initialize hook state, prune stale sessions |
-| `BeforeAgent` | `hooks/hook-runner.js gemini before-agent` | Detect agent, inject session context |
-| `AfterAgent` | `hooks/hook-runner.js gemini after-agent` | Validate Task Report + Downstream Context |
-| `SessionEnd` | `hooks/hook-runner.js gemini session-end` | Clean up hook state |
+| `SessionStart` | `hooks/hook-runner.js qwen session-start` | Initialize hook state, prune stale sessions |
+| `BeforeAgent` | `hooks/hook-runner.js qwen before-agent` | Detect agent, inject session context |
+| `AfterAgent` | `hooks/hook-runner.js qwen after-agent` | Validate Task Report + Downstream Context |
+| `SessionEnd` | `hooks/hook-runner.js qwen session-end` | Clean up hook state |
 
 ### AfterAgent Validation
 
-Gemini has a post-delegation validation hook that Claude lacks:
+Qwen uses the same post-delegation validation as Gemini:
 
 - Checks for `## Task Report` (or `# Task Report`) and `## Downstream Context` headings
 - First failure: blocks and requests retry
-- Second failure (stopHookActive=true): allows through with warning
+- Second failure (`stopHookActive=true`): allows through with warning
 
 ### Hook Adapter
 
-`hooks/adapters/gemini-adapter.js` normalizes Gemini CLI JSON input:
-
-| Gemini Field | Internal Field |
-|-------------|----------------|
-| `session_id` | `sessionId` |
-| `cwd` | `cwd` |
-| `hook_event_name` | `event` |
-| (hardcoded null) | `agentName` |
-| `prompt` | `agentInput` |
-| `prompt_response` | `agentResult` |
-| `stop_hook_active` | `stopHookActive` |
-
-Output format: `{ continue: boolean, systemMessage?: string }`
+Qwen reuses the shared Gemini-style adapter at `hooks/adapters/qwen-adapter.js` (or the shared Gemini adapter when the CLI JSON shape matches). Output format: `{ continue: boolean, systemMessage?: string }`.
 
 ## Policies
 
-`policies/maestro.toml` — TOML-based shell guardrails evaluated by Gemini's native policy engine:
+`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine (same rules as Gemini):
 
 **Deny (priority 950)**:
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
@@ -106,10 +94,10 @@ Output format: `{ continue: boolean, systemMessage?: string }`
 
 ## Tool Mapping
 
-Gemini tools use canonical names (identity mapping):
+Qwen tools use canonical names with Qwen-specific overrides declared in `src/platforms/qwen/runtime-config.js`:
 
-| Canonical | Gemini |
-|-----------|--------|
+| Canonical | Qwen |
+|-----------|------|
 | `read_file` | `read_file` |
 | `read_many_files` | `read_file (called per-file)` |
 | `list_directory` | `list_directory` |
@@ -129,21 +117,19 @@ Gemini tools use canonical names (identity mapping):
 
 ## Feature Flags
 
+Qwen's `src/platforms/qwen/runtime-config.js` reuses the Gemini feature profile with Qwen-specific overrides where required. Refer to the runtime-config source for the authoritative flag set; typical values include:
+
 ```
 mcpSkillContentHandler:  true
 policyEnforcer:          false (native TOML policies instead)
 exampleBlocks:           false
-geminiHookModel:         true
-geminiDelegation:        true
-geminiToolExamples:      true
-geminiAskFormat:         true
-geminiStateContract:     true
-geminiRuntimeConfig:     true
+qwenStateContract:       true
+qwenRuntimeConfig:       true
 ```
 
 ## Agent Frontmatter
 
-Gemini agent stubs include:
+Qwen agent stubs share the Gemini shape:
 
 ```yaml
 ---
@@ -167,5 +153,10 @@ commands/maestro/          12 TOML commands
 hooks/                     thin hook runner, adapter wrapper, hooks.json
 mcp/                       thin MCP entrypoint
 policies/                  1 TOML policy file
-README.md, GEMINI.md, gemini-extension.json, .geminiignore
+QWEN.md, qwen-extension.json
 ```
+
+## Notes
+
+- Qwen shares the repo-root output location with Gemini. When both extensions are installed in the same workspace, `agents/`, `commands/maestro/`, `hooks/`, `mcp/`, and `policies/` are owned by the most recent generator run; the runtime-specific difference is the context file (`GEMINI.md` vs `QWEN.md`) and the manifest (`gemini-extension.json` vs `qwen-extension.json`).
+- The `scripts/update-versions.js` release helper bumps `gemini-extension.json` automatically but does not yet include `qwen-extension.json` — maintainers bumping a release should edit `qwen-extension.json` manually or extend the helper's `JSON_VERSION_FILES` list.

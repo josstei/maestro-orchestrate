@@ -1,7 +1,7 @@
 {
   "name": "@maestro-orchestrator/maestro",
   "version": "1.6.3",
-  "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase workflows, 3 runtime targets (Gemini CLI, Claude Code, OpenAI Codex)",
+  "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase workflows, 4 runtime targets (Gemini CLI, Claude Code, OpenAI Codex, Qwen Code)",
   "license": "Apache-2.0",
   "author": {
     "name": "josstei",
