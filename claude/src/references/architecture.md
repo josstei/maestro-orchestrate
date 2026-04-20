@@ -2,7 +2,7 @@
 
 ## Orchestration Model
 
-Maestro is a multi-agent orchestration system that coordinates 22 specialized agents through a structured 4-phase workflow:
+Maestro is a multi-agent orchestration system that coordinates 39 specialized agents through a structured 4-phase workflow:
 
 1. **Design** — Structured requirements discovery, tradeoff-backed design questions, and design approval
 2. **Plan** — Phase-based implementation planning with dependencies, file ownership, and validation gates
@@ -15,28 +15,45 @@ The TechLead orchestrator does not implement code directly. It designs, plans, d
 
 | Agent | Focus |
 | --- | --- |
-| `architect` | System design and architecture decisions |
+| `accessibility-specialist` | WCAG compliance auditing, ARIA review |
+| `analytics-engineer` | Event tracking, conversion funnels |
 | `api-designer` | API contracts and endpoint design |
+| `architect` | System design and architecture decisions |
+| `cloud-architect` | AWS/GCP/Azure topology, IaC, multi-region design |
+| `cobol-engineer` | Mainframe COBOL, JCL, CICS/IMS on z/OS |
 | `code-reviewer` | Code quality review and bug identification |
 | `coder` | Feature implementation |
+| `compliance-reviewer` | Legal and regulatory compliance (GDPR, CCPA, licensing) |
+| `content-strategist` | Content planning and strategy |
+| `copywriter` | Marketing copy and landing-page content |
 | `data-engineer` | Schema design, queries, and data pipelines |
+| `database-administrator` | RDBMS tuning, indexes, migration safety (Postgres, MySQL, Oracle, SQL Server) |
+| `db2-dba` | DB2 for z/OS and LUW, REORG, RUNSTATS, bind/rebind |
 | `debugger` | Root cause analysis and defect investigation |
+| `design-system-engineer` | Design tokens and theming |
 | `devops-engineer` | CI/CD, containerization, and deployment |
+| `hlasm-assembler-specialist` | IBM HLASM for z/OS, macros, SVCs |
+| `i18n-specialist` | Internationalization and locale management |
+| `ibm-i-specialist` | IBM i RPG/CL, DB2 for i, OS/400 |
+| `integration-engineer` | B2B APIs, ETL, message brokers (Kafka, MQ) |
+| `ml-engineer` | Model training, feature pipelines, evaluation |
+| `mlops-engineer` | Model registry, CI/CD for models, drift detection |
+| `mobile-engineer` | iOS/Android/React Native/Flutter platform work |
+| `observability-engineer` | Metrics, logs, traces, OpenTelemetry, dashboards |
 | `performance-engineer` | Performance profiling and optimization |
+| `platform-engineer` | Internal developer platforms, paved paths |
+| `product-manager` | Requirements and product strategy |
+| `prompt-engineer` | LLM prompt design, few-shot, RAG tuning |
 | `refactor` | Structural refactoring and technical debt |
+| `release-manager` | Release notes, changelogs, rollout planning |
 | `security-engineer` | Security assessment and vulnerability analysis |
+| `seo-specialist` | Technical SEO auditing and structured data |
+| `site-reliability-engineer` | SLOs, error budgets, runbooks, postmortems |
+| `solutions-architect` | Enterprise integration, cross-team architecture |
 | `technical-writer` | Documentation and technical writing |
 | `tester` | Test implementation and coverage analysis |
-| `seo-specialist` | Technical SEO auditing |
-| `copywriter` | Marketing copy and content |
-| `content-strategist` | Content planning and strategy |
 | `ux-designer` | User experience design |
-| `accessibility-specialist` | WCAG compliance auditing |
-| `product-manager` | Requirements and product strategy |
-| `analytics-engineer` | Tracking and measurement |
-| `i18n-specialist` | Internationalization |
-| `design-system-engineer` | Design tokens and theming |
-| `compliance-reviewer` | Legal and regulatory compliance |
+| `zos-sysprog` | z/OS systems programming, JCL, USS, RACF |
 
 Agent names use the format specified by the runtime's Agent Naming Convention section. When delegating, use the exact name from the roster.
 

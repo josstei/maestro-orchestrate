@@ -5,7 +5,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 ## Configuration
 
 **Manifest**: `claude/.claude-plugin/plugin.json`
-**Version**: 1.6.1
+**Version**: 1.6.3
 **Hooks**: `claude/hooks/claude-hooks.json`
 **MCP Config**: `claude/.mcp.json`
 
@@ -177,7 +177,7 @@ Fields: `model` (always "inherit"), `color`, `maxTurns` (camelCase). No temperat
 
 ```
 claude/
-├── agents/                22 agent stubs (kebab-case)
+├── agents/                39 agent stubs (kebab-case)
 ├── skills/                19 skill directories
 ├── hooks/                 1 hook config (claude-hooks.json)
 ├── scripts/               thin hook wrapper, adapter wrapper, policy enforcer, policy-enforcer.test.js

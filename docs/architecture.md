@@ -59,26 +59,28 @@ Or with glob patterns:
 
 ### Transform Pipeline
 
-The generator exposes 4 transforms. Current manifest entries use a subset depending on the target surface.
+The generator exposes 6 transforms (in `src/transforms/`, excluding the `index.js` barrel). Current manifest entries use a subset depending on the target surface.
 
 | Transform | Purpose |
 |-----------|---------|
-| `inject-frontmatter` | Rebuild YAML frontmatter per runtime (tools, fields, examples) |
-| `agent-stub` | Replace agent body with MCP delegation directive |
-| `skill-discovery-stub` | Create minimal skill header pointing to MCP |
-| `skill-metadata` | Add `user-invocable: false` for Claude skills |
+| `parse-frontmatter` | Parse YAML frontmatter from source and stash it in pipeline state |
+| `extract-examples` | Extract `<example>` blocks from agent bodies (Claude only) |
+| `rebuild-frontmatter` | Emit runtime-specific YAML frontmatter (tools, fields, kind) |
+| `agent-stub` | Replace agent body with MCP delegation stub referencing `get_agent()` |
+| `skill-discovery-stub` | Replace shared skill body with MCP tool stub referencing `get_skill_content()` |
+| `skill-metadata` | Inject `user-invocable: false` into Claude skill frontmatter |
 
 ### Runtime Definitions
 
 Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
-| Field | Gemini | Claude | Codex |
-|-------|--------|--------|-------|
-| `outputDir` | `./` | `claude/` | `plugins/maestro/` |
-| `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` |
-| `delegationPattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` |
-| `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) |
-| `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` |
+| Field | Gemini | Claude | Codex | Qwen |
+|-------|--------|--------|-------|------|
+| `outputDir` | `./` | `claude/` | `plugins/maestro/` | `./` |
+| `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` | `snake_case` |
+| `delegationPattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
+| `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
+| `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
 
 ### Entry-Point Registry
 
@@ -87,6 +89,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 - Gemini: TOML commands in `commands/maestro/`
 - Claude: Markdown skills in `claude/skills/`
 - Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
+- Qwen: TOML commands in `commands/maestro/` (same template shape as Gemini)
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
@@ -158,18 +161,18 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (12 tools)
+### Tool Catalog (17 tools)
 
-**Workspace Pack:**
+**Workspace Pack (4 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
-| `initialize_workspace` | — | Create state/plans directories (idempotent) |
+| `initialize_workspace` | workspace_path | Create state/plans directories (idempotent) |
 | `assess_task_complexity` | — | Return repo signals for complexity classification |
 | `validate_plan` | plan, task_complexity | Validate dependencies, file ownership, agent capabilities |
 | `resolve_settings` | — | Resolve MAESTRO_* settings with precedence |
 
-**Session Pack:**
+**Session Pack (10 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
@@ -178,8 +181,13 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `update_session` | session_id | Update execution_mode/backend/batch |
 | `transition_phase` | session_id | Atomically complete phase + start next |
 | `archive_session` | session_id | Move session + plans to archive |
+| `enter_design_gate` | session_id | Mark session entered design phase; blocks `create_session` until approval |
+| `record_design_approval` | session_id + (path or inline content) | Clear design gate with approved document |
+| `get_design_gate_status` | session_id | Read design gate status (entered_at, approved_at) |
+| `scan_phase_changes` | session_id | Scan workspace for files created/modified since phase start |
+| `reconcile_phase` | session_id, phase_id | Record file manifests + downstream context for phase |
 
-**Content Pack:**
+**Content Pack (3 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|

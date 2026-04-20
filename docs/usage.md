@@ -35,8 +35,11 @@ just check
 # Full CI equivalent (check + test)
 just ci
 
-# Release: tag a version and push
-just release <version>
+# Verify lib/ import-boundary rules (enforced by check target)
+just check-layers
+
+# Delete local branches whose remotes are gone
+just cleanup-branches
 ```
 
 ## Editing Workflow
