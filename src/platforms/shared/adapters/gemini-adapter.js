@@ -1,7 +1,6 @@
 'use strict';
 
-const { readBoundedJson } = require('../../../core/stdin-reader');
-const { EXIT_SUCCESS } = require('./exit-codes');
+const { createAdapter } = require('./factory');
 
 /**
  * Gemini hook I/O adapter.
@@ -32,8 +31,4 @@ function errorFallback() {
   return { continue: true };
 }
 
-function getExitCode() {
-  return EXIT_SUCCESS;
-}
-
-module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson, getExitCode };
+module.exports = createAdapter({ normalizeInput, formatOutput, errorFallback });

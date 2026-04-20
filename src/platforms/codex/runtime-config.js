@@ -35,26 +35,22 @@ module.exports = {
     codebase_investigator: 'local inspection or spawn_agent',
   },
 
+  delegation: {
+    pattern: 'spawn_agent(...)',
+    constraints: {
+      fork_full_context_incompatible_with: ['agent_type', 'model', 'reasoning_effort'],
+      result_surface: 'deferred',
+      child_cannot_prompt_user: true,
+    },
+  },
+
   delegationPattern: 'spawn_agent(...)',
 
   features: {
-    mcpSkillContentHandler: true,
-    policyEnforcer: false,
     exampleBlocks: false,
-    geminiHookModel: false,
-    claudeHookModel: false,
-    geminiDelegation: false,
-    claudeDelegation: false,
-    codexDelegation: true,
-    geminiToolExamples: false,
-    claudeToolExamples: false,
-    geminiAskFormat: false,
-    geminiStateContract: false,
     claudeStateContract: false,
+    geminiStateContract: false,
     codexStateContract: true,
-    geminiRuntimeConfig: false,
-    claudeRuntimeConfig: false,
-    codexRuntimeConfig: true,
   },
 
   paths: {

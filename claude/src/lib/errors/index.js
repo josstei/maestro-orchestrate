@@ -32,11 +32,12 @@ class ValidationError extends MaestroError {
   /**
    * @param {string} message
    * @param {object} [opts]
+   * @param {string} [opts.code='VALIDATION_ERROR'] - Subtype code for specific failures (e.g. HANDOFF_INCOMPLETE)
    * @param {*} [opts.details]
    * @param {*} [opts.context]
    */
   constructor(message, opts = {}) {
-    super(message, { ...opts, code: 'VALIDATION_ERROR' });
+    super(message, { ...opts, code: opts.code || 'VALIDATION_ERROR' });
   }
 }
 
@@ -49,11 +50,12 @@ class NotFoundError extends MaestroError {
   /**
    * @param {string} message
    * @param {object} [opts]
+   * @param {string} [opts.code='NOT_FOUND'] - Subtype code for specific failures
    * @param {*} [opts.details]
    * @param {*} [opts.context]
    */
   constructor(message, opts = {}) {
-    super(message, { ...opts, code: 'NOT_FOUND' });
+    super(message, { ...opts, code: opts.code || 'NOT_FOUND' });
   }
 }
 
@@ -66,11 +68,12 @@ class ConfigError extends MaestroError {
   /**
    * @param {string} message
    * @param {object} [opts]
+   * @param {string} [opts.code='CONFIG_ERROR'] - Subtype code for specific failures
    * @param {*} [opts.details]
    * @param {*} [opts.context]
    */
   constructor(message, opts = {}) {
-    super(message, { ...opts, code: 'CONFIG_ERROR' });
+    super(message, { ...opts, code: opts.code || 'CONFIG_ERROR' });
   }
 }
 
@@ -83,11 +86,12 @@ class StateError extends MaestroError {
   /**
    * @param {string} message
    * @param {object} [opts]
+   * @param {string} [opts.code='STATE_ERROR'] - Subtype code for specific failures (e.g. DESIGN_GATE_UNAPPROVED, RECONCILIATION_PENDING)
    * @param {*} [opts.details]
    * @param {*} [opts.context]
    */
   constructor(message, opts = {}) {
-    super(message, { ...opts, code: 'STATE_ERROR' });
+    super(message, { ...opts, code: opts.code || 'STATE_ERROR' });
   }
 }
 

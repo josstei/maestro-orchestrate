@@ -5,30 +5,41 @@ const path = require('path');
 
 const { ensureWorkspace, resolveStateDirPath } = require('../../state/session-state');
 const { resolveSetting } = require('../../config/setting-resolver');
+const {
+  requireExplicitWorkspaceRoot,
+} = require('../../core/project-root-resolver');
+const { writeWorkspaceMarker } = require('../contracts/workspace-marker');
 
-function handleInitializeWorkspace(params, projectRoot) {
+async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
+  const workspacePath =
+    params.workspace_path || cachedProjectRoot || null;
+
+  const resolvedWorkspace = requireExplicitWorkspaceRoot({
+    workspacePath,
+  });
+
   const stateDir =
     params.state_dir ||
-    resolveSetting('MAESTRO_STATE_DIR', projectRoot) ||
+    resolveSetting('MAESTRO_STATE_DIR', resolvedWorkspace) ||
     'docs/maestro';
-  const fullPath = resolveStateDirPath(projectRoot, stateDir);
-  const alreadyExisted = fs.existsSync(path.join(fullPath, 'state'));
+  const fullStatePath = resolveStateDirPath(resolvedWorkspace, stateDir);
+  const alreadyExisted = fs.existsSync(path.join(fullStatePath, 'state'));
 
-  ensureWorkspace(stateDir, projectRoot);
+  ensureWorkspace(stateDir, resolvedWorkspace);
+  writeWorkspaceMarker(fullStatePath, resolvedWorkspace);
 
   return {
     success: true,
+    workspace_path: resolvedWorkspace,
     state_dir: stateDir,
     created_directories: [
       'state/',
       'state/archive/',
       'plans/',
       'plans/archive/',
-    ].map((directory) => path.join(stateDir, directory)),
+    ].map((dir) => path.join(stateDir, dir)),
     already_existed: alreadyExisted,
   };
 }
 
-module.exports = {
-  handleInitializeWorkspace,
-};
+module.exports = { handleInitializeWorkspace };

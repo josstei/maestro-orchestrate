@@ -1,20 +1,45 @@
 STARTUP (Turn 1 — tool calls only, no text output)
  0. If get_runtime_context appears in your available tools, call it. Carry the returned mappings (tool names, agent dispatch syntax, MCP prefix, paths) through the entire session. If unavailable, use the fallback mappings in the entry-point skill preamble.
  1. Call resolve_settings.
- 2. Call initialize_workspace with resolved state_dir.
+ 2. Read `workspace_suggestion` from the `get_runtime_context` response (populated from MCP roots and/or runtime env var). Call `initialize_workspace(workspace_path=<workspace_suggestion or explicit user workspace>, state_dir=<resolved>)`. If no suggestion is available, ask the user via the runtime's user-prompt tool. `initialize_workspace` rejects paths inside extension caches.
  3. Call get_session_status — if active, present status and offer resume/archive.
  4. Call assess_task_complexity.
  5. Parse MAESTRO_DISABLED_AGENTS from resolved settings. Exclude listed agents from all planning.
  6. STOP. Turn 1 is ONLY steps 1-5. No text, no design questions, no file reads.
 
 CLASSIFICATION (Turn 2)
- 7. Load the architecture reference: ["architecture"]. Do NOT load templates yet — they are loaded at their consumption points (steps 13, 15, 20).
+ 7. Pre-load architecture plus every skill used before Phase 3 in a single batch:
+    `get_skill_content(["architecture", "design-dialogue", "design-document", "implementation-planning", "implementation-plan"])`.
+    <HARD-GATE>
+    This batch MUST complete before any `enter_plan_mode` call. Some runtimes
+    (notably Gemini CLI) deregister MCP tools once Plan Mode is active —
+    attempting to fetch these skills from inside Plan Mode will fail with
+    "tool not found" and strand the orchestrator. Execution-phase templates
+    (session-management, session-state, execution, delegation, validation,
+    agent-base-protocol, filesystem-safety-protocol, code-review) still load
+    lazily at their consumption points because Phase 3 never enters Plan Mode.
+    </HARD-GATE>
  8. Classify task as simple/medium/complex. Present classification with rationale.
  9. Route: simple → Express (step 31). Medium/complex → continue to step 10.
 
+DESIGN GATE (Phase 1 pre-entry)
+ 9a. Finalize the session_id now and use it verbatim for every subsequent MCP call. Format: `YYYY-MM-DD-<kebab-task-slug>`. Then call `enter_design_gate(session_id)`. This blocks `create_session` until `record_design_approval` is called. Idempotent; safe to call on resume.
+    <HARD-GATE>
+    Session ID Invariance — the session_id chosen here MUST be passed unchanged
+    to every MCP call that accepts a session_id parameter for the remainder of
+    this workflow: `record_design_approval`, `get_design_gate_status`,
+    `create_session`, `update_session`, `get_session_status`, `transition_phase`,
+    `scan_phase_changes`, `reconcile_phase`, and `archive_session`. Do NOT
+    substitute a placeholder id for initial calls and a final id later — the
+    design gate is keyed by session_id, so a drift orphans the approved gate
+    and strands the design document. `create_session` rejects with
+    `DESIGN_GATE_SESSION_MISMATCH` when it detects an approved gate for a
+    different session_id than the one passed in.
+    </HARD-GATE>
+
 DESIGN (Phase 1)
-10. Enter Plan Mode. If unavailable, follow the runtime preamble's Plan Mode fallback instructions.
-11. Call `get_skill_content` with resources: ["design-dialogue"]. Follow the loaded protocol for:
+10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
+11. Using the `design-dialogue` protocol already loaded in step 7, run the design conversation:
     - Design depth selector (first design question)
     - Repository grounding (for existing codebases, skip for greenfield)
     - One question at a time via user prompt
@@ -37,11 +62,17 @@ DESIGN (Phase 1)
     proceeding to the next. Do NOT present the full design as a single block.
     Quick depth may combine sections. Standard/Deep MUST validate individually.
     </HARD-GATE>
-13. Call `get_skill_content` with resources: ["design-document"]. Write approved design document to <state_dir>/plans/ (or Plan Mode tmp path).
-14. If Plan Mode is active, exit Plan Mode with the plan path. Copy approved document to <state_dir>/plans/.
+13. Using the `design-document` template already loaded in step 7, write the approved design document to the runtime's write surface (Plan Mode tmp for Gemini, `<state_dir>/plans/` when Plan Mode is unavailable). Do NOT call `record_design_approval` while still inside Plan Mode — Gemini deregisters MCP tools during Plan Mode and the call will fail.
+14. If Plan Mode is active, exit Plan Mode with the plan path. MCP tools become available again at this point.
+14a. Call `record_design_approval` to clear the design gate. Choose the variant by runtime:
+     - **Content variant (required for Gemini)**: pass `design_document_content` + `design_document_filename`. The MCP server materializes the canonical copy inside `<state_dir>/plans/` atomically. Required whenever the runtime's write surface resolves relative paths against a root the MCP server cannot reach — Gemini Plan Mode writes to `~/.gemini/tmp/<uuid>/...`, so a path handed back to the server never resolves to the same file.
+     - **Path variant (Codex, Claude direct writes)**: pass `design_document_path` (absolute or workspace-relative). The approval handler records the path without requiring the file to already be on disk; `create_session` in step 21 materializes the file into `<state_dir>/plans/` and will reject if the file is still missing at that point.
+     <HARD-GATE>
+     The two variants are mutually exclusive. Supplying both, or neither, fails with VALIDATION_ERROR.
+     </HARD-GATE>
 
 PLANNING (Phase 2)
-15. Call `get_skill_content` with resources: ["implementation-planning", "implementation-plan"]. Follow the loaded skill protocol.
+15. Using the `implementation-planning` and `implementation-plan` resources already loaded in step 7, follow the planning protocol to draft the implementation plan. If the planning skill instructs you to re-enter Plan Mode for the plan-approval UI, write the plan document first; all subsequent MCP calls (including `validate_plan`) must happen after the next `exit_plan_mode`, not inside Plan Mode.
 16. Call validate_plan with the generated plan and task_complexity.
     <HARD-GATE>
     You MUST call validate_plan BEFORE presenting the plan for approval. Do NOT
@@ -63,19 +94,24 @@ EXECUTION SETUP (Phase 3 — pre-delegation)
     that means "prompt the user", not an execution mode the user selects.
     </HARD-GATE>
 20. Call `get_skill_content` with resources: ["session-management", "session-state"].
-21. Create session via create_session with resolved execution_mode. Do NOT create before mode is resolved.
+21. Pass the exact plan object returned by `validate_plan` to `create_session`. Do not reshape phases — `create_session` rejects plans whose phases are missing required fields ({id, name, agent, parallel, blocked_by}). Set `execution_mode` to the value resolved in step 19. Attach the implementation plan document by runtime:
+    - **Content variant (required for Gemini)**: pass `implementation_plan_content` + `implementation_plan_filename`. Mirrors the design-document content path in step 14a and closes the same runtime-tmp resolution gap when Plan Mode is used for plan approval.
+    - **Path variant (Codex, Claude direct writes)**: pass `implementation_plan` as an absolute or workspace-relative path. Requires the file to exist on disk at the workspace-resolved path when `create_session` runs.
+    <HARD-GATE>
+    The two variants are mutually exclusive. Supplying both fails with VALIDATION_ERROR. Supplying neither is valid — the session records no implementation plan.
+    </HARD-GATE>
 22. Call `get_skill_content` with resources: ["delegation", "validation", "agent-base-protocol", "filesystem-safety-protocol"].
 
 EXECUTION (Phase 3 — delegation loop)
-23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology and tool restrictions.
+23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology and tool restrictions. Before constructing the dispatch, read `delegation.constraints` from the cached `get_runtime_context` and shape the call accordingly — omit `agent_type`/`model`/`reasoning_effort` when `fork_full_context_incompatible_with` includes them and you are spawning with full-history fork.
     <HARD-GATE>
     Dispatch by calling the agent's registered tool directly.
     Do NOT use the built-in generalist tool or invoke agents by bare name.
     Each Maestro agent carries specialized methodology, tool restrictions, temperature,
     and turn limits from its frontmatter that the generalist ignores.
     </HARD-GATE>
-24. After each agent returns, parse Task Report + Downstream Context from response.
-25. Call transition_phase to persist results.
+24. After each agent returns, parse the response. If a `## Blockers` section is present and non-empty, do NOT call `transition_phase`: aggregate blockers across the batch, ask the user via the user-prompt tool, and re-delegate the phase with the answer in the context block. Only when blockers are empty, parse Task Report + Downstream Context.
+25. Call transition_phase to persist results. `transition_phase` rejects with `HANDOFF_INCOMPLETE` if the phase produced files but downstream_context is empty — re-request the handoff. It sets `requires_reconciliation: true` when all manifests AND downstream_context are empty — in that case, invoke the Recovery Protocol in the execution skill (`scan_phase_changes` → user confirmation → `reconcile_phase`).
     <HARD-GATE>
     For parallel batches: call transition_phase INDIVIDUALLY for EVERY completed
     phase in the batch. The MCP tool writes files_created, files_modified,

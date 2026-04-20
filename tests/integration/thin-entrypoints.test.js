@@ -10,7 +10,7 @@ describe('thin entrypoint design', () => {
     const expectations = [
       { file: 'mcp/maestro-server.js', runtime: 'gemini' },
       { file: 'claude/mcp/maestro-server.js', runtime: 'claude' },
-      { file: 'plugins/maestro/mcp/maestro-server.js', runtime: 'codex' },
+      { file: 'bin/maestro-mcp-server.js', runtime: 'codex' },
     ];
 
     for (const { file, runtime } of expectations) {
@@ -22,19 +22,12 @@ describe('thin entrypoint design', () => {
     }
   });
 
-  it('Claude and Codex entrypoints have repo-first / bundled-fallback resolution', () => {
-    const fallbackFiles = [
-      'claude/mcp/maestro-server.js',
-      'plugins/maestro/mcp/maestro-server.js',
-    ];
-
-    for (const file of fallbackFiles) {
-      const content = fs.readFileSync(path.join(ROOT, file), 'utf8');
-      assert.ok(
-        content.includes('repoEntry') && content.includes('bundledEntry'),
-        `Expected ${file} to have repo-first / bundled-fallback resolution`
-      );
-    }
+  it('Claude entrypoint has repo-first / bundled-fallback resolution', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'claude/mcp/maestro-server.js'), 'utf8');
+    assert.ok(
+      content.includes('repoEntry') && content.includes('bundledEntry'),
+      'Expected claude/mcp/maestro-server.js to have repo-first / bundled-fallback resolution'
+    );
   });
 
   it('Gemini entrypoint uses direct repo-local resolution only', () => {
@@ -55,7 +48,6 @@ describe('thin entrypoint design', () => {
       'mcp/canonical-source.js',
       'claude/scripts/canonical-source.js',
       'claude/mcp/canonical-source.js',
-      'plugins/maestro/mcp/canonical-source.js',
     ];
 
     for (const file of forbiddenLocations) {

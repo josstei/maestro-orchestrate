@@ -1,6 +1,6 @@
 'use strict';
 
-const { readBoundedJson } = require('../../../core/stdin-reader');
+const { createAdapter } = require('./factory');
 const { EXIT_SUCCESS, EXIT_BLOCK } = require('./exit-codes');
 
 /**
@@ -85,4 +85,9 @@ function getExitCode(result) {
   return result.action === 'deny' ? EXIT_BLOCK : EXIT_SUCCESS;
 }
 
-module.exports = { normalizeInput, formatOutput, errorFallback, readBoundedStdin: readBoundedJson, getExitCode };
+module.exports = createAdapter({
+  normalizeInput,
+  formatOutput,
+  errorFallback,
+  getExitCode,
+});

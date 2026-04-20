@@ -38,26 +38,21 @@ module.exports = {
     turnsField: 'maxTurns',
   },
 
+  delegation: {
+    pattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
+    constraints: {
+      result_surface: 'synchronous',
+      child_cannot_prompt_user: false,
+    },
+  },
+
   delegationPattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
 
   features: {
-    mcpSkillContentHandler: true,
-    policyEnforcer: true,
     exampleBlocks: true,
-    geminiHookModel: false,
-    claudeHookModel: true,
-    geminiDelegation: false,
-    claudeDelegation: true,
-    codexDelegation: false,
-    geminiToolExamples: false,
-    claudeToolExamples: true,
-    geminiAskFormat: false,
-    geminiStateContract: false,
     claudeStateContract: true,
+    geminiStateContract: false,
     codexStateContract: false,
-    geminiRuntimeConfig: false,
-    claudeRuntimeConfig: true,
-    codexRuntimeConfig: false,
   },
 
   paths: {

@@ -1,8 +1,9 @@
-const { extractValue } = require('../lib/frontmatter');
+const { parse } = require('../lib/frontmatter');
 
 function skillDiscoveryStub(content, runtime) {
-  const name = extractValue(content, 'name');
-  const description = extractValue(content, 'description');
+  const { frontmatter } = parse(content);
+  const name = frontmatter.name;
+  const description = frontmatter.description;
   const lines = ['---'];
 
   if (name) {

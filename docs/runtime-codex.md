@@ -14,20 +14,20 @@ The Codex plugin lives in `plugins/maestro/`.
 
 ```json
 {
-  "command": "node",
-  "args": ["./mcp/maestro-server.js"],
-  "cwd": "."
+  "command": "npx",
+  "args": ["-y", "github:josstei/maestro-orchestrate", "maestro-mcp-server"],
+  "env": { "MAESTRO_RUNTIME": "codex" }
 }
 ```
 
-The public server at `plugins/maestro/mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=codex`, prefers canonical repo `src/mcp/maestro-server.js` when the plugin is launched from the repository, and falls back to bundled `plugins/maestro/src/mcp/maestro-server.js` for detached installs. Codex declares `primary: filesystem` and `fallback: none`, the same as Gemini and Claude.
+Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. The convention used by all 115 curated Codex plugins is to invoke the server via `npx`, which is location-independent. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
 
-For workspace resolution, Codex now follows the shared runtime contract:
+For workspace resolution, Codex follows the shared runtime contract:
 - use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
 - otherwise fall back to the MCP client `roots/list` response
 - only then fall back to inherited env and `cwd` heuristics
 
-That keeps Maestro state rooted under the actual workspace `docs/maestro` path even when the Codex plugin is launched from an isolated bundle directory.
+That keeps Maestro state rooted under the actual workspace `docs/maestro` path regardless of where `npx` materializes the package cache.
 
 ### Plugin Manifest
 
@@ -174,13 +174,14 @@ Codex follows the same source-of-truth model as the other runtimes:
 plugins/maestro/
 ├── skills/                19 skill directories
 ├── src/                   generated detached runtime payload
-├── mcp/                   thin MCP entrypoint
 ├── references/            1 runtime guide
 ├── .codex-plugin/         1 plugin manifest
-├── .mcp.json
+├── .mcp.json              npx-based spawn (no local wrapper)
 ├── .app.json
 └── README.md
 ```
+
+The runtime server is invoked via `npx` rather than a local wrapper file, so there is no `plugins/maestro/mcp/` directory. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`.
 
 ## Differences from Gemini and Claude
 
@@ -191,6 +192,6 @@ plugins/maestro/
 | Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | None |
 | Policies | TOML rules | JS hook enforcer | None |
 | Skill surface | N/A (commands) | 19 skills | plugin namespace `$maestro:*` |
-| Path style | Variable passthrough | Env var refs | Relative |
+| Path style | Variable passthrough | Env var refs | `npx` bin |
 | Extra files | TOML policy rules | policy-enforcer | runtime guide |
-| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | thin entrypoint + detached `src/` payload |
+| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | npx bin + detached `src/` payload |

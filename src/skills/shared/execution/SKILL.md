@@ -197,14 +197,17 @@ Record all errors in session state with:
 
 Increment `retry_count` on each retry.
 
-### Timeout / Termination Handling
+### Recovery Protocol
 
-When a native subagent terminates early or exceeds its configured timeout:
+When a subagent terminates early, times out, returns malformed output, or when `delegation.constraints.result_surface` is `deferred` and the agent's text cannot be retrieved:
 
-1. Record any useful partial output in session state
-2. Report what the agent was attempting
-3. Retry with narrower scope when reasonable
-4. Escalate if repeated failures continue
+1. **Poll**: For deferred-result runtimes (Codex), call the runtime's wait tool (`wait_agent` equivalent) with a bounded timeout. For synchronous runtimes, the initial dispatch return IS the result.
+2. **Detect drift**: Call `scan_phase_changes(session_id, phase_id)`. If the returned `candidates.created` or `candidates.modified` arrays are non-empty, the agent produced filesystem output without a handoff.
+3. **Ask the user to confirm**: Using the runtime's user-prompt tool, present the scan candidates and ask the user to confirm which files belong to this phase. For a parallel batch, include the `planned_files` from each phase's session state to assist attribution. If the scan surfaces files beyond any phase's `planned_files`, raise a blocker and surface the ambiguity to the user rather than silently attributing.
+4. **Reconcile**: Call `reconcile_phase(session_id, phase_id, files_created, files_modified, files_deleted, downstream_context, reason)` with the user-confirmed manifest. This clears `requires_reconciliation`.
+5. **Retry or advance**: If the user chose to retry the agent, re-delegate with the original scope plus the scan results as context. If the user accepted the work as delivered, advance to the next phase.
+
+Record all recovery events in session state with `{agent, timestamp, type: 'recovery', resolution: 'retry'|'reconciled'|'aborted'}`.
 
 ### File Conflict Handling
 

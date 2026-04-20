@@ -188,6 +188,26 @@ describe('handleValidatePlan — agent capability mismatch', () => {
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.ok(!result.violations.some((v) => v.rule === 'agent_capability_mismatch'));
   });
+
+  it('detects read_only agent assigned to phase with planning-time files', () => {
+    const phases = [
+      {
+        id: 'p1',
+        name: 'Audit module',
+        agent: 'code-reviewer',
+        parallel: false,
+        blocked_by: [],
+        files: ['src/app.js'],
+      },
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.equal(result.valid, false);
+    assert.ok(
+      result.violations.some(
+        (v) => v.rule === 'agent_capability_mismatch' && v.severity === 'error'
+      )
+    );
+  });
 });
 
 describe('handleValidatePlan — cyclic dependencies', () => {
@@ -269,6 +289,54 @@ describe('handleValidatePlan — file overlap in parallel phases', () => {
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.ok(!result.violations.some((v) => v.rule === 'file_overlap'));
   });
+
+  it('detects file overlap when parallel phases declare the same planning-time files', () => {
+    const phases = [
+      {
+        id: 'p1',
+        name: 'Build module A',
+        agent: 'coder',
+        parallel: true,
+        blocked_by: [],
+        files: ['src/app.js'],
+      },
+      {
+        id: 'p2',
+        name: 'Build module B',
+        agent: 'coder',
+        parallel: true,
+        blocked_by: [],
+        files: ['src/app.js'],
+      },
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
+    assert.equal(result.valid, false);
+    assert.ok(result.violations.some((v) => v.rule === 'file_overlap'));
+  });
+
+  it('detects file overlap when one phase uses planning-time files and a sibling uses runtime manifests', () => {
+    const phases = [
+      {
+        id: 'p1',
+        name: 'Build module A',
+        agent: 'coder',
+        parallel: true,
+        blocked_by: [],
+        files: ['src/app.js'],
+      },
+      {
+        id: 'p2',
+        name: 'Build module B',
+        agent: 'coder',
+        parallel: true,
+        blocked_by: [],
+        files_created: ['src/app.js'],
+      },
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
+    assert.equal(result.valid, false);
+    assert.ok(result.violations.some((v) => v.rule === 'file_overlap'));
+  });
 });
 
 describe('handleValidatePlan — redundant dependencies', () => {
@@ -335,5 +403,39 @@ describe('handleValidatePlan — parallelization profile', () => {
 
     assert.ok(profile !== null);
     assert.equal(profile.parallel_eligible, 2);
+  });
+});
+
+describe('handleValidatePlan with strict phase schema', () => {
+  it('rejects a plan whose phase lacks required fields', () => {
+    const result = handleValidatePlan({
+      plan: {
+        phases: [{ id: 'p1', name: 'Missing fields' }],
+      },
+      task_complexity: 'simple',
+    });
+    assert.equal(result.valid, false);
+    const hasFieldViolation = result.violations.some(
+      (v) => v.rule === 'missing_required_field'
+    );
+    assert.equal(hasFieldViolation, true);
+  });
+
+  it('accepts a plan with fully-populated phases', () => {
+    const result = handleValidatePlan({
+      plan: {
+        phases: [
+          {
+            id: 'p1',
+            name: 'Scaffold',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+          },
+        ],
+      },
+      task_complexity: 'simple',
+    });
+    assert.equal(result.valid, true);
   });
 });

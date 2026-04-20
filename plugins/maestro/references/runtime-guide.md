@@ -94,3 +94,32 @@ Use these entry points for user-facing workflows:
 - `seo-audit`
 - `a11y-audit`
 - `compliance-check`
+
+## Codex-specific constraints
+
+### spawn_agent fork incompatibility
+
+`spawn_agent` rejects full-history forks when any of `agent_type`, `model`, or `reasoning_effort` are supplied. This applies to both `fork_context: true` (v1) and `fork_turns: "all"` (v2).
+
+Exact error:
+
+    Full-history forked agents inherit the parent agent type, model, and reasoning effort; omit agent_type, model, and reasoning_effort, or spawn without fork_context/fork_turns=all.
+
+Resolution: read `delegation.constraints.fork_full_context_incompatible_with` from `get_runtime_context` and omit those fields when forking with full history. Alternatively, spawn without `fork_context`/`fork_turns=all` and pass self-contained prompts.
+
+### request_user_input availability
+
+`request_user_input` is Plan-mode-gated. Spawned child agents inherit their parent's mode, which is typically not Plan. Child agents therefore cannot call `request_user_input`.
+
+Consequence for Maestro: only the orchestrator agent can ask the user questions. Child agents must surface questions through the Blocker Protocol documented in the delegation skill (`## Blockers` section in the Task Report).
+
+### spawn_agent return surface
+
+`spawn_agent` returns `{agent_id, task_name, nickname}` only — no token usage, no assistant text, no structured error. To retrieve results:
+
+1. Call `wait_agent(agent_id, timeout)` to poll for completion.
+2. On timeout, invoke the Recovery Protocol (execution skill): `scan_phase_changes` → user confirmation → `reconcile_phase`.
+
+### Hooks
+
+Codex does not expose PreToolUse / BeforeAgent / AfterAgent hooks to plugins. Maestro does not rely on hooks under Codex; handoff-format enforcement, design-gate tracking, and reconciliation are all enforced by the MCP server.

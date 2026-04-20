@@ -65,7 +65,12 @@ function createToolPack(context = {}) {
     handlers: {
       get_skill_content: createSkillContentHandler(runtimeConfig, canonicalSrcRoot),
       get_agent: createAgentHandler(runtimeConfig, canonicalSrcRoot),
-      get_runtime_context: createRuntimeContextHandler(runtimeConfig),
+      get_runtime_context: createRuntimeContextHandler(
+        runtimeConfig,
+        typeof context.services?.workspaceSuggestion === 'function'
+          ? context.services.workspaceSuggestion
+          : () => null
+      ),
     },
   });
 }

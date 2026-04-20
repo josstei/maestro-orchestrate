@@ -40,27 +40,21 @@ module.exports = {
     hasTimeout: true,
   },
 
+  delegation: {
+    pattern: '{{agent}}(query: "...")',
+    constraints: {
+      result_surface: 'synchronous',
+      child_cannot_prompt_user: false,
+    },
+  },
+
   delegationPattern: '{{agent}}(query: "...")',
 
   features: {
-    mcpSkillContentHandler: true,
-    policyEnforcer: false,
     exampleBlocks: false,
-    geminiHookModel: true,
-    claudeHookModel: false,
-    geminiDelegation: true,
-    claudeDelegation: false,
-    codexDelegation: false,
-    geminiToolExamples: true,
-    claudeToolExamples: false,
-    geminiAskFormat: true,
-    geminiStateContract: true,
     claudeStateContract: false,
+    geminiStateContract: true,
     codexStateContract: false,
-    geminiRuntimeConfig: false,
-    claudeRuntimeConfig: false,
-    codexRuntimeConfig: false,
-    qwenRuntimeConfig: true,
   },
 
   paths: {

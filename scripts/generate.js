@@ -10,6 +10,7 @@ const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload, stampVersion, buildPayloadAllowlist, shouldIncludeInPayload, shouldDescendInto } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
+const { collectManifestPaths } = require('../src/generator/manifest-curator');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -32,19 +33,6 @@ function loadRuntimes() {
     runtimes[config.name] = config;
   }
   return runtimes;
-}
-
-function collectManifestPaths(manifest, runtimes) {
-  const paths = new Set();
-  for (const entry of manifest) {
-    for (const p of Object.values(entry.outputs)) paths.add(p);
-  }
-  for (const fn of ENTRY_POINT_EXPANDERS) {
-    for (const rt of Object.keys(runtimes)) {
-      for (const { outputPath } of fn(rt, SRC)) paths.add(outputPath);
-    }
-  }
-  return paths;
 }
 
 function processManifestEntry(entry, runtimes, session) {
@@ -118,7 +106,7 @@ async function main() {
   }
 
   if (!session.isReadOnlyMode()) {
-    const manifestPaths = collectManifestPaths(manifest, runtimes);
+    const manifestPaths = collectManifestPaths(manifest, runtimes, SRC, ENTRY_POINT_EXPANDERS);
     const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS });
     if (pruned.length > 0) {
       console.log('\nPruning stale files (not in manifest):');

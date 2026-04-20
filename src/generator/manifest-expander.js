@@ -60,14 +60,14 @@ function expandGlob(pattern, srcDir) {
 }
 
 /**
- * Compute the output path for a source-relative path in a given runtime.
- * Handles snake_case agent naming, outputDir prepending, and
- * skills/shared rewriting.
- * @param {string} srcRelPath - Source-relative path
- * @param {{ agentNaming?: string, outputDir?: string }} runtime - Runtime configuration
- * @returns {string} Computed output path
+ * Apply the path-shape rewrites that differ per runtime but do NOT
+ * prepend outputDir. Handles skills/shared flattening and snake_case
+ * agent renaming.
+ * @param {string} srcRelPath
+ * @param {{ agentNaming?: string }} runtime
+ * @returns {string}
  */
-function computeOutputPath(srcRelPath, runtime) {
+function normalizeSrcRelPath(srcRelPath, runtime) {
   let outPath = srcRelPath;
 
   if (outPath.startsWith('skills/shared/')) {
@@ -80,11 +80,18 @@ function computeOutputPath(srcRelPath, runtime) {
     outPath = dir + '/' + toSnakeCase(base);
   }
 
-  if (runtime.outputDir && runtime.outputDir !== './') {
-    outPath = runtime.outputDir + outPath;
-  }
-
   return outPath;
+}
+
+/**
+ * Compute the output path for a source-relative path in a given runtime.
+ * Composes the name-shape rewrites with outputDir prepending.
+ * @param {string} srcRelPath - Source-relative path
+ * @param {{ agentNaming?: string, outputDir?: string }} runtime - Runtime configuration
+ * @returns {string} Computed output path
+ */
+function computeOutputPath(srcRelPath, runtime) {
+  return buildRuntimeOutputPath(runtime, normalizeSrcRelPath(srcRelPath, runtime));
 }
 
 /**
@@ -211,11 +218,7 @@ function expandManifest(rules, runtimes, srcDir) {
       for (const runtimeName of rule.runtimes) {
         const runtime = runtimes[runtimeName];
         if (rule.outputName) {
-          let outPath = rule.outputName;
-          if (runtime.outputDir && runtime.outputDir !== './') {
-            outPath = runtime.outputDir + outPath;
-          }
-          outputs[runtimeName] = outPath;
+          outputs[runtimeName] = buildRuntimeOutputPath(runtime, rule.outputName);
         } else if (rule.preserveSourcePath) {
           const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
           outputs[runtimeName] = buildRuntimeOutputPath(
@@ -226,7 +229,7 @@ function expandManifest(rules, runtimes, srcDir) {
           const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
           outputs[runtimeName] = buildRuntimeOutputPath(
             runtime,
-            joinRelativePath(outputBase, computeOutputPath(srcRelPath, { ...runtime, outputDir: './' }))
+            joinRelativePath(outputBase, normalizeSrcRelPath(srcRelPath, runtime))
           );
         }
       }
@@ -243,6 +246,7 @@ function expandManifest(rules, runtimes, srcDir) {
 
 module.exports = {
   expandGlob,
+  normalizeSrcRelPath,
   computeOutputPath,
   normalizeOutputBase,
   joinRelativePath,

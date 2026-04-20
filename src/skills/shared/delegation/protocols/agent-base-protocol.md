@@ -111,6 +111,17 @@ Populate this section when your output feeds into subsequent phases. Read-only a
 - The orchestrator extracts Downstream Context from completed phases and includes relevant sections in subsequent delegation prompts, creating an information chain
 - Be specific in Downstream Context — reference exact file paths, function names, and type signatures rather than general descriptions
 
+### Canonical Shape for `transition_phase`
+
+When the orchestrator translates your Markdown Downstream Context into the `downstream_context` argument of `transition_phase`, the server enforces a fixed shape:
+
+- The object keys are exactly `key_interfaces_introduced`, `patterns_established`, `integration_points`, `assumptions`, `warnings` (snake_case). Other keys are dropped.
+- Each value is either a string or an array of strings. The server normalizes strings to single-element arrays.
+- The tokens `"none"`, `"n/a"`, `"not applicable"`, and empty strings are treated as absent.
+- A phase that produced files but whose normalized context has no non-empty field is rejected with `HANDOFF_INCOMPLETE` — the orchestrator must re-request a populated handoff.
+
+Prefer arrays when you have multiple discrete items so each item is preserved verbatim in session state.
+
 ### Hook Enforcement
 
 The hooks system validates this contract at runtime. After every agent turn, the post-delegation hook checks for both `## Task Report` and `## Downstream Context` headings in the response:
@@ -119,3 +130,16 @@ The hooks system validates this contract at runtime. After every agent turn, the
 - **Missing either heading on retry**: The hook allows the response through to prevent infinite loops, but logs a warning. The orchestrator receives the malformed output and must handle the missing context.
 
 Always include both headings, even when Part 2 fields are all "none". Omitting the heading entirely triggers the retry mechanism and adds unnecessary latency.
+
+## Blockers
+
+If you cannot proceed because a user decision is required, emit a `## Blockers` section in your handoff, placed between `## Task Report` and `## Downstream Context`:
+
+    ## Blockers
+    - BLOCKER: [your question]
+      Context: [why this arose; what you tried]
+      Required to proceed: [the specific answer you need]
+
+Do NOT call a user-prompt tool yourself. The orchestrator will collect blockers, ask the user, and re-delegate the phase with the answer supplied in your next delegation Context.
+
+A handoff that lists blockers does NOT count as phase completion. Your phase stays `in_progress` until you return again without blockers.
