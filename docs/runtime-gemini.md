@@ -129,17 +129,16 @@ Gemini tools use canonical names (identity mapping):
 
 ## Feature Flags
 
+The canonical feature set (same 4 flags across all runtimes, values per runtime):
+
 ```
-mcpSkillContentHandler:  true
-policyEnforcer:          false (native TOML policies instead)
-exampleBlocks:           false
-geminiHookModel:         true
-geminiDelegation:        true
-geminiToolExamples:      true
-geminiAskFormat:         true
-geminiStateContract:     true
-geminiRuntimeConfig:     true
+exampleBlocks:             false
+claudeStateContract:       false
+scriptBasedStateContract:  true
+codexStateContract:        false
 ```
+
+See `src/platforms/gemini/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
