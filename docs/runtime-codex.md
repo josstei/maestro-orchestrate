@@ -135,16 +135,16 @@ Codex tools use descriptive names rather than direct API mappings:
 
 ## Feature Flags
 
+The canonical feature set (same 4 flags across all runtimes, values per runtime):
+
 ```
-mcpSkillContentHandler:  true
-policyEnforcer:          false
-exampleBlocks:           false
-codexDelegation:         true
-codexStateContract:      true
-codexRuntimeConfig:      true
+exampleBlocks:             false
+claudeStateContract:       false
+scriptBasedStateContract:  false
+codexStateContract:        true
 ```
 
-All Gemini-specific and Claude-specific flags are `false`.
+See `src/platforms/codex/runtime-config.js` for the authoritative values.
 
 ## Path Resolution
 
@@ -181,7 +181,7 @@ plugins/maestro/
 └── README.md
 ```
 
-The runtime server is invoked via `npx` rather than a local wrapper file, so there is no `plugins/maestro/mcp/` directory. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`.
+The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`.
 
 ## Differences from Gemini and Claude
 

@@ -1,6 +1,6 @@
 # Qwen Runtime
 
-The Qwen Code extension lives at the repository root. It mirrors the Gemini CLI extension structure with Qwen-specific manifest, context, and tool mappings.
+The Qwen Code extension lives in `qwen/` (the output directory declared in `src/platforms/qwen/runtime-config.js`). The manifest (`qwen-extension.json`) and context file (`QWEN.md`) remain at the repo root so Qwen Code can discover the extension; generated artifacts (`qwen/agents/`, `qwen/hooks.json`) live in the subdirectory. It mirrors the Gemini CLI extension structure with Qwen-specific manifest, context, and tool mappings.
 
 ## Configuration
 
@@ -25,7 +25,7 @@ The public server at `mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO
 
 Qwen uses **snake_case** for agent names (matching Gemini's convention): `code_reviewer`, `api_designer`, `accessibility_specialist`.
 
-Agent files are generated at `agents/*.md` with snake_case filenames.
+Agent files are generated at `qwen/agents/*.md` with snake_case filenames (Qwen's own subdirectory, separate from Gemini's repo-root `agents/`).
 
 ## Delegation
 
@@ -38,22 +38,7 @@ architect(query: "Design the auth system...")
 
 ## Commands
 
-12 TOML commands in `commands/maestro/`:
-
-| Command | Source |
-|---------|--------|
-| `orchestrate.toml` | Core command registry |
-| `execute.toml` | Core command registry |
-| `resume.toml` | Core command registry |
-| `review.toml` | Entry-point registry |
-| `debug.toml` | Entry-point registry |
-| `archive.toml` | Entry-point registry |
-| `status.toml` | Entry-point registry |
-| `security-audit.toml` | Entry-point registry |
-| `perf-check.toml` | Entry-point registry |
-| `seo-audit.toml` | Entry-point registry |
-| `a11y-audit.toml` | Entry-point registry |
-| `compliance-check.toml` | Entry-point registry |
+The Qwen runtime does not emit its own TOML command files. `src/generator/entry-point-expander.js` sets `qwen: null` in both `ENTRY_POINT_CONFIG` and `CORE_COMMAND_CONFIG`, so `expandEntryPoints('qwen')` and `expandCoreCommands('qwen')` return empty arrays. This is intentional: Qwen Code is Gemini-CLI-compatible and consumes the 12 TOML commands generated for Gemini at repo-root `commands/maestro/` when both extensions coexist. See `docs/runtime-gemini.md` for the full command list.
 
 ## Hooks
 
@@ -99,33 +84,34 @@ Qwen tools use canonical names with Qwen-specific overrides declared in `src/pla
 | Canonical | Qwen |
 |-----------|------|
 | `read_file` | `read_file` |
-| `read_many_files` | `read_file (called per-file)` |
+| `read_many_files` | `read_many_files` |
 | `list_directory` | `list_directory` |
 | `glob` | `glob` |
 | `grep_search` | `grep_search` |
-| `google_web_search` | `google_web_search` |
+| `google_web_search` | `web_search` |
 | `web_fetch` | `web_fetch` |
 | `write_file` | `write_file` |
-| `replace` | `replace` |
+| `replace` | `edit` |
 | `run_shell_command` | `run_shell_command` |
-| `ask_user` | `ask_user` |
-| `write_todos` | `not available — track progress in model context` |
-| `activate_skill` | `activate_skill` |
+| `ask_user` | `ask_user_question` |
+| `write_todos` | `todo_write` |
+| `activate_skill` | `skill` |
 | `enter_plan_mode` | `enter_plan_mode` |
 | `exit_plan_mode` | `exit_plan_mode` |
 | `codebase_investigator` | `codebase_investigator` |
 
 ## Feature Flags
 
-Qwen's `src/platforms/qwen/runtime-config.js` reuses the Gemini feature profile with Qwen-specific overrides where required. Refer to the runtime-config source for the authoritative flag set; typical values include:
+The canonical feature set (same 4 flags across all runtimes, values per runtime):
 
 ```
-mcpSkillContentHandler:  true
-policyEnforcer:          false (native TOML policies instead)
-exampleBlocks:           false
-qwenStateContract:       true
-qwenRuntimeConfig:       true
+exampleBlocks:             false
+claudeStateContract:       false
+scriptBasedStateContract:  true
+codexStateContract:        false
 ```
+
+See `src/platforms/qwen/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
@@ -147,16 +133,15 @@ Fields: `kind` (always "local"), `temperature`, `max_turns`, `timeout_mins`.
 
 ## Generated Files
 
+```text
+qwen/
+├── agents/                39 agent stubs (snake_case, Qwen tool names)
+└── hooks.json             hook registration (SubagentStart, SubagentStop, …)
 ```
-agents/                    39 agent stubs (snake_case)
-commands/maestro/          12 TOML commands
-hooks/                     thin hook runner, adapter wrapper, hooks.json
-mcp/                       thin MCP entrypoint
-policies/                  1 TOML policy file
-QWEN.md, qwen-extension.json
-```
+
+The Qwen extension reuses Gemini's repo-root `commands/maestro/`, `hooks/`, `mcp/`, and `policies/` artifacts when both runtimes coexist; no duplicates are written under `qwen/`.
 
 ## Notes
 
-- Qwen shares the repo-root output location with Gemini. When both extensions are installed in the same workspace, `agents/`, `commands/maestro/`, `hooks/`, `mcp/`, and `policies/` are owned by the most recent generator run; the runtime-specific difference is the context file (`GEMINI.md` vs `QWEN.md`) and the manifest (`gemini-extension.json` vs `qwen-extension.json`).
+- Qwen writes its own agent stubs and hook config to `qwen/agents/` and `qwen/hooks.json` (separate from Gemini's repo-root outputs). For the `/maestro:*` command surface, Qwen reuses Gemini's repo-root `commands/maestro/` TOML files — the Qwen generator does not duplicate these.
 - The `scripts/update-versions.js` release helper bumps `gemini-extension.json` automatically but does not yet include `qwen-extension.json` — maintainers bumping a release should edit `qwen-extension.json` manually or extend the helper's `JSON_VERSION_FILES` list.

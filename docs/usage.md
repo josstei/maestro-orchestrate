@@ -11,8 +11,8 @@ node scripts/generate.js
 # Generate runtime adapters using package scripts
 npm run build
 
-# Run all 121 tests across 22 files
-node --test tests/transforms/*.test.js tests/integration/*.test.js
+# Run all 980 tests across 71 files
+node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
 # Show unified diff of changes
 node scripts/generate.js --diff
@@ -44,9 +44,9 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain root docs (`README.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/` or `plugins/maestro/` output.
+1. Edit canonical source in `src/`. Maintain root docs (`README.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/`, `plugins/maestro/`, or `qwen/` output.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
-3. Run `node --test tests/transforms/*.test.js tests/integration/*.test.js` before committing
+3. Run `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` (or `just test`) before committing
 4. Commit canonical source, directly owned root docs, and generated adapter output together
 5. CI will fail if runtime adapters drift from canonical `src/`
 
@@ -105,9 +105,9 @@ Skills are Markdown-based slash commands:
 |---------|---------|
 | `/orchestrate` | Full orchestration workflow |
 | `/execute` | Execute an approved plan |
-| `/resume` | Resume interrupted session |
-| `/review` | Code review |
-| `/debug` | Debugging workflow |
+| `/resume-session` | Resume interrupted session |
+| `/review-code` | Code review |
+| `/debug-workflow` | Debugging workflow |
 | `/archive` | Archive active session |
 | `/status` | Show session status |
 | `/security-audit` | Security assessment |
@@ -236,41 +236,58 @@ phases:
 |-------|-----------|-------|------|
 | architect | System design, technology selection | 15 | 0.3 |
 | api-designer | Endpoint design, API contracts | 15 | 0.3 |
+| cloud-architect | AWS/GCP/Azure topology, IaC, multi-region design | 15 | 0.3 |
 | code-reviewer | Bug detection, quality assessment | 15 | 0.2 |
-| content-strategist | Content planning, editorial calendars | 15 | 0.3 |
 | compliance-reviewer | GDPR/CCPA, license auditing | 15 | 0.3 |
+| content-strategist | Content planning, editorial calendars | 15 | 0.3 |
+| solutions-architect | Enterprise integration, cross-team architecture | 15 | 0.3 |
 
 ### Read + Shell Agents (investigation, profiling)
 
 | Agent | Specialty | Turns | Temp |
 |-------|-----------|-------|------|
+| accessibility-specialist | WCAG compliance, ARIA review | 20 | 0.2 |
+| database-administrator | RDBMS tuning, indexes, migration safety | 20 | 0.2 |
+| db2-dba | DB2 for z/OS and LUW, REORG/RUNSTATS/bind | 20 | 0.2 |
 | debugger | Root cause analysis, execution tracing | 20 | 0.2 |
 | performance-engineer | Profiling, optimization | 20 | 0.2 |
 | security-engineer | Vulnerability assessment, threat modeling | 20 | 0.2 |
 | seo-specialist | Technical SEO, structured data | 20 | 0.2 |
-| accessibility-specialist | WCAG compliance, ARIA review | 20 | 0.2 |
+| site-reliability-engineer | SLOs, error budgets, runbooks, postmortems | 20 | 0.2 |
+| zos-sysprog | z/OS systems programming, JCL, USS, RACF | 20 | 0.2 |
 
 ### Read + Write Agents (documentation, design)
 
 | Agent | Specialty | Turns | Temp |
 |-------|-----------|-------|------|
-| technical-writer | Documentation, API references | 15 | 0.3 |
-| product-manager | PRDs, user stories, prioritization | 20 | 0.2 |
-| ux-designer | User flows, wireframes, heuristics | 20 | 0.2 |
 | copywriter | Marketing copy, landing pages | 20 | 0.3 |
+| product-manager | PRDs, user stories, prioritization | 20 | 0.2 |
+| prompt-engineer | LLM prompt design, few-shot, RAG tuning | 15 | 0.3 |
+| release-manager | Release notes, changelogs, rollout planning | 15 | 0.3 |
+| technical-writer | Documentation, API references | 15 | 0.3 |
+| ux-designer | User flows, wireframes, heuristics | 20 | 0.2 |
 
 ### Full Access Agents (implementation)
 
 | Agent | Specialty | Turns | Temp |
 |-------|-----------|-------|------|
+| analytics-engineer | Event tracking, A/B testing, funnels | 25 | 0.2 |
+| cobol-engineer | Mainframe COBOL, JCL, CICS/IMS on z/OS | 25 | 0.2 |
 | coder | Feature implementation, SOLID principles | 25 | 0.2 |
 | data-engineer | Schema design, ETL, migrations | 20 | 0.2 |
-| devops-engineer | CI/CD, containerization, infrastructure | 20 | 0.2 |
-| tester | Unit/integration/E2E tests, TDD | 25 | 0.2 |
-| refactor | Code restructuring, debt reduction | 25 | 0.2 |
 | design-system-engineer | Design tokens, theming, component APIs | 25 | 0.2 |
+| devops-engineer | CI/CD, containerization, infrastructure | 20 | 0.2 |
+| hlasm-assembler-specialist | IBM HLASM for z/OS, macros, SVCs | 25 | 0.2 |
 | i18n-specialist | Internationalization, RTL, locales | 20 | 0.2 |
-| analytics-engineer | Event tracking, A/B testing, funnels | 25 | 0.2 |
+| ibm-i-specialist | IBM i RPG/CL, DB2 for i, OS/400 | 25 | 0.2 |
+| integration-engineer | B2B APIs, ETL, message brokers (Kafka, MQ) | 25 | 0.2 |
+| ml-engineer | Model training, feature pipelines, evaluation | 25 | 0.2 |
+| mlops-engineer | Model registry, CI/CD for models, drift detection | 25 | 0.2 |
+| mobile-engineer | iOS/Android/React Native/Flutter platform work | 25 | 0.2 |
+| observability-engineer | Metrics, logs, traces, OpenTelemetry, dashboards | 25 | 0.2 |
+| platform-engineer | Internal developer platforms, paved paths | 25 | 0.2 |
+| refactor | Code restructuring, debt reduction | 25 | 0.2 |
+| tester | Unit/integration/E2E tests, TDD | 25 | 0.2 |
 
 ## MCP Tools Quick Reference
 
@@ -285,6 +302,11 @@ phases:
 | `update_session` | Session | Update execution metadata |
 | `transition_phase` | Session | Complete phase + start next |
 | `archive_session` | Session | Move to archive |
+| `enter_design_gate` | Session | Mark session as entering design phase (idempotent) |
+| `record_design_approval` | Session | Record user approval of design document |
+| `get_design_gate_status` | Session | Read design gate status for a session |
+| `scan_phase_changes` | Session | Scan workspace for files changed since phase start |
+| `reconcile_phase` | Session | Record file manifests for un-handed-off phase |
 | `get_skill_content` | Content | Serve skills/templates/references |
 | `get_agent` | Content | Serve agent methodologies |
 | `get_runtime_context` | Content | Runtime config snapshot |

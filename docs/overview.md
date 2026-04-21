@@ -5,7 +5,7 @@ Maestro is a multi-agent development orchestration platform that coordinates 39 
 - **Gemini CLI extension** (root directory — `GEMINI.md`, `gemini-extension.json`, shared `agents/`, `commands/maestro/`)
 - **Claude Code plugin** (`claude/` subdirectory)
 - **Codex plugin** (`plugins/maestro/` subdirectory)
-- **Qwen Code extension** (root directory — `QWEN.md`, `qwen-extension.json`, shared `agents/`, `commands/maestro/`)
+- **Qwen Code extension** (`qwen/` subdirectory — `qwen-extension.json` manifest + `QWEN.md` context file live at repo root; generated `qwen/agents/` and `qwen/hooks.json` live in the subdirectory)
 
 The orchestrator adopts a TechLead persona that designs, plans, delegates to agents, validates, and reports.
 
@@ -57,7 +57,7 @@ maestro-orchestrate/
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/
 │   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 22 test files, 121 tests
+├── tests/                        # 71 test files, 980 tests (see `just test` output)
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
@@ -74,15 +74,18 @@ maestro-orchestrate/
 │   ├── .claude-plugin/           # Plugin manifest
 │   └── .mcp.json                 # MCP server config
 │
-└── plugins/maestro/              # [generated] Codex plugin
-    ├── skills/                   # Codex skills (19)
-    ├── src/                      # generated detached runtime payload
-    ├── mcp/                      # Codex MCP adapter
-    ├── references/               # Runtime guide
-    ├── .codex-plugin/            # Plugin manifest
-    ├── .mcp.json                 # MCP server config
-    ├── .app.json                 # App config
-    └── README.md
+├── plugins/maestro/              # [generated] Codex plugin
+│   ├── skills/                   # Codex skills (19)
+│   ├── src/                      # generated detached runtime payload
+│   ├── references/               # Runtime guide
+│   ├── .codex-plugin/            # Plugin manifest
+│   ├── .mcp.json                 # MCP server config (spawns bin via npx)
+│   ├── .app.json                 # App config
+│   └── README.md
+│
+└── qwen/                         # [generated] Qwen Code extension
+    ├── agents/                   # Qwen agent stubs (39, snake_case, Qwen tool names)
+    └── hooks.json                # Qwen hook registration
 ```
 
 ## Core Concepts
