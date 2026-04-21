@@ -1,7 +1,7 @@
 {
   "name": "maestro",
-  "version": "1.6.2",
-  "description": "Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
+  "version": "1.6.3",
+  "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
   "author": {
     "name": "josstei"
   },

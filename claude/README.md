@@ -1,10 +1,10 @@
 # Maestro — Claude Code Plugin
 
-[![Version](https://img.shields.io/badge/version-1.6.2-blue)](https://github.com/josstei/maestro-orchestrate/releases)
+[![Version](https://img.shields.io/badge/version-1.6.3-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache-2.0-green)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-orange)](https://docs.anthropic.com/en/docs/claude-code)
 
-Multi-agent development orchestration platform — 22 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands
+Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands
 
 ## Installation
 
@@ -54,7 +54,7 @@ claude --plugin-dir /path/to/maestro-orchestrate/claude
 
 After starting Claude Code with the plugin loaded:
 
-- Type `/` and verify `orchestrate`, `review`, `debug`, `security-audit`, `perf-check`, `seo-audit`, `a11y-audit`, and `compliance-check` appear in autocomplete.
+- Type `/` and verify `orchestrate`, `review-code`, `debug-workflow`, `security-audit`, `perf-check`, `seo-audit`, `a11y-audit`, and `compliance-check` appear in autocomplete.
 - Run `/agents` and verify agents with the `maestro:` prefix appear (e.g., `maestro:coder`, `maestro:architect`).
 - Confirm MCP tools are registered: `mcp__plugin_maestro_maestro__*` tools should be available (e.g., `mcp__plugin_maestro_maestro__get_session_status`).
 
@@ -103,10 +103,10 @@ Maestro will walk you through the complete lifecycle:
 | `/orchestrate` | Full orchestration workflow (design, plan, execute, complete) |
 | `/execute` | Execute an approved implementation plan |
 | `/status` | Display current session status |
-| `/resume` | Resume an interrupted session |
+| `/resume-session` | Resume an interrupted session |
 | `/archive` | Archive the active session |
-| `/review` | Standalone code review |
-| `/debug` | Standalone debugging session |
+| `/review-code` | Standalone code review |
+| `/debug-workflow` | Standalone debugging session |
 | `/security-audit` | Standalone security assessment |
 | `/perf-check` | Standalone performance analysis |
 | `/seo-audit` | Standalone SEO assessment |
@@ -123,28 +123,45 @@ All agents share a baseline tool set: `Read`, `Glob`, `Grep`, `Skill`. Tool tier
 
 | Agent | Domain | Specialization | Tool Tier |
 |-------|--------|----------------|-----------|
-| architect | Engineering | System design, technology selection | Read-Only |
-| api-designer | Engineering | REST/GraphQL endpoint design | Read-Only |
-| coder | Engineering | Feature implementation, SOLID principles | Full Access |
-| code-reviewer | Engineering | Code quality review, bug detection | Read-Only |
-| data-engineer | Engineering | Schema design, query optimization | Full Access |
-| debugger | Engineering | Root cause analysis, execution tracing | Read + Shell |
-| devops-engineer | Engineering | CI/CD pipelines, containerization | Full Access |
-| performance-engineer | Engineering | Profiling, bottleneck identification | Read + Shell |
-| refactor | Engineering | Code modernization, technical debt | Full Access |
-| security-engineer | Engineering | Vulnerability assessment, OWASP | Read + Shell |
-| tester | Engineering | Unit/integration/E2E tests, TDD | Full Access |
-| technical-writer | Engineering | API docs, READMEs, documentation | Read + Write |
-| product-manager | Product | Requirements gathering, PRDs | Read + Write |
-| ux-designer | Design | User flow design, interaction patterns | Read + Write |
-| design-system-engineer | Design | Design tokens, component APIs | Full Access |
-| content-strategist | Content | Content planning, editorial calendars | Read-Only |
-| copywriter | Content | Persuasive copy, landing pages | Read + Write |
-| seo-specialist | SEO | Technical SEO audits, schema markup | Read + Shell |
-| accessibility-specialist | Design | WCAG compliance, ARIA review | Read + Shell |
-| compliance-reviewer | Compliance | GDPR/CCPA auditing, license checks | Read-Only |
-| i18n-specialist | Internationalization | String extraction, locale management | Full Access |
+| accessibility-specialist | Design | WCAG compliance auditing, ARIA review | Read + Shell |
 | analytics-engineer | Analytics | Event tracking, conversion funnels | Full Access |
+| api-designer | Engineering | API contracts and endpoint design | Read-Only |
+| architect | Engineering | System design and architecture decisions | Read-Only |
+| cloud-architect | Platform | AWS/GCP/Azure topology, IaC, multi-region design | Read-Only |
+| cobol-engineer | Mainframe | Mainframe COBOL, JCL, CICS/IMS on z/OS | Full Access |
+| code-reviewer | Engineering | Code quality review and bug identification | Read-Only |
+| coder | Engineering | Feature implementation | Full Access |
+| compliance-reviewer | Compliance | Legal and regulatory compliance (GDPR, CCPA, licensing) | Read-Only |
+| content-strategist | Content | Content planning and strategy | Read-Only |
+| copywriter | Content | Marketing copy and landing-page content | Read + Write |
+| data-engineer | Engineering | Schema design, queries, and data pipelines | Full Access |
+| database-administrator | Engineering | RDBMS tuning, indexes, migration safety (Postgres, MySQL, Oracle, SQL Server) | Read + Shell |
+| db2-dba | Mainframe | DB2 for z/OS and LUW, REORG, RUNSTATS, bind/rebind | Read + Shell |
+| debugger | Engineering | Root cause analysis and defect investigation | Read + Shell |
+| design-system-engineer | Design | Design tokens and theming | Full Access |
+| devops-engineer | Engineering | CI/CD, containerization, and deployment | Full Access |
+| hlasm-assembler-specialist | Mainframe | IBM HLASM for z/OS, macros, SVCs | Full Access |
+| i18n-specialist | Internationalization | Internationalization and locale management | Full Access |
+| ibm-i-specialist | Mainframe | IBM i RPG/CL, DB2 for i, OS/400 | Full Access |
+| integration-engineer | Platform | B2B APIs, ETL, message brokers (Kafka, MQ) | Full Access |
+| ml-engineer | ML/AI | Model training, feature pipelines, evaluation | Full Access |
+| mlops-engineer | ML/AI | Model registry, CI/CD for models, drift detection | Full Access |
+| mobile-engineer | Engineering | iOS/Android/React Native/Flutter platform work | Full Access |
+| observability-engineer | Ops | Metrics, logs, traces, OpenTelemetry, dashboards | Full Access |
+| performance-engineer | Engineering | Performance profiling and optimization | Read + Shell |
+| platform-engineer | Platform | Internal developer platforms, paved paths | Full Access |
+| product-manager | Product | Requirements and product strategy | Read + Write |
+| prompt-engineer | ML/AI | LLM prompt design, few-shot, RAG tuning | Read + Write |
+| refactor | Engineering | Structural refactoring and technical debt | Full Access |
+| release-manager | Ops | Release notes, changelogs, rollout planning | Read + Write |
+| security-engineer | Engineering | Security assessment and vulnerability analysis | Read + Shell |
+| seo-specialist | SEO | Technical SEO auditing and structured data | Read + Shell |
+| site-reliability-engineer | Ops | SLOs, error budgets, runbooks, postmortems | Read + Shell |
+| solutions-architect | Platform | Enterprise integration, cross-team architecture | Read-Only |
+| technical-writer | Engineering | Documentation and technical writing | Read + Write |
+| tester | Engineering | Test implementation and coverage analysis | Full Access |
+| ux-designer | Design | User experience design | Read + Write |
+| zos-sysprog | Mainframe | z/OS systems programming, JCL, USS, RACF | Read + Shell |
 
 ## Claude Code Specifics
 

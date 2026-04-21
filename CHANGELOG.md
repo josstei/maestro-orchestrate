@@ -7,29 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **Codex MCP server invocation** — `plugins/maestro/.mcp.json` now spawns the server via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server`, matching the convention used by every curated Codex plugin. The previous relative-path spawn (`./mcp/maestro-server.js`) resolved against the user's workspace cwd rather than the plugin directory, causing MCP handshake failures in any workspace outside the repo checkout. The new invocation is location-independent.
-- **Codex installation path** — Primary install is now `codex marketplace add josstei/maestro-orchestrate` (uses the new root `.agents/plugins/marketplace.json`). `scripts/install-codex-plugin.js` remains as a legacy/offline fallback.
+## [1.6.3] - 2026-04-20
 
 ### Added
 
-- **`maestro-mcp-server` bin** (`bin/maestro-mcp-server.js`) — Thin Node entrypoint declared in `package.json` bin; sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then delegates to `src/mcp/maestro-server.js`. Invoked by Codex via `npx`.
-- **Root-level Codex marketplace manifest** (`.agents/plugins/marketplace.json`) — Makes the repo a valid marketplace target for `codex marketplace add`.
+- **5 new MCP tools** (Session pack 5 → 10; total pack count 12 → 17):
+  - `enter_design_gate`, `record_design_approval`, `get_design_gate_status` — server-side design-gate lifecycle; `create_session` now enforces approval before session creation
+  - `scan_phase_changes`, `reconcile_phase` — post-hoc phase reconciliation when an agent's actual file manifest diverges from the plan
 - **17 additional specialist agents** — Expanded the roster from 22 to 39 specialists:
   - **ML / AI**: `ml-engineer`, `mlops-engineer`, `prompt-engineer`
   - **Ops / reliability**: `site-reliability-engineer`, `observability-engineer`, `release-manager`
   - **Platform**: `cloud-architect`, `platform-engineer`, `solutions-architect`, `integration-engineer`
   - **Data / mobile**: `database-administrator`, `mobile-engineer`
   - **Mainframe / legacy**: `cobol-engineer`, `db2-dba`, `zos-sysprog`, `hlasm-assembler-specialist`, `ibm-i-specialist`
+- **`maestro-mcp-server` bin** (`bin/maestro-mcp-server.js`) — Thin Node entrypoint declared in `package.json` bin; sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then delegates to `src/mcp/maestro-server.js`. Invoked by Codex via `npx`.
+- **Root-level Codex marketplace manifest** (`.agents/plugins/marketplace.json`) — Makes the repo a valid marketplace target for `codex marketplace add`.
+- **Declarative `requiresWorkspace` tool contract** — Tool schemas carry `requiresWorkspace: true` when they depend on an initialized workspace; the registry captures the metadata and the dispatcher enforces it before handler invocation, returning a typed `WORKSPACE_NOT_INITIALIZED` error that names `initialize_workspace` in the recovery message.
+- **Workspace marker file module** — `initialize_workspace` now writes a canonical marker and `requireExplicitWorkspaceRoot` rejects extension-cache paths.
+- **Content variant for design-gate and implementation-plan submission** — `record_design_approval` accepts `design_document_content` + `design_document_filename`; `create_session` accepts `implementation_plan_content` + `implementation_plan_filename`. Bytes are materialized atomically into `<state_dir>/plans/` by the server. Motivation: Gemini Plan Mode resolves relative paths against `~/.gemini/tmp/<uuid>/`, so a path the model hands back to MCP never resolves to the same file the server sees — the content variant bypasses runtime-specific path resolution.
+- **Shared plan-phase schema contract** (`src/mcp/contracts/plan-schema.js`) — Single source of truth for phase shape consumed by both `validate_plan` and `create_session`. `phase.files` is recognized as the planning-time canonical file manifest and is checked by `file_overlap` and `agent_capability_mismatch` validators.
+- **`downstream-context` contract module** (`src/mcp/contracts/downstream-context.js`) — Canonical handoff shape: accepts string or array, handles `'none'`/`'n/a'`/empty-string sentinels, and embeds a human-readable shape description in the `HANDOFF_INCOMPLETE` error.
+- **Runtime `delegation.constraints` object** — Per-runtime machine-readable constraints exposed via `get_runtime_context`. Codex declares deferred results and fork-incompatibility with `agent_type`/`model`/`reasoning_effort`; Claude, Gemini, and Qwen declare synchronous dispatch.
+- **Blocker parser for child-agent question surfacing** — Agents emit a `Blockers:` section in their handoff report; the orchestrator surfaces unresolved blockers back to the user.
+- **`workspace_suggestion` in `get_runtime_context`** — Server surfaces a recommended workspace path for runtimes that cannot auto-resolve one.
+- **Per-entry `runtimeNames`** — Each entry-point registry entry owns its per-runtime rename declaratively; replaces the centralized `ENTRY_POINT_NAME_OVERRIDES` map.
+- **Host-reserved command protection extended to Claude** — Entry-point generation now rejects names that would shadow Claude's built-in slash commands (`review`, `debug`, `resume`). Previously only Codex was guarded.
+- **Adapter factory** (`src/platforms/shared/adapters/factory.js`) — Captures the adapter contract (`normalizeInput`, `formatOutput`, `errorFallback`, `readBoundedStdin`, `getExitCode`) with shared defaults. `claude`, `gemini`, and `qwen` adapters now declare only their protocol-specific extractors.
+- **Adapter naming conventions module** — Shared conventions consumed by `hook-runner` for adapter discovery; replaces open-coded filename parsing.
+- **`src/lib/yaml-emit.js`** — `emitBlockList` and `emitInlineQuotedList` helpers replace 4 hand-rolled YAML emission sites.
+- **`src/lib/framework-detection.js`** — `SKIP_DIRS`, `CONFIG_FILES`, `FRAMEWORK_INDICATORS` extracted from `assess_task_complexity` so the handler owns only logic.
+- **`src/generator/manifest-curator.js`** — `collectManifestPaths` relocated from `scripts/generate.js` shell wrapper into the generator module.
+- **`session-state-core.js`** — `withSessionState` / `readActiveSession` transaction helpers; the three mutation handlers in `session-state-tools.js` route through the helper (418 → 378 lines).
+- **Isolated integration tests** — Codex workspace resolution contract, `validate_plan → create_session` round-trip, handoff validation and reconciliation flow, design-gate Plan Mode lifecycle (late-write success path, phantom-path failure path, archival).
+
+### Changed
+
+- **Codex MCP server invocation** — `plugins/maestro/.mcp.json` now spawns the server via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server`, matching the convention used by every curated Codex plugin. The previous relative-path spawn (`./mcp/maestro-server.js`) resolved against the user's workspace cwd rather than the plugin directory, causing MCP handshake failures in any workspace outside the repo checkout. The new invocation is location-independent.
+- **Codex installation path** — Primary install is now `codex marketplace add josstei/maestro-orchestrate` (uses the new root `.agents/plugins/marketplace.json`). `scripts/install-codex-plugin.js` remains as a legacy/offline fallback.
+- **`initialize_workspace` requires explicit `workspace_path`** — Handler calls `requireExplicitWorkspaceRoot`, writes a workspace marker, and returns `workspace_path` in the result. Schema declares `workspace_path` as required. Back-compat preserved via a `cachedProjectRoot` fallback for callers that pass the third MCP arg but not the explicit param.
+- **`create_session` enforces design-gate approval** — Auto-populates `state.design_document` from the approved gate when the param is omitted, and resolves `implementation_plan` paths through the same copy-into-plans contract. Extends the design-gate from a single-step approval signal to the owner of the full design-doc lifecycle through archival.
+- **`create_session` preserves phase ID types** — `phase.id` and `blocked_by` preserved verbatim, so plans with string IDs round-trip consistently. Tool schemas for `completed_phase_id`, `next_phase_id`, `next_phase_ids`, and the `scan_phase_changes` / `reconcile_phase` `phase_id` now accept number or string.
+- **`transition_phase` rejects handoffs with files but empty `downstream_context`** — Returns `HANDOFF_INCOMPLETE` with the shape description embedded.
+- **`archive_session` blocks on `requires_reconciliation`** and removes the `state/<session_id>.design-gate.json` sidecar on success (previously lingered; a future session reusing the same id inherited a stale "already approved" gate).
+- **`validate_plan` enforces the shared phase schema** — `file-overlap` and `agent-capability` checkers inspect `phase.files` in addition to runtime `files_created` / `files_modified` manifests. Previously a plan using `phase.files` bypassed both guards, letting parallel phases declare conflicting ownership and letting read-only agents be assigned to write phases. Both error early-return paths now include `parallelization_profile: null`, matching the success-path response shape.
+- **`reconcile_phase` rejects empty payloads** — Returns `RECONCILIATION_EMPTY_PAYLOAD` when no files and no populated `downstream_context` are supplied; overwrites file arrays only when the caller explicitly supplies them (previously silently cleared `requires_reconciliation` without recording attribution).
+- **`resolve_settings` tolerates null project root** — Falls back to env + extension settings when no workspace is available, matching the documented startup-phase contract. Fixes the parallel-race crash where Gemini's concurrent startup calls produced a raw Node path error.
+- **`maestro-server.js` decomposed** — 398-line monolith split into three single-purpose core modules and a 115-line composer: `core/line-reader.js` (readline stdin → JSON dispatch), `core/protocol-dispatcher.js` (JSON-RPC 2.0 routing, result builders), `core/project-root-cache.js` (workspace env + `roots/list` caching). Public exports preserved.
+- **`validate-plan.js` decomposed** — 341-line handler split into four orthogonal checkers plus a 65-line orchestrator: `validation/schema-checker.js`, `validation/agent-checker.js`, `validation/dag-checker.js`, `validation/file-overlap-checker.js`. Violation ordering and error codes preserved.
+- **`rebuild-frontmatter.js` rewritten as table-driven** — Per-field emitter map plus per-runtime ordered field lists. Claude's block-scalar description and color emission, Gemini's `tools`-before-`turns` layout, and the default (codex/qwen) shape are now data rather than conditionals. Generator output byte-identical.
+- **Content provider simplified** — Inlined the filesystem branch of `content/provider.js`; every runtime uses `primary=filesystem` so the fallback-chain was dead code. Public exports (`CONTENT_SOURCES`, `createContentProvider`, `createFilesystemProvider`, `normalizeContentPolicy`) preserved.
+- **Entry-point expansion unified** — `expandEntryPoints` and `expandCoreCommands` share `runTemplateExpansion` with per-runtime config maps.
+- **Recovery hints table-driven** — `recovery-hints.js` cascade replaced by `RECOVERY_TABLE` lookup.
+- **Manifest-expander refactored** — `normalizeSrcRelPath` (skills/shared flatten + snake_case agent rename) composed with `buildRuntimeOutputPath`; removes three open-coded `runtime.outputDir + outPath` sites and the `{ ...runtime, outputDir: './' }` glob-fallback hack.
+- **Skill-discovery-stub consolidated onto the canonical `parse()` API** — `agent-stub.js` keeps `extractValue`/`splitAtBoundary` because those are the right primitives for its permissive unclosed-frontmatter behavior.
+- **13 unused feature flags pruned** from each runtime-config's `features` block. Only `exampleBlocks`, `claudeStateContract`, `scriptBasedStateContract`, and `codexStateContract` remain — the others were mutual-exclusion triples with no readers in `src/` or tests.
+- **Renamed:** `geminiStateContract` → `scriptBasedStateContract` (the flag gates the contract shared by Gemini and Qwen, which is a Gemini fork using the same `read-active-session.js` script); `createAdapter` → `defineAdapter` (matches `defineToolPack`/`defineRuntime` pattern; the factory is a spec-assembler, not a registry-dispatch builder).
+- **Payload builder separated concerns** — Allowlist and adapter filtering are now distinct pipeline steps.
+- **Orchestration flow restructured for Gemini Plan Mode** — Step 7 pre-loads architecture plus every pre-execution skill (`design-dialogue`, `design-document`, `implementation-planning`, `implementation-plan`) in a single batch before any Plan Mode entry. Gemini Plan Mode deregisters MCP tools, so previously `get_skill_content` calls at steps 11/13/15 returned "tool not found" and stranded the orchestrator. Steps 11/13/15 now reference the already-loaded skills. Step 13/14 split so `record_design_approval` is called AFTER `exit_plan_mode`. Step 9a HARD-GATE pins the chosen `session_id` across every MCP call that accepts `session_id` to prevent orphan-gate drift.
+- **MCP client request timeout** — Bumped to 5000ms.
+- **Documentation refreshed to canonical state** — Agent count 22 → 39, MCP tools 12 → 17, transforms 10 → 6, runtimes 3 → 4 applied across every hand-maintained surface. New `docs/runtime-qwen.md` mirrors the `runtime-gemini.md` structure. `src/references/architecture.md` agent roster lists all 39 agents with focus areas. `docs/usage.md` replaced the non-existent `just release <version>` target with `just check-layers` and `just cleanup-branches` which do exist.
+- **Qwen Code runtime documentation** — Added to Runtime Targets and installation sections across README and docs.
+
+### Fixed
+
+- **`downstream_context` contract mismatch across three layers** — `agent-base-protocol` documented string examples (`'or none'`), session-state stored arrays, `transition_phase` accepted arrays only. Agents emitting the documented string form were rejected with a misleading "no downstream context" error. The canonical contract now normalizes both forms.
+- **Latent error-hierarchy bug** — `ValidationError`, `StateError`, `NotFoundError`, and `ConfigError` hard-coded their code and silently dropped caller-supplied subtype codes. `HANDOFF_INCOMPLETE`, `DESIGN_GATE_UNAPPROVED`, `RECONCILIATION_PENDING` were all collapsing to the base code.
+- **Design-gate race under Gemini Plan Mode** — `write_file` and `record_design_approval` fire in the same turn; the approval handler's existence check raced the write. File materialization deferred from `record_design_approval` to `create_session` so the file has settled by the time the server reads it.
+- **Design-gate `session_id` drift** — `create_session` rejects with `DESIGN_GATE_SESSION_MISMATCH` when an approved orphan gate exists and the current session has no gate of its own (belt-and-suspenders with the step 9a HARD-GATE).
+- **Skill loading inside Plan Mode** — Addressed by the step 7 pre-load (see Changed).
+- **Dispatcher drain on close** — Pending outbound client-request timeouts are now rejected when the server closes, letting Node exit promptly even with `roots/list` requests in flight.
+- **Swallowed dispatcher errors** — `protocol-dispatcher` bare catch on `getProjectRoot()` now logs any error whose code is not `WORKSPACE_NOT_INITIALIZED` instead of silently resolving to null.
+- **Codex public skill naming collisions (carry-through)** — Codex plugin MCP manifest no longer declares a misleading `cwd` key.
+- **CI changelog version-header matching** — `awk` now uses a prefix match.
 
 ### Removed
 
 - **`plugins/maestro/mcp/maestro-server.js`** — No longer referenced; Codex invokes the server via `npx` rather than a local wrapper file.
+- **Centralized `ENTRY_POINT_NAME_OVERRIDES` map** — Replaced by per-entry `runtimeNames`.
+- **Top-level `delegationPattern` field** in runtime-configs — Duplicated `delegation.pattern`; the consumer's fallback branch was dead code. `get-runtime-context` simplified to `resolvedRuntimeConfig.delegation || { pattern: '', constraints: {} }`.
+- **Gemini `workspacePath` env key** — Non-functional (Gemini has no CLI-injected workspace env var); replaced with explicit `workspacePath: null` to make the asymmetry with `CLAUDE_PROJECT_DIR` / `MAESTRO_WORKSPACE_PATH` visible in the config.
+- **Dead module exports** — `ACTIVE_SESSION_REL` (`session-state-core`), `PHASE_LIMITS` (`schema-checker`), `CREATION_SIGNAL_PATTERNS` (`agent-checker`), and the `parseSessionState` / `serializeSessionState` back-compat re-exports from `session-state-tools.js`.
+
+### Security
+
+- **`protocol-dispatcher` error visibility** — Unexpected workspace-resolution errors now log instead of silently coercing to null, surfacing future failure modes.
+- **`yaml-emit` caller-safe-scalar contract documented** — JSDoc names the precondition (no escaping in the emitter) for future callers.
+- **`withSessionState` contract documented** — JSDoc names the requirement that callers return an outcome object; the `|| {}` coalesce is preserved to avoid crashing on a genuine read-only mutator, but the footgun is now named.
+- **Filename validation for design-doc / plan content variants** — Rejects path separators, `.`, `..`, and null bytes.
 
 ### Known limitations
 
 - **Local Codex plugin development iterates through GitHub.** `plugins/maestro/.mcp.json` always points `npx` at `github:josstei/maestro-orchestrate`, so running `codex marketplace add /path/to/maestro-orchestrate` still fetches the server from the default branch rather than the working tree. For iterating on server code, push the branch and test there, or invoke `bin/maestro-mcp-server.js` directly and point Codex at it with a hand-authored `.mcp.json`.
+- **`qwen-extension.json` version drift.** `scripts/update-versions.js` does not include it in `JSON_VERSION_FILES`, so it drifts behind the other three manifests on each release. Bumped manually to 1.6.3 during this release; future releases must bump it manually or the script should be extended.
 
 ## [1.6.2] - 2026-04-15
 

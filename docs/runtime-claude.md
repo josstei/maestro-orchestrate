@@ -5,7 +5,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 ## Configuration
 
 **Manifest**: `claude/.claude-plugin/plugin.json`
-**Version**: 1.6.1
+**Version**: 1.6.3
 **Hooks**: `claude/hooks/claude-hooks.json`
 **MCP Config**: `claude/.mcp.json`
 
@@ -47,10 +47,10 @@ Agent(subagent_type: "maestro:architect", prompt: "...")
 **Core (3)** — generated public entry points from the core command registry:
 - `orchestrate/SKILL.md`
 - `execute/SKILL.md`
-- `resume/SKILL.md`
+- `resume-session/SKILL.md`
 
-**Entry-point (9)** — from registry:
-- `review/SKILL.md`, `debug/SKILL.md`, `archive/SKILL.md`, `status/SKILL.md`
+**Entry-point (9)** — from registry (`review`, `debug`, `resume` are remapped to `review-code`, `debug-workflow`, `resume-session` because they collide with Claude Code built-in commands; see `src/generator/entry-point-expander.js` `HOST_RESERVED_NAMES`):
+- `review-code/SKILL.md`, `debug-workflow/SKILL.md`, `archive/SKILL.md`, `status/SKILL.md`
 - `security-audit/SKILL.md`, `perf-check/SKILL.md`, `seo-audit/SKILL.md`
 - `a11y-audit/SKILL.md`, `compliance-check/SKILL.md`
 
@@ -132,16 +132,16 @@ Parses compound commands (`;`, `&&`, `||`, `|`) and recursively checks subshells
 
 ## Feature Flags
 
+The canonical feature set (same 4 flags across all runtimes, values per runtime):
+
 ```
-mcpSkillContentHandler:  true
-policyEnforcer:          true
-exampleBlocks:           true  (examples embedded in description)
-claudeHookModel:         true
-claudeDelegation:        true
-claudeToolExamples:      true
-claudeStateContract:     true
-claudeRuntimeConfig:     true
+exampleBlocks:             true   (examples embedded in description)
+claudeStateContract:       true   (Claude-specific session-state contract)
+scriptBasedStateContract:  false
+codexStateContract:        false
 ```
+
+See `src/platforms/claude/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
@@ -177,7 +177,7 @@ Fields: `model` (always "inherit"), `color`, `maxTurns` (camelCase). No temperat
 
 ```
 claude/
-├── agents/                22 agent stubs (kebab-case)
+├── agents/                39 agent stubs (kebab-case)
 ├── skills/                19 skill directories
 ├── hooks/                 1 hook config (claude-hooks.json)
 ├── scripts/               thin hook wrapper, adapter wrapper, policy enforcer, policy-enforcer.test.js

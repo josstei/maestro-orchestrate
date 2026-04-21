@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, and `plugins/maestro/`) contain the manifests, entrypoints, discovery stubs, public adapter files, and any generator-owned runtime payloads each host requires.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest/context files) contain the manifests, entrypoints, discovery stubs, public adapter files, and any generator-owned runtime payloads each host requires.
 
 ```
                     ┌─────────────┐
@@ -16,13 +16,13 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
                     │  + manifest │
                     │  + transforms│
                     └──────┬──────┘
-           ┌───────────────┼───────────────┐
-           ▼               ▼               ▼
-    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
-    │   Gemini    │ │   Claude    │ │    Codex    │
-    │   (root)    │ │  (claude/)  │ │(plugins/    │
-    │             │ │             │ │  maestro/)  │
-    └─────────────┘ └─────────────┘ └─────────────┘
+       ┌───────────┬───────────┬───────────┬───────────┐
+       ▼           ▼           ▼           ▼
+    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+    │   Gemini    │ │   Claude    │ │    Codex    │ │    Qwen     │
+    │   (root)    │ │  (claude/)  │ │(plugins/    │ │   (qwen/)   │
+    │             │ │             │ │  maestro/)  │ │             │
+    └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
 ```
 
 ## Generator Pipeline
@@ -42,8 +42,8 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 ```javascript
 {
   src: 'agents/architect.md',           // Source file
-  transforms: ['inject-frontmatter', 'agent-stub'],  // Transform pipeline
-  runtimes: ['gemini', 'claude'],       // Target runtimes
+  transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],  // Transform pipeline
+  runtimes: ['gemini', 'claude', 'qwen'],       // Target runtimes
 }
 ```
 
@@ -52,33 +52,35 @@ Or with glob patterns:
 ```javascript
 {
   glob: 'agents/*.md',
-  transforms: ['inject-frontmatter', 'agent-stub'],
-  runtimes: ['gemini', 'claude'],
+  transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],
+  runtimes: ['gemini', 'claude', 'qwen'],
 }
 ```
 
 ### Transform Pipeline
 
-The generator exposes 4 transforms. Current manifest entries use a subset depending on the target surface.
+The generator exposes 6 transforms (in `src/transforms/`, excluding the `index.js` barrel). Current manifest entries use a subset depending on the target surface.
 
 | Transform | Purpose |
 |-----------|---------|
-| `inject-frontmatter` | Rebuild YAML frontmatter per runtime (tools, fields, examples) |
-| `agent-stub` | Replace agent body with MCP delegation directive |
-| `skill-discovery-stub` | Create minimal skill header pointing to MCP |
-| `skill-metadata` | Add `user-invocable: false` for Claude skills |
+| `parse-frontmatter` | Parse YAML frontmatter from source and stash it in pipeline state |
+| `extract-examples` | Extract `<example>` blocks from agent bodies (Claude only) |
+| `rebuild-frontmatter` | Emit runtime-specific YAML frontmatter (tools, fields, kind) |
+| `agent-stub` | Replace agent body with MCP delegation stub referencing `get_agent()` |
+| `skill-discovery-stub` | Replace shared skill body with MCP tool stub referencing `get_skill_content()` |
+| `skill-metadata` | Inject `user-invocable: false` into Claude skill frontmatter |
 
 ### Runtime Definitions
 
 Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
-| Field | Gemini | Claude | Codex |
-|-------|--------|--------|-------|
-| `outputDir` | `./` | `claude/` | `plugins/maestro/` |
-| `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` |
-| `delegationPattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` |
-| `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) |
-| `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` |
+| Field | Gemini | Claude | Codex | Qwen |
+|-------|--------|--------|-------|------|
+| `outputDir` | `./` | `claude/` | `plugins/maestro/` | `qwen/` |
+| `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` | `snake_case` |
+| `delegation.pattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
+| `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
+| `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
 
 ### Entry-Point Registry
 
@@ -87,6 +89,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 - Gemini: TOML commands in `commands/maestro/`
 - Claude: Markdown skills in `claude/skills/`
 - Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
+- Qwen: reuses Gemini's repo-root `commands/maestro/` TOML commands at runtime — `src/generator/entry-point-expander.js` sets `qwen: null` for both entry-point and core-command expansion, so the Qwen generator emits no command files of its own
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
@@ -94,7 +97,7 @@ Plus 3 core commands (orchestrate, execute, resume) maintained separately in `sr
 
 ## MCP Server Architecture
 
-The MCP server is authored directly in modular source under `src/mcp/`. Runtime roots expose thin public wrappers that resolve into the nearest generator-owned `src/mcp/maestro-server.js` payload.
+The MCP server is authored directly in modular source under `src/mcp/`. Gemini and Claude runtime roots expose thin public wrappers at `mcp/maestro-server.js` that resolve into the nearest generator-owned `src/mcp/maestro-server.js` payload. Codex has no in-plugin wrapper — it spawns the server via `npx` against the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`.
 
 ### Module Structure
 
@@ -108,7 +111,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 8 handler implementations
+├── handlers/                   # 12 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -116,12 +119,16 @@ src/mcp/
 │   ├── assess-task-complexity.js # Repo analysis signals
 │   ├── validate-plan.js        # Plan validation + dependency DAG
 │   ├── resolve-settings.js     # Config resolution
-│   └── session-state-tools.js  # Session CRUD (5 tools)
+│   ├── session-state-core.js   # Session-state transaction helpers
+│   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
+│   ├── design-gate.js          # Design-gate lifecycle (3 tools)
+│   ├── reconciliation.js       # Phase reconciliation (2 tools)
+│   └── blocker-parser.js       # Child-agent blocker surfacing
 ├── tool-packs/
 │   ├── index.js                # Tool pack aggregation
 │   ├── contracts.js            # Tool schema contracts
 │   ├── workspace/index.js      # 4 tools
-│   ├── session/index.js        # 5 tools
+│   ├── session/index.js        # 10 tools
 │   └── content/index.js        # 3 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
@@ -136,8 +143,9 @@ The content tools (`get_agent`, `get_skill_content`) are filesystem-only in ever
 - Gemini: `primary=filesystem`, `fallback=none`
 - Claude: `primary=filesystem`, `fallback=none`
 - Codex: `primary=filesystem`, `fallback=none`
+- Qwen: `primary=filesystem`, `fallback=none`
 
-Each runtime's thin entrypoint at `mcp/maestro-server.js` uses direct `require()` calls to resolve `src/mcp/maestro-server.js`. Gemini's entrypoint sets `MAESTRO_RUNTIME=gemini` and requires `../src/mcp/maestro-server` directly. Claude and Codex use dual-resolution: they prefer the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and fall back to the bundled detached payload (`claude/src/mcp/maestro-server.js` or `plugins/maestro/src/mcp/maestro-server.js`) when running outside the repo.
+Gemini's and Claude's thin entrypoints at `mcp/maestro-server.js` use direct `require()` calls to resolve `src/mcp/maestro-server.js`. Gemini's entrypoint sets `MAESTRO_RUNTIME=gemini` and requires `../src/mcp/maestro-server` directly. Claude uses dual-resolution: it prefers the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and falls back to the bundled detached payload (`claude/src/mcp/maestro-server.js`) when running outside the repo. Codex spawns `bin/maestro-mcp-server.js` via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server` (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server`.
 
 This makes one architectural rule explicit:
 
@@ -148,28 +156,28 @@ This makes one architectural rule explicit:
 
 ### MCP Server Packaging
 
-Each runtime keeps the public entrypoint at `mcp/maestro-server.js`, but that file is only a thin wrapper:
+Gemini and Claude keep a public entrypoint at `mcp/maestro-server.js`; Codex invokes the server via `npx` against a published bin. All three are thin wrappers around `src/mcp/maestro-server.js`:
 
 - **Gemini** (`mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=gemini`, directly requires `../src/mcp/maestro-server` and calls `.main()`
 - **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
-- **Codex** (`plugins/maestro/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=codex`, uses the same dual-resolution as Claude — prefers repo `../../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
+- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (12 tools)
+### Tool Catalog (17 tools)
 
-**Workspace Pack:**
+**Workspace Pack (4 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
-| `initialize_workspace` | — | Create state/plans directories (idempotent) |
+| `initialize_workspace` | workspace_path | Create state/plans directories (idempotent) |
 | `assess_task_complexity` | — | Return repo signals for complexity classification |
 | `validate_plan` | plan, task_complexity | Validate dependencies, file ownership, agent capabilities |
 | `resolve_settings` | — | Resolve MAESTRO_* settings with precedence |
 
-**Session Pack:**
+**Session Pack (10 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
@@ -178,8 +186,13 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `update_session` | session_id | Update execution_mode/backend/batch |
 | `transition_phase` | session_id | Atomically complete phase + start next |
 | `archive_session` | session_id | Move session + plans to archive |
+| `enter_design_gate` | session_id | Mark session entered design phase; blocks `create_session` until approval |
+| `record_design_approval` | session_id + (path or inline content) | Clear design gate with approved document |
+| `get_design_gate_status` | session_id | Read design gate status (entered_at, approved_at) |
+| `scan_phase_changes` | session_id | Scan workspace for files created/modified since phase start |
+| `reconcile_phase` | session_id, phase_id | Record file manifests + downstream context for phase |
 
-**Content Pack:**
+**Content Pack (3 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|

@@ -5,7 +5,7 @@ The Gemini CLI extension lives at the repository root. It is the primary runtime
 ## Configuration
 
 **Manifest**: `gemini-extension.json`
-**Version**: 1.6.1
+**Version**: 1.6.3
 **Context File**: `GEMINI.md`
 
 ### MCP Server
@@ -129,17 +129,16 @@ Gemini tools use canonical names (identity mapping):
 
 ## Feature Flags
 
+The canonical feature set (same 4 flags across all runtimes, values per runtime):
+
 ```
-mcpSkillContentHandler:  true
-policyEnforcer:          false (native TOML policies instead)
-exampleBlocks:           false
-geminiHookModel:         true
-geminiDelegation:        true
-geminiToolExamples:      true
-geminiAskFormat:         true
-geminiStateContract:     true
-geminiRuntimeConfig:     true
+exampleBlocks:             false
+claudeStateContract:       false
+scriptBasedStateContract:  true
+codexStateContract:        false
 ```
+
+See `src/platforms/gemini/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
@@ -162,7 +161,7 @@ Fields: `kind` (always "local"), `temperature`, `max_turns`, `timeout_mins`.
 ## Generated Files
 
 ```
-agents/                    22 agent stubs (snake_case)
+agents/                    39 agent stubs (snake_case)
 commands/maestro/          12 TOML commands
 hooks/                     thin hook runner, adapter wrapper, hooks.json
 mcp/                       thin MCP entrypoint

@@ -1,10 +1,11 @@
 # Maestro Overview
 
-Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as three runtime targets from a single canonical source tree:
+Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as four runtime targets from a single canonical source tree:
 
-- **Gemini CLI extension** (root directory)
+- **Gemini CLI extension** (root directory — `GEMINI.md`, `gemini-extension.json`, shared `agents/`, `commands/maestro/`)
 - **Claude Code plugin** (`claude/` subdirectory)
 - **Codex plugin** (`plugins/maestro/` subdirectory)
+- **Qwen Code extension** (`qwen/` subdirectory — `qwen-extension.json` manifest + `QWEN.md` context file live at repo root; generated `qwen/agents/` and `qwen/hooks.json` live in the subdirectory)
 
 The orchestrator adopts a TechLead persona that designs, plans, delegates to agents, validates, and reports.
 
@@ -27,12 +28,12 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Metric | Count |
 |--------|-------|
 | Specialized agents | 39 |
-| MCP tools | 12 |
+| MCP tools | 17 |
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
-| Runtime targets | 3 |
-| Source transforms | 4 |
-| Test cases | 121 |
+| Runtime targets | 4 |
+| Source transforms | 6 |
+| Test cases | see `just test` output (70+ files across unit, transforms, integration) |
 
 ## Project Structure
 
@@ -56,7 +57,7 @@ maestro-orchestrate/
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/
 │   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 22 test files, 121 tests
+├── tests/                        # 71 test files, 980 tests (see `just test` output)
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
@@ -73,15 +74,18 @@ maestro-orchestrate/
 │   ├── .claude-plugin/           # Plugin manifest
 │   └── .mcp.json                 # MCP server config
 │
-└── plugins/maestro/              # [generated] Codex plugin
-    ├── skills/                   # Codex skills (19)
-    ├── src/                      # generated detached runtime payload
-    ├── mcp/                      # Codex MCP adapter
-    ├── references/               # Runtime guide
-    ├── .codex-plugin/            # Plugin manifest
-    ├── .mcp.json                 # MCP server config
-    ├── .app.json                 # App config
-    └── README.md
+├── plugins/maestro/              # [generated] Codex plugin
+│   ├── skills/                   # Codex skills (19)
+│   ├── src/                      # generated detached runtime payload
+│   ├── references/               # Runtime guide
+│   ├── .codex-plugin/            # Plugin manifest
+│   ├── .mcp.json                 # MCP server config (spawns bin via npx)
+│   ├── .app.json                 # App config
+│   └── README.md
+│
+└── qwen/                         # [generated] Qwen Code extension
+    ├── agents/                   # Qwen agent stubs (39, snake_case, Qwen tool names)
+    └── hooks.json                # Qwen hook registration
 ```
 
 ## Core Concepts
@@ -99,10 +103,10 @@ maestro-orchestrate/
 
 ### MCP Server
 
-A bundled Model Context Protocol server providing 12 tools across 3 packs:
+A bundled Model Context Protocol server providing 17 tools across 3 packs:
 
 - **Workspace** (4): initialize_workspace, assess_task_complexity, validate_plan, resolve_settings
-- **Session** (5): create_session, get_session_status, update_session, transition_phase, archive_session
+- **Session** (10): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase
 - **Content** (3): get_skill_content, get_agent, get_runtime_context
 
 ### Skills

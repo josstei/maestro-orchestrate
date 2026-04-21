@@ -5,7 +5,7 @@ The Codex plugin lives in `plugins/maestro/`.
 ## Configuration
 
 **Manifest**: `plugins/maestro/.codex-plugin/plugin.json`
-**Version**: 1.6.1
+**Version**: 1.6.3
 **MCP Config**: `plugins/maestro/.mcp.json`
 **App Config**: `plugins/maestro/.app.json`
 **Runtime Guide**: `plugins/maestro/references/runtime-guide.md`
@@ -34,7 +34,7 @@ That keeps Maestro state rooted under the actual workspace `docs/maestro` path r
 ```json
 {
   "name": "maestro",
-  "version": "1.6.1",
+  "version": "1.6.3",
   "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
   "author": { "name": "josstei", "url": "https://github.com/josstei" },
   "homepage": "https://github.com/josstei/maestro-orchestrate",
@@ -135,16 +135,16 @@ Codex tools use descriptive names rather than direct API mappings:
 
 ## Feature Flags
 
+The canonical feature set (same 4 flags across all runtimes, values per runtime):
+
 ```
-mcpSkillContentHandler:  true
-policyEnforcer:          false
-exampleBlocks:           false
-codexDelegation:         true
-codexStateContract:      true
-codexRuntimeConfig:      true
+exampleBlocks:             false
+claudeStateContract:       false
+scriptBasedStateContract:  false
+codexStateContract:        true
 ```
 
-All Gemini-specific and Claude-specific flags are `false`.
+See `src/platforms/codex/runtime-config.js` for the authoritative values.
 
 ## Path Resolution
 
@@ -181,7 +181,7 @@ plugins/maestro/
 └── README.md
 ```
 
-The runtime server is invoked via `npx` rather than a local wrapper file, so there is no `plugins/maestro/mcp/` directory. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`.
+The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`.
 
 ## Differences from Gemini and Claude
 
