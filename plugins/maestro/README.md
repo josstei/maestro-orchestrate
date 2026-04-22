@@ -7,16 +7,17 @@ This directory is the generated Codex runtime for Maestro.
 1. Register the marketplace:
 
    ```bash
-   codex marketplace add josstei/maestro-orchestrate
+   codex plugin marketplace add josstei/maestro-orchestrate
    ```
 
-2. Start Codex, run `/plugins`, and select **Maestro** → **Install**.
+2. Start Codex (or restart if already open), run `/plugins` to browse, select **Maestro**, and choose **Install**.
 
-For local development:
+For local development (path must start with `./`, `../`, `/`, or `~/` — Codex otherwise treats bare `owner/repo` as a GitHub source):
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
-codex marketplace add /path/to/maestro-orchestrate
+codex plugin marketplace add /absolute/path/to/maestro-orchestrate
+# then: start Codex, run `/plugins`, select Maestro → Install
 ```
 
 ## Architecture
