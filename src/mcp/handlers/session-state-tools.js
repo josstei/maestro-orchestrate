@@ -11,7 +11,7 @@ const {
   isDownstreamContextPopulated,
   describeShape: describeDownstreamContextShape,
 } = require('../contracts/downstream-context');
-const { ValidationError, StateError } = require('../../lib/errors');
+const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
 const {
   isDesignGateBlockingCreate,
   hasDesignGate,

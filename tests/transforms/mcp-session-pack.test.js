@@ -244,6 +244,73 @@ describe('session tool pack', () => {
     assert.equal(transitionResult.result.session_state_summary.current_phase, 'impl');
   });
 
+  it('returns structured not-found errors for invalid transition phase ids', async () => {
+    const cases = [
+      {
+        name: 'completed',
+        args: { completed_phase_id: 999 },
+        error: /Phase 999 not found in session state/,
+      },
+      {
+        name: 'next',
+        args: { next_phase_id: 999 },
+        error: /next_phase_id 999 does not match any phase in session state/,
+      },
+      {
+        name: 'next-batch',
+        args: { next_phase_ids: [999] },
+        error: /Phase 999 not found in session state/,
+      },
+    ];
+
+    for (const testCase of cases) {
+      const projectRoot = fs.mkdtempSync(
+        path.join(os.tmpdir(), `maestro-invalid-phase-${testCase.name}-`)
+      );
+      ensureWorkspace('docs/maestro', projectRoot);
+
+      const server = createServer({
+        runtimeConfig: { name: 'codex' },
+        services: {},
+        toolPacks: [createToolPack],
+      });
+
+      const createResult = await server.callTool(
+        'create_session',
+        {
+          session_id: 'invalid-phase-test',
+          task: 'invalid phase id regression',
+          task_complexity: 'simple',
+          phases: [
+            {
+              id: 1,
+              name: 'Phase 1',
+              agent: 'coder',
+              parallel: false,
+              blocked_by: [],
+            },
+          ],
+        },
+        projectRoot
+      );
+      assert.equal(createResult.ok, true);
+
+      const transitionResult = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'invalid-phase-test',
+          ...testCase.args,
+        },
+        projectRoot
+      );
+
+      assert.equal(transitionResult.ok, false);
+      assert.equal(transitionResult.code, 'NOT_FOUND');
+      assert.match(transitionResult.error, testCase.error);
+      assert.doesNotMatch(transitionResult.error, /ReferenceError|NotFoundError is not defined/);
+    }
+  });
+
   it('archives the active session and associated plan files', async () => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-archive-'));
     ensureWorkspace('docs/maestro', projectRoot);
