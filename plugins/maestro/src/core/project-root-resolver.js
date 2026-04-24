@@ -1,9 +1,8 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const { fileURLToPath } = require('node:url');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execSync } = require('node:child_process');
 
 const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
 const { MaestroError } = require('../lib/errors');
@@ -40,51 +39,15 @@ function resolveExistingRoot(candidate) {
   }
 }
 
-function resolveProjectRootFromCandidates(candidates) {
-  for (const candidate of candidates) {
-    const resolvedRoot = resolveExistingRoot(candidate);
-    if (resolvedRoot) {
-      return resolvedRoot;
-    }
-  }
-
-  return null;
-}
-
-function extractClientRootCandidates(clientRoots) {
-  if (!Array.isArray(clientRoots)) {
-    return [];
-  }
-
-  const candidates = [];
-  for (const clientRoot of clientRoots) {
-    const uri =
-      typeof clientRoot === 'string'
-        ? clientRoot
-        : clientRoot && typeof clientRoot.uri === 'string'
-          ? clientRoot.uri
-          : null;
-
-    if (!uri) {
-      continue;
-    }
-
-    try {
-      const parsed = new URL(uri);
-      if (parsed.protocol !== 'file:') {
-        continue;
-      }
-
-      candidates.push(fileURLToPath(parsed));
-    } catch {
-      continue;
-    }
-  }
-
-  return candidates;
-}
-
-function resolveProjectRootFromEnv(env, cwd) {
+/**
+ * Resolve the project root used by in-process scripts (hooks, session
+ * readers). Prefers the explicit workspace env vars that runtime
+ * configurations inject, then falls back to inherited env and cwd.
+ * The MCP server does not use this helper — it requires an explicit
+ * workspace via `requireExplicitWorkspaceRoot`.
+ */
+function resolveProjectRoot() {
+  const env = process.env;
   const candidates = [
     env.MAESTRO_WORKSPACE_PATH,
     env.CLAUDE_PROJECT_DIR,
@@ -92,39 +55,13 @@ function resolveProjectRootFromEnv(env, cwd) {
     env.INIT_CWD,
   ];
 
-  const resolvedRoot = resolveProjectRootFromCandidates(candidates);
-  if (resolvedRoot) {
-    return resolvedRoot;
+  for (const candidate of candidates) {
+    const resolved = resolveExistingRoot(candidate);
+    if (resolved) return resolved;
   }
 
+  const cwd = process.cwd();
   return resolveExistingRoot(cwd) || path.resolve(cwd);
-}
-
-function resolveProjectRootForRuntime(runtimeConfig = {}, options = {}) {
-  const env = options.env || process.env;
-  const cwd = options.cwd || process.cwd();
-  const workspaceEnvName =
-    runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
-  const explicitWorkspacePath =
-    workspaceEnvName && env[workspaceEnvName] ? env[workspaceEnvName] : null;
-
-  const explicitRoot = resolveExistingRoot(explicitWorkspacePath);
-  if (explicitRoot) {
-    return explicitRoot;
-  }
-
-  const clientRoot = resolveProjectRootFromCandidates(
-    extractClientRootCandidates(options.clientRoots)
-  );
-  if (clientRoot) {
-    return clientRoot;
-  }
-
-  return resolveProjectRootFromEnv(env, cwd);
-}
-
-function resolveProjectRoot() {
-  return resolveProjectRootFromEnv(process.env, process.cwd());
 }
 
 /**
@@ -177,7 +114,6 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
 
 module.exports = {
   resolveProjectRoot,
-  resolveProjectRootForRuntime,
   requireExplicitWorkspaceRoot,
   requireWorkspaceRoot,
   WorkspaceResolutionError,

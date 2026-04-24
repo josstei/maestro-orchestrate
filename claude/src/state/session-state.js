@@ -1,18 +1,25 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { atomicWriteSync } = require('../lib/io');
+const { ValidationError, ConfigError } = require('../lib/errors');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
 function validateRelativePath(filePath) {
   if (path.isAbsolute(filePath)) {
-    throw new Error('Path must be relative');
+    throw new ValidationError('Path must be relative', {
+      code: 'PATH_NOT_RELATIVE',
+      details: { value: filePath },
+    });
   }
   const segments = filePath.split(/[/\\]/);
   if (segments.includes('..')) {
-    throw new Error('Path traversal not allowed');
+    throw new ValidationError('Path traversal not allowed', {
+      code: 'PATH_TRAVERSAL',
+      details: { value: filePath },
+    });
   }
 }
 
@@ -23,7 +30,10 @@ function validateContainment(absolutePath, rootDir) {
   try { resolvedRoot = fs.realpathSync(resolvedRoot); } catch {}
   const rootPrefix = resolvedRoot + path.sep;
   if (!resolved.startsWith(rootPrefix) && resolved !== resolvedRoot) {
-    throw new Error('state_dir must be within the project root');
+    throw new ValidationError('state_dir must be within the project root', {
+      code: 'PATH_ESCAPES_ROOT',
+      details: { path: resolved, base: resolvedRoot },
+    });
   }
   return resolved;
 }
@@ -75,7 +85,10 @@ function ensureWorkspace(stateDir, basePath) {
   fs.mkdirSync(fullBase, { recursive: true, mode: 0o700 });
   const stats = fs.lstatSync(fullBase);
   if (stats.isSymbolicLink()) {
-    throw new Error('STATE_DIR must not be a symlink');
+    throw new ConfigError('STATE_DIR must not be a symlink', {
+      code: 'STATE_DIR_IS_SYMLINK',
+      details: { state_dir: fullBase },
+    });
   }
   const dirs = [
     path.join(fullBase, 'state'),
@@ -86,13 +99,19 @@ function ensureWorkspace(stateDir, basePath) {
   for (const dir of dirs) {
     try {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    } catch {
-      throw new Error('Failed to create workspace directory');
+    } catch (err) {
+      throw new ConfigError('Failed to create workspace directory', {
+        code: 'STATE_DIR_NOT_CREATABLE',
+        details: { dir, cause: err.message },
+      });
     }
     try {
       fs.accessSync(dir, fs.constants.W_OK);
-    } catch {
-      throw new Error('Workspace directory not writable');
+    } catch (err) {
+      throw new ConfigError('Workspace directory not writable', {
+        code: 'STATE_DIR_NOT_WRITABLE',
+        details: { dir, cause: err.message },
+      });
     }
   }
   const stateGitignore = path.join(fullBase, 'state', '.gitignore');

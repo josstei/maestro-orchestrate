@@ -1,6 +1,6 @@
 'use strict';
 
-const path = require('path');
+const path = require('node:path');
 const { resolveCanonicalProjectRoot, resolveCanonicalSrcRoot } = require('../../core/canonical-source');
 
 function resolveExtensionRoot() {

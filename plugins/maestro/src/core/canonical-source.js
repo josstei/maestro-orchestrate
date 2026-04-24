@@ -1,7 +1,7 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function hasCanonicalSrcRoot(candidateRoot) {
   return fs.existsSync(path.join(candidateRoot, 'src', 'mcp', 'maestro-server.js'));

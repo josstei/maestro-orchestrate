@@ -1,11 +1,11 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
-const { readActiveSession, withSessionState } = require('./session-state-core');
+const { readActiveSession, mutateSessionState } = require('./session-state-core');
 const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
@@ -181,7 +181,7 @@ function handleReconcilePhase(params, projectRoot) {
     );
   }
 
-  return withSessionState(projectRoot, ({ state }) => {
+  return mutateSessionState(projectRoot, ({ state }) => {
     if (state.session_id !== params.session_id) {
       throw new StateError(
         `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`

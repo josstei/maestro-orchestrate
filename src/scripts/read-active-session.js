@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('fs');
+const fs = require('node:fs');
 const { resolveSetting } = require('../config/setting-resolver');
 const { resolveProjectRoot } = require('../core/project-root-resolver');
 const { resolveActiveSessionPath } = require('../state/session-state');

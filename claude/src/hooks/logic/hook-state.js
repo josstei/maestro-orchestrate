@@ -1,7 +1,7 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const os = require('os');
 const { log } = require('../../core/logger');
 const { assertSessionId } = require('../../lib/validation');

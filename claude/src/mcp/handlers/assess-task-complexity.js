@@ -1,7 +1,7 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } = require('../../lib/framework-detection');
 

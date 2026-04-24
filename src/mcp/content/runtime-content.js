@@ -1,7 +1,7 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { parseFrontmatterOnly, splitAtBoundary } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
 const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');

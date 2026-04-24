@@ -1,6 +1,6 @@
 'use strict';
 
-const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+const { splitAtBoundary } = require('../lib/frontmatter');
 
 /**
  * Serializes structured data and a body string into the
@@ -22,14 +22,14 @@ function serialize(data, body) {
  * @throws {Error} When no frontmatter delimiters are found in the content
  */
 function parse(content) {
-  const match = content.match(FRONTMATTER_PATTERN);
-  if (!match) {
+  const { raw, body } = splitAtBoundary(content);
+  if (raw === '' && body === content) {
     throw new Error('No YAML frontmatter found in session state');
   }
 
   return {
-    data: JSON.parse(match[1]),
-    body: match[2],
+    data: JSON.parse(raw),
+    body,
   };
 }
 
