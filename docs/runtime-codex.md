@@ -15,7 +15,7 @@ The Codex plugin lives in `plugins/maestro/`.
 ```json
 {
   "command": "npx",
-  "args": ["-y", "github:josstei/maestro-orchestrate", "maestro-mcp-server"],
+  "args": ["-y", "-p", "github:josstei/maestro-orchestrate", "maestro-mcp-server"],
   "env": { "MAESTRO_RUNTIME": "codex" }
 }
 ```
