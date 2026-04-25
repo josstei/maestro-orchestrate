@@ -78,17 +78,6 @@ function assertMutatorOutcome(outcome) {
 }
 
 /**
- * Read-only session accessor. Returns the full session envelope for
- * handlers that need to inspect state without mutating it.
- *
- * @param {string} projectRoot
- * @returns {{ basePath: string, sessionPath: string, content: string, state: object }}
- */
-function readSessionState(projectRoot) {
-  return readActiveSession(projectRoot);
-}
-
-/**
  * Read the active session, run a mutator against it, and conditionally
  * persist the result. Callers MUST return an explicit outcome object of
  * shape `{ response, writeBack: boolean, body? }`:
@@ -128,6 +117,5 @@ module.exports = {
   readActiveSession,
   readActiveSessionOrNull,
   writeActiveSession,
-  readSessionState,
   mutateSessionState,
 };
