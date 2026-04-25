@@ -6,14 +6,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const WORKFLOWS_DIR = path.resolve(__dirname, '..', '..', '.github', 'workflows');
-const WORKFLOW_FILES = [
-  'generator-check.yml',
-  'nightly.yml',
-  'prepare-release.yml',
-  'preview.yml',
-  'rc.yml',
-  'release.yml',
-];
+const WORKFLOW_FILES = fs
+  .readdirSync(WORKFLOWS_DIR)
+  .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+  .sort();
 
 function getIndent(line) {
   const match = line.match(/^ */);

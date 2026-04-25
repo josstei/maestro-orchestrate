@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# pre-push: mirror the source-of-truth drift check that CI enforces.
+#
+# Regenerates runtime outputs from src/ and aborts the push if any
+# committed file disagrees with what the generator produced.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+if [ ! -f scripts/generate.js ]; then
+  exit 0
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-push: node not on PATH; skipping source-of-truth check" >&2
+  exit 0
+fi
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "pre-push: working tree has uncommitted changes; skipping source-of-truth check" >&2
+  echo "         (drift would produce false positives — commit or stash, then re-push)" >&2
+  exit 0
+fi
+
+echo "pre-push: regenerating runtime outputs to verify zero drift..."
+node scripts/generate.js >/dev/null
+
+if ! git diff --exit-code --name-only >/dev/null; then
+  echo "" >&2
+  echo "pre-push: BLOCKED — runtime outputs drifted from src/." >&2
+  echo "" >&2
+  git diff --stat >&2
+  echo "" >&2
+  echo "How to fix:" >&2
+  echo "  1. The runtime trees have just been regenerated in your working tree." >&2
+  echo "     Inspect with 'git diff' and confirm the changes are expected." >&2
+  echo "  2. Stage and commit the regenerated files:" >&2
+  echo "       git add ." >&2
+  echo "       git commit -m 'chore(generate): regenerate runtime outputs after <change>'" >&2
+  echo "  3. Re-run 'git push'." >&2
+  echo "" >&2
+  echo "If you only edited generated files directly: revert them, change src/, and regenerate." >&2
+  exit 1
+fi
+
+echo "pre-push: source-of-truth clean."

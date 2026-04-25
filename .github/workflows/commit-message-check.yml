@@ -1,0 +1,113 @@
+name: Commit Message Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-pr-title:
+    name: pr-title-check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title against Conventional Commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          pattern='^(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert|release)(\([a-z0-9_./-]+\))?!?: .+'
+          if [[ ! "$PR_TITLE" =~ $pattern ]]; then
+            {
+              echo "::error title=PR title invalid::PR title does not match Conventional Commits"
+              echo ""
+              echo "PR title: $PR_TITLE"
+              echo ""
+              echo "PRs are squash-merged into main, so the PR title becomes the commit"
+              echo "subject on main. It must follow Conventional Commits."
+              echo ""
+              echo "Required format: <type>(<optional-scope>)<!>: <description>"
+              echo ""
+              echo "Allowed types: feat, fix, chore, docs, test, refactor, perf, style,"
+              echo "               build, ci, revert, release."
+              echo ""
+              echo "Examples:"
+              echo "  feat(api): add idempotency-key header"
+              echo "  fix(core): reject on malformed JSON instead of crashing"
+              echo "  chore(deps): bump c8 to ^10.1.4"
+              echo ""
+              echo "How to fix: edit the PR title in the GitHub UI; the workflow"
+              echo "will re-run automatically on the 'edited' event."
+            } >&2
+            exit 1
+          fi
+          echo "PR title OK: $PR_TITLE"
+
+  check-commits:
+    name: commit-subjects-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit subjects in range
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+          pattern='^(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert|release)(\([a-z0-9_./-]+\))?!?: .+'
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="$PR_BASE..$PR_HEAD"
+          else
+            zero='0000000000000000000000000000000000000000'
+            if [ "$PUSH_BEFORE" = "$zero" ]; then
+              range="$PUSH_AFTER~1..$PUSH_AFTER"
+            else
+              range="$PUSH_BEFORE..$PUSH_AFTER"
+            fi
+          fi
+
+          fail=0
+          while IFS= read -r line; do
+            sha="${line%% *}"
+            subject="${line#* }"
+            case "$subject" in
+              Merge\ *|Revert\ *|fixup!*|squash!*|amend!*) continue ;;
+            esac
+            if [[ ! "$subject" =~ $pattern ]]; then
+              echo "::error title=Commit ${sha:0:8} invalid::$subject"
+              fail=1
+            fi
+          done < <(git log --format='%H %s' "$range")
+
+          if [ "$fail" -ne 0 ]; then
+            {
+              echo ""
+              echo "One or more commit subjects do not match Conventional Commits."
+              echo ""
+              echo "Required format: <type>(<optional-scope>)<!>: <description>"
+              echo "Allowed types: feat, fix, chore, docs, test, refactor, perf, style,"
+              echo "               build, ci, revert, release."
+              echo ""
+              echo "Examples:"
+              echo "  feat(api): add idempotency-key header"
+              echo "  fix(core): reject on malformed JSON instead of crashing"
+              echo ""
+              echo "How to fix on a PR: rewrite the offending commits with"
+              echo "    git rebase -i origin/main"
+              echo "and change 'pick' to 'reword' on each one. Then force-push the branch."
+            } >&2
+            exit 1
+          fi
+          echo "All commit subjects OK."

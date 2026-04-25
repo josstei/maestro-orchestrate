@@ -21,7 +21,8 @@
     "build": "npm run generate",
     "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
     "test:coverage": "c8 npm test",
-    "prepack": "npm run generate"
+    "prepack": "npm run generate",
+    "prepare": "node scripts/install-git-hooks.js"
   },
   "c8": {
     "all": true,
