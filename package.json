@@ -20,8 +20,14 @@
     "generate": "node scripts/generate.js",
     "build": "npm run generate",
     "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
-    "test:coverage": "c8 --all --reporter=text --reporter=html --reporter=lcov --include='src/**/*.js' --include='scripts/**/*.js' --include='bin/**/*.js' --exclude='**/*.test.js' npm test",
+    "test:coverage": "c8 npm test",
     "prepack": "npm run generate"
+  },
+  "c8": {
+    "all": true,
+    "reporter": ["text", "html", "lcov"],
+    "include": ["src/**/*.js", "scripts/**/*.js", "bin/**/*.js"],
+    "exclude": ["**/*.test.js"]
   },
   "devDependencies": {
     "c8": "^10.1.3"

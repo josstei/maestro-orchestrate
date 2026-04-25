@@ -90,10 +90,10 @@ describe('stdin-reader.readBoundedJson', () => {
     assert.match(parsed.error, /Stdin payload too large/);
   });
 
-  it('crashes the process on malformed JSON (JSON.parse throws inside stream end handler)', () => {
-    const { status, stderr, parsed } = runWithStdin('readBoundedJson', '{broken');
-    assert.notEqual(status, 0, 'process should exit non-zero');
-    assert.match(stderr, /SyntaxError/);
-    assert.equal(parsed, null, 'no structured output — promise never settled');
+  it('rejects with a SyntaxError on malformed JSON', () => {
+    const { status, parsed } = runWithStdin('readBoundedJson', '{broken');
+    assert.equal(status, 0, 'rejection should propagate via promise, not crash the process');
+    assert.equal(parsed.ok, false);
+    assert.match(parsed.error, /Unexpected token|JSON/i);
   });
 });

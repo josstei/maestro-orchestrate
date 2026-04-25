@@ -321,7 +321,7 @@ describe('createProtocolHandlers.requestFromClient', () => {
   it('times out if no response arrives within the configured window', async () => {
     const { handlers } = makeHandlers(
       {},
-      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 10 } }
+      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 100 } }
     );
     await assert.rejects(
       handlers.requestFromClient('roots/list'),

@@ -156,7 +156,8 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('swallows readdir errors on unreadable directories', () => {
-    const result = handleAssessTaskComplexity({}, '/does/not/exist/for/real');
+    const missing = path.join(os.tmpdir(), `maestro-assess-missing-${Date.now()}-${process.pid}`);
+    const result = handleAssessTaskComplexity({}, missing);
     assert.equal(result.file_count, 0);
     assert.equal(result.repo_is_empty, true);
   });
