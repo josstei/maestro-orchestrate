@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#
+# pre-push: mirror the source-of-truth drift check that CI enforces.
+#
+# Regenerates runtime outputs from src/ and aborts the push if any
+# committed file disagrees with what the generator produced. Catches the
+# class of failure in PR #64 (CI-only feedback after a push round-trip).
+#
+# Bypass with `git push --no-verify` if you genuinely need to.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+if [ ! -f scripts/generate.js ]; then
+  exit 0
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-push: node not on PATH; skipping source-of-truth check" >&2
+  exit 0
+fi
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "pre-push: working tree has uncommitted changes; skipping source-of-truth check" >&2
+  echo "         (drift would produce false positives — commit or stash, then re-push)" >&2
+  exit 0
+fi
+
+echo "pre-push: regenerating runtime outputs to verify zero drift..."
+node scripts/generate.js >/dev/null
+
+if ! git diff --exit-code --name-only >/dev/null; then
+  echo "" >&2
+  echo "pre-push: BLOCKED — runtime outputs drifted from src/." >&2
+  echo "" >&2
+  git diff --stat >&2
+  echo "" >&2
+  echo "Fix: 'node scripts/generate.js' (or 'just generate'), commit the result," >&2
+  echo "     then push again. Bypass: 'git push --no-verify'." >&2
+  exit 1
+fi
+
+echo "pre-push: source-of-truth clean."
