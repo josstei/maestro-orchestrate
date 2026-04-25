@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+#
+# commit-msg: enforce Conventional Commits format on the subject line.
+
+set -euo pipefail
+
+msg_file="$1"
+first_line="$(sed -n '1p' "$msg_file")"
+
+# Pass through git-generated subjects we don't author (merges, reverts,
+# fixup/squash markers used during interactive rebase).
+case "$first_line" in
+  Merge\ *|Revert\ *|fixup!*|squash!*|amend!*) exit 0 ;;
+esac
+
+# Strip a single leading whitespace block (rare, but lets `\t<type>:` etc. through).
+first_line="${first_line#"${first_line%%[![:space:]]*}"}"
+
+# Empty messages are a separate failure mode; let git produce its own error.
+[ -z "$first_line" ] && exit 0
+
+pattern='^(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert|release)(\([a-z0-9_./-]+\))?!?:\ .+'
+
+if [[ "$first_line" =~ $pattern ]]; then
+  exit 0
+fi
+
+{
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════════"
+  echo "  commit-msg: subject line does not match Conventional Commits"
+  echo "═══════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "Your subject:"
+  echo "    $first_line"
+  echo ""
+  echo "Required format:"
+  echo "    <type>(<optional-scope>)<!>: <description>"
+  echo ""
+  echo "    type         one of the allowed types below (lowercase)"
+  echo "    scope        optional, parenthesised, lowercase area"
+  echo "                 e.g. (api), (core), (mcp), (generator)"
+  echo "    !            optional, marks a breaking change"
+  echo "    description  short imperative summary"
+  echo "                 (starts with a lowercase verb, no trailing period)"
+  echo ""
+  echo "Allowed types:"
+  echo "    feat       new user-facing feature"
+  echo "    fix        bug fix"
+  echo "    chore      housekeeping — config, deps, tooling, generated files"
+  echo "    docs       documentation only"
+  echo "    test       adding or fixing tests"
+  echo "    refactor   structural change without behaviour change"
+  echo "    perf       performance improvement"
+  echo "    style      formatting only (no code change)"
+  echo "    build      build system or external dependencies"
+  echo "    ci         CI configuration"
+  echo "    revert     reverts a previous commit"
+  echo "    release    version bump or release prep"
+  echo ""
+  echo "Examples that pass:"
+  echo "    feat(api): add idempotency-key header"
+  echo "    fix(core): reject on malformed JSON instead of crashing"
+  echo "    chore(deps): bump c8 to ^10.1.4"
+  echo "    refactor(generator): split manifest curator into pure functions"
+  echo "    feat(auth)!: drop legacy session-token support"
+  echo "    docs(readme): document the source-of-truth drift check"
+  echo ""
+  echo "How to fix this commit (it has not been created):"
+  echo ""
+  echo "    1. Re-run git commit with a conformant subject. Your message"
+  echo "       body has not been lost — git keeps it in .git/COMMIT_EDITMSG"
+  echo "       so you can re-open the same editor and just edit the subject:"
+  echo ""
+  echo "           git commit --edit --file=.git/COMMIT_EDITMSG"
+  echo ""
+  echo "    2. Or compose a fresh subject inline:"
+  echo ""
+  echo "           git commit -m 'fix(core): <your description here>'"
+  echo ""
+  echo "How to fix earlier commits already on this branch:"
+  echo ""
+  echo "    git rebase -i <branch-point>"
+  echo "    # in the editor, change 'pick' to 'reword' on each bad commit"
+  echo ""
+  echo "Reference:"
+  echo "    https://www.conventionalcommits.org/en/v1.0.0/"
+  echo ""
+} >&2
+
+exit 1
