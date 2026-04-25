@@ -2,7 +2,7 @@
 
 # CI/CD Pipeline
 
-Maestro uses six GitHub Actions workflows organized around a **source-of-truth enforcement** model. Every workflow regenerates runtime adapters from canonical `src/` and verifies zero drift before proceeding. The pipeline spans continuous integration on every push/PR through automated release publishing to npm.
+Maestro uses seven GitHub Actions workflows. Six are organized around a **source-of-truth enforcement** model — each regenerates runtime adapters from canonical `src/` and verifies zero drift before proceeding. The seventh, **Commit Message Check**, validates that PR titles and commit subjects on `main` follow Conventional Commits. Together they span continuous integration on every push/PR through automated release publishing to npm.
 
 ## Workflow Overview
 
@@ -10,6 +10,7 @@ Maestro uses six GitHub Actions workflows organized around a **source-of-truth e
 graph LR
     subgraph "Continuous Integration"
         A["Push / PR to main"] --> B["Source Of Truth Check"]
+        A --> M["Commit Message Check"]
     end
 
     subgraph "Pre-release Publishing"
@@ -27,7 +28,7 @@ graph LR
     end
 ```
 
-All six workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Four of the six workflows — Nightly Build, Preview Build, Release Candidate, and Release — gate npm publishing on the presence of the `NPM_TOKEN` secret. When the token is unavailable (for example, in forks), the publish steps are skipped gracefully while validation still runs.
+The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Four of those — Nightly Build, Preview Build, Release Candidate, and Release — gate npm publishing on the presence of the `NPM_TOKEN` secret. When the token is unavailable (for example, in forks), the publish steps are skipped gracefully while validation still runs. Commit Message Check is independent: it does not regenerate or test, it only validates commit-subject formatting.
 
 ## Source Of Truth Check
 
@@ -81,6 +82,69 @@ None produced or consumed.
 
 - The drift check emits a GitHub Actions error annotation (`::error::`) with a `git diff --stat` summary on failure, providing immediate visibility into which files drifted.
 - This workflow serves as the required status check that blocks PR merges.
+
+---
+
+## Commit Message Check
+
+### Purpose
+
+Enforces [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) on commit subjects reaching `main`. Closes the local-hook bypass (`git commit --no-verify`) by re-validating in CI: the PR title (which becomes the squash-merge subject) AND every commit subject in the PR range. Also runs on direct pushes to `main` to cover admin overrides and emergency hotfixes that bypass the PR flow.
+
+### Trigger
+
+| Event | Branches | Types |
+|-------|----------|-------|
+| `pull_request` | `main` | `opened`, `edited`, `reopened`, `synchronize` |
+| `push` | `main` | — |
+
+### Flow
+
+```mermaid
+graph TD
+    A["Push / PR to main"] --> B{"Event type?"}
+    B --> |"pull_request"| C["Job: pr-title-check"]
+    B --> |"push or pull_request"| D["Job: commit-subjects-check"]
+    C --> E{"PR title matches<br/>Conventional Commits?"}
+    E --> |"No"| F["Fail with::error annotation<br/>and remediation hint"]
+    E --> |"Yes"| G["Pass"]
+    D --> H["Resolve commit range<br/>(PR base..head, or push before..after)"]
+    H --> I{"All subjects match<br/>(skipping Merge / Revert / fixup!)?"}
+    I --> |"No"| J["Fail with per-commit annotations"]
+    I --> |"Yes"| K["Pass"]
+```
+
+### Job Breakdown
+
+**Job: `check-pr-title` (name: `pr-title-check`)** — runs only on `pull_request` events.
+
+| Step | Description |
+|------|-------------|
+| Validate PR title | Reads `github.event.pull_request.title` via the `PR_TITLE` env var; tests it against the Conventional Commits regex; emits `::error::` annotation with format guidance on failure |
+
+No checkout step — the job reads only event-payload metadata.
+
+**Job: `check-commits` (name: `commit-subjects-check`)** — runs on both event types.
+
+| Step | Description |
+|------|-------------|
+| Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) with `fetch-depth: 0` to access the full history |
+| Validate commit subjects | Resolves the commit range from the event (PR: `base.sha..head.sha`; push: `before..after`, or `after~1..after` on initial push); iterates `git log --format='%H %s'`; tests each subject against the regex with pass-throughs for `Merge`, `Revert`, `fixup!`, `squash!`, `amend!` |
+
+### Environment and Secrets
+
+`permissions: contents: read` (least privilege; only needs to read the repository). No secrets required. Safe for fork PRs.
+
+### Artifacts
+
+None produced or consumed.
+
+### Key Behaviors
+
+- The PR-title regex matches the local hook regex character-for-character, ensuring local-pass and CI-pass agree.
+- Pass-throughs (`Merge `, `Revert `, `fixup!`, `squash!`, `amend!`) match those in `.githooks/commit-msg`, so git-generated subjects (interactive rebases, merges, reverts) are accepted in both layers.
+- Bot-authored release commits (`release: vX.Y.Z` from Prepare Release) match the regex without exception.
+- The `push` trigger means even a direct admin push to `main` is validated post-hoc — failures appear as red checks on the commit on `main`.
 
 ---
 
@@ -469,15 +533,15 @@ The `justfile` provides local development commands that mirror CI behavior.
 
 | Command | Description | CI Equivalent |
 |---------|-------------|---------------|
-| `just generate` | Generate all runtime files from `src/` | Used in all 6 workflows |
+| `just generate` | Generate all runtime files from `src/` | Used in all 6 generator workflows |
 | `just dry-run` | Preview changes without writing | No CI equivalent |
 | `just diff` | Show unified diff of pending changes | No CI equivalent |
 | `just clean` | Delete generated files and regenerate from scratch | No CI equivalent |
-| `just test` | Run all tests (unit + transform + integration) | Used in all 6 workflows |
+| `just test` | Run all tests (unit + transform + integration) | Used in all 6 generator workflows |
 | `just test-unit` | Run only unit tests | No CI equivalent |
 | `just test-transforms` | Run only transform unit tests | No CI equivalent |
 | `just test-integration` | Run only integration tests | No CI equivalent |
-| `just check` | Generate + verify zero drift | Replicated in all 6 workflows |
+| `just check` | Generate + verify zero drift | Replicated in all 6 generator workflows |
 | `just check-layers` | Verify `lib/` layer boundary imports | No CI workflow equivalent |
 | `just ci` | Full CI equivalent: `check` + `check-layers` + `test` | Superset of CI (includes `check-layers`) |
 | `just cleanup-branches` | Delete local branches whose remote is gone | No CI equivalent |
@@ -541,6 +605,7 @@ graph LR
 | Workflow | Permissions | Secrets |
 |----------|-------------|---------|
 | Source Of Truth Check | Default (read) | None |
+| Commit Message Check | `contents: read` | None |
 | Nightly Build | `contents: read` | `NPM_TOKEN` |
 | Preview Build | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
 | Prepare Release | `contents: write`, `pull-requests: write` | `RELEASE_TOKEN` |
