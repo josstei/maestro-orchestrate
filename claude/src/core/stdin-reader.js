@@ -45,6 +45,11 @@ function readJson() {
 /**
  * Read stdin as a raw Buffer and parse as JSON. No TTY guard — intended for
  * hook adapters that always receive piped input.
+ *
+ * Rejects with `Stdin payload too large` if the payload exceeds the cap, and
+ * with the underlying `SyntaxError` if the payload is not valid JSON. Callers
+ * (see `hook-runner.js`) translate the rejection into an `errorFallback()`
+ * response on stdout instead of crashing the host process.
  */
 function readBoundedJson() {
   return new Promise((resolve, reject) => {
@@ -60,7 +65,11 @@ function readBoundedJson() {
       chunks.push(chunk);
     });
     process.stdin.on('end', () => {
-      resolve(JSON.parse(Buffer.concat(chunks).toString()));
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString()));
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
