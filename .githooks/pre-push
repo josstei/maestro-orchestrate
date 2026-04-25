@@ -3,10 +3,7 @@
 # pre-push: mirror the source-of-truth drift check that CI enforces.
 #
 # Regenerates runtime outputs from src/ and aborts the push if any
-# committed file disagrees with what the generator produced. Catches the
-# class of failure in PR #64 (CI-only feedback after a push round-trip).
-#
-# Bypass with `git push --no-verify` if you genuinely need to.
+# committed file disagrees with what the generator produced.
 
 set -euo pipefail
 
@@ -37,8 +34,15 @@ if ! git diff --exit-code --name-only >/dev/null; then
   echo "" >&2
   git diff --stat >&2
   echo "" >&2
-  echo "Fix: 'node scripts/generate.js' (or 'just generate'), commit the result," >&2
-  echo "     then push again. Bypass: 'git push --no-verify'." >&2
+  echo "How to fix:" >&2
+  echo "  1. The runtime trees have just been regenerated in your working tree." >&2
+  echo "     Inspect with 'git diff' and confirm the changes are expected." >&2
+  echo "  2. Stage and commit the regenerated files:" >&2
+  echo "       git add ." >&2
+  echo "       git commit -m 'chore(generate): regenerate runtime outputs after <change>'" >&2
+  echo "  3. Re-run 'git push'." >&2
+  echo "" >&2
+  echo "If you only edited generated files directly: revert them, change src/, and regenerate." >&2
   exit 1
 fi
 
