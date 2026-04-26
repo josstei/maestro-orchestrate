@@ -308,3 +308,7 @@ CI validates that generated output matches committed state:
 1. Run `node scripts/generate.js`
 2. Check `git diff --exit-code`
 3. Fail if any generated file differs from source
+
+### Runtime Contract Tests
+
+See [`docs/contract-tests.md`](./contract-tests.md) for the contract-probe + fixture system that gates `runtime-config.js` changes against drift. Catches CLI-version regressions like the rev-1 Gemini delegation mismatch (PR #50).
