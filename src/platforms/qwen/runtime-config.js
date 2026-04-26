@@ -41,7 +41,9 @@ module.exports = {
   },
 
   delegation: {
-    pattern: '{{agent}}(query: "...")',
+    pattern: 'invoke_agent({agent_name: "<name>", prompt: "<prompt>"})',
+    surface_tool: 'invoke_agent',
+    requires_frontmatter_enforcement: false,
     constraints: {
       result_surface: 'synchronous',
       child_cannot_prompt_user: false,
