@@ -320,6 +320,60 @@ describe('session tool pack', () => {
       fs.existsSync(path.join(projectRoot, 'docs/maestro/plans/archive/plan.md')),
       true
     );
+
+    assert.ok(
+      archiveResult.result && archiveResult.result.phase_breakdown,
+      'archive response should include phase_breakdown'
+    );
+    assert.deepEqual(archiveResult.result.phase_breakdown.by_kind, {
+      implementation: 1,
+      review: 0,
+      revision: 0,
+      verification: 0,
+    });
+    assert.deepEqual(archiveResult.result.phase_breakdown.unknown_kinds, {});
+  });
+
+  it('archive_session phase_breakdown groups phases by kind', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-archive-kind-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    await server.callTool(
+      'create_session',
+      {
+        session_id: 'kind-breakdown',
+        task: 'kind breakdown test',
+        task_complexity: 'medium',
+        phases: [
+          { id: 1, name: 'Build', agent: 'coder', parallel: false, blocked_by: [], kind: 'implementation' },
+          { id: 2, name: 'Review', agent: 'code-reviewer', parallel: false, blocked_by: [1], kind: 'review' },
+          { id: 3, name: 'Fix', agent: 'coder', parallel: false, blocked_by: [2], kind: 'revision', parent_phase_id: 2 },
+          { id: 4, name: 'Verify', agent: 'coder', parallel: false, blocked_by: [3], kind: 'verification' },
+        ],
+      },
+      projectRoot
+    );
+
+    const archiveResult = await server.callTool(
+      'archive_session',
+      { session_id: 'kind-breakdown' },
+      projectRoot
+    );
+
+    assert.equal(archiveResult.ok, true);
+    assert.deepEqual(archiveResult.result.phase_breakdown.by_kind, {
+      implementation: 1,
+      review: 1,
+      revision: 1,
+      verification: 1,
+    });
+    assert.deepEqual(archiveResult.result.phase_breakdown.unknown_kinds, {});
   });
 
   it('transition_phase rejects completion with files but empty downstream_context', async () => {

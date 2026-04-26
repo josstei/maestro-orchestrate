@@ -125,13 +125,18 @@ EXECUTION (Phase 3 — delegation loop)
 
 COMPLETION (Phase 4)
 27. Call `get_skill_content` with resources: ["code-review"].
-28. If execution changed non-documentation files, delegate to the code reviewer agent. Block on Critical/Major findings.
+28. If execution changed non-documentation files, plan the review/revision cycle as first-class phases:
+    - Append a phase with `kind: 'review'` for the code reviewer agent. After the agent returns, call `transition_phase` with the `findings` array from the agent's report. Review handoffs require non-empty `findings` (use `[{id: 'NONE', severity: 'info', summary: 'No issues'}]` when the reviewer reports clean).
+    - If the review surfaces Critical/Major findings, append a phase with `kind: 'revision'` and `parent_phase_id` set to the review phase's id. Delegate to the implementing agent. After it returns, call `transition_phase` with `addressed_finding_ids` listing every finding id the revision resolved. Loop back to a new review phase to confirm.
+    - When code review passes (no Critical/Major findings, or all addressed), append a phase with `kind: 'verification'`. The orchestrator itself populates `final_artifacts` (a map of artifact paths to identifiers, e.g., `{'/path/to/file': 'sha:abc...'}`) summarizing the session's deliverables. Verification handoffs require non-empty `final_artifacts`.
     <HARD-GATE>
-    If Critical/Major findings: re-delegate to the implementing agent to fix.
-    The orchestrator MUST NOT write code directly.
+    Code review, revision, and verification are real `transition_phase` calls
+    with `kind` set, NOT side-channel actions. The orchestrator MUST NOT write
+    code directly during revision phases — re-delegate to the implementing agent.
+    The audit trail is incomplete unless these phases are persisted to the session.
     </HARD-GATE>
-29. If MAESTRO_AUTO_ARCHIVE is true (or unset), call archive_session. If false, inform user session is complete but not archived.
-30. Present final summary with files changed, phase outcomes, and next steps.
+29. If MAESTRO_AUTO_ARCHIVE is true (or unset), call archive_session. The archive response includes `phase_breakdown.by_kind` showing implementation/review/revision/verification counts. If false, inform user session is complete but not archived.
+30. Present final summary with files changed, phase outcomes (grouped by kind from `phase_breakdown` when available), and next steps.
 
 RECOVERY (referenced from any step on user request)
 If the user says the flow moved too fast: return to the most recent unanswered approval gate.

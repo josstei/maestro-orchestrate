@@ -630,11 +630,44 @@ function handleArchiveSession(params, projectRoot) {
 
   removeDesignGate(projectRoot, params.session_id);
 
+  const phaseBreakdown = summarizePhaseBreakdown(state.phases);
+
   return {
     success: true,
     archive_path: archivePath,
     archived_files: archivedFiles,
+    phase_breakdown: phaseBreakdown,
   };
+}
+
+/**
+ * Build a per-kind count of phases for the archive response.
+ *
+ * Phases without an explicit `kind` are tallied under `'implementation'` —
+ * this matches the back-compat heuristic the runtime uses for non-terminal
+ * legacy phases. The breakdown is intentionally additive: unknown kinds
+ * (e.g., from a hand-edited future state) are returned under `unknown_kinds`
+ * so the count never silently drops phases.
+ *
+ * @param {Array<object>} phases
+ * @returns {{ by_kind: Record<string, number>, unknown_kinds: Record<string, number> }}
+ */
+function summarizePhaseBreakdown(phases) {
+  const byKind = { implementation: 0, review: 0, revision: 0, verification: 0 };
+  const unknownKinds = {};
+  for (const phase of phases || []) {
+    const rawKind = phase && phase.kind;
+    const kind =
+      typeof rawKind === 'string' && rawKind.trim().length > 0
+        ? rawKind
+        : 'implementation';
+    if (Object.prototype.hasOwnProperty.call(byKind, kind)) {
+      byKind[kind] += 1;
+    } else {
+      unknownKinds[kind] = (unknownKinds[kind] || 0) + 1;
+    }
+  }
+  return { by_kind: byKind, unknown_kinds: unknownKinds };
 }
 
 function handleUpdateSession(params, projectRoot) {
