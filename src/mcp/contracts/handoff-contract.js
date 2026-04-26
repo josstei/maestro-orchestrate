@@ -50,13 +50,29 @@ function describeHandoffContract(kind) {
   return HANDOFF_CONTRACTS[kind];
 }
 
+/**
+ * @private
+ * Checks whether a handoff payload contains a non-empty value for the given field.
+ *
+ * "Non-empty" semantics by type:
+ * - Array: length > 0
+ * - String: trimmed length > 0 (whitespace-only counts as empty)
+ * - Object: at least one own enumerable key
+ * - null/undefined: empty
+ * - All other types (number, boolean, function, etc.): empty (not valid handoff values)
+ *
+ * @param {object} payload - The handoff payload object (caller must guard non-object).
+ * @param {string} field - The required field name to check.
+ * @returns {boolean} True if the field is present and non-empty per the rules above.
+ */
 function hasNonEmpty(payload, field) {
   if (!Object.prototype.hasOwnProperty.call(payload, field)) return false;
   const value = payload[field];
   if (value == null) return false;
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'string') return value.trim().length > 0;
-  return true;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return false;
 }
 
 /**
@@ -91,12 +107,13 @@ function hasNonEmpty(payload, field) {
  */
 function validateHandoff(kind, payload, opts = {}) {
   const contract = describeHandoffContract(kind);
+  const safePayload = payload != null && typeof payload === 'object' ? payload : {};
   const strict = opts.strict !== false;
   const violations = [];
 
   if (strict) {
     for (const field of contract.required_fields) {
-      if (!hasNonEmpty(payload, field)) {
+      if (!hasNonEmpty(safePayload, field)) {
         violations.push({
           code: 'HANDOFF_FIELD_MISSING',
           field,
@@ -106,14 +123,14 @@ function validateHandoff(kind, payload, opts = {}) {
     }
   }
 
-  const filesCreated = payload.files_created ?? [];
-  const filesModified = payload.files_modified ?? [];
-  const filesDeleted = payload.files_deleted ?? [];
+  const filesCreated = Array.isArray(safePayload.files_created) ? safePayload.files_created : [];
+  const filesModified = Array.isArray(safePayload.files_modified) ? safePayload.files_modified : [];
+  const filesDeleted = Array.isArray(safePayload.files_deleted) ? safePayload.files_deleted : [];
   const hasFiles =
     filesCreated.length + filesModified.length + filesDeleted.length > 0;
 
   if (hasFiles) {
-    const ctx = normalizeDownstreamContext(payload.downstream_context);
+    const ctx = normalizeDownstreamContext(safePayload.downstream_context);
     if (!isDownstreamContextPopulated(ctx)) {
       violations.push({
         code: 'HANDOFF_INCOMPLETE',

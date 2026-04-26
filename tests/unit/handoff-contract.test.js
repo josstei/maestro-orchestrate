@@ -286,11 +286,6 @@ describe('validateHandoff non-empty checks for required fields', () => {
     const result = validateHandoff('verification', { final_artifacts: 'release.tar.gz' });
     assert.deepEqual(result, { valid: true, violations: [] });
   });
-
-  it('accepts a number value for required field (truthy non-array, non-string)', () => {
-    const result = validateHandoff('verification', { final_artifacts: 42 });
-    assert.deepEqual(result, { valid: true, violations: [] });
-  });
 });
 
 describe('validateHandoff strict option coercion', () => {
@@ -333,5 +328,79 @@ describe('validateHandoff non-mutation', () => {
 describe('validateHandoff unknown kind', () => {
   it('throws when kind is not in PHASE_KINDS (delegates to describeHandoffContract)', () => {
     assert.throws(() => validateHandoff('not-a-kind', {}), Error);
+  });
+});
+
+describe('validateHandoff null-safety', () => {
+  it('does not throw for null payload (implementation, no required fields)', () => {
+    assert.doesNotThrow(() => validateHandoff('implementation', null));
+    const result = validateHandoff('implementation', null);
+    assert.equal(result.valid, true);
+    assert.deepEqual(result.violations, []);
+  });
+
+  it('does not throw for null payload (review with required fields, strict)', () => {
+    assert.doesNotThrow(() => validateHandoff('review', null));
+    const result = validateHandoff('review', null);
+    assert.equal(result.valid, false);
+    assert.equal(result.violations.length, 1);
+    assert.equal(result.violations[0].code, 'HANDOFF_FIELD_MISSING');
+    assert.equal(result.violations[0].field, 'findings');
+  });
+
+  it('does not throw for undefined payload', () => {
+    assert.doesNotThrow(() => validateHandoff('verification', undefined));
+    const result = validateHandoff('verification', undefined);
+    assert.equal(result.valid, false);
+    assert.equal(result.violations[0].code, 'HANDOFF_FIELD_MISSING');
+  });
+
+  it('does not throw and treats non-object payload as missing all fields', () => {
+    assert.doesNotThrow(() => validateHandoff('review', 'not-an-object'));
+    const result = validateHandoff('review', 'not-an-object');
+    assert.equal(result.valid, false);
+    assert.equal(result.violations[0].code, 'HANDOFF_FIELD_MISSING');
+  });
+});
+
+describe('validateHandoff file-field type guards', () => {
+  it('treats non-array files_created as empty (string input)', () => {
+    const result = validateHandoff('implementation', { files_created: 'x.js' });
+    assert.equal(result.valid, true, 'string files_created should not trigger HANDOFF_INCOMPLETE');
+  });
+
+  it('treats non-array files_modified as empty (number input)', () => {
+    const result = validateHandoff('implementation', { files_modified: 3 });
+    assert.equal(result.valid, true);
+  });
+
+  it('treats non-array files_deleted as empty (object input)', () => {
+    const result = validateHandoff('implementation', { files_deleted: { count: 2 } });
+    assert.equal(result.valid, true);
+  });
+});
+
+describe('validateHandoff required-field type strictness', () => {
+  it('rejects empty object as findings', () => {
+    const result = validateHandoff('review', { findings: {} });
+    assert.equal(result.valid, false);
+    assert.equal(result.violations[0].code, 'HANDOFF_FIELD_MISSING');
+  });
+
+  it('accepts non-empty object as final_artifacts', () => {
+    const result = validateHandoff('verification', { final_artifacts: { path: '/foo' } });
+    assert.equal(result.valid, true);
+  });
+
+  it('rejects number 0 as findings (numbers are not valid handoff values)', () => {
+    const result = validateHandoff('review', { findings: 0 });
+    assert.equal(result.valid, false);
+    assert.equal(result.violations[0].code, 'HANDOFF_FIELD_MISSING');
+  });
+
+  it('rejects boolean true as final_artifacts', () => {
+    const result = validateHandoff('verification', { final_artifacts: true });
+    assert.equal(result.valid, false);
+    assert.equal(result.violations[0].code, 'HANDOFF_FIELD_MISSING');
   });
 });
