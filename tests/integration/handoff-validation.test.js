@@ -558,4 +558,46 @@ describe('kind-aware handoff', () => {
       assert.equal(result.details.kind_is_explicit, true);
     });
   });
+
+  describe('unrecognized phase kind defense', () => {
+    it('rejects transition for a phase with hand-edited unknown kind value', async () => {
+      const { server, workspace } = await prepareSession();
+
+      const statePath = path.join(
+        workspace,
+        'docs',
+        'maestro',
+        'state',
+        'active-session.md'
+      );
+      const raw = fs.readFileSync(statePath, 'utf8');
+      const parts = raw.split('---');
+      const state = JSON.parse(parts[1].trim());
+      state.phases[0].kind = 'bugfix';
+      const rewritten = `---\n${JSON.stringify(state, null, 2)}\n---${parts.slice(2).join('---')}`;
+      fs.writeFileSync(statePath, rewritten);
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          files_created: ['x.js'],
+          downstream_context: { integration_points: ['x.js'] },
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'PHASE_KIND_INVALID');
+      assert.ok(result.details);
+      assert.equal(result.details.phase_kind, 'bugfix');
+      assert.deepEqual(result.details.allowed_kinds, [
+        'implementation',
+        'review',
+        'revision',
+        'verification',
+      ]);
+    });
+  });
 });

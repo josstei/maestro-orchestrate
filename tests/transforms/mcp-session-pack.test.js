@@ -42,6 +42,27 @@ describe('session tool pack', () => {
     );
   });
 
+  it('transition_phase input schema documents kind-aware handoff fields', () => {
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    const transitionPhase = server
+      .getToolSchemas()
+      .find((schema) => schema.name === 'transition_phase');
+    assert.ok(transitionPhase, 'transition_phase tool must exist');
+
+    const props = transitionPhase.inputSchema.properties;
+    assert.ok(props.findings, 'findings should be in schema');
+    assert.equal(props.findings.type, 'array');
+    assert.ok(props.addressed_finding_ids, 'addressed_finding_ids should be in schema');
+    assert.equal(props.addressed_finding_ids.type, 'array');
+    assert.ok(props.final_artifacts, 'final_artifacts should be in schema');
+    assert.equal(props.final_artifacts.type, 'object');
+  });
+
   it('creates, updates, and transitions session state on disk', async () => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-session-'));
     ensureWorkspace('docs/maestro', projectRoot);

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
-const { validatePhases } = require('../contracts/plan-schema');
+const { validatePhases, PHASE_KINDS } = require('../contracts/plan-schema');
 const { validateHandoff } = require('../contracts/handoff-contract');
 const {
   createEmptyDownstreamContext,
@@ -443,6 +443,20 @@ function handleTransitionPhase(params, projectRoot) {
         typeof completedPhase.kind === 'string' &&
         completedPhase.kind.trim().length > 0;
       const phaseKind = resolveEffectivePhaseKind(completedPhase, state.phases);
+
+      if (!PHASE_KINDS.includes(phaseKind)) {
+        throw new ValidationError(
+          `Phase ${completedPhase.id} has unrecognized kind '${phaseKind}'. Allowed: ${PHASE_KINDS.join(', ')}.`,
+          {
+            code: 'PHASE_KIND_INVALID',
+            details: {
+              phase_id: completedPhase.id,
+              phase_kind: phaseKind,
+              allowed_kinds: [...PHASE_KINDS],
+            },
+          }
+        );
+      }
 
       const handoffPayload = {
         files_created: filesCreated,
