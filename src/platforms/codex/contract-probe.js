@@ -1,15 +1,6 @@
 'use strict';
 
-class NotCapturedYetError extends Error {
-  constructor(runtime) {
-    super(
-      `Runtime contract for '${runtime}' not yet captured. ` +
-        `See tests/fixtures/runtime-contracts/${runtime}/README.md for capture procedure.`
-    );
-    this.code = 'CONTRACT_FIXTURE_MISSING';
-    this.runtime = runtime;
-  }
-}
+const { NotCapturedYetError } = require('../shared/contract-probes/not-captured-yet-error');
 
 function probeCodexContract(payload) {
   if (payload && payload.stub === true) {

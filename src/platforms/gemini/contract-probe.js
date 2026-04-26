@@ -1,15 +1,6 @@
 'use strict';
 
-class NotCapturedYetError extends Error {
-  constructor(runtime) {
-    super(
-      `Runtime contract for '${runtime}' not yet captured. ` +
-        `See tests/fixtures/runtime-contracts/${runtime}/README.md for capture procedure.`
-    );
-    this.code = 'CONTRACT_FIXTURE_MISSING';
-    this.runtime = runtime;
-  }
-}
+const { NotCapturedYetError } = require('../shared/contract-probes/not-captured-yet-error');
 
 /**
  * Probe a captured Gemini CLI request payload to extract the runtime contract.
@@ -83,5 +74,4 @@ function extractSubagentRegistryFields(sysText) {
 module.exports = {
   probeGeminiContract,
   NotCapturedYetError,
-  __test_only_extractSubagentRegistryFields: extractSubagentRegistryFields,
 };

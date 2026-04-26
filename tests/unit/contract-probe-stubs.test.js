@@ -25,6 +25,10 @@ describe('Codex contract probe (stub)', () => {
       message: /not yet captured/i,
     });
   });
+
+  it('throws when called with a non-stub payload (real fixture not yet captured)', () => {
+    assert.throws(() => codex.probeCodexContract({ tools: [] }), /follow-up PR/);
+  });
 });
 
 describe('Qwen contract probe (stub)', () => {
@@ -32,5 +36,9 @@ describe('Qwen contract probe (stub)', () => {
     assert.throws(() => qwen.probeQwenContract({ stub: true }), {
       message: /not yet captured/i,
     });
+  });
+
+  it('throws when called with a non-stub payload (real fixture not yet captured)', () => {
+    assert.throws(() => qwen.probeQwenContract({ tools: [] }), /follow-up PR/);
   });
 });
