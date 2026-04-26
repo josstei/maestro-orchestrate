@@ -206,7 +206,9 @@ function asNumericId(id) {
  * @param {object} phase - The phase whose kind should be resolved.
  * @param {Array<object>} allPhases - All phases in the session, used to
  *   identify the terminal phase.
- * @returns {'implementation' | 'review' | 'revision' | 'verification'}
+ * @returns {string} An inferred kind (`'implementation'` or `'verification'`)
+ *   when `phase.kind` is absent; otherwise the explicit string value as-is.
+ *   Caller validates membership in PHASE_KINDS.
  */
 function resolveEffectivePhaseKind(phase, allPhases) {
   if (typeof phase.kind === 'string' && phase.kind.trim().length > 0) {
