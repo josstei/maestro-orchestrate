@@ -5,11 +5,11 @@ const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { validatePhases } = require('../contracts/plan-schema');
+const { validateHandoff } = require('../contracts/handoff-contract');
 const {
   createEmptyDownstreamContext,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
-  describeShape: describeDownstreamContextShape,
 } = require('../contracts/downstream-context');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
 const {
@@ -163,6 +163,77 @@ function assertNoOrphanedApprovedGate(projectRoot, currentSessionId) {
   );
 }
 
+/**
+ * @private
+ * Coerce a phase id to an integer when its representation is unambiguous.
+ *
+ * Accepts native integers and strings whose trimmed form matches an optional
+ * leading minus followed by digits. Anything else (floats, mixed alphanumeric,
+ * empty/whitespace) is treated as non-coercible.
+ *
+ * @param {unknown} id
+ * @returns {number | null} The coerced integer, or null when the id is not
+ *   safely representable as an integer.
+ */
+function asNumericId(id) {
+  if (typeof id === 'number' && Number.isInteger(id)) return id;
+  if (typeof id === 'string') {
+    const trimmed = id.trim();
+    if (/^-?\d+$/.test(trimmed)) return Number(trimmed);
+  }
+  return null;
+}
+
+/**
+ * Determine the effective `kind` for a phase, honoring an explicit `kind`
+ * field when present and falling back to a position-based heuristic for
+ * legacy sessions (created before phase.kind existed).
+ *
+ * Rules:
+ * - If `phase.kind` is a non-empty string (after trim), return it. The caller
+ *   is responsible for upstream membership validation against PHASE_KINDS;
+ *   this helper does not coerce or validate the value.
+ * - Otherwise, if the phase is the terminal (highest-id) phase in
+ *   `allPhases`, infer `'verification'`.
+ * - Otherwise, infer `'implementation'`.
+ *
+ * Phase IDs may be integers OR strings. Terminal-phase determination compares
+ * numerically when every id in `allPhases` is integer-coercible (via
+ * {@link asNumericId}); otherwise it compares lexicographically over
+ * stringified ids. Empty `allPhases` defaults to `'implementation'` since
+ * terminal status cannot be established.
+ *
+ * @param {object} phase - The phase whose kind should be resolved.
+ * @param {Array<object>} allPhases - All phases in the session, used to
+ *   identify the terminal phase.
+ * @returns {string} An inferred kind (`'implementation'` or `'verification'`)
+ *   when `phase.kind` is absent; otherwise the explicit string value as-is.
+ *   Caller validates membership in PHASE_KINDS.
+ */
+function resolveEffectivePhaseKind(phase, allPhases) {
+  if (typeof phase.kind === 'string' && phase.kind.trim().length > 0) {
+    return phase.kind;
+  }
+
+  if (!Array.isArray(allPhases) || allPhases.length === 0) {
+    return 'implementation';
+  }
+
+  const numericIds = allPhases.map((candidate) => asNumericId(candidate.id));
+  const allNumeric = numericIds.every((value) => value !== null);
+
+  let terminalId;
+  if (allNumeric) {
+    terminalId = numericIds.reduce((max, value) => (value > max ? value : max));
+    const phaseNumericId = asNumericId(phase.id);
+    return phaseNumericId === terminalId ? 'verification' : 'implementation';
+  }
+
+  const stringIds = allPhases.map((candidate) => String(candidate.id));
+  terminalId = stringIds.reduce((max, value) => (value > max ? value : max));
+  return String(phase.id) === terminalId ? 'verification' : 'implementation';
+}
+
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
@@ -226,23 +297,30 @@ function handleCreateSession(params, projectRoot) {
       total_cached: 0,
       by_agent: {},
     },
-    phases: params.phases.map((phase) => ({
-      id: phase.id,
-      name: phase.name,
-      status: 'pending',
-      agents: phase.agent ? [phase.agent] : [],
-      parallel: phase.parallel || false,
-      started: null,
-      completed: null,
-      blocked_by: phase.blocked_by || [],
-      files_created: [],
-      files_modified: [],
-      files_deleted: [],
-      planned_files: phase.files || [],
-      downstream_context: createEmptyDownstreamContext(),
-      errors: [],
-      retry_count: 0,
-    })),
+    phases: params.phases.map((phase) => {
+      const phaseState = {
+        id: phase.id,
+        name: phase.name,
+        status: 'pending',
+        agents: phase.agent ? [phase.agent] : [],
+        parallel: phase.parallel || false,
+        started: null,
+        completed: null,
+        blocked_by: phase.blocked_by || [],
+        files_created: [],
+        files_modified: [],
+        files_deleted: [],
+        planned_files: phase.files || [],
+        downstream_context: createEmptyDownstreamContext(),
+        errors: [],
+        retry_count: 0,
+      };
+      if (phase.kind !== undefined) phaseState.kind = phase.kind;
+      if (phase.parent_phase_id !== undefined) {
+        phaseState.parent_phase_id = phase.parent_phase_id;
+      }
+      return phaseState;
+    }),
   };
 
   if (state.phases.length > 0) {
@@ -360,33 +438,64 @@ function handleTransitionPhase(params, projectRoot) {
       const filesDeleted = params.files_deleted ?? [];
       const hasFiles =
         filesCreated.length + filesModified.length + filesDeleted.length > 0;
+
+      const kindIsExplicit =
+        typeof completedPhase.kind === 'string' &&
+        completedPhase.kind.trim().length > 0;
+      const phaseKind = resolveEffectivePhaseKind(completedPhase, state.phases);
+
+      const handoffPayload = {
+        files_created: filesCreated,
+        files_modified: filesModified,
+        files_deleted: filesDeleted,
+        downstream_context: params.downstream_context,
+        findings: params.findings,
+        addressed_finding_ids: params.addressed_finding_ids,
+        final_artifacts: params.final_artifacts,
+      };
+
+      const handoffResult = validateHandoff(phaseKind, handoffPayload, {
+        strict: kindIsExplicit,
+      });
+      if (!handoffResult.valid) {
+        const first = handoffResult.violations[0];
+        throw new ValidationError(first.message, {
+          code: first.code,
+          details: {
+            phase_id: completedPhase.id,
+            phase_kind: phaseKind,
+            kind_is_explicit: kindIsExplicit,
+            files_created_count: filesCreated.length,
+            files_modified_count: filesModified.length,
+            files_deleted_count: filesDeleted.length,
+            received_downstream_context: params.downstream_context ?? null,
+          },
+        });
+      }
+
       const normalizedContext = normalizeDownstreamContext(params.downstream_context);
       const contextProvided = isDownstreamContextPopulated(normalizedContext);
 
-      if (hasFiles && !contextProvided) {
-        throw new ValidationError(
-          `Phase ${completedPhase.id} produced files but downstream_context is empty after normalization. ${describeDownstreamContextShape()}`,
-          {
-            code: 'HANDOFF_INCOMPLETE',
-            details: {
-              phase_id: completedPhase.id,
-              files_created_count: filesCreated.length,
-              files_modified_count: filesModified.length,
-              files_deleted_count: filesDeleted.length,
-              received_downstream_context: params.downstream_context ?? null,
-            },
-          }
-        );
-      }
-
       completedPhase.status = 'completed';
       completedPhase.completed = new Date().toISOString();
+      completedPhase.kind = phaseKind;
       completedPhase.downstream_context = normalizedContext;
       completedPhase.files_created = filesCreated;
       completedPhase.files_modified = filesModified;
       completedPhase.files_deleted = filesDeleted;
+
+      if (params.findings !== undefined) {
+        completedPhase.findings = params.findings;
+      }
+      if (params.addressed_finding_ids !== undefined) {
+        completedPhase.addressed_finding_ids = params.addressed_finding_ids;
+      }
+      if (params.final_artifacts !== undefined) {
+        completedPhase.final_artifacts = params.final_artifacts;
+      }
+
       completedPhase.requires_reconciliation =
-        !hasFiles && !contextProvided ? true : false;
+        phaseKind === 'implementation' && !hasFiles && !contextProvided;
     }
 
     let startedPhaseIds;
@@ -559,4 +668,5 @@ module.exports = {
   handleTransitionPhase,
   handleArchiveSession,
   handleUpdateSession,
+  resolveEffectivePhaseKind,
 };
