@@ -194,6 +194,23 @@ describe('plan-schema', () => {
     assert.equal(result.violations[0].field, 'kind');
   });
 
+  it('does not require parent_phase_id when kind is invalid (non-revision typo)', () => {
+    const result = validatePhases([
+      {
+        id: 1,
+        name: 'A',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [],
+        kind: 'revisioning',
+      },
+    ]);
+    assert.equal(result.valid, false);
+    assert.equal(result.violations.length, 1);
+    assert.equal(result.violations[0].rule, 'invalid_field_value');
+    assert.equal(result.violations[0].field, 'kind');
+  });
+
   it('rejects kind: revision without parent_phase_id with missing_required_field', () => {
     const result = validatePhases([
       {

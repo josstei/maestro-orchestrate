@@ -154,7 +154,6 @@ function validatePhases(phases) {
       }
     }
 
-    let kindIsTrustedRevision = false;
     if ('kind' in phase) {
       if (!PHASE_KINDS.includes(phase.kind)) {
         violations.push({
@@ -163,12 +162,10 @@ function validatePhases(phases) {
           field: 'kind',
           severity: 'error',
         });
-      } else if (phase.kind === 'revision') {
-        kindIsTrustedRevision = true;
       }
     }
 
-    if (kindIsTrustedRevision && !('parent_phase_id' in phase)) {
+    if ('kind' in phase && phase.kind === 'revision' && !('parent_phase_id' in phase)) {
       violations.push({
         rule: 'missing_required_field',
         phase_id: phaseId ?? null,
