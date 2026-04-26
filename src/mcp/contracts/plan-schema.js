@@ -2,6 +2,13 @@
 
 const PHASE_REQUIRED_FIELDS = ['id', 'name', 'agent', 'parallel', 'blocked_by'];
 
+const PHASE_KINDS = Object.freeze([
+  'implementation',
+  'review',
+  'revision',
+  'verification',
+]);
+
 const PHASE_ID_SCHEMA = {
   oneOf: [
     { type: 'integer', minimum: 1 },
@@ -18,6 +25,8 @@ const PHASE_ITEM_SCHEMA = {
     parallel: { type: 'boolean' },
     blocked_by: { type: 'array', items: PHASE_ID_SCHEMA },
     files: { type: 'array', items: { type: 'string', minLength: 1 } },
+    kind: { type: 'string', enum: [...PHASE_KINDS] },
+    parent_phase_id: PHASE_ID_SCHEMA,
   },
   required: PHASE_REQUIRED_FIELDS,
   additionalProperties: true,
@@ -49,6 +58,16 @@ function isValidBlockerId(value) {
  * they are set by `transition_phase` after an agent completes, and they
  * pass through this schema via `additionalProperties: true` without
  * validation. Plan authors should populate `files`, not the runtime fields.
+ *
+ * Optional field: `kind` — phase-kind discriminator. When present, must be
+ * one of `PHASE_KINDS` (`implementation`, `review`, `revision`,
+ * `verification`). The validator does NOT mutate input; defaulting to
+ * `implementation` happens at consumption time elsewhere.
+ *
+ * Optional field: `parent_phase_id` — phase id this phase derives from.
+ * REQUIRED when `kind === 'revision'` (a revision must reference the
+ * implementation phase being revised). When present on any phase, must
+ * satisfy the phase-id shape (string min 1 OR integer >= 1).
  *
  * @param {unknown} phases - Input value expected to be an array of phase objects.
  * @returns {{ valid: boolean, violations: Array<object> }}
@@ -134,6 +153,38 @@ function validatePhases(phases) {
         });
       }
     }
+
+    let kindIsTrustedRevision = false;
+    if ('kind' in phase) {
+      if (!PHASE_KINDS.includes(phase.kind)) {
+        violations.push({
+          rule: 'invalid_field_value',
+          phase_id: phaseId ?? null,
+          field: 'kind',
+          severity: 'error',
+        });
+      } else if (phase.kind === 'revision') {
+        kindIsTrustedRevision = true;
+      }
+    }
+
+    if (kindIsTrustedRevision && !('parent_phase_id' in phase)) {
+      violations.push({
+        rule: 'missing_required_field',
+        phase_id: phaseId ?? null,
+        field: 'parent_phase_id',
+        severity: 'error',
+      });
+    }
+
+    if ('parent_phase_id' in phase && !isValidPhaseId(phase.parent_phase_id)) {
+      violations.push({
+        rule: 'invalid_field_type',
+        phase_id: phaseId ?? null,
+        field: 'parent_phase_id',
+        severity: 'error',
+      });
+    }
   }
 
   return { valid: violations.length === 0, violations };
@@ -142,6 +193,7 @@ function validatePhases(phases) {
 module.exports = {
   PHASE_ID_SCHEMA,
   PHASE_ITEM_SCHEMA,
+  PHASE_KINDS,
   PHASE_REQUIRED_FIELDS,
   isValidPhaseId,
   validatePhases,
