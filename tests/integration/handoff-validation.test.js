@@ -519,8 +519,45 @@ describe('kind-aware handoff', () => {
   });
 
   describe('strict-mode toggle by kindIsExplicit', () => {
-    it('legacy single-phase session (no explicit kind, terminal phase): inferred verification with no final_artifacts succeeds (strict: false)', async () => {
+    it('new single-phase session defaults to implementation instead of terminal verification', async () => {
       const { server, workspace } = await prepareSession();
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+        },
+        workspace
+      );
+
+      assert.equal(
+        result.ok,
+        true,
+        `new terminal implementation phase should not be inferred as verification: ${result.error || ''}`
+      );
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.kind, 'implementation');
+      assert.equal(phase.requires_reconciliation, true);
+    });
+
+    it('legacy hand-edited single-phase session without kind still infers terminal verification in loose mode', async () => {
+      const { server, workspace } = await prepareSession();
+      const statePath = path.join(
+        workspace,
+        'docs',
+        'maestro',
+        'state',
+        'active-session.md'
+      );
+      const raw = fs.readFileSync(statePath, 'utf8');
+      const parts = raw.split('---');
+      const state = JSON.parse(parts[1].trim());
+      delete state.phases[0].kind;
+      const rewritten = `---\n${JSON.stringify(state, null, 2)}\n---${parts.slice(2).join('---')}`;
+      fs.writeFileSync(statePath, rewritten);
 
       const result = await server.callTool(
         'transition_phase',
@@ -537,8 +574,8 @@ describe('kind-aware handoff', () => {
         `legacy terminal phase should not be forced to provide final_artifacts: ${result.error || ''}`
       );
 
-      const state = readActiveSessionState(workspace);
-      const phase = state.phases.find((candidate) => candidate.id === 1);
+      const updatedState = readActiveSessionState(workspace);
+      const phase = updatedState.phases.find((candidate) => candidate.id === 1);
       assert.equal(phase.kind, 'verification');
       assert.equal(phase.requires_reconciliation, false);
     });

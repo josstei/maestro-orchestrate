@@ -2,6 +2,7 @@
 
 const { KNOWN_AGENTS, AGENT_CAPABILITIES } = require('../../core/agent-registry');
 const { normalizeRuntimeConfig } = require('../runtime/runtime-config-map');
+const { createRuntimeDispatch } = require('../runtime/delegation-dispatch');
 const { toKebabCase } = require('../../lib/naming');
 
 const MCP_PREFIXES = {
@@ -22,6 +23,7 @@ function createHandler(runtimeConfig, getWorkspaceSuggestion = () => null) {
 
   const prefix = resolvedRuntimeConfig.name === 'claude' ? 'maestro:' : '';
   const delegation = resolvedRuntimeConfig.delegation || { pattern: '', constraints: {} };
+  const dispatch = createRuntimeDispatch(resolvedRuntimeConfig);
 
   return function handleGetRuntimeContext(_params) {
     return {
@@ -34,6 +36,7 @@ function createHandler(runtimeConfig, getWorkspaceSuggestion = () => null) {
       },
       delegation: {
         pattern: delegation.pattern || '',
+        dispatch,
         constraints: delegation.constraints || {},
       },
       mcp_prefix: MCP_PREFIXES[resolvedRuntimeConfig.name] || '',

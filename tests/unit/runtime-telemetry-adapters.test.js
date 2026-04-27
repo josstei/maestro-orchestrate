@@ -90,6 +90,53 @@ describe('codex telemetry adapter', () => {
     });
   });
 
+  it('extracts cached tokens from prompt_tokens_details', () => {
+    const result = {
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 25,
+        prompt_tokens_details: { cached_tokens: 60 },
+      },
+    };
+    assert.deepEqual(codexAdapter.extractUsage(result), {
+      input: 100,
+      output: 25,
+      cached: 60,
+    });
+  });
+
+  it('extracts cached tokens from input_tokens_details', () => {
+    const result = {
+      usage: {
+        input_tokens: 100,
+        output_tokens: 25,
+        input_tokens_details: { cached_tokens: 45 },
+      },
+    };
+    assert.deepEqual(codexAdapter.extractUsage(result), {
+      input: 100,
+      output: 25,
+      cached: 45,
+    });
+  });
+
+  it('prefers top-level cached_tokens over nested cached token details', () => {
+    const result = {
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 25,
+        cached_tokens: 10,
+        prompt_tokens_details: { cached_tokens: 60 },
+        input_tokens_details: { cached_tokens: 45 },
+      },
+    };
+    assert.deepEqual(codexAdapter.extractUsage(result), {
+      input: 100,
+      output: 25,
+      cached: 10,
+    });
+  });
+
   it('returns ZERO_USAGE when usage envelope is absent', () => {
     assert.deepEqual(codexAdapter.extractUsage({}), ZERO_USAGE);
     assert.deepEqual(codexAdapter.extractUsage(null), ZERO_USAGE);

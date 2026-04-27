@@ -31,6 +31,7 @@ describe('session tool pack', () => {
         'create_session',
         'get_session_status',
         'update_session',
+        'append_session_phases',
         'transition_phase',
         'archive_session',
         'enter_design_gate',
@@ -61,6 +62,24 @@ describe('session tool pack', () => {
     assert.equal(props.addressed_finding_ids.type, 'array');
     assert.ok(props.final_artifacts, 'final_artifacts should be in schema');
     assert.equal(props.final_artifacts.type, 'object');
+  });
+
+  it('append_session_phases input schema documents lifecycle phase appends', () => {
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    const appendPhases = server
+      .getToolSchemas()
+      .find((schema) => schema.name === 'append_session_phases');
+    assert.ok(appendPhases, 'append_session_phases tool must exist');
+
+    const props = appendPhases.inputSchema.properties;
+    assert.ok(props.phases, 'phases should be in schema');
+    assert.equal(props.phases.type, 'array');
+    assert.ok(props.start_phase_id, 'start_phase_id should be in schema');
   });
 
   it('creates, updates, and transitions session state on disk', async () => {
@@ -132,6 +151,8 @@ describe('session tool pack', () => {
     const sessionState = readSessionFrontmatter(projectRoot);
     assert.equal(sessionState.execution_mode, 'sequential');
     assert.equal(sessionState.current_phase, 2);
+    assert.equal(sessionState.phases[0].kind, 'implementation');
+    assert.equal(sessionState.phases[1].kind, 'implementation');
     assert.deepEqual(sessionState.phases[0].files_created, ['src/generated.js']);
     assert.deepEqual(sessionState.phases[0].files_modified, ['src/existing.js']);
     assert.equal(sessionState.phases[1].status, 'in_progress');
@@ -263,6 +284,277 @@ describe('session tool pack', () => {
       ['design']
     );
     assert.equal(transitionResult.result.session_state_summary.current_phase, 'impl');
+  });
+
+  it('appends lifecycle phases, starts ready phases, and archives the full kind breakdown', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-append-life-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    await server.callTool(
+      'create_session',
+      {
+        session_id: 'append-life',
+        task: 'append lifecycle phases',
+        task_complexity: 'simple',
+        phases: [
+          {
+            id: 1,
+            name: 'Build',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            files: ['src/foo.js'],
+          },
+        ],
+      },
+      projectRoot
+    );
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'append-life',
+        completed_phase_id: 1,
+        files_created: ['src/foo.js'],
+        downstream_context: { integration_points: ['src/foo.js'] },
+      },
+      projectRoot
+    );
+
+    const reviewAppend = await server.callTool(
+      'append_session_phases',
+      {
+        session_id: 'append-life',
+        phases: [
+          {
+            id: 'review-1',
+            name: 'Code review',
+            agent: 'code-reviewer',
+            parallel: false,
+            blocked_by: [1],
+            kind: 'review',
+          },
+        ],
+        start_phase_id: 'review-1',
+      },
+      projectRoot
+    );
+
+    assert.equal(reviewAppend.ok, true, reviewAppend.error || '');
+    assert.equal(reviewAppend.result.started_phase_id, 'review-1');
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'append-life',
+        completed_phase_id: 'review-1',
+        findings: [{ id: 'F1', severity: 'major', summary: 'Fix needed' }],
+      },
+      projectRoot
+    );
+
+    const revisionAppend = await server.callTool(
+      'append_session_phases',
+      {
+        session_id: 'append-life',
+        phases: [
+          {
+            id: 'revision-1',
+            name: 'Address review',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: ['review-1'],
+            kind: 'revision',
+            parent_phase_id: 'review-1',
+          },
+        ],
+        start_phase_id: 'revision-1',
+      },
+      projectRoot
+    );
+
+    assert.equal(revisionAppend.ok, true, revisionAppend.error || '');
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'append-life',
+        completed_phase_id: 'revision-1',
+        addressed_finding_ids: ['F1'],
+      },
+      projectRoot
+    );
+
+    const verificationAppend = await server.callTool(
+      'append_session_phases',
+      {
+        session_id: 'append-life',
+        phases: [
+          {
+            id: 'verify-1',
+            name: 'Verify artifacts',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: ['revision-1'],
+            kind: 'verification',
+          },
+        ],
+        start_phase_id: 'verify-1',
+      },
+      projectRoot
+    );
+
+    assert.equal(verificationAppend.ok, true, verificationAppend.error || '');
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'append-life',
+        completed_phase_id: 'verify-1',
+        final_artifacts: { 'src/foo.js': 'sha:abc' },
+      },
+      projectRoot
+    );
+
+    const state = readSessionFrontmatter(projectRoot);
+    assert.equal(state.total_phases, 4);
+    assert.deepEqual(
+      state.phases.map((phase) => phase.kind),
+      ['implementation', 'review', 'revision', 'verification']
+    );
+
+    const archive = await server.callTool(
+      'archive_session',
+      { session_id: 'append-life' },
+      projectRoot
+    );
+
+    assert.equal(archive.ok, true, archive.error || '');
+    assert.deepEqual(archive.result.phase_breakdown.by_kind, {
+      implementation: 1,
+      review: 1,
+      revision: 1,
+      verification: 1,
+    });
+  });
+
+  it('rejects invalid lifecycle phase appends', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-append-bad-'));
+    ensureWorkspace('docs/maestro', projectRoot);
+
+    const server = createServer({
+      runtimeConfig: { name: 'codex' },
+      services: {},
+      toolPacks: [createToolPack],
+    });
+
+    await server.callTool(
+      'create_session',
+      {
+        session_id: 'append-bad',
+        task: 'append bad phases',
+        task_complexity: 'simple',
+        phases: [
+          {
+            id: 1,
+            name: 'Build',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+          },
+        ],
+      },
+      projectRoot
+    );
+
+    const invalidKind = await server.callTool(
+      'append_session_phases',
+      {
+        session_id: 'append-bad',
+        phases: [
+          {
+            id: 2,
+            name: 'Implementation expansion',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            kind: 'implementation',
+          },
+        ],
+      },
+      projectRoot
+    );
+    assert.equal(invalidKind.ok, false);
+    assert.equal(invalidKind.code, 'INVALID_PHASE_KIND');
+
+    const duplicate = await server.callTool(
+      'append_session_phases',
+      {
+        session_id: 'append-bad',
+        phases: [
+          {
+            id: 1,
+            name: 'Review',
+            agent: 'code-reviewer',
+            parallel: false,
+            blocked_by: [],
+            kind: 'review',
+          },
+        ],
+      },
+      projectRoot
+    );
+    assert.equal(duplicate.ok, false);
+    assert.equal(duplicate.code, 'INVALID_PHASE_GRAPH');
+    assert.match(duplicate.error || '', /duplicate_id/);
+
+    const dangling = await server.callTool(
+      'append_session_phases',
+      {
+        session_id: 'append-bad',
+        phases: [
+          {
+            id: 2,
+            name: 'Review',
+            agent: 'code-reviewer',
+            parallel: false,
+            blocked_by: [99],
+            kind: 'review',
+          },
+        ],
+      },
+      projectRoot
+    );
+    assert.equal(dangling.ok, false);
+    assert.equal(dangling.code, 'INVALID_PHASE_GRAPH');
+    assert.match(dangling.error || '', /dangling_dependency/);
+
+    const blocked = await server.callTool(
+      'append_session_phases',
+      {
+        session_id: 'append-bad',
+        phases: [
+          {
+            id: 2,
+            name: 'Review',
+            agent: 'code-reviewer',
+            parallel: false,
+            blocked_by: [1],
+            kind: 'review',
+          },
+        ],
+        start_phase_id: 2,
+      },
+      projectRoot
+    );
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.code, 'PHASE_DEPENDENCIES_INCOMPLETE');
   });
 
   it('returns structured not-found errors for invalid transition phase ids', async () => {

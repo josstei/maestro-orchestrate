@@ -39,7 +39,7 @@ function createToolPack(context = {}) {
       {
         name: 'get_agent',
         description:
-          'Read one or more Maestro agent methodology definitions. Returns the methodology body, declared tool restrictions, and a runtime-specific tool_name for dispatch.',
+          'Read one or more Maestro agent methodology definitions. Returns the methodology body, declared tool restrictions, and runtime-specific dispatch metadata.',
         inputSchema: {
           type: 'object',
           properties: {

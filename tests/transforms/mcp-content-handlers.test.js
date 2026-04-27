@@ -170,7 +170,7 @@ describe('get_agent handler', () => {
     assert.ok(result.agents.ux_designer.body.includes('UX methodology body.'));
   });
 
-  it('returns tool_name matching runtime agentNaming convention', () => {
+  it('returns dispatch metadata matching runtime delegation contract', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-toolname-'));
     const agentDir = path.join(root, 'src', 'agents');
     fs.mkdirSync(agentDir, { recursive: true });
@@ -198,9 +198,17 @@ describe('get_agent handler', () => {
 
     assert.equal(
       geminiResult.agents['code-reviewer'].tool_name,
-      'code_reviewer',
-      'Gemini tool_name should be snake_case'
+      'invoke_agent',
+      'Gemini tool_name should be the brokered dispatch surface'
     );
+    assert.deepEqual(geminiResult.agents['code-reviewer'].dispatch, {
+      mode: 'brokered',
+      tool_name: 'invoke_agent',
+      agent_name: 'code_reviewer',
+      agent_param: 'agent_name',
+      prompt_param: 'prompt',
+      call_pattern: 'invoke_agent({agent_name: "<agent>", prompt: "<prompt>"})',
+    });
 
     // Claude runtime: agentNaming is 'kebab-case'
     const claudeHandler = createAgentHandler(
@@ -213,12 +221,20 @@ describe('get_agent handler', () => {
 
     assert.equal(
       claudeResult.agents['code-reviewer'].tool_name,
-      'code-reviewer',
-      'Claude tool_name should be kebab-case'
+      'Agent',
+      'Claude tool_name should be the native Agent surface'
     );
+    assert.deepEqual(claudeResult.agents['code-reviewer'].dispatch, {
+      mode: 'subagent_type',
+      tool_name: 'Agent',
+      agent_name: 'maestro:code-reviewer',
+      agent_param: 'subagent_type',
+      prompt_param: 'prompt',
+      call_pattern: 'Agent(subagent_type: "maestro:<agent>", prompt: "<prompt>")',
+    });
   });
 
-  it('returns correct tool_name when input is snake_case', () => {
+  it('returns correct brokered agent_name when input is snake_case', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-snaketool-'));
     const agentDir = path.join(root, 'src', 'agents');
     fs.mkdirSync(agentDir, { recursive: true });
@@ -246,8 +262,13 @@ describe('get_agent handler', () => {
 
     assert.equal(
       result.agents.ux_designer.tool_name,
+      'invoke_agent',
+      'tool_name for Gemini should be the brokered dispatch surface'
+    );
+    assert.equal(
+      result.agents.ux_designer.dispatch.agent_name,
       'ux_designer',
-      'tool_name for snake_case input on Gemini should be snake_case'
+      'dispatch agent_name for snake_case input on Gemini should be snake_case'
     );
   });
 
@@ -286,8 +307,11 @@ describe('get_agent handler', () => {
     assert.ok(agent, 'agent should be returned keyed by ux_designer');
     assert.ok(agent.body.includes('UX Designer methodology.'));
 
-    // tool_name should be the Gemini dispatch name
-    assert.equal(agent.tool_name, 'ux_designer');
+    // tool_name should be the real Gemini dispatch surface, while dispatch.agent_name carries the agent.
+    assert.equal(agent.tool_name, 'invoke_agent');
+    assert.equal(agent.dispatch.agent_name, 'ux_designer');
+    assert.equal(agent.dispatch.agent_param, 'agent_name');
+    assert.equal(agent.dispatch.prompt_param, 'prompt');
 
     // Tools should be runtime-mapped for Gemini
     assert.deepEqual(agent.tools, ['read_file', 'write_file', 'replace']);

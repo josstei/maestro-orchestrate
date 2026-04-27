@@ -300,6 +300,7 @@ phases:
 | `create_session` | Session | Create active session |
 | `get_session_status` | Session | Read session state |
 | `update_session` | Session | Update execution metadata |
+| `append_session_phases` | Session | Add review/revision/verification phases |
 | `transition_phase` | Session | Complete phase + start next |
 | `archive_session` | Session | Move to archive |
 | `enter_design_gate` | Session | Mark session as entering design phase (idempotent) |
@@ -310,3 +311,4 @@ phases:
 | `get_skill_content` | Content | Serve skills/templates/references |
 | `get_agent` | Content | Serve agent methodologies |
 | `get_runtime_context` | Content | Runtime config snapshot |
+| `get_agent_recommendation` | Content | Recommend agent for a phase deliverable |

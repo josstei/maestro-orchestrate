@@ -29,11 +29,11 @@ Agent files are generated at `agents/*.md` with snake_case filenames.
 
 ## Delegation
 
-Direct function call syntax:
+Gemini delegates through the brokered `invoke_agent` surface returned by `get_agent(...).dispatch`:
 
 ```
-coder(query: "Implement the user service...")
-architect(query: "Design the auth system...")
+invoke_agent(agent_name: "coder", prompt: "Implement the user service...")
+invoke_agent(agent_name: "architect", prompt: "Design the auth system...")
 ```
 
 ## Commands

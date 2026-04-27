@@ -120,7 +120,7 @@ src/mcp/
 │   ├── validate-plan.js        # Plan validation + dependency DAG
 │   ├── resolve-settings.js     # Config resolution
 │   ├── session-state-core.js   # Session-state transaction helpers
-│   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
+│   ├── session-state-tools.js  # Session CRUD + lifecycle phase appends
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   ├── reconciliation.js       # Phase reconciliation (2 tools)
 │   └── blocker-parser.js       # Child-agent blocker surfacing
@@ -128,8 +128,8 @@ src/mcp/
 │   ├── index.js                # Tool pack aggregation
 │   ├── contracts.js            # Tool schema contracts
 │   ├── workspace/index.js      # 4 tools
-│   ├── session/index.js        # 10 tools
-│   └── content/index.js        # 3 tools
+│   ├── session/index.js        # 11 tools
+│   └── content/index.js        # 4 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
 └── runtime/
@@ -166,7 +166,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (17 tools)
+### Tool Catalog (19 tools)
 
 **Workspace Pack (4 tools):**
 
@@ -177,13 +177,14 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `validate_plan` | plan, task_complexity | Validate dependencies, file ownership, agent capabilities |
 | `resolve_settings` | — | Resolve MAESTRO_* settings with precedence |
 
-**Session Pack (10 tools):**
+**Session Pack (11 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
 | `create_session` | session_id, task, phases | Create active session document |
 | `get_session_status` | — | Read session state |
 | `update_session` | session_id | Update execution_mode/backend/batch |
+| `append_session_phases` | session_id, phases | Append review/revision/verification lifecycle phases |
 | `transition_phase` | session_id | Atomically complete phase + start next |
 | `archive_session` | session_id | Move session + plans to archive |
 | `enter_design_gate` | session_id | Mark session entered design phase; blocks `create_session` until approval |
@@ -192,13 +193,14 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `scan_phase_changes` | session_id | Scan workspace for files created/modified since phase start |
 | `reconcile_phase` | session_id, phase_id | Record file manifests + downstream context for phase |
 
-**Content Pack (3 tools):**
+**Content Pack (4 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
 | `get_skill_content` | resources | Serve skills/templates/references with runtime transforms |
 | `get_agent` | agents | Serve agent methodologies with tool mappings |
 | `get_runtime_context` | — | Return runtime tool mappings, dispatch syntax, MCP prefixes |
+| `get_agent_recommendation` | phase_deliverable | Recommend an agent for a phase deliverable |
 
 ## Agent System
 

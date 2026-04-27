@@ -176,7 +176,14 @@ Session: <session_id>
 
 **Parallel dispatch**: Emit contiguous agent dispatch calls in a single turn for all agents in the ready batch. Each call includes the same header format with the shared batch ID.
 
-Call `get_agent` with the agent name (as it appears in the implementation plan or Agent Roster) to load the agent methodology body, declared tool restrictions, and the runtime-specific `tool_name`. Use the returned `tool_name` as the dispatch target when invoking the agent tool. Runtime-local agent files remain registration stubs only; do not rely on them for the full methodology body.
+Call `get_agent` with the agent name (as it appears in the implementation plan or Agent Roster) to load the agent methodology body, declared tool restrictions, and the runtime-specific `dispatch` descriptor. Use `dispatch.tool_name` as the callable surface and pass the rendered delegation prompt through `dispatch.prompt_param`. When `dispatch.agent_param` is non-null, pass `dispatch.agent_name` through that parameter as well. Runtime-local agent files remain registration stubs only; do not rely on them for the full methodology body.
+
+Examples:
+- Brokered runtimes such as Gemini and Qwen return `dispatch.tool_name: "invoke_agent"`, `dispatch.agent_param: "agent_name"`, `dispatch.agent_name: "<snake_case_agent>"`, and `dispatch.prompt_param: "prompt"`.
+- Claude returns the native `Agent` surface with `dispatch.agent_param: "subagent_type"` and `dispatch.agent_name: "maestro:<agent>"`.
+- Codex returns the native spawn surface; apply the Codex runtime guide's mapping while preserving the Maestro agent name in the prompt header.
+
+The legacy top-level `tool_name` returned by `get_agent` mirrors `dispatch.tool_name` for backward compatibility only. New orchestration code should consume `dispatch`.
 
 ## Parallel Delegation
 

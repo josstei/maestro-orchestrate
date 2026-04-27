@@ -28,8 +28,9 @@ DESIGN GATE (Phase 1 pre-entry)
     Session ID Invariance — the session_id chosen here MUST be passed unchanged
     to every MCP call that accepts a session_id parameter for the remainder of
     this workflow: `record_design_approval`, `get_design_gate_status`,
-    `create_session`, `update_session`, `get_session_status`, `transition_phase`,
-    `scan_phase_changes`, `reconcile_phase`, and `archive_session`. Do NOT
+    `create_session`, `update_session`, `append_session_phases`,
+    `get_session_status`, `transition_phase`, `scan_phase_changes`,
+    `reconcile_phase`, and `archive_session`. Do NOT
     substitute a placeholder id for initial calls and a final id later — the
     design gate is keyed by session_id, so a drift orphans the approved gate
     and strands the design document. `create_session` rejects with
@@ -101,12 +102,15 @@ EXECUTION SETUP (Phase 3 — pre-delegation)
 22. Call `get_skill_content` with resources: ["delegation", "validation", "agent-base-protocol", "filesystem-safety-protocol"].
 
 EXECUTION (Phase 3 — delegation loop)
-23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology and tool restrictions. Before constructing the dispatch, read `delegation.constraints` from the cached `get_runtime_context` and shape the call accordingly — omit `agent_type`/`model`/`reasoning_effort` when `fork_full_context_incompatible_with` includes them and you are spawning with full-history fork.
+23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology, tool restrictions, and `dispatch` descriptor. Before constructing the dispatch, read `delegation.constraints` from the cached `get_runtime_context` and shape the call accordingly — omit `agent_type`/`model`/`reasoning_effort` when `fork_full_context_incompatible_with` includes them and you are spawning with full-history fork.
     <HARD-GATE>
-    Dispatch by calling the agent's registered tool directly.
-    Do NOT use the built-in generalist tool or invoke agents by bare name.
-    Each Maestro agent carries specialized methodology, tool restrictions, temperature,
-    and turn limits from its frontmatter that the generalist ignores.
+    Dispatch using the `dispatch` object returned by `get_agent`.
+    For brokered runtimes such as Gemini and Qwen, call `dispatch.tool_name`
+    (currently `invoke_agent`) and pass `dispatch.agent_name` through
+    `dispatch.agent_param` plus the delegation prompt through
+    `dispatch.prompt_param`. Do NOT call a non-existent direct agent tool.
+    For runtimes whose dispatch mode uses native agent registration, follow the
+    returned descriptor rather than the bare agent name.
     </HARD-GATE>
 24. After each agent returns, parse the response. If a `## Blockers` section is present and non-empty, do NOT call `transition_phase`: aggregate blockers across the batch, ask the user via the user-prompt tool, and re-delegate the phase with the answer in the context block. Only when blockers are empty, parse Task Report + Downstream Context.
 25. Call transition_phase to persist results. `transition_phase` rejects with `HANDOFF_INCOMPLETE` if the phase produced files but downstream_context is empty — re-request the handoff. It sets `requires_reconciliation: true` when all manifests AND downstream_context are empty — in that case, invoke the Recovery Protocol in the execution skill (`scan_phase_changes` → user confirmation → `reconcile_phase`).
@@ -134,9 +138,9 @@ EXECUTION (Phase 3 — delegation loop)
 COMPLETION (Phase 4)
 27. Call `get_skill_content` with resources: ["code-review"].
 28. If execution changed non-documentation files, plan the review/revision cycle as first-class phases:
-    - Append a phase with `kind: 'review'` for the code reviewer agent. After the agent returns, call `transition_phase` with the `findings` array from the agent's report. Review handoffs require non-empty `findings` (use `[{id: 'NONE', severity: 'info', summary: 'No issues'}]` when the reviewer reports clean).
-    - If the review surfaces Critical/Major findings, append a phase with `kind: 'revision'` and `parent_phase_id` set to the review phase's id. Delegate to the implementing agent. After it returns, call `transition_phase` with `addressed_finding_ids` listing every finding id the revision resolved. Loop back to a new review phase to confirm.
-    - When code review passes (no Critical/Major findings, or all addressed), append a phase with `kind: 'verification'`. The orchestrator itself populates `final_artifacts` (a map of artifact paths to identifiers, e.g., `{'/path/to/file': 'sha:abc...'}`) summarizing the session's deliverables. Verification handoffs require non-empty `final_artifacts`.
+    - Call `append_session_phases` with a new phase whose `kind` is `'review'`, whose agent is the code reviewer, and whose `blocked_by` includes the completed implementation phase ids. Pass `start_phase_id` for that review phase once blockers are complete. After the agent returns, call `transition_phase` with the `findings` array from the agent's report. Review handoffs require non-empty `findings` (use `[{id: 'NONE', severity: 'info', summary: 'No issues'}]` when the reviewer reports clean).
+    - If the review surfaces Critical/Major findings, call `append_session_phases` with a new phase whose `kind` is `'revision'`, whose `blocked_by` includes the review phase id, and whose `parent_phase_id` is the review phase id. Pass `start_phase_id` when ready. Delegate to the implementing agent. After it returns, call `transition_phase` with `addressed_finding_ids` listing every finding id the revision resolved. Loop back to a new review phase to confirm.
+    - When code review passes (no Critical/Major findings, or all addressed), call `append_session_phases` with a new phase whose `kind` is `'verification'` and whose `blocked_by` includes the passing review/revision phase id. Pass `start_phase_id` when ready. The orchestrator itself then calls `transition_phase` with `final_artifacts` (a map of artifact paths to identifiers, e.g., `{'/path/to/file': 'sha:abc...'}`) summarizing the session's deliverables. Verification handoffs require non-empty `final_artifacts`.
     <HARD-GATE>
     Code review, revision, and verification are real `transition_phase` calls
     with `kind` set, NOT side-channel actions. The orchestrator MUST NOT write
@@ -180,9 +184,10 @@ EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, arch
 34. On approval, create session with workflow_mode: "express", exactly 1 phase.
     On rejection, revise. On second rejection, escalate to Standard → step 10.
 35. Call `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"] and prepend them to the delegation prompt.
-36. Delegate to the assigned agent.
+36. Delegate to the assigned agent using the `dispatch` descriptor returned by `get_agent`.
     <HARD-GATE>
-    Same dispatch rule as step 23: call agent by registered tool name, not generalist.
+    Same dispatch rule as step 23: use the returned dispatch descriptor and do
+    not route Maestro phase work through a generic/generalist agent.
     </HARD-GATE>
 37. Parse Task Report from the agent's response. Call transition_phase to persist results.
     <HARD-GATE>

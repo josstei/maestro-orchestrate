@@ -24,7 +24,7 @@ This preamble maps generic step references to Gemini CLI tool syntax.
 |--------|-----|
 | Load skill | `activate_skill(name: "<skill-name>")` — masking-exempt, expands workspace access to skill directory |
 | Load template/reference/protocol | `get_skill_content(resources: ["<name>"])` |
-| Delegate to agent | Call agent tool by name: `coder(query: "...")`, `tester(query: "...")`, `design_system_engineer(query: "...")` |
+| Delegate to agent | Call `get_agent`, then use its `dispatch` descriptor. Brokered Gemini/Qwen dispatch calls `invoke_agent(agent_name: "<agent>", prompt: "...")`. |
 | MCP tools | `mcp_maestro_<tool_name>` (Gemini CLI also accepts bare names like `resolve_settings`) |
 | Enter Plan Mode | `enter_plan_mode` — if unavailable, tell user: "Run `gemini --settings` and set `experimental.plan` to `true`, then restart." Offer to continue without Plan Mode using `ask_user` for approvals. |
 | Exit Plan Mode | `exit_plan_mode` with `plan_filename` |

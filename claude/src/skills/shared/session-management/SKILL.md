@@ -10,7 +10,7 @@ Activate this skill for all session state operations during Maestro orchestratio
 ## State Access Protocol
 
 When MCP state tools are available, prefer them for state operations:
-- **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, atomic operations.
+- **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `append_session_phases`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, atomic operations.
 - **Fallback**: `write_file`/`replace` directly on state files — when MCP tools are not in the available tool list.
 - **Legacy**: Shell scripts (`write-state.js`, `read-state.js`) — remain available but are not the recommended path.
 

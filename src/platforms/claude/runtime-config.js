@@ -43,6 +43,14 @@ module.exports = {
 
   delegation: {
     pattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
+    dispatch: {
+      mode: 'subagent_type',
+      tool_name: 'Agent',
+      agent_name_template: 'maestro:{{agent}}',
+      agent_param: 'subagent_type',
+      prompt_param: 'prompt',
+      call_pattern: 'Agent(subagent_type: "maestro:<agent>", prompt: "<prompt>")',
+    },
     constraints: {
       result_surface: 'synchronous',
       child_cannot_prompt_user: false,

@@ -40,6 +40,14 @@ module.exports = {
 
   delegation: {
     pattern: 'spawn_agent(...)',
+    dispatch: {
+      mode: 'codex_spawn',
+      tool_name: 'spawn_agent',
+      agent_name_template: '{{agent}}',
+      agent_param: null,
+      prompt_param: 'message',
+      call_pattern: 'spawn_agent(message: "<prompt>")',
+    },
     constraints: {
       fork_full_context_incompatible_with: ['agent_type', 'model', 'reasoning_effort'],
       result_surface: 'deferred',

@@ -95,7 +95,7 @@ Apply domain analysis proportional to `task_complexity`:
 
 ## Native Parallel Contract
 
-Parallel batches use Gemini CLI's native subagent scheduler. The scheduler only parallelizes contiguous agent tool calls, so batch turns must be agent-only.
+Parallel batches use Gemini CLI's native subagent scheduler. The scheduler only parallelizes contiguous dispatch calls, so batch turns must be dispatch-only.
 
 Workflow:
 
@@ -103,7 +103,7 @@ Workflow:
 2. Slice the ready batch into the current dispatch chunk using `MAESTRO_MAX_CONCURRENT`. `0` means dispatch the entire ready batch in one turn.
 3. Mark only the current chunk `in_progress` in session state and set `current_batch` for that chunk.
 4. Call `write_todos` once for the current chunk.
-5. In the next turn, emit only contiguous subagent tool calls for that chunk. Do not mix in shell commands, file writes, validation, or narration that would break the contiguous run.
+5. In the next turn, emit only contiguous dispatch calls for that chunk. Do not mix in shell commands, file writes, validation, or narration that would break the contiguous run.
 6. Every delegation query must begin with:
    - `Agent: <agent_name>`
    - `Phase: <id>/<total>`
@@ -122,7 +122,7 @@ Constraints:
 ## Delegation Rules
 
 <HARD-GATE>
-Dispatch every Maestro subagent by calling its registered tool name directly — for example, `coder(query: "...")`, `design_system_engineer(query: "...")`, `tester(query: "...")`. Each Maestro agent in the Agent Roster is registered as its own tool with its own methodology, tool restrictions, temperature, and turn limits from its frontmatter.
+Dispatch every Maestro subagent using the `dispatch` descriptor returned by `get_agent`. For Gemini, this means calling `invoke_agent(agent_name: "<agent>", prompt: "...")` with the snake_case agent name from `dispatch.agent_name`.
 
 Do NOT use the built-in `generalist` tool for Maestro phase delegations. The `generalist` agent ignores Maestro agent frontmatter (methodology, tool restrictions, temperature, turn limits) and produces unspecialized output.
 </HARD-GATE>
@@ -133,15 +133,15 @@ WRONG — Delegating via generalist:
   The generalist ignores the coder's frontmatter. It uses default temperature,
   has no turn limit, no tool restrictions, and no specialized methodology.
 
-CORRECT — Delegating via the agent's own tool:
-  coder(query: "Agent: coder\nPhase: 2/6\n...")
-  The coder tool applies its frontmatter: temperature 0.2, max_turns 25,
-  restricted tool set, and implementation methodology.
+CORRECT — Delegating via the runtime dispatch descriptor:
+  invoke_agent(agent_name: "coder", prompt: "Agent: coder\nPhase: 2/6\n...")
+  The prompt header and methodology loaded from `get_agent` preserve the
+  Maestro agent identity, tool restrictions, and implementation methodology.
 </ANTI-PATTERN>
 
 When building delegation prompts:
 
-1. Call the agent's registered tool by its exact name from the Agent Roster (e.g., `coder`, `tester`, `design_system_engineer`). Use `get_agent` to load the full methodology body and declared tool restrictions for the matching kebab-case agent.
+1. Call `get_agent` for the assigned agent and use the returned `dispatch` descriptor. For Gemini, call `invoke_agent` with `dispatch.agent_name` and the full delegation prompt.
 2. Do not rely on Maestro-level model, temperature, turn, or timeout overrides. Use agent frontmatter and runtime-level agent configuration for native tuning.
 3. Inject shared protocols from `get_skill_content` with resources: `["agent-base-protocol", "filesystem-safety-protocol"]`.
 4. Include dependency downstream context from session state.
@@ -165,7 +165,7 @@ Resolve `<state_dir>` from `MAESTRO_STATE_DIR`:
 - Plans: `<state_dir>/plans/`
 - Archives: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
-When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`replace` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
+When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `append_session_phases`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`replace` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
 
 `/maestro:status` and `/maestro:resume` use `node ${extensionPath}/src/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
 

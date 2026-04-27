@@ -5,6 +5,11 @@ const path = require('node:path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { validatePhases, PHASE_KINDS } = require('../contracts/plan-schema');
+const {
+  checkDuplicateIds,
+  checkDanglingDependencies,
+} = require('../validation/schema-checker');
+const { checkCycles } = require('../validation/dag-checker');
 const { validateHandoff } = require('../contracts/handoff-contract');
 const {
   createEmptyDownstreamContext,
@@ -34,6 +39,12 @@ const {
   writeActiveSession,
   mutateSessionState,
 } = require('./session-state-core');
+
+const APPENDABLE_PHASE_KINDS = Object.freeze([
+  'review',
+  'revision',
+  'verification',
+]);
 
 /**
  * Reject create_session when an approved design gate exists for a different
@@ -146,6 +157,94 @@ function resolveEffectivePhaseKind(phase, allPhases) {
   return String(phase.id) === terminalId ? 'verification' : 'implementation';
 }
 
+function createPhaseState(phase, now) {
+  const phaseState = {
+    id: phase.id,
+    name: phase.name,
+    status: 'pending',
+    agents: phase.agent ? [phase.agent] : [],
+    parallel: phase.parallel || false,
+    started: null,
+    completed: null,
+    blocked_by: phase.blocked_by || [],
+    files_created: [],
+    files_modified: [],
+    files_deleted: [],
+    planned_files: phase.files || [],
+    downstream_context: createEmptyDownstreamContext(),
+    errors: [],
+    retry_count: 0,
+    kind: phase.kind || 'implementation',
+  };
+  if (phase.parent_phase_id !== undefined) {
+    phaseState.parent_phase_id = phase.parent_phase_id;
+  }
+  if (phaseState.status === 'in_progress') {
+    phaseState.started = now;
+  }
+  return phaseState;
+}
+
+function validateAppendableLifecyclePhases(phases) {
+  for (const phase of phases) {
+    if (!phase || !APPENDABLE_PHASE_KINDS.includes(phase.kind)) {
+      throw new ValidationError(
+        `append_session_phases only accepts lifecycle phase kinds: ${APPENDABLE_PHASE_KINDS.join(', ')}`,
+        {
+          code: 'INVALID_PHASE_KIND',
+          details: {
+            phase_id: phase && phase.id,
+            received_kind: phase && phase.kind,
+            allowed_kinds: [...APPENDABLE_PHASE_KINDS],
+          },
+        }
+      );
+    }
+  }
+}
+
+function assertNoAppendValidationViolations(phases) {
+  const phaseById = new Map(phases.map((phase) => [phase.id, phase]));
+  const violations = [
+    ...checkDuplicateIds(phases),
+    ...checkDanglingDependencies(phases),
+    ...checkCycles(phases, phaseById),
+  ];
+
+  if (violations.length === 0) return;
+
+  throw new ValidationError(
+    `Invalid appended phase graph: ${violations.map((v) => v.rule).join(', ')}`,
+    {
+      code: 'INVALID_PHASE_GRAPH',
+      details: violations,
+    }
+  );
+}
+
+function assertDependenciesCompleted(state, phase) {
+  const incomplete = [];
+  for (const dependencyId of phase.blocked_by || []) {
+    const dependency = state.phases.find((candidate) => candidate.id === dependencyId);
+    if (!dependency || dependency.status !== 'completed') {
+      incomplete.push(dependencyId);
+    }
+  }
+
+  if (incomplete.length === 0) return;
+
+  throw new StateError(
+    `Cannot start appended phase ${phase.id}: dependencies are not completed (${incomplete.join(', ')})`,
+    {
+      code: 'PHASE_DEPENDENCIES_INCOMPLETE',
+      details: {
+        phase_id: phase.id,
+        incomplete_dependencies: incomplete,
+      },
+    }
+  );
+}
+
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
@@ -222,30 +321,7 @@ function handleCreateSession(params, projectRoot) {
       total_cached: 0,
       by_agent: {},
     },
-    phases: params.phases.map((phase) => {
-      const phaseState = {
-        id: phase.id,
-        name: phase.name,
-        status: 'pending',
-        agents: phase.agent ? [phase.agent] : [],
-        parallel: phase.parallel || false,
-        started: null,
-        completed: null,
-        blocked_by: phase.blocked_by || [],
-        files_created: [],
-        files_modified: [],
-        files_deleted: [],
-        planned_files: phase.files || [],
-        downstream_context: createEmptyDownstreamContext(),
-        errors: [],
-        retry_count: 0,
-      };
-      if (phase.kind !== undefined) phaseState.kind = phase.kind;
-      if (phase.parent_phase_id !== undefined) {
-        phaseState.parent_phase_id = phase.parent_phase_id;
-      }
-      return phaseState;
-    }),
+    phases: params.phases.map((phase) => createPhaseState(phase, now)),
   };
 
   if (state.phases.length > 0) {
@@ -259,6 +335,82 @@ function handleCreateSession(params, projectRoot) {
     success: true,
     path: sessionPath,
   };
+}
+
+function handleAppendSessionPhases(params, projectRoot) {
+  assertSessionId(params.session_id);
+
+  const phasesValidation = validatePhases(params.phases);
+  if (!phasesValidation.valid) {
+    const rules = phasesValidation.violations.map((v) => v.rule || v.field).join(', ');
+    throw new ValidationError(`Invalid phases payload: ${rules}`, {
+      details: phasesValidation.violations,
+    });
+  }
+
+  validateAppendableLifecyclePhases(params.phases);
+
+  return mutateSessionState(projectRoot, ({ state }) => {
+    if (state.session_id !== params.session_id) {
+      throw new StateError(
+        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
+      );
+    }
+
+    if (!Array.isArray(state.phases)) {
+      state.phases = [];
+    }
+
+    const allPhases = [...state.phases, ...params.phases];
+    assertNoAppendValidationViolations(allPhases);
+
+    const startPhaseId = params.start_phase_id;
+    let startedPhaseId = null;
+    if (startPhaseId !== undefined && startPhaseId !== null) {
+      const startPhase = params.phases.find((phase) => phase.id === startPhaseId);
+      if (!startPhase) {
+        throw new ValidationError(
+          `start_phase_id ${startPhaseId} must refer to one of the appended phases`,
+          {
+            code: 'START_PHASE_NOT_APPENDED',
+            details: {
+              start_phase_id: startPhaseId,
+              appended_phase_ids: params.phases.map((phase) => phase.id),
+            },
+          }
+        );
+      }
+      assertDependenciesCompleted(state, startPhase);
+    }
+
+    const now = new Date().toISOString();
+    const appendedStates = params.phases.map((phase) => createPhaseState(phase, now));
+
+    for (const phaseState of appendedStates) {
+      if (phaseState.id === startPhaseId) {
+        phaseState.status = 'in_progress';
+        phaseState.started = now;
+        startedPhaseId = phaseState.id;
+      }
+      state.phases.push(phaseState);
+    }
+
+    state.total_phases = state.phases.length;
+    if (startedPhaseId !== null) {
+      state.current_phase = startedPhaseId;
+    }
+    state.updated = now;
+
+    return {
+      response: {
+        success: true,
+        appended_phase_ids: appendedStates.map((phase) => phase.id),
+        started_phase_id: startedPhaseId,
+        total_phases: state.total_phases,
+      },
+      writeBack: true,
+    };
+  });
 }
 
 function handleGetSessionStatus(_params, projectRoot) {
@@ -681,6 +833,7 @@ function handleUpdateSession(params, projectRoot) {
 module.exports = {
   handleCreateSession,
   handleGetSessionStatus,
+  handleAppendSessionPhases,
   handleTransitionPhase,
   handleArchiveSession,
   handleUpdateSession,

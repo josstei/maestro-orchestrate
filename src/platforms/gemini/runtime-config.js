@@ -46,6 +46,14 @@ module.exports = {
   delegation: {
     pattern: 'invoke_agent({agent_name: "<name>", prompt: "<prompt>"})',
     surface_tool: 'invoke_agent',
+    dispatch: {
+      mode: 'brokered',
+      tool_name: 'invoke_agent',
+      agent_name_template: '{{agent}}',
+      agent_param: 'agent_name',
+      prompt_param: 'prompt',
+      call_pattern: 'invoke_agent({agent_name: "<agent>", prompt: "<prompt>"})',
+    },
     requires_frontmatter_enforcement: false,
     constraints: {
       result_surface: 'synchronous',

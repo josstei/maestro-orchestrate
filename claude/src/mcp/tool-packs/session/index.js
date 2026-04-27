@@ -5,6 +5,7 @@ const { PHASE_ITEM_SCHEMA } = require('../../contracts/plan-schema');
 const {
   handleCreateSession,
   handleGetSessionStatus,
+  handleAppendSessionPhases,
   handleTransitionPhase,
   handleArchiveSession,
   handleUpdateSession,
@@ -93,6 +94,31 @@ function createToolPack() {
             current_batch: { type: ['string', 'null'] },
           },
           required: ['session_id'],
+        },
+      },
+      {
+        name: 'append_session_phases',
+        description:
+          'Append review, revision, or verification lifecycle phases to an active session and optionally start one whose dependencies are complete.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            phases: {
+              type: 'array',
+              minItems: 1,
+              items: PHASE_ITEM_SCHEMA,
+              description:
+                "Lifecycle phases to append. Each phase must set kind to 'review', 'revision', or 'verification'.",
+            },
+            start_phase_id: {
+              type: ['number', 'string', 'null'],
+              description:
+                'Optional appended phase id to mark in_progress immediately when all dependencies are completed.',
+            },
+          },
+          required: ['session_id', 'phases'],
         },
       },
       {
@@ -256,6 +282,7 @@ function createToolPack() {
       create_session: handleCreateSession,
       get_session_status: handleGetSessionStatus,
       update_session: handleUpdateSession,
+      append_session_phases: handleAppendSessionPhases,
       transition_phase: handleTransitionPhase,
       archive_session: handleArchiveSession,
       enter_design_gate: handleEnterDesignGate,

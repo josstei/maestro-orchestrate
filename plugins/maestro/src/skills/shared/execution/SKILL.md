@@ -149,13 +149,13 @@ Use native parallel execution only for sibling phases at the same dependency dep
 3. Mark only the current chunk phases `in_progress`
 4. Set `current_batch` in session state for that chunk
 5. Write one in-progress todo item for the chunk
-6. In the next turn, emit only agent tool calls for that chunk
-7. Do not mix shell commands, validation commands, file writes, or narration between those agent calls
+6. In the next turn, emit only runtime dispatch calls for that chunk
+7. Do not mix shell commands, validation commands, file writes, or narration between those dispatch calls
 8. `MAESTRO_MAX_CONCURRENT=0` means emit the entire ready batch in one turn
 
 ### Native Constraints
 
-- The runtime only parallelizes contiguous agent calls in one turn
+- The runtime only parallelizes contiguous dispatch calls in one turn
 - Native subagents currently run without user approval gates
 - `ask_user` remains available; a batch may pause while waiting for user input
 - If execution is interrupted, restart unfinished `in_progress` phases on resume instead of attempting to restore in-flight subagent interactions

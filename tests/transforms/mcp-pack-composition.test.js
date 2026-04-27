@@ -23,6 +23,7 @@ describe('mcp pack composition', () => {
         'create_session',
         'get_session_status',
         'update_session',
+        'append_session_phases',
         'transition_phase',
         'archive_session',
         'enter_design_gate',

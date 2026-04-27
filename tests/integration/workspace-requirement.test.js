@@ -34,6 +34,7 @@ describe('workspace requirement contract', () => {
       { name: 'transition_phase', args: { session_id: 's1', completed_phase_id: 1 } },
       { name: 'archive_session', args: { session_id: 's1' } },
       { name: 'update_session', args: { session_id: 's1' } },
+      { name: 'append_session_phases', args: { session_id: 's1', phases: [] } },
       { name: 'enter_design_gate', args: { session_id: 's1' } },
       { name: 'record_design_approval', args: { session_id: 's1', design_document_path: '/tmp/x.md' } },
       { name: 'get_design_gate_status', args: { session_id: 's1' } },

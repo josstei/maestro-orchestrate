@@ -4,7 +4,7 @@
       "role": "user",
       "parts": [
         {
-          "text": "<session_context>\nThis is the Gemini CLI. We are setting up the context for our chat.\nToday's date is Saturday, April 25, 2026 (formatted according to the user's locale).\nMy operating system is: darwin\nThe project's temporary directory is: /Users/USER/.gemini/tmp/test-gemini\n- **Workspace Directories:**\n  - /Users/USER/Development/agentic-workspace/test-gemini\n- **Directory Structure:**\n\nShowing up to 200 items (files + folders).\n\n/Users/USER/Development/agentic-workspace/test-gemini/\n\n\n\n</session_context>"
+          "text": "<session_context>\nThis is the Gemini CLI. We are setting up the context for our chat.\nToday's date is Saturday, April 25, 2026 (formatted according to the user's locale).\nMy operating system is: darwin\nThe project's temporary directory is: ${TMP_DIR}\n- **Workspace Directories:**\n  - ${WORKSPACE_ROOT}\n- **Directory Structure:**\n\nShowing up to 200 items (files + folders).\n\n${WORKSPACE_ROOT}/\n\n\n\n</session_context>"
         }
       ]
     },

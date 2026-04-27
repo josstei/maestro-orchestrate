@@ -4,7 +4,8 @@ const { DEFAULT_RUNTIME_CONFIG } = require('./get-skill-content');
 const { AGENT_ALLOWLIST } = require('../content/runtime-content');
 const { createContentProvider } = require('../content/provider');
 const { ValidationError } = require('../../lib/errors');
-const { toSnakeCase, toKebabCase } = require('../../lib/naming');
+const { toKebabCase } = require('../../lib/naming');
+const { createAgentDispatch } = require('../runtime/delegation-dispatch');
 
 function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot) {
   return function handleGetAgent(params) {
@@ -33,12 +34,13 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
         continue;
       }
 
-      const toolName =
-        runtimeConfig.agentNaming === 'snake_case'
-          ? toSnakeCase(canonicalName)
-          : canonicalName;
+      const dispatch = createAgentDispatch(runtimeConfig, canonicalName);
 
-      agents[inputName] = { ...result.agent, tool_name: toolName };
+      agents[inputName] = {
+        ...result.agent,
+        tool_name: dispatch.tool_name,
+        dispatch,
+      };
     }
 
     return { agents, errors };

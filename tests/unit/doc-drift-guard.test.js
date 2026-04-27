@@ -81,12 +81,13 @@ test('doc-drift: Qwen location documented as qwen/ in all surfaces', () => {
   assert.ok(architecture.includes('| `qwen/` |'), 'docs/architecture.md: outputDir row missing `qwen/` for Qwen');
 });
 
-test('doc-drift: docs/usage.md MCP Quick Reference includes all 10 session tools', () => {
+test('doc-drift: docs/usage.md MCP Quick Reference includes all 11 session tools', () => {
   const body = read('docs/usage.md');
   const sessionTools = [
     'create_session',
     'get_session_status',
     'update_session',
+    'append_session_phases',
     'transition_phase',
     'archive_session',
     'enter_design_gate',
@@ -161,7 +162,15 @@ test('doc-drift: docs/architecture.md module tree shows correct handler + sessio
   assert.ok(!body.includes('# 8 handler implementations'), 'docs/architecture.md: still says 8 handler implementations');
   assert.ok(body.includes('# 12 handler implementations'), 'docs/architecture.md: does not report 12 handlers');
   assert.ok(!body.includes('session/index.js        # 5 tools'), 'docs/architecture.md: still says session pack has 5 tools');
-  assert.ok(body.includes('session/index.js        # 10 tools'), 'docs/architecture.md: does not report 10 session tools');
+  assert.ok(body.includes('session/index.js        # 11 tools'), 'docs/architecture.md: does not report 11 session tools');
+  assert.ok(body.includes('content/index.js        # 4 tools'), 'docs/architecture.md: does not report 4 content tools');
+});
+
+test('doc-drift: Gemini core command advertises brokered dispatch', () => {
+  const body = read('commands/maestro/orchestrate.toml');
+  assert.ok(body.includes('use its `dispatch` descriptor'), 'Gemini orchestrate command should mention dispatch descriptor');
+  assert.ok(body.includes('invoke_agent(agent_name: "<agent>", prompt: "...")'), 'Gemini orchestrate command should mention invoke_agent dispatch');
+  assert.ok(!body.includes('Call agent tool by name'), 'Gemini orchestrate command still advertises direct agent tools');
 });
 
 test('doc-drift: docs/architecture.md content-tools list includes Qwen', () => {

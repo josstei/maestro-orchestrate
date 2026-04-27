@@ -93,4 +93,29 @@ describe('content tool pack', () => {
       'mcp__plugin_maestro_maestro__'
     );
   });
+
+  it('returns runtime-specific dispatch metadata from get_agent', async () => {
+    for (const runtimeName of ['gemini', 'qwen']) {
+      const server = createServer({
+        runtimeConfig: getRuntimeConfig(runtimeName),
+        services: {
+          canonicalSrcRoot: path.join(REPO_ROOT, 'src'),
+        },
+        toolPacks: [createToolPack],
+      });
+
+      const result = await server.callTool('get_agent', { agents: ['ux-designer'] });
+
+      assert.equal(result.ok, true);
+      assert.equal(result.result.agents['ux-designer'].tool_name, 'invoke_agent');
+      assert.deepEqual(result.result.agents['ux-designer'].dispatch, {
+        mode: 'brokered',
+        tool_name: 'invoke_agent',
+        agent_name: 'ux_designer',
+        agent_param: 'agent_name',
+        prompt_param: 'prompt',
+        call_pattern: 'invoke_agent({agent_name: "<agent>", prompt: "<prompt>"})',
+      });
+    }
+  });
 });

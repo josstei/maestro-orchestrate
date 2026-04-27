@@ -65,8 +65,8 @@ function isValidBlockerId(value) {
  * `implementation` happens at consumption time elsewhere.
  *
  * Optional field: `parent_phase_id` — phase id this phase derives from.
- * REQUIRED when `kind === 'revision'` (a revision must reference the
- * implementation phase being revised). When present on any phase, must
+ * REQUIRED when `kind === 'revision'` (a revision must reference the review
+ * or implementation phase that caused it). When present on any phase, must
  * satisfy the phase-id shape (string min 1 OR integer >= 1).
  *
  * @param {unknown} phases - Input value expected to be an array of phase objects.
