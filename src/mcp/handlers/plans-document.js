@@ -6,6 +6,9 @@ const path = require('node:path');
 const { ValidationError, NotFoundError } = require('../../lib/errors');
 const { atomicWriteSync } = require('../../lib/io');
 const { resolveStateDirPath } = require('../../state/session-state');
+const {
+  translateEphemeralPath,
+} = require('../../platforms/shared/plan-paths/translate-ephemeral-path');
 
 /**
  * Canonical location where approved design documents and implementation
@@ -128,6 +131,7 @@ function writePlansDocumentContent(projectRoot, filename, content, filenameParam
  * @property {string} pathKey - param name carrying the path variant (e.g. 'design_document_path')
  * @property {string} contentKey - param name carrying the inline content variant
  * @property {string} filenameKey - param name carrying the filename for the content variant
+ * @property {string} [documentKind] - 'design_document' or 'implementation_plan'; required when the path variant may resolve to an ephemeral runtime location, used in materialization error messages
  * @property {boolean} [required=false] - when true, throws if neither variant is supplied
  * @property {string} [missingMessage] - custom message for the required-but-absent case
  */
@@ -135,9 +139,12 @@ function writePlansDocumentContent(projectRoot, filename, content, filenameParam
 /**
  * Resolve the caller's one-of input shape to a canonical absolute path.
  * Exactly one of:
- *   - the path variant (`spec.pathKey`) — normalized to absolute, no
- *     existence check or copy is performed (the file may not yet be on
- *     disk; callers that require existence should follow up with
+ *   - the path variant (`spec.pathKey`) — when the path resolves under a
+ *     runtime's declared ephemeral plan-mode tmp root (e.g. Gemini's
+ *     `~/.gemini/tmp/<uuid>/`), the file is materialized immediately into
+ *     `<state_dir>/plans/` so it survives the runtime's tmp cleanup;
+ *     otherwise the path is normalized to absolute without an existence
+ *     check or copy (callers that require existence should follow up with
  *     `materializePlansDocument`), or
  *   - the content variant (`spec.contentKey` + `spec.filenameKey`) —
  *     materialized immediately inside `<state_dir>/plans/`, eliminating
@@ -158,6 +165,7 @@ function resolveDocumentInput(params, projectRoot, spec) {
     pathKey,
     contentKey,
     filenameKey,
+    documentKind,
     required = false,
     missingMessage,
   } = spec;
@@ -192,7 +200,16 @@ function resolveDocumentInput(params, projectRoot, spec) {
   }
 
   if (hasPath) {
-    return toAbsoluteDocPath(projectRoot, params[pathKey]);
+    const absolutePath = toAbsoluteDocPath(projectRoot, params[pathKey]);
+    const { isEphemeral } = translateEphemeralPath(absolutePath);
+    if (isEphemeral) {
+      return materializePlansDocument(
+        projectRoot,
+        absolutePath,
+        documentKind || 'document'
+      );
+    }
+    return absolutePath;
   }
 
   if (required) {

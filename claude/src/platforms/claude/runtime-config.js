@@ -49,6 +49,10 @@ module.exports = {
     },
   },
 
+  planMode: {
+    ephemeralWriteRoots: [],
+  },
+
   features: {
     exampleBlocks: true,
     claudeStateContract: true,

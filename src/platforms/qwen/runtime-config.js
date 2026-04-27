@@ -53,6 +53,12 @@ module.exports = {
     },
   },
 
+  planMode: {
+    ephemeralWriteRoots: [
+      { homeRelative: ['.qwen', 'tmp'] },
+    ],
+  },
+
   features: {
     exampleBlocks: false,
     claudeStateContract: false,
