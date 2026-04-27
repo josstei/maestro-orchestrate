@@ -9,7 +9,7 @@ max_turns: 20
 temperature: 0.2
 timeout_mins: 8
 capabilities: read_shell
-signals: [mainframe]
+signals: [mainframe, devops]
 ---
 <!-- @feature exampleBlocks -->
 <example>

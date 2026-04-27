@@ -11,9 +11,8 @@ test('CANONICAL_SIGNALS is frozen', () => {
   assert.ok(Object.isFrozen(CANONICAL_SIGNALS));
 });
 
-test('release appears exactly once (R-Crit-5 regression)', () => {
-  const count = CANONICAL_SIGNALS.filter((s) => s === 'release').length;
-  assert.strictEqual(count, 1);
+test('CANONICAL_SIGNALS contains no duplicates', () => {
+  assert.equal(new Set(CANONICAL_SIGNALS).size, CANONICAL_SIGNALS.length);
 });
 
 test('normalizeSignal lowercases input', () => {
@@ -43,8 +42,13 @@ test('each agent file has valid non-empty signals from canonical set', () => {
       `${file}: signals must be an array`
     );
     assert.ok(
-      frontmatter.signals.length > 0,
-      `${file}: signals must be non-empty`
+      frontmatter.signals.length >= 2,
+      `${file}: signals must have at least 2 entries`
+    );
+    assert.equal(
+      new Set(frontmatter.signals).size,
+      frontmatter.signals.length,
+      `${file}: signals contains duplicates`
     );
 
     for (const signal of frontmatter.signals) {
