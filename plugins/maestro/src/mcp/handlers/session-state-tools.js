@@ -189,6 +189,7 @@ function handleCreateSession(params, projectRoot) {
     pathKey: 'implementation_plan',
     contentKey: 'implementation_plan_content',
     filenameKey: 'implementation_plan_filename',
+    documentKind: 'implementation_plan',
   });
   const resolvedImplementationPlan = implementationPlanCandidate
     ? materializePlansDocument(

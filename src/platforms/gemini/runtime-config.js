@@ -53,6 +53,12 @@ module.exports = {
     },
   },
 
+  planMode: {
+    ephemeralWriteRoots: [
+      { homeRelative: ['.gemini', 'tmp'] },
+    ],
+  },
+
   features: {
     exampleBlocks: false,
     claudeStateContract: false,
