@@ -1,6 +1,9 @@
+const telemetryAdapter = require('./telemetry-adapter');
+
 module.exports = {
   name: 'codex',
   outputDir: 'plugins/maestro/',
+  telemetry: telemetryAdapter,
 
   agentNaming: 'kebab-case',
 
