@@ -27,6 +27,10 @@ async function prepareSession(opts = {}) {
   const kind = typeof opts === 'object' ? opts.kind : undefined;
   const multiPhase = typeof opts === 'object' ? Boolean(opts.multiPhase) : false;
   const parentPhaseId = typeof opts === 'object' ? opts.parentPhaseId : undefined;
+  const phaseAgents =
+    typeof opts === 'object' && Array.isArray(opts.phaseAgents)
+      ? opts.phaseAgents
+      : null;
 
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hv-'));
   const server = createServerForWorkspace();
@@ -65,6 +69,24 @@ async function prepareSession(opts = {}) {
     },
     workspace
   );
+
+  if (phaseAgents) {
+    const statePath = path.join(
+      workspace,
+      'docs',
+      'maestro',
+      'state',
+      'active-session.md'
+    );
+    const raw = fs.readFileSync(statePath, 'utf8');
+    const parts = raw.split('---');
+    const state = JSON.parse(parts[1].trim());
+    const target = state.phases.find((phase) => phase.id === phaseId);
+    target.agents = phaseAgents;
+    const rewritten = `---\n${JSON.stringify(state, null, 2)}\n---${parts.slice(2).join('---')}`;
+    fs.writeFileSync(statePath, rewritten);
+  }
+
   return { server, workspace };
 }
 
