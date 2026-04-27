@@ -37,7 +37,7 @@ describe('content tool pack', () => {
 
     assert.deepEqual(
       server.getToolSchemas().map((schema) => schema.name),
-      ['get_skill_content', 'get_agent', 'get_runtime_context']
+      ['get_skill_content', 'get_agent', 'get_runtime_context', 'get_agent_recommendation']
     );
   });
 

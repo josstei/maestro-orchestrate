@@ -33,6 +33,7 @@ describe('mcp pack composition', () => {
         'get_skill_content',
         'get_agent',
         'get_runtime_context',
+        'get_agent_recommendation',
       ]
     );
   });

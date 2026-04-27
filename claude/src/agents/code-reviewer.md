@@ -9,6 +9,7 @@ max_turns: 15
 temperature: 0.2
 timeout_mins: 5
 capabilities: read_only
+signals: [validation, contract]
 ---
 <!-- @feature exampleBlocks -->
 <example>

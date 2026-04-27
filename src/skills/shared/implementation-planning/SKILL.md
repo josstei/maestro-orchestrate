@@ -88,6 +88,22 @@ and domain expertise from a Read-Only agent, split it: the Read-Only agent produ
 or analysis, then a write-capable agent (typically coder) implements the files based on that output.
 </HARD-GATE>
 
+### Agent Recommendation
+
+For each phase, call the MCP tool `get_agent_recommendation` with the phase's deliverable text (the natural-language description of what the phase produces, including its files, contracts, and integration points). The tool returns:
+
+- `agent` — the recommended specialist from the 39-agent roster, matched against each agent's declared `signals` frontmatter.
+- `score` — number of signal hits (higher is more confident).
+- `matched_signals` — the signals extracted from the deliverable text.
+- `fell_back: true` — set when no agent reached the minimum match score; the recommendation degraded to `coder`.
+
+Treat the recommendation as a default that you accept unless one of the following applies:
+- The recommended agent fails the deliverable-tier compatibility check above (e.g. recommended a Read-Only agent for a file-creating phase). Override with the appropriate write-capable specialist.
+- `fell_back: true` AND the deliverable clearly belongs to a domain you can identify by inspection (e.g. accessibility, security, observability). Override with the correct specialist rather than accepting the `coder` fallback.
+- The recommendation is `coder` for a phase that obviously needs a more specific specialist (e.g. a UI-token system phase is best served by `design-system-engineer`, not `coder`). Override.
+
+Record the agent on the phase as `agent: <recommended-or-overridden>`. When you override, note the reason in the plan so a reviewer can audit allocation decisions.
+
 ### Phase Count Guidance
 
 Scale decomposition granularity to `task_complexity` (read from design document frontmatter):

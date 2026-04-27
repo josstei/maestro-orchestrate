@@ -9,6 +9,7 @@ max_turns: 25
 temperature: 0.2
 timeout_mins: 10
 capabilities: full
+signals: [visual, design, theme, typography]
 ---
 <!-- @feature exampleBlocks -->
 <example>

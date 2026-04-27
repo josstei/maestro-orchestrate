@@ -9,6 +9,7 @@ max_turns: 20
 temperature: 0.2
 timeout_mins: 8
 capabilities: full
+signals: [i18n, l10n]
 ---
 <!-- @feature exampleBlocks -->
 <example>
