@@ -30,6 +30,12 @@ const KEYWORD_TO_SIGNAL = Object.freeze({
   pipeline: 'cicd', deploy: 'devops',
   webhook: 'integration', etl: 'integration', api: 'api',
   release: 'release', changelog: 'changelog', rollout: 'rollout',
+  mainframe: 'mainframe', cobol: 'cobol', hlasm: 'mainframe', assembler: 'mainframe',
+  'z/os': 'mainframe', zos: 'mainframe', rpg: 'rpg', 'as/400': 'mainframe',
+  aws: 'aws', gcp: 'gcp', azure: 'azure',
+  product: 'product', requirements: 'requirements',
+  staging: 'staging',
+  'react native': 'native', 'cross-platform': 'native',
 });
 
 class AgentAllocator {
@@ -66,7 +72,7 @@ class AgentAllocator {
     for (const [kw, sig] of Object.entries(KEYWORD_TO_SIGNAL)) {
       if (lower.includes(kw)) signals.push(sig);
     }
-    return signals;
+    return [...new Set(signals)];
   }
 }
 

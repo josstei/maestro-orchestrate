@@ -106,3 +106,23 @@ test('allocate normalizes agent signals before matching', () => {
   assert.strictEqual(result.fell_back, false);
   assert.ok(result.score >= MINIMUM_MATCH_SCORE);
 });
+
+test('deduplicates signals extracted from synonym-rich text', () => {
+  const allocator = new AgentAllocator([
+    { name: 'security-engineer', frontmatter: { signals: ['auth'] } },
+  ]);
+  const r = allocator.allocate('authentication and authorization with auth tokens');
+  assert.deepEqual(r.matched_signals, ['auth']);
+  assert.strictEqual(r.score, 0);
+  assert.strictEqual(r.fell_back, true);
+});
+
+test('reaches mainframe specialists via mainframe-specific keywords', () => {
+  const allocator = new AgentAllocator([
+    { name: 'cobol-engineer', frontmatter: { signals: ['mainframe', 'cobol'] } },
+    { name: 'coder', frontmatter: { signals: ['implementation', 'scaffold'] } },
+  ]);
+  const r = allocator.allocate('modernize a cobol batch on z/os mainframe');
+  assert.strictEqual(r.agent, 'cobol-engineer');
+  assert.strictEqual(r.fell_back, false);
+});

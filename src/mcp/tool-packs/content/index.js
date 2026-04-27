@@ -88,7 +88,7 @@ function createToolPack(context = {}) {
           ? context.services.workspaceSuggestion
           : () => null
       ),
-      get_agent_recommendation: createAgentRecommendationHandler(),
+      get_agent_recommendation: createAgentRecommendationHandler(canonicalSrcRoot),
     },
   });
 }

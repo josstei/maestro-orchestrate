@@ -2,7 +2,10 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { handleGetAgentRecommendation } = require('../../src/mcp/handlers/agent-recommendation');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { handleGetAgentRecommendation, createHandler } = require('../../src/mcp/handlers/agent-recommendation');
 const { ValidationError } = require('../../src/lib/errors');
 
 describe('handleGetAgentRecommendation', () => {
@@ -36,7 +39,7 @@ describe('handleGetAgentRecommendation', () => {
 
   it('returns security-engineer for a security audit deliverable', () => {
     const result = handleGetAgentRecommendation({
-      phase_deliverable: 'audit the login flow for security and authorization vulnerabilities',
+      phase_deliverable: 'audit authentication for crypto vulnerability',
     });
     assert.equal(result.agent, 'security-engineer');
     assert.equal(result.fell_back, false);
@@ -52,7 +55,7 @@ describe('handleGetAgentRecommendation', () => {
 
   it('returns the expected shape on every successful call', () => {
     const result = handleGetAgentRecommendation({
-      phase_deliverable: 'audit the login flow for security and authorization vulnerabilities',
+      phase_deliverable: 'audit authentication for crypto vulnerability',
     });
     assert.ok('agent' in result, 'result must have agent');
     assert.ok('score' in result, 'result must have score');
@@ -62,5 +65,24 @@ describe('handleGetAgentRecommendation', () => {
     assert.equal(typeof result.score, 'number');
     assert.ok(Array.isArray(result.matched_signals));
     assert.equal(typeof result.fell_back, 'boolean');
+  });
+
+  it('honors canonicalSrcRoot and loads agents from the provided directory', () => {
+    const fakeSrcRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rec-test-'));
+    const agentsDir = path.join(fakeSrcRoot, 'agents');
+    fs.mkdirSync(agentsDir);
+    fs.writeFileSync(
+      path.join(agentsDir, 'custom-security-agent.md'),
+      '---\nname: custom-security-agent\nsignals: [security, auth]\n---\nBody.\n'
+    );
+
+    const handler = createHandler(fakeSrcRoot);
+    const result = handler({
+      phase_deliverable: 'audit authentication for vulnerability',
+    });
+
+    assert.equal(result.agent, 'custom-security-agent');
+    assert.equal(result.fell_back, false);
+    assert.ok(result.score >= 2);
   });
 });

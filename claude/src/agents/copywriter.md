@@ -9,7 +9,7 @@ max_turns: 20
 temperature: 0.3
 timeout_mins: 8
 capabilities: read_write
-signals: [docs, tech-writing]
+signals: [seo, tracking]
 ---
 <!-- @feature exampleBlocks -->
 <example>

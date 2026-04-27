@@ -19,7 +19,7 @@ describe('get_agent_recommendation MCP tool', () => {
     const server = createServerForWorkspace();
     const result = await server.callTool(
       'get_agent_recommendation',
-      { phase_deliverable: 'implement the user authentication api with crypto encryption' },
+      { phase_deliverable: 'implement the user authentication endpoint with crypto encryption and security review' },
       '/tmp'
     );
     assert.equal(result.ok, true);
