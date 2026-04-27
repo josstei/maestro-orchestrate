@@ -4,6 +4,7 @@ const { defineToolPack } = require('../contracts');
 const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
 const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
+const { createHandler: createAgentRecommendationHandler } = require('../../handlers/agent-recommendation');
 const { getDefaultRuntimeConfig } = require('../../runtime/runtime-config-map');
 
 function createToolPack(context = {}) {
@@ -61,6 +62,22 @@ function createToolPack(context = {}) {
           properties: {},
         },
       },
+      {
+        name: 'get_agent_recommendation',
+        description:
+          'Recommend a specialist from the Maestro agent roster for a given phase deliverable. Extracts signals from the deliverable text and matches them against each agent\'s declared signals; returns the best match, or falls back to "coder" when no agent meets the minimum match score.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            phase_deliverable: {
+              type: 'string',
+              description:
+                'Free-form text describing what the phase produces (e.g. "build the login API endpoint with rate limiting and security audit").',
+            },
+          },
+          required: ['phase_deliverable'],
+        },
+      },
     ],
     handlers: {
       get_skill_content: createSkillContentHandler(runtimeConfig, canonicalSrcRoot),
@@ -71,6 +88,7 @@ function createToolPack(context = {}) {
           ? context.services.workspaceSuggestion
           : () => null
       ),
+      get_agent_recommendation: createAgentRecommendationHandler(),
     },
   });
 }
