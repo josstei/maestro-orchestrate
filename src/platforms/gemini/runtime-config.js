@@ -1,6 +1,9 @@
+const telemetryAdapter = require('./telemetry-adapter');
+
 module.exports = {
   name: 'gemini',
   outputDir: './',
+  telemetry: telemetryAdapter,
 
   agentNaming: 'snake_case',
 

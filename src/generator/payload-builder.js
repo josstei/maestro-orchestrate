@@ -49,15 +49,29 @@ const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
 ]);
 
 /**
+ * Per-runtime files that ship inside each detached payload. These are the
+ * source-of-truth filenames at `src/platforms/<runtime>/<file>` that
+ * `runtime-config.js` may require directly. Adding a new per-runtime
+ * surface (e.g. a future `tracing-adapter.js`) is one line here.
+ * @type {ReadonlyArray<string>}
+ */
+const RUNTIME_PAYLOAD_FILES = Object.freeze([
+  'runtime-config.js',
+  'telemetry-adapter.js',
+]);
+
+/**
  * Build a payload allowlist for a specific runtime by extending the base
- * allowlist with the runtime-specific config file entry.
+ * allowlist with the per-runtime file entries.
  * @param {string} runtimeName
  * @returns {string[]}
  */
 function buildPayloadAllowlist(runtimeName) {
   return [
     ...DETACHED_PAYLOAD_BASE_ALLOWLIST,
-    `platforms/${runtimeName}/runtime-config.js`,
+    ...RUNTIME_PAYLOAD_FILES.map(
+      (filename) => `platforms/${runtimeName}/${filename}`
+    ),
   ];
 }
 
@@ -208,6 +222,7 @@ function stampVersion(payloadDirs, version) {
 
 module.exports = {
   DETACHED_PAYLOAD_BASE_ALLOWLIST,
+  RUNTIME_PAYLOAD_FILES,
   buildPayloadAllowlist,
   shouldIncludeInPayload,
   isForeignAdapter,

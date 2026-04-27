@@ -459,9 +459,64 @@ function handleTransitionPhase(params, projectRoot) {
     }
 
     if (params.token_usage) {
-      state.token_usage.total_input += params.token_usage.input || 0;
-      state.token_usage.total_output += params.token_usage.output || 0;
-      state.token_usage.total_cached += params.token_usage.cached || 0;
+      if (!state.token_usage || typeof state.token_usage !== 'object') {
+        state.token_usage = {
+          total_input: 0,
+          total_output: 0,
+          total_cached: 0,
+          by_agent: {},
+        };
+      }
+
+      const usage = params.token_usage;
+      state.token_usage.total_input =
+        (Number(state.token_usage.total_input) || 0) + (Number(usage.input) || 0);
+      state.token_usage.total_output =
+        (Number(state.token_usage.total_output) || 0) + (Number(usage.output) || 0);
+      state.token_usage.total_cached =
+        (Number(state.token_usage.total_cached) || 0) + (Number(usage.cached) || 0);
+
+      if (
+        !state.token_usage.by_agent ||
+        typeof state.token_usage.by_agent !== 'object' ||
+        Array.isArray(state.token_usage.by_agent)
+      ) {
+        state.token_usage.by_agent = {};
+      }
+
+      const phaseAgents = Array.isArray(completedPhase && completedPhase.agents)
+        ? completedPhase.agents.filter(
+            (name) => typeof name === 'string' && name.length > 0
+          )
+        : [];
+      const explicitNames =
+        Array.isArray(params.agent_name) && params.agent_name.length > 0
+          ? params.agent_name.filter(
+              (name) => typeof name === 'string' && name.length > 0
+            )
+          : typeof params.agent_name === 'string' && params.agent_name.length > 0
+            ? [params.agent_name]
+            : null;
+
+      const targets =
+        explicitNames && explicitNames.length > 0
+          ? explicitNames
+          : phaseAgents.length > 0
+            ? phaseAgents
+            : ['unknown'];
+
+      const splitInput = Math.floor((Number(usage.input) || 0) / targets.length);
+      const splitOutput = Math.floor((Number(usage.output) || 0) / targets.length);
+      const splitCached = Math.floor((Number(usage.cached) || 0) / targets.length);
+
+      for (const agentKey of targets) {
+        if (!state.token_usage.by_agent[agentKey]) {
+          state.token_usage.by_agent[agentKey] = { input: 0, output: 0, cached: 0 };
+        }
+        state.token_usage.by_agent[agentKey].input += splitInput;
+        state.token_usage.by_agent[agentKey].output += splitOutput;
+        state.token_usage.by_agent[agentKey].cached += splitCached;
+      }
     }
 
     state.updated = new Date().toISOString();

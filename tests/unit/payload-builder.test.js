@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const {
   DETACHED_PAYLOAD_BASE_ALLOWLIST,
+  RUNTIME_PAYLOAD_FILES,
   buildPayloadAllowlist,
   shouldIncludeInPayload,
   isForeignAdapter,
@@ -164,6 +165,11 @@ describe('buildPayloadAllowlist', () => {
     assert.ok(result.includes('platforms/claude/runtime-config.js'));
   });
 
+  it('extends the base allowlist with the runtime-specific telemetry adapter', () => {
+    const result = buildPayloadAllowlist('claude');
+    assert.ok(result.includes('platforms/claude/telemetry-adapter.js'));
+  });
+
   it('includes all base allowlist entries', () => {
     const result = buildPayloadAllowlist('codex');
     for (const prefix of DETACHED_PAYLOAD_BASE_ALLOWLIST) {
@@ -171,14 +177,24 @@ describe('buildPayloadAllowlist', () => {
     }
   });
 
-  it('adds only one additional entry beyond the base', () => {
+  it('adds one entry per RUNTIME_PAYLOAD_FILES beyond the base', () => {
     const result = buildPayloadAllowlist('gemini');
-    assert.equal(result.length, DETACHED_PAYLOAD_BASE_ALLOWLIST.length + 1);
+    assert.equal(
+      result.length,
+      DETACHED_PAYLOAD_BASE_ALLOWLIST.length + RUNTIME_PAYLOAD_FILES.length
+    );
   });
 
   it('constructs the correct platform path for any runtime', () => {
     const result = buildPayloadAllowlist('test-runtime');
     assert.ok(result.includes('platforms/test-runtime/runtime-config.js'));
+    assert.ok(result.includes('platforms/test-runtime/telemetry-adapter.js'));
+  });
+
+  it('exposes RUNTIME_PAYLOAD_FILES as a frozen constant', () => {
+    assert.equal(Object.isFrozen(RUNTIME_PAYLOAD_FILES), true);
+    assert.ok(RUNTIME_PAYLOAD_FILES.includes('runtime-config.js'));
+    assert.ok(RUNTIME_PAYLOAD_FILES.includes('telemetry-adapter.js'));
   });
 });
 

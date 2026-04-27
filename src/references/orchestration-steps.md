@@ -121,6 +121,16 @@ EXECUTION (Phase 3 — delegation loop)
     merge all agents' files into one call — the archive attributes files per
     phase, so empty payloads mean lost traceability.
     </HARD-GATE>
+    Telemetry: load the runtime's telemetry adapter via the canonical
+    `telemetry` field on its `runtime-config.js` (the file at
+    `src/platforms/<runtime>/telemetry-adapter.js` is its source of truth).
+    Call `adapter.extractUsage(invocationResult)` and pass the returned
+    `{ input, output, cached }` as `token_usage` to `transition_phase`. Pass
+    `agent_name` (string for solo phases, array for multi-agent batches) so
+    per-agent totals attribute correctly. If `adapter.isAvailable(invocationResult)`
+    returns false, OMIT `token_usage` rather than recording zeros — Gemini
+    and Qwen currently report unavailable until a real telemetry source is
+    identified.
 26. Repeat steps 23-25 until all phases complete.
 
 COMPLETION (Phase 4)

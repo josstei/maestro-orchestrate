@@ -122,6 +122,18 @@ function createToolPack() {
                 'Batch identifier for parallel dispatch. Sets current_batch in state.',
             },
             token_usage: { type: 'object' },
+            agent_name: {
+              description:
+                'Per-agent attribution for token_usage. Single string for solo phases or an array of names for multi-agent phases. When omitted, falls back to phase.agents from session state, then to "unknown".',
+              oneOf: [
+                { type: 'string', minLength: 1 },
+                {
+                  type: 'array',
+                  items: { type: 'string', minLength: 1 },
+                  minItems: 1,
+                },
+              ],
+            },
             findings: {
               type: 'array',
               description:

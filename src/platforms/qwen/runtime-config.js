@@ -1,6 +1,9 @@
+const telemetryAdapter = require('./telemetry-adapter');
+
 module.exports = {
   name: 'qwen',
   outputDir: 'qwen/',
+  telemetry: telemetryAdapter,
 
   agentNaming: 'snake_case',
 
