@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const {
   PHASE_ID_SCHEMA,
   PHASE_ITEM_SCHEMA,
+  PHASE_KINDS,
   PHASE_REQUIRED_FIELDS,
   validatePhases,
 } = require('../../src/mcp/contracts/plan-schema');
@@ -108,5 +109,146 @@ describe('plan-schema', () => {
       { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [] },
     ]);
     assert.equal(withoutFiles.valid, true);
+  });
+
+  it('exposes PHASE_KINDS containing the four canonical kinds in declaration order', () => {
+    assert.deepEqual(PHASE_KINDS, [
+      'implementation',
+      'review',
+      'revision',
+      'verification',
+    ]);
+  });
+
+  it('accepts a phase with kind: implementation', () => {
+    const result = validatePhases([
+      {
+        id: 1,
+        name: 'Scaffold',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [],
+        kind: 'implementation',
+      },
+    ]);
+    assert.deepEqual(result, { valid: true, violations: [] });
+  });
+
+  it('accepts a phase with kind: review', () => {
+    const result = validatePhases([
+      {
+        id: 2,
+        name: 'Review changes',
+        agent: 'code-reviewer',
+        parallel: false,
+        blocked_by: [1],
+        kind: 'review',
+      },
+    ]);
+    assert.deepEqual(result, { valid: true, violations: [] });
+  });
+
+  it('accepts a phase with kind: verification', () => {
+    const result = validatePhases([
+      {
+        id: 3,
+        name: 'Final verify',
+        agent: 'tester',
+        parallel: false,
+        blocked_by: [2],
+        kind: 'verification',
+      },
+    ]);
+    assert.deepEqual(result, { valid: true, violations: [] });
+  });
+
+  it('accepts a phase with kind: revision and parent_phase_id', () => {
+    const result = validatePhases([
+      {
+        id: 4,
+        name: 'Address review',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [2],
+        kind: 'revision',
+        parent_phase_id: 1,
+      },
+    ]);
+    assert.deepEqual(result, { valid: true, violations: [] });
+  });
+
+  it('rejects an unknown kind value with invalid_field_value', () => {
+    const result = validatePhases([
+      {
+        id: 1,
+        name: 'A',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [],
+        kind: 'unknown_kind',
+      },
+    ]);
+    assert.equal(result.valid, false);
+    assert.equal(result.violations.length, 1);
+    assert.equal(result.violations[0].rule, 'invalid_field_value');
+    assert.equal(result.violations[0].field, 'kind');
+  });
+
+  it('does not require parent_phase_id when kind is invalid (non-revision typo)', () => {
+    const result = validatePhases([
+      {
+        id: 1,
+        name: 'A',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [],
+        kind: 'revisioning',
+      },
+    ]);
+    assert.equal(result.valid, false);
+    assert.equal(result.violations.length, 1);
+    assert.equal(result.violations[0].rule, 'invalid_field_value');
+    assert.equal(result.violations[0].field, 'kind');
+  });
+
+  it('rejects kind: revision without parent_phase_id with missing_required_field', () => {
+    const result = validatePhases([
+      {
+        id: 5,
+        name: 'Fix-up',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [2],
+        kind: 'revision',
+      },
+    ]);
+    assert.equal(result.valid, false);
+    assert.equal(result.violations.length, 1);
+    assert.equal(result.violations[0].rule, 'missing_required_field');
+    assert.equal(result.violations[0].field, 'parent_phase_id');
+  });
+
+  it('rejects parent_phase_id with empty string on a non-revision phase with invalid_field_type', () => {
+    const result = validatePhases([
+      {
+        id: 1,
+        name: 'A',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [],
+        parent_phase_id: '',
+      },
+    ]);
+    assert.equal(result.valid, false);
+    assert.equal(result.violations.length, 1);
+    assert.equal(result.violations[0].rule, 'invalid_field_type');
+    assert.equal(result.violations[0].field, 'parent_phase_id');
+  });
+
+  it('accepts a back-compat phase without kind or parent_phase_id', () => {
+    const result = validatePhases([
+      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [] },
+    ]);
+    assert.deepEqual(result, { valid: true, violations: [] });
   });
 });

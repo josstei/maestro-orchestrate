@@ -24,6 +24,8 @@ phases:
   - id: 1
     name: "<phase name>"
     status: "pending"
+    kind: "implementation"
+    parent_phase_id: null
     agents: []
     parallel: false
     started: null
@@ -38,6 +40,9 @@ phases:
       integration_points: []
       assumptions: []
       warnings: []
+    findings: []
+    addressed_finding_ids: []
+    final_artifacts: {}
     errors: []
     retry_count: 0
 ---

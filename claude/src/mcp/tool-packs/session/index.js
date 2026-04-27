@@ -122,6 +122,23 @@ function createToolPack() {
                 'Batch identifier for parallel dispatch. Sets current_batch in state.',
             },
             token_usage: { type: 'object' },
+            findings: {
+              type: 'array',
+              description:
+                "Code-review findings produced by a review-kind phase. Required when phase.kind is 'review'. Each entry is an opaque object describing one finding.",
+              items: { type: 'object' },
+            },
+            addressed_finding_ids: {
+              type: 'array',
+              description:
+                "IDs of findings addressed by a revision-kind phase. Required when phase.kind is 'revision'.",
+              items: { type: ['string', 'number'] },
+            },
+            final_artifacts: {
+              type: 'object',
+              description:
+                "Map of artifact paths to identifiers (e.g., {'/path/to/file': 'sha:abc...'}) summarizing what a verification-kind phase observed. Required when phase.kind is 'verification'.",
+            },
           },
           required: ['session_id'],
         },

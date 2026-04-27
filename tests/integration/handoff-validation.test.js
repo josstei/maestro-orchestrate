@@ -22,30 +22,58 @@ function createServerForWorkspace() {
   });
 }
 
-async function prepareSession(phaseId = 1) {
+async function prepareSession(opts = {}) {
+  const phaseId = typeof opts === 'number' ? opts : opts.phaseId ?? 1;
+  const kind = typeof opts === 'object' ? opts.kind : undefined;
+  const multiPhase = typeof opts === 'object' ? Boolean(opts.multiPhase) : false;
+  const parentPhaseId = typeof opts === 'object' ? opts.parentPhaseId : undefined;
+
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hv-'));
   const server = createServerForWorkspace();
   await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+
+  const phaseSpec = {
+    id: phaseId,
+    name: 'P1',
+    agent: 'coder',
+    parallel: false,
+    blocked_by: [],
+    files: ['x'],
+  };
+  if (kind !== undefined) phaseSpec.kind = kind;
+  if (parentPhaseId !== undefined) phaseSpec.parent_phase_id = parentPhaseId;
+
+  const phases = [phaseSpec];
+  if (multiPhase) {
+    phases.push({
+      id: phaseId + 1,
+      name: 'P2-terminal',
+      agent: 'coder',
+      parallel: false,
+      blocked_by: [phaseId],
+      files: [],
+    });
+  }
+
   await server.callTool(
     'create_session',
     {
       session_id: 'hv-1',
       task: 'handoff',
       task_complexity: 'simple',
-      phases: [
-        {
-          id: phaseId,
-          name: 'P1',
-          agent: 'coder',
-          parallel: false,
-          blocked_by: [],
-          files: ['x'],
-        },
-      ],
+      phases,
     },
     workspace
   );
   return { server, workspace };
+}
+
+function readActiveSessionState(workspace) {
+  const stateRaw = fs.readFileSync(
+    path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
+    'utf8'
+  );
+  return JSON.parse(stateRaw.split('---')[1].trim());
 }
 
 describe('handoff validation', () => {
@@ -106,11 +134,7 @@ describe('handoff validation', () => {
       `string-valued downstream_context should be accepted: ${stringForm.error || ''}`
     );
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readActiveSessionState(workspace);
     const phase = state.phases.find((candidate) => candidate.id === 1);
 
     assert.deepEqual(phase.downstream_context.integration_points, [
@@ -170,5 +194,410 @@ describe('handoff validation', () => {
 
     assert.equal(pascal.ok, false);
     assert.equal(pascal.code, 'HANDOFF_INCOMPLETE');
+  });
+});
+
+describe('kind-aware handoff', () => {
+  describe('legacy session (no explicit kind)', () => {
+    it('non-terminal phase: files + populated context succeeds and does not require reconciliation', async () => {
+      const { server, workspace } = await prepareSession({ multiPhase: true });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          files_created: ['src/foo.js'],
+          downstream_context: { integration_points: ['src/foo.js'] },
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true, `expected success: ${result.error || ''}`);
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.requires_reconciliation, false);
+      assert.equal(phase.kind, 'implementation');
+    });
+
+    it('non-terminal phase: files + empty context still fails with HANDOFF_INCOMPLETE (always-on rule)', async () => {
+      const { server, workspace } = await prepareSession({ multiPhase: true });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          files_created: ['src/foo.js'],
+          downstream_context: {},
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'HANDOFF_INCOMPLETE');
+    });
+
+    it('non-terminal phase: no files + empty context flags requires_reconciliation: true', async () => {
+      const { server, workspace } = await prepareSession({ multiPhase: true });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          files_created: [],
+          files_modified: [],
+          files_deleted: [],
+          downstream_context: {},
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true);
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.requires_reconciliation, true);
+      assert.equal(phase.kind, 'implementation');
+    });
+
+    it('non-terminal phase: no files + populated context does not require reconciliation', async () => {
+      const { server, workspace } = await prepareSession({ multiPhase: true });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          downstream_context: { integration_points: ['src/foo.js'] },
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true);
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.requires_reconciliation, false);
+    });
+  });
+
+  describe('explicit kind: implementation', () => {
+    it('files + populated context succeeds', async () => {
+      const { server, workspace } = await prepareSession({
+        kind: 'implementation',
+        multiPhase: true,
+      });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          files_created: ['src/foo.js'],
+          downstream_context: { integration_points: ['src/foo.js'] },
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true, `expected success: ${result.error || ''}`);
+    });
+
+    it('files + empty context fails with HANDOFF_INCOMPLETE', async () => {
+      const { server, workspace } = await prepareSession({
+        kind: 'implementation',
+        multiPhase: true,
+      });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          files_created: ['src/foo.js'],
+          downstream_context: {},
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'HANDOFF_INCOMPLETE');
+    });
+
+    it('no files + empty context flags requires_reconciliation: true', async () => {
+      const { server, workspace } = await prepareSession({
+        kind: 'implementation',
+        multiPhase: true,
+      });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          downstream_context: {},
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true);
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.requires_reconciliation, true);
+    });
+  });
+
+  describe('explicit kind: review', () => {
+    it('missing findings field fails with HANDOFF_FIELD_MISSING', async () => {
+      const { server, workspace } = await prepareSession({ kind: 'review' });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'HANDOFF_FIELD_MISSING');
+      assert.match(result.error || '', /review handoff requires non-empty 'findings'/);
+    });
+
+    it('empty findings array fails with HANDOFF_FIELD_MISSING', async () => {
+      const { server, workspace } = await prepareSession({ kind: 'review' });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          findings: [],
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'HANDOFF_FIELD_MISSING');
+    });
+
+    it('non-empty findings succeeds and never requires reconciliation', async () => {
+      const { server, workspace } = await prepareSession({ kind: 'review' });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          findings: [{ id: 'F1', severity: 'major' }],
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true, `expected success: ${result.error || ''}`);
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.kind, 'review');
+      assert.equal(phase.requires_reconciliation, false);
+      assert.deepEqual(phase.findings, [{ id: 'F1', severity: 'major' }]);
+    });
+  });
+
+  describe('explicit kind: verification', () => {
+    it('missing final_artifacts fails with HANDOFF_FIELD_MISSING', async () => {
+      const { server, workspace } = await prepareSession({ kind: 'verification' });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'HANDOFF_FIELD_MISSING');
+      assert.match(result.error || '', /verification handoff requires non-empty 'final_artifacts'/);
+    });
+
+    it('non-empty final_artifacts succeeds and never requires reconciliation', async () => {
+      const { server, workspace } = await prepareSession({ kind: 'verification' });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          final_artifacts: { '/foo': 'sha:abc' },
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true, `expected success: ${result.error || ''}`);
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.kind, 'verification');
+      assert.equal(phase.requires_reconciliation, false);
+      assert.deepEqual(phase.final_artifacts, { '/foo': 'sha:abc' });
+    });
+  });
+
+  describe('explicit kind: revision', () => {
+    it('missing addressed_finding_ids fails with HANDOFF_FIELD_MISSING', async () => {
+      const { server, workspace } = await prepareSession({
+        kind: 'revision',
+        parentPhaseId: 1,
+      });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'HANDOFF_FIELD_MISSING');
+      assert.match(result.error || '', /revision handoff requires non-empty 'addressed_finding_ids'/);
+    });
+
+    it('non-empty addressed_finding_ids succeeds and never requires reconciliation', async () => {
+      const { server, workspace } = await prepareSession({
+        kind: 'revision',
+        parentPhaseId: 1,
+      });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          addressed_finding_ids: ['F1'],
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, true, `expected success: ${result.error || ''}`);
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.kind, 'revision');
+      assert.equal(phase.requires_reconciliation, false);
+      assert.deepEqual(phase.addressed_finding_ids, ['F1']);
+    });
+  });
+
+  describe('strict-mode toggle by kindIsExplicit', () => {
+    it('legacy single-phase session (no explicit kind, terminal phase): inferred verification with no final_artifacts succeeds (strict: false)', async () => {
+      const { server, workspace } = await prepareSession();
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+        },
+        workspace
+      );
+
+      assert.equal(
+        result.ok,
+        true,
+        `legacy terminal phase should not be forced to provide final_artifacts: ${result.error || ''}`
+      );
+
+      const state = readActiveSessionState(workspace);
+      const phase = state.phases.find((candidate) => candidate.id === 1);
+      assert.equal(phase.kind, 'verification');
+      assert.equal(phase.requires_reconciliation, false);
+    });
+
+    it('explicit kind=verification with no final_artifacts fails (strict: true)', async () => {
+      const { server, workspace } = await prepareSession({ kind: 'verification' });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'HANDOFF_FIELD_MISSING');
+    });
+  });
+
+  describe('error envelope details', () => {
+    it('includes phase_id, phase_kind, and kind_is_explicit on violation', async () => {
+      const { server, workspace } = await prepareSession({ kind: 'review' });
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.ok(result.details, 'failure should include details payload');
+      assert.equal(result.details.phase_id, 1);
+      assert.equal(result.details.phase_kind, 'review');
+      assert.equal(result.details.kind_is_explicit, true);
+    });
+  });
+
+  describe('unrecognized phase kind defense', () => {
+    it('rejects transition for a phase with hand-edited unknown kind value', async () => {
+      const { server, workspace } = await prepareSession();
+
+      const statePath = path.join(
+        workspace,
+        'docs',
+        'maestro',
+        'state',
+        'active-session.md'
+      );
+      const raw = fs.readFileSync(statePath, 'utf8');
+      const parts = raw.split('---');
+      const state = JSON.parse(parts[1].trim());
+      state.phases[0].kind = 'bugfix';
+      const rewritten = `---\n${JSON.stringify(state, null, 2)}\n---${parts.slice(2).join('---')}`;
+      fs.writeFileSync(statePath, rewritten);
+
+      const result = await server.callTool(
+        'transition_phase',
+        {
+          session_id: 'hv-1',
+          completed_phase_id: 1,
+          files_created: ['x.js'],
+          downstream_context: { integration_points: ['x.js'] },
+        },
+        workspace
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'PHASE_KIND_INVALID');
+      assert.ok(result.details);
+      assert.equal(result.details.phase_kind, 'bugfix');
+      assert.deepEqual(result.details.allowed_kinds, [
+        'implementation',
+        'review',
+        'revision',
+        'verification',
+      ]);
+    });
   });
 });
