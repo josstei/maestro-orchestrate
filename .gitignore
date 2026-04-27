@@ -26,6 +26,7 @@ Thumbs.db
 .gemini/
 .gemini_security/
 .claude/
+.serena/
 .superpowers/
 docs/superpowers/
 CLAUDE.md
