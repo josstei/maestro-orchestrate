@@ -30,7 +30,7 @@ function formatOutput(result) {
 }
 
 function errorFallback() {
-  return { continue: true, decision: 'approve' };
+  return { continue: false, decision: 'block' };
 }
 
 module.exports = defineAdapter({ normalizeInput, formatOutput, errorFallback });

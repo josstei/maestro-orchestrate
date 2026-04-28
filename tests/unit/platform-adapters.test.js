@@ -93,10 +93,10 @@ describe('claude-adapter', () => {
   });
 
   describe('errorFallback', () => {
-    it('returns { continue: true, decision: "approve" }', () => {
+    it('returns { continue: false, decision: "block" }', () => {
       const result = claudeAdapter.errorFallback();
 
-      assert.deepEqual(result, { continue: true, decision: 'approve' });
+      assert.deepEqual(result, { continue: false, decision: 'block' });
     });
   });
 
@@ -181,10 +181,10 @@ describe('gemini-adapter', () => {
   });
 
   describe('errorFallback', () => {
-    it('returns { continue: true }', () => {
+    it('returns { continue: false }', () => {
       const result = geminiAdapter.errorFallback();
 
-      assert.deepEqual(result, { continue: true });
+      assert.deepEqual(result, { continue: false });
     });
   });
 
