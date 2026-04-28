@@ -14,7 +14,7 @@ Maestro is a multi-agent development orchestration platform with 39 specialists,
 | Runtime | Location | Public Surface | Notes |
 |---------|----------|----------------|-------|
 | Gemini CLI | repo root | `/maestro:*` | Snake-case agents, TOML commands, hooks, TOML shell policies |
-| Claude Code | `claude/` | `/orchestrate`, `/review`, ... | Kebab-case agents with `maestro:` subagent names |
+| Claude Code | `claude/` | `/orchestrate`, `/review-code`, ... | Kebab-case agents with `maestro:` subagent names |
 | Codex | `plugins/maestro/` | `$maestro:*` | Plugin skills, `spawn_agent`, no runtime hooks |
 | Qwen Code | `qwen/` | `/maestro:*` | Gemini-CLI-compatible extension, `QWEN.md` context file, `SubagentStart`/`SubagentStop` hooks |
 
@@ -127,18 +127,18 @@ Maestro classifies the task, chooses Express or Standard workflow, asks the requ
 |------------|------------|-------------|-------|-----------|
 | Orchestrate | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
 | Execute | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
-| Resume | `/maestro:resume` | `/resume` | `$maestro:resume-session` | `/maestro:resume` |
+| Resume | `/maestro:resume` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
 | Status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
 | Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Review | `/maestro:review` | `/review` | `$maestro:review-code` | `/maestro:review` |
-| Debug | `/maestro:debug` | `/debug` | `$maestro:debug-workflow` | `/maestro:debug` |
+| Review | `/maestro:review` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
+| Debug | `/maestro:debug` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
 | Security Audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
 | Performance Check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
 | SEO Audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
 | Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
 | Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
-For Codex, Maestro intentionally avoids bare skill names that collide with host commands. Use `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` so Codex's built-in `/review`, `/debug`, and `/resume` commands keep working.
+For Claude Code and Codex, Maestro intentionally avoids bare skill names that collide with host commands. Use `/review-code`, `/debug-workflow`, and `/resume-session` in Claude Code, and `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` in Codex, so built-in `/review`, `/debug`, and `/resume` commands keep working.
 
 Qwen Code uses the same `/maestro:*` command surface as Gemini CLI.
 
@@ -149,6 +149,7 @@ Qwen Code uses the same `/maestro:*` command surface as Gemini CLI.
 
 ## Documentation
 
+- [EXAMPLES.md](EXAMPLES.md) for copyable usage scenarios across all runtimes
 - [docs/overview.md](docs/overview.md) for the project model and generated structure
 - [docs/architecture.md](docs/architecture.md) for orchestration internals and architecture layout
 - [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces

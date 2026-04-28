@@ -47,6 +47,7 @@
     "mcp"
   ],
   "files": [
+    "EXAMPLES.md",
     "src/",
     "scripts/",
     "bin/",
