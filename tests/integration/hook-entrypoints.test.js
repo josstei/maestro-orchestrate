@@ -12,6 +12,14 @@ function runHook(relativePath, runtime, hookName, payload, cwd = ROOT) {
   });
 }
 
+function runHookRaw(relativePath, runtime, hookName, input, cwd = ROOT) {
+  return spawnSync('node', [relativePath, runtime, hookName], {
+    cwd,
+    input,
+    encoding: 'utf8',
+  });
+}
+
 describe('hook entrypoints', () => {
   it('boots gemini hook adapters against canonical src hook logic', () => {
     const payload = {
@@ -73,6 +81,24 @@ describe('hook entrypoints', () => {
         assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
         assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
       }
+    });
+  });
+
+  it('installed claude hook fallback blocks on invalid stdin', async () => {
+    await withIsolatedClaudePlugin(async (pluginRoot) => {
+      const result = runHookRaw(
+        'scripts/hook-runner.js',
+        'claude',
+        'session-start',
+        'not-json',
+        pluginRoot
+      );
+
+      assert.equal(result.status, 0, `Expected exit 0 for claude fallback, got ${result.status}`);
+      assert.deepEqual(JSON.parse(result.stdout), {
+        continue: false,
+        decision: 'block',
+      });
     });
   });
 
