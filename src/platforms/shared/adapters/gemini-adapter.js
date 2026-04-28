@@ -28,7 +28,7 @@ function formatOutput(result) {
 }
 
 function errorFallback() {
-  return { continue: true };
+  return { continue: false };
 }
 
 module.exports = defineAdapter({ normalizeInput, formatOutput, errorFallback });
