@@ -7,7 +7,7 @@ This document summarizes the minimum commands and concepts for using Maestro acr
 | Runtime | Install | Entry Point |
 |---|---|---|
 | Gemini CLI | `gemini extensions install https://github.com/josstei/maestro-orchestrate` | `/maestro:*` |
-| Claude Code | `claude plugin marketplace add josstei/maestro-orchestrate` + `claude plugin install maestro@maestro-orchestrator --scope user` | `/orchestrate`, `/review`, `/status`, ... |
+| Claude Code | `claude plugin marketplace add josstei/maestro-orchestrate` + `claude plugin install maestro@maestro-orchestrator --scope user` | `/orchestrate`, `/review-code`, `/status`, ... |
 | Codex CLI | `codex plugin marketplace add josstei/maestro-orchestrate`, then install Maestro inside Codex via `/plugins` | `$maestro:*` |
 | Qwen Code | `qwen extensions install https://github.com/josstei/maestro-orchestrate` | `/maestro:*` |
 
@@ -18,10 +18,10 @@ This document summarizes the minimum commands and concepts for using Maestro acr
 | Start the full workflow | `/maestro:orchestrate <task>` | `/orchestrate <task>` | `$maestro:orchestrate <task>` | `/maestro:orchestrate <task>` |
 | Run an existing plan | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
 | Check status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
-| Resume a session | `/maestro:resume` | `/resume` | `$maestro:resume-session` | `/maestro:resume` |
+| Resume a session | `/maestro:resume` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
 | Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Code review | `/maestro:review` | `/review` | `$maestro:review-code` | `/maestro:review` |
-| Debug | `/maestro:debug` | `/debug` | `$maestro:debug-workflow` | `/maestro:debug` |
+| Code review | `/maestro:review` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
+| Debug | `/maestro:debug` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
 | Security audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
 | Perf check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
 | SEO audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
@@ -123,7 +123,7 @@ Common paths:
 
 ### Claude Code
 
-- Command entry point: `/orchestrate`, `/review`, `/status`, ...
+- Command entry point: `/orchestrate`, `/review-code`, `/status`, ...
 - Supports hooks
 - Uses `PreToolUse` matchers and policy enforcement
 - Agent naming: `kebab-case`
@@ -191,8 +191,9 @@ Common paths:
 If you want to go deeper:
 
 1. `README.md`
-2. `docs/flow.md`
-3. `docs/architecture.md`
-4. `docs/runtime-gemini.md`
-5. `docs/runtime-claude.md`
-6. `docs/runtime-codex.md`
+2. `EXAMPLES.md`
+3. `docs/flow.md`
+4. `docs/architecture.md`
+5. `docs/runtime-gemini.md`
+6. `docs/runtime-claude.md`
+7. `docs/runtime-codex.md`

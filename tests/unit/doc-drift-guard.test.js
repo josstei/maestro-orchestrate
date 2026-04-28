@@ -46,7 +46,14 @@ test('doc-drift: no references to deleted plugins/maestro/mcp/ directory', () =>
 });
 
 test('doc-drift: Claude surfaces do not advertise host-reserved command names', () => {
-  const surfaces = ['claude/README.md', 'docs/runtime-claude.md', 'docs/usage.md'];
+  const surfaces = [
+    'README.md',
+    'EXAMPLES.md',
+    'docs/maestro-cheatsheet.md',
+    'claude/README.md',
+    'docs/runtime-claude.md',
+    'docs/usage.md',
+  ];
   for (const surface of surfaces) {
     const body = read(surface);
     for (const reserved of ['| `/review` ', '| `/debug` ', '| `/resume` ']) {
@@ -57,6 +64,58 @@ test('doc-drift: Claude surfaces do not advertise host-reserved command names', 
   for (const nonexistent of ['`review/SKILL.md`', '`debug/SKILL.md`', '`resume/SKILL.md`']) {
     assert.ok(!runtimeClaude.includes(nonexistent), `docs/runtime-claude.md: references nonexistent ${nonexistent}`);
   }
+});
+
+test('doc-drift: examples guide is linked and included in npm package files', () => {
+  assert.equal(fs.existsSync(path.join(REPO, 'EXAMPLES.md')), true, 'EXAMPLES.md is missing');
+
+  const readme = read('README.md');
+  assert.ok(readme.includes('[EXAMPLES.md](EXAMPLES.md)'), 'README.md does not link EXAMPLES.md');
+
+  const cheatsheet = read('docs/maestro-cheatsheet.md');
+  assert.ok(cheatsheet.includes('`EXAMPLES.md`'), 'docs/maestro-cheatsheet.md does not mention EXAMPLES.md');
+
+  const pkg = JSON.parse(read('package.json'));
+  assert.ok(pkg.files.includes('EXAMPLES.md'), 'package.json files does not include EXAMPLES.md');
+});
+
+test('doc-drift: examples guide includes all runtime command forms', () => {
+  const body = read('EXAMPLES.md');
+  const expectedForms = [
+    '/maestro:orchestrate',
+    '/orchestrate',
+    '$maestro:orchestrate',
+    '/resume-session',
+    '$maestro:resume-session',
+    '/review-code',
+    '$maestro:review-code',
+    '/debug-workflow',
+    '$maestro:debug-workflow',
+  ];
+  for (const form of expectedForms) {
+    assert.ok(body.includes(form), `EXAMPLES.md missing command form ${form}`);
+  }
+});
+
+test('doc-drift: examples guide cites canonical in-repo sources', () => {
+  const body = read('EXAMPLES.md');
+  const expectedSources = [
+    'src/entry-points/core-command-registry.js',
+    'src/entry-points/registry.js',
+    'src/generator/entry-point-expander.js',
+    'src/references/orchestration-steps.md',
+    'docs/flow.md',
+    'README.md',
+    'src/skills/shared/execution/SKILL.md',
+    'docs/usage.md',
+    'justfile',
+    'package.json',
+    'tests/unit/doc-drift-guard.test.js',
+  ];
+  for (const source of expectedSources) {
+    assert.ok(body.includes(source), `EXAMPLES.md missing canonical source ${source}`);
+  }
+  assert.ok(!body.includes('reviewed implementation plan'), 'EXAMPLES.md should say approved, not reviewed, implementation plan');
 });
 
 test('doc-drift: claude/README.md autocomplete bullet uses remapped names', () => {

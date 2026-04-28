@@ -44,7 +44,7 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain root docs (`README.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/`, `plugins/maestro/`, or `qwen/` output.
+1. Edit canonical source in `src/`. Maintain root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/`, `plugins/maestro/`, or `qwen/` output.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
 3. Run `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` (or `just test`) before committing
 4. Commit canonical source, directly owned root docs, and generated adapter output together
