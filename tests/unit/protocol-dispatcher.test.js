@@ -328,6 +328,38 @@ describe('createProtocolHandlers.requestFromClient', () => {
       /Timed out waiting for client response to roots\/list/
     );
   });
+
+  it('ignores a late success response after the request times out', async () => {
+    const { handlers, frames } = makeHandlers(
+      {},
+      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 10 } }
+    );
+    const pending = handlers.requestFromClient('roots/list');
+    const id = frames[0].id;
+
+    await assert.rejects(pending, /Timed out waiting for client response to roots\/list/);
+    const frameCountAfterTimeout = frames.length;
+
+    await handlers.respond({ jsonrpc: '2.0', id, result: { roots: [] } });
+
+    assert.equal(frames.length, frameCountAfterTimeout);
+  });
+
+  it('ignores a late error response after the request times out', async () => {
+    const { handlers, frames } = makeHandlers(
+      {},
+      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 10 } }
+    );
+    const pending = handlers.requestFromClient('roots/list');
+    const id = frames[0].id;
+
+    await assert.rejects(pending, /Timed out waiting for client response to roots\/list/);
+    const frameCountAfterTimeout = frames.length;
+
+    await handlers.respond({ jsonrpc: '2.0', id, error: { message: 'too late' } });
+
+    assert.equal(frames.length, frameCountAfterTimeout);
+  });
 });
 
 describe('createProtocolHandlers.drain', () => {
