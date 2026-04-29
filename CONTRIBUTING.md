@@ -16,7 +16,7 @@ cd maestro-orchestrate
 npm install
 ```
 
-`npm install` runs a `prepare` script that points `core.hooksPath` at `.githooks/`, activating the local `commit-msg` and `pre-push` hooks for this checkout. If you install with `--ignore-scripts` or another tool that skips lifecycle scripts, activate the hooks manually:
+`npm install` runs a `prepare` script that points `core.hooksPath` at `.githooks/`, activating the local `pre-commit`, `commit-msg`, and `pre-push` hooks for this checkout. If you install with `--ignore-scripts` or another tool that skips lifecycle scripts, activate the hooks manually:
 
 ```bash
 git config core.hooksPath .githooks
@@ -60,7 +60,7 @@ The generator pipeline reads `src/manifest.js` and applies transforms from `src/
 
 1. **Branch from `main`**:
    ```bash
-   git checkout -b your-branch-name main
+   git checkout -b feat/short-description main
    ```
 
 2. **Make your changes in `src/`** — edit only canonical source files.
@@ -82,7 +82,26 @@ The generator pipeline reads `src/manifest.js` and applies transforms from `src/
 
 6. **Commit and push** your branch.
 
-## Commit Conventions
+## Semantic Git Conventions
+
+### Branch format
+
+Branch names must use a semantic type prefix. The local `pre-commit` and `pre-push` hooks enforce this, and the `Commit Message Check` CI workflow validates PR branch names.
+
+```
+<type>/<slug>
+<namespace>/<type>/<slug>
+release/vX.Y.Z
+```
+
+Use the same type vocabulary as commit subjects, except release branches use the fixed `release/vX.Y.Z` format. Slugs are lowercase and may contain numbers, dots, underscores, and hyphens. A namespace is allowed for tool or user prefixes such as `codex/`.
+
+Examples that pass:
+
+- `feat/mcp-session-cache`
+- `fix/pre-push-range`
+- `codex/chore/enforce-git-conventions`
+- `release/v1.7.0`
 
 ### Subject format
 
