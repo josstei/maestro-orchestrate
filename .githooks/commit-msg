@@ -4,14 +4,12 @@
 
 set -euo pipefail
 
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=.githooks/lib/semantic-git.sh
+source "$HOOK_DIR/lib/semantic-git.sh"
+
 msg_file="$1"
 first_line="$(sed -n '1p' "$msg_file")"
-
-# Pass through git-generated subjects we don't author (merges, reverts,
-# fixup/squash markers used during interactive rebase).
-case "$first_line" in
-  Merge\ *|Revert\ *|fixup!*|squash!*|amend!*) exit 0 ;;
-esac
 
 # Strip a single leading whitespace block (rare, but lets `\t<type>:` etc. through).
 first_line="${first_line#"${first_line%%[![:space:]]*}"}"
@@ -19,9 +17,7 @@ first_line="${first_line#"${first_line%%[![:space:]]*}"}"
 # Empty messages are a separate failure mode; let git produce its own error.
 [ -z "$first_line" ] && exit 0
 
-pattern='^(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert|release)(\([a-z0-9_./-]+\))?!?:\ .+'
-
-if [[ "$first_line" =~ $pattern ]]; then
+if semantic_commit_subject_is_valid "$first_line"; then
   exit 0
 fi
 
@@ -41,8 +37,7 @@ fi
   echo "    scope        optional, parenthesised, lowercase area"
   echo "                 e.g. (api), (core), (mcp), (generator)"
   echo "    !            optional, marks a breaking change"
-  echo "    description  short imperative summary"
-  echo "                 (starts with a lowercase verb, no trailing period)"
+  echo "    description  short summary"
   echo ""
   echo "Allowed types:"
   echo "    feat       new user-facing feature"
