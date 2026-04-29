@@ -7,9 +7,11 @@ const { EXIT_SUCCESS } = require('./exit-codes');
  * Adapter contract expected by `hook-runner.js`:
  *   normalizeInput(raw)  -> ctx       (runtime stdin -> internal context)
  *   formatOutput(result) -> object    (internal result -> runtime stdout)
- *   errorFallback()      -> object    (emitted on uncaught adapter errors)
+ *   errorFallback()      -> object    (emitted on uncaught hook errors)
  *   readBoundedStdin()   -> Promise   (parse stdin as JSON, bounded size)
- *   getExitCode(result)  -> number    (process exit code; defaults to 0)
+ *   getExitCode(result)  -> number    (process exit code; defaults to 0;
+ *                                      hook-runner passes { action: 'deny' }
+ *                                      on errorFallback paths)
  *
  * `defineAdapter` is a spec-assembler: it validates a caller-provided
  * spec and fills in shared defaults (stdin reader, success-exit fallback)

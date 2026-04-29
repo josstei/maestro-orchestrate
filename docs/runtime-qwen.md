@@ -47,8 +47,8 @@ The Qwen runtime does not emit its own TOML command files. `src/generator/entry-
 | Event | Script | Purpose |
 |-------|--------|---------|
 | `SessionStart` | `hooks/hook-runner.js qwen session-start` | Initialize hook state, prune stale sessions |
-| `BeforeAgent` | `hooks/hook-runner.js qwen before-agent` | Detect agent, inject session context |
-| `AfterAgent` | `hooks/hook-runner.js qwen after-agent` | Validate Task Report + Downstream Context |
+| `SubagentStart` | `hooks/hook-runner.js qwen before-agent` | Detect agent, inject session context |
+| `SubagentStop` | `hooks/hook-runner.js qwen after-agent` | Validate Task Report + Downstream Context |
 | `SessionEnd` | `hooks/hook-runner.js qwen session-end` | Clean up hook state |
 
 ### AfterAgent Validation
@@ -61,7 +61,7 @@ Qwen uses the same post-delegation validation as Gemini:
 
 ### Hook Adapter
 
-Qwen reuses the shared Gemini-style adapter at `hooks/adapters/qwen-adapter.js` (or the shared Gemini adapter when the CLI JSON shape matches). Output format: `{ continue: boolean, systemMessage?: string }`.
+Qwen uses the shared hook runner with the Qwen adapter at `hooks/adapters/qwen-adapter.js`. Output format: `{ continue: boolean, decision?: "block"|"allow", reason?: string, hookSpecificOutput?: { additionalContext: string } }`. Uncaught hook errors fail closed by emitting a block response and exiting with Qwen's deny exit code.
 
 ## Policies
 

@@ -49,4 +49,5 @@ adapter.readBoundedStdin()
   .catch((err) => {
     process.stderr.write('Hook error: ' + err.message + '\n');
     process.stdout.write(JSON.stringify(adapter.errorFallback()) + '\n');
+    process.exitCode = adapter.getExitCode({ action: 'deny' });
   });

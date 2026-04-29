@@ -262,10 +262,24 @@ describe('qwen-adapter', () => {
   });
 
   describe('errorFallback', () => {
-    it('returns { continue: true, decision: "allow" }', () => {
+    it('returns block output', () => {
       const result = qwenAdapter.errorFallback();
 
-      assert.deepEqual(result, { continue: true, decision: 'allow' });
+      assert.deepEqual(result, {
+        continue: false,
+        decision: 'block',
+        reason: 'Hook execution failed; blocking by default.',
+      });
+    });
+  });
+
+  describe('getExitCode', () => {
+    it('returns 0 for allow results', () => {
+      assert.equal(qwenAdapter.getExitCode({ action: 'allow' }), 0);
+    });
+
+    it('returns 2 for deny results', () => {
+      assert.equal(qwenAdapter.getExitCode({ action: 'deny' }), 2);
     });
   });
 });

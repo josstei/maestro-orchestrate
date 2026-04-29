@@ -78,7 +78,11 @@ function formatOutput(result) {
 }
 
 function errorFallback() {
-  return { continue: true, decision: 'allow' };
+  return {
+    continue: false,
+    decision: 'block',
+    reason: 'Hook execution failed; blocking by default.',
+  };
 }
 
 function getExitCode(result) {
