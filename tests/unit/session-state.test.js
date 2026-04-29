@@ -153,6 +153,13 @@ describe('session-state', () => {
     );
   });
 
+  it('readState throws for absolute Windows paths', () => {
+    assert.throws(
+      () => readState('C:\\Temp\\state.md', tmpRoot),
+      /Path must be relative/
+    );
+  });
+
   it('readState throws for paths with ..', () => {
     assert.throws(
       () => readState('foo/../bar', tmpRoot),
@@ -170,6 +177,13 @@ describe('session-state', () => {
   it('writeState throws for absolute paths', () => {
     assert.throws(
       () => writeState('/etc/passwd', 'content', tmpRoot),
+      /Path must be relative/
+    );
+  });
+
+  it('writeState throws for absolute Windows UNC paths', () => {
+    assert.throws(
+      () => writeState('\\\\server\\share\\state.md', 'content', tmpRoot),
       /Path must be relative/
     );
   });
