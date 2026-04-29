@@ -15,12 +15,12 @@ The Codex plugin lives in `plugins/maestro/`.
 ```json
 {
   "command": "npx",
-  "args": ["-y", "-p", "github:josstei/maestro-orchestrate", "maestro-mcp-server"],
+  "args": ["-y", "-p", "@maestro-orchestrator/maestro@1.6.3", "maestro-mcp-server"],
   "env": { "MAESTRO_RUNTIME": "codex" }
 }
 ```
 
-Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. The convention used by all 115 curated Codex plugins is to invoke the server via `npx`, which is location-independent. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
+Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
 
 For workspace resolution, Codex follows the shared runtime contract:
 - use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
@@ -181,7 +181,7 @@ plugins/maestro/
 └── README.md
 ```
 
-The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`.
+The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`, and release preparation rewrites `plugins/maestro/.mcp.json` to the same versioned npm package as the plugin manifest.
 
 ## Differences from Gemini and Claude
 

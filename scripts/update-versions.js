@@ -8,6 +8,7 @@ const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const JSON_VERSION_FILES = [
   'package.json',
   'gemini-extension.json',
+  'qwen-extension.json',
   'claude/.claude-plugin/plugin.json',
   'plugins/maestro/.codex-plugin/plugin.json',
 ];
@@ -16,7 +17,9 @@ const BADGE_FILES = [
   'claude/README.md',
 ];
 const MARKETPLACE_PATH = '.claude-plugin/marketplace.json';
+const CODEX_MCP_PATH = 'plugins/maestro/.mcp.json';
 const CHANGELOG_PATH = 'CHANGELOG.md';
+const PACKAGE_NAME = '@maestro-orchestrator/maestro';
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -56,6 +59,23 @@ function updateMarketplace(filePath, version) {
     }
   }
 
+  writeJson(filePath, content);
+}
+
+function updateCodexMcpPackage(filePath, version) {
+  const content = readJson(filePath);
+  const server = content.mcpServers && content.mcpServers.maestro;
+
+  if (!server || !Array.isArray(server.args)) {
+    throw new Error('plugins/maestro/.mcp.json missing mcpServers.maestro.args');
+  }
+
+  const packageFlagIndex = server.args.indexOf('-p');
+  if (packageFlagIndex === -1 || packageFlagIndex === server.args.length - 1) {
+    throw new Error('plugins/maestro/.mcp.json must launch npx with -p <package>');
+  }
+
+  server.args[packageFlagIndex + 1] = `${PACKAGE_NAME}@${version}`;
   writeJson(filePath, content);
 }
 
@@ -135,6 +155,7 @@ function updateVersions(version, options = {}) {
   }
 
   updateMarketplace(requireFile(root, MARKETPLACE_PATH), version);
+  updateCodexMcpPackage(requireFile(root, CODEX_MCP_PATH), version);
 
   for (const relativePath of BADGE_FILES) {
     updateBadge(requireFile(root, relativePath), version);
@@ -157,5 +178,6 @@ if (require.main === module) {
 
 module.exports = {
   updateChangelog,
+  updateCodexMcpPackage,
   updateVersions,
 };

@@ -13,8 +13,17 @@ function createTempProject(version) {
   const files = {
     'package.json': { name: '@maestro-orchestrator/maestro', version, license: 'Apache-2.0' },
     'gemini-extension.json': { name: 'maestro', version },
+    'qwen-extension.json': { name: 'maestro', version },
     'claude/.claude-plugin/plugin.json': { name: 'maestro', version },
     'plugins/maestro/.codex-plugin/plugin.json': { name: 'maestro', version },
+    'plugins/maestro/.mcp.json': {
+      mcpServers: {
+        maestro: {
+          command: 'npx',
+          args: ['-y', '-p', `@maestro-orchestrator/maestro@${version}`, 'maestro-mcp-server'],
+        },
+      },
+    },
     '.claude-plugin/marketplace.json': {
       name: 'maestro-orchestrator',
       metadata: { version },
@@ -69,11 +78,15 @@ describe('updateVersions', () => {
 
     const pkg = JSON.parse(fs.readFileSync(path.join(tempRoot, 'package.json'), 'utf8'));
     const gemini = JSON.parse(fs.readFileSync(path.join(tempRoot, 'gemini-extension.json'), 'utf8'));
+    const qwen = JSON.parse(fs.readFileSync(path.join(tempRoot, 'qwen-extension.json'), 'utf8'));
     const claudePlugin = JSON.parse(
       fs.readFileSync(path.join(tempRoot, 'claude/.claude-plugin/plugin.json'), 'utf8')
     );
     const codexPlugin = JSON.parse(
       fs.readFileSync(path.join(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json'), 'utf8')
+    );
+    const codexMcp = JSON.parse(
+      fs.readFileSync(path.join(tempRoot, 'plugins/maestro/.mcp.json'), 'utf8')
     );
     const marketplace = JSON.parse(
       fs.readFileSync(path.join(tempRoot, '.claude-plugin/marketplace.json'), 'utf8')
@@ -81,8 +94,10 @@ describe('updateVersions', () => {
 
     assert.equal(pkg.version, '1.7.0');
     assert.equal(gemini.version, '1.7.0');
+    assert.equal(qwen.version, '1.7.0');
     assert.equal(claudePlugin.version, '1.7.0');
     assert.equal(codexPlugin.version, '1.7.0');
+    assert.ok(codexMcp.mcpServers.maestro.args.includes('@maestro-orchestrator/maestro@1.7.0'));
     assert.equal(marketplace.metadata.version, '1.7.0');
     assert.equal(marketplace.plugins[0].version, '1.7.0');
   });

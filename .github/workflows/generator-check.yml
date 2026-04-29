@@ -30,3 +30,12 @@ jobs:
 
       - name: Run full test suite
         run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+
+      - name: Verify npm package contents
+        run: npm run pack:verify
+
+      - name: Package release artifact
+        run: npm run release:artifacts
+
+      - name: Verify release artifact
+        run: npm run release:verify-artifacts

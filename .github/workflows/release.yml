@@ -46,14 +46,12 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Determine publish eligibility
+      - name: Require npm publish token
         if: steps.detect.outputs.is_release == 'true'
-        id: publish_gate
         run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is required for stable releases"
+            exit 1
           fi
 
       - name: Extract and validate version
@@ -104,6 +102,18 @@ jobs:
         if: steps.detect.outputs.is_release == 'true'
         run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
+      - name: Verify npm package contents
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm run pack:verify
+
+      - name: Package release artifact
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm run release:artifacts
+
+      - name: Verify release artifact
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm run release:verify-artifacts
+
       - name: Create and push tag
         if: steps.detect.outputs.is_release == 'true'
         env:
@@ -123,6 +133,12 @@ jobs:
 
           git tag "$VERSION" "$GITHUB_SHA"
           git push origin "$VERSION"
+
+      - name: Publish to npm
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Extract changelog for version
         if: steps.detect.outputs.is_release == 'true'
@@ -151,10 +167,4 @@ jobs:
           name: v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
-
-      - name: Publish to npm
-        if: steps.detect.outputs.is_release == 'true' && steps.publish_gate.outputs.enabled == 'true'
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
+          files: dist/release/maestro-v${{ steps.version.outputs.version }}-extension.tar.gz

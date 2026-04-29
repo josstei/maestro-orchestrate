@@ -97,7 +97,7 @@ Plus 3 core commands (orchestrate, execute, resume) maintained separately in `sr
 
 ## MCP Server Architecture
 
-The MCP server is authored directly in modular source under `src/mcp/`. Gemini and Claude runtime roots expose thin public wrappers at `mcp/maestro-server.js` that resolve into the nearest generator-owned `src/mcp/maestro-server.js` payload. Codex has no in-plugin wrapper — it spawns the server via `npx` against the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`.
+The MCP server is authored directly in modular source under `src/mcp/`. Gemini and Claude runtime roots expose thin public wrappers at `mcp/maestro-server.js` that resolve into the nearest generator-owned `src/mcp/maestro-server.js` payload. Codex has no in-plugin wrapper — it spawns the server via `npx` against the versioned `@maestro-orchestrator/maestro` npm package and the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`.
 
 ### Module Structure
 
@@ -145,7 +145,7 @@ The content tools (`get_agent`, `get_skill_content`) are filesystem-only in ever
 - Codex: `primary=filesystem`, `fallback=none`
 - Qwen: `primary=filesystem`, `fallback=none`
 
-Gemini's and Claude's thin entrypoints at `mcp/maestro-server.js` use direct `require()` calls to resolve `src/mcp/maestro-server.js`. Gemini's entrypoint sets `MAESTRO_RUNTIME=gemini` and requires `../src/mcp/maestro-server` directly. Claude uses dual-resolution: it prefers the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and falls back to the bundled detached payload (`claude/src/mcp/maestro-server.js`) when running outside the repo. Codex spawns `bin/maestro-mcp-server.js` via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server` (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server`.
+Gemini's and Claude's thin entrypoints at `mcp/maestro-server.js` use direct `require()` calls to resolve `src/mcp/maestro-server.js`. Gemini's entrypoint sets `MAESTRO_RUNTIME=gemini` and requires `../src/mcp/maestro-server` directly. Claude uses dual-resolution: it prefers the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and falls back to the bundled detached payload (`claude/src/mcp/maestro-server.js`) when running outside the repo. Codex spawns `bin/maestro-mcp-server.js` via a release-versioned `npx -p @maestro-orchestrator/maestro@<version> maestro-mcp-server` invocation (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server`.
 
 This makes one architectural rule explicit:
 
@@ -160,7 +160,7 @@ Gemini and Claude keep a public entrypoint at `mcp/maestro-server.js`; Codex inv
 
 - **Gemini** (`mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=gemini`, directly requires `../src/mcp/maestro-server` and calls `.main()`
 - **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
-- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
+- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @maestro-orchestrator/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
