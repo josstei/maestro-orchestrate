@@ -206,13 +206,20 @@ function validatePublishTag(pkg, tag) {
   }
 }
 
-function ensureLatestTagPolicy(pkg, runner) {
+function ensureLatestTagPolicy(pkg, runner, logger = console) {
   const tags = getDistTags(pkg.name, runner);
-  const latest = tags.latest;
+  const latest = tags.latest || null;
 
   if (isPrereleaseVersion(pkg.version)) {
     if (!latest || !isPrereleaseVersion(latest)) {
-      return;
+      return {
+        latest,
+        reason: latest
+          ? `latest already points to stable version ${latest}.`
+          : 'latest dist-tag is not set.',
+        status: 'ok',
+        target: null,
+      };
     }
 
     const stableVersion = highestStableVersion(getPublishedVersions(pkg.name, runner));
@@ -220,31 +227,58 @@ function ensureLatestTagPolicy(pkg, runner) {
       runner('npm', ['dist-tag', 'add', `${pkg.name}@${stableVersion}`, 'latest'], {
         stdio: 'inherit',
       });
-    } else {
-      runner('npm', ['dist-tag', 'rm', pkg.name, 'latest'], {
-        stdio: 'inherit',
-      });
+      logger.log(`Moved npm latest dist-tag from ${latest} to stable ${stableVersion}.`);
+      return {
+        latest,
+        reason: `latest pointed to prerelease ${latest}; moved it back to stable ${stableVersion}.`,
+        status: 'moved',
+        target: stableVersion,
+      };
     }
-    return;
+
+    const reason = `latest points to prerelease ${latest}, but no stable versions are published; stable release must move latest.`;
+    logger.warn(`Warning: ${reason}`);
+    return {
+      latest,
+      reason,
+      status: 'deferred',
+      target: null,
+    };
   }
 
   if (latest !== pkg.version) {
     runner('npm', ['dist-tag', 'add', `${pkg.name}@${pkg.version}`, 'latest'], {
       stdio: 'inherit',
     });
+    logger.log(`Moved npm latest dist-tag from ${latest || '<unset>'} to stable ${pkg.version}.`);
+    return {
+      latest,
+      reason: `latest pointed to ${latest || '<unset>'}; moved it to stable ${pkg.version}.`,
+      status: 'moved',
+      target: pkg.version,
+    };
   }
+
+  return {
+    latest,
+    reason: `latest already points to stable version ${pkg.version}.`,
+    status: 'ok',
+    target: pkg.version,
+  };
 }
 
 function publishIfNeeded(options = {}) {
   const root = options.root || ROOT;
   const runner = options.execFileSync || execFileSync;
+  const logger = options.logger || console;
   const pkg = readPackage(root);
   const packageSpec = `${pkg.name}@${pkg.version}`;
   validatePublishTag(pkg, options.tag);
 
   if (packageVersionExists(packageSpec, runner)) {
-    ensureLatestTagPolicy(pkg, runner);
+    const latestPolicy = ensureLatestTagPolicy(pkg, runner, logger);
     return {
+      latestPolicy,
       packageSpec,
       published: false,
     };
@@ -261,9 +295,10 @@ function publishIfNeeded(options = {}) {
     stdio: 'inherit',
   });
 
-  ensureLatestTagPolicy(pkg, runner);
+  const latestPolicy = ensureLatestTagPolicy(pkg, runner, logger);
 
   return {
+    latestPolicy,
     packageSpec,
     published: true,
   };

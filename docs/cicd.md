@@ -655,4 +655,4 @@ The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elev
 | `preview` | PR preview build | `X.Y.Z-preview.SHORT_SHA` | Preview Build |
 | `nightly` | Daily main snapshot | `X.Y.Z-nightly.YYYYMMDD` | Nightly Build |
 
-`latest` must never point at `rc`, `preview`, or `nightly`. If a prerelease publish or idempotent skip sees `latest` pointing to a prerelease, the helper repairs it by moving `latest` back to the highest published stable version or removing it when no stable exists.
+`latest` must never intentionally point at `rc`, `preview`, or `nightly`. If a prerelease publish or idempotent skip sees `latest` pointing to a prerelease and at least one stable version exists, the helper repairs it by moving `latest` back to the highest published stable version. If no stable version exists yet, the helper logs a warning and defers repair until the stable Release workflow publishes `X.Y.Z`; it does not delete `latest`.
