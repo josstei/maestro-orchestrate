@@ -60,7 +60,7 @@ jobs:
         id: rc
         run: |
           BASE=$(node -p "require('./package.json').version")
-          EXISTING=$(npm view "@maestro-orchestrator/maestro" versions --json 2>/dev/null || echo '[]')
+          EXISTING=$(npm view "@josstei/maestro" versions --json 2>/dev/null || echo '[]')
           RC_NUM=1
 
           while echo "$EXISTING" | grep -q "\"${BASE}-rc.${RC_NUM}\""; do
@@ -71,9 +71,17 @@ jobs:
           echo "version=$RC_VERSION" >> "$GITHUB_OUTPUT"
           npm version "$RC_VERSION" --no-git-tag-version
 
+      - name: Regenerate runtime metadata
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: node scripts/generate.js
+
+      - name: Verify npm package contents
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: npm run pack:verify
+
       - name: Publish RC
         if: steps.publish_gate.outputs.enabled == 'true'
-        run: npm publish --tag rc --access public
+        run: node scripts/npm-publish-idempotent.js --tag rc --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
@@ -88,7 +96,7 @@ jobs:
         run: |
           SHA="$HEAD_SHA"
           SHORT_SHA=$(echo "$SHA" | cut -c1-7)
-          BODY="Release candidate published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
+          BODY="Release candidate published: \`npm install @josstei/maestro@${VERSION}\`
 
           Built from \`${SHORT_SHA}\`"
 

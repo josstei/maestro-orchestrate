@@ -215,6 +215,25 @@ test('doc-drift: runtime-docs feature-flag booleans match src/platforms/*/runtim
   }
 });
 
+test('doc-drift: runtime docs use generated-version placeholders', () => {
+  for (const runtime of ['gemini', 'claude', 'codex', 'qwen']) {
+    const surface = `docs/runtime-${runtime}.md`;
+    const body = read(surface);
+    assert.ok(
+      body.includes('**Version**: generated from `package.json`'),
+      `${surface}: should describe manifest versions as generated from package.json`
+    );
+    assert.ok(
+      !body.match(/@josstei\/maestro@\d+\.\d+\.\d+/),
+      `${surface}: should not pin concrete npm package versions in examples`
+    );
+    assert.ok(
+      !body.match(/"version": "\d+\.\d+\.\d+"/),
+      `${surface}: should not pin concrete manifest versions in examples`
+    );
+  }
+});
+
 test('doc-drift: docs/architecture.md module tree shows correct handler + session tool counts', () => {
   const body = read('docs/architecture.md');
   assert.ok(!body.includes('# 8 handler implementations'), 'docs/architecture.md: still says 8 handler implementations');

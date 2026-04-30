@@ -1,0 +1,33 @@
+# Explicit npm package exclusions. package.json "files" remains the primary
+# allowlist; this file prevents npm from falling back to .gitignore semantics.
+
+.git/
+.github/
+.githooks/
+.worktrees/
+
+coverage/
+dist/
+build/
+out/
+node_modules/
+tmp/
+temp/
+
+tests/
+docs/maestro/
+docs/superpowers/
+hooks/permissions.json
+
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+.gemini/
+.gemini_security/
+.claude/
+.serena/
+.superpowers/
+CLAUDE.md
+AGENTS.md

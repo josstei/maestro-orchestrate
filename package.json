@@ -1,10 +1,11 @@
 {
-  "name": "@maestro-orchestrator/maestro",
+  "name": "@josstei/maestro",
   "version": "1.6.3",
   "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase workflows, 4 runtime targets (Gemini CLI, Claude Code, OpenAI Codex, Qwen Code)",
   "license": "Apache-2.0",
   "author": {
     "name": "josstei",
+    "email": "hello@josstei.dev",
     "url": "https://github.com/josstei"
   },
   "homepage": "https://github.com/josstei/maestro-orchestrate",
@@ -21,8 +22,11 @@
     "build": "npm run generate",
     "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
     "test:coverage": "c8 npm test",
-    "prepack": "npm run generate",
-    "prepare": "node scripts/install-git-hooks.js"
+    "release:artifacts": "node scripts/package-release-artifacts.js --out-dir dist/release",
+    "release:verify-artifacts": "node scripts/verify-release-artifacts.js",
+    "pack:verify": "node scripts/verify-npm-pack.js",
+    "install-hooks": "node scripts/install-git-hooks.js",
+    "prepack": "npm run generate"
   },
   "c8": {
     "all": true,
@@ -58,7 +62,16 @@
     "hooks/",
     "mcp/",
     "policies/",
-    "docs/",
+    "docs/architecture.md",
+    "docs/cicd.md",
+    "docs/flow.md",
+    "docs/maestro-cheatsheet.md",
+    "docs/overview.md",
+    "docs/runtime-claude.md",
+    "docs/runtime-codex.md",
+    "docs/runtime-gemini.md",
+    "docs/runtime-qwen.md",
+    "docs/usage.md",
     ".agents/",
     "GEMINI.md",
     "gemini-extension.json",

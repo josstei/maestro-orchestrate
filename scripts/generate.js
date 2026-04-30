@@ -11,6 +11,7 @@ const { buildDetachedPayload, stampVersion, buildPayloadAllowlist, shouldInclude
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
 const { collectManifestPaths } = require('../src/generator/manifest-curator');
+const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -74,8 +75,13 @@ function processEntryPoints(runtimes, session) {
   }
 }
 
+function readPackageMetadata() {
+  return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+}
+
 async function main() {
   const runtimes = loadRuntimes();
+  const packageMetadata = readPackageMetadata();
   const manifestRules = require(path.join(SRC, 'manifest'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   assertNoMirroredSharedOutputs(manifest);
@@ -96,6 +102,7 @@ async function main() {
   }
 
   processEntryPoints(runtimes, session);
+  session.writeAll(buildPlatformMetadataOutputs(runtimes, packageMetadata));
 
   const stats = session.getStats();
 
@@ -117,8 +124,7 @@ async function main() {
     const codexPayloadDir = path.join(ROOT, 'plugins', 'maestro', 'src');
     const claudeStats = buildDetachedPayload(SRC, claudePayloadDir, 'claude');
     const codexStats = buildDetachedPayload(SRC, codexPayloadDir, 'codex');
-    const pkgVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
-    stampVersion([claudePayloadDir, codexPayloadDir], pkgVersion);
+    stampVersion([claudePayloadDir, codexPayloadDir], packageMetadata.version);
     console.log(
       `\nDetached payloads: claude/src (${claudeStats.copied} updated, ${claudeStats.removed} removed), ` +
       `plugins/maestro/src (${codexStats.copied} updated, ${codexStats.removed} removed)`
@@ -141,6 +147,7 @@ module.exports = {
   buildRuntimeOutputPath,
   buildDetachedPayload,
   expandCoreCommands,
+  buildPlatformMetadataOutputs,
   expandManifest,
   expandEntryPoints,
   shouldDescendInto,

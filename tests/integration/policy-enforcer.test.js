@@ -5,7 +5,7 @@ const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const test = require('node:test');
 
-const SCRIPT_PATH = path.join(__dirname, 'policy-enforcer.js');
+const SCRIPT_PATH = path.resolve(__dirname, '..', '..', 'claude', 'scripts', 'policy-enforcer.js');
 const DOLLAR = '$';
 const BACKTICK = '`';
 const BACKSLASH = '\\';
@@ -13,7 +13,7 @@ const BACKSLASH = '\\';
 function runPolicy(command) {
   const result = spawnSync(process.execPath, [SCRIPT_PATH], {
     input: JSON.stringify({ tool_input: { command } }),
-    encoding: 'utf8'
+    encoding: 'utf8',
   });
 
   assert.equal(result.status, 0, result.stderr);

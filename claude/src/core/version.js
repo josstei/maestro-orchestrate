@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { readJsonSafe } = require('../lib/io');
 
-const PACKAGE_NAME = '@maestro-orchestrator/maestro';
+const PACKAGE_NAME = '@josstei/maestro';
 const VERSION_JSON_FILENAME = 'version.json';
 
 function findPackageJsonVersion(startDir) {

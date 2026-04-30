@@ -5,7 +5,7 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
 ## Configuration
 
 **Manifest**: `qwen-extension.json`
-**Version**: 1.6.3
+**Version**: generated from `package.json`
 **Context File**: `QWEN.md`
 
 ### MCP Server
@@ -144,4 +144,4 @@ The Qwen extension reuses Gemini's repo-root `commands/maestro/`, `hooks/`, `mcp
 ## Notes
 
 - Qwen writes its own agent stubs and hook config to `qwen/agents/` and `qwen/hooks.json` (separate from Gemini's repo-root outputs). For the `/maestro:*` command surface, Qwen reuses Gemini's repo-root `commands/maestro/` TOML files — the Qwen generator does not duplicate these.
-- The `scripts/update-versions.js` release helper bumps `gemini-extension.json` automatically but does not yet include `qwen-extension.json` — maintainers bumping a release should edit `qwen-extension.json` manually or extend the helper's `JSON_VERSION_FILES` list.
+- `node scripts/generate.js` derives `qwen-extension.json` from `package.json` with the other runtime manifests so release metadata stays aligned.

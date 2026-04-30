@@ -17,6 +17,14 @@ describe('zero-diff validation', () => {
       'Expected claude agent stubs in generator output'
     );
     assert.ok(
+      report.statusLines.some((line) => line.includes('gemini-extension.json')),
+      'Expected platform metadata in generator output'
+    );
+    assert.ok(
+      report.statusLines.some((line) => line.includes('plugins/maestro/.mcp.json')),
+      'Expected Codex MCP metadata in generator output'
+    );
+    assert.ok(
       report.statusLines.every((line) => !line.includes('canonical-source.js')),
       'Did not expect canonical-source copies in generator output'
     );
