@@ -5,7 +5,7 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
 ## Configuration
 
 **Manifest**: `qwen-extension.json`
-**Version**: 1.6.3
+**Version**: generated from `package.json`
 **Context File**: `QWEN.md`
 
 ### MCP Server

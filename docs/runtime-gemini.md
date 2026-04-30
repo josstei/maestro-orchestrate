@@ -5,7 +5,7 @@ The Gemini CLI extension lives at the repository root. It is the primary runtime
 ## Configuration
 
 **Manifest**: `gemini-extension.json`
-**Version**: 1.6.3
+**Version**: generated from `package.json`
 **Context File**: `GEMINI.md`
 
 ### MCP Server

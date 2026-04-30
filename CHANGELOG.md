@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Codex plugin MCP server fails to start**: corrected `npx` args in `plugins/maestro/.mcp.json` — added `-p`/`--package` flag so `maestro-mcp-server` is resolved as the binary name rather than an argument to the package's default binary.
+- **Release metadata drift**: runtime manifests, marketplace entries, detached payload versions, and Codex MCP package specs are now generated from `package.json` so stable and prerelease packages stay self-consistent.
 
 ## [1.6.3] - 2026-04-20
 

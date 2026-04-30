@@ -5,7 +5,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 ## Configuration
 
 **Manifest**: `claude/.claude-plugin/plugin.json`
-**Version**: 1.6.3
+**Version**: generated from `package.json`
 **Hooks**: `claude/hooks/claude-hooks.json`
 **MCP Config**: `claude/.mcp.json`
 
