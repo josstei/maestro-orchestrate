@@ -6,6 +6,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
 
 function printHelp() {
   console.log(`Publish a Maestro npm package if the exact version is absent.
@@ -79,6 +80,68 @@ function isNpmNotFoundError(error) {
   return /\bE404\b|404 Not Found|is not in this registry/i.test(text);
 }
 
+function isPrereleaseVersion(version) {
+  return /^[0-9]+\.[0-9]+\.[0-9]+-.+/.test(version);
+}
+
+function isStableVersion(version) {
+  return /^[0-9]+\.[0-9]+\.[0-9]+$/.test(version);
+}
+
+function compareStableVersions(left, right) {
+  const leftParts = left.split('.').map((part) => Number.parseInt(part, 10));
+  const rightParts = right.split('.').map((part) => Number.parseInt(part, 10));
+
+  for (let index = 0; index < 3; index += 1) {
+    if (leftParts[index] !== rightParts[index]) {
+      return leftParts[index] - rightParts[index];
+    }
+  }
+
+  return 0;
+}
+
+function highestStableVersion(versions) {
+  return versions
+    .filter(isStableVersion)
+    .sort(compareStableVersions)
+    .at(-1) || null;
+}
+
+function parseDistTagOutput(output) {
+  const tags = {};
+  const text = Buffer.isBuffer(output) ? output.toString('utf8') : String(output || '');
+
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/^([^:\s]+):\s*(\S+)\s*$/);
+    if (match) {
+      tags[match[1]] = match[2];
+    }
+  }
+
+  return tags;
+}
+
+function parseVersionsOutput(output) {
+  const text = Buffer.isBuffer(output) ? output.toString('utf8') : String(output || '');
+  const trimmed = text.trim();
+
+  if (!trimmed) {
+    return [];
+  }
+
+  const parsed = JSON.parse(trimmed);
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+
+  if (typeof parsed === 'string') {
+    return [parsed];
+  }
+
+  return [];
+}
+
 function packageVersionExists(packageSpec, runner) {
   try {
     const stdout = runner('npm', ['view', packageSpec, 'version'], {
@@ -95,13 +158,92 @@ function packageVersionExists(packageSpec, runner) {
   }
 }
 
+function getDistTags(packageName, runner) {
+  try {
+    const stdout = runner('npm', ['dist-tag', 'ls', packageName], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return parseDistTagOutput(stdout);
+  } catch (error) {
+    if (isNpmNotFoundError(error)) {
+      return {};
+    }
+
+    throw error;
+  }
+}
+
+function getPublishedVersions(packageName, runner) {
+  try {
+    const stdout = runner('npm', ['view', packageName, 'versions', '--json'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return parseVersionsOutput(stdout);
+  } catch (error) {
+    if (isNpmNotFoundError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+function validatePublishTag(pkg, tag) {
+  const prerelease = isPrereleaseVersion(pkg.version);
+
+  if (prerelease && (!tag || tag === 'latest')) {
+    throw new Error(
+      `Refusing to publish prerelease ${pkg.name}@${pkg.version} with the latest tag; use rc, preview, or nightly.`
+    );
+  }
+
+  if (!prerelease && PRERELEASE_TAGS.has(tag)) {
+    throw new Error(
+      `Refusing to publish stable ${pkg.name}@${pkg.version} with prerelease tag "${tag}".`
+    );
+  }
+}
+
+function ensureLatestTagPolicy(pkg, runner) {
+  const tags = getDistTags(pkg.name, runner);
+  const latest = tags.latest;
+
+  if (isPrereleaseVersion(pkg.version)) {
+    if (!latest || !isPrereleaseVersion(latest)) {
+      return;
+    }
+
+    const stableVersion = highestStableVersion(getPublishedVersions(pkg.name, runner));
+    if (stableVersion) {
+      runner('npm', ['dist-tag', 'add', `${pkg.name}@${stableVersion}`, 'latest'], {
+        stdio: 'inherit',
+      });
+    } else {
+      runner('npm', ['dist-tag', 'rm', pkg.name, 'latest'], {
+        stdio: 'inherit',
+      });
+    }
+    return;
+  }
+
+  if (latest !== pkg.version) {
+    runner('npm', ['dist-tag', 'add', `${pkg.name}@${pkg.version}`, 'latest'], {
+      stdio: 'inherit',
+    });
+  }
+}
+
 function publishIfNeeded(options = {}) {
   const root = options.root || ROOT;
   const runner = options.execFileSync || execFileSync;
   const pkg = readPackage(root);
   const packageSpec = `${pkg.name}@${pkg.version}`;
+  validatePublishTag(pkg, options.tag);
 
   if (packageVersionExists(packageSpec, runner)) {
+    ensureLatestTagPolicy(pkg, runner);
     return {
       packageSpec,
       published: false,
@@ -118,6 +260,8 @@ function publishIfNeeded(options = {}) {
     cwd: root,
     stdio: 'inherit',
   });
+
+  ensureLatestTagPolicy(pkg, runner);
 
   return {
     packageSpec,
@@ -142,9 +286,18 @@ if (require.main === module) {
 }
 
 module.exports = {
+  ensureLatestTagPolicy,
+  getDistTags,
+  getPublishedVersions,
+  highestStableVersion,
   isNpmNotFoundError,
+  isPrereleaseVersion,
+  isStableVersion,
   packageVersionExists,
+  parseDistTagOutput,
   parseArgs,
+  parseVersionsOutput,
   publishIfNeeded,
   readPackage,
+  validatePublishTag,
 };

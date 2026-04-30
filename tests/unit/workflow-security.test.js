@@ -94,6 +94,19 @@ describe('workflow shell security', () => {
     );
   });
 
+  it('stable release publishing uses npm token auth and manual recovery inputs', () => {
+    const content = readWorkflow('release.yml');
+
+    assert.match(content, /workflow_dispatch:/);
+    assert.match(content, /\n\s+version:\n\s+description: 'Stable version to recover/);
+    assert.match(content, /\n\s+target_sha:\n\s+description: 'Commit SHA to release/);
+    assert.match(content, /NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
+    assert.match(content, /NODE_AUTH_TOKEN: \$\{\{ env\.NPM_TOKEN \}\}/);
+    assert.match(content, /NPM_TOKEN is required for stable release publishing/);
+    assert.match(content, /Manual release recovery requires existing tag \$TAG/);
+    assert.match(content, /Tag \$TAG exists at \$TAG_SHA, not target commit \$TARGET_SHA/);
+  });
+
   it('prerelease workflows regenerate metadata and verify pack after npm versioning', () => {
     const expectations = [
       {
@@ -124,6 +137,11 @@ describe('workflow shell security', () => {
       assert.notEqual(generateIndex, -1, `${fileName} should regenerate after npm version`);
       assert.notEqual(verifyIndex, -1, `${fileName} should verify npm pack after regenerating`);
       assert.notEqual(publishIndex, -1, `${fileName} should publish through the helper after verification`);
+      assert.doesNotMatch(
+        content,
+        /npm-publish-idempotent\.js(?:[^\n]*\s)?--tag latest/,
+        `${fileName} must not publish prereleases with the latest dist-tag`
+      );
     }
   });
 });

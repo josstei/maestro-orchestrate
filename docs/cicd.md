@@ -468,13 +468,14 @@ Publishes `@josstei/maestro@X.Y.Z-rc.N` to npm with the `rc` dist-tag, where `N`
 
 ### Purpose
 
-The final step of the release pipeline. Triggers on any push to `main`, but only acts when the push is a merged pull request carrying the `release` label. Validates package and archive contents, creates a Git tag, publishes the stable package to npm, then publishes a GitHub Release with CHANGELOG notes and the self-contained extension archive attached.
+The final step of the release pipeline. Triggers on any push to `main`, but only acts when the push is a merged pull request carrying the `release` label. It can also be manually dispatched to recover a failed post-tag stable publish. Validates package and archive contents, creates or reuses the matching Git tag, publishes the stable package to npm, then publishes a GitHub Release with CHANGELOG notes and the self-contained extension archive attached.
 
 ### Trigger
 
 | Event | Details |
 |-------|---------|
 | `push` | Branch: `main` |
+| `workflow_dispatch` | Manual stable recovery with `version` and optional `target_sha`; when `target_sha` is omitted, the workflow checks out `refs/tags/v<version>` |
 | **Condition** | The pushed commit must be the merge commit of a PR labeled `release` that targeted `main` |
 
 ### Flow
@@ -482,11 +483,14 @@ The final step of the release pipeline. Triggers on any push to `main`, but only
 ```mermaid
 graph TD
     A["Push to main"] --> B["Checkout with full history"]
-    B --> C["Resolve release PR from commit"]
+    AA["Manual recovery<br/>version + target_sha"] --> BB["Checkout target SHA<br/>or refs/tags/vX.Y.Z"]
+    B --> C["Resolve release context"]
+    BB --> C
     C --> D{"Merged PR with<br/>'release' label found?"}
     D --> |"No"| E["Skip: not a release commit"]
     D --> |"Yes"| F["Setup Node.js 24 with npm registry"]
-    F --> I["Extract and validate version"]
+    F --> G["Verify NPM_TOKEN"]
+    G --> I["Extract and validate version,<br/>target SHA, and tag"]
     I --> J["Generate runtime adapters"]
     J --> K{"Adapter drift?"}
     K --> |"Yes"| L["Fail: adapters out of sync"]
@@ -506,18 +510,19 @@ graph TD
 
 | Step | Description |
 |------|-------------|
-| Checkout | Full history (`fetch-depth: 0`) for tag operations |
-| Resolve release PR from commit | Queries the GitHub API for PRs associated with the current commit SHA; filters for merged PRs targeting `main` with the `release` label. If none found, sets `is_release=false` and all subsequent steps are skipped. |
-| Setup Node.js | Conditional on `is_release=true`; Node.js 24 with npm registry URL for npm Trusted Publishing |
-| Extract and validate version | Reads version from `package.json` and cross-validates: the CHANGELOG must have a matching section (unconditional). When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
+| Checkout | Full history (`fetch-depth: 0`) for tag operations. Push releases check out the pushed commit; manual recovery checks out `target_sha` or `refs/tags/v<version>`. |
+| Resolve release context | Push releases query the GitHub API for PRs associated with the current commit SHA and filter for merged PRs targeting `main` with the `release` label. Manual recovery sets the release context from the supplied version. If no push release is found, sets `is_release=false` and all subsequent steps are skipped. |
+| Setup Node.js | Conditional on `is_release=true`; Node.js 24 with npm registry URL |
+| Verify npm token | Fails before tag or publish work unless `NPM_TOKEN` is configured |
+| Extract and validate version | Reads version from `package.json` and cross-validates: the version must be stable semver, the CHANGELOG must have a matching section (unconditional), any existing `vX.Y.Z` tag must point at the checked-out target SHA, and manual recovery must match both the requested `version` and `target_sha` when supplied. When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
 | Generate runtime adapters | Runs `node scripts/generate.js` |
 | Check adapter drift | Final drift check before release; fails with error annotation |
 | Run full test suite | Final test gate before release |
 | Verify npm package contents | Runs `npm run pack:verify` before any tag or publish operation |
 | Package release artifact | Runs `npm run release:artifacts` to create `dist/release/maestro-vX.Y.Z-extension.tar.gz` |
 | Verify release artifact | Runs `npm run release:verify-artifacts` against the generated archive |
-| Create and push tag | Creates Git tag `vX.Y.Z` at the merge commit SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
-| Publish to npm | Publishes stable release through `node scripts/npm-publish-idempotent.js --access public` and GitHub Actions OIDC trusted publishing, skipping if the exact version already exists |
+| Create and push tag | Creates Git tag `vX.Y.Z` at the checked-out target SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
+| Publish to npm | Publishes stable release through `node scripts/npm-publish-idempotent.js --access public` with `NODE_AUTH_TOKEN` derived from `NPM_TOKEN`, skipping if the exact version already exists |
 | Extract changelog | Extracts the version-specific section from `CHANGELOG.md` using `awk` |
 | Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body and the generic extension archive attached |
 
@@ -526,8 +531,10 @@ graph TD
 | Item | Type | Purpose |
 |------|------|---------|
 | `GH_TOKEN` | Env (derived) | Set to `${{ github.token }}` for PR creation and GitHub API calls |
+| `NPM_TOKEN` | Secret | npm registry authentication for stable publish and dist-tag repair |
+| `NODE_AUTH_TOKEN` | Env (derived) | Set to `$NPM_TOKEN` for npm CLI |
 
-**Permissions**: `contents: write`, `id-token: write`, `pull-requests: write`
+**Permissions**: `contents: write`, `pull-requests: write`
 
 ### Artifacts
 
@@ -538,8 +545,10 @@ graph TD
 ### Key Behaviors
 
 - The release detection uses the GitHub API to find the PR associated with the merge commit, filtering for the `release` label. Non-release pushes to `main` exit early and cleanly.
-- Version validation cross-checks `package.json` against the CHANGELOG (unconditional) and, when applicable, against the release branch name (`release/vX.Y.Z`) and the PR title (`release: vX.Y.Z`). A mismatch in any available source fails the workflow.
-- Stable releases require npm Trusted Publishing to be configured for `@josstei/maestro` with GitHub Actions workflow `release.yml`; the workflow does not use a long-lived npm token.
+- Manual recovery is only for stable versions and requires the checked-out commit, `package.json`, `CHANGELOG.md`, and existing `vX.Y.Z` tag to agree. This recovers failures after tag creation without creating a new version or publishing from a maintainer laptop.
+- Version validation cross-checks `package.json` against the CHANGELOG (unconditional), the existing tag when present, and, when applicable, against the release branch name (`release/vX.Y.Z`) and the PR title (`release: vX.Y.Z`). A mismatch in any available source fails the workflow.
+- Stable releases require `NPM_TOKEN`; npm Trusted Publishing should only replace it after the package owner explicitly configures and tests that path.
+- npm `latest` is stable-only. The publish helper rejects prereleases published without an explicit prerelease tag or with `latest`, rejects stable publishes with prerelease dist-tags, removes a stale `latest` tag when it points at a prerelease and no stable exists, and moves `latest` to the stable version after a stable publish or idempotent skip.
 - Tag creation is idempotent: if the tag already exists at the same commit, the step is skipped. If it exists at a different commit, the workflow fails to prevent overwriting a release.
 
 ---
@@ -633,7 +642,7 @@ graph LR
 | Preview Build | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
 | Prepare Release | `contents: write`, `pull-requests: write` | `RELEASE_TOKEN` |
 | Release Candidate | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
-| Release | `contents: write`, `id-token: write`, `pull-requests: write` | None |
+| Release | `contents: write`, `pull-requests: write` | `NPM_TOKEN` |
 
 The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elevated permissions. The default `GITHUB_TOKEN` does not trigger downstream workflow runs, so `RELEASE_TOKEN` is required for branch pushes and PR creation that need to activate Source Of Truth Check and Release Candidate on the newly created PR.
 
@@ -645,3 +654,5 @@ The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elev
 | `rc` | Release candidate from release PR | `X.Y.Z-rc.N` | Release Candidate |
 | `preview` | PR preview build | `X.Y.Z-preview.SHORT_SHA` | Preview Build |
 | `nightly` | Daily main snapshot | `X.Y.Z-nightly.YYYYMMDD` | Nightly Build |
+
+`latest` must never point at `rc`, `preview`, or `nightly`. If a prerelease publish or idempotent skip sees `latest` pointing to a prerelease, the helper repairs it by moving `latest` back to the highest published stable version or removing it when no stable exists.
