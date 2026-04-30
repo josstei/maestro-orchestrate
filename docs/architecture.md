@@ -80,7 +80,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` | `snake_case` |
 | `delegation.pattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
 | `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
-| `env.workspacePath` | `workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
+| `env.workspacePath` | `null` (manifest injects `MAESTRO_WORKSPACE_PATH=${workspacePath}`) | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
 
 ### Entry-Point Registry
 
@@ -97,7 +97,7 @@ Plus 3 core commands (orchestrate, execute, resume) maintained separately in `sr
 
 ## MCP Server Architecture
 
-The MCP server is authored directly in modular source under `src/mcp/`. Gemini and Claude runtime roots expose thin public wrappers at `mcp/maestro-server.js` that resolve into the nearest generator-owned `src/mcp/maestro-server.js` payload. Codex has no in-plugin wrapper — it spawns the server via `npx` against the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`.
+The MCP server is authored directly in modular source under `src/mcp/`. Gemini and Qwen share the repo-root public wrapper at `mcp/maestro-server.js`; their manifests set `MAESTRO_RUNTIME` to select the runtime config. Claude exposes its own thin wrapper at `claude/mcp/maestro-server.js` so detached plugin installs can fall back to `claude/src/`. Codex has no in-plugin wrapper — it spawns the server via `npx` against the versioned `@josstei/maestro` npm package and the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`.
 
 ### Module Structure
 
@@ -145,7 +145,7 @@ The content tools (`get_agent`, `get_skill_content`) are filesystem-only in ever
 - Codex: `primary=filesystem`, `fallback=none`
 - Qwen: `primary=filesystem`, `fallback=none`
 
-Gemini's and Claude's thin entrypoints at `mcp/maestro-server.js` use direct `require()` calls to resolve `src/mcp/maestro-server.js`. Gemini's entrypoint sets `MAESTRO_RUNTIME=gemini` and requires `../src/mcp/maestro-server` directly. Claude uses dual-resolution: it prefers the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and falls back to the bundled detached payload (`claude/src/mcp/maestro-server.js`) when running outside the repo. Codex spawns `bin/maestro-mcp-server.js` via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server` (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server`.
+Gemini and Qwen use the shared repo-root entrypoint at `mcp/maestro-server.js`, which requires `../src/mcp/maestro-server` directly. Their generated manifests set `MAESTRO_RUNTIME=gemini` or `MAESTRO_RUNTIME=qwen` before launch. Claude uses dual-resolution: it prefers the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and falls back to the bundled detached payload (`claude/src/mcp/maestro-server.js`) when running outside the repo. Codex spawns `bin/maestro-mcp-server.js` via a release-versioned `npx -p @josstei/maestro@<version> maestro-mcp-server` invocation (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server`.
 
 This makes one architectural rule explicit:
 
@@ -156,11 +156,12 @@ This makes one architectural rule explicit:
 
 ### MCP Server Packaging
 
-Gemini and Claude keep a public entrypoint at `mcp/maestro-server.js`; Codex invokes the server via `npx` against a published bin. All three are thin wrappers around `src/mcp/maestro-server.js`:
+Gemini and Qwen share the repo-root public entrypoint at `mcp/maestro-server.js`, Claude keeps a runtime-local public entrypoint at `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js`:
 
-- **Gemini** (`mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=gemini`, directly requires `../src/mcp/maestro-server` and calls `.main()`
+- **Gemini** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=gemini`, directly requires `../src/mcp/maestro-server` and calls `.main()`
+- **Qwen** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=qwen` from `qwen-extension.json`, using the same shared entrypoint as Gemini
 - **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
-- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
+- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
@@ -258,10 +259,22 @@ Uses matchers to filter by tool type. Timeout: 10s (5s for policy-enforcer). Con
 
 ### Policy Enforcement
 
-Both runtimes block the same destructive commands (`rm -rf`, `git reset --hard`, `git clean`, heredocs) and require confirmation for redirects (`>`, `>>`, `tee`):
+Gemini, Qwen, and Claude block the same destructive commands (`rm -rf`, `git reset --hard`, `git clean`, heredocs) and require confirmation for redirects (`>`, `>>`, `tee`):
 
 - **Gemini**: TOML policy rules in `policies/maestro.toml`
+- **Qwen**: TOML policy rules in `policies/maestro.toml`
 - **Claude**: JavaScript policy-enforcer hook triggered on Bash tool use
+
+### Qwen Hooks
+
+| Event | Script | Purpose |
+|-------|--------|---------|
+| `SessionStart` | session-start.js | Initialize hook state, prune stale sessions |
+| `SubagentStart` | before-agent.js | Detect agent, inject session context |
+| `SubagentStop` | after-agent.js | Validate handoff report format |
+| `SessionEnd` | session-end.js | Clean up hook state |
+
+Qwen uses its own hook registration file at `qwen/hooks.json`, while reusing the repo-root hook runner and logic modules.
 
 ### Hook State
 
@@ -287,15 +300,15 @@ Ephemeral state stored in `/tmp/maestro-hooks-<uid>/`:
 
 ## CI and Testing
 
-For detailed documentation of all six GitHub Actions workflows, the release pipeline chain, and Mermaid flow diagrams, see [docs/cicd.md](cicd.md).
+For detailed documentation of all seven GitHub Actions workflows, the release pipeline chain, and Mermaid flow diagrams, see [docs/cicd.md](cicd.md).
 
 ### Test Suite
 
-54 test files with 851 tests using Node.js built-in `node:test`:
+86 test files using Node.js built-in `node:test`:
 
-- 30 unit tests (`tests/unit/`)
-- 13 transform tests (`tests/transforms/`)
-- 11 integration tests (`tests/integration/`)
+- 53 unit test files (`tests/unit/`)
+- 13 transform test files (`tests/transforms/`)
+- 20 integration test files (`tests/integration/`)
 
 The justfile's `just test` target uses glob expansion
 (`tests/unit/*.test.js`, `tests/transforms/*.test.js`, `tests/integration/*.test.js`),

@@ -11,10 +11,19 @@ const { updateVersions } = require('../../scripts/update-versions');
 function createTempProject(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-update-versions-'));
   const files = {
-    'package.json': { name: '@maestro-orchestrator/maestro', version, license: 'Apache-2.0' },
+    'package.json': { name: '@josstei/maestro', version, license: 'Apache-2.0' },
     'gemini-extension.json': { name: 'maestro', version },
+    'qwen-extension.json': { name: 'maestro', version },
     'claude/.claude-plugin/plugin.json': { name: 'maestro', version },
     'plugins/maestro/.codex-plugin/plugin.json': { name: 'maestro', version },
+    'plugins/maestro/.mcp.json': {
+      mcpServers: {
+        maestro: {
+          command: 'npx',
+          args: ['-y', '-p', `@josstei/maestro@${version}`, 'maestro-mcp-server'],
+        },
+      },
+    },
     '.claude-plugin/marketplace.json': {
       name: 'maestro-orchestrator',
       metadata: { version },
@@ -50,6 +59,10 @@ function createTempProject(version) {
   return root;
 }
 
+function readJson(root, relativePath) {
+  return JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8'));
+}
+
 describe('updateVersions', () => {
   let tempRoot = null;
 
@@ -64,27 +77,25 @@ describe('updateVersions', () => {
     }
   });
 
-  it('updates all JSON version fields to the new version', () => {
+  it('updates only canonical stable release inputs', () => {
     updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' });
 
-    const pkg = JSON.parse(fs.readFileSync(path.join(tempRoot, 'package.json'), 'utf8'));
-    const gemini = JSON.parse(fs.readFileSync(path.join(tempRoot, 'gemini-extension.json'), 'utf8'));
-    const claudePlugin = JSON.parse(
-      fs.readFileSync(path.join(tempRoot, 'claude/.claude-plugin/plugin.json'), 'utf8')
-    );
-    const codexPlugin = JSON.parse(
-      fs.readFileSync(path.join(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json'), 'utf8')
-    );
-    const marketplace = JSON.parse(
-      fs.readFileSync(path.join(tempRoot, '.claude-plugin/marketplace.json'), 'utf8')
-    );
+    const pkg = readJson(tempRoot, 'package.json');
+    const gemini = readJson(tempRoot, 'gemini-extension.json');
+    const qwen = readJson(tempRoot, 'qwen-extension.json');
+    const claudePlugin = readJson(tempRoot, 'claude/.claude-plugin/plugin.json');
+    const codexPlugin = readJson(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json');
+    const codexMcp = readJson(tempRoot, 'plugins/maestro/.mcp.json');
+    const marketplace = readJson(tempRoot, '.claude-plugin/marketplace.json');
 
     assert.equal(pkg.version, '1.7.0');
-    assert.equal(gemini.version, '1.7.0');
-    assert.equal(claudePlugin.version, '1.7.0');
-    assert.equal(codexPlugin.version, '1.7.0');
-    assert.equal(marketplace.metadata.version, '1.7.0');
-    assert.equal(marketplace.plugins[0].version, '1.7.0');
+    assert.equal(gemini.version, '1.6.1');
+    assert.equal(qwen.version, '1.6.1');
+    assert.equal(claudePlugin.version, '1.6.1');
+    assert.equal(codexPlugin.version, '1.6.1');
+    assert.ok(codexMcp.mcpServers.maestro.args.includes('@josstei/maestro@1.6.1'));
+    assert.equal(marketplace.metadata.version, '1.6.1');
+    assert.equal(marketplace.plugins[0].version, '1.6.1');
   });
 
   it('updates version badges in both readmes', () => {

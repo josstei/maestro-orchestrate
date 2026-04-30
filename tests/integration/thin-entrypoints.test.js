@@ -59,8 +59,10 @@ describe('thin entrypoint design', () => {
     }
   });
 
-  it('hand-authored platform metadata exists at final locations', () => {
+  it('generated platform metadata exists at final locations', () => {
     const requiredFiles = [
+      '.agents/plugins/marketplace.json',
+      '.claude-plugin/marketplace.json',
       'claude/.claude-plugin/plugin.json',
       'claude/.mcp.json',
       'claude/hooks/claude-hooks.json',
@@ -69,13 +71,14 @@ describe('thin entrypoint design', () => {
       'GEMINI.md',
       'gemini-extension.json',
       'hooks/hooks.json',
+      'qwen-extension.json',
     ];
 
     for (const file of requiredFiles) {
       assert.equal(
         fs.existsSync(path.join(ROOT, file)),
         true,
-        `Expected hand-authored ${file} to exist`
+        `Expected generated platform metadata ${file} to exist`
       );
     }
   });

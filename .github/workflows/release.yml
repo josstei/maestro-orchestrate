@@ -3,6 +3,16 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Stable version to recover, for example 1.6.4'
+        required: true
+        type: string
+      target_sha:
+        description: 'Commit SHA to release; defaults to refs/tags/v<version>'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -14,17 +24,37 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Checkout push commit
+        if: github.event_name == 'push'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
-      - name: Resolve release PR from commit
+      - name: Checkout recovery target
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.target_sha || format('refs/tags/v{0}', inputs.version) }}
+
+      - name: Resolve release context
         id: detect
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=" >> "$GITHUB_OUTPUT"
+            echo "pr_title=release: v${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "pr_head_ref=release/v${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "recovery=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           PR_JSON=$(gh api -H "Accept: application/vnd.github+json" "repos/$REPOSITORY/commits/$GITHUB_SHA/pulls" | \
             jq -c --arg sha "$GITHUB_SHA" \
               '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == "main" and (.labels | map(.name) | index("release")))] | .[0]')
@@ -39,32 +69,53 @@ jobs:
           echo "pr_number=$(echo "$PR_JSON" | jq -r '.number')" >> "$GITHUB_OUTPUT"
           echo "pr_title=$(echo "$PR_JSON" | jq -r '.title')" >> "$GITHUB_OUTPUT"
           echo "pr_head_ref=$(echo "$PR_JSON" | jq -r '.head.ref')" >> "$GITHUB_OUTPUT"
+          echo "recovery=false" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         if: steps.detect.outputs.is_release == 'true'
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Determine publish eligibility
+      - name: Verify npm token
         if: steps.detect.outputs.is_release == 'true'
-        id: publish_gate
         run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is required for stable release publishing"
+            exit 1
           fi
 
       - name: Extract and validate version
         if: steps.detect.outputs.is_release == 'true'
         id: version
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TARGET_SHA: ${{ inputs.target_sha }}
+          INPUT_VERSION: ${{ inputs.version }}
           PR_HEAD_REF: ${{ steps.detect.outputs.pr_head_ref }}
           PR_TITLE: ${{ steps.detect.outputs.pr_title }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
+          TARGET_SHA=$(git rev-parse HEAD)
           echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+
+          if [[ ! "$PKG_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release workflow only publishes stable semver versions; found $PKG_VERSION"
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$PKG_VERSION" != "$INPUT_VERSION" ]; then
+              echo "::error::package.json version ($PKG_VERSION) does not match manual recovery version ($INPUT_VERSION)"
+              exit 1
+            fi
+
+            if [ -n "$INPUT_TARGET_SHA" ] && [ "$TARGET_SHA" != "$INPUT_TARGET_SHA" ]; then
+              echo "::error::Checked-out commit ($TARGET_SHA) does not match manual recovery target_sha ($INPUT_TARGET_SHA)"
+              exit 1
+            fi
+          fi
 
           if ! grep -Fq "## [$PKG_VERSION]" CHANGELOG.md; then
             echo "::error::CHANGELOG.md missing section for [$PKG_VERSION]"
@@ -87,6 +138,18 @@ jobs:
             fi
           fi
 
+          TAG="v${PKG_VERSION}"
+          TAG_SHA=$(git rev-parse "$TAG^{commit}" 2>/dev/null || true)
+          if [ -n "$TAG_SHA" ]; then
+            if [ "$TAG_SHA" != "$TARGET_SHA" ]; then
+              echo "::error::Tag $TAG exists at $TAG_SHA, not target commit $TARGET_SHA"
+              exit 1
+            fi
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "::error::Manual release recovery requires existing tag $TAG"
+            exit 1
+          fi
+
       - name: Generate runtime adapters
         if: steps.detect.outputs.is_release == 'true'
         run: node scripts/generate.js
@@ -104,25 +167,49 @@ jobs:
         if: steps.detect.outputs.is_release == 'true'
         run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
+      - name: Verify npm package contents
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm run pack:verify
+
+      - name: Package release artifact
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm run release:artifacts
+
+      - name: Verify release artifact
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm run release:verify-artifacts
+
       - name: Create and push tag
         if: steps.detect.outputs.is_release == 'true'
         env:
+          TARGET_SHA: ${{ steps.version.outputs.target_sha }}
           VERSION: v${{ steps.version.outputs.version }}
-          GITHUB_SHA: ${{ github.sha }}
         run: |
+          CURRENT_SHA=$(git rev-parse HEAD)
+          if [ "$CURRENT_SHA" != "$TARGET_SHA" ]; then
+            echo "::error::Checked-out commit changed from $TARGET_SHA to $CURRENT_SHA"
+            exit 1
+          fi
+
           if git rev-parse "$VERSION" >/dev/null 2>&1; then
             EXISTING_SHA=$(git rev-parse "$VERSION^{commit}")
-            if [ "$EXISTING_SHA" = "$GITHUB_SHA" ]; then
+            if [ "$EXISTING_SHA" = "$TARGET_SHA" ]; then
               echo "Tag $VERSION already exists at $EXISTING_SHA. Skipping."
               exit 0
             fi
 
-            echo "::error::Tag $VERSION already exists at $EXISTING_SHA, not $GITHUB_SHA"
+            echo "::error::Tag $VERSION already exists at $EXISTING_SHA, not $TARGET_SHA"
             exit 1
           fi
 
-          git tag "$VERSION" "$GITHUB_SHA"
+          git tag "$VERSION" "$TARGET_SHA"
           git push origin "$VERSION"
+
+      - name: Publish to npm
+        if: steps.detect.outputs.is_release == 'true'
+        run: node scripts/npm-publish-idempotent.js --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Extract changelog for version
         if: steps.detect.outputs.is_release == 'true'
@@ -147,14 +234,8 @@ jobs:
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ steps.version.outputs.target_sha }}
           name: v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
-
-      - name: Publish to npm
-        if: steps.detect.outputs.is_release == 'true' && steps.publish_gate.outputs.enabled == 'true'
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
+          files: dist/release/maestro-v${{ steps.version.outputs.version }}-extension.tar.gz

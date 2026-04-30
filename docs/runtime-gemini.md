@@ -5,7 +5,7 @@ The Gemini CLI extension lives at the repository root. It is the primary runtime
 ## Configuration
 
 **Manifest**: `gemini-extension.json`
-**Version**: 1.6.3
+**Version**: generated from `package.json`
 **Context File**: `GEMINI.md`
 
 ### MCP Server
@@ -15,11 +15,14 @@ The Gemini CLI extension lives at the repository root. It is the primary runtime
   "command": "node",
   "args": ["${extensionPath}/mcp/maestro-server.js"],
   "cwd": "${extensionPath}",
-  "env": { "MAESTRO_WORKSPACE_PATH": "${workspacePath}" }
+  "env": {
+    "MAESTRO_RUNTIME": "gemini",
+    "MAESTRO_WORKSPACE_PATH": "${workspacePath}"
+  }
 }
 ```
 
-The public server at `mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=gemini`, requires canonical `src/mcp/maestro-server.js` directly, and runs the Gemini runtime against shared source in `src/`. Gemini declares `primary: filesystem` and `fallback: none`.
+The public server at `mcp/maestro-server.js` is a thin adapter. The manifest launches it with `MAESTRO_RUNTIME=gemini`; the adapter also defaults to Gemini if that env var is absent. It requires canonical `src/mcp/maestro-server.js` directly and runs the Gemini runtime against shared source in `src/`. Gemini declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 

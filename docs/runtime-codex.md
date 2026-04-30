@@ -5,7 +5,7 @@ The Codex plugin lives in `plugins/maestro/`.
 ## Configuration
 
 **Manifest**: `plugins/maestro/.codex-plugin/plugin.json`
-**Version**: 1.6.3
+**Version**: generated from `package.json`
 **MCP Config**: `plugins/maestro/.mcp.json`
 **App Config**: `plugins/maestro/.app.json`
 **Runtime Guide**: `plugins/maestro/references/runtime-guide.md`
@@ -15,12 +15,12 @@ The Codex plugin lives in `plugins/maestro/`.
 ```json
 {
   "command": "npx",
-  "args": ["-y", "-p", "github:josstei/maestro-orchestrate", "maestro-mcp-server"],
+  "args": ["-y", "-p", "@josstei/maestro@<package version>", "maestro-mcp-server"],
   "env": { "MAESTRO_RUNTIME": "codex" }
 }
 ```
 
-Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. The convention used by all 115 curated Codex plugins is to invoke the server via `npx`, which is location-independent. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
+Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
 
 For workspace resolution, Codex follows the shared runtime contract:
 - use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
@@ -34,9 +34,9 @@ That keeps Maestro state rooted under the actual workspace `docs/maestro` path r
 ```json
 {
   "name": "maestro",
-  "version": "1.6.3",
+  "version": "<package version>",
   "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
-  "author": { "name": "josstei", "url": "https://github.com/josstei" },
+  "author": { "name": "josstei", "email": "hello@josstei.dev", "url": "https://github.com/josstei" },
   "homepage": "https://github.com/josstei/maestro-orchestrate",
   "repository": "https://github.com/josstei/maestro-orchestrate",
   "license": "Apache-2.0",
@@ -181,17 +181,17 @@ plugins/maestro/
 └── README.md
 ```
 
-The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`.
+The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`; `node scripts/generate.js` derives `plugins/maestro/.mcp.json` from `package.json` so the plugin manifest and MCP package spec stay on the same version.
 
-## Differences from Gemini and Claude
+## Differences from Other Runtimes
 
-| Aspect | Gemini | Claude | Codex |
-|--------|--------|--------|-------|
-| Agent names | snake_case | kebab-case | kebab-case |
-| Delegation | Direct function call | Agent subagent | spawn_agent |
-| Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | None |
-| Policies | TOML rules | JS hook enforcer | None |
-| Skill surface | N/A (commands) | 19 skills | plugin namespace `$maestro:*` |
-| Path style | Variable passthrough | Env var refs | `npx` bin |
-| Extra files | TOML policy rules | policy-enforcer | runtime guide |
-| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | npx bin + detached `src/` payload |
+| Aspect | Gemini | Claude | Qwen | Codex |
+|--------|--------|--------|------|-------|
+| Agent names | snake_case | kebab-case | snake_case | kebab-case |
+| Delegation | Direct function call | Agent subagent | Direct function call | spawn_agent |
+| Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | 4 events in `qwen/hooks.json` | None |
+| Policies | TOML rules | JS hook enforcer | TOML rules | None |
+| Skill surface | N/A (commands) | 19 skills | N/A (Gemini-compatible commands) | plugin namespace `$maestro:*` |
+| Path style | Variable passthrough | Env var refs | Variable passthrough | `npx` bin |
+| Extra files | TOML policy rules | policy-enforcer | Qwen manifest, context, agents, hooks config | runtime guide |
+| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | shared root entrypoint + `qwen/` stubs | npx bin + detached `src/` payload |

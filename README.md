@@ -1,6 +1,6 @@
 # Maestro
 
-[![Version](https://img.shields.io/badge/version-1.6.3-blue)](https://github.com/josstei/maestro-orchestrate/releases)
+[![Version](https://img.shields.io/badge/version-1.6.4-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
@@ -23,7 +23,7 @@ Maestro is a multi-agent development orchestration platform with 39 specialists,
 ### Prerequisites
 
 - One supported runtime: Gemini CLI, Claude Code, Codex, or Qwen Code
-- Node.js 18+ for the MCP server and helper scripts
+- Node.js 20+ for the MCP server and helper scripts
 - Gemini CLI and Qwen Code only: enable experimental subagents in `~/.gemini/settings.json` (Gemini) or `~/.qwen/settings.json` (Qwen)
 
 ```json
@@ -121,6 +121,27 @@ Start a full orchestration with the runtime-specific entrypoint:
 
 Maestro classifies the task, chooses Express or Standard workflow, asks the required design questions, produces an implementation plan when needed, delegates execution to specialists, runs a quality gate, and archives the session state in `docs/maestro/`.
 
+## Examples
+
+Usage examples: [EXAMPLES.md](EXAMPLES.md). Gemini/Qwen forms shown:
+
+- Full orchestration: `/maestro:orchestrate Build a REST API for a task management system with user authentication`
+- Standalone review: `/maestro:review Review the staged changes for correctness, regressions, security, maintainability risk, and missing tests`
+- Security audit: `/maestro:security-audit Audit authentication, authorization, data exposure, secret handling, and exploitability risks`
+
+## Configuration
+
+Defaults work; these settings tune behavior:
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `MAESTRO_STATE_DIR` | `docs/maestro` | Session, plan, and archive output path |
+| `MAESTRO_EXECUTION_MODE` | `ask` | Choose `parallel`, `sequential`, or prompt |
+| `MAESTRO_AUTO_ARCHIVE` | `true` | Archive successful sessions automatically |
+| `MAESTRO_MAX_RETRIES` | `2` | Retry limit for failed phases |
+| `MAESTRO_MAX_CONCURRENT` | `0` | Parallel-agent cap, where `0` means no Maestro cap |
+| `MAESTRO_DISABLED_AGENTS` | unset | Specialists to exclude from assignment |
+
 ## Commands
 
 | Capability | Gemini CLI | Claude Code | Codex | Qwen Code |
@@ -147,6 +168,16 @@ Qwen Code uses the same `/maestro:*` command surface as Gemini CLI.
 - **Express**: For simple work. Maestro asks 1-2 clarifying questions, proposes a brief, delegates to one specialist, runs code review, and archives without a design doc or implementation plan.
 - **Standard**: For medium and complex work. Maestro runs Design, Plan, Execute, and Complete phases with explicit approval gates, phased execution, and final review blocking on unresolved Critical or Major findings.
 
+## Outputs and Success Criteria
+
+Maestro writes orchestration outputs under `MAESTRO_STATE_DIR`, usually `docs/maestro/`. Standard workflow outputs include active session state, design documents, implementation plans, phase reports, validation output, and archived records.
+
+A successful run must have an approved plan when Standard workflow is used, completed phase reports, validation results for the changed surface, and no unresolved Critical or Major review findings. If a phase cannot complete, Maestro records the blocker and the next required action instead of silently continuing.
+
+## Security and Permissions
+
+Maestro follows the host runtime's tool permissions, sandboxing, and confirmation model. It does not require committed secrets or long-lived credentials, and orchestration session state stays inside `MAESTRO_STATE_DIR` unless configured otherwise. Use `MAESTRO_DISABLED_AGENTS` to restrict specialists in sensitive repositories, and run `$maestro:security-audit` or the equivalent runtime command before adopting changes that touch authentication, authorization, secrets, or data exposure paths.
+
 ## Documentation
 
 - [EXAMPLES.md](EXAMPLES.md) for copyable usage scenarios across all runtimes
@@ -159,6 +190,30 @@ Qwen Code uses the same `/maestro:*` command surface as Gemini CLI.
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
 - [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
 - [docs/runtime-qwen.md](docs/runtime-qwen.md) for Qwen runtime specifics
+
+## Development and Release Validation
+
+Canonical source lives under `src/`. Runtime files in `agents/`, `commands/`, `hooks/`, `mcp/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/` are generated; update `src/` first, then regenerate.
+
+```bash
+npm ci
+node scripts/generate.js
+git diff --exit-code --name-only
+node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+npm run pack:verify
+npm run release:artifacts
+npm run release:verify-artifacts
+```
+
+Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `gemini-extension.json`, `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payload needed by Gemini CLI, Qwen Code, Claude Code, and Codex.
+
+Stable releases publish three aligned outputs:
+
+- Git tag `vX.Y.Z`
+- npm package `@josstei/maestro@X.Y.Z`
+- GitHub Release asset `maestro-vX.Y.Z-extension.tar.gz`
+
+Codex plugin releases launch the MCP server through the matching npm package version. Hook installation is explicit via `npm run install-hooks`; package, pack, and publish flows do not install git hooks.
 
 ## License
 

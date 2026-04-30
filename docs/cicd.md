@@ -28,13 +28,13 @@ graph LR
     end
 ```
 
-The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Four of those — Nightly Build, Preview Build, Release Candidate, and Release — gate npm publishing on the presence of the `NPM_TOKEN` secret. When the token is unavailable (for example, in forks), the publish steps are skipped gracefully while validation still runs. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
+The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release publishes through npm Trusted Publishing with GitHub Actions OIDC. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
 
 ## Source Of Truth Check
 
 ### Purpose
 
-The foundational CI gate. Enforces that all generated runtime adapters (Gemini, Claude Code, Codex) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
+The foundational CI gate. Enforces that all generated runtime adapters (Gemini CLI, Claude Code, Codex, and Qwen Code) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
 
 ### Trigger
 
@@ -54,8 +54,9 @@ graph TD
     E --> |"Yes"| F["Fail: adapters out of sync"]
     E --> |"No"| G["Run full test suite"]
     G --> H{"Tests pass?"}
-    H --> |"Yes"| I["Check passes"]
+    H --> |"Yes"| I["Verify npm pack<br/>and release artifact"]
     H --> |"No"| J["Fail: test failures"]
+    I --> K["Check passes"]
 ```
 
 ### Job Breakdown
@@ -69,6 +70,8 @@ graph TD
 | Generate runtime adapters | Runs `node scripts/generate.js` to rebuild all runtime outputs |
 | Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any generated file differs from what is committed |
 | Run full test suite | Executes `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` |
+| Verify npm package contents | Runs `npm run pack:verify` to ensure npm dry-run packaging contains required runtime files and no test-only directories |
+| Package and verify release artifact | Runs `npm run release:artifacts` and `npm run release:verify-artifacts` to validate the generic GitHub Release archive |
 
 ### Environment and Secrets
 
@@ -76,7 +79,7 @@ Uses default permissions (read-only). No secrets or environment variables requir
 
 ### Artifacts
 
-None produced or consumed.
+Creates an ignored local `dist/release/maestro-vX.Y.Z-extension.tar.gz` during validation, but does not upload it from PR CI.
 
 ### Key Behaviors
 
@@ -205,7 +208,9 @@ graph TD
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Sets `enabled=true` output if `NPM_TOKEN` secret is present |
 | Set nightly version | Computes version as `{base}-nightly.{YYYYMMDD}` using `npm version --no-git-tag-version` |
-| Publish nightly | Publishes with `npm publish --tag nightly --access public` |
+| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the nightly version |
+| Verify npm package contents | Runs `npm run pack:verify` against the nightly package surface |
+| Publish nightly | Publishes through `node scripts/npm-publish-idempotent.js --tag nightly --access public`, skipping if the exact version already exists |
 
 ### Environment and Secrets
 
@@ -218,7 +223,7 @@ graph TD
 
 ### Artifacts
 
-Publishes `@maestro-orchestrator/maestro@X.Y.Z-nightly.YYYYMMDD` to npm with the `nightly` dist-tag.
+Publishes `@josstei/maestro@X.Y.Z-nightly.YYYYMMDD` to npm with the `nightly` dist-tag.
 
 ### Key Behaviors
 
@@ -275,7 +280,9 @@ graph TD
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Set preview version | Computes version as `{base}-preview.{7-char SHA}` |
-| Publish preview | Publishes with `npm publish --tag preview --access public` |
+| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the preview version |
+| Verify npm package contents | Runs `npm run pack:verify` against the preview package surface |
+| Publish preview | Publishes through `node scripts/npm-publish-idempotent.js --tag preview --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a PR comment with the install command |
 
 ### Environment and Secrets
@@ -290,7 +297,7 @@ graph TD
 
 ### Artifacts
 
-Publishes `@maestro-orchestrator/maestro@X.Y.Z-preview.SHORT_SHA` to npm with the `preview` dist-tag.
+Publishes `@josstei/maestro@X.Y.Z-preview.SHORT_SHA` to npm with the `preview` dist-tag.
 
 ### Key Behaviors
 
@@ -329,7 +336,7 @@ graph TD
     I --> J["Generate and check drift"]
     J --> K["Run full test suite"]
     K --> L["Create release/vX.Y.Z branch"]
-    L --> M["Update version files<br/>via scripts/update-versions.js"]
+    L --> M["Update canonical release inputs<br/>via scripts/update-versions.js"]
     M --> N["Regenerate with new version"]
     N --> O["Commit: 'release: vX.Y.Z'"]
     O --> P["Push release branch"]
@@ -353,8 +360,8 @@ graph TD
 | Generate and check drift | Runs generator and fails if `main` has uncommitted drift |
 | Run full test suite | Executes the full test suite |
 | Create release branch | Creates `release/vX.Y.Z` from current `main` |
-| Update version files | Runs `node scripts/update-versions.js` with the target version |
-| Regenerate with new version | Reruns generator and `npm install --package-lock-only` to update lockfile |
+| Update canonical release inputs | Runs `node scripts/update-versions.js` with the target version to update `package.json`, README badges, and CHANGELOG |
+| Regenerate with new version | Reruns generator to derive runtime metadata from `package.json`, then runs `npm install --package-lock-only` to update lockfile |
 | Commit release | Commits all changes as `release: vX.Y.Z` using the `github-actions[bot]` identity |
 | Push release branch | Pushes `release/vX.Y.Z` to origin |
 | Open PR to main | Creates a PR merging `release/vX.Y.Z` into `main` with CHANGELOG excerpt as body |
@@ -364,7 +371,7 @@ graph TD
 
 | Item | Type | Purpose |
 |------|------|---------|
-| `RELEASE_TOKEN` | Secret | Personal access token with write permissions; used for checkout, branch push, PR creation, and auto-merge. Required because the default `GITHUB_TOKEN` cannot trigger downstream workflows. |
+| `RELEASE_TOKEN` | Secret | Personal access token with write permissions; used for checkout, branch push, PR creation, and PR labeling. Required because the default `GITHUB_TOKEN` cannot trigger downstream workflows. |
 
 **Permissions**: `contents: write`, `pull-requests: write`
 
@@ -430,7 +437,9 @@ graph TD
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Determine RC version | Reads base version from `package.json`, queries npm registry for existing RC versions of this base, increments the RC number to avoid collisions |
-| Publish RC | Publishes with `npm publish --tag rc --access public` |
+| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the RC version |
+| Verify npm package contents | Runs `npm run pack:verify` against the RC package surface |
+| Publish RC | Publishes through `node scripts/npm-publish-idempotent.js --tag rc --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a comment with install command and short SHA |
 
 ### Environment and Secrets
@@ -445,7 +454,7 @@ graph TD
 
 ### Artifacts
 
-Publishes `@maestro-orchestrator/maestro@X.Y.Z-rc.N` to npm with the `rc` dist-tag, where `N` is auto-incremented.
+Publishes `@josstei/maestro@X.Y.Z-rc.N` to npm with the `rc` dist-tag, where `N` is auto-incremented.
 
 ### Key Behaviors
 
@@ -459,13 +468,14 @@ Publishes `@maestro-orchestrator/maestro@X.Y.Z-rc.N` to npm with the `rc` dist-t
 
 ### Purpose
 
-The final step of the release pipeline. Triggers on any push to `main`, but only acts when the push is a merged pull request carrying the `release` label. Creates a Git tag, publishes a GitHub Release with CHANGELOG notes, and publishes the stable package to npm.
+The final step of the release pipeline. Triggers on any push to `main`, but only acts when the push is a merged pull request carrying the `release` label. It can also be manually dispatched to recover a failed post-tag stable publish. Validates package and archive contents, creates or reuses the matching Git tag, publishes the stable package to npm, then publishes a GitHub Release with CHANGELOG notes and the self-contained extension archive attached.
 
 ### Trigger
 
 | Event | Details |
 |-------|---------|
 | `push` | Branch: `main` |
+| `workflow_dispatch` | Manual stable recovery with `version` and optional `target_sha`; when `target_sha` is omitted, the workflow checks out `refs/tags/v<version>` |
 | **Condition** | The pushed commit must be the merge commit of a PR labeled `release` that targeted `main` |
 
 ### Flow
@@ -473,26 +483,25 @@ The final step of the release pipeline. Triggers on any push to `main`, but only
 ```mermaid
 graph TD
     A["Push to main"] --> B["Checkout with full history"]
-    B --> C["Resolve release PR from commit"]
+    AA["Manual recovery<br/>version + target_sha"] --> BB["Checkout target SHA<br/>or refs/tags/vX.Y.Z"]
+    B --> C["Resolve release context"]
+    BB --> C
     C --> D{"Merged PR with<br/>'release' label found?"}
     D --> |"No"| E["Skip: not a release commit"]
-    D --> |"Yes"| F["Setup Node.js 20 with npm registry"]
-    F --> G{"NPM_TOKEN available?"}
-    G --> |"No: set enabled=false"| H["Continue without publish"]
-    G --> |"Yes: set enabled=true"| H
-    H --> I["Extract and validate version"]
+    D --> |"Yes"| F["Setup Node.js 24 with npm registry"]
+    F --> G["Verify NPM_TOKEN"]
+    G --> I["Extract and validate version,<br/>target SHA, and tag"]
     I --> J["Generate runtime adapters"]
     J --> K{"Adapter drift?"}
     K --> |"Yes"| L["Fail: adapters out of sync"]
     K --> |"No"| M["Run full test suite"]
     M --> N{"Tests pass?"}
     N --> |"No"| O["Fail: test failures"]
-    N --> |"Yes"| P["Create and push Git tag<br/>vX.Y.Z"]
-    P --> Q["Extract CHANGELOG<br/>for this version"]
-    Q --> R["Create GitHub Release<br/>with CHANGELOG body"]
-    R --> S{"Publish enabled?"}
-    S --> |"No"| T["Skip npm publish"]
-    S --> |"Yes"| U["Publish to npm<br/>--access public"]
+    N --> |"Yes"| P["Verify npm pack<br/>and release artifact"]
+    P --> Q["Create and push Git tag<br/>vX.Y.Z"]
+    Q --> R["Publish to npm<br/>--access public"]
+    R --> S["Extract CHANGELOG<br/>for this version"]
+    S --> T["Create GitHub Release<br/>with archive attached"]
 ```
 
 ### Job Breakdown
@@ -501,39 +510,45 @@ graph TD
 
 | Step | Description |
 |------|-------------|
-| Checkout | Full history (`fetch-depth: 0`) for tag operations |
-| Resolve release PR from commit | Queries the GitHub API for PRs associated with the current commit SHA; filters for merged PRs targeting `main` with the `release` label. If none found, sets `is_release=false` and all subsequent steps are skipped. |
-| Setup Node.js | Conditional on `is_release=true`; Node.js 20 with npm registry URL |
-| Determine publish eligibility | Conditional on `is_release=true`; gates on `NPM_TOKEN` presence |
-| Extract and validate version | Reads version from `package.json` and cross-validates: the CHANGELOG must have a matching section (unconditional). When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
+| Checkout | Full history (`fetch-depth: 0`) for tag operations. Push releases check out the pushed commit; manual recovery checks out `target_sha` or `refs/tags/v<version>`. |
+| Resolve release context | Push releases query the GitHub API for PRs associated with the current commit SHA and filter for merged PRs targeting `main` with the `release` label. Manual recovery sets the release context from the supplied version. If no push release is found, sets `is_release=false` and all subsequent steps are skipped. |
+| Setup Node.js | Conditional on `is_release=true`; Node.js 24 with npm registry URL |
+| Verify npm token | Fails before tag or publish work unless `NPM_TOKEN` is configured |
+| Extract and validate version | Reads version from `package.json` and cross-validates: the version must be stable semver, the CHANGELOG must have a matching section (unconditional), any existing `vX.Y.Z` tag must point at the checked-out target SHA, and manual recovery must match both the requested `version` and `target_sha` when supplied. When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
 | Generate runtime adapters | Runs `node scripts/generate.js` |
 | Check adapter drift | Final drift check before release; fails with error annotation |
 | Run full test suite | Final test gate before release |
-| Create and push tag | Creates Git tag `vX.Y.Z` at the merge commit SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
+| Verify npm package contents | Runs `npm run pack:verify` before any tag or publish operation |
+| Package release artifact | Runs `npm run release:artifacts` to create `dist/release/maestro-vX.Y.Z-extension.tar.gz` |
+| Verify release artifact | Runs `npm run release:verify-artifacts` against the generated archive |
+| Create and push tag | Creates Git tag `vX.Y.Z` at the checked-out target SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
+| Publish to npm | Publishes stable release through `node scripts/npm-publish-idempotent.js --access public` with `NODE_AUTH_TOKEN` derived from `NPM_TOKEN`, skipping if the exact version already exists |
 | Extract changelog | Extracts the version-specific section from `CHANGELOG.md` using `awk` |
-| Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body |
-| Publish to npm | Publishes stable release with `npm publish --access public` (no dist-tag, so it becomes `latest`) |
+| Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body and the generic extension archive attached |
 
 ### Environment and Secrets
 
 | Item | Type | Purpose |
 |------|------|---------|
-| `NPM_TOKEN` | Secret | npm registry authentication for stable publish |
-| `NODE_AUTH_TOKEN` | Env (derived) | Set to `$NPM_TOKEN` for npm CLI |
 | `GH_TOKEN` | Env (derived) | Set to `${{ github.token }}` for PR creation and GitHub API calls |
+| `NPM_TOKEN` | Secret | npm registry authentication for stable publish and dist-tag repair |
+| `NODE_AUTH_TOKEN` | Env (derived) | Set to `$NPM_TOKEN` for npm CLI |
 
 **Permissions**: `contents: write`, `pull-requests: write`
 
 ### Artifacts
 
 - Git tag `vX.Y.Z` pushed to origin
-- GitHub Release with CHANGELOG body
-- Stable npm package `@maestro-orchestrator/maestro@X.Y.Z` published with the `latest` dist-tag
+- Stable npm package `@josstei/maestro@X.Y.Z` published with the `latest` dist-tag
+- GitHub Release with CHANGELOG body and `maestro-vX.Y.Z-extension.tar.gz`
 
 ### Key Behaviors
 
 - The release detection uses the GitHub API to find the PR associated with the merge commit, filtering for the `release` label. Non-release pushes to `main` exit early and cleanly.
-- Version validation cross-checks `package.json` against the CHANGELOG (unconditional) and, when applicable, against the release branch name (`release/vX.Y.Z`) and the PR title (`release: vX.Y.Z`). A mismatch in any available source fails the workflow.
+- Manual recovery is only for stable versions and requires the checked-out commit, `package.json`, `CHANGELOG.md`, and existing `vX.Y.Z` tag to agree. This recovers failures after tag creation without creating a new version or publishing from a maintainer laptop.
+- Version validation cross-checks `package.json` against the CHANGELOG (unconditional), the existing tag when present, and, when applicable, against the release branch name (`release/vX.Y.Z`) and the PR title (`release: vX.Y.Z`). A mismatch in any available source fails the workflow.
+- Stable releases require `NPM_TOKEN`; npm Trusted Publishing should only replace it after the package owner explicitly configures and tests that path.
+- npm `latest` is stable-only. The publish helper rejects prereleases published without an explicit prerelease tag or with `latest`, rejects stable publishes with prerelease dist-tags, removes a stale `latest` tag when it points at a prerelease and no stable exists, and moves `latest` to the stable version after a stable publish or idempotent skip.
 - Tag creation is idempotent: if the tag already exists at the same commit, the step is skipped. If it exists at a different commit, the workflow fails to prevent overwriting a release.
 
 ---
@@ -567,9 +582,11 @@ The workflows replicate the following `just` commands:
 just generate  -->  node scripts/generate.js
 just check     -->  git diff --exit-code --name-only (after generate)
 just test      -->  node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+pack verify    -->  npm run pack:verify
+artifact check -->  npm run release:artifacts && npm run release:verify-artifacts
 ```
 
-The local `just ci` recipe runs `check`, `check-layers`, and `test`. The GitHub workflows run `generate`, drift check, and `test`, but do not run `check-layers` (`node scripts/check-layer-boundaries.js`). The layer boundary check is a local-only validation.
+The local `just ci` recipe runs `check`, `check-layers`, and `test`. The GitHub source-of-truth workflow runs `generate`, drift check, `test`, npm pack verification, and release artifact verification, but does not run `check-layers` (`node scripts/check-layer-boundaries.js`). The layer boundary check is a local-only validation.
 
 ---
 
@@ -598,7 +615,7 @@ graph LR
 5. The `release` + `rc` labels on a PR from `release/v*` to `main` trigger the **Release Candidate** workflow, which publishes an RC to npm.
 6. If additional commits are pushed to the release branch, both Source Of Truth Check and Release Candidate re-run (RC number auto-increments).
 7. When the release PR is merged to `main`, the push event triggers **Release**.
-8. Release detects the merged release PR via the GitHub API, validates version consistency, runs final checks, creates a Git tag, publishes a GitHub Release, and publishes to npm.
+8. Release detects the merged release PR via the GitHub API, validates version consistency, runs final checks, creates a Git tag, publishes to npm, and creates a GitHub Release with the generic extension archive attached.
 
 ### Branch Strategy
 
@@ -637,3 +654,5 @@ The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elev
 | `rc` | Release candidate from release PR | `X.Y.Z-rc.N` | Release Candidate |
 | `preview` | PR preview build | `X.Y.Z-preview.SHORT_SHA` | Preview Build |
 | `nightly` | Daily main snapshot | `X.Y.Z-nightly.YYYYMMDD` | Nightly Build |
+
+`latest` must never point at `rc`, `preview`, or `nightly`. If a prerelease publish or idempotent skip sees `latest` pointing to a prerelease, the helper repairs it by moving `latest` back to the highest published stable version or removing it when no stable exists.
