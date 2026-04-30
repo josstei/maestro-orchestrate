@@ -2,7 +2,7 @@
 
 # CI/CD Pipeline
 
-Maestro uses seven GitHub Actions workflows. Six are organized around a **source-of-truth enforcement** model — each regenerates runtime adapters from canonical `src/` and verifies zero drift before proceeding. The seventh, **Commit Message Check**, validates that PR titles and commit subjects on `main` follow Conventional Commits. Together they span continuous integration on every push/PR through automated release publishing to npm.
+Maestro uses seven GitHub Actions workflows. Six are organized around a **source-of-truth enforcement** model — each regenerates runtime adapters from canonical `src/` and verifies zero drift before proceeding. The seventh, **Commit Message Check**, validates semantic git conventions for PR branch names, PR titles, and commit subjects targeting `main`. Together they span continuous integration on every push/PR through automated release publishing to npm.
 
 ## Workflow Overview
 
@@ -28,7 +28,7 @@ graph LR
     end
 ```
 
-The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release publishes through npm Trusted Publishing with GitHub Actions OIDC. Commit Message Check is independent: it does not regenerate or test, it only validates commit-subject formatting.
+The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release publishes through npm Trusted Publishing with GitHub Actions OIDC. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
 
 ## Source Of Truth Check
 
@@ -92,7 +92,7 @@ Creates an ignored local `dist/release/maestro-vX.Y.Z-extension.tar.gz` during v
 
 ### Purpose
 
-Enforces [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) on commit subjects reaching `main`. Closes the local-hook bypass (`git commit --no-verify`) by re-validating in CI: the PR title (which becomes the squash-merge subject) AND every commit subject in the PR range. Also runs on direct pushes to `main` to cover admin overrides and emergency hotfixes that bypass the PR flow.
+Enforces semantic git conventions for work targeting `main`: PR branch names must use the repo's semantic branch format, PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), and every commit subject in the PR range must be conventional. This closes the local-hook bypass (`git commit --no-verify`) by re-validating in CI. The workflow also runs on direct pushes to `main` to cover admin overrides and emergency hotfixes that bypass the PR flow.
 
 ### Trigger
 
@@ -107,10 +107,14 @@ Enforces [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) 
 graph TD
     A["Push / PR to main"] --> B{"Event type?"}
     B --> |"pull_request"| C["Job: pr-title-check"]
+    B --> |"pull_request"| C2["Job: branch-name-check"]
     B --> |"push or pull_request"| D["Job: commit-subjects-check"]
     C --> E{"PR title matches<br/>Conventional Commits?"}
     E --> |"No"| F["Fail with::error annotation<br/>and remediation hint"]
     E --> |"Yes"| G["Pass"]
+    C2 --> L{"PR branch matches<br/>semantic branch convention?"}
+    L --> |"No"| M["Fail with::error annotation<br/>and rename hint"]
+    L --> |"Yes"| N["Pass"]
     D --> H["Resolve commit range<br/>(PR base..head, or push before..after)"]
     H --> I{"All subjects match<br/>(skipping Merge / Revert / fixup!)?"}
     I --> |"No"| J["Fail with per-commit annotations"]
@@ -124,6 +128,14 @@ graph TD
 | Step | Description |
 |------|-------------|
 | Validate PR title | Reads `github.event.pull_request.title` via the `PR_TITLE` env var; tests it against the Conventional Commits regex; emits `::error::` annotation with format guidance on failure |
+
+No checkout step — the job reads only event-payload metadata.
+
+**Job: `check-pr-branch` (name: `branch-name-check`)** — runs only on `pull_request` events.
+
+| Step | Description |
+|------|-------------|
+| Validate PR branch | Reads `github.event.pull_request.head.ref`; accepts `<type>/<slug>`, `<namespace>/<type>/<slug>`, `release/vX.Y.Z`, protected branch names, and known automation prefixes; emits `::error::` annotation with rename guidance on failure |
 
 No checkout step — the job reads only event-payload metadata.
 
@@ -145,6 +157,7 @@ None produced or consumed.
 ### Key Behaviors
 
 - The PR-title regex matches the local hook regex character-for-character, ensuring local-pass and CI-pass agree.
+- The PR-branch regex mirrors `.githooks/pre-commit` and `.githooks/pre-push`, so branch names are checked locally before committing, locally before pushing, and in CI before merging.
 - Pass-throughs (`Merge `, `Revert `, `fixup!`, `squash!`, `amend!`) match those in `.githooks/commit-msg`, so git-generated subjects (interactive rebases, merges, reverts) are accepted in both layers.
 - Bot-authored release commits (`release: vX.Y.Z` from Prepare Release) match the regex without exception.
 - The `push` trigger means even a direct admin push to `main` is validated post-hoc — failures appear as red checks on the commit on `main`.
@@ -600,6 +613,8 @@ graph LR
 | Branch | Purpose | Protected |
 |--------|---------|-----------|
 | `main` | Primary development and release branch; all feature work and releases merge here | Yes (CI required) |
+| `<type>/<slug>` | Contributor work branches using the same type vocabulary as Conventional Commits | PR check required |
+| `<namespace>/<type>/<slug>` | Namespaced contributor/tool work branches, such as `codex/chore/enforce-git-conventions` | PR check required |
 | `release/vX.Y.Z` | Short-lived release branches created by Prepare Release | Transient |
 
 ### Permissions and Secrets Summary
