@@ -139,7 +139,7 @@ jobs:
           fi
 
           TAG="v${PKG_VERSION}"
-          TAG_SHA=$(git rev-parse "$TAG^{commit}" 2>/dev/null || true)
+          TAG_SHA=$(git rev-parse --verify --quiet "$TAG^{commit}" 2>/dev/null || true)
           if [ -n "$TAG_SHA" ]; then
             if [ "$TAG_SHA" != "$TARGET_SHA" ]; then
               echo "::error::Tag $TAG exists at $TAG_SHA, not target commit $TARGET_SHA"
@@ -191,8 +191,8 @@ jobs:
             exit 1
           fi
 
-          if git rev-parse "$VERSION" >/dev/null 2>&1; then
-            EXISTING_SHA=$(git rev-parse "$VERSION^{commit}")
+          EXISTING_SHA=$(git rev-parse --verify --quiet "$VERSION^{commit}" 2>/dev/null || true)
+          if [ -n "$EXISTING_SHA" ]; then
             if [ "$EXISTING_SHA" = "$TARGET_SHA" ]; then
               echo "Tag $VERSION already exists at $EXISTING_SHA. Skipping."
               exit 0

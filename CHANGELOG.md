@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.4] - 2026-04-30
-
 ### Added
 
 - **Maestro cheatsheet**: added an English quick-reference guide covering supported runtimes, common commands, workflow concepts, and suggested reading order.
@@ -19,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Stable npm release recovery**: Release now uses `NPM_TOKEN` for stable publishes, supports manual recovery from an existing `vX.Y.Z` tag and target SHA, and enforces a stable-only `latest` dist-tag through the idempotent npm publish helper.
+- **Stable npm release recovery**: Release now uses `NPM_TOKEN` for stable publishes, uses verified Git tag lookups, supports manual recovery from an existing `vX.Y.Z` tag and target SHA, and enforces a stable-only `latest` dist-tag through the idempotent npm publish helper.
 - **Codex plugin MCP server fails to start**: corrected `npx` args in `plugins/maestro/.mcp.json` — added `-p`/`--package` flag so `maestro-mcp-server` is resolved as the binary name rather than an argument to the package's default binary.
 - **Release metadata drift**: runtime manifests, marketplace entries, detached payload versions, and Codex MCP package specs are now generated from `package.json` so stable and prerelease packages stay self-consistent.
 
