@@ -149,6 +149,22 @@ describe('hook entrypoints', () => {
     });
   });
 
+  it('qwen hook fallback blocks on invalid stdin with deny exit code', () => {
+    const result = runHookRaw(
+      'hooks/hook-runner.js',
+      'qwen',
+      'session-start',
+      'not-json'
+    );
+
+    assert.equal(result.status, 2, `Expected exit 2 for qwen fallback, got ${result.status}`);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      continue: false,
+      decision: 'block',
+      reason: 'Hook execution failed; blocking by default.',
+    });
+  });
+
   it('gemini hooks always exit 0 even on deny (JSON carries decision)', () => {
     const result = runHook('hooks/hook-runner.js', 'gemini', 'before-agent', {
       cwd: ROOT,

@@ -64,7 +64,7 @@ Qwen uses the same post-delegation validation as Gemini:
 
 ### Hook Adapter
 
-Qwen reuses the shared Gemini-style adapter at `hooks/adapters/qwen-adapter.js` (or the shared Gemini adapter when the CLI JSON shape matches). Output format: `{ continue: boolean, systemMessage?: string }`.
+Qwen uses the shared hook runner with the Qwen adapter at `hooks/adapters/qwen-adapter.js`. Output format: `{ continue: boolean, decision?: "block"|"allow", reason?: string, hookSpecificOutput?: { additionalContext: string } }`. Uncaught hook errors fail closed by emitting a block response and exiting with Qwen's deny exit code.
 
 ## Policies
 
