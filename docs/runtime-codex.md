@@ -181,7 +181,7 @@ plugins/maestro/
 └── README.md
 ```
 
-The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`, and release preparation rewrites `plugins/maestro/.mcp.json` to the same versioned npm package as the plugin manifest.
+The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`; `node scripts/generate.js` derives `plugins/maestro/.mcp.json` from `package.json` so the plugin manifest and MCP package spec stay on the same version.
 
 ## Differences from Gemini and Claude
 

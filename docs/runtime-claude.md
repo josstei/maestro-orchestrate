@@ -180,7 +180,7 @@ claude/
 ├── agents/                39 agent stubs (kebab-case)
 ├── skills/                19 skill directories
 ├── hooks/                 1 hook config (claude-hooks.json)
-├── scripts/               thin hook wrapper, adapter wrapper, policy enforcer, policy-enforcer.test.js
+├── scripts/               thin hook wrapper, adapter wrapper, policy enforcer
 ├── mcp/                   thin MCP entrypoint
 ├── src/                   generated detached runtime payload for isolated installs
 ├── .claude-plugin/        1 plugin manifest

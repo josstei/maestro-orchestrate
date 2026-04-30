@@ -44,4 +44,31 @@ describe('verify npm pack', () => {
       /npm package contains forbidden path: tests\/unit\/example\.test\.js/
     );
   });
+
+  it('rejects nested test-only files inside runtime package roots', () => {
+    const requiredFiles = [
+      'bin/maestro-mcp-server.js',
+      'claude/.claude-plugin/plugin.json',
+      'gemini-extension.json',
+      'plugins/maestro/.codex-plugin/plugin.json',
+      'qwen-extension.json',
+      'src/mcp/maestro-server.js',
+    ];
+
+    for (const forbiddenPath of [
+      'claude/scripts/policy-enforcer.test.js',
+      'plugins/maestro/src/mcp/server.spec.js',
+      'claude/scripts/__tests__/fixture.js',
+    ]) {
+      const files = [
+        ...requiredFiles,
+        forbiddenPath,
+      ].map((filePath) => ({ path: filePath }));
+
+      assert.throws(
+        () => verifyPackageEntries([{ filename: 'pkg.tgz', files }]),
+        new RegExp(`npm package contains forbidden path: ${forbiddenPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+      );
+    }
+  });
 });

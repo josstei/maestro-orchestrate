@@ -11,6 +11,10 @@ const WORKFLOW_FILES = fs
   .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
   .sort();
 
+function readWorkflow(fileName) {
+  return fs.readFileSync(path.join(WORKFLOWS_DIR, fileName), 'utf8');
+}
+
 function getIndent(line) {
   const match = line.match(/^ */);
   return match ? match[0].length : 0;
@@ -67,6 +71,59 @@ describe('workflow shell security', () => {
           `${fileName} contains a raw GitHub expression inside a run block:\n${block}`
         );
       }
+    }
+  });
+
+  it('publishing workflows use the idempotent npm publish helper', () => {
+    for (const fileName of WORKFLOW_FILES) {
+      const content = readWorkflow(fileName);
+      const runBlocks = collectRunBlocks(content);
+
+      for (const block of runBlocks) {
+        assert.doesNotMatch(
+          block,
+          /(^|\n)\s*npm publish\b/,
+          `${fileName} contains a raw npm publish command:\n${block}`
+        );
+      }
+    }
+
+    assert.match(
+      readWorkflow('release.yml'),
+      /node scripts\/npm-publish-idempotent\.js --access public/
+    );
+  });
+
+  it('prerelease workflows regenerate metadata and verify pack after npm versioning', () => {
+    const expectations = [
+      {
+        fileName: 'nightly.yml',
+        versionCommand: 'npm version "$NIGHTLY" --no-git-tag-version',
+        publishCommand: 'node scripts/npm-publish-idempotent.js --tag nightly --access public',
+      },
+      {
+        fileName: 'preview.yml',
+        versionCommand: 'npm version "$PREVIEW" --no-git-tag-version',
+        publishCommand: 'node scripts/npm-publish-idempotent.js --tag preview --access public',
+      },
+      {
+        fileName: 'rc.yml',
+        versionCommand: 'npm version "$RC_VERSION" --no-git-tag-version',
+        publishCommand: 'node scripts/npm-publish-idempotent.js --tag rc --access public',
+      },
+    ];
+
+    for (const { fileName, versionCommand, publishCommand } of expectations) {
+      const content = readWorkflow(fileName);
+      const versionIndex = content.indexOf(versionCommand);
+      const generateIndex = content.indexOf('run: node scripts/generate.js', versionIndex);
+      const verifyIndex = content.indexOf('run: npm run pack:verify', generateIndex);
+      const publishIndex = content.indexOf(publishCommand, verifyIndex);
+
+      assert.notEqual(versionIndex, -1, `${fileName} should compute a prerelease npm version`);
+      assert.notEqual(generateIndex, -1, `${fileName} should regenerate after npm version`);
+      assert.notEqual(verifyIndex, -1, `${fileName} should verify npm pack after regenerating`);
+      assert.notEqual(publishIndex, -1, `${fileName} should publish through the helper after verification`);
     }
   });
 });

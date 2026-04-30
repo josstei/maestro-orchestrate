@@ -144,4 +144,4 @@ The Qwen extension reuses Gemini's repo-root `commands/maestro/`, `hooks/`, `mcp
 ## Notes
 
 - Qwen writes its own agent stubs and hook config to `qwen/agents/` and `qwen/hooks.json` (separate from Gemini's repo-root outputs). For the `/maestro:*` command surface, Qwen reuses Gemini's repo-root `commands/maestro/` TOML files — the Qwen generator does not duplicate these.
-- The `scripts/update-versions.js` release helper bumps `qwen-extension.json` with the other runtime manifests so release metadata stays aligned.
+- `node scripts/generate.js` derives `qwen-extension.json` from `package.json` with the other runtime manifests so release metadata stays aligned.

@@ -101,7 +101,7 @@ jobs:
         run: |
           git checkout -b "release/v${VERSION}"
 
-      - name: Update version files
+      - name: Update canonical release inputs
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: node scripts/update-versions.js "$VERSION"

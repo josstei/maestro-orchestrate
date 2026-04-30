@@ -7,17 +7,10 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   REQUIRED_PACKAGE_FILES,
+  isDeniedPath,
 } = require('./release-artifact-manifest');
 
 const ROOT = path.resolve(__dirname, '..');
-const FORBIDDEN_PACKAGE_PREFIXES = [
-  '.github/',
-  'coverage/',
-  'dist/',
-  'docs/maestro/',
-  'node_modules/',
-  'tests/',
-];
 
 function parsePackJson(stdout) {
   const start = stdout.indexOf('[');
@@ -59,10 +52,8 @@ function verifyPackageEntries(packages) {
   }
 
   for (const entry of entries) {
-    for (const forbiddenPrefix of FORBIDDEN_PACKAGE_PREFIXES) {
-      if (entry === forbiddenPrefix.slice(0, -1) || entry.startsWith(forbiddenPrefix)) {
-        throw new Error(`npm package contains forbidden path: ${entry}`);
-      }
+    if (isDeniedPath(entry)) {
+      throw new Error(`npm package contains forbidden path: ${entry}`);
     }
   }
 
@@ -87,7 +78,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  FORBIDDEN_PACKAGE_PREFIXES,
   parsePackJson,
   runNpmPackDryRun,
   verifyNpmPack,

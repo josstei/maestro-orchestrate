@@ -71,9 +71,17 @@ jobs:
           echo "version=$RC_VERSION" >> "$GITHUB_OUTPUT"
           npm version "$RC_VERSION" --no-git-tag-version
 
+      - name: Regenerate runtime metadata
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: node scripts/generate.js
+
+      - name: Verify npm package contents
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: npm run pack:verify
+
       - name: Publish RC
         if: steps.publish_gate.outputs.enabled == 'true'
-        run: npm publish --tag rc --access public
+        run: node scripts/npm-publish-idempotent.js --tag rc --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 

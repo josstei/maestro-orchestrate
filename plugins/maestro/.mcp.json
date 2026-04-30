@@ -2,7 +2,12 @@
   "mcpServers": {
     "maestro": {
       "command": "npx",
-      "args": ["-y", "-p", "@josstei/maestro@1.6.3", "maestro-mcp-server"],
+      "args": [
+        "-y",
+        "-p",
+        "@josstei/maestro@1.6.3",
+        "maestro-mcp-server"
+      ],
       "env": {
         "MAESTRO_RUNTIME": "codex"
       }

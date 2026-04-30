@@ -53,8 +53,16 @@ jobs:
           NIGHTLY="${BASE}-nightly.$(date +%Y%m%d)"
           npm version "$NIGHTLY" --no-git-tag-version
 
+      - name: Regenerate runtime metadata
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: node scripts/generate.js
+
+      - name: Verify npm package contents
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: npm run pack:verify
+
       - name: Publish nightly
         if: steps.publish_gate.outputs.enabled == 'true'
-        run: npm publish --tag nightly --access public
+        run: node scripts/npm-publish-idempotent.js --tag nightly --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}

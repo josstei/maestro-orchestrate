@@ -127,7 +127,7 @@ jobs:
 
       - name: Publish to npm
         if: steps.detect.outputs.is_release == 'true'
-        run: npm publish --access public
+        run: node scripts/npm-publish-idempotent.js --access public
 
       - name: Extract changelog for version
         if: steps.detect.outputs.is_release == 'true'

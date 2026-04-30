@@ -3,8 +3,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PACKAGE_NAME = '@josstei/maestro';
-
 const RELEASE_ARTIFACT_PATHS = [
   '.agents/plugins/marketplace.json',
   '.claude-plugin/marketplace.json',
@@ -201,6 +199,14 @@ function requireVersion(value, label) {
   return value;
 }
 
+function requireString(value, label) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Missing string value for ${label}`);
+  }
+
+  return value;
+}
+
 function findNamedPlugin(marketplace, name, relativePath) {
   if (!Array.isArray(marketplace.plugins)) {
     throw new Error(`${relativePath} must contain a plugins array`);
@@ -267,9 +273,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   const claudeMcp = readJson(root, 'claude/.mcp.json');
   const codexMcp = readJson(root, 'plugins/maestro/.mcp.json');
 
-  if (pkg.name !== PACKAGE_NAME) {
-    throw new Error(`package.json name must be ${PACKAGE_NAME}`);
-  }
+  const packageName = requireString(pkg.name, 'package.json name');
 
   const claudeMarketplacePlugin = findNamedPlugin(
     claudeMarketplace,
@@ -324,7 +328,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   }
 
   const codexServer = codexMcp.mcpServers && codexMcp.mcpServers.maestro;
-  const expectedPackageSpec = `${PACKAGE_NAME}@${version}`;
+  const expectedPackageSpec = `${packageName}@${version}`;
   if (
     !codexServer ||
     codexServer.command !== 'npx' ||
@@ -359,7 +363,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 module.exports = {
   DENIED_ARTIFACT_PATHS,
   DENIED_ARTIFACT_PATTERNS,
-  PACKAGE_NAME,
   RELEASE_ARTIFACT_PATHS,
   REQUIRED_PACKAGE_FILES,
   assertReleaseArtifactContents,
@@ -369,6 +372,7 @@ module.exports = {
   getVersionEntries,
   isDeniedPath,
   isReleaseArtifactPathAllowed,
+  requireString,
   readJson,
   toPosixPath,
 };

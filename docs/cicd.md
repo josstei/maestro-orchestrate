@@ -208,7 +208,9 @@ graph TD
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Sets `enabled=true` output if `NPM_TOKEN` secret is present |
 | Set nightly version | Computes version as `{base}-nightly.{YYYYMMDD}` using `npm version --no-git-tag-version` |
-| Publish nightly | Publishes with `npm publish --tag nightly --access public` |
+| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the nightly version |
+| Verify npm package contents | Runs `npm run pack:verify` against the nightly package surface |
+| Publish nightly | Publishes through `node scripts/npm-publish-idempotent.js --tag nightly --access public`, skipping if the exact version already exists |
 
 ### Environment and Secrets
 
@@ -278,7 +280,9 @@ graph TD
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Set preview version | Computes version as `{base}-preview.{7-char SHA}` |
-| Publish preview | Publishes with `npm publish --tag preview --access public` |
+| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the preview version |
+| Verify npm package contents | Runs `npm run pack:verify` against the preview package surface |
+| Publish preview | Publishes through `node scripts/npm-publish-idempotent.js --tag preview --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a PR comment with the install command |
 
 ### Environment and Secrets
@@ -332,7 +336,7 @@ graph TD
     I --> J["Generate and check drift"]
     J --> K["Run full test suite"]
     K --> L["Create release/vX.Y.Z branch"]
-    L --> M["Update version files<br/>via scripts/update-versions.js"]
+    L --> M["Update canonical release inputs<br/>via scripts/update-versions.js"]
     M --> N["Regenerate with new version"]
     N --> O["Commit: 'release: vX.Y.Z'"]
     O --> P["Push release branch"]
@@ -356,8 +360,8 @@ graph TD
 | Generate and check drift | Runs generator and fails if `main` has uncommitted drift |
 | Run full test suite | Executes the full test suite |
 | Create release branch | Creates `release/vX.Y.Z` from current `main` |
-| Update version files | Runs `node scripts/update-versions.js` with the target version |
-| Regenerate with new version | Reruns generator and `npm install --package-lock-only` to update lockfile |
+| Update canonical release inputs | Runs `node scripts/update-versions.js` with the target version to update `package.json`, README badges, and CHANGELOG |
+| Regenerate with new version | Reruns generator to derive runtime metadata from `package.json`, then runs `npm install --package-lock-only` to update lockfile |
 | Commit release | Commits all changes as `release: vX.Y.Z` using the `github-actions[bot]` identity |
 | Push release branch | Pushes `release/vX.Y.Z` to origin |
 | Open PR to main | Creates a PR merging `release/vX.Y.Z` into `main` with CHANGELOG excerpt as body |
@@ -433,7 +437,9 @@ graph TD
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Determine RC version | Reads base version from `package.json`, queries npm registry for existing RC versions of this base, increments the RC number to avoid collisions |
-| Publish RC | Publishes with `npm publish --tag rc --access public` |
+| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the RC version |
+| Verify npm package contents | Runs `npm run pack:verify` against the RC package surface |
+| Publish RC | Publishes through `node scripts/npm-publish-idempotent.js --tag rc --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a comment with install command and short SHA |
 
 ### Environment and Secrets
@@ -511,7 +517,7 @@ graph TD
 | Package release artifact | Runs `npm run release:artifacts` to create `dist/release/maestro-vX.Y.Z-extension.tar.gz` |
 | Verify release artifact | Runs `npm run release:verify-artifacts` against the generated archive |
 | Create and push tag | Creates Git tag `vX.Y.Z` at the merge commit SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
-| Publish to npm | Publishes stable release with `npm publish --access public` through GitHub Actions OIDC trusted publishing (no dist-tag, so it becomes `latest`) |
+| Publish to npm | Publishes stable release through `node scripts/npm-publish-idempotent.js --access public` and GitHub Actions OIDC trusted publishing, skipping if the exact version already exists |
 | Extract changelog | Extracts the version-specific section from `CHANGELOG.md` using `awk` |
 | Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body and the generic extension archive attached |
 
