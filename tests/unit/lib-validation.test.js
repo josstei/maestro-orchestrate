@@ -269,6 +269,27 @@ describe('assertRelativePath', () => {
     );
   });
 
+  it('throws for an absolute Windows drive path', () => {
+    assertThrowsValidation(
+      () => assertRelativePath('C:\\Temp\\file.txt'),
+      'Path must be relative'
+    );
+  });
+
+  it('throws for an absolute Windows UNC path', () => {
+    assertThrowsValidation(
+      () => assertRelativePath('\\\\server\\share\\file.txt'),
+      'Path must be relative'
+    );
+  });
+
+  it('throws for an absolute Windows rooted path', () => {
+    assertThrowsValidation(
+      () => assertRelativePath('\\Temp\\file.txt'),
+      'Path must be relative'
+    );
+  });
+
   it('throws for path traversal with leading ..', () => {
     assertThrowsValidation(
       () => assertRelativePath('../outside'),

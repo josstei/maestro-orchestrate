@@ -6,6 +6,10 @@ const { ValidationError } = require('../errors');
 
 const SESSION_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
+function isAbsolutePath(p) {
+  return path.posix.isAbsolute(p) || path.win32.isAbsolute(p);
+}
+
 /**
  * @param {*} value
  * @param {string} label
@@ -68,7 +72,7 @@ function assertRelativePath(p) {
     });
   }
 
-  if (path.isAbsolute(p)) {
+  if (isAbsolutePath(p)) {
     throw new ValidationError('Path must be relative', {
       details: { value: p },
     });

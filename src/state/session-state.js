@@ -6,8 +6,12 @@ const { atomicWriteSync } = require('../lib/io');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
+function isAbsolutePath(filePath) {
+  return path.posix.isAbsolute(filePath) || path.win32.isAbsolute(filePath);
+}
+
 function validateRelativePath(filePath) {
-  if (path.isAbsolute(filePath)) {
+  if (isAbsolutePath(filePath)) {
     throw new Error('Path must be relative');
   }
   const segments = filePath.split(/[/\\]/);
