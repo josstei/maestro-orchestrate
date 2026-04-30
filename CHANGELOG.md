@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stable npm release recovery**: Release now uses `NPM_TOKEN` for stable publishes, supports manual recovery from an existing `vX.Y.Z` tag and target SHA, and enforces a stable-only `latest` dist-tag through the idempotent npm publish helper.
+
 ## [1.6.4] - 2026-04-30
 
 ### Added
