@@ -6,10 +6,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
-  RELEASE_ARTIFACT_PATHS,
+  assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
-  isDeniedPath,
   readJson,
 } = require('./release-artifact-manifest');
 
@@ -53,35 +52,6 @@ function extractArchive(archivePath, targetRoot) {
   });
 }
 
-function assertDeniedPathsAbsent(root) {
-  const queue = ['.'];
-
-  while (queue.length > 0) {
-    const relativeDir = queue.pop();
-    const absoluteDir = path.join(root, relativeDir);
-
-    for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
-      const relativePath = path.posix.join(relativeDir, entry.name).replace(/^\.\//, '');
-
-      if (isDeniedPath(relativePath)) {
-        throw new Error(`Release artifact contains denied path: ${relativePath}`);
-      }
-
-      if (entry.isDirectory()) {
-        queue.push(relativePath);
-      }
-    }
-  }
-}
-
-function assertOnlyManifestRoots(root) {
-  for (const relativePath of RELEASE_ARTIFACT_PATHS) {
-    if (!fs.existsSync(path.join(root, relativePath))) {
-      throw new Error(`Release artifact missing allowlisted path: ${relativePath}`);
-    }
-  }
-}
-
 function verifyReleaseArtifact(archivePath, options = {}) {
   const root = options.root || ROOT;
   const resolvedArchivePath = path.resolve(root, archivePath || defaultArchivePath(root));
@@ -94,9 +64,8 @@ function verifyReleaseArtifact(archivePath, options = {}) {
 
   try {
     extractArchive(resolvedArchivePath, tempRoot);
-    assertOnlyManifestRoots(tempRoot);
     assertRequiredArtifactPaths(tempRoot);
-    assertDeniedPathsAbsent(tempRoot);
+    assertReleaseArtifactContents(tempRoot);
     const version = assertRuntimeManifestShape(tempRoot);
 
     return {

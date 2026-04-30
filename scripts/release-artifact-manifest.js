@@ -55,6 +55,12 @@ const DENIED_ARTIFACT_PATHS = [
   'hooks/permissions.json',
 ];
 
+const DENIED_ARTIFACT_PATTERNS = [
+  /(^|\/)__tests__(\/|$)/,
+  /\.spec\.[cm]?js$/,
+  /\.test\.[cm]?js$/,
+];
+
 const REQUIRED_PACKAGE_FILES = [
   'bin/maestro-mcp-server.js',
   'claude/.claude-plugin/plugin.json',
@@ -68,10 +74,33 @@ function toPosixPath(filePath) {
   return filePath.split(path.sep).join('/');
 }
 
-function isDeniedPath(relativePath) {
+function normalizeArtifactPath(relativePath) {
   const normalized = toPosixPath(relativePath).replace(/\/+$/, '');
-  return DENIED_ARTIFACT_PATHS.some((denied) => {
+  return normalized === '.' ? '' : normalized.replace(/^\.\//, '');
+}
+
+function isDeniedPath(relativePath) {
+  const normalized = normalizeArtifactPath(relativePath);
+  const deniedByPath = DENIED_ARTIFACT_PATHS.some((denied) => {
     return normalized === denied || normalized.startsWith(`${denied}/`);
+  });
+
+  return deniedByPath || DENIED_ARTIFACT_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function isReleaseArtifactPathAllowed(relativePath) {
+  const normalized = normalizeArtifactPath(relativePath);
+
+  if (!normalized) {
+    return true;
+  }
+
+  return RELEASE_ARTIFACT_PATHS.some((allowed) => {
+    return (
+      normalized === allowed ||
+      normalized.startsWith(`${allowed}/`) ||
+      allowed.startsWith(`${normalized}/`)
+    );
   });
 }
 
@@ -103,6 +132,51 @@ function assertRequiredArtifactPaths(root) {
 
   if (missing.length > 0) {
     throw new Error(`Required release artifact paths are missing: ${missing.join(', ')}`);
+  }
+}
+
+function walkArtifactFiles(root) {
+  const files = [];
+  const queue = ['.'];
+
+  while (queue.length > 0) {
+    const relativeDir = queue.pop();
+    const absoluteDir = path.join(root, relativeDir);
+
+    for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+      const relativePath = normalizeArtifactPath(path.posix.join(relativeDir, entry.name));
+      files.push(relativePath);
+
+      if (entry.isDirectory()) {
+        queue.push(relativePath);
+      }
+    }
+  }
+
+  return files.sort();
+}
+
+function assertReleaseArtifactContents(root) {
+  const denied = [];
+  const unexpected = [];
+
+  for (const relativePath of walkArtifactFiles(root)) {
+    if (isDeniedPath(relativePath)) {
+      denied.push(relativePath);
+      continue;
+    }
+
+    if (!isReleaseArtifactPathAllowed(relativePath)) {
+      unexpected.push(relativePath);
+    }
+  }
+
+  if (denied.length > 0) {
+    throw new Error(`Release artifact contains denied paths: ${denied.join(', ')}`);
+  }
+
+  if (unexpected.length > 0) {
+    throw new Error(`Release artifact contains unallowlisted paths: ${unexpected.join(', ')}`);
   }
 }
 
@@ -284,14 +358,17 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
 module.exports = {
   DENIED_ARTIFACT_PATHS,
+  DENIED_ARTIFACT_PATTERNS,
   PACKAGE_NAME,
   RELEASE_ARTIFACT_PATHS,
   REQUIRED_PACKAGE_FILES,
+  assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   assertVersionConsistency,
   getVersionEntries,
   isDeniedPath,
+  isReleaseArtifactPathAllowed,
   readJson,
   toPosixPath,
 };
