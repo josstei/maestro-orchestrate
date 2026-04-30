@@ -22,7 +22,7 @@ codex plugin marketplace add /absolute/path/to/maestro-orchestrate
 
 ## Architecture
 
-Codex shares the same canonical `src/` source tree as the Gemini CLI and Claude Code outputs:
+Codex shares the same canonical `src/` source tree as the Gemini CLI, Claude Code, and Qwen Code outputs:
 - shared methodology, references, templates, hooks, and MCP server logic are authored only in `src/`
 - this plugin contains public entry skills, manifests, thin adapters, and a generated `./src/` runtime payload derived from canonical `src/`
 - Codex-specific behavior is isolated to this plugin's runtime guide and public entry skills, exposed under the plugin namespace as `$maestro:<skill>`
@@ -54,4 +54,4 @@ Codex shares the same canonical `src/` source tree as the Gemini CLI and Claude 
 
 ## Alignment goal
 
-Codex is treated as a third generated runtime, not a separate implementation. If behavior changes, update shared `src/` first and regenerate.
+Codex is treated as one of four generated runtimes, not a separate implementation. If behavior changes, update shared `src/` first and regenerate.

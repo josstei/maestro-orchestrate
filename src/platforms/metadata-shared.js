@@ -85,7 +85,9 @@ function buildSettings() {
 }
 
 function buildExtensionMcpServer(runtime) {
-  const env = {};
+  const env = {
+    MAESTRO_RUNTIME: runtime,
+  };
 
   if (runtime === 'qwen' || runtime === 'gemini') {
     env.MAESTRO_WORKSPACE_PATH = '${workspacePath}';

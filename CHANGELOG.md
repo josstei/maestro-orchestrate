@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-04-30
+
 ### Added
 
 - **Maestro cheatsheet**: added an English quick-reference guide covering supported runtimes, common commands, workflow concepts, and suggested reading order.

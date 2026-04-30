@@ -257,7 +257,7 @@ Apply depth-gated reasoning enrichment to design section content during the conv
 
 The write path depends on whether your runtime provides a Plan Mode surface (check `get_runtime_context`, loaded at session start, step 0):
 
-- **Plan Mode active**: Some runtimes restrict writes to a temporary staging directory during Plan Mode. Write the design document there. After `exit_plan_mode` approval in Phase 2, copy it to the permanent location.
+- **Plan Mode active**: Some runtimes restrict writes to a temporary staging directory during Plan Mode. Write the design document there first, then exit Plan Mode and complete the design approval handoff. When the runtime's Plan Mode path is not visible to the MCP server, use the `record_design_approval` content variant so the server materializes the canonical copy under `<state_dir>/plans/`.
 - **Plan Mode not active or not available**: Write directly to the permanent location. If your runtime does not provide Plan Mode, track design progress using the plan-update mechanism from runtime context and use the user-prompt tool from runtime context for section approvals and final signoff.
 
 Permanent location: `<state_dir>/plans/YYYY-MM-DD-<topic-slug>-design.md` (where `<state_dir>` resolves from `MAESTRO_STATE_DIR`, default `docs/maestro`).
