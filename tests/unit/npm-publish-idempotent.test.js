@@ -38,6 +38,7 @@ describe('idempotent npm publish', () => {
     try {
       const result = publishIfNeeded({
         root,
+        logger: { log: () => {}, warn: () => {} },
         tag: 'rc',
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
@@ -48,10 +49,9 @@ describe('idempotent npm publish', () => {
         },
       });
 
-      assert.deepEqual(result, {
-        packageSpec: '@josstei/maestro@1.2.3-rc.1',
-        published: false,
-      });
+      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3-rc.1');
+      assert.equal(result.published, false);
+      assert.equal(result.latestPolicy.status, 'ok');
       assert.deepEqual(calls, [
         ['npm', ['view', '@josstei/maestro@1.2.3-rc.1', 'version']],
         ['npm', ['dist-tag', 'ls', '@josstei/maestro']],
@@ -68,6 +68,7 @@ describe('idempotent npm publish', () => {
     try {
       const result = publishIfNeeded({
         root,
+        logger: { log: () => {}, warn: () => {} },
         tag: 'preview',
         access: 'public',
         execFileSync: (cmd, args) => {
@@ -82,10 +83,9 @@ describe('idempotent npm publish', () => {
         },
       });
 
-      assert.deepEqual(result, {
-        packageSpec: '@josstei/maestro@1.2.3-preview.abcdef0',
-        published: true,
-      });
+      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3-preview.abcdef0');
+      assert.equal(result.published, true);
+      assert.equal(result.latestPolicy.status, 'ok');
       assert.deepEqual(calls[1], ['npm', ['publish', '--tag', 'preview', '--access', 'public']]);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -99,6 +99,7 @@ describe('idempotent npm publish', () => {
     try {
       const result = publishIfNeeded({
         root,
+        logger: { log: () => {}, warn: () => {} },
         access: 'public',
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
@@ -112,11 +113,46 @@ describe('idempotent npm publish', () => {
         },
       });
 
-      assert.deepEqual(result, {
-        packageSpec: '@josstei/maestro@1.2.3',
-        published: true,
-      });
+      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3');
+      assert.equal(result.published, true);
+      assert.equal(result.latestPolicy.status, 'moved');
+      assert.equal(result.latestPolicy.latest, '1.2.2');
+      assert.equal(result.latestPolicy.target, '1.2.3');
       assert.deepEqual(calls[1], ['npm', ['publish', '--access', 'public']]);
+      assert.deepEqual(calls.at(-1), [
+        'npm',
+        ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
+      ]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('moves latest from a prerelease to stable when stable already exists', () => {
+    const root = createPackageRoot('1.2.3');
+    const calls = [];
+
+    try {
+      const result = publishIfNeeded({
+        root,
+        logger: { log: () => {}, warn: () => {} },
+        execFileSync: (cmd, args) => {
+          calls.push([cmd, args]);
+          if (args[0] === 'view') {
+            return '1.2.3\n';
+          }
+          if (args[0] === 'dist-tag' && args[1] === 'ls') {
+            return 'latest: 1.2.4-rc.1\nrc: 1.2.4-rc.1\n';
+          }
+          return '';
+        },
+      });
+
+      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3');
+      assert.equal(result.published, false);
+      assert.equal(result.latestPolicy.status, 'moved');
+      assert.equal(result.latestPolicy.latest, '1.2.4-rc.1');
+      assert.equal(result.latestPolicy.target, '1.2.3');
       assert.deepEqual(calls.at(-1), [
         'npm',
         ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
@@ -165,13 +201,15 @@ describe('idempotent npm publish', () => {
     }
   });
 
-  it('removes latest when it points to a prerelease and no stable exists', () => {
+  it('defers latest repair when it points to a prerelease and no stable exists', () => {
     const root = createPackageRoot('1.2.3-rc.1');
     const calls = [];
+    const warnings = [];
 
     try {
-      publishIfNeeded({
+      const result = publishIfNeeded({
         root,
+        logger: { log: () => {}, warn: (message) => warnings.push(message) },
         tag: 'rc',
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
@@ -188,7 +226,15 @@ describe('idempotent npm publish', () => {
         },
       });
 
-      assert.deepEqual(calls.at(-1), ['npm', ['dist-tag', 'rm', '@josstei/maestro', 'latest']]);
+      assert.equal(result.latestPolicy.status, 'deferred');
+      assert.equal(result.latestPolicy.latest, '1.2.3-rc.1');
+      assert.equal(result.latestPolicy.target, null);
+      assert.match(result.latestPolicy.reason, /no stable versions are published/);
+      assert.match(warnings[0], /stable release must move latest/);
+      assert.equal(
+        calls.some(([, args]) => args[0] === 'dist-tag' && args[1] === 'rm'),
+        false
+      );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -199,8 +245,9 @@ describe('idempotent npm publish', () => {
     const calls = [];
 
     try {
-      publishIfNeeded({
+      const result = publishIfNeeded({
         root,
+        logger: { log: () => {}, warn: () => {} },
         tag: 'rc',
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
@@ -217,6 +264,9 @@ describe('idempotent npm publish', () => {
         },
       });
 
+      assert.equal(result.latestPolicy.status, 'moved');
+      assert.equal(result.latestPolicy.latest, '1.3.0-rc.1');
+      assert.equal(result.latestPolicy.target, '1.2.0');
       assert.deepEqual(calls.at(-1), [
         'npm',
         ['dist-tag', 'add', '@josstei/maestro@1.2.0', 'latest'],
@@ -262,5 +312,15 @@ describe('idempotent npm publish', () => {
       rc: '1.3.0-rc.1',
     });
     assert.equal(highestStableVersion(['1.2.9', '1.10.0', '2.0.0-rc.1']), '1.10.0');
+  });
+
+  it('does not remove latest through npm dist-tag policy', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '..', '..', 'scripts', 'npm-publish-idempotent.js'),
+      'utf8'
+    );
+
+    assert.doesNotMatch(source, /dist-tag['"],\s*['"]rm/);
+    assert.doesNotMatch(source, /dist-tag rm/);
   });
 });
