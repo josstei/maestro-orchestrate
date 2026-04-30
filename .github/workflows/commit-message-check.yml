@@ -48,6 +48,52 @@ jobs:
           fi
           echo "PR title OK: $PR_TITLE"
 
+  check-pr-branch:
+    name: branch-name-check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR branch against semantic branch convention
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          branch_pattern='^([a-z0-9][a-z0-9._-]*/)?(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert)/[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*$'
+          release_pattern='^release/v[0-9]+\.[0-9]+\.[0-9]+$'
+
+          case "$HEAD_REF" in
+            main|master|develop|dev|trunk|dependabot/*|renovate/*|github-actions/*)
+              echo "PR branch OK: $HEAD_REF"
+              exit 0
+              ;;
+          esac
+
+          if [[ "$HEAD_REF" =~ $branch_pattern || "$HEAD_REF" =~ $release_pattern ]]; then
+            echo "PR branch OK: $HEAD_REF"
+            exit 0
+          fi
+
+          {
+            echo "::error title=PR branch invalid::PR branch does not match the semantic branch convention"
+            echo ""
+            echo "PR branch: $HEAD_REF"
+            echo ""
+            echo "Required branch format:"
+            echo "  <type>/<slug>"
+            echo "  <namespace>/<type>/<slug>"
+            echo "  release/vX.Y.Z"
+            echo ""
+            echo "Allowed types: feat, fix, chore, docs, test, refactor, perf, style,"
+            echo "               build, ci, revert."
+            echo ""
+            echo "Examples:"
+            echo "  feat/semantic-git-hooks"
+            echo "  fix/pre-push-range"
+            echo "  codex/chore/enforce-git-conventions"
+            echo "  release/v1.7.0"
+          } >&2
+          exit 1
+
   check-commits:
     name: commit-subjects-check
     runs-on: ubuntu-latest

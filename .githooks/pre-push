@@ -7,6 +7,16 @@
 
 set -euo pipefail
 
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=.githooks/lib/semantic-git.sh
+source "$HOOK_DIR/lib/semantic-git.sh"
+
+REMOTE_NAME="${1:-origin}"
+
+if ! semantic_validate_pushed_refs "$REMOTE_NAME" "pre-push"; then
+  exit 1
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 

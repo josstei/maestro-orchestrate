@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# pre-commit: enforce semantic branch names before commits are created.
+
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=.githooks/lib/semantic-git.sh
+source "$HOOK_DIR/lib/semantic-git.sh"
+
+branch="$(git symbolic-ref --quiet --short HEAD || true)"
+
+# Detached HEADs are common during bisects, rebases, CI, and release tooling.
+[ -n "$branch" ] || exit 0
+
+if semantic_branch_name_is_valid "$branch"; then
+  exit 0
+fi
+
+semantic_print_branch_name_error "pre-commit" "$branch"
+exit 1
