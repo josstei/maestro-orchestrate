@@ -14,7 +14,9 @@
       "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
       "version": "1.6.3",
       "author": {
-        "name": "josstei"
+        "name": "josstei",
+        "email": "hello@josstei.dev",
+        "url": "https://github.com/josstei"
       },
       "homepage": "https://github.com/josstei/maestro-orchestrate",
       "repository": "https://github.com/josstei/maestro-orchestrate",

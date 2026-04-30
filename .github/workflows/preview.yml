@@ -77,7 +77,7 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           SHA="$HEAD_SHA"
-          BODY="Preview published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
+          BODY="Preview published: \`npm install @josstei/maestro@${VERSION}\`
 
           Built from \`${SHA}\`"
 

@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PACKAGE_NAME = '@maestro-orchestrator/maestro';
+const PACKAGE_NAME = '@josstei/maestro';
 
 const RELEASE_ARTIFACT_PATHS = [
   '.agents/plugins/marketplace.json',

@@ -15,7 +15,7 @@ The Codex plugin lives in `plugins/maestro/`.
 ```json
 {
   "command": "npx",
-  "args": ["-y", "-p", "@maestro-orchestrator/maestro@1.6.3", "maestro-mcp-server"],
+  "args": ["-y", "-p", "@josstei/maestro@1.6.3", "maestro-mcp-server"],
   "env": { "MAESTRO_RUNTIME": "codex" }
 }
 ```
@@ -36,7 +36,7 @@ That keeps Maestro state rooted under the actual workspace `docs/maestro` path r
   "name": "maestro",
   "version": "1.6.3",
   "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
-  "author": { "name": "josstei", "url": "https://github.com/josstei" },
+  "author": { "name": "josstei", "email": "hello@josstei.dev", "url": "https://github.com/josstei" },
   "homepage": "https://github.com/josstei/maestro-orchestrate",
   "repository": "https://github.com/josstei/maestro-orchestrate",
   "license": "Apache-2.0",

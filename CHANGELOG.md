@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Maestro cheatsheet**: added an English quick-reference guide covering supported runtimes, common commands, workflow concepts, and suggested reading order.
 
+### Changed
+
+- **npm package identity**: renamed the planned npm package to `@josstei/maestro`, added `hello@josstei.dev` to public author metadata, and moved the stable release publish path toward GitHub Actions trusted publishing.
+
 ### Fixed
 
 - **Codex plugin MCP server fails to start**: corrected `npx` args in `plugins/maestro/.mcp.json` — added `-p`/`--package` flag so `maestro-mcp-server` is resolved as the binary name rather than an argument to the package's default binary.

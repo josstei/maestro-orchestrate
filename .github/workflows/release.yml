@@ -6,13 +6,12 @@ on:
 
 permissions:
   contents: write
+  id-token: write
   pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -43,16 +42,8 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.detect.outputs.is_release == 'true'
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Require npm publish token
-        if: steps.detect.outputs.is_release == 'true'
-        run: |
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "::error::NPM_TOKEN is required for stable releases"
-            exit 1
-          fi
 
       - name: Extract and validate version
         if: steps.detect.outputs.is_release == 'true'
@@ -137,8 +128,6 @@ jobs:
       - name: Publish to npm
         if: steps.detect.outputs.is_release == 'true'
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Extract changelog for version
         if: steps.detect.outputs.is_release == 'true'

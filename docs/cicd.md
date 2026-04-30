@@ -28,7 +28,7 @@ graph LR
     end
 ```
 
-The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release requires `NPM_TOKEN` and fails before tagging when it is unavailable. Commit Message Check is independent: it does not regenerate or test, it only validates commit-subject formatting.
+The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release publishes through npm Trusted Publishing with GitHub Actions OIDC. Commit Message Check is independent: it does not regenerate or test, it only validates commit-subject formatting.
 
 ## Source Of Truth Check
 
@@ -208,7 +208,7 @@ graph TD
 
 ### Artifacts
 
-Publishes `@maestro-orchestrator/maestro@X.Y.Z-nightly.YYYYMMDD` to npm with the `nightly` dist-tag.
+Publishes `@josstei/maestro@X.Y.Z-nightly.YYYYMMDD` to npm with the `nightly` dist-tag.
 
 ### Key Behaviors
 
@@ -280,7 +280,7 @@ graph TD
 
 ### Artifacts
 
-Publishes `@maestro-orchestrator/maestro@X.Y.Z-preview.SHORT_SHA` to npm with the `preview` dist-tag.
+Publishes `@josstei/maestro@X.Y.Z-preview.SHORT_SHA` to npm with the `preview` dist-tag.
 
 ### Key Behaviors
 
@@ -435,7 +435,7 @@ graph TD
 
 ### Artifacts
 
-Publishes `@maestro-orchestrator/maestro@X.Y.Z-rc.N` to npm with the `rc` dist-tag, where `N` is auto-incremented.
+Publishes `@josstei/maestro@X.Y.Z-rc.N` to npm with the `rc` dist-tag, where `N` is auto-incremented.
 
 ### Key Behaviors
 
@@ -466,10 +466,8 @@ graph TD
     B --> C["Resolve release PR from commit"]
     C --> D{"Merged PR with<br/>'release' label found?"}
     D --> |"No"| E["Skip: not a release commit"]
-    D --> |"Yes"| F["Setup Node.js 20 with npm registry"]
-    F --> G{"NPM_TOKEN available?"}
-    G --> |"No"| X["Fail: stable releases require npm publish"]
-    G --> |"Yes"| I["Extract and validate version"]
+    D --> |"Yes"| F["Setup Node.js 24 with npm registry"]
+    F --> I["Extract and validate version"]
     I --> J["Generate runtime adapters"]
     J --> K{"Adapter drift?"}
     K --> |"Yes"| L["Fail: adapters out of sync"]
@@ -491,8 +489,7 @@ graph TD
 |------|-------------|
 | Checkout | Full history (`fetch-depth: 0`) for tag operations |
 | Resolve release PR from commit | Queries the GitHub API for PRs associated with the current commit SHA; filters for merged PRs targeting `main` with the `release` label. If none found, sets `is_release=false` and all subsequent steps are skipped. |
-| Setup Node.js | Conditional on `is_release=true`; Node.js 20 with npm registry URL |
-| Require npm publish token | Conditional on `is_release=true`; fails if `NPM_TOKEN` is unavailable |
+| Setup Node.js | Conditional on `is_release=true`; Node.js 24 with npm registry URL for npm Trusted Publishing |
 | Extract and validate version | Reads version from `package.json` and cross-validates: the CHANGELOG must have a matching section (unconditional). When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
 | Generate runtime adapters | Runs `node scripts/generate.js` |
 | Check adapter drift | Final drift check before release; fails with error annotation |
@@ -501,7 +498,7 @@ graph TD
 | Package release artifact | Runs `npm run release:artifacts` to create `dist/release/maestro-vX.Y.Z-extension.tar.gz` |
 | Verify release artifact | Runs `npm run release:verify-artifacts` against the generated archive |
 | Create and push tag | Creates Git tag `vX.Y.Z` at the merge commit SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
-| Publish to npm | Publishes stable release with `npm publish --access public` (no dist-tag, so it becomes `latest`) |
+| Publish to npm | Publishes stable release with `npm publish --access public` through GitHub Actions OIDC trusted publishing (no dist-tag, so it becomes `latest`) |
 | Extract changelog | Extracts the version-specific section from `CHANGELOG.md` using `awk` |
 | Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body and the generic extension archive attached |
 
@@ -509,23 +506,21 @@ graph TD
 
 | Item | Type | Purpose |
 |------|------|---------|
-| `NPM_TOKEN` | Secret | npm registry authentication for stable publish |
-| `NODE_AUTH_TOKEN` | Env (derived) | Set to `$NPM_TOKEN` for npm CLI |
 | `GH_TOKEN` | Env (derived) | Set to `${{ github.token }}` for PR creation and GitHub API calls |
 
-**Permissions**: `contents: write`, `pull-requests: write`
+**Permissions**: `contents: write`, `id-token: write`, `pull-requests: write`
 
 ### Artifacts
 
 - Git tag `vX.Y.Z` pushed to origin
-- Stable npm package `@maestro-orchestrator/maestro@X.Y.Z` published with the `latest` dist-tag
+- Stable npm package `@josstei/maestro@X.Y.Z` published with the `latest` dist-tag
 - GitHub Release with CHANGELOG body and `maestro-vX.Y.Z-extension.tar.gz`
 
 ### Key Behaviors
 
 - The release detection uses the GitHub API to find the PR associated with the merge commit, filtering for the `release` label. Non-release pushes to `main` exit early and cleanly.
 - Version validation cross-checks `package.json` against the CHANGELOG (unconditional) and, when applicable, against the release branch name (`release/vX.Y.Z`) and the PR title (`release: vX.Y.Z`). A mismatch in any available source fails the workflow.
-- The stable release path fails if `NPM_TOKEN` is unavailable; unlike preview, RC, and nightly workflows, stable releases do not skip npm publishing.
+- Stable releases require npm Trusted Publishing to be configured for `@josstei/maestro` with GitHub Actions workflow `release.yml`; the workflow does not use a long-lived npm token.
 - Tag creation is idempotent: if the tag already exists at the same commit, the step is skipped. If it exists at a different commit, the workflow fails to prevent overwriting a release.
 
 ---
@@ -617,7 +612,7 @@ graph LR
 | Preview Build | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
 | Prepare Release | `contents: write`, `pull-requests: write` | `RELEASE_TOKEN` |
 | Release Candidate | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
-| Release | `contents: write`, `pull-requests: write` | `NPM_TOKEN` |
+| Release | `contents: write`, `id-token: write`, `pull-requests: write` | None |
 
 The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elevated permissions. The default `GITHUB_TOKEN` does not trigger downstream workflow runs, so `RELEASE_TOKEN` is required for branch pushes and PR creation that need to activate Source Of Truth Check and Release Candidate on the newly created PR.
 

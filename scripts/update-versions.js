@@ -19,7 +19,7 @@ const BADGE_FILES = [
 const MARKETPLACE_PATH = '.claude-plugin/marketplace.json';
 const CODEX_MCP_PATH = 'plugins/maestro/.mcp.json';
 const CHANGELOG_PATH = 'CHANGELOG.md';
-const PACKAGE_NAME = '@maestro-orchestrator/maestro';
+const PACKAGE_NAME = '@josstei/maestro';
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

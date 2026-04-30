@@ -210,7 +210,7 @@ Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The a
 Stable releases publish three aligned outputs:
 
 - Git tag `vX.Y.Z`
-- npm package `@maestro-orchestrator/maestro@X.Y.Z`
+- npm package `@josstei/maestro@X.Y.Z`
 - GitHub Release asset `maestro-vX.Y.Z-extension.tar.gz`
 
 Codex plugin releases launch the MCP server through the matching npm package version. Hook installation is explicit via `npm run install-hooks`; package, pack, and publish flows do not install git hooks.

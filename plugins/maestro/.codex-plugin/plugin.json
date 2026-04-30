@@ -4,6 +4,7 @@
   "description": "Generated Codex runtime for Maestro's multi-agent design, planning, execution, and review workflows.",
   "author": {
     "name": "josstei",
+    "email": "hello@josstei.dev",
     "url": "https://github.com/josstei"
   },
   "homepage": "https://github.com/josstei/maestro-orchestrate",

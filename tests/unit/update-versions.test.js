@@ -11,7 +11,7 @@ const { updateVersions } = require('../../scripts/update-versions');
 function createTempProject(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-update-versions-'));
   const files = {
-    'package.json': { name: '@maestro-orchestrator/maestro', version, license: 'Apache-2.0' },
+    'package.json': { name: '@josstei/maestro', version, license: 'Apache-2.0' },
     'gemini-extension.json': { name: 'maestro', version },
     'qwen-extension.json': { name: 'maestro', version },
     'claude/.claude-plugin/plugin.json': { name: 'maestro', version },
@@ -20,7 +20,7 @@ function createTempProject(version) {
       mcpServers: {
         maestro: {
           command: 'npx',
-          args: ['-y', '-p', `@maestro-orchestrator/maestro@${version}`, 'maestro-mcp-server'],
+          args: ['-y', '-p', `@josstei/maestro@${version}`, 'maestro-mcp-server'],
         },
       },
     },
@@ -97,7 +97,7 @@ describe('updateVersions', () => {
     assert.equal(qwen.version, '1.7.0');
     assert.equal(claudePlugin.version, '1.7.0');
     assert.equal(codexPlugin.version, '1.7.0');
-    assert.ok(codexMcp.mcpServers.maestro.args.includes('@maestro-orchestrator/maestro@1.7.0'));
+    assert.ok(codexMcp.mcpServers.maestro.args.includes('@josstei/maestro@1.7.0'));
     assert.equal(marketplace.metadata.version, '1.7.0');
     assert.equal(marketplace.plugins[0].version, '1.7.0');
   });

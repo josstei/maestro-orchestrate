@@ -60,7 +60,7 @@ jobs:
         id: rc
         run: |
           BASE=$(node -p "require('./package.json').version")
-          EXISTING=$(npm view "@maestro-orchestrator/maestro" versions --json 2>/dev/null || echo '[]')
+          EXISTING=$(npm view "@josstei/maestro" versions --json 2>/dev/null || echo '[]')
           RC_NUM=1
 
           while echo "$EXISTING" | grep -q "\"${BASE}-rc.${RC_NUM}\""; do
@@ -88,7 +88,7 @@ jobs:
         run: |
           SHA="$HEAD_SHA"
           SHORT_SHA=$(echo "$SHA" | cut -c1-7)
-          BODY="Release candidate published: \`npm install @maestro-orchestrator/maestro@${VERSION}\`
+          BODY="Release candidate published: \`npm install @josstei/maestro@${VERSION}\`
 
           Built from \`${SHORT_SHA}\`"
 
