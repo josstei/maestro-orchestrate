@@ -25,6 +25,7 @@ assignees: ''
 - [ ] Gemini CLI
 - [ ] Claude Code
 - [ ] Codex
+- [ ] Qwen Code
 - [ ] All runtimes
 - [ ] Build/generator only
 

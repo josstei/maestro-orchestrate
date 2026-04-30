@@ -30,6 +30,7 @@
 - [ ] Gemini CLI
 - [ ] Claude Code
 - [ ] Codex
+- [ ] Qwen Code
 - [ ] None (internal/build only)
 
 ## Testing Notes

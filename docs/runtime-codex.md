@@ -183,15 +183,15 @@ plugins/maestro/
 
 The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`; `node scripts/generate.js` derives `plugins/maestro/.mcp.json` from `package.json` so the plugin manifest and MCP package spec stay on the same version.
 
-## Differences from Gemini and Claude
+## Differences from Other Runtimes
 
-| Aspect | Gemini | Claude | Codex |
-|--------|--------|--------|-------|
-| Agent names | snake_case | kebab-case | kebab-case |
-| Delegation | Direct function call | Agent subagent | spawn_agent |
-| Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | None |
-| Policies | TOML rules | JS hook enforcer | None |
-| Skill surface | N/A (commands) | 19 skills | plugin namespace `$maestro:*` |
-| Path style | Variable passthrough | Env var refs | `npx` bin |
-| Extra files | TOML policy rules | policy-enforcer | runtime guide |
-| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | npx bin + detached `src/` payload |
+| Aspect | Gemini | Claude | Qwen | Codex |
+|--------|--------|--------|------|-------|
+| Agent names | snake_case | kebab-case | snake_case | kebab-case |
+| Delegation | Direct function call | Agent subagent | Direct function call | spawn_agent |
+| Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | 4 events in `qwen/hooks.json` | None |
+| Policies | TOML rules | JS hook enforcer | TOML rules | None |
+| Skill surface | N/A (commands) | 19 skills | N/A (Gemini-compatible commands) | plugin namespace `$maestro:*` |
+| Path style | Variable passthrough | Env var refs | Variable passthrough | `npx` bin |
+| Extra files | TOML policy rules | policy-enforcer | Qwen manifest, context, agents, hooks config | runtime guide |
+| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | shared root entrypoint + `qwen/` stubs | npx bin + detached `src/` payload |

@@ -11,7 +11,7 @@ node scripts/generate.js
 # Generate runtime adapters using package scripts
 npm run build
 
-# Run all 980 tests across 71 files
+# Run all tests across unit, transform, and integration suites
 node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 
 # Show unified diff of changes
@@ -29,13 +29,13 @@ just test-transforms
 # Run only integration tests
 just test-integration
 
-# Generate + verify zero drift (CI equivalent)
+# Generate + verify zero drift in a clean worktree/CI checkout
 just check
 
-# Full CI equivalent (check + test)
+# Full CI equivalent in a clean worktree/CI checkout (check + check-layers + test)
 just ci
 
-# Verify lib/ import-boundary rules (enforced by check target)
+# Verify lib/ import-boundary rules
 just check-layers
 
 # Delete local branches whose remotes are gone
@@ -44,11 +44,12 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`) directly, and do not edit generated `claude/`, `plugins/maestro/`, or `qwen/` output.
+1. Edit canonical source in `src/`. Maintain hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`) directly. Do not edit generated runtime stubs, command files, hook adapters, detached payloads, or generated skill copies directly.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
-3. Run `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` (or `just test`) before committing
-4. Commit canonical source, directly owned root docs, and generated adapter output together
-5. CI will fail if runtime adapters drift from canonical `src/`
+3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
+4. Run `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` (or `just test`) before committing
+5. Commit canonical source, directly owned root docs, and generated adapter output together
+6. CI will fail if runtime adapters drift from canonical `src/`; `just check` and `just ci` are designed for clean worktrees because they end with `git diff --exit-code`
 
 ## Configuration
 
@@ -72,6 +73,8 @@ All settings are resolved with precedence: environment variable > workspace `.en
 |----------|---------|---------|
 | `MAESTRO_EXTENSION_PATH` | Gemini | Override extension root path |
 | `MAESTRO_WORKSPACE_PATH` | Gemini | Workspace root (set by Gemini CLI) |
+| `MAESTRO_EXTENSION_PATH` | Qwen | Override extension root path |
+| `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
 | `MAESTRO_WORKSPACE_PATH` | Codex | Optional workspace root override; otherwise Codex uses MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
 | `CLAUDE_PROJECT_DIR` | Claude | Project directory (set by Claude Code) |

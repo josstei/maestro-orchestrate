@@ -17,7 +17,7 @@ Include as much of the following as possible:
 
 - Description of the vulnerability
 - Steps to reproduce or proof of concept
-- Affected versions and runtimes (Gemini CLI, Claude Code, Codex)
+- Affected versions and runtimes (Gemini CLI, Claude Code, Codex, Qwen Code)
 - Potential impact
 
 ## Response Timeline
@@ -38,7 +38,7 @@ The following areas are in scope for security reports:
 
 Out of scope:
 
-- Vulnerabilities in upstream runtimes (Gemini CLI, Claude Code, Codex) themselves
+- Vulnerabilities in upstream runtimes (Gemini CLI, Claude Code, Codex, Qwen Code) themselves
 - Social engineering
 - Denial of service against local development environments
 

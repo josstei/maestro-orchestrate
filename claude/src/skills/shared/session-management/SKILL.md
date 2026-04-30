@@ -18,12 +18,12 @@ Detection: check whether MCP state tools appear in your available tools. If they
 
 ## Hook-Level Session State
 
-Maestro hooks maintain a separate, transient state directory at `/tmp/maestro-hooks/<session-id>/` that is distinct from orchestration state in `<MAESTRO_STATE_DIR>`:
+Maestro hooks maintain a separate, transient state directory under `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` that is distinct from orchestration state in `<MAESTRO_STATE_DIR>`:
 
 | Concern | Orchestration State | Hook State |
 | --- | --- | --- |
-| Location | `<MAESTRO_STATE_DIR>/state/` | `/tmp/maestro-hooks/<session-id>/` (Unix) or `<os.tmpdir()>/maestro-hooks/<session-id>/` (Windows) |
-| Lifecycle | Created in Phase 2, archived in Phase 4 | Directory created by the session-start hook when an active session exists; active-agent file written by the pre-delegation hook and cleared by the post-delegation hook; stale directories pruned by both session-start and pre-delegation hooks |
+| Location | `<MAESTRO_STATE_DIR>/state/` | `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` |
+| Lifecycle | Created at execution setup, archived in Phase 4 | Directory created by the session-start hook when an active session exists; active-agent file written by the pre-delegation hook and cleared by the post-delegation hook; stale directories pruned by both session-start and pre-delegation hooks |
 | Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
 | Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
 | Managed by | Orchestrator via session-management skill | The runtime's pre-delegation and post-delegation hooks |
@@ -35,7 +35,7 @@ The orchestrator does not read or write hook-level state directly. It interacts 
 ## Session Creation Protocol
 
 ### When to Create
-For Standard workflow, create a new session when beginning Phase 2 (Team Assembly & Planning) of orchestration, after the design document has been approved. For Express workflow, create a session after the structured brief is approved (see Express Workflow section in the orchestrator template).
+For Standard workflow, create a new session at execution setup after the design document and implementation plan are approved and the execution mode gate has resolved. For Express workflow, create a session after the structured brief is approved (see Express Workflow section in the orchestrator template).
 
 ### Session ID Format
 `YYYY-MM-DD-<topic-slug>`

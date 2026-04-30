@@ -48,6 +48,14 @@ describe('platform metadata generation', () => {
     assert.deepEqual([...outputs.keys()].sort(), expectedPaths);
     assert.equal(outputs.get('gemini-extension.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('qwen-extension.json').version, PACKAGE_FIXTURE.version);
+    assert.equal(
+      outputs.get('gemini-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
+      'gemini'
+    );
+    assert.equal(
+      outputs.get('qwen-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
+      'qwen'
+    );
     assert.equal(outputs.get('claude/.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(

@@ -76,7 +76,7 @@ For each domain, determine if the task has needs that warrant specialist involve
 
 | Domain | Signal questions | Candidate agents |
 | --- | --- | --- |
-| Engineering | Does the task involve code, infrastructure, or data? | `architect`, `api_designer`, `coder`, `code_reviewer`, `tester`, `refactor`, `data_engineer`, `debugger`, `devops_engineer`, `performance_engineer`, `security_engineer`, `technical_writer` |
+| Engineering | Does the task involve code, infrastructure, APIs, data, or delivery? | `architect`, `api_designer`, `coder`, `code_reviewer`, `tester`, `refactor`, `data_engineer`, `database_administrator`, `debugger`, `devops_engineer`, `integration_engineer`, `platform_engineer`, `cloud_architect`, `solutions_architect`, `site_reliability_engineer`, `observability_engineer`, `performance_engineer`, `security_engineer`, `technical_writer`, `release_manager` |
 | Product | Are requirements unclear, or does success depend on user outcomes? | `product_manager` |
 | Design | Does the deliverable have a user-facing interface or interaction? | `ux_designer`, `accessibility_specialist`, `design_system_engineer` |
 | Content | Does the task produce or modify user-visible text, copy, or media? | `content_strategist`, `copywriter` |
@@ -84,13 +84,16 @@ For each domain, determine if the task has needs that warrant specialist involve
 | Compliance | Does the task handle user data, payments, or operate in a regulated domain? | `compliance_reviewer` |
 | Internationalization | Must the deliverable support multiple locales? | `i18n_specialist` |
 | Analytics | Does success need to be measured, or does the feature need instrumentation? | `analytics_engineer` |
+| ML/AI | Does the task involve model training, inference, prompts, or model operations? | `ml_engineer`, `mlops_engineer`, `prompt_engineer` |
+| Mobile | Does the task target iOS, Android, React Native, Flutter, or mobile release constraints? | `mobile_engineer` |
+| Mainframe / IBM | Does the task involve COBOL, JCL, DB2 for z/OS or IBM i, HLASM, RACF, CICS, IMS, or USS? | `cobol_engineer`, `db2_dba`, `zos_sysprog`, `hlasm_assembler_specialist`, `ibm_i_specialist` |
 
 Skip domains where the answer is clearly "no." For relevant domains, include appropriate agents in the phase plan alongside engineering agents. Domain agents participate at whatever phase makes sense — design, implementation, or post-build audit — based on the specific task.
 
 Apply domain analysis proportional to `task_complexity`:
 - `simple`: Engineering domain only. Skip other domains unless explicitly requested.
 - `medium`: Engineering + domains with clear signals from the task description.
-- `complex`: Full 8-domain sweep (current behavior).
+- `complex`: Full domain sweep (current behavior).
 
 
 ## Native Parallel Contract
@@ -141,7 +144,7 @@ CORRECT — Delegating via the agent's own tool:
 
 When building delegation prompts:
 
-1. Call the agent's registered tool by its exact name from the Agent Roster (e.g., `coder`, `tester`, `design_system_engineer`). Use `get_agent` to load the full methodology body and declared tool restrictions for the matching kebab-case agent.
+1. Call the agent's registered tool by its exact name from the Agent Roster (e.g., `coder`, `tester`, `design_system_engineer`). Use `get_agent` to load the full methodology body, declared tool restrictions, and runtime `tool_name` for the matching canonical agent.
 2. Do not rely on Maestro-level model, temperature, turn, or timeout overrides. Use agent frontmatter and runtime-level agent configuration for native tuning.
 3. Inject shared protocols from `get_skill_content` with resources: `["agent-base-protocol", "filesystem-safety-protocol"]`.
 4. Include dependency downstream context from session state.
@@ -189,30 +192,47 @@ All agent names use **snake_case** (underscores, not hyphens). When delegating, 
 
 ## Agent Roster
 
-| Agent | Focus | Key Tool Profile |
+| Agent | Focus | Capability Tier |
 | --- | --- | --- |
-| `architect` | System design | Read tools + web search/fetch |
-| `api_designer` | API contracts | Read tools + web search/fetch |
-| `code_reviewer` | Code quality review | Read-only |
-| `coder` | Feature implementation | Read/write/shell + todos + skill activation |
-| `data_engineer` | Schema/data/queries | Read/write/shell + todos + web search |
-| `debugger` | Root cause analysis | Read + shell + todos |
-| `devops_engineer` | CI/CD and infra | Read/write/shell + todos + web search/fetch |
-| `performance_engineer` | Performance profiling | Read + shell + todos + web search/fetch |
-| `refactor` | Structural refactoring | Read/write/shell + todos + skill activation |
-| `security_engineer` | Security auditing | Read + shell + todos + web search/fetch |
-| `technical_writer` | Documentation | Read/write + todos + web search |
-| `tester` | Test implementation | Read/write/shell + todos + skill activation + web search |
-| `seo_specialist` | Technical SEO auditing | Read + shell + web search/fetch + todos |
-| `copywriter` | Marketing copy & content | Read/write |
-| `content_strategist` | Content planning & strategy | Read + web search/fetch |
-| `ux_designer` | User experience design | Read/write + web search |
-| `accessibility_specialist` | WCAG compliance auditing | Read + shell + web search + todos |
-| `product_manager` | Requirements & product strategy | Read/write + web search |
-| `analytics_engineer` | Tracking & measurement | Read/write/shell + web search + todos |
-| `i18n_specialist` | Internationalization | Read/write/shell + todos |
-| `design_system_engineer` | Design tokens & theming | Read/write/shell + todos + skill activation |
-| `compliance_reviewer` | Legal & regulatory compliance | Read + web search/fetch |
+| `accessibility_specialist` | WCAG compliance auditing, ARIA review | Read + shell |
+| `analytics_engineer` | Event tracking, conversion funnels | Full access |
+| `api_designer` | API contracts and endpoint design | Read-only |
+| `architect` | System design and architecture decisions | Read-only |
+| `cloud_architect` | AWS/GCP/Azure topology, IaC, multi-region design | Read-only |
+| `cobol_engineer` | Mainframe COBOL, JCL, CICS/IMS on z/OS | Full access |
+| `code_reviewer` | Code quality review and bug identification | Read-only |
+| `coder` | Feature implementation | Full access |
+| `compliance_reviewer` | Legal and regulatory compliance | Read-only |
+| `content_strategist` | Content planning and strategy | Read-only |
+| `copywriter` | Marketing copy and landing-page content | Read + write |
+| `data_engineer` | Schema design, queries, and data pipelines | Full access |
+| `database_administrator` | RDBMS tuning, indexes, and migration safety | Read + shell |
+| `db2_dba` | DB2 for z/OS and LUW, REORG, RUNSTATS, bind/rebind | Read + shell |
+| `debugger` | Root cause analysis and defect investigation | Read + shell |
+| `design_system_engineer` | Design tokens and theming | Full access |
+| `devops_engineer` | CI/CD, containerization, and deployment | Full access |
+| `hlasm_assembler_specialist` | IBM HLASM for z/OS, macros, SVCs | Full access |
+| `i18n_specialist` | Internationalization and locale management | Full access |
+| `ibm_i_specialist` | IBM i RPG/CL, DB2 for i, OS/400 | Full access |
+| `integration_engineer` | B2B APIs, ETL, and message brokers | Full access |
+| `ml_engineer` | Model training, feature pipelines, and evaluation | Full access |
+| `mlops_engineer` | Model registry, CI/CD for models, drift detection | Full access |
+| `mobile_engineer` | iOS/Android/React Native/Flutter platform work | Full access |
+| `observability_engineer` | Metrics, logs, traces, OpenTelemetry, dashboards | Full access |
+| `performance_engineer` | Performance profiling and optimization | Read + shell |
+| `platform_engineer` | Internal developer platforms and paved paths | Full access |
+| `product_manager` | Requirements and product strategy | Read + write |
+| `prompt_engineer` | LLM prompt design, few-shot, and RAG tuning | Read + write |
+| `refactor` | Structural refactoring and technical debt | Full access |
+| `release_manager` | Release notes, changelogs, rollout planning | Read + write |
+| `security_engineer` | Security assessment and vulnerability analysis | Read + shell |
+| `seo_specialist` | Technical SEO auditing and structured data | Read + shell |
+| `site_reliability_engineer` | SLOs, error budgets, runbooks, postmortems | Read + shell |
+| `solutions_architect` | Enterprise integration and cross-team architecture | Read-only |
+| `technical_writer` | Documentation and technical writing | Read + write |
+| `tester` | Test implementation and coverage analysis | Full access |
+| `ux_designer` | User experience design | Read + write |
+| `zos_sysprog` | z/OS systems programming, JCL, USS, RACF | Read + shell |
 
 ## Hooks
 

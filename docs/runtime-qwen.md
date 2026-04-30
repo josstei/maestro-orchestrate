@@ -15,11 +15,14 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
   "command": "node",
   "args": ["${extensionPath}/mcp/maestro-server.js"],
   "cwd": "${extensionPath}",
-  "env": { "MAESTRO_WORKSPACE_PATH": "${workspacePath}" }
+  "env": {
+    "MAESTRO_RUNTIME": "qwen",
+    "MAESTRO_WORKSPACE_PATH": "${workspacePath}"
+  }
 }
 ```
 
-The public server at `mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=qwen`, requires canonical `src/mcp/maestro-server.js` directly, and runs the Qwen runtime against shared source in `src/`. Qwen declares `primary: filesystem` and `fallback: none`.
+Qwen reuses the repo-root public server at `mcp/maestro-server.js`. The Qwen manifest launches that shared adapter with `MAESTRO_RUNTIME=qwen`; without that env var the adapter defaults to Gemini. The adapter requires canonical `src/mcp/maestro-server.js` directly and runs the Qwen runtime against shared source in `src/`. Qwen declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 
@@ -42,16 +45,16 @@ The Qwen runtime does not emit its own TOML command files. `src/generator/entry-
 
 ## Hooks
 
-4 hook events (same lifecycle shape as Gemini):
+4 hook events in `qwen/hooks.json`:
 
 | Event | Script | Purpose |
 |-------|--------|---------|
 | `SessionStart` | `hooks/hook-runner.js qwen session-start` | Initialize hook state, prune stale sessions |
-| `BeforeAgent` | `hooks/hook-runner.js qwen before-agent` | Detect agent, inject session context |
-| `AfterAgent` | `hooks/hook-runner.js qwen after-agent` | Validate Task Report + Downstream Context |
+| `SubagentStart` | `hooks/hook-runner.js qwen before-agent` | Detect agent, inject session context |
+| `SubagentStop` | `hooks/hook-runner.js qwen after-agent` | Validate Task Report + Downstream Context |
 | `SessionEnd` | `hooks/hook-runner.js qwen session-end` | Clean up hook state |
 
-### AfterAgent Validation
+### SubagentStop Validation
 
 Qwen uses the same post-delegation validation as Gemini:
 

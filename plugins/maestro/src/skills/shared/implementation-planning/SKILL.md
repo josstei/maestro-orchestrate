@@ -77,12 +77,12 @@ Before finalizing agent assignments, verify each phase's agent can deliver its r
 
 | Phase Deliverable | Required Tier | Compatible Agents |
 |-------------------|--------------|-------------------|
-| Creates/modifies files | Full Access or Read+Write | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer, technical-writer, product-manager, ux-designer, copywriter |
-| Runs shell commands | Full Access or Read+Shell | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer, debugger, performance-engineer, security-engineer, seo-specialist, accessibility-specialist |
+| Creates/modifies files | Full Access or Read+Write | analytics-engineer, cobol-engineer, coder, copywriter, data-engineer, design-system-engineer, devops-engineer, hlasm-assembler-specialist, i18n-specialist, ibm-i-specialist, integration-engineer, ml-engineer, mlops-engineer, mobile-engineer, observability-engineer, platform-engineer, product-manager, prompt-engineer, refactor, release-manager, technical-writer, tester, ux-designer |
+| Runs shell commands | Full Access or Read+Shell | accessibility-specialist, analytics-engineer, cobol-engineer, coder, data-engineer, database-administrator, db2-dba, debugger, design-system-engineer, devops-engineer, hlasm-assembler-specialist, i18n-specialist, ibm-i-specialist, integration-engineer, ml-engineer, mlops-engineer, mobile-engineer, observability-engineer, performance-engineer, platform-engineer, refactor, security-engineer, seo-specialist, site-reliability-engineer, tester, zos-sysprog |
 | Analysis/review only | Any tier | All agents |
 
 <HARD-GATE>
-Read-Only agents (architect, api-designer, code-reviewer, content-strategist, compliance-reviewer)
+Read-Only agents (architect, api-designer, cloud-architect, code-reviewer, compliance-reviewer, content-strategist, solutions-architect)
 CANNOT be assigned to phases that create or modify files. If a phase requires file creation
 and domain expertise from a Read-Only agent, split it: the Read-Only agent produces a spec
 or analysis, then a write-capable agent (typically coder) implements the files based on that output.
@@ -180,17 +180,26 @@ If `validate_plan` is available, review its `parallelization_profile` and `redun
 | Task Domain | Primary Agent | Secondary Agent | Rationale |
 |-------------|--------------|-----------------|-----------|
 | System design, architecture | `architect` | - | Read-only analysis, design expertise |
+| Cloud architecture, multi-region topology | `cloud-architect` | `devops-engineer` | Architecture first, implementation second |
+| Enterprise integration architecture | `solutions-architect` | `integration-engineer` | Cross-team design before implementation |
 | API contracts, endpoints | `api-designer` | `coder` | Design then implement |
 | Feature implementation | `coder` | - | Full implementation access |
 | Code quality review | `code-reviewer` | - | Read-only verification |
 | Database schema, queries | `data-engineer` | - | Schema + implementation |
+| RDBMS tuning, indexes, migration safety | `database-administrator` | `data-engineer` | DBA analysis before schema/code changes |
+| DB2 administration | `db2-dba` | `data-engineer` | DB2-specific operations and design |
 | Bug investigation | `debugger` | - | Read + shell for investigation |
 | CI/CD, infrastructure | `devops-engineer` | - | Full DevOps access |
+| Internal platforms, paved paths | `platform-engineer` | `devops-engineer` | Platform conventions and implementation |
+| B2B integrations, ETL, message brokers | `integration-engineer` | - | Full integration implementation |
+| SLOs, runbooks, reliability | `site-reliability-engineer` | `observability-engineer` | Reliability assessment plus telemetry implementation |
+| Observability, metrics, traces | `observability-engineer` | - | Full telemetry implementation |
 | Performance analysis | `performance-engineer` | - | Read + shell for profiling |
 | Code restructuring | `refactor` | - | Write + shell access (for validation) |
 | Security assessment | `security-engineer` | - | Read + shell for scanning |
 | Test creation | `tester` | - | Full test implementation |
 | Documentation | `technical-writer` | - | Write access for docs |
+| Release notes, changelogs, rollout | `release-manager` | - | Write access for release artifacts |
 | Technical SEO audit | `seo-specialist` | - | Read + shell + web search |
 | Marketing copy, content | `copywriter` | - | Read/write |
 | Content planning | `content-strategist` | - | Read + web search/fetch |
@@ -201,6 +210,14 @@ If `validate_plan` is available, review its `parallelization_profile` and `redun
 | Internationalization | `i18n-specialist` | `coder` | Implement then localize |
 | Design tokens, theming | `design-system-engineer` | `coder` | Tokens then consume |
 | Legal, regulatory | `compliance-reviewer` | - | Read + web search/fetch |
+| Mobile platform work | `mobile-engineer` | `tester` | Mobile implementation plus validation |
+| Model training, inference integration | `ml-engineer` | `tester` | ML implementation plus evaluation |
+| Model registry, drift, model CI/CD | `mlops-engineer` | `devops-engineer` | Model operations and deployment |
+| Prompt design, few-shot, RAG tuning | `prompt-engineer` | `coder` | Prompt spec before integration |
+| Mainframe COBOL, JCL, CICS/IMS | `cobol-engineer` | `tester` | Mainframe implementation and validation |
+| IBM HLASM for z/OS | `hlasm-assembler-specialist` | - | Assembly implementation |
+| IBM i RPG/CL, DB2 for i | `ibm-i-specialist` | - | IBM i implementation |
+| z/OS systems programming, JCL, RACF | `zos-sysprog` | `security-engineer` | System-level analysis and controls |
 
 ### Assignment Rules
 1. Match the primary task domain to the agent specialization
@@ -216,32 +233,19 @@ Estimate token consumption per phase based on:
 - Agent's max_turns limit as upper bound
 - Historical averages: ~500 input tokens per file read, ~200 output tokens per file written
 
-### Cost Estimation
+### Resource Estimation
 
-#### Per-Phase Cost Factors
-- **Model tier**: Pro agents (~$0.01/1K input, ~$0.04/1K output) vs Flash agents (~$0.001/1K input, ~$0.004/1K output)
-- **Input complexity**: Number of files read, average file size, context from previous phases
-- **Output complexity**: Lines of code generated, number of files created/modified
-- **Retry budget**: Add 50% buffer per phase for potential retries (max 2 retries)
+Do not invent provider pricing or model tiers. Agent model selection is runtime-owned through agent frontmatter and runtime configuration. Estimate execution size in stable, codebase-derived terms instead:
 
-#### Estimation Formula
-```
-Phase Cost = (input_tokens × input_rate + output_tokens × output_rate) × retry_multiplier
-```
+- **Input complexity**: number of files likely to be read, average file size, and prior-phase context
+- **Output complexity**: number of files created or modified, validation output volume, and expected handoff detail
+- **Retry budget**: note phases likely to need retries because of broad file ownership, external dependencies, or uncertain validation
 
-Where:
-- `input_tokens` = files_to_read × 500 + context_tokens
-- `output_tokens` = files_to_write × 200 + validation_output
-- `retry_multiplier` = 1.5 (accounts for up to 2 retries)
+Include a lightweight plan-level resource summary when useful:
 
-#### Plan-Level Cost Summary
-Include this table in every implementation plan:
-
-| Phase | Agent | Model | Est. Input | Est. Output | Est. Cost |
-|-------|-------|-------|-----------|------------|----------|
-| 1 | [agent] | [model] | [tokens] | [tokens] | [$X.XX] |
-| ... | ... | ... | ... | ... | ... |
-| **Total** | | | **[sum]** | **[sum]** | **[$X.XX]** |
+| Phase | Agent | Est. Files Read | Est. Files Written | Retry Risk | Notes |
+|-------|-------|-----------------|--------------------|------------|-------|
+| 1 | [agent] | [N] | [N] | LOW/MEDIUM/HIGH | [why] |
 
 ## Plan Document Generation
 
@@ -296,7 +300,7 @@ After writing the implementation plan:
 1. Confirm the file path to the user
 2. Present the dependency graph and execution strategy
 3. Highlight parallel execution opportunities
-4. Provide token budget estimates
+4. Provide resource estimates when useful
 5. If your runtime provides Plan Mode, call `exit_plan_mode` with the plan path to present the plan for user approval. If Plan Mode is not available, present the completed plan for user approval using the user-prompt tool from runtime context.
 6. Ensure the approved plan is at `<state_dir>/plans/YYYY-MM-DD-<slug>-impl-plan.md` as the permanent project reference (copy from the staging directory if Plan Mode was used)
 7. Ask if the user is ready to proceed to execution (Phase 3)
