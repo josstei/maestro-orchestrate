@@ -16,9 +16,10 @@ The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `sr
                         ▼
 ┌─────────────────────────────────────────────────┐
 │               CLASSIFICATION                    │
-│  Turn 2: Load architecture reference            │
+│  Turn 2: Pre-load pre-execution skills          │
 │          Classify: simple / medium / complex     │
-│          Route: simple → Express, else → Design │
+│          Route: simple → Express, else          │
+│          finalize session_id + enter gate       │
 └───────────────────────┬─────────────────────────┘
                         ▼
 ┌─────────────────────────────────────────────────┐
@@ -26,7 +27,7 @@ The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `sr
 │  Load design-dialogue skill                     │
 │  Structured conversation (depth: quick/std/deep)│
 │  Present sections one-at-a-time for approval    │
-│  Write design document to state_dir/plans/      │
+│  Exit Plan Mode, then record design approval    │
 └───────────────────────┬─────────────────────────┘
                         ▼
 ┌─────────────────────────────────────────────────┐
@@ -46,8 +47,10 @@ The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `sr
 │  For each phase:                                │
 │    → get_agent for methodology                  │
 │    → Delegate with protocols + context chain    │
+│    → Resolve Blockers before phase transition   │
 │    → Parse Task Report + Downstream Context     │
 │    → transition_phase (HARD-GATE per phase)     │
+│    → reconcile empty payloads when required     │
 └───────────────────────┬─────────────────────────┘
                         ▼
 ┌─────────────────────────────────────────────────┐
@@ -150,9 +153,11 @@ Orchestrator                          Agent
     │                                   ├── ... (task work) ...
     │                                   ├── Run validation
     │                                   │
+    │◄── ## Blockers (if any) ─────────┤
     │◄── ## Task Report ───────────────┤
     │◄── ## Downstream Context ────────┤
     │                                   │
+    ├── Resolve blockers if present     │
     ├── Parse handoff                   │
     ├── transition_phase()              │
     └── Feed context to next phase      │
@@ -212,11 +217,17 @@ Non-negotiable checkpoints that block progression:
 | Gate | Location | Condition |
 |------|----------|-----------|
 | Tech recommendations | Step 11 | Must recommend vanilla HTML/CSS/JS for static delivery unless framework explicitly required |
+| Session ID | Step 9a | One finalized session ID must be reused for design approval, session creation, transitions, reconciliation, and archive |
+| Design gate | Steps 9a/14a/21 | Standard workflow cannot create a session until approved design is recorded for the same session ID |
 | Design sections | Step 12 | Each section presented individually and approved |
+| Design approval variant | Step 14a | Use content variant for Gemini; use path variant for Codex/Claude direct writes; never provide both |
 | validate_plan | Step 16 | Plan must pass validation before user sees it |
+| Implementation plan variant | Step 21 | Use content variant for Gemini Plan Mode outputs; use path variant for direct workspace writes; never provide both |
 | Execution mode | Step 19 | Must present only Parallel and Sequential options |
 | Agent dispatch | Step 23 | Must dispatch by agent's registered tool directly |
+| Blockers | Step 24 | Non-empty `## Blockers` must be answered and re-delegated before `transition_phase` |
 | transition_phase | Step 25 | Must be called individually for EVERY completed phase |
+| Reconciliation | Step 25 | Empty file manifests plus empty downstream context require `scan_phase_changes` → user confirmation → `reconcile_phase` |
 | Code review | Step 28 | Critical/Major findings block completion |
 | Express 1-phase | Step 31 | Express sessions must have exactly one phase |
 | Express questions | Step 32 | Each question must use user prompt tool |

@@ -7,6 +7,10 @@ const REPO = path.resolve(__dirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
 const listDir = (d) => fs.readdirSync(path.join(REPO, d));
 const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;
+const canonicalAgents = () => listDir('src/agents')
+  .filter((f) => f.endsWith('.md'))
+  .map((f) => f.replace(/\.md$/, ''));
+const toSnake = (name) => name.replace(/-/g, '_');
 
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
   const canonicalCount = countMd('src/agents');
@@ -34,6 +38,34 @@ test('doc-drift: agent-count claim phrase present in user-facing surfaces', () =
 test('doc-drift: no stale inject-frontmatter transform in docs', () => {
   const body = read('docs/architecture.md');
   assert.ok(!body.includes('inject-frontmatter'), 'docs/architecture.md still references removed inject-frontmatter transform');
+});
+
+test('doc-drift: root pointer docs include Qwen runtime docs', () => {
+  for (const surface of ['OVERVIEW.md', 'USAGE.md', 'ARCHITECTURE.md']) {
+    const body = read(surface);
+    assert.ok(body.includes('docs/runtime-qwen.md'), `${surface}: missing Qwen runtime documentation link`);
+  }
+});
+
+test('doc-drift: GitHub templates include Qwen runtime impact choices', () => {
+  const surfaces = [
+    '.github/ISSUE_TEMPLATE/bug_report.md',
+    '.github/ISSUE_TEMPLATE/feature_request.md',
+    '.github/PULL_REQUEST_TEMPLATE.md',
+  ];
+  for (const surface of surfaces) {
+    const body = read(surface);
+    assert.ok(body.includes('Qwen Code'), `${surface}: missing Qwen Code runtime option`);
+  }
+});
+
+test('doc-drift: Gemini and Qwen context rosters list every src agent', () => {
+  for (const surface of ['GEMINI.md', 'QWEN.md']) {
+    const body = read(surface);
+    for (const agent of canonicalAgents()) {
+      assert.ok(body.includes(`| \`${toSnake(agent)}\` |`), `${surface}: Agent Roster missing ${toSnake(agent)}`);
+    }
+  }
 });
 
 test('doc-drift: no references to deleted plugins/maestro/mcp/ directory', () => {
@@ -292,5 +324,15 @@ test('doc-drift: docs/runtime-qwen.md tool mapping has correct Qwen overrides', 
   for (const [canonical, qwen] of Object.entries(expectedMappings)) {
     const pattern = new RegExp(`\\| \`${canonical}\` \\| \`${qwen}\` \\|`);
     assert.ok(pattern.test(body), `docs/runtime-qwen.md: mapping row missing: ${canonical} → ${qwen}`);
+  }
+});
+
+test('doc-drift: Qwen docs use Qwen hook event names', () => {
+  for (const surface of ['docs/runtime-qwen.md', 'docs/maestro-cheatsheet.md', 'QWEN.md']) {
+    const body = read(surface);
+    assert.ok(body.includes('SubagentStart'), `${surface}: missing SubagentStart`);
+    assert.ok(body.includes('SubagentStop'), `${surface}: missing SubagentStop`);
+    assert.ok(!body.includes('| `BeforeAgent` | `hooks/hook-runner.js qwen'), `${surface}: still documents Qwen BeforeAgent`);
+    assert.ok(!body.includes('| `AfterAgent` | `hooks/hook-runner.js qwen'), `${surface}: still documents Qwen AfterAgent`);
   }
 });

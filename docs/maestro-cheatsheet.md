@@ -142,6 +142,7 @@ Common paths:
 
 - Command entry point: `/maestro:*`
 - Same command surface as Gemini CLI
+- Uses `qwen/agents/` and `qwen/hooks.json`; commands, policies, MCP, and hook runner are shared from the repository root
 
 ## 7. Hook Reference
 
@@ -162,6 +163,13 @@ Common paths:
 ### Codex CLI
 
 - No runtime hooks
+
+### Qwen Code
+
+- `SessionStart`
+- `SubagentStart`
+- `SubagentStop`
+- `SessionEnd`
 
 ## 8. Common Notes
 

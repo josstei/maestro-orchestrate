@@ -5,7 +5,7 @@ Thank you for your interest in contributing to Maestro. This guide covers everyt
 ## Prerequisites
 
 - **Node.js 20+**
-- **One supported runtime**: [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), or [Codex](https://github.com/openai/codex)
+- **One supported runtime**: [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), or [Qwen Code](https://github.com/QwenLM/qwen-code)
 - [Just](https://github.com/casey/just) command runner (optional but recommended)
 
 ## Development Setup
@@ -16,11 +16,13 @@ cd maestro-orchestrate
 npm install
 ```
 
-`npm install` runs a `prepare` script that points `core.hooksPath` at `.githooks/`, activating the local `pre-commit`, `commit-msg`, and `pre-push` hooks for this checkout. If you install with `--ignore-scripts` or another tool that skips lifecycle scripts, activate the hooks manually:
+`npm install` installs dependencies only. Local git hook activation is explicit so package, pack, and publish flows do not mutate hook configuration. To activate the repo-local `pre-commit`, `commit-msg`, and `pre-push` hooks for this checkout, run:
 
 ```bash
-git config core.hooksPath .githooks
+npm run install-hooks
 ```
+
+Equivalent manual command: `git config core.hooksPath .githooks`.
 
 The hooks are best-effort — CI re-validates everything on PR submission and on direct pushes to `main`.
 
@@ -36,7 +38,7 @@ All commands are available via `just` or `npm`:
 | `just test-transforms` | Run only transform unit tests |
 | `just test-integration` | Run only integration tests |
 | `just check` | Generate + verify zero drift (`git diff --exit-code`) |
-| `just ci` | Full CI equivalent: check + test |
+| `just ci` | Full CI equivalent: check + check-layers + test |
 | `just dry-run` | Preview changes without writing |
 | `just diff` | Show unified diff of pending changes |
 
@@ -53,6 +55,7 @@ All hand-maintained code lives in `src/`. Everything outside `src/` at the runti
 | `agents/`, `commands/`, `hooks/`, `mcp/`, `policies/` (repo root) | Gemini CLI |
 | `claude/` | Claude Code |
 | `plugins/maestro/` | Codex |
+| `qwen/` plus root `qwen-extension.json` and `QWEN.md` | Qwen Code |
 
 The generator pipeline reads `src/manifest.js` and applies transforms from `src/transforms/` to produce runtime-specific output.
 
@@ -163,7 +166,7 @@ This project uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) forma
 
 ## Reporting Bugs and Requesting Features
 
-Use the [issue templates](.github/ISSUE_TEMPLATE/) to file bug reports or feature requests. Include your runtime (Gemini CLI, Claude Code, or Codex), Node.js version, and steps to reproduce.
+Use the [issue templates](.github/ISSUE_TEMPLATE/) to file bug reports or feature requests. Include your runtime (Gemini CLI, Claude Code, Codex, or Qwen Code), Node.js version, and steps to reproduce.
 
 ## Code Review
 

@@ -121,7 +121,7 @@ Hooks fire automatically at agent boundaries. The orchestrator does not invoke t
 
 The hooks system tracks which agent is currently executing. Before each agent dispatch, a hook resolves the active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context. After completion, a hook validates that the response contains both `Task Report` and `Downstream Context`; it requests one retry on the first malformed response.
 
-The hook state directory under `/tmp/maestro-hooks/<session-id>/` is transient and separate from orchestration state.
+The hook state directory under `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` is transient and separate from orchestration state.
 
 ## Sequential Execution Protocol
 

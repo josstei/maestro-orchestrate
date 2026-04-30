@@ -247,9 +247,9 @@ Source: `justfile`, `package.json`
 ```bash
 # edit README.md, EXAMPLES.md, docs/*.md, or canonical src/ docs as appropriate
 node --test tests/unit/doc-drift-guard.test.js
-just check
+node scripts/generate.js --diff
 ```
 
-Expected outcome: user-facing docs remain aligned with command names, runtime counts, MCP tool names, and generated-output rules.
+Expected outcome: user-facing docs remain aligned with command names, runtime counts, MCP tool names, and generated-output rules, and the generator reports no additional pending runtime output. In CI or a clean worktree, `just check` covers the same drift check with `git diff --exit-code`.
 
 Source: `tests/unit/doc-drift-guard.test.js`

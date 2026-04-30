@@ -34,7 +34,7 @@ The six source-of-truth workflows share a common validation core: generate runti
 
 ### Purpose
 
-The foundational CI gate. Enforces that all generated runtime adapters (Gemini, Claude Code, Codex) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
+The foundational CI gate. Enforces that all generated runtime adapters (Gemini CLI, Claude Code, Codex, and Qwen Code) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
 
 ### Trigger
 
@@ -371,7 +371,7 @@ graph TD
 
 | Item | Type | Purpose |
 |------|------|---------|
-| `RELEASE_TOKEN` | Secret | Personal access token with write permissions; used for checkout, branch push, PR creation, and auto-merge. Required because the default `GITHUB_TOKEN` cannot trigger downstream workflows. |
+| `RELEASE_TOKEN` | Secret | Personal access token with write permissions; used for checkout, branch push, PR creation, and PR labeling. Required because the default `GITHUB_TOKEN` cannot trigger downstream workflows. |
 
 **Permissions**: `contents: write`, `pull-requests: write`
 
