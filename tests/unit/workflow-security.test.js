@@ -103,6 +103,8 @@ describe('workflow shell security', () => {
     assert.match(content, /NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
     assert.match(content, /NODE_AUTH_TOKEN: \$\{\{ env\.NPM_TOKEN \}\}/);
     assert.match(content, /NPM_TOKEN is required for stable release publishing/);
+    assert.match(content, /git rev-parse --verify --quiet "\$TAG\^\{commit\}"/);
+    assert.match(content, /git rev-parse --verify --quiet "\$VERSION\^\{commit\}"/);
     assert.match(content, /Manual release recovery requires existing tag \$TAG/);
     assert.match(content, /Tag \$TAG exists at \$TAG_SHA, not target commit \$TARGET_SHA/);
   });
