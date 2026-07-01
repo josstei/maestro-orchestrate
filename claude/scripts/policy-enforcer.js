@@ -263,6 +263,19 @@ function matchRule(rule, command) {
   }
 }
 
+const PERMISSION_DECISION = { approve: 'allow', ask: 'ask', block: 'deny' };
+
+function toHookOutput(result) {
+  const hookSpecificOutput = {
+    hookEventName: 'PreToolUse',
+    permissionDecision: PERMISSION_DECISION[result.decision],
+  };
+  if (result.reason) {
+    hookSpecificOutput.permissionDecisionReason = result.reason;
+  }
+  return { hookSpecificOutput };
+}
+
 const MAX_STDIN_BYTES = 1024 * 1024;
 const chunks = [];
 let totalBytes = 0;
@@ -270,7 +283,7 @@ process.stdin.on('data', (chunk) => {
   totalBytes += chunk.length;
   if (totalBytes > MAX_STDIN_BYTES) {
     process.stderr.write('Policy enforcer: stdin payload too large\n');
-    process.stdout.write(JSON.stringify({ decision: 'block', reason: 'Payload too large' }) + '\n');
+    process.stdout.write(JSON.stringify(toHookOutput({ decision: 'block', reason: 'Payload too large' })) + '\n');
     process.exit(1);
   }
   chunks.push(chunk);
@@ -280,9 +293,9 @@ process.stdin.on('end', () => {
     const input = JSON.parse(Buffer.concat(chunks).toString());
     const command = (input.tool_input && input.tool_input.command) || '';
     const result = checkCommand(command);
-    process.stdout.write(JSON.stringify(result) + '\n');
+    process.stdout.write(JSON.stringify(toHookOutput(result)) + '\n');
   } catch (err) {
     process.stderr.write('Policy enforcer error: ' + err.message + '\n');
-    process.stdout.write(JSON.stringify({ decision: 'block', reason: 'Policy enforcer internal error' }) + '\n');
+    process.stdout.write(JSON.stringify(toHookOutput({ decision: 'block', reason: 'Policy enforcer internal error' })) + '\n');
   }
 });
