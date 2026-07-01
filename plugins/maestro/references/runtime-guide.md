@@ -5,9 +5,9 @@ This guide explains how the shared Maestro methodology maps onto Codex.
 ## Source of truth
 
 - Shared skills, references, templates, and agent bodies are authored in repository `src/`.
-- Published Codex bundles carry a generated local `src/` payload derived from that canonical source tree, so installs remain self-contained.
-- Codex content loading is filesystem-only and should resolve against the generated local `src/` in the plugin bundle.
-- Generated agent role references under `../agents/` are registration stubs only.
+- Published Codex bundles load MCP code and content from the versioned npm package root through `maestro-mcp-server`.
+- Codex content loading is filesystem-only and resolves against package-root `src/`; the plugin bundle does not carry a detached `src/` payload.
+- Codex does not ship plugin-local agent stubs; call `get_agent` when a workflow needs a Maestro agent methodology.
 
 Public Codex skills should load shared assets through MCP instead of duplicating methodology. Codex adds the plugin namespace at invocation time, so these surface as `$maestro:<skill>`.
 

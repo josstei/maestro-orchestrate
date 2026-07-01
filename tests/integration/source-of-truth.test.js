@@ -9,29 +9,19 @@ const manifestRules = require('../../src/manifest');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 describe('src-first architecture invariants', () => {
-  it('ships a detached src payload for Claude isolated installs', () => {
+  it('does not ship a detached src payload for Claude installs', () => {
     assert.equal(
-      fs.existsSync(path.join(ROOT, 'claude/src/mcp/maestro-server.js')),
-      true,
-      'Expected detached Claude src payload to exist'
-    );
-    assert.equal(
-      fs.existsSync(path.join(ROOT, 'claude/src/version.json')),
-      true,
-      'Expected detached Claude src payload version metadata to exist'
+      fs.existsSync(path.join(ROOT, 'claude/src')),
+      false,
+      'Expected retired Claude src payload to be absent'
     );
   });
 
-  it('ships a detached src payload for Codex isolated installs', () => {
+  it('does not ship a detached src payload for Codex installs', () => {
     assert.equal(
-      fs.existsSync(path.join(ROOT, 'plugins/maestro/src/mcp/maestro-server.js')),
-      true,
-      'Expected detached Codex src payload to exist'
-    );
-    assert.equal(
-      fs.existsSync(path.join(ROOT, 'plugins/maestro/src/version.json')),
-      true,
-      'Expected detached Codex src payload version metadata to exist'
+      fs.existsSync(path.join(ROOT, 'plugins/maestro/src')),
+      false,
+      'Expected retired Codex src payload to be absent'
     );
   });
 
@@ -64,11 +54,18 @@ describe('src-first architecture invariants', () => {
     }
   });
 
-  it('keeps all runtime content policies filesystem-first with no registry fallback', () => {
-    for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen']) {
+  it('keeps runtime content policies explicit and filesystem-first', () => {
+    const expectedFallbacks = {
+      gemini: 'none',
+      claude: 'none',
+      codex: 'none',
+      qwen: 'none',
+    };
+
+    for (const runtimeName of Object.keys(expectedFallbacks)) {
       const runtimeConfig = getRuntimeConfig(runtimeName);
       assert.equal(runtimeConfig.content.primary, 'filesystem');
-      assert.equal(runtimeConfig.content.fallback, 'none');
+      assert.equal(runtimeConfig.content.fallback, expectedFallbacks[runtimeName]);
     }
   });
 

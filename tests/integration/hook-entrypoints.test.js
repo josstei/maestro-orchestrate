@@ -1,8 +1,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
+const { ROOT, withPackagedClaudeRuntime } = require('./helpers');
 
 function runHook(relativePath, runtime, hookName, payload, cwd = ROOT) {
   return spawnSync('node', [relativePath, runtime, hookName], {
@@ -62,10 +64,10 @@ describe('hook entrypoints', () => {
     }
   });
 
-  it('boots installed claude hook adapters from an isolated plugin bundle', async () => {
-    await withIsolatedClaudePlugin(async (pluginRoot) => {
+  it('boots installed claude hook adapters from a package-root runtime bundle', async () => {
+    await withPackagedClaudeRuntime(async (packageRoot) => {
       const payload = {
-        cwd: pluginRoot,
+        cwd: packageRoot,
         session_id: 'hook-test-session',
       };
 
@@ -76,7 +78,13 @@ describe('hook entrypoints', () => {
       ];
 
       for (const hookName of hookNames) {
-        const result = runHook('scripts/hook-runner.js', 'claude', hookName, payload, pluginRoot);
+        const result = runHook(
+          'claude/scripts/hook-runner.js',
+          'claude',
+          hookName,
+          payload,
+          packageRoot
+        );
 
         assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
         assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
@@ -84,20 +92,47 @@ describe('hook entrypoints', () => {
     });
   });
 
-  it('installed claude hook fallback blocks on invalid stdin', async () => {
-    await withIsolatedClaudePlugin(async (pluginRoot) => {
+  it('installed claude hook adapter blocks on invalid stdin', async () => {
+    await withPackagedClaudeRuntime(async (packageRoot) => {
       const result = runHookRaw(
-        'scripts/hook-runner.js',
+        'claude/scripts/hook-runner.js',
         'claude',
         'session-start',
         'not-json',
-        pluginRoot
+        packageRoot
       );
 
       assert.equal(result.status, 0, `Expected exit 0 for claude fallback, got ${result.status}`);
       assert.deepEqual(JSON.parse(result.stdout), {
         continue: false,
         decision: 'block',
+      });
+    });
+  });
+
+  it('installed claude adapter stub loads package-root src without detached payload', async () => {
+    await withPackagedClaudeRuntime(async (packageRoot) => {
+      const detachedPayload = path.join(packageRoot, 'claude', 'src');
+      fs.rmSync(detachedPayload, { recursive: true, force: true });
+      assert.equal(fs.existsSync(detachedPayload), false);
+
+      const result = spawnSync(process.execPath, [
+        '-e',
+        [
+          "const adapter = require('./claude/scripts/adapters/claude-adapter.js');",
+          "process.stdout.write(JSON.stringify(adapter.formatOutput({ action: 'deny', reason: 'blocked' })));",
+        ].join(''),
+      ], {
+        cwd: packageRoot,
+        encoding: 'utf8',
+      });
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(result.stdout), {
+        continue: false,
+        decision: 'block',
+        reason: 'blocked',
+        systemMessage: 'blocked',
       });
     });
   });

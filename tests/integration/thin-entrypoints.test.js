@@ -22,11 +22,15 @@ describe('thin entrypoint design', () => {
     }
   });
 
-  it('Claude entrypoint has repo-first / bundled-fallback resolution', () => {
+  it('Claude entrypoint uses direct package-root src resolution only', () => {
     const content = fs.readFileSync(path.join(ROOT, 'claude/mcp/maestro-server.js'), 'utf8');
     assert.ok(
-      content.includes('repoEntry') && content.includes('bundledEntry'),
-      'Expected claude/mcp/maestro-server.js to have repo-first / bundled-fallback resolution'
+      !content.includes('repoEntry') && !content.includes('bundledEntry'),
+      'Expected claude/mcp/maestro-server.js to have no bundled fallback resolution'
+    );
+    assert.ok(
+      content.includes("require('../../src/mcp/maestro-server.js')"),
+      'Expected claude/mcp/maestro-server.js to require package-root src directly'
     );
   });
 
@@ -63,7 +67,7 @@ describe('thin entrypoint design', () => {
     const requiredFiles = [
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
-      'claude/.claude-plugin/plugin.json',
+      '.claude-plugin/plugin.json',
       'claude/.mcp.json',
       'claude/hooks/claude-hooks.json',
       'plugins/maestro/.codex-plugin/plugin.json',

@@ -20,7 +20,7 @@ The Codex plugin lives in `plugins/maestro/`.
 }
 ```
 
-Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
+Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex`, overwrites `MAESTRO_EXTENSION_PATH` with the package root, and delegates to `src/mcp/maestro-server.js`.
 
 For workspace resolution, Codex follows the shared runtime contract:
 - use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
@@ -109,9 +109,9 @@ Codex keeps built-in `/review`, `/debug`, and `/resume` commands, so Maestro exp
 
 The runtime guide states:
 
-> If Maestro MCP tools are available, prefer them for stateful operations. If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
+> If Maestro MCP tools are available, prefer them for stateful operations. If the current Codex environment does not expose those tools to a spawned agent, use direct state-file operations under `docs/maestro` as described by the shared skills.
 
-This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are resolved from generated local `plugins/maestro/src/`, which is produced from canonical root `src/`; there is no hand-maintained packaged registry copy and no plugin-level `agents/` directory.
+This MCP-first state access model exists because spawned Codex agents may not have access to the parent plugin's MCP server. Runtime content follows one path: shared methodology and agent bodies are resolved from package-root `src/` through the `maestro-mcp-server` npm bin. There is no hand-maintained packaged registry copy, no plugin-level `agents/` directory, and no Codex-local detached `plugins/maestro/src/` payload.
 
 ## Tool Mapping
 
@@ -163,17 +163,16 @@ When `MAESTRO_WORKSPACE_PATH` is not set, the MCP server uses the first valid lo
 Codex follows the same source-of-truth model as the other runtimes:
 
 - shared skills, protocols, templates, references, and agent bodies are authored in canonical root `src/`
-- generated `plugins/maestro/src/` is the detached runtime payload for published Codex bundles
+- package-root `src/` is the runtime content root for published Codex bundles
 - generated `plugins/maestro/skills/` files are public entrypoints or discovery stubs only
 - Codex does not consume plugin agent files; `get_agent` serves the canonical methodology bodies
-- no tracked `plugins/maestro/lib/` mirror or bundled content registry is part of the runtime
+- no tracked `plugins/maestro/src/`, `plugins/maestro/lib/`, or bundled content registry is part of the runtime
 
 ## Generated Files
 
 ```
 plugins/maestro/
 ├── skills/                19 skill directories
-├── src/                   generated detached runtime payload
 ├── references/            1 runtime guide
 ├── .codex-plugin/         1 plugin manifest
 ├── .mcp.json              npx-based spawn (no local wrapper)
@@ -194,4 +193,4 @@ The runtime server is invoked via `npx` rather than a local wrapper file, so the
 | Skill surface | N/A (commands) | 19 skills | N/A (Gemini-compatible commands) | plugin namespace `$maestro:*` |
 | Path style | Variable passthrough | Env var refs | Variable passthrough | `npx` bin |
 | Extra files | TOML policy rules | policy-enforcer | Qwen manifest, context, agents, hooks config | runtime guide |
-| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | shared root entrypoint + `qwen/` stubs | npx bin + detached `src/` payload |
+| Runtime payload | thin entrypoint only | thin entrypoint + package-root `src` | shared root entrypoint + `qwen/` stubs | npx bin + package-root `src/` |

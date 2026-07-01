@@ -1,10 +1,10 @@
 # Claude Runtime
 
-The Claude Code plugin lives in the `claude/` subdirectory.
+The Claude Code plugin is rooted at the package root and exposes Claude-specific runtime files under `claude/`.
 
 ## Configuration
 
-**Manifest**: `claude/.claude-plugin/plugin.json`
+**Manifest**: `.claude-plugin/plugin.json`
 **Version**: generated from `package.json`
 **Hooks**: `claude/hooks/claude-hooks.json`
 **MCP Config**: `claude/.mcp.json`
@@ -16,14 +16,14 @@ The Claude Code plugin lives in the `claude/` subdirectory.
   "mcpServers": {
     "maestro": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js"],
+      "args": ["${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js"],
       "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   }
 }
 ```
 
-The public server at `claude/mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=claude`, prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `claude/src/mcp/maestro-server.js` for detached marketplace or copied installs. Claude declares `primary: filesystem` and `fallback: none`.
+The public server at `claude/mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=claude`, overwrites `MAESTRO_EXTENSION_PATH` with the package root derived from `${CLAUDE_PLUGIN_ROOT}` or the wrapper location, and loads package-root `src/mcp/maestro-server.js` directly. Claude declares `primary: filesystem` and `fallback: none`; shared skills, templates, references, and agent bodies are resolved from package-root `src/`. A standalone copied `claude/` directory without sibling package-root `src/` is not a supported runtime shape.
 
 ## Agent Naming
 
@@ -67,10 +67,10 @@ Infrastructure skills have `user-invocable: false` — they surface in Claude's 
 
 | Event | Matcher | Script | Timeout |
 |-------|---------|--------|---------|
-| `SessionStart` | — | `scripts/hook-runner.js claude session-start` | 10s |
-| `PreToolUse` | `Agent` | `scripts/hook-runner.js claude before-agent` | 10s |
-| `PreToolUse` | `Bash` | scripts/policy-enforcer.js | 5s |
-| `SessionEnd` | — | `scripts/hook-runner.js claude session-end` | 10s |
+| `SessionStart` | — | `claude/scripts/hook-runner.js claude session-start` | 10s |
+| `PreToolUse` | `Agent` | `claude/scripts/hook-runner.js claude before-agent` | 10s |
+| `PreToolUse` | `Bash` | `claude/scripts/policy-enforcer.js` | 5s |
+| `SessionEnd` | — | `claude/scripts/hook-runner.js claude session-end` | 10s |
 
 ### Key Differences from Gemini
 
@@ -182,7 +182,6 @@ claude/
 ├── hooks/                 1 hook config (claude-hooks.json)
 ├── scripts/               thin hook wrapper, adapter wrapper, policy enforcer
 ├── mcp/                   thin MCP entrypoint
-├── src/                   generated detached runtime payload for isolated installs
 ├── .claude-plugin/        1 plugin manifest
 ├── .mcp.json
 ├── mcp-config.example.json

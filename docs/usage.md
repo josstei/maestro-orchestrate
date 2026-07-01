@@ -44,7 +44,7 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`) directly. Do not edit generated runtime stubs, command files, hook adapters, detached payloads, or generated skill copies directly.
+1. Edit canonical source in `src/`. Maintain hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`) directly. Do not edit generated runtime stubs, command files, hook adapters, retired cleanup roots, or generated skill copies directly.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
 3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
 4. Run `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` (or `just test`) before committing

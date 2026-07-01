@@ -6,16 +6,10 @@
  * checks tool_input.command against deny and ask patterns,
  * and outputs a decision JSON to stdout.
  *
- * Rules are loaded from the canonical source (src/core/policy-rules.js)
- * with a fallback to the bundled copy for detached installs.
+ * Rules are loaded from package-root src/core/policy-rules.js.
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRules = path.resolve(__dirname, '../../src/core/policy-rules.js');
-const bundledRules = path.resolve(__dirname, '../src/core/policy-rules.js');
-const { DENY_RULES, ASK_RULES } = require(fs.existsSync(repoRules) ? repoRules : bundledRules);
+const { DENY_RULES, ASK_RULES } = require('../../src/core/policy-rules.js');
 
 function splitCommands(command) {
   const parts = [];

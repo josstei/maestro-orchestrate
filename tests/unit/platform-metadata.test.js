@@ -37,7 +37,7 @@ describe('platform metadata generation', () => {
     const expectedPaths = [
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
-      'claude/.claude-plugin/plugin.json',
+      '.claude-plugin/plugin.json',
       'claude/.mcp.json',
       'gemini-extension.json',
       'plugins/maestro/.codex-plugin/plugin.json',
@@ -56,7 +56,7 @@ describe('platform metadata generation', () => {
       outputs.get('qwen-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
       'qwen'
     );
-    assert.equal(outputs.get('claude/.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
+    assert.equal(outputs.get('.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(
       outputs.get('plugins/maestro/.mcp.json').mcpServers.maestro.args[2],

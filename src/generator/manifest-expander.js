@@ -95,44 +95,6 @@ function computeOutputPath(srcRelPath, runtime) {
 }
 
 /**
- * Normalize an outputBase value for a given runtime.
- * Accepts string, per-runtime object, or null/undefined.
- * @param {string | Record<string, string> | null | undefined} outputBase - Base path specification
- * @param {string} runtimeName - Name of the target runtime
- * @returns {string} Normalized base path
- */
-function normalizeOutputBase(outputBase, runtimeName) {
-  if (!outputBase) {
-    return '';
-  }
-
-  if (typeof outputBase === 'string') {
-    return outputBase;
-  }
-
-  if (typeof outputBase === 'object') {
-    return outputBase[runtimeName] || '';
-  }
-
-  throw new Error(`Invalid outputBase: ${JSON.stringify(outputBase)}`);
-}
-
-/**
- * Join a base path with a relative path using posix separators.
- * Returns the relative path unchanged when base is empty.
- * @param {string} base - Base path prefix
- * @param {string} relativePath - Path to append
- * @returns {string} Joined path
- */
-function joinRelativePath(base, relativePath) {
-  if (!base) {
-    return relativePath;
-  }
-
-  return path.posix.join(base, relativePath);
-}
-
-/**
  * Prepend a runtime's outputDir to a relative path.
  * Skips prepending when outputDir is absent or './'.
  * @param {{ outputDir?: string }} runtime - Runtime configuration
@@ -201,6 +163,11 @@ function expandManifest(rules, runtimes, srcDir) {
     if (!rule.glob && !rule.src) {
       throw new Error(`Manifest rule needs "glob" or "src": ${JSON.stringify(rule)}`);
     }
+    if (rule.preserveSourcePath || rule.outputBase) {
+      throw new Error(
+        `Manifest rule uses retired mirrored-output option: ${JSON.stringify(rule)}`
+      );
+    }
 
     let srcFiles;
     if (rule.glob) {
@@ -219,18 +186,8 @@ function expandManifest(rules, runtimes, srcDir) {
         const runtime = runtimes[runtimeName];
         if (rule.outputName) {
           outputs[runtimeName] = buildRuntimeOutputPath(runtime, rule.outputName);
-        } else if (rule.preserveSourcePath) {
-          const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
-          outputs[runtimeName] = buildRuntimeOutputPath(
-            runtime,
-            joinRelativePath(outputBase, srcRelPath)
-          );
         } else {
-          const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
-          outputs[runtimeName] = buildRuntimeOutputPath(
-            runtime,
-            joinRelativePath(outputBase, normalizeSrcRelPath(srcRelPath, runtime))
-          );
+          outputs[runtimeName] = computeOutputPath(srcRelPath, runtime);
         }
       }
       entries.push({
@@ -248,8 +205,6 @@ module.exports = {
   expandGlob,
   normalizeSrcRelPath,
   computeOutputPath,
-  normalizeOutputBase,
-  joinRelativePath,
   buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,

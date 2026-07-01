@@ -9,8 +9,6 @@ const os = require('node:os');
 const {
   expandGlob,
   computeOutputPath,
-  normalizeOutputBase,
-  joinRelativePath,
   buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
@@ -152,54 +150,6 @@ describe('manifest-expander', () => {
       });
 
       assert.equal(result, 'skills/my-skill/SKILL.md');
-    });
-  });
-
-  describe('normalizeOutputBase', () => {
-    it('returns empty string for null input', () => {
-      assert.equal(normalizeOutputBase(null, 'claude'), '');
-    });
-
-    it('returns empty string for undefined input', () => {
-      assert.equal(normalizeOutputBase(undefined, 'claude'), '');
-    });
-
-    it('returns the string directly for string input', () => {
-      assert.equal(normalizeOutputBase('custom/base', 'claude'), 'custom/base');
-    });
-
-    it('returns runtime-specific value from object input', () => {
-      const outputBase = { claude: 'claude-base', gemini: 'gemini-base' };
-
-      assert.equal(normalizeOutputBase(outputBase, 'claude'), 'claude-base');
-      assert.equal(normalizeOutputBase(outputBase, 'gemini'), 'gemini-base');
-    });
-
-    it('returns empty string for missing runtime key in object input', () => {
-      const outputBase = { claude: 'claude-base' };
-
-      assert.equal(normalizeOutputBase(outputBase, 'codex'), '');
-    });
-
-    it('throws for invalid outputBase types', () => {
-      assert.throws(
-        () => normalizeOutputBase(42, 'claude'),
-        /Invalid outputBase/
-      );
-    });
-  });
-
-  describe('joinRelativePath', () => {
-    it('returns relativePath unchanged when base is empty', () => {
-      assert.equal(joinRelativePath('', 'agents/foo.md'), 'agents/foo.md');
-    });
-
-    it('joins base and relativePath with posix separator', () => {
-      assert.equal(joinRelativePath('custom', 'agents/foo.md'), 'custom/agents/foo.md');
-    });
-
-    it('normalizes redundant separators', () => {
-      assert.equal(joinRelativePath('base/', 'sub/file.md'), 'base/sub/file.md');
     });
   });
 
@@ -395,7 +345,7 @@ describe('manifest-expander', () => {
       assert.equal(result[0].outputs.claude, 'claude/custom-output.md');
     });
 
-    it('preserves source path when preserveSourcePath is set', () => {
+    it('rejects retired preserveSourcePath rules', () => {
       const rule = {
         src: 'agents/foo-bar.md',
         transforms: ['copy'],
@@ -403,24 +353,24 @@ describe('manifest-expander', () => {
         preserveSourcePath: true,
       };
 
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result[0].outputs.gemini, 'agents/foo-bar.md');
+      assert.throws(
+        () => expandManifest([rule], runtimes, tmpDir),
+        /retired mirrored-output option/
+      );
     });
 
-    it('applies outputBase from object per runtime', () => {
+    it('rejects retired outputBase rules', () => {
       const rule = {
         src: 'agents/baz.md',
         transforms: ['copy'],
         runtimes: ['gemini', 'claude'],
-        preserveSourcePath: true,
         outputBase: { gemini: 'custom', claude: 'other' },
       };
 
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result[0].outputs.gemini, 'custom/agents/baz.md');
-      assert.equal(result[0].outputs.claude, 'claude/other/agents/baz.md');
+      assert.throws(
+        () => expandManifest([rule], runtimes, tmpDir),
+        /retired mirrored-output option/
+      );
     });
 
     it('throws when rule is missing runtimes', () => {

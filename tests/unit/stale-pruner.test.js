@@ -102,6 +102,28 @@ describe('pruneStaleFiles', () => {
     }
   });
 
+  it('removes retired payload roots when all of their files are stale', () => {
+    for (const retiredRoot of ['claude/src', 'plugins/maestro/src']) {
+      const rootDir = createTempRoot();
+      try {
+        const staleFile = `${retiredRoot}/mcp/maestro-server.js`;
+        createFile(rootDir, staleFile, 'stale');
+
+        const result = pruneStaleFiles({
+          rootDir,
+          manifestPaths: new Set(),
+          ownedDirs: [retiredRoot],
+        });
+
+        assert.ok(result.pruned.includes(staleFile));
+        assert.ok(result.emptyDirsRemoved.includes(retiredRoot));
+        assert.equal(fs.existsSync(path.join(rootDir, ...retiredRoot.split('/'))), false);
+      } finally {
+        removeTempRoot(rootDir);
+      }
+    }
+  });
+
   it('handles non-existent owned directories gracefully', () => {
     const rootDir = createTempRoot();
     try {
@@ -171,6 +193,26 @@ describe('pruneStaleFiles', () => {
       assert.equal(result.pruned.length, 2);
       assert.ok(result.pruned.includes('agents/stale-agent.md'));
       assert.ok(result.pruned.includes('commands/stale-cmd.toml'));
+    } finally {
+      removeTempRoot(rootDir);
+    }
+  });
+
+  it('prunes stale qwen agent stubs when they fall out of the manifest', () => {
+    const rootDir = createTempRoot();
+    try {
+      createFile(rootDir, 'qwen/agents/current.md', 'current');
+      createFile(rootDir, 'qwen/agents/stale.md', 'stale');
+
+      const result = pruneStaleFiles({
+        rootDir,
+        manifestPaths: new Set(['qwen/agents/current.md']),
+        ownedDirs: ['qwen/agents'],
+      });
+
+      assert.deepEqual(result.pruned, ['qwen/agents/stale.md']);
+      assert.ok(fs.existsSync(path.join(rootDir, 'qwen', 'agents', 'current.md')));
+      assert.equal(fs.existsSync(path.join(rootDir, 'qwen', 'agents', 'stale.md')), false);
     } finally {
       removeTempRoot(rootDir);
     }

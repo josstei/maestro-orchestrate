@@ -54,7 +54,7 @@ module.exports = {
   },
 
   paths: {
-    skills: '${CLAUDE_PLUGIN_ROOT}/skills/',
-    hooks: '${CLAUDE_PLUGIN_ROOT}/scripts/',
+    skills: '${CLAUDE_PLUGIN_ROOT}/claude/skills/',
+    hooks: '${CLAUDE_PLUGIN_ROOT}/claude/scripts/',
   },
 };

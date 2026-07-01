@@ -76,7 +76,6 @@ maestro-orchestrate/
 │
 ├── plugins/maestro/              # [generated] Codex plugin
 │   ├── skills/                   # Codex skills (19)
-│   ├── src/                      # generated detached runtime payload
 │   ├── references/               # Runtime guide
 │   ├── .codex-plugin/            # Plugin manifest
 │   ├── .mcp.json                 # MCP server config (spawns bin via npx)

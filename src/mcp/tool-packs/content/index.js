@@ -4,10 +4,15 @@ const { defineToolPack } = require('../contracts');
 const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
 const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
-const { getDefaultRuntimeConfig } = require('../../runtime/runtime-config-map');
+const {
+  getDefaultRuntimeConfig,
+  normalizeRuntimeConfig,
+} = require('../../runtime/runtime-config-map');
 
 function createToolPack(context = {}) {
-  const runtimeConfig = context.runtimeConfig || getDefaultRuntimeConfig();
+  const runtimeConfig = normalizeRuntimeConfig(
+    context.runtimeConfig || getDefaultRuntimeConfig()
+  );
   const canonicalSrcRoot =
     context.services &&
     typeof context.services.canonicalSrcRoot === 'string' &&

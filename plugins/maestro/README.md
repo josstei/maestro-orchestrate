@@ -24,7 +24,7 @@ codex plugin marketplace add /absolute/path/to/maestro-orchestrate
 
 Codex shares the same canonical `src/` source tree as the Gemini CLI, Claude Code, and Qwen Code outputs:
 - shared methodology, references, templates, hooks, and MCP server logic are authored only in `src/`
-- this plugin contains public entry skills, manifests, thin adapters, and a generated `./src/` runtime payload derived from canonical `src/`
+- this plugin contains public entry skills, manifests, and the Codex runtime guide; MCP code and content load from package-root `src/` through the versioned npm bin
 - Codex-specific behavior is isolated to this plugin's runtime guide and public entry skills, exposed under the plugin namespace as `$maestro:<skill>`
 - Codex does not consume plugin agent files; Maestro serves agent methodology through MCP `get_agent`
 
@@ -45,10 +45,10 @@ Codex shares the same canonical `src/` source tree as the Gemini CLI, Claude Cod
 
 ## Runtime notes
 
-- Shared methodology, references, templates, and agent bodies are authored in root `src/` and mirrored into generated `./src/` for detached Codex installs.
+- Shared methodology, references, templates, and agent bodies are authored in root `src/` and served from the package root by `maestro-mcp-server`.
 - Maestro session state lives in `docs/maestro` in the workspace root.
 - Codex resolves that workspace root from `MAESTRO_WORKSPACE_PATH` when available, otherwise from the MCP client `roots/list` response, before falling back to legacy env or `cwd` detection.
-- The plugin ships `.mcp.json` for MCP-first operation, but the generated skills also include direct filesystem fallbacks under `docs/maestro` when MCP tools are unavailable.
+- The plugin ships `.mcp.json` for MCP-first operation, and generated skills also describe direct state-file access under `docs/maestro` for spawned agents that cannot see the parent MCP tools.
 - Custom Codex subagents normally live in `.codex/agents`. This plugin does not write there; `get_agent` serves the canonical methodology bodies directly.
 - Codex keeps its built-in `/review`, `/debug`, and `/resume` commands; Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` to avoid those collisions.
 

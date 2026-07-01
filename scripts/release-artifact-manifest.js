@@ -2,10 +2,37 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { RUNTIME_PAYLOAD_CONTRACT } = require('../src/platforms/runtime-payload-contract');
+
+const RUNTIME_SOURCE_PATHS = Object.freeze([
+  'src/agents',
+  'src/config',
+  'src/core',
+  'src/generated',
+  'src/hooks',
+  'src/lib/errors',
+  'src/lib/framework-detection.js',
+  'src/lib/frontmatter',
+  'src/lib/io',
+  'src/lib/naming',
+  'src/lib/validation',
+  'src/mcp',
+  'src/platforms/claude/runtime-config.js',
+  'src/platforms/codex/runtime-config.js',
+  'src/platforms/gemini/runtime-config.js',
+  'src/platforms/qwen/runtime-config.js',
+  'src/platforms/shared',
+  'src/references',
+  'src/scripts',
+  'src/skills',
+  'src/state',
+  'src/templates',
+]);
 
 const RELEASE_ARTIFACT_PATHS = [
   '.agents/plugins/marketplace.json',
   '.claude-plugin/marketplace.json',
+  '.claude-plugin/plugin.json',
   'CHANGELOG.md',
   'EXAMPLES.md',
   'GEMINI.md',
@@ -13,8 +40,16 @@ const RELEASE_ARTIFACT_PATHS = [
   'QWEN.md',
   'README.md',
   'agents',
-  'bin',
-  'claude',
+  'bin/maestro-install-codex.js',
+  'bin/maestro-mcp-server.js',
+  'claude/.mcp.json',
+  'claude/README.md',
+  'claude/agents',
+  'claude/hooks',
+  'claude/mcp-config.example.json',
+  'claude/mcp',
+  'claude/scripts',
+  'claude/skills',
   'commands',
   'docs/runtime-gemini.md',
   'docs/runtime-claude.md',
@@ -26,11 +61,16 @@ const RELEASE_ARTIFACT_PATHS = [
   'mcp',
   'package-lock.json',
   'package.json',
-  'plugins/maestro',
+  'plugins/maestro/.app.json',
+  'plugins/maestro/.codex-plugin',
+  'plugins/maestro/.mcp.json',
+  'plugins/maestro/README.md',
+  'plugins/maestro/references',
+  'plugins/maestro/skills',
   'policies',
   'qwen',
   'qwen-extension.json',
-  'src',
+  ...RUNTIME_SOURCE_PATHS,
 ];
 
 const DENIED_ARTIFACT_PATHS = [
@@ -47,10 +87,13 @@ const DENIED_ARTIFACT_PATHS = [
   'docs/maestro',
   'docs/superpowers',
   'node_modules',
+  'scripts',
   'tests',
   'tmp',
   'temp',
   'hooks/permissions.json',
+  'claude/src',
+  'plugins/maestro/src',
 ];
 
 const DENIED_ARTIFACT_PATTERNS = [
@@ -59,14 +102,9 @@ const DENIED_ARTIFACT_PATTERNS = [
   /\.test\.[cm]?js$/,
 ];
 
-const REQUIRED_PACKAGE_FILES = [
-  'bin/maestro-mcp-server.js',
-  'claude/.claude-plugin/plugin.json',
-  'gemini-extension.json',
-  'plugins/maestro/.codex-plugin/plugin.json',
-  'qwen-extension.json',
-  'src/mcp/maestro-server.js',
-];
+const REQUIRED_PACKAGE_FILES = Object.freeze([
+  ...new Set(RUNTIME_PAYLOAD_CONTRACT.flatMap((runtime) => runtime.packageInvariants || [])),
+].sort());
 
 function toPosixPath(filePath) {
   return filePath.split(path.sep).join('/');
@@ -224,11 +262,9 @@ function getVersionEntries(root) {
   const pkg = readJson(root, 'package.json');
   const gemini = readJson(root, 'gemini-extension.json');
   const qwen = readJson(root, 'qwen-extension.json');
-  const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
+  const claudePlugin = readJson(root, '.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
-  const claudeSrcVersion = readJson(root, 'claude/src/version.json');
-  const codexSrcVersion = readJson(root, 'plugins/maestro/src/version.json');
   const claudeMarketplacePlugin = findNamedPlugin(
     claudeMarketplace,
     'maestro',
@@ -239,12 +275,10 @@ function getVersionEntries(root) {
     ['package.json', requireVersion(pkg.version, 'package.json')],
     ['gemini-extension.json', requireVersion(gemini.version, 'gemini-extension.json')],
     ['qwen-extension.json', requireVersion(qwen.version, 'qwen-extension.json')],
-    ['claude/.claude-plugin/plugin.json', requireVersion(claudePlugin.version, 'claude plugin')],
+    ['.claude-plugin/plugin.json', requireVersion(claudePlugin.version, 'claude plugin')],
     ['plugins/maestro/.codex-plugin/plugin.json', requireVersion(codexPlugin.version, 'Codex plugin')],
     ['.claude-plugin/marketplace.json metadata.version', requireVersion(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
     ['.claude-plugin/marketplace.json plugins.maestro.version', requireVersion(claudeMarketplacePlugin.version, 'Claude marketplace plugin')],
-    ['claude/src/version.json', requireVersion(claudeSrcVersion.version, 'Claude detached payload')],
-    ['plugins/maestro/src/version.json', requireVersion(codexSrcVersion.version, 'Codex detached payload')],
   ];
 }
 
@@ -268,7 +302,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   const qwen = readJson(root, 'qwen-extension.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
   const codexMarketplace = readJson(root, '.agents/plugins/marketplace.json');
-  const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
+  const claudePlugin = readJson(root, '.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMcp = readJson(root, 'claude/.mcp.json');
   const codexMcp = readJson(root, 'plugins/maestro/.mcp.json');
@@ -280,8 +314,8 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     'maestro',
     '.claude-plugin/marketplace.json'
   );
-  if (claudeMarketplacePlugin.source !== './claude') {
-    throw new Error('.claude-plugin/marketplace.json maestro source must be ./claude');
+  if (claudeMarketplacePlugin.source !== '.') {
+    throw new Error('.claude-plugin/marketplace.json maestro source must be package root "."');
   }
 
   const codexMarketplacePlugin = findNamedPlugin(
@@ -305,8 +339,12 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     throw new Error('qwen-extension.json must define QWEN.md and maestro MCP server');
   }
 
-  if (claudePlugin.hooks !== './hooks/claude-hooks.json') {
-    throw new Error('claude plugin manifest must reference ./hooks/claude-hooks.json');
+  if (claudePlugin.hooks !== './claude/hooks/claude-hooks.json') {
+    throw new Error('claude plugin manifest must reference ./claude/hooks/claude-hooks.json');
+  }
+
+  if (claudePlugin.mcpServers !== './claude/.mcp.json') {
+    throw new Error('claude plugin manifest must reference ./claude/.mcp.json');
   }
 
   if (
@@ -322,7 +360,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     !claudeServer ||
     claudeServer.command !== 'node' ||
     !Array.isArray(claudeServer.args) ||
-    !claudeServer.args.includes('${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js')
+    !claudeServer.args.includes('${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js')
   ) {
     throw new Error('claude/.mcp.json must launch the bundled Maestro MCP server');
   }
@@ -341,9 +379,9 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   }
 
   const requiredRuntimeFiles = [
+    'bin/maestro-install-codex.js',
     'bin/maestro-mcp-server.js',
-    'claude/src/mcp/maestro-server.js',
-    'plugins/maestro/src/mcp/maestro-server.js',
+    'src/mcp/maestro-server.js',
   ];
 
   for (const relativePath of requiredRuntimeFiles) {
@@ -352,9 +390,19 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     }
   }
 
-  const binMode = fs.statSync(path.join(root, 'bin/maestro-mcp-server.js')).mode;
-  if ((binMode & 0o111) === 0) {
-    throw new Error('bin/maestro-mcp-server.js must be executable');
+  for (const binPath of ['bin/maestro-install-codex.js', 'bin/maestro-mcp-server.js']) {
+    const binMode = fs.statSync(path.join(root, binPath)).mode;
+    if ((binMode & 0o111) === 0) {
+      throw new Error(`${binPath} must be executable`);
+    }
+  }
+
+  if (fs.existsSync(path.join(root, 'claude/src'))) {
+    throw new Error('Claude detached payload must not be present: claude/src');
+  }
+
+  if (fs.existsSync(path.join(root, 'plugins/maestro/src'))) {
+    throw new Error('Codex detached payload must not be present: plugins/maestro/src');
   }
 
   return version;
@@ -365,6 +413,7 @@ module.exports = {
   DENIED_ARTIFACT_PATTERNS,
   RELEASE_ARTIFACT_PATHS,
   REQUIRED_PACKAGE_FILES,
+  RUNTIME_SOURCE_PATHS,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,

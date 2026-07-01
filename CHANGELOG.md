@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Claude payload retirement**: Claude now uses package-root `src` directly through `claude/mcp/maestro-server.js`; the generated `claude/src` detached payload, provider fallback chain, detached payload builder, and broad Claude package/release allowlists were removed.
+- **Package surface hardening**: `maestro-install-codex` is now the public Codex installer command via `bin/maestro-install-codex.js`; root `scripts/` are source-checkout release/dev tooling and are no longer published package or release artifact content.
+
+### Fixed
+
+- **Package and release verification**: npm package required files are derived from the runtime payload contract, pack verification prints entry and byte metrics, release artifacts allow only the two public bin files, and the packed-package smoke test runs both installed public bins.
+
 ## [1.6.4] - 2026-04-30
 
 ### Added
@@ -59,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Codex MCP server invocation** — `plugins/maestro/.mcp.json` now spawns the server via `npx -y github:josstei/maestro-orchestrate maestro-mcp-server`, matching the convention used by every curated Codex plugin. The previous relative-path spawn (`./mcp/maestro-server.js`) resolved against the user's workspace cwd rather than the plugin directory, causing MCP handshake failures in any workspace outside the repo checkout. The new invocation is location-independent.
-- **Codex installation path** — Primary install is now `codex marketplace add josstei/maestro-orchestrate` (uses the new root `.agents/plugins/marketplace.json`). `scripts/install-codex-plugin.js` remains as a legacy/offline fallback.
+- **Codex installation path** — Primary install is now `codex marketplace add josstei/maestro-orchestrate` (uses the new root `.agents/plugins/marketplace.json`). The `maestro-install-codex` bin remains available as a legacy/offline fallback.
 - **`initialize_workspace` requires explicit `workspace_path`** — Handler calls `requireExplicitWorkspaceRoot`, writes a workspace marker, and returns `workspace_path` in the result. Schema declares `workspace_path` as required. Back-compat preserved via a `cachedProjectRoot` fallback for callers that pass the third MCP arg but not the explicit param.
 - **`create_session` enforces design-gate approval** — Auto-populates `state.design_document` from the approved gate when the param is omitted, and resolves `implementation_plan` paths through the same copy-into-plans contract. Extends the design-gate from a single-step approval signal to the owner of the full design-doc lifecycle through archival.
 - **`create_session` preserves phase ID types** — `phase.id` and `blocked_by` preserved verbatim, so plans with string IDs round-trip consistently. Tool schemas for `completed_phase_id`, `next_phase_id`, `next_phase_ids`, and the `scan_phase_changes` / `reconcile_phase` `phase_id` now accept number or string.

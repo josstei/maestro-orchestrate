@@ -81,6 +81,15 @@ describe('runtime-config-map', () => {
     const fromObject = normalizeRuntimeConfig({ name: 'test-runtime', tools: {} });
     assert.equal(fromObject.name, 'test-runtime');
 
+    const fromKnownObject = normalizeRuntimeConfig({
+      name: 'gemini',
+      env: { extensionPath: 'TEST_EXTENSION_PATH' },
+    });
+    assert.equal(fromKnownObject.name, 'gemini');
+    assert.equal(fromKnownObject.env.extensionPath, 'TEST_EXTENSION_PATH');
+    assert.equal(fromKnownObject.features.scriptBasedStateContract, true);
+    assert.equal(fromKnownObject.tools.read_file, 'read_file');
+
     const fromFalsy = normalizeRuntimeConfig(null);
     assert.ok(fromFalsy.name, 'Expected fallback to default runtime');
   });

@@ -124,7 +124,7 @@ function mapTools(frontmatter, runtimeConfig) {
   });
 }
 
-function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
+function readRawResourceFromFilesystem(id, srcRoot) {
   const relativePath = RESOURCE_ALLOWLIST[id];
   if (!relativePath) {
     return {
@@ -136,16 +136,39 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
   try {
     const content = fs.readFileSync(absolutePath, 'utf8');
     return {
-      content: applyRuntimeTransforms(content, runtimeConfig, relativePath),
+      content,
+      path: absolutePath,
+      relativePath,
     };
   } catch (err) {
     return {
       error: `Failed to read resource "${id}": ${err.code || 'UNKNOWN'}`,
+      code: err.code || 'UNKNOWN',
+      path: absolutePath,
     };
   }
 }
 
-function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
+function materializeResource(rawResource, runtimeConfig) {
+  return {
+    content: applyRuntimeTransforms(
+      rawResource.content,
+      runtimeConfig,
+      rawResource.relativePath
+    ),
+  };
+}
+
+function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
+  const rawResource = readRawResourceFromFilesystem(id, srcRoot);
+  if (rawResource.error) {
+    return rawResource;
+  }
+
+  return materializeResource(rawResource, runtimeConfig);
+}
+
+function readRawAgentFromFilesystem(agentName, srcRoot) {
   if (!AGENT_ALLOWLIST.includes(agentName)) {
     return {
       error: `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
@@ -155,18 +178,37 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
   const absolutePath = path.join(srcRoot, 'agents', `${agentName}.md`);
   try {
     const content = fs.readFileSync(absolutePath, 'utf8');
-    const frontmatter = parseFrontmatter(content);
     return {
-      agent: {
-        body: stripFrontmatter(stripFeatureBlocks(content, runtimeConfig)),
-        tools: mapTools(frontmatter, runtimeConfig),
-      },
+      content,
+      path: absolutePath,
+      relativePath: path.join('agents', `${agentName}.md`),
     };
   } catch (err) {
     return {
       error: `Failed to read agent "${agentName}": ${err.code || 'UNKNOWN'}`,
+      code: err.code || 'UNKNOWN',
+      path: absolutePath,
     };
   }
+}
+
+function materializeAgent(rawAgent, runtimeConfig) {
+  const frontmatter = parseFrontmatter(rawAgent.content);
+  return {
+    agent: {
+      body: stripFrontmatter(stripFeatureBlocks(rawAgent.content, runtimeConfig)),
+      tools: mapTools(frontmatter, runtimeConfig),
+    },
+  };
+}
+
+function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
+  const rawAgent = readRawAgentFromFilesystem(agentName, srcRoot);
+  if (rawAgent.error) {
+    return rawAgent;
+  }
+
+  return materializeAgent(rawAgent, runtimeConfig);
 }
 
 module.exports = {
@@ -183,6 +225,10 @@ module.exports = {
   parseInlineArray,
   parseFrontmatter,
   mapTools,
+  readRawResourceFromFilesystem,
+  materializeResource,
   readResourceFromFilesystem,
+  readRawAgentFromFilesystem,
+  materializeAgent,
   readAgentFromFilesystem,
 };

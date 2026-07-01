@@ -95,6 +95,18 @@ function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
     }
   }
 
+  const ownedRootDirs = [...ownedDirs].sort((a, b) => b.length - a.length);
+  for (const dir of ownedRootDirs) {
+    const absDir = path.join(rootDir, dir);
+    if (!fs.existsSync(absDir)) {
+      continue;
+    }
+    if (fs.readdirSync(absDir).length === 0) {
+      fs.rmdirSync(absDir);
+      emptyDirsRemoved.push(dir);
+    }
+  }
+
   return { pruned, emptyDirsRemoved };
 }
 

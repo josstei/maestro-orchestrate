@@ -6,7 +6,10 @@ const path = require('node:path');
 
 const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
+const { RESOURCE_ALLOWLIST } = require('../../src/mcp/content/runtime-content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
 function withExtensionRoot(root, fn) {
   const previous = process.env.MAESTRO_EXTENSION_PATH;
@@ -20,6 +23,18 @@ function withExtensionRoot(root, fn) {
       process.env.MAESTRO_EXTENSION_PATH = previous;
     }
   }
+}
+
+function writeResource(srcRoot, id, content) {
+  const relativePath = RESOURCE_ALLOWLIST[id];
+  fs.mkdirSync(path.join(srcRoot, path.dirname(relativePath)), { recursive: true });
+  fs.writeFileSync(path.join(srcRoot, relativePath), content, 'utf8');
+}
+
+function writeAgent(srcRoot, agentName, content) {
+  const agentPath = path.join(srcRoot, 'agents', `${agentName}.md`);
+  fs.mkdirSync(path.dirname(agentPath), { recursive: true });
+  fs.writeFileSync(agentPath, content, 'utf8');
 }
 
 describe('get_skill_content handler', () => {
@@ -73,6 +88,22 @@ describe('get_skill_content handler', () => {
     assert.ok(!content.includes('Codex keeps'));
   });
 
+  it('serves Claude architecture content with package-root state script paths', () => {
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('claude'),
+      path.join(REPO_ROOT, 'src')
+    );
+
+    const result = withExtensionRoot(REPO_ROOT, () =>
+      handler({ resources: ['architecture'] })
+    );
+    const content = result.contents.architecture;
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(content.includes('${CLAUDE_PLUGIN_ROOT}/src/scripts/read-active-session.js'));
+    assert.ok(!content.includes('${CLAUDE_PLUGIN_ROOT}/../src/scripts/'));
+  });
+
   it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-delegation-names-'));
     const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
@@ -97,6 +128,50 @@ describe('get_skill_content handler', () => {
     assert.ok(content.includes('ux_designer'), 'ux-designer should be replaced with ux_designer');
     assert.ok(!content.includes('code-reviewer'), 'kebab-case should not remain');
     assert.ok(!content.includes('ux-designer'), 'kebab-case should not remain');
+  });
+
+  it('reads package-root content through the Claude handler and applies skill transforms', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-skill-claude-source-'));
+    const claudeRoot = path.join(root, 'claude');
+    const sourceSrc = path.join(root, 'src');
+
+    writeResource(
+      sourceSrc,
+      'delegation',
+      '---\nname: delegation\ndescription: Claude source skill\n---\nUse ${extensionPath} from package-root source.\n'
+    );
+
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('claude'),
+      sourceSrc
+    );
+
+    const result = withExtensionRoot(claudeRoot, () =>
+      handler({ resources: ['delegation'] })
+    );
+    const content = result.contents.delegation;
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(content.includes('${CLAUDE_PLUGIN_ROOT}'));
+    assert.ok(content.includes('user-invocable: false'));
+    assert.ok(content.includes('from package-root source'));
+  });
+
+  it('rejects unknown resources before filesystem lookup', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-skill-unknown-'));
+    const claudeRoot = path.join(root, 'claude');
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('claude'),
+      path.join(root, 'src')
+    );
+
+    const result = withExtensionRoot(claudeRoot, () =>
+      handler({ resources: ['not-a-resource'] })
+    );
+
+    assert.deepEqual(result.contents, {});
+    assert.match(result.errors['not-a-resource'], /^Unknown resource identifier: "not-a-resource"/);
+    assert.doesNotMatch(result.errors['not-a-resource'], /Failed to read/);
   });
 });
 
@@ -249,6 +324,58 @@ describe('get_agent handler', () => {
       'ux_designer',
       'tool_name for snake_case input on Gemini should be snake_case'
     );
+  });
+
+  it('reads package-root content through the Claude handler and applies agent transforms', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-claude-source-'));
+    const claudeRoot = path.join(root, 'claude');
+    const sourceSrc = path.join(root, 'src');
+
+    writeAgent(
+      sourceSrc,
+      'code-reviewer',
+      [
+        '---',
+        'name: code-reviewer',
+        'tools: [read_file, write_file]',
+        'tools.claude: [Read, Write]',
+        '---',
+        '',
+        'Package-root reviewer methodology.',
+      ].join('\n')
+    );
+
+    const handler = createAgentHandler(
+      getRuntimeConfig('claude'),
+      sourceSrc
+    );
+
+    const result = withExtensionRoot(claudeRoot, () =>
+      handler({ agents: ['code-reviewer'] })
+    );
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(result.agents['code-reviewer']);
+    assert.ok(result.agents['code-reviewer'].body.includes('Package-root reviewer methodology.'));
+    assert.equal(result.agents['code-reviewer'].tool_name, 'code-reviewer');
+    assert.deepEqual(result.agents['code-reviewer'].tools, ['Read', 'Write']);
+  });
+
+  it('rejects unknown agents before filesystem lookup', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-unknown-'));
+    const claudeRoot = path.join(root, 'claude');
+    const handler = createAgentHandler(
+      getRuntimeConfig('claude'),
+      path.join(root, 'src')
+    );
+
+    const result = withExtensionRoot(claudeRoot, () =>
+      handler({ agents: ['not-a-real-agent'] })
+    );
+
+    assert.deepEqual(result.agents, {});
+    assert.match(result.errors['not-a-real-agent'], /^Unknown agent identifier: "not-a-real-agent"/);
+    assert.doesNotMatch(result.errors['not-a-real-agent'], /Failed to read/);
   });
 
   it('replays Gemini ux_designer delegation scenario end-to-end', () => {

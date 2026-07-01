@@ -7,15 +7,14 @@ const { resolve: resolveTransform } = require('../src/transforms');
 const { createGenerationSession } = require('../src/generator/generation-session');
 const { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } = require('../src/generator/manifest-expander');
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
-const { buildDetachedPayload, stampVersion, buildPayloadAllowlist, shouldIncludeInPayload, shouldDescendInto } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
 const { collectManifestPaths } = require('../src/generator/manifest-curator');
+const { OWNED_GENERATED_DIRS } = require('../src/generator/generated-surface-inventory');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const OWNED_DIRS = ['agents', 'claude/agents', 'claude/skills', 'plugins/maestro/skills', 'commands'];
 const ENTRY_POINT_EXPANDERS = [expandEntryPoints, expandCoreCommands];
 
 const args = process.argv.slice(2);
@@ -114,21 +113,13 @@ async function main() {
 
   if (!session.isReadOnlyMode()) {
     const manifestPaths = collectManifestPaths(manifest, runtimes, SRC, ENTRY_POINT_EXPANDERS);
-    const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS });
+    const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_GENERATED_DIRS });
     if (pruned.length > 0) {
       console.log('\nPruning stale files (not in manifest):');
       for (const f of pruned) console.log(`  PRUNED: ${f}`);
     }
 
-    const claudePayloadDir = path.join(ROOT, 'claude', 'src');
-    const codexPayloadDir = path.join(ROOT, 'plugins', 'maestro', 'src');
-    const claudeStats = buildDetachedPayload(SRC, claudePayloadDir, 'claude');
-    const codexStats = buildDetachedPayload(SRC, codexPayloadDir, 'codex');
-    stampVersion([claudePayloadDir, codexPayloadDir], packageMetadata.version);
-    console.log(
-      `\nDetached payloads: claude/src (${claudeStats.copied} updated, ${claudeStats.removed} removed), ` +
-      `plugins/maestro/src (${codexStats.copied} updated, ${codexStats.removed} removed)`
-    );
+    console.log('\nDetached payloads: none');
   }
 
   if (stats.errors > 0) process.exit(1);
@@ -143,13 +134,10 @@ if (require.main === module) {
 
 module.exports = {
   assertNoMirroredSharedOutputs,
-  buildPayloadAllowlist,
   buildRuntimeOutputPath,
-  buildDetachedPayload,
   expandCoreCommands,
   buildPlatformMetadataOutputs,
   expandManifest,
   expandEntryPoints,
-  shouldDescendInto,
-  shouldIncludeInPayload,
+  OWNED_GENERATED_DIRS,
 };

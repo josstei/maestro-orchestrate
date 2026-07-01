@@ -38,7 +38,7 @@ claude plugin uninstall maestro       # Remove the plugin entirely
 Load the plugin for a single session without persistent registration:
 
 ```bash
-claude --plugin-dir /path/to/maestro-orchestrate/claude
+claude --plugin-dir /path/to/maestro-orchestrate
 ```
 
 Use `/reload-plugins` inside the session to pick up file changes without restarting.
@@ -47,7 +47,7 @@ For local development, clone the repo first:
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
-claude --plugin-dir /path/to/maestro-orchestrate/claude
+claude --plugin-dir /path/to/maestro-orchestrate
 ```
 
 ### Verify Installation
@@ -60,21 +60,21 @@ After starting Claude Code with the plugin loaded:
 
 ### MCP Server
 
-The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not available, verify the `.mcp.json` file exists at the plugin root:
+The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not available, verify `.claude-plugin/plugin.json` exists at the package root and references `./claude/.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "maestro": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js"],
+      "args": ["${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js"],
       "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   }
 }
 ```
 
-**Note:** Claude is filesystem-backed for shared MCP content. Published Claude bundles carry a generated local `src/` payload derived from the canonical source tree, and shared skills, templates, references, and delegation protocols are loaded from that local payload through `get_skill_content`. Runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
+**Note:** Claude is filesystem-backed for shared MCP content. Published Claude runtimes require package-root `src/` beside `claude/`; shared skills, templates, references, and delegation protocols are loaded from that package-root source through `get_skill_content`. Runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
 
 ## Quick Start
 

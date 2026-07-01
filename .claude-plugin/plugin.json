@@ -1,0 +1,21 @@
+{
+  "name": "maestro",
+  "version": "1.6.4",
+  "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands",
+  "author": {
+    "name": "josstei",
+    "email": "hello@josstei.dev",
+    "url": "https://github.com/josstei"
+  },
+  "license": "Apache-2.0",
+  "hooks": "./claude/hooks/claude-hooks.json",
+  "mcpServers": "./claude/.mcp.json",
+  "homepage": "https://github.com/josstei/maestro-orchestrate",
+  "repository": "https://github.com/josstei/maestro-orchestrate",
+  "keywords": [
+    "orchestration",
+    "multi-agent",
+    "planning",
+    "execution"
+  ]
+}

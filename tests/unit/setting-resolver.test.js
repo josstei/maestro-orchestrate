@@ -8,8 +8,6 @@ const path = require('node:path');
 
 const { resolveSetting } = require('../../src/config/setting-resolver');
 
-const EXTENSION_ENV_VARS = ['MAESTRO_EXTENSION_PATH', 'CLAUDE_PLUGIN_ROOT'];
-
 function withEnv(overrides, fn) {
   const previous = {};
   for (const key of Object.keys(overrides)) {
@@ -146,13 +144,13 @@ describe('resolveSetting', () => {
     clearEnvFiles();
   });
 
-  it('uses CLAUDE_PLUGIN_ROOT as fallback when MAESTRO_EXTENSION_PATH is absent', () => {
+  it('ignores CLAUDE_PLUGIN_ROOT when MAESTRO_EXTENSION_PATH is absent', () => {
     writeExtensionEnv('MY_VAR=via-plugin-root\n');
     const result = withEnv(
       { MY_VAR: null, MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: extensionDir },
       () => resolveSetting('MY_VAR', projectDir)
     );
-    assert.equal(result, 'via-plugin-root');
+    assert.equal(result, undefined);
     clearEnvFiles();
   });
 });

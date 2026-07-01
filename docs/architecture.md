@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest/context files) contain the manifests, entrypoints, discovery stubs, public adapter files, and any generator-owned runtime payloads each host requires.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest/context files) contain host-facing manifests, entrypoints, discovery stubs, and public adapter files; they do not carry mirrored source payloads.
 
 ```
                     ┌─────────────┐
@@ -31,7 +31,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads runtime configs from `src/platforms/*/runtime-config.js`
 2. Expands manifest rules from `src/manifest.js` into concrete runtime outputs
-3. Copies or transforms the public adapter assets and any generator-owned runtime payloads each runtime needs
+3. Copies or transforms the public runtime adapter assets
 4. Expands the entry-point registry into runtime-specific command or skill surfaces
 5. Prunes stale generated adapter files from owned directories
 
@@ -97,7 +97,7 @@ Plus 3 core commands (orchestrate, execute, resume) maintained separately in `sr
 
 ## MCP Server Architecture
 
-The MCP server is authored directly in modular source under `src/mcp/`. Gemini and Qwen share the repo-root public wrapper at `mcp/maestro-server.js`; their manifests set `MAESTRO_RUNTIME` to select the runtime config. Claude exposes its own thin wrapper at `claude/mcp/maestro-server.js` so detached plugin installs can fall back to `claude/src/`. Codex has no in-plugin wrapper — it spawns the server via `npx` against the versioned `@josstei/maestro` npm package and the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`.
+The MCP server is authored directly in modular source under `src/mcp/`. Gemini and Qwen share the repo-root public wrapper at `mcp/maestro-server.js`; their manifests set `MAESTRO_RUNTIME` to select the runtime config. Claude exposes its own thin wrapper at `claude/mcp/maestro-server.js`, but that wrapper loads package-root `src` directly rather than a detached payload mirror. Codex has no in-plugin wrapper — it spawns the server via `npx` against the versioned `@josstei/maestro` npm package and the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`.
 
 ### Module Structure
 
@@ -138,20 +138,22 @@ src/mcp/
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime:
+The content tools (`get_agent`, `get_skill_content`) use one filesystem provider rooted at package-root `src`:
 
 - Gemini: `primary=filesystem`, `fallback=none`
 - Claude: `primary=filesystem`, `fallback=none`
 - Codex: `primary=filesystem`, `fallback=none`
 - Qwen: `primary=filesystem`, `fallback=none`
 
-Gemini and Qwen use the shared repo-root entrypoint at `mcp/maestro-server.js`, which requires `../src/mcp/maestro-server` directly. Their generated manifests set `MAESTRO_RUNTIME=gemini` or `MAESTRO_RUNTIME=qwen` before launch. Claude uses dual-resolution: it prefers the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and falls back to the bundled detached payload (`claude/src/mcp/maestro-server.js`) when running outside the repo. Codex spawns `bin/maestro-mcp-server.js` via a release-versioned `npx -p @josstei/maestro@<version> maestro-mcp-server` invocation (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server`.
+Gemini and Qwen use the shared repo-root entrypoint at `mcp/maestro-server.js`, which requires `../src/mcp/maestro-server` directly. Their generated manifests set `MAESTRO_RUNTIME=gemini` or `MAESTRO_RUNTIME=qwen` before launch. Claude uses `claude/mcp/maestro-server.js`, which sets `MAESTRO_RUNTIME=claude`, overwrites `MAESTRO_EXTENSION_PATH` with the package root, and requires package-root `../../src/mcp/maestro-server.js` directly. Codex spawns `bin/maestro-mcp-server.js` via a release-versioned `npx -p @josstei/maestro@<version> maestro-mcp-server` invocation (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex`, overwrites `MAESTRO_EXTENSION_PATH` with the package root, then requires `../src/mcp/maestro-server`.
+
+Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.js`, so a future registry or snapshot provider must feed the same materialization path instead of carrying pre-transformed copies.
 
 This makes one architectural rule explicit:
 
 - shared logic lives under `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`
 - root `src/` is the only human-authored source of truth
-- generator-owned runtime-local mirrors are allowed when a bundled runtime needs self-containment
+- generator-owned runtime-local mirrors are retired; public runtime roots carry host-facing manifests, stubs, and entrypoints only
 - no hand-maintained runtime forks are allowed
 
 ### MCP Server Packaging
@@ -160,8 +162,8 @@ Gemini and Qwen share the repo-root public entrypoint at `mcp/maestro-server.js`
 
 - **Gemini** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=gemini`, directly requires `../src/mcp/maestro-server` and calls `.main()`
 - **Qwen** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=qwen` from `qwen-extension.json`, using the same shared entrypoint as Gemini
-- **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
-- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
+- **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, overwrites `MAESTRO_EXTENSION_PATH` with the package root, directly requires `../../src/mcp/maestro-server.js`, and calls `.main()`
+- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex`, overwrites `MAESTRO_EXTENSION_PATH` with the package root, then requires `../src/mcp/maestro-server` and calls `.main()`
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 

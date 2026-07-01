@@ -14,7 +14,7 @@ function createTempProject(version) {
     'package.json': { name: '@josstei/maestro', version, license: 'Apache-2.0' },
     'gemini-extension.json': { name: 'maestro', version },
     'qwen-extension.json': { name: 'maestro', version },
-    'claude/.claude-plugin/plugin.json': { name: 'maestro', version },
+    '.claude-plugin/plugin.json': { name: 'maestro', version },
     'plugins/maestro/.codex-plugin/plugin.json': { name: 'maestro', version },
     'plugins/maestro/.mcp.json': {
       mcpServers: {
@@ -83,7 +83,7 @@ describe('updateVersions', () => {
     const pkg = readJson(tempRoot, 'package.json');
     const gemini = readJson(tempRoot, 'gemini-extension.json');
     const qwen = readJson(tempRoot, 'qwen-extension.json');
-    const claudePlugin = readJson(tempRoot, 'claude/.claude-plugin/plugin.json');
+    const claudePlugin = readJson(tempRoot, '.claude-plugin/plugin.json');
     const codexPlugin = readJson(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json');
     const codexMcp = readJson(tempRoot, 'plugins/maestro/.mcp.json');
     const marketplace = readJson(tempRoot, '.claude-plugin/marketplace.json');

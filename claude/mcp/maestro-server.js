@@ -1,9 +1,9 @@
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 
-process.env.MAESTRO_RUNTIME = process.env.MAESTRO_RUNTIME || 'claude';
-const repoEntry = path.resolve(__dirname, '../../src/mcp/maestro-server.js');
-const bundledEntry = path.resolve(__dirname, '../src/mcp/maestro-server.js');
-require(fs.existsSync(repoEntry) ? repoEntry : bundledEntry).main();
+const extensionRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
+
+process.env.MAESTRO_RUNTIME = 'claude';
+process.env.MAESTRO_EXTENSION_PATH = extensionRoot;
+require('../../src/mcp/maestro-server.js').main();

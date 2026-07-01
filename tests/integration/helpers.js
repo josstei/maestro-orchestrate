@@ -55,14 +55,19 @@ function parseDryRunReport(output) {
   };
 }
 
-async function withIsolatedClaudePlugin(fn) {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-plugin-'));
-  const pluginRoot = path.join(tempRoot, 'maestro');
+async function withPackagedClaudeRuntime(fn) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-runtime-'));
+  const packageRoot = path.join(tempRoot, 'maestro');
 
-  fs.cpSync(path.join(ROOT, 'claude'), pluginRoot, { recursive: true });
+  fs.mkdirSync(packageRoot, { recursive: true });
+  fs.cpSync(path.join(ROOT, '.claude-plugin'), path.join(packageRoot, '.claude-plugin'), {
+    recursive: true,
+  });
+  fs.cpSync(path.join(ROOT, 'claude'), path.join(packageRoot, 'claude'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'src'), path.join(packageRoot, 'src'), { recursive: true });
 
   try {
-    return await fn(pluginRoot);
+    return await fn(packageRoot);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -96,5 +101,5 @@ module.exports = {
   parseDryRunReport,
   runGenerator,
   runGeneratorExpectFailure,
-  withIsolatedClaudePlugin,
+  withPackagedClaudeRuntime,
 };

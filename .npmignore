@@ -18,6 +18,9 @@ tests/
 docs/maestro/
 docs/superpowers/
 hooks/permissions.json
+claude/src/
+plugins/maestro/src/
+scripts/
 
 .env
 .env.*

@@ -3,7 +3,7 @@
     "maestro": {
       "command": "node",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js"
+        "${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js"
       ],
       "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }

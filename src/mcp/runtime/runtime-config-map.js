@@ -47,6 +47,22 @@ function getDefaultRuntimeConfig() {
   return loadRuntimeConfig(RUNTIME_NAMES[0]);
 }
 
+function isPlainObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeRuntimeConfig(base, override) {
+  const merged = { ...base, ...override };
+
+  for (const key of Object.keys(override)) {
+    if (isPlainObject(base[key]) && isPlainObject(override[key])) {
+      merged[key] = mergeRuntimeConfig(base[key], override[key]);
+    }
+  }
+
+  return merged;
+}
+
 function normalizeRuntimeConfig(runtimeConfig) {
   if (!runtimeConfig) {
     return getDefaultRuntimeConfig();
@@ -57,6 +73,10 @@ function normalizeRuntimeConfig(runtimeConfig) {
   }
 
   if (typeof runtimeConfig === 'object' && runtimeConfig.name) {
+    if (RUNTIME_NAMES.includes(runtimeConfig.name)) {
+      return mergeRuntimeConfig(getRuntimeConfig(runtimeConfig.name), runtimeConfig);
+    }
+
     return runtimeConfig;
   }
 

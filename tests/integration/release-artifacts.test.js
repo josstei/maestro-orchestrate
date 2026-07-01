@@ -11,6 +11,19 @@ const { createTempRepoCopy } = require('./helpers');
 const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
 const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifacts');
 
+const BUILD_ONLY_SOURCE_ARCHIVE_PATHS = [
+  './src/generator/file-writer.js',
+  './src/transforms/index.js',
+  './src/entry-points/registry.js',
+  './src/lib/discovery/index.js',
+  './src/lib/yaml-emit.js',
+  './src/manifest.js',
+  './src/platforms/metadata.js',
+  './src/platforms/metadata-shared.js',
+  './src/platforms/claude/metadata.js',
+  './src/platforms/runtime-payload-contract.js',
+];
+
 function cleanupRepoCopy(repoRoot) {
   fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
 }
@@ -34,6 +47,32 @@ describe('release artifact packaging', () => {
         .trim()
         .split('\n');
       assert.equal(archiveEntries.includes('./claude/scripts/policy-enforcer.test.js'), false);
+      assert.ok(archiveEntries.includes('./src/mcp/maestro-server.js'));
+      assert.ok(archiveEntries.includes('./src/lib/framework-detection.js'));
+      assert.ok(archiveEntries.includes('./src/platforms/codex/runtime-config.js'));
+      for (const buildOnlyPath of BUILD_ONLY_SOURCE_ARCHIVE_PATHS) {
+        assert.equal(archiveEntries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be archived`);
+      }
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/generator/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/transforms/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/entry-points/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/lib/discovery/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => /^\.\/src\/platforms\/[^/]+\/metadata\.js$/.test(entry)),
+        false
+      );
     } finally {
       cleanupRepoCopy(repoRoot);
     }
@@ -86,6 +125,33 @@ describe('release artifact packaging', () => {
       assert.throws(
         () => verifyReleaseArtifact(extraArchivePath, { root: repoRoot }),
         /Release artifact contains unallowlisted paths: unexpected-local-file\.txt/
+      );
+    } finally {
+      fs.rmSync(extractRoot, { recursive: true, force: true });
+      cleanupRepoCopy(repoRoot);
+    }
+  });
+
+  it('rejects an archive with build-only source checkout tooling', () => {
+    const repoRoot = createTempRepoCopy('maestro-release-source-tooling-');
+    const extractRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-source-tooling-extract-'));
+
+    try {
+      const { archivePath } = packageReleaseArtifacts({
+        root: repoRoot,
+        outDir: 'dist/release',
+      });
+      execFileSync('tar', ['-xzf', archivePath, '-C', extractRoot]);
+      const buildOnlyPath = path.join(extractRoot, 'src', 'generator', 'private.js');
+      fs.mkdirSync(path.dirname(buildOnlyPath), { recursive: true });
+      fs.writeFileSync(buildOnlyPath, 'module.exports = {};\n');
+
+      const extraArchivePath = path.join(path.dirname(archivePath), 'maestro-source-tooling-extension.tar.gz');
+      execFileSync('tar', ['-czf', extraArchivePath, '-C', extractRoot, '.']);
+
+      assert.throws(
+        () => verifyReleaseArtifact(extraArchivePath, { root: repoRoot }),
+        /Release artifact contains unallowlisted paths: src\/generator, src\/generator\/private\.js/
       );
     } finally {
       fs.rmSync(extractRoot, { recursive: true, force: true });

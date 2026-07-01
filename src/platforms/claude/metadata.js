@@ -19,7 +19,7 @@ function buildClaudeMarketplace(context) {
     plugins: [
       {
         name: 'maestro',
-        source: './claude',
+        source: '.',
         description: RUNTIME_DESCRIPTION,
         version: context.version,
         author: buildAuthor(context),
@@ -46,8 +46,8 @@ function buildClaudePluginManifest(context) {
     description: RUNTIME_DESCRIPTION,
     author: buildAuthor(context),
     license: context.license,
-    hooks: './hooks/claude-hooks.json',
-    mcpServers: './.mcp.json',
+    hooks: './claude/hooks/claude-hooks.json',
+    mcpServers: './claude/.mcp.json',
     homepage: context.homepage,
     repository: context.repository,
     keywords: [
@@ -64,7 +64,7 @@ function buildClaudeMcpConfig() {
     mcpServers: {
       maestro: {
         command: 'node',
-        args: ['${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js'],
+        args: ['${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js'],
         cwd: '${CLAUDE_PLUGIN_ROOT}',
       },
     },
@@ -78,7 +78,7 @@ function buildMetadataOutputs(context) {
       content: renderJson(buildClaudeMarketplace(context)),
     },
     {
-      outputPath: 'claude/.claude-plugin/plugin.json',
+      outputPath: '.claude-plugin/plugin.json',
       content: renderJson(buildClaudePluginManifest(context)),
     },
     {

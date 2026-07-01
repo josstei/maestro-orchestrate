@@ -7,7 +7,7 @@ const { describe, it } = require('node:test');
 const { ROOT } = require('./helpers');
 
 function runInstaller(homeDir, args = []) {
-  return execFileSync('node', ['scripts/install-codex-plugin.js', ...args], {
+  return execFileSync('node', ['bin/maestro-install-codex.js', ...args], {
     cwd: ROOT,
     env: { ...process.env, HOME: homeDir },
     encoding: 'utf8',
@@ -25,21 +25,14 @@ describe('codex installer integration', () => {
     try {
       const output = runInstaller(homeDir);
       const pluginManifest = path.join(homeDir, '.codex', 'plugins', 'maestro', '.codex-plugin', 'plugin.json');
-      const pluginSrcEntry = path.join(
-        homeDir,
-        '.codex',
-        'plugins',
-        'maestro',
-        'src',
-        'mcp',
-        'maestro-server.js'
-      );
+      const pluginSrc = path.join(homeDir, '.codex', 'plugins', 'maestro', 'src');
       const marketplaceFile = path.join(homeDir, '.agents', 'plugins', 'marketplace.json');
 
       assert.ok(fs.existsSync(pluginManifest), 'Expected installer to copy the Codex plugin bundle');
-      assert.ok(
-        fs.existsSync(pluginSrcEntry),
-        'Expected installer to copy the detached Codex src payload'
+      assert.equal(
+        fs.existsSync(pluginSrc),
+        false,
+        'Expected installer not to copy the retired detached Codex src payload'
       );
       assert.ok(fs.existsSync(marketplaceFile), 'Expected installer to create the personal marketplace file');
 
