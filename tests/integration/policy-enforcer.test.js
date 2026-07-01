@@ -25,10 +25,10 @@ function runPolicy(command, options = {}) {
 }
 
 test('blocks destructive commands in direct and nested dollar substitutions', () => {
-  assert.equal(runPolicy(`echo ${DOLLAR}(git reset --hard)`).decision, 'block');
+  assert.equal(runPolicy(`echo ${DOLLAR}(git reset --hard)`).hookSpecificOutput.permissionDecision, 'deny');
   assert.equal(
-    runPolicy(`echo ${DOLLAR}(printf %s "${DOLLAR}(git reset --hard)")`).decision,
-    'block'
+    runPolicy(`echo ${DOLLAR}(printf %s "${DOLLAR}(git reset --hard)")`).hookSpecificOutput.permissionDecision,
+    'deny'
   );
 });
 
@@ -37,24 +37,32 @@ test('blocks destructive commands in nested backtick substitutions', () => {
     `echo ${BACKTICK}printf %s "${BACKSLASH}${BACKTICK}` +
     `git reset --hard${BACKSLASH}${BACKTICK}"${BACKTICK}`;
 
-  assert.equal(runPolicy(command).decision, 'block');
+  assert.equal(runPolicy(command).hookSpecificOutput.permissionDecision, 'deny');
 });
 
 test('approves benign nested substitutions', () => {
   assert.equal(
-    runPolicy(`echo ${DOLLAR}(printf %s "${DOLLAR}(git status --short)")`).decision,
-    'approve'
+    runPolicy(`echo ${DOLLAR}(printf %s "${DOLLAR}(git status --short)")`).hookSpecificOutput.permissionDecision,
+    'allow'
   );
   assert.equal(
-    runPolicy(`echo ${DOLLAR}(printf %s "${DOLLAR}(pwd)" | sed "s#/tmp#/tmp#") && echo ok`).decision,
-    'approve'
+    runPolicy(`echo ${DOLLAR}(printf %s "${DOLLAR}(pwd)" | sed "s#/tmp#/tmp#") && echo ok`).hookSpecificOutput.permissionDecision,
+    'allow'
   );
 
   const backtickCommand =
     `echo ${BACKTICK}printf %s "${BACKSLASH}${BACKTICK}` +
     `pwd${BACKSLASH}${BACKTICK}"${BACKTICK}`;
 
-  assert.equal(runPolicy(backtickCommand).decision, 'approve');
+  assert.equal(runPolicy(backtickCommand).hookSpecificOutput.permissionDecision, 'allow');
+});
+
+test('ask-tier commands emit schema-valid hookSpecificOutput (regression: ask no longer fails open)', () => {
+  const out = runPolicy('echo hi > out.txt');
+  assert.equal(out.hookSpecificOutput.hookEventName, 'PreToolUse');
+  assert.equal(out.hookSpecificOutput.permissionDecision, 'ask');
+  assert.equal(out.hookSpecificOutput.permissionDecisionReason, 'Shell output redirection');
+  assert.equal(out.decision, undefined);
 });
 
 test('installed Claude policy enforcer loads package-root src without detached payload', async () => {
@@ -66,12 +74,12 @@ test('installed Claude policy enforcer loads package-root src without detached p
     const scriptPath = path.join(packageRoot, 'claude', 'scripts', 'policy-enforcer.js');
 
     assert.equal(
-      runPolicy('git reset --hard', { cwd: packageRoot, scriptPath }).decision,
-      'block'
+      runPolicy('git reset --hard', { cwd: packageRoot, scriptPath }).hookSpecificOutput.permissionDecision,
+      'deny'
     );
     assert.equal(
-      runPolicy('git status --short', { cwd: packageRoot, scriptPath }).decision,
-      'approve'
+      runPolicy('git status --short', { cwd: packageRoot, scriptPath }).hookSpecificOutput.permissionDecision,
+      'allow'
     );
   });
 });
