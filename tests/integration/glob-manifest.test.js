@@ -67,15 +67,16 @@ describe('expandManifest', () => {
     assert.equal(crEntry.outputs.gemini, 'agents/code_reviewer.md');
   });
 
-  it('passes through explicit entries unchanged', () => {
+  it('rejects legacy explicit output entries', () => {
     const entry = {
       src: 'mcp/maestro-server.js',
       transforms: ['strip-feature'],
       outputs: { gemini: 'mcp/maestro-server.js', claude: 'claude/mcp/maestro-server.js' },
     };
-    const entries = expandManifest([entry], {}, '/unused');
-    assert.equal(entries.length, 1);
-    assert.deepEqual(entries[0], entry);
+    assert.throws(
+      () => expandManifest([entry], {}, '/unused'),
+      /Manifest legacy outputs rules are not supported/
+    );
   });
 
   it('throws on malformed rule missing glob and src', () => {

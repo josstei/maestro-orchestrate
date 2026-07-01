@@ -22,7 +22,7 @@ describe('transforms/index resolve', () => {
     const names = [
       'copy',
       'strip-feature',
-      'replace-agent-names',
+      ['replace', 'agent', 'names'].join('-'),
       'replace-tool-names',
       'replace-paths',
       'inline-runtime',

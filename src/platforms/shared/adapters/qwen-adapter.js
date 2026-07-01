@@ -28,6 +28,7 @@ const { EXIT_SUCCESS, EXIT_BLOCK } = require('./exit-codes');
 
 function normalizeInput(raw) {
   const event = raw.hook_event_name || '';
+  const agentName = raw.agent_type || '';
 
   return {
     event,
@@ -36,8 +37,8 @@ function normalizeInput(raw) {
     transcriptPath: raw.transcript_path || '',
     permissionMode: raw.permission_mode || '',
     agentId: raw.agent_id || '',
-    agentName: raw.agent_type || null,
-    agentInput: null,
+    agentName: null,
+    agentInput: agentName ? `Agent: ${agentName}` : null,
     agentResult: event === 'SubagentStop'
       ? (raw.last_assistant_message || '')
       : null,

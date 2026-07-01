@@ -51,16 +51,6 @@ const CORE_COMMAND_CONFIG = {
   qwen: null,
 };
 
-const GEMINI_SESSION_STATE_BLOCK = `The current session state is provided below:
-
-<session-state>
-!{extension_root="\${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
-</session-state>
-
-Use the injected session state above as the source of truth for resume position.
-
-`;
-
 /**
  * @param {{ name: string, runtimeNames?: Record<string, string> }} entry
  * @param {string} runtimeName
@@ -172,9 +162,7 @@ function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
       requestType: runtimeEntry.requestType,
       executeInstructions: runtimeEntry.executeInstructions,
       preloadList: emitInlineQuotedList(runtimeEntry.preload),
-      sessionStateBlock: (runtimeName === 'gemini' && runtimeEntry.geminiSessionStateInjection)
-        ? GEMINI_SESSION_STATE_BLOCK
-        : '',
+      sessionStateBlock: '',
     }),
   });
 }

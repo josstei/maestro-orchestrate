@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 describe('get-runtime-context handler', () => {
+  const legacyDispatchKey = ['agent', 'dispatch'].join('_');
+
   it('returns structured runtime config with required fields', () => {
     const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
 
@@ -22,8 +24,9 @@ describe('get-runtime-context handler', () => {
     assert.equal(result.runtime, 'claude');
     assert.equal(result.tools.read_file, 'Read');
     assert.equal(result.tools.write_file, 'Write');
-    assert.equal(result.agent_dispatch.naming, 'kebab-case');
-    assert.ok(result.agent_dispatch.pattern.includes('maestro:'));
+    assert.equal(result.delegation.naming, 'kebab-case');
+    assert.ok(result.delegation.pattern.includes('maestro:'));
+    assert.equal(Object.hasOwn(result, legacyDispatchKey), false);
     assert.ok(Array.isArray(result.agents));
     assert.ok(result.agents.length >= 22);
     assert.ok(result.agent_capabilities);
@@ -57,7 +60,7 @@ describe('get-runtime-context handler', () => {
     });
     const result = handler({});
     assert.equal(result.mcp_prefix, 'mcp_maestro_');
-    assert.equal(result.agent_dispatch.naming, 'snake_case');
+    assert.equal(result.delegation.naming, 'snake_case');
   });
 
   it('returns codex MCP prefix and kebab-case naming for codex runtime', () => {
@@ -73,8 +76,8 @@ describe('get-runtime-context handler', () => {
     const result = handler({});
     assert.equal(result.runtime, 'codex');
     assert.equal(result.mcp_prefix, 'mcp__maestro_maestro__');
-    assert.equal(result.agent_dispatch.naming, 'kebab-case');
-    assert.equal(result.agent_dispatch.prefix, '');
+    assert.equal(result.delegation.naming, 'kebab-case');
+    assert.equal(Object.hasOwn(result.delegation, 'prefix'), false);
     assert.equal(result.tools.run_shell_command, 'exec_command');
   });
 

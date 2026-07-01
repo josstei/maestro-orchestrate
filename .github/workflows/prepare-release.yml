@@ -83,17 +83,8 @@ jobs:
             exit 1
           fi
 
-      - name: Generate and check drift
-        run: |
-          node scripts/generate.js
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Generated files have drift on main. Fix before releasing."
-            git diff --stat
-            exit 1
-          fi
-
-      - name: Run full test suite
-        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+      - name: Run source check
+        run: npm run check:source
 
       - name: Create release branch
         env:
@@ -108,7 +99,7 @@ jobs:
 
       - name: Regenerate with new version
         run: |
-          node scripts/generate.js
+          npm run generate
           npm install --package-lock-only
 
       - name: Commit release

@@ -24,8 +24,8 @@ Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's
 
 For workspace resolution, Codex follows the shared runtime contract:
 - use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
-- otherwise fall back to the MCP client `roots/list` response
-- only then fall back to inherited env and `cwd` heuristics
+- otherwise use the first valid local `file://` root from the MCP client `roots/list` response
+- otherwise require the orchestrator to ask the user for an explicit workspace path
 
 That keeps Maestro state rooted under the actual workspace `docs/maestro` path regardless of where `npx` materializes the package cache.
 
@@ -109,9 +109,9 @@ Codex keeps built-in `/review`, `/debug`, and `/resume` commands, so Maestro exp
 
 The runtime guide states:
 
-> If Maestro MCP tools are available, prefer them for stateful operations. If the current Codex environment does not expose those tools to a spawned agent, use direct state-file operations under `docs/maestro` as described by the shared skills.
+> Use Maestro MCP tools for stateful operations. If the current Codex environment does not expose the required state tool, stop and report that the state surface is unavailable.
 
-This MCP-first state access model exists because spawned Codex agents may not have access to the parent plugin's MCP server. Runtime content follows one path: shared methodology and agent bodies are resolved from package-root `src/` through the `maestro-mcp-server` npm bin. There is no hand-maintained packaged registry copy, no plugin-level `agents/` directory, and no Codex-local detached `plugins/maestro/src/` payload.
+This MCP-only state access model keeps session lifecycle behavior behind one structured tool surface. Runtime content follows one path: shared methodology and agent bodies are resolved from package-root `src/` through the `maestro-mcp-server` npm bin. There is no hand-maintained packaged registry copy, no plugin-level `agents/` directory, and no Codex-local detached `plugins/maestro/src/` payload.
 
 ## Tool Mapping
 
@@ -135,13 +135,11 @@ Codex tools use descriptive names rather than direct API mappings:
 
 ## Feature Flags
 
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
+The canonical feature set (same flags across all runtimes, values per runtime):
 
 ```
 exampleBlocks:             false
-claudeStateContract:       false
-scriptBasedStateContract:  false
-codexStateContract:        true
+mcpStateContract:          true
 ```
 
 See `src/platforms/codex/runtime-config.js` for the authoritative values.
@@ -156,7 +154,7 @@ Codex uses relative paths (`relativeExtensionPath: true`):
 
 This differs from Gemini (passthrough variables) and Claude (environment variable references).
 
-When `MAESTRO_WORKSPACE_PATH` is not set, the MCP server uses the first valid local `file://` root from the client `roots/list` response before falling back to legacy env and `cwd` detection.
+When `MAESTRO_WORKSPACE_PATH` is not set, the MCP server uses the first valid local `file://` root from the client `roots/list` response as a suggestion. If neither explicit input is available, initialization must wait for the user to provide a workspace path.
 
 ## Canonical Filesystem Content
 

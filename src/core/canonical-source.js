@@ -28,12 +28,7 @@ function resolveCanonicalSrcRoot(startDir = process.cwd()) {
   return path.join(resolveCanonicalProjectRoot(startDir), 'src');
 }
 
-function requireFromCanonicalSrc(relativePath, startDir = process.cwd()) {
-  return require(path.join(resolveCanonicalSrcRoot(startDir), relativePath));
-}
-
 module.exports = {
-  requireFromCanonicalSrc,
   resolveCanonicalProjectRoot,
   resolveCanonicalSrcRoot,
 };

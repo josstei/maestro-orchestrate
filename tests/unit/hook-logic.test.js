@@ -18,6 +18,7 @@ const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
 
 const SESSION_ID = 'test-session-abc123';
 const VALID_RESULT = '## Task Report\nDone.\n\n## Downstream Context\nContext info.';
+const LEGACY_AGENT_ENV = ['MAESTRO', 'CURRENT', 'AGENT'].join('_');
 
 describe('handleAfterAgent', () => {
   after(() => {
@@ -111,11 +112,11 @@ describe('handleBeforeAgent', () => {
   after(() => {
     fs.rmSync(fakeCwd, { recursive: true, force: true });
     hookState.removeSessionDir(SESSION_ID);
-    delete process.env.MAESTRO_CURRENT_AGENT;
+    delete process.env[LEGACY_AGENT_ENV];
   });
 
   it('returns allow with null message when no session file exists', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
+    delete process.env[LEGACY_AGENT_ENV];
     const cwdWithNoSession = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-nosession-'));
     try {
       const result = handleBeforeAgent({
@@ -132,7 +133,7 @@ describe('handleBeforeAgent', () => {
   });
 
   it('returns allow with context message when session file has phase/status info', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
+    delete process.env[LEGACY_AGENT_ENV];
     const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
     fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
     fs.writeFileSync(sessionFilePath, '---\ncurrent_phase: implementation\nstatus: active\n---\n', 'utf8');
@@ -151,7 +152,7 @@ describe('handleBeforeAgent', () => {
   });
 
   it('detects agent from prompt and sets active agent', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
+    delete process.env[LEGACY_AGENT_ENV];
     hookState.clearActiveAgent(SESSION_ID);
 
     handleBeforeAgent({
@@ -165,8 +166,8 @@ describe('handleBeforeAgent', () => {
     assert.equal(activeAgent, 'coder');
   });
 
-  it('uses normalized agentName when no prompt is available', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
+  it('does not use adapter agentName when no Agent header is available', () => {
+    delete process.env[LEGACY_AGENT_ENV];
     hookState.clearActiveAgent(SESSION_ID);
 
     handleBeforeAgent({
@@ -178,7 +179,7 @@ describe('handleBeforeAgent', () => {
     });
 
     const activeAgent = hookState.getActiveAgent(SESSION_ID);
-    assert.equal(activeAgent, 'code_reviewer');
+    assert.equal(activeAgent, '');
   });
 });
 

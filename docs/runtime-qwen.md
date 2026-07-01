@@ -105,13 +105,11 @@ Qwen tools use canonical names with Qwen-specific overrides declared in `src/pla
 
 ## Feature Flags
 
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
+The canonical feature set (same flags across all runtimes, values per runtime):
 
 ```
 exampleBlocks:             false
-claudeStateContract:       false
-scriptBasedStateContract:  true
-codexStateContract:        false
+mcpStateContract:          true
 ```
 
 See `src/platforms/qwen/runtime-config.js` for the authoritative values.

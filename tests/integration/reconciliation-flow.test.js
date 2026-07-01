@@ -3,30 +3,18 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
+  createInitializedMcpWorkspace,
+  phaseFixture,
+} = require('../support/mcp');
 
 describe('reconciliation flow', () => {
   it('covers the hung-worker postmortem scenario end to end', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-rec-flow-'));
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createWorkspacePack, createSessionPack],
+    const { workspace, server } = await createInitializedMcpWorkspace({
+      prefix: 'maestro-rec-flow-',
     });
-    await server.callTool(
-      'initialize_workspace',
-      { workspace_path: workspace },
-      workspace
-    );
 
     await server.callTool(
       'create_session',
@@ -35,14 +23,11 @@ describe('reconciliation flow', () => {
         task: 'hung-worker recovery',
         task_complexity: 'simple',
         phases: [
-          {
-            id: 1,
+          phaseFixture({
             name: 'Scaffold',
             agent: 'design-system-engineer',
-            parallel: false,
-            blocked_by: [],
             files: ['index.html', 'assets/css/styles.css'],
-          },
+          }),
         ],
       },
       workspace

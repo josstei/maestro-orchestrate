@@ -125,6 +125,16 @@ describe('expandEntryPoints', () => {
     assert.ok(resume.content.includes('get_skill_content'));
   });
 
+  it('does not inject state helper scripts into Gemini core commands', () => {
+    const results = expandCoreCommands('gemini');
+    const resume = results.find((r) => r.outputPath === 'commands/maestro/resume.toml');
+    const removedReader = ['read', 'active', 'session'].join('-') + '.js';
+    assert.ok(resume);
+    assert.ok(!resume.content.includes(removedReader));
+    assert.ok(!resume.content.includes('<session-state>'));
+    assert.ok(resume.content.includes('Call get_session_status'));
+  });
+
   it('claude public skills avoid reserved host command names', () => {
     const publicSkills = [
       ...expandEntryPoints('claude'),

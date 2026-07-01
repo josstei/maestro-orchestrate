@@ -9,12 +9,17 @@ Activate this skill for all session state operations during Maestro orchestratio
 
 ## State Access Protocol
 
-When MCP state tools are available, prefer them for state operations:
-- **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, atomic operations.
-- **Fallback**: `write_file`/`replace` directly on state files — when MCP tools are not in the available tool list.
-- **Legacy**: Shell scripts (`write-state.js`, `read-state.js`) — remain available but are not the recommended path.
+Use MCP state tools for all orchestration state operations:
+- `initialize_workspace`
+- `create_session`
+- `update_session`
+- `transition_phase`
+- `get_session_status`
+- `archive_session`
 
-Detection: check whether MCP state tools appear in your available tools. If they do, use them. If they do not, use `write_file`/`replace`.
+If the required MCP state tool is unavailable, stop and report that the runtime
+state surface is unavailable. Do not read or write orchestration state directly
+through files, shell helpers, or generated command injection.
 
 ## Hook-Level Session State
 
@@ -49,25 +54,11 @@ Where:
 
 All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory (default: `docs/maestro`). In procedural steps, `<state_dir>` represents the resolved value of this variable.
 
-### State File Access
+### State Tool Access
 
-Both `read_file` and `write_file` work on state paths inside `<MAESTRO_STATE_DIR>`. The runtime's file-access configuration makes state paths accessible.
-
-Use the runtime's bundled `scripts/` directory for these helper commands so they still work when the extension is installed outside the workspace root.
-
-**Reading state files:**
-Use `read_file` directly. The `read-state.js` script remains available as an alternative for TOML shell blocks that inject state before the model's first turn:
-
-`run_shell_command`: `node <runtime-script-root>/read-state.js <relative-path>`
-
-**Writing state files:**
-Use `write_file` directly. When content must be piped from a shell command, use the atomic write script:
-
-`run_shell_command`: `echo '...' | node <runtime-script-root>/write-state.js <relative-path>`
-
-**Rules:**
-- The `write-state.js` script writes atomically (temp file + rename) to prevent partial writes
-- Both scripts validate against absolute paths and path traversal
+Session state lives under `<MAESTRO_STATE_DIR>`, but orchestrators must access it
+through MCP state tools only. The file layout remains an implementation detail
+owned by the MCP server.
 
 ### Initialization Steps
 1. Resolve state directory from `MAESTRO_STATE_DIR`
@@ -216,24 +207,16 @@ Archive session state when:
 When `MAESTRO_AUTO_ARCHIVE` is `false`, prompt the user after successful completion: "Session complete. Auto-archive is disabled. Would you like to archive this session?"
 
 ### Archive Steps
-If `archive_session` appears in your available tools, use it — a single call handles all archival:
+Use `archive_session` for archival. It atomically:
 
-1. Call `archive_session` with the session ID. The MCP tool atomically:
-   - Updates session status to `completed`
-   - Moves `active-session.md` to `<state_dir>/state/archive/<session-id>.md`
-   - Moves design document to `<state_dir>/plans/archive/` (if it exists and is non-null)
-   - Moves implementation plan to `<state_dir>/plans/archive/` (if it exists and is non-null)
-2. Confirm archival to user with summary of what was archived (use the `archived_files` array in the response)
+1. Updates session status to `completed`
+2. Moves `active-session.md` to `<state_dir>/state/archive/<session-id>.md`
+3. Moves the design document to `<state_dir>/plans/archive/` when present
+4. Moves the implementation plan to `<state_dir>/plans/archive/` when present
 
-If `archive_session` is not available, fall back to manual file operations:
-1. Create `<state_dir>/plans/archive/` directory if it does not exist
-2. Create `<state_dir>/state/archive/` directory if it does not exist
-3. **MOVE** (not copy) design document from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — the original MUST be deleted. Use the shell-command tool from runtime context with `mv` or read+write+delete. Do NOT leave the file in both locations. **Skip this step if `design_document` is `null` (Express sessions).**
-4. **MOVE** (not copy) implementation plan from `<state_dir>/plans/` to `<state_dir>/plans/archive/` — same: delete the original. **Skip this step if `implementation_plan` is `null` (Express sessions).**
-5. Update session state `status` to `completed`
-6. Update `updated` timestamp
-7. **MOVE** (not copy) `active-session.md` from `<state_dir>/state/` to `<state_dir>/state/archive/<session-id>.md` — delete the original.
-8. Confirm archival to user with summary of what was archived
+Confirm archival to the user with the `archived_files` array from the response.
+If `archive_session` is unavailable, stop and report that archival cannot proceed
+without the MCP state surface.
 
 ### Archive Verification
 After archival, verify ALL of the following (archive is incomplete if any check fails):
@@ -249,7 +232,7 @@ Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestra
 
 ### Resume Steps
 
-1. **Read State**: If session state was already injected into the prompt (e.g., via `/maestro:resume`), use that injected content instead of calling `get_session_status`. Otherwise, if `get_session_status` appears in your available tools, call it to read the active session. Otherwise, read state via `run_shell_command`: `node <runtime-script-root>/read-active-session.js` (resolves `MAESTRO_STATE_DIR` internally)
+1. **Read State**: Call `get_session_status` to read the active session. If `get_session_status` is unavailable, stop and report that resume requires the MCP state surface.
 2. **Parse Frontmatter**: Extract YAML frontmatter for session metadata
 3. **Identify Position**: Determine:
    - Last completed phase (highest ID with `status: completed`)

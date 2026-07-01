@@ -104,22 +104,17 @@ If `execution_mode` is not present in session state at the point where delegatio
 
 ## State File Access
 
-When MCP state tools (`get_session_status`, `update_session`, `transition_phase`) are available, prefer them for state operations. They provide structured I/O and atomic transitions.
-
-When MCP tools are not available, state lives inside `<MAESTRO_STATE_DIR>` and is accessible through `read_file` and `write_file`.
-
-Helper scripts remain available for shell-injected command prompts:
-
-```bash
-node <runtime-script-root>/read-state.js <relative-path>
-node <runtime-script-root>/read-active-session.js
-```
+Use MCP state tools (`get_session_status`, `update_session`,
+`transition_phase`, `archive_session`) for execution state operations. They
+provide structured I/O and atomic transitions. If the required MCP state tool is
+unavailable, stop and report that the runtime state surface is unavailable; do
+not fall back to direct file reads, direct writes, or shell helper scripts.
 
 ## Hook Lifecycle During Execution
 
 Hooks fire automatically at agent boundaries. The orchestrator does not invoke them directly.
 
-The hooks system tracks which agent is currently executing. Before each agent dispatch, a hook resolves the active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context. After completion, a hook validates that the response contains both `Task Report` and `Downstream Context`; it requests one retry on the first malformed response.
+The hooks system tracks which agent is currently executing. Before each agent dispatch, a hook resolves the active agent identity from the required `Agent:` header and injects compact session context. After completion, a hook validates that the response contains both `Task Report` and `Downstream Context`; it requests one retry on the first malformed response.
 
 The hook state directory under `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` is transient and separate from orchestration state.
 

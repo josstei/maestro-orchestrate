@@ -132,13 +132,11 @@ Gemini tools use canonical names (identity mapping):
 
 ## Feature Flags
 
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
+The canonical feature set (same flags across all runtimes, values per runtime):
 
 ```
 exampleBlocks:             false
-claudeStateContract:       false
-scriptBasedStateContract:  true
-codexStateContract:        false
+mcpStateContract:          true
 ```
 
 See `src/platforms/gemini/runtime-config.js` for the authoritative values.

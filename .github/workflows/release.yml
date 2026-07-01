@@ -150,34 +150,13 @@ jobs:
             exit 1
           fi
 
-      - name: Generate runtime adapters
+      - name: Run source check
         if: steps.detect.outputs.is_release == 'true'
-        run: node scripts/generate.js
+        run: npm run check:source
 
-      - name: Check adapter drift
+      - name: Run release/package check
         if: steps.detect.outputs.is_release == 'true'
-        run: |
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Runtime adapters are out of sync with canonical src. Run 'node scripts/generate.js' and commit the changes."
-            git diff --stat
-            exit 1
-          fi
-
-      - name: Run full test suite
-        if: steps.detect.outputs.is_release == 'true'
-        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
-
-      - name: Verify npm package contents
-        if: steps.detect.outputs.is_release == 'true'
-        run: npm run pack:verify
-
-      - name: Package release artifact
-        if: steps.detect.outputs.is_release == 'true'
-        run: npm run release:artifacts
-
-      - name: Verify release artifact
-        if: steps.detect.outputs.is_release == 'true'
-        run: npm run release:verify-artifacts
+        run: npm run check:release
 
       - name: Create and push tag
         if: steps.detect.outputs.is_release == 'true'

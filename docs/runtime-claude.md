@@ -132,13 +132,11 @@ Parses compound commands (`;`, `&&`, `||`, `|`) and recursively checks subshells
 
 ## Feature Flags
 
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
+The canonical feature set (same flags across all runtimes, values per runtime):
 
 ```
 exampleBlocks:             true   (examples embedded in description)
-claudeStateContract:       true   (Claude-specific session-state contract)
-scriptBasedStateContract:  false
-codexStateContract:        false
+mcpStateContract:          true
 ```
 
 See `src/platforms/claude/runtime-config.js` for the authoritative values.

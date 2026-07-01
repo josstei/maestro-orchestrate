@@ -283,8 +283,11 @@ Maestro hooks fire at agent boundaries during delegation, providing context inje
 
 Before each agent dispatch, a hook tracks which agent is currently executing:
 
-- Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
-- Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
+- Required signal: the `Agent: <agent_name>` header in the delegation prompt
+
+Runtime adapters may map a first-class subagent identity field into that header
+before invoking shared hook logic. Environment variables, `@agent` mentions, and
+natural-language phrases are not identity signals.
 
 The detected agent name is persisted to `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/active-agent` and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
 

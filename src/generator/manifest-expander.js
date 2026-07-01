@@ -137,10 +137,9 @@ function assertNoMirroredSharedOutputs(manifest) {
 /**
  * Expand convention-based manifest rules into explicit entries.
  *
- * Three rule formats:
- *   1. Legacy: has `outputs` field -- passed through unchanged
- *   2. Explicit src + runtimes: has `src` and `runtimes` (no `glob`) -- expands to outputs per runtime
- *   3. Glob: has `glob` and `runtimes` -- scans srcDir, produces one entry per matched file
+ * Two rule formats:
+ *   1. Explicit src + runtimes: has `src` and `runtimes` (no `glob`) -- expands to outputs per runtime
+ *   2. Glob: has `glob` and `runtimes` -- scans srcDir, produces one entry per matched file
  *
  * Does NOT merge entries for the same source file -- different rules may have different transforms.
  * @param {Array<Object>} rules - Manifest rules to expand
@@ -153,8 +152,7 @@ function expandManifest(rules, runtimes, srcDir) {
 
   for (const rule of rules) {
     if (rule.outputs) {
-      entries.push(rule);
-      continue;
+      throw new Error(`Manifest legacy outputs rules are not supported: ${JSON.stringify(rule)}`);
     }
 
     if (!rule.runtimes || !Array.isArray(rule.runtimes)) {

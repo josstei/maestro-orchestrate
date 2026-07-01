@@ -131,7 +131,7 @@ describe('workflow shell security', () => {
     for (const { fileName, versionCommand, publishCommand } of expectations) {
       const content = readWorkflow(fileName);
       const versionIndex = content.indexOf(versionCommand);
-      const generateIndex = content.indexOf('run: node scripts/generate.js', versionIndex);
+      const generateIndex = content.indexOf('run: npm run generate', versionIndex);
       const verifyIndex = content.indexOf('run: npm run pack:verify', generateIndex);
       const publishIndex = content.indexOf(publishCommand, verifyIndex);
 

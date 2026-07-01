@@ -8,13 +8,22 @@ const { defineAdapter } = require('./factory');
  * and formats internal responses for Claude Code stdout.
  */
 
+function withAgentHeader(agentName, prompt) {
+  if (!agentName) return prompt || null;
+  if (typeof prompt === 'string' && /(?:^|\n)\s*agent:\s*[a-z0-9_-]+/i.test(prompt)) {
+    return prompt;
+  }
+  return `Agent: ${agentName}\n\n${prompt || ''}`;
+}
+
 function normalizeInput(raw) {
+  const agentName = raw.tool_input?.subagent_type || null;
   return {
     sessionId: raw.session_id || '',
     cwd: raw.cwd || '',
     event: raw.hook_event_name || '',
-    agentName: raw.tool_input?.subagent_type || null,
-    agentInput: raw.tool_input?.prompt || null,
+    agentName: null,
+    agentInput: withAgentHeader(agentName, raw.tool_input?.prompt || null),
     agentResult: raw.tool_result || null,
     stopHookActive: false,
   };

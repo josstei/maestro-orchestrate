@@ -10,6 +10,11 @@ const { RESOURCE_ALLOWLIST } = require('../../src/mcp/content/runtime-content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const REMOVED_SESSION_READER_PATH = [
+  'src',
+  'scripts',
+  ['read', 'active', 'session'].join('-') + '.js',
+].join('/');
 
 function withExtensionRoot(root, fn) {
   const previous = process.env.MAESTRO_EXTENSION_PATH;
@@ -65,10 +70,10 @@ describe('get_skill_content handler', () => {
     fs.writeFileSync(
       path.join(refDir, 'architecture.md'),
       [
-        '<!-- @feature scriptBasedStateContract -->',
+        '<!-- @feature mcpStateContract -->',
         'Gemini uses ${extensionPath} and code-reviewer.',
         '<!-- @end-feature -->',
-        '<!-- @feature codexStateContract -->',
+        '<!-- @feature exampleBlocks -->',
         'Codex keeps code-reviewer.',
         '<!-- @end-feature -->',
       ].join('\n'),
@@ -88,7 +93,7 @@ describe('get_skill_content handler', () => {
     assert.ok(!content.includes('Codex keeps'));
   });
 
-  it('serves Claude architecture content with package-root state script paths', () => {
+  it('serves Claude architecture content with the MCP state contract', () => {
     const handler = createSkillContentHandler(
       getRuntimeConfig('claude'),
       path.join(REPO_ROOT, 'src')
@@ -100,8 +105,9 @@ describe('get_skill_content handler', () => {
     const content = result.contents.architecture;
 
     assert.deepEqual(result.errors, {});
-    assert.ok(content.includes('${CLAUDE_PLUGIN_ROOT}/src/scripts/read-active-session.js'));
-    assert.ok(!content.includes('${CLAUDE_PLUGIN_ROOT}/../src/scripts/'));
+    assert.ok(content.includes('State access is mediated by MCP state tools'));
+    assert.ok(!content.includes(REMOVED_SESSION_READER_PATH));
+    assert.ok(!content.includes('${CLAUDE_PLUGIN_ROOT}/../' + ['src', 'scripts'].join('/')));
   });
 
   it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {

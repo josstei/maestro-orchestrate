@@ -87,7 +87,7 @@ describe('runtime-config-map', () => {
     });
     assert.equal(fromKnownObject.name, 'gemini');
     assert.equal(fromKnownObject.env.extensionPath, 'TEST_EXTENSION_PATH');
-    assert.equal(fromKnownObject.features.scriptBasedStateContract, true);
+    assert.equal(fromKnownObject.features.mcpStateContract, true);
     assert.equal(fromKnownObject.tools.read_file, 'read_file');
 
     const fromFalsy = normalizeRuntimeConfig(null);

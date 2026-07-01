@@ -32,19 +32,8 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Generate runtime adapters
-        run: node scripts/generate.js
-
-      - name: Check adapter drift
-        run: |
-          if ! git diff --exit-code --name-only; then
-            echo "::error::RC drift detected"
-            git diff --stat
-            exit 1
-          fi
-
-      - name: Run full test suite
-        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+      - name: Run source check
+        run: npm run check:source
 
       - name: Determine publish eligibility
         id: publish_gate
@@ -73,7 +62,7 @@ jobs:
 
       - name: Regenerate runtime metadata
         if: steps.publish_gate.outputs.enabled == 'true'
-        run: node scripts/generate.js
+        run: npm run generate
 
       - name: Verify npm package contents
         if: steps.publish_gate.outputs.enabled == 'true'

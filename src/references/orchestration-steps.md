@@ -144,7 +144,7 @@ EXPRESS WORKFLOW (simple tasks only — jumped to from step 9)
 
 EXPRESS MODE GATE BYPASS: Express bypasses the execution-mode gate entirely. Express always dispatches sequentially. Do NOT prompt for parallel/sequential.
 
-EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, archive_session) are unavailable, fall back to direct file writes on <state_dir>/state/active-session.md.
+EXPRESS MCP STATE REQUIREMENT: If MCP state tools (`create_session`, `transition_phase`, `archive_session`) are unavailable, stop and report that Express execution requires the MCP state surface.
 
 31. Verify classification is simple. If task requires multiple phases or agents, override to medium → step 10.
     <HARD-GATE>

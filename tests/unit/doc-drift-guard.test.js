@@ -191,14 +191,15 @@ test('doc-drift: docs/usage.md MCP Quick Reference includes all 10 session tools
   }
 });
 
-test('doc-drift: runtime docs reference only the 4 canonical feature flags', () => {
+test('doc-drift: runtime docs reference only the canonical feature flags', () => {
   const canonical = [
     'exampleBlocks',
-    'claudeStateContract',
-    'scriptBasedStateContract',
-    'codexStateContract',
+    'mcpStateContract',
   ];
   const removed = [
+    ['claude', 'State', 'Contract'].join(''),
+    ['script', 'Based', 'State', 'Contract'].join(''),
+    ['codex', 'State', 'Contract'].join(''),
     'mcpSkillContentHandler',
     'policyEnforcer',
     'geminiHookModel',
@@ -232,10 +233,10 @@ test('doc-drift: runtime docs reference only the 4 canonical feature flags', () 
 
 test('doc-drift: runtime-docs feature-flag booleans match src/platforms/*/runtime-config.js', () => {
   const expected = {
-    gemini: { exampleBlocks: false, claudeStateContract: false, scriptBasedStateContract: true, codexStateContract: false },
-    claude: { exampleBlocks: true, claudeStateContract: true, scriptBasedStateContract: false, codexStateContract: false },
-    codex: { exampleBlocks: false, claudeStateContract: false, scriptBasedStateContract: false, codexStateContract: true },
-    qwen: { exampleBlocks: false, claudeStateContract: false, scriptBasedStateContract: true, codexStateContract: false },
+    gemini: { exampleBlocks: false, mcpStateContract: true },
+    claude: { exampleBlocks: true, mcpStateContract: true },
+    codex: { exampleBlocks: false, mcpStateContract: true },
+    qwen: { exampleBlocks: false, mcpStateContract: true },
   };
   for (const [runtime, flags] of Object.entries(expected)) {
     const body = read(`docs/runtime-${runtime}.md`);

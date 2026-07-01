@@ -26,9 +26,9 @@ Before running orchestration commands:
    - **Fallback**: Resolve manually using script-accurate precedence: exported env var > workspace `.env` (`$PWD/.env`) > extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.qwen/extensions/maestro}/.env`) > undefined (callers apply defaults).
 3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning. (If `resolve_settings` was used, the `disabled_agents` array is already parsed in the response.)
 4. Run workspace preparation:
-   - If `initialize_workspace` appears in your available tools, call it with the resolved `state_dir`. This is the preferred path.
-   - Otherwise, run `node ${extensionPath}/src/scripts/ensure-workspace.js <resolved-state-dir>` as fallback.
-   - Stop and report if either fails.
+   - If `initialize_workspace` appears in your available tools, call it with an explicit `workspace_path` and the resolved `state_dir`.
+   - Use `MAESTRO_WORKSPACE_PATH` when the host exposes it; otherwise use a workspace suggestion from `get_runtime_context` or ask the user for the path.
+   - Stop and report if the MCP workspace tool is unavailable or initialization fails.
 
 ## Qwen Code Integration Constraints
 
@@ -81,12 +81,12 @@ This extension was authored for Qwen Code. When following agent methodology file
 | Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Native parallel batch chunk size (`0` means dispatch the entire ready batch) |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
 
-**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent model, temperature, turn, and timeout tuning come from agent frontmatter and Qwen Code `agents.overrides`, not Maestro process flags.
+**Note:** `MAESTRO_STATE_DIR` is resolved through `resolve_settings` with exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. Native agent model, temperature, turn, and timeout tuning come from agent frontmatter and Qwen Code `agents.overrides`, not Maestro process flags.
 
 Additional controls:
 
 - `MAESTRO_EXTENSION_PATH`: override extension root for setting resolution (defaults to ~/.qwen/extensions/maestro)
-- `MAESTRO_CURRENT_AGENT`: legacy fallback for hook correlation only; primary identity now comes from the required `Agent:` delegation header
+- Hook agent identity comes from the required `Agent:` delegation header.
 
 ## Orchestration Workflow
 
@@ -191,9 +191,9 @@ Resolve `<state_dir>` from `MAESTRO_STATE_DIR`:
 - Plans: `<state_dir>/plans/`
 - Archives: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
-When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`edit` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
+Use MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) for all state operations; they provide structured I/O and atomic transitions. If a required MCP state tool is unavailable, stop and report that Maestro state operations cannot proceed. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
 
-`/maestro:status` and `/maestro:resume` use `node ${extensionPath}/src/scripts/read-active-session.js` in their TOML shell blocks to inject state before the model's first turn.
+`/maestro:status` and `/maestro:resume` call MCP state tools after the command starts; they do not pre-inject session state through shell blocks.
 
 ## Skills Reference
 

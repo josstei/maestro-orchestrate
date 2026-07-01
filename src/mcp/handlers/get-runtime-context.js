@@ -20,21 +20,16 @@ function createHandler(runtimeConfig, getWorkspaceSuggestion = () => null) {
       : name
   );
 
-  const prefix = resolvedRuntimeConfig.name === 'claude' ? 'maestro:' : '';
   const delegation = resolvedRuntimeConfig.delegation || { pattern: '', constraints: {} };
 
   return function handleGetRuntimeContext(_params) {
     return {
       runtime: resolvedRuntimeConfig.name,
       tools: resolvedRuntimeConfig.tools || {},
-      agent_dispatch: {
-        pattern: delegation.pattern || '',
-        naming: resolvedRuntimeConfig.agentNaming || 'kebab-case',
-        prefix,
-      },
       delegation: {
         pattern: delegation.pattern || '',
         constraints: delegation.constraints || {},
+        naming: resolvedRuntimeConfig.agentNaming || 'kebab-case',
       },
       mcp_prefix: MCP_PREFIXES[resolvedRuntimeConfig.name] || '',
       paths: resolvedRuntimeConfig.paths || {},

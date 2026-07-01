@@ -16,8 +16,10 @@ help:
     @echo "  just test-integration Run only integration tests"
     @echo ""
     @echo "CI:"
+    @echo "  just source-check     Generate, drift-check, layer-check, and test"
+    @echo "  just release-check    Verify npm and release artifact surfaces"
     @echo "  just check            Generate + verify zero drift"
-    @echo "  just ci               Full CI equivalent (check + test)"
+    @echo "  just ci               Source CI equivalent"
     @echo ""
     @echo "Maintenance:"
     @echo "  just cleanup-branches Delete local branches whose remote is gone"
@@ -89,8 +91,15 @@ check: generate
 check-layers:
     node scripts/check-layer-boundaries.js
 
-# Generate, test, and verify — full CI equivalent
-ci: check check-layers test
+# Generate, drift-check, layer-check, and test source changes
+source-check: check check-layers test
+
+# Verify npm package contents and release artifact surfaces
+release-check:
+    npm run check:release
+
+# Generate, test, and verify — source CI equivalent
+ci: source-check
 
 # Delete local branches whose remote tracking ref is gone
 cleanup-branches:

@@ -1,11 +1,13 @@
 const { afterEach, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
-const { createToolPack } = require('../../src/mcp/tool-packs/workspace');
+const {
+  buildMcpServer,
+  createWorkspacePack,
+  makeTempWorkspace,
+} = require('../support/mcp');
 
 const envKeysToRestore = [
   'MAESTRO_DISABLED_AGENTS',
@@ -27,13 +29,13 @@ afterEach(() => {
   }
 });
 
+function buildWorkspaceServer() {
+  return buildMcpServer({ toolPacks: [createWorkspacePack] });
+}
+
 describe('workspace tool pack', () => {
   it('registers the workspace and planning tool surface through the kernel', () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = buildWorkspaceServer();
 
     assert.deepEqual(
       server.getToolSchemas().map((schema) => schema.name),
@@ -47,17 +49,13 @@ describe('workspace tool pack', () => {
   });
 
   it('resolves settings from the workspace env file', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-settings-'));
+    const projectRoot = makeTempWorkspace('maestro-settings-');
     fs.writeFileSync(
       path.join(projectRoot, '.env'),
       'MAESTRO_DISABLED_AGENTS=architect, tester\n'
     );
 
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = buildWorkspaceServer();
 
     const result = await server.callTool(
       'resolve_settings',
@@ -74,19 +72,12 @@ describe('workspace tool pack', () => {
   });
 
   it('initializes the workspace directories under the provided project root', async () => {
-    const projectRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), 'maestro-workspace-')
-    );
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const projectRoot = makeTempWorkspace('maestro-workspace-');
+    const server = buildWorkspaceServer();
 
     const result = await server.callTool(
       'initialize_workspace',
-      { state_dir: 'docs/maestro' },
+      { workspace_path: projectRoot, state_dir: 'docs/maestro' },
       projectRoot
     );
 
@@ -103,11 +94,7 @@ describe('workspace tool pack', () => {
   });
 
   it('reports overlapping files for parallel phases', async () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = buildWorkspaceServer();
 
     const result = await server.callTool(
       'validate_plan',

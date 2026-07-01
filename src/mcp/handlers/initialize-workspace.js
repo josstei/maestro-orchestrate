@@ -10,12 +10,9 @@ const {
 } = require('../../core/project-root-resolver');
 const { writeWorkspaceMarker } = require('../contracts/workspace-marker');
 
-async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
-  const workspacePath =
-    params.workspace_path || cachedProjectRoot || null;
-
+async function handleInitializeWorkspace(params = {}) {
   const resolvedWorkspace = requireExplicitWorkspaceRoot({
-    workspacePath,
+    workspacePath: params.workspace_path,
   });
 
   const stateDir =

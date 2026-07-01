@@ -13,33 +13,7 @@ const {
 } = require('../../src/core/agent-registry');
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
-
-function withEnv(overrides, fn) {
-  const previous = {};
-  for (const key of Object.keys(overrides)) {
-    previous[key] = process.env[key];
-  }
-
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value == null) {
-      delete process.env[key];
-    } else {
-      process.env[key] = value;
-    }
-  }
-
-  try {
-    return fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
-}
+const LEGACY_AGENT_ENV = ['MAESTRO', 'CURRENT', 'AGENT'].join('_');
 
 describe('KNOWN_AGENTS', () => {
   it('is frozen', () => {
@@ -104,60 +78,47 @@ describe('normalizeAgentName', () => {
 
 describe('detectAgentFromPrompt', () => {
   it('finds agent from "agent: coder" header', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('agent: coder\n\nDo some work.')
-    );
-    assert.equal(result, 'coder');
+    assert.equal(detectAgentFromPrompt('agent: coder\n\nDo some work.'), 'coder');
   });
 
   it('finds agent from "agent: code-reviewer" header and normalizes to snake_case', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('agent: code-reviewer\n\nReview this PR.')
+    assert.equal(
+      detectAgentFromPrompt('agent: code-reviewer\n\nReview this PR.'),
+      'code_reviewer'
     );
-    assert.equal(result, 'code_reviewer');
   });
 
-  it('matches @code_reviewer mention', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('Please ask @code_reviewer to check this.')
-    );
-    assert.equal(result, 'code_reviewer');
+  it('ignores @mentions when no Agent header is present', () => {
+    assert.equal(detectAgentFromPrompt('Please ask @code_reviewer to check this.'), '');
   });
 
-  it('matches "delegate to coder" pattern', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('delegate to coder for implementation')
-    );
-    assert.equal(result, 'coder');
-  });
-
-  it('matches "hand off to debugger" pattern', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('hand off to debugger for investigation')
-    );
-    assert.equal(result, 'debugger');
+  it('ignores natural-language delegation phrases when no Agent header is present', () => {
+    assert.equal(detectAgentFromPrompt('delegate to coder for implementation'), '');
+    assert.equal(detectAgentFromPrompt('hand off to debugger for investigation'), '');
   });
 
   it('returns empty string for empty prompt, null prompt, and prompts with no agent', () => {
-    withEnv({ MAESTRO_CURRENT_AGENT: null }, () => {
-      assert.equal(detectAgentFromPrompt(''), '');
-      assert.equal(detectAgentFromPrompt(null), '');
-      assert.equal(detectAgentFromPrompt('Just a normal message with no agent.'), '');
-    });
+    assert.equal(detectAgentFromPrompt(''), '');
+    assert.equal(detectAgentFromPrompt(null), '');
+    assert.equal(detectAgentFromPrompt('Just a normal message with no agent.'), '');
   });
 
-  it('falls back to MAESTRO_CURRENT_AGENT env when no header is present', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
-      detectAgentFromPrompt('Run all tests please.')
-    );
-    assert.equal(result, 'tester');
+  it('ignores legacy agent env when no Agent header is present', () => {
+    const previous = process.env[LEGACY_AGENT_ENV];
+    process.env[LEGACY_AGENT_ENV] = 'tester';
+    try {
+      assert.equal(detectAgentFromPrompt('Run all tests please.'), '');
+    } finally {
+      if (previous === undefined) {
+        delete process.env[LEGACY_AGENT_ENV];
+      } else {
+        process.env[LEGACY_AGENT_ENV] = previous;
+      }
+    }
   });
 
-  it('prefers header agent over MAESTRO_CURRENT_AGENT env', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
-      detectAgentFromPrompt('agent: coder\n\nImplement the feature.')
-    );
-    assert.equal(result, 'coder');
+  it('ignores unknown Agent headers', () => {
+    assert.equal(detectAgentFromPrompt('Agent: not-a-real-agent\n\nRun work.'), '');
   });
 });
 

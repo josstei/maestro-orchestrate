@@ -570,8 +570,10 @@ The `justfile` provides local development commands that mirror CI behavior.
 | `just test-transforms` | Run only transform unit tests | No CI equivalent |
 | `just test-integration` | Run only integration tests | No CI equivalent |
 | `just check` | Generate + verify zero drift | Replicated in all 6 generator workflows |
-| `just check-layers` | Verify `lib/` layer boundary imports | No CI workflow equivalent |
-| `just ci` | Full CI equivalent: `check` + `check-layers` + `test` | Superset of CI (includes `check-layers`) |
+| `just check-layers` | Verify `lib/` layer boundary imports | Covered by source-check workflows |
+| `just source-check` | Generate, drift-check, layer-check, and test | Source validation workflow equivalent |
+| `just release-check` | Verify npm package and release artifact surfaces | Release/package validation workflow equivalent |
+| `just ci` | Source CI equivalent: `source-check` | Source validation shortcut |
 | `just cleanup-branches` | Delete local branches whose remote is gone | No CI equivalent |
 
 ### CI Mapping
@@ -581,12 +583,14 @@ The workflows replicate the following `just` commands:
 ```
 just generate  -->  node scripts/generate.js
 just check     -->  git diff --exit-code --name-only (after generate)
+source check   -->  npm run check:source / just source-check
 just test      -->  node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
-pack verify    -->  npm run pack:verify
-artifact check -->  npm run release:artifacts && npm run release:verify-artifacts
+release check  -->  npm run check:release / just release-check
 ```
 
-The local `just ci` recipe runs `check`, `check-layers`, and `test`. The GitHub source-of-truth workflow runs `generate`, drift check, `test`, npm pack verification, and release artifact verification, but does not run `check-layers` (`node scripts/check-layer-boundaries.js`). The layer boundary check is a local-only validation.
+The local `just ci` recipe is the source validation shortcut and expands to
+`just source-check`. Package and release artifact verification are intentionally
+separate through `just release-check` or `npm run check:release`.
 
 ---
 

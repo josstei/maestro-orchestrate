@@ -25,9 +25,9 @@ Resolve that workspace root in this order:
 
 1. `MAESTRO_WORKSPACE_PATH`, when the host exports it and it points to a real path
 2. the first valid local `file://` root returned by the MCP client `roots/list` request
-3. inherited env or `cwd` fallback heuristics from the shared resolver
+3. explicit user input when no env/client-root suggestion exists
 
-If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root.
+If required MCP state tools are unavailable, stop and report that Maestro state operations cannot proceed.
 
 ## Tool mapping
 
@@ -60,7 +60,7 @@ If Maestro MCP tools are available, prefer them for stateful operations:
 - `archive_session`
 - `validate_plan`
 
-If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
+If the MCP server or required state tool is unavailable in the current Codex environment, stop and report that Maestro state operations cannot proceed.
 
 ## Delegation model
 

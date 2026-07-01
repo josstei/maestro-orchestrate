@@ -2,25 +2,18 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-const {
-  createToolPack: createContentPack,
-} = require('../../src/mcp/tool-packs/content');
+  buildMcpServer,
+  createContentPack,
+  createInitializedMcpWorkspace,
+  createSessionPack,
+  createWorkspacePack,
+} = require('../support/mcp');
 
 function createFullServer() {
-  return createServer({
-    runtimeConfig: { name: 'gemini' },
-    services: {},
+  return buildMcpServer({
+    runtime: 'gemini',
     toolPacks: [createWorkspacePack, createSessionPack, createContentPack],
   });
 }
@@ -80,14 +73,11 @@ describe('workspace requirement contract', () => {
   });
 
   it('workspace-dependent tools succeed after initialize_workspace provides a workspace', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-wr-'));
-    const server = createFullServer();
-
-    const init = await server.callTool(
-      'initialize_workspace',
-      { workspace_path: workspace },
-      workspace
-    );
+    const { workspace, server, init } = await createInitializedMcpWorkspace({
+      prefix: 'maestro-wr-',
+      runtime: 'gemini',
+      toolPacks: [createWorkspacePack, createSessionPack, createContentPack],
+    });
     assert.equal(init.ok, true);
 
     const status = await server.callTool('get_session_status', {}, workspace);

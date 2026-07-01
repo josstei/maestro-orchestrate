@@ -46,9 +46,7 @@ module.exports = {
 
   features: {
     exampleBlocks: false,
-    claudeStateContract: false,
-    scriptBasedStateContract: false,
-    codexStateContract: true,
+    mcpStateContract: true,
   },
 
   paths: {

@@ -31,6 +31,7 @@ const BUILD_ONLY_SOURCE_PATHS = [
   'src/platforms/claude/metadata.js',
   'src/platforms/runtime-payload-contract.js',
 ];
+const removedRuntimePath = (...parts) => parts.join('/');
 
 function packageFiles(extraFiles = [], packageFields = {}) {
   return [{
@@ -129,6 +130,36 @@ describe('verify npm pack', () => {
 
     assert.equal(packageRuntimeSourcePaths.includes('src'), false);
     assert.deepEqual(packageRuntimeSourcePaths, [...RUNTIME_SOURCE_PATHS].sort());
+  });
+
+  it('does not classify removed state helper scripts as package runtime source', () => {
+    for (const removedScript of [
+      removedRuntimePath('src', 'scripts', ['ensure', 'workspace'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['read', 'active', 'session'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['read', 'state'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['write', 'state'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['read', 'setting'].join('-') + '.js'),
+    ]) {
+      assert.deepEqual(classifyPackageEntry(removedScript), []);
+      assert.throws(
+        () => verifyPackageEntries(packageFiles([removedScript])),
+        new RegExp(`npm package contains unclassified paths: ${removedScript.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+      );
+    }
+  });
+
+  it('does not classify removed shared agent names module as package runtime source', () => {
+    const removedPath = removedRuntimePath(
+      'src',
+      'platforms',
+      'shared',
+      ['agent', 'names'].join('-') + '.js'
+    );
+    assert.deepEqual(classifyPackageEntry(removedPath), []);
+    assert.throws(
+      () => verifyPackageEntries(packageFiles([removedPath])),
+      new RegExp(`npm package contains unclassified paths: ${removedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    );
   });
 
   it('rejects build-only source checkout tooling as unclassified package content', () => {

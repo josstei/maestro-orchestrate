@@ -84,7 +84,7 @@ module.exports = [
     skills: ['session-management'],
     refs: ['architecture'],
     workflow: [
-      'Read the active session using MCP state tools if available; otherwise fall back to scripts or direct file read',
+      'Read the active session using MCP state tools; stop if the MCP state surface is unavailable',
       'Report session ID, creation timestamp, workflow mode, and overall status',
       'Show phase breakdown: completed phases with timestamps, current active phase, pending phases, and failed phases with error summaries',
       'Report file manifest (files created, modified, deleted), token usage by agent, and unresolved errors',

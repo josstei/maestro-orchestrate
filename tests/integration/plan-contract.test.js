@@ -2,52 +2,33 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
+  createInitializedMcpWorkspace,
+  phaseFixture,
+  readSessionFrontmatter,
+} = require('../support/mcp');
 
 describe('plan contract round-trip', () => {
   it('validate_plan output is accepted verbatim by create_session', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-plan-rt-'));
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createWorkspacePack, createSessionPack],
+    const { workspace, server } = await createInitializedMcpWorkspace({
+      prefix: 'maestro-plan-rt-',
     });
-
-    await server.callTool(
-      'initialize_workspace',
-      { workspace_path: workspace },
-      workspace
-    );
 
     const plan = {
       phases: [
-        {
-          id: 1,
+        phaseFixture({
           name: 'Scaffold',
-          agent: 'coder',
-          parallel: false,
-          blocked_by: [],
           files: ['src/foo.js'],
-        },
-        {
+        }),
+        phaseFixture({
           id: 2,
           name: 'Test',
           agent: 'tester',
           parallel: true,
           blocked_by: [1],
           files: ['tests/foo.test.js'],
-        },
+        }),
       ],
     };
 
@@ -71,15 +52,7 @@ describe('plan contract round-trip', () => {
     );
     assert.equal(created.ok, true);
 
-    const sessionPath = path.join(
-      workspace,
-      'docs',
-      'maestro',
-      'state',
-      'active-session.md'
-    );
-    const raw = fs.readFileSync(sessionPath, 'utf8');
-    const frontmatter = JSON.parse(raw.match(/^---\n([\s\S]*?)\n---/)[1]);
+    const frontmatter = readSessionFrontmatter(workspace);
     assert.deepEqual(frontmatter.phases[0].planned_files, ['src/foo.js']);
     assert.deepEqual(frontmatter.phases[1].blocked_by, [1]);
     assert.equal(frontmatter.phases[1].parallel, true);

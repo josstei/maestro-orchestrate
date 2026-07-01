@@ -7,6 +7,8 @@ const claude = require('../../src/platforms/claude/runtime-config');
 const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
 
 describe('get_runtime_context response shape', () => {
+  const legacyDispatchKey = ['agent', 'dispatch'].join('_');
+
   it('codex returns delegation.constraints and plan_mode_native=false', () => {
     const handler = createHandler(codex, () => '/workspace/suggestion');
     const result = handler({});
@@ -26,9 +28,11 @@ describe('get_runtime_context response shape', () => {
     assert.equal(result.workspace_suggestion, null);
   });
 
-  it('preserves the legacy agent_dispatch.pattern field', () => {
+  it('does not expose legacy dispatch fields', () => {
     const handler = createHandler(codex, () => null);
     const result = handler({});
-    assert.equal(result.agent_dispatch.pattern, 'spawn_agent(...)');
+    assert.equal(Object.hasOwn(result, legacyDispatchKey), false);
+    assert.equal(result.delegation.pattern, 'spawn_agent(...)');
+    assert.equal(result.delegation.naming, 'kebab-case');
   });
 });

@@ -30,6 +30,7 @@ const BUILD_ONLY_SOURCE_PATHS = [
   'src/platforms/claude/metadata.js',
   'src/platforms/runtime-payload-contract.js',
 ];
+const removedRuntimePath = (...parts) => parts.join('/');
 
 describe('release artifact manifest', () => {
   it('uses an explicit allowlist for required release surfaces', () => {
@@ -101,6 +102,36 @@ describe('release artifact manifest', () => {
         `${buildOnlyPath} must not be release-allowlisted`
       );
     }
+  });
+
+  it('does not allow removed state helper scripts in release artifacts', () => {
+    for (const removedScript of [
+      removedRuntimePath('src', 'scripts', ['ensure', 'workspace'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['read', 'active', 'session'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['read', 'state'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['write', 'state'].join('-') + '.js'),
+      removedRuntimePath('src', 'scripts', ['read', 'setting'].join('-') + '.js'),
+    ]) {
+      assert.equal(
+        isReleaseArtifactPathAllowed(removedScript),
+        false,
+        `${removedScript} must not be release-allowlisted`
+      );
+    }
+  });
+
+  it('does not allow removed shared agent names module in release artifacts', () => {
+    assert.equal(
+      isReleaseArtifactPathAllowed(
+        removedRuntimePath(
+          'src',
+          'platforms',
+          'shared',
+          ['agent', 'names'].join('-') + '.js'
+        )
+      ),
+      false
+    );
   });
 
   it('fails when extracted artifact contents contain build-only source checkout tooling', () => {

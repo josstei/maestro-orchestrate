@@ -47,8 +47,8 @@ Codex shares the same canonical `src/` source tree as the Gemini CLI, Claude Cod
 
 - Shared methodology, references, templates, and agent bodies are authored in root `src/` and served from the package root by `maestro-mcp-server`.
 - Maestro session state lives in `docs/maestro` in the workspace root.
-- Codex resolves that workspace root from `MAESTRO_WORKSPACE_PATH` when available, otherwise from the MCP client `roots/list` response, before falling back to legacy env or `cwd` detection.
-- The plugin ships `.mcp.json` for MCP-first operation, and generated skills also describe direct state-file access under `docs/maestro` for spawned agents that cannot see the parent MCP tools.
+- Codex suggests that workspace root from `MAESTRO_WORKSPACE_PATH` when available, otherwise from the MCP client `roots/list` response. Initialization still requires an explicit `workspace_path`.
+- The plugin ships `.mcp.json` for MCP-only session state operations; generated skills stop if the required MCP state tool is unavailable.
 - Custom Codex subagents normally live in `.codex/agents`. This plugin does not write there; `get_agent` serves the canonical methodology bodies directly.
 - Codex keeps its built-in `/review`, `/debug`, and `/resume` commands; Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` to avoid those collisions.
 

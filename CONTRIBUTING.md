@@ -38,7 +38,9 @@ All commands are available via `just` or `npm`:
 | `just test-transforms` | Run only transform unit tests |
 | `just test-integration` | Run only integration tests |
 | `just check` | Generate + verify zero drift (`git diff --exit-code`) |
-| `just ci` | Full CI equivalent: check + check-layers + test |
+| `just source-check` | Generate, drift-check, layer-check, and test |
+| `just release-check` | Verify npm package and release artifact surfaces |
+| `just ci` | Source CI equivalent (`source-check`) |
 | `just dry-run` | Preview changes without writing |
 | `just diff` | Show unified diff of pending changes |
 

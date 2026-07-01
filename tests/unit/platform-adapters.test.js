@@ -22,7 +22,7 @@ describe('claude-adapter', () => {
       assert.equal(result.event, 'PreToolUse');
     });
 
-    it('maps tool_input.subagent_type to agentName and tool_input.prompt to agentInput', () => {
+    it('maps tool_input.subagent_type into the Agent header and preserves prompt body', () => {
       const raw = {
         tool_input: {
           subagent_type: 'maestro:coder',
@@ -32,8 +32,8 @@ describe('claude-adapter', () => {
 
       const result = claudeAdapter.normalizeInput(raw);
 
-      assert.equal(result.agentName, 'maestro:coder');
-      assert.equal(result.agentInput, 'Implement the feature.');
+      assert.equal(result.agentName, null);
+      assert.equal(result.agentInput, 'Agent: maestro:coder\n\nImplement the feature.');
     });
 
     it('maps tool_result to agentResult', () => {
@@ -215,14 +215,14 @@ describe('qwen-adapter', () => {
       assert.equal(result.event, 'SubagentStart');
     });
 
-    it('maps agent_type to agentName and leaves agentInput null for SubagentStart', () => {
+    it('maps agent_type into the Agent header for SubagentStart', () => {
       const result = qwenAdapter.normalizeInput({
         hook_event_name: 'SubagentStart',
         agent_type: 'coder',
       });
 
-      assert.equal(result.agentName, 'coder');
-      assert.equal(result.agentInput, null);
+      assert.equal(result.agentName, null);
+      assert.equal(result.agentInput, 'Agent: coder');
       assert.equal(result.agentResult, null);
     });
 
@@ -233,8 +233,8 @@ describe('qwen-adapter', () => {
         last_assistant_message: '## Task Report\nDone.\n\n## Downstream Context\nNext steps.',
       });
 
-      assert.equal(result.agentName, 'coder');
-      assert.equal(result.agentInput, null);
+      assert.equal(result.agentName, null);
+      assert.equal(result.agentInput, 'Agent: coder');
       assert.equal(result.agentResult, '## Task Report\nDone.\n\n## Downstream Context\nNext steps.');
     });
 

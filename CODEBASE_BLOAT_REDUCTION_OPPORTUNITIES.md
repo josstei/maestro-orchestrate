@@ -4,9 +4,9 @@ Date: 2026-07-01
 
 This report summarizes aggressive opportunities to reduce repository size, package size, generated-output drift, prompt/content volume, and maintenance surface in `maestro-orchestrate`.
 
-Original scope: analysis and implementation options. Five read-only adversarial subagents reviewed the first draft; validated findings are incorporated below. Phases 0 through 5 plus the package-source hardening follow-up have since been executed in this worktree and are recorded in their phase sections.
+Original scope: analysis and implementation options. Five read-only adversarial subagents reviewed the first draft; validated findings are incorporated below. Phases 0 through 6 plus the package-source hardening follow-up have since been executed in this worktree and are recorded in their phase sections.
 
-## Current Status: Phase 5 Prompt/Content Normalization
+## Current Status: Phase 6 Tests, CI, and Release Scripts
 
 Execution status as of 2026-07-01: implemented and validated in this worktree.
 
@@ -20,15 +20,20 @@ Execution status as of 2026-07-01: implemented and validated in this worktree.
 - `src/mcp/content/provider.js` now rejects non-`none` fallback declarations instead of constructing provider chains.
 - `src/config/setting-resolver.js` has one extension-root input, `MAESTRO_EXTENSION_PATH`; Claude adapters normalize their host-specific root into that variable.
 - Installed-package tests now prove Claude MCP startup, hook runner, policy enforcer, and public adapter stubs load package-root `src` with `claude/src` absent.
-- Claude state-script reference content now points at package-root `src/scripts`; Codex docs distinguish direct state-file access from runtime content fallback.
+- Session state access is now an MCP-only contract; generated command content no longer injects state helper scripts or documents direct state-file fallback paths.
 - Package and release allowlists deny retired payload roots and enumerate public Claude surfaces instead of allowing all of `claude/`.
 - Package and release allowlists now share one explicit runtime-source inventory instead of shipping broad `src/`.
 - Build-only source-checkout tooling is excluded from npm and release artifacts: `src/generator/`, `src/transforms/`, `src/entry-points/`, `src/lib/discovery/`, `src/lib/yaml-emit.js`, `src/manifest.js`, platform metadata builders, and `src/platforms/runtime-payload-contract.js`.
 - Agent handoff templates are centralized in `src/skills/shared/delegation/protocols/agent-base-protocol.md`; all 39 canonical `src/agents/*.md` files now keep only a pointer to that shared contract.
 - Runtime delegation-path tests now prove agent-backed entry points and execute/resume commands load `delegation`, and that standard/express orchestration steps load `agent-base-protocol` plus `filesystem-safety-protocol` before delegation.
 - Agent output-contract tests now reject reintroducing the full per-agent `## Task Report` / `## Downstream Context` templates while proving the shared protocol owns the canonical template.
-- Validated npm package metrics: 344 entries, 310,426 packed bytes, 1,115,627 unpacked bytes.
-- Validated release artifact metrics: 451 archive entries, 360,695 archive bytes, no root `scripts/`, no retired payload roots, no build-only `src` tooling, and only the two public bin files under `bin/`.
+- Tests now have a shared `tests/support` MCP/workspace/session harness for repeated temporary workspace, initialized server, phase fixture, workspace file, and session frontmatter setup.
+- Representative MCP/session tests use the shared harness while preserving named high-scenario coverage.
+- Source validation and package/release validation now have separate reusable command surfaces: `npm run check:source`, `npm run check:release`, `just source-check`, and `just release-check`.
+- GitHub workflows call the shared source/release checks where appropriate while keeping release event, token, version, label, tag, and publish policy visible in workflow YAML.
+- The follow-up no-shim remediation removes implicit workspace initialization, direct state helper scripts, legacy runtime dispatch aliases, hook env/prompt identity fallbacks, the dead shared agent-name module, and legacy manifest output pass-through.
+- Validated npm package metrics: 338 entries, 307,912 packed bytes, 1,106,749 unpacked bytes.
+- Validated release artifact metrics: 444 archive entries, 355,658 archive bytes, no root `scripts/`, no retired payload roots, no build-only `src` tooling, and only the two public bin files under `bin/`.
 
 ## Baseline
 
@@ -474,6 +479,19 @@ Before shrinking prompt bodies:
 
 ## Slice 6: Tests, CI, and Release Scripts
 
+Execution status as of 2026-07-01: complete in this worktree for the low-risk harness and command-consolidation slice. Broader release-CLI unification and aggressive table-driving remain intentionally deferred.
+
+Phase 6 results:
+
+- Added `tests/support/mcp.js` with focused helpers for temporary workspaces, MCP server construction, workspace initialization, `docs/maestro` setup, workspace file writes, session frontmatter reads, and common phase fixtures.
+- Converted representative session, design-gate, workspace/content tool-pack, plan-contract, workspace-requirement, and reconciliation-flow tests to use the shared setup helpers without renaming or flattening scenario tests.
+- Added `npm run check:source` for source generation, drift, layer, and test validation.
+- Added `npm run check:release` for npm package verification and release artifact verification.
+- Added `just source-check` and `just release-check`, with `just ci` remaining source-validation focused rather than absorbing release/package gates.
+- Updated generator-check and stable release workflows to use both shared checks.
+- Updated nightly, preview, RC, and prepare-release workflows to use the shared source check while retaining their runtime versioning, package verification, publishing, and PR/comment policy steps.
+- Current package/release metrics after the command-surface changes: 344 npm entries, 310,507 packed bytes, 1,115,866 unpacked bytes, 451 release archive entries, and 358,750 release archive bytes.
+
 ### Evidence
 
 Tests total 15,789 tracked lines:
@@ -576,7 +594,7 @@ This is a public wire-contract migration, not just a source cleanup.
 | Add versioned v2 MCP tools | Clean migration path | Temporarily increases surface | Medium-high | Long-term source complexity |
 | Collapse session/design/reconciliation into a new API | Strongest API simplification | Breaking MCP API and skill rewrite | High | Source lines, complexity |
 | Generate MCP tool contracts from a single registry | Eliminates tool pack/schema drift | Must preserve wire shape | Medium | Source lines, drift |
-| Remove legacy script-based session fallback | Simplifies state access | Blocked by generated Gemini/Qwen command state injection | Medium-high | Complexity |
+| Remove script-based session fallback | Simplifies state access | Completed by moving generated commands and shared skills to MCP-only state tools | Medium-high | Complexity |
 
 ### Required Proof
 
@@ -588,7 +606,7 @@ Before API simplification:
 - Design content/path variant tests.
 - Reconciliation, resume, and archive tests.
 - Active-session and design-gate file compatibility checks.
-- Proof that Gemini/Qwen `/maestro:resume` and pre-turn state context work without `src/scripts/read-active-session.js` before deleting script fallback.
+- Proof that Gemini/Qwen `/maestro:resume` and status flows use MCP state tools instead of pre-turn shell-injected state context.
 
 ## Slice 9: Generated Output Inventory and Tracking Strategy
 
@@ -734,7 +752,7 @@ Execution status: complete in this worktree.
 3. Add richer agent metadata before generating roster views.
 4. Treat Claude examples as runtime registration contract.
 
-Phase 5: Tests and release consolidation
+Phase 6: Tests and release consolidation
 
 1. Add `tests/support` harness.
 2. Convert repeated setup without flattening scenario tests.

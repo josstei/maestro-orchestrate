@@ -35,4 +35,4 @@ allowed-tools:
 
 Call `get_skill_content` with resources: ["session-management", "execution", "delegation", "validation"].
 
-Read the active session state, summarize completed and pending phases, then resume from the first pending or failed phase following the loaded methodology.
+Call get_session_status to read the active session state, summarize completed and pending phases, then resume from the first pending or failed phase following the loaded methodology. Stop if the MCP state surface is unavailable.

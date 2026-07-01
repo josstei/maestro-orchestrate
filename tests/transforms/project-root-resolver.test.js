@@ -9,6 +9,7 @@ const {
   resolveProjectRoot,
   resolveProjectRootForRuntime,
 } = require('../../src/core/project-root-resolver');
+const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
 
 function withEnv(overrides, fn) {
   const previous = {
@@ -202,5 +203,20 @@ describe('project root resolver', () => {
       () => requireExplicitWorkspaceRoot({ workspacePath: nested }),
       (err) => err instanceof WorkspaceResolutionError && /extension cache/i.test(err.message)
     );
+  });
+
+  it('workspaceSuggestion does not fall back to cwd', () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cwd-suggestion-'));
+    const cache = createProjectRootCache({
+      runtimeConfig: {
+        env: {
+          workspacePath: 'MAESTRO_WORKSPACE_PATH',
+        },
+      },
+      env: {},
+      getCwd: () => cwd,
+    });
+
+    assert.equal(cache.workspaceSuggestion(), null);
   });
 });

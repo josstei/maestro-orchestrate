@@ -59,51 +59,23 @@ Agent names use the format specified by the runtime's Agent Naming Convention se
 
 ## State Contract
 
-<!-- @feature scriptBasedStateContract -->
-Maestro maintains session state under `<state_dir>` (resolved from `MAESTRO_STATE_DIR`):
-
-- **Active session**: `<state_dir>/state/active-session.md`
-- **Plans**: `<state_dir>/plans/`
-- **Archives**: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
-
-State scripts:
-
-- `node ${extensionPath}/src/scripts/ensure-workspace.js <state_dir>` — initialize workspace directories
-- `node ${extensionPath}/src/scripts/read-active-session.js` — read current session state
-- `node ${extensionPath}/src/scripts/read-state.js <relative-path>` — read arbitrary state file
-- `node ${extensionPath}/src/scripts/write-state.js <relative-path>` — write state from stdin
-- `node ${extensionPath}/src/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
-<!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-Maestro maintains session state under `docs/maestro` (resolved from `MAESTRO_STATE_DIR`):
+Maestro maintains session state under `docs/maestro` in the workspace root
+(or the configured `MAESTRO_STATE_DIR`):
 
 - **Active session**: `docs/maestro/state/active-session.md`
 - **Plans**: `docs/maestro/plans/`
 - **Archives**: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
 
-State scripts:
+State access is mediated by MCP state tools:
 
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/read-active-session.js` — read current session state
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/read-state.js <relative-path>` — read arbitrary state file
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/write-state.js <relative-path>` — write state from stdin
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
-<!-- @end-feature -->
-<!-- @feature codexStateContract -->
-Maestro maintains session state under `docs/maestro` in the workspace root:
+- `initialize_workspace` — create workspace state directories and marker
+- `get_session_status` — read active session status
+- `create_session`, `update_session`, `transition_phase` — mutate session state
+- `archive_session` — archive completed or abandoned sessions
+- `resolve_settings` — resolve Maestro settings with documented precedence
 
-- **Active session**: `docs/maestro/state/active-session.md`
-- **Plans**: `docs/maestro/plans/`
-- **Archives**: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
-
-State scripts:
-
-- `node ./src/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
-- `node ./src/scripts/read-active-session.js` — read current session state
-- `node ./src/scripts/read-state.js <relative-path>` — read arbitrary state file
-- `node ./src/scripts/write-state.js <relative-path>` — write state from stdin
-- `node ./src/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
-<!-- @end-feature -->
+The on-disk paths are an implementation detail of the MCP server, not a public
+shell or direct-file contract.
 
 ## Session Management
 

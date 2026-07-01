@@ -270,17 +270,17 @@ describe('manifest-expander', () => {
       codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
     };
 
-    it('passes through legacy rules with outputs field', () => {
+    it('rejects legacy output rules', () => {
       const legacy = {
         src: 'some/file.md',
         transforms: ['copy'],
         outputs: { gemini: 'out/file.md' },
       };
 
-      const result = expandManifest([legacy], runtimes, tmpDir);
-
-      assert.equal(result.length, 1);
-      assert.deepStrictEqual(result[0], legacy);
+      assert.throws(
+        () => expandManifest([legacy], runtimes, tmpDir),
+        /Manifest legacy outputs rules are not supported/
+      );
     });
 
     it('expands glob rules into per-file entries', () => {

@@ -1,7 +1,7 @@
 'use strict';
 
 const { log } = require('../../core/logger');
-const { detectAgentFromPrompt, normalizeAgentName } = require('../../core/agent-registry');
+const { detectAgentFromPrompt } = require('../../core/agent-registry');
 const { assertSessionId } = require('../../lib/validation');
 const { readFileSafe } = require('../../lib/io');
 const hookState = require('./hook-state');
@@ -10,20 +10,20 @@ const state = require('../../state/session-state');
 /**
  * Before-agent hook logic (runtime-agnostic).
  *
- * Field name mapping: the Gemini adapter maps ctx.prompt → ctx.agentInput
- * before calling this function.
+ * Field name mapping: adapters map their explicit agent identity signal into
+ * an `Agent:` header in ctx.agentInput before calling this function.
  *
  * @param {object} ctx - Internal context contract
  * @param {string} ctx.sessionId
  * @param {string} ctx.cwd
- * @param {string|null} ctx.agentInput  - the agent prompt text
+ * @param {string|null} ctx.agentInput  - the agent prompt text with Agent header
  * @param {string} [ctx.event]          - hook event name (used in context message)
  * @returns {{ action: string, message: string|null, reason: null }}
  */
 function handleBeforeAgent(ctx) {
   hookState.pruneStale();
 
-  const agentName = detectAgentFromPrompt(ctx.agentInput) || normalizeAgentName(ctx.agentName);
+  const agentName = detectAgentFromPrompt(ctx.agentInput);
 
   let validSession = false;
   try { assertSessionId(ctx.sessionId); validSession = true; } catch (_) {}

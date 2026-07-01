@@ -32,8 +32,11 @@ just test-integration
 # Generate + verify zero drift in a clean worktree/CI checkout
 just check
 
-# Full CI equivalent in a clean worktree/CI checkout (check + check-layers + test)
+# Source CI equivalent in a clean worktree/CI checkout
 just ci
+
+# Verify npm package and release artifact surfaces
+just release-check
 
 # Verify lib/ import-boundary rules
 just check-layers

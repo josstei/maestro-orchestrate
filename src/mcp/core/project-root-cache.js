@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { pathToFileURL, fileURLToPath } = require('node:url');
+const { fileURLToPath } = require('node:url');
 
 const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
 
@@ -14,9 +14,9 @@ const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
  * stateful tools reject with a structured error.
  *
  * The cache also computes a `workspace_suggestion` from the env var declared
- * by the runtime-config, any MCP roots supplied by the client, and the
- * runtime's cwd. The suggestion is exposed through `get_runtime_context` so
- * the orchestrator can pass it into `initialize_workspace`. It is never
+ * by the runtime-config or any MCP roots supplied by the client. The
+ * suggestion is exposed through `get_runtime_context` so the orchestrator can
+ * present it to the user before calling `initialize_workspace`. It is never
  * used as a fallback for other tools.
  */
 function createProjectRootCache(options) {
@@ -24,7 +24,6 @@ function createProjectRootCache(options) {
     runtimeConfig,
     requestClientRoots,
     env = process.env,
-    getCwd = () => process.cwd(),
   } = options;
 
   let explicitWorkspacePath = null;
@@ -61,12 +60,6 @@ function createProjectRootCache(options) {
     return null;
   }
 
-  function cwdSuggestion() {
-    const cwd = path.resolve(getCwd());
-    if (isExtensionCachePath(cwd)) return null;
-    return cwd;
-  }
-
   async function refreshClientRoots() {
     if (!clientSupportsRoots || typeof requestClientRoots !== 'function') {
       clientRoots = [];
@@ -82,7 +75,7 @@ function createProjectRootCache(options) {
   }
 
   function workspaceSuggestion() {
-    return envSuggestion() || rootsSuggestion() || cwdSuggestion();
+    return envSuggestion() || rootsSuggestion();
   }
 
   function setExplicitWorkspacePath(value) {
