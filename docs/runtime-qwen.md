@@ -120,13 +120,13 @@ Qwen agent stubs share the Gemini shape:
 
 ```yaml
 ---
-name: coder
+name: architect
 kind: local
 description: "..."
-tools: [read_file, write_file, ...]
-temperature: 0.2
-max_turns: 25
-timeout_mins: 10
+tools: [read_file, list_directory, ...]
+temperature: 0.3
+max_turns: 15
+timeout_mins: 5
 ---
 ```
 
