@@ -46,6 +46,22 @@ describe('inject-frontmatter transform', () => {
     },
   };
 
+  const qwenRuntime = {
+    name: 'qwen',
+    agentNaming: 'snake_case',
+    agentFrontmatter: {
+      kind: 'local',
+      turnsField: 'max_turns',
+      hasTemperature: true,
+      hasTimeout: true,
+    },
+    tools: {
+      read_file: 'read_file',
+      glob: 'glob',
+      grep_search: 'grep_search',
+    },
+  };
+
   const claudeRuntime = {
     name: 'claude',
     agentNaming: 'kebab-case',
@@ -81,6 +97,26 @@ describe('inject-frontmatter transform', () => {
 
   it('produces gemini frontmatter with kind, temperature, timeout', () => {
     const result = injectFrontmatter(canonicalAgent, geminiRuntime, {});
+    assertDocument(
+      result,
+      [
+        'name: code_reviewer',
+        'kind: local',
+        'description: "Code review specialist."',
+        'tools:',
+        '  - read_file',
+        '  - glob',
+        '  - grep_search',
+        'temperature: 0.2',
+        'max_turns: 15',
+        'timeout_mins: 5',
+      ],
+      '\n## Methodology\nReview code carefully.'
+    );
+  });
+
+  it('produces qwen frontmatter with temperature/timeout mirroring gemini', () => {
+    const result = injectFrontmatter(canonicalAgent, qwenRuntime, {});
     assertDocument(
       result,
       [

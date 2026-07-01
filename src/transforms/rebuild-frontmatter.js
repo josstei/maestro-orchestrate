@@ -64,18 +64,21 @@ const DEFAULT_FIELD_ORDER = [
   'tools',
 ];
 
+const GEMINI_STYLE_FIELD_ORDER = [
+  'name',
+  'kind',
+  'description',
+  'model',
+  'tools',
+  'temperature',
+  'turns',
+  'timeout',
+];
+
 const RUNTIME_FIELD_ORDER = {
   claude: ['name', 'kind', 'description', 'model', 'color', 'turns', 'tools'],
-  gemini: [
-    'name',
-    'kind',
-    'description',
-    'model',
-    'tools',
-    'temperature',
-    'turns',
-    'timeout',
-  ],
+  gemini: GEMINI_STYLE_FIELD_ORDER,
+  qwen: GEMINI_STYLE_FIELD_ORDER,
 };
 
 function resolveTools(frontmatter, runtime) {
