@@ -98,6 +98,16 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     notes: 'Version and install metadata are generated from package metadata.',
   },
   {
+    id: 'policy-outputs',
+    producer: 'src/generator/policy-toml-emitter.js',
+    writeMode: 'generate and prepack',
+    sourceInputs: ['src/core/policy-rules.js'],
+    outputs: ['policies/maestro.toml'],
+    tracked: true,
+    packaged: true,
+    notes: 'Gemini policy pack generated from the canonical policy rules.',
+  },
+  {
     id: 'owned-directory-pruning',
     producer: 'src/generator/stale-pruner.js',
     writeMode: 'generate and prepack only, skipped in --dry-run and --diff',

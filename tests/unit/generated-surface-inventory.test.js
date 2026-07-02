@@ -32,6 +32,7 @@ describe('generated surface inventory', () => {
       'owned-directory-pruning',
       'package-and-release-allowlists',
       'platform-metadata-outputs',
+      'policy-outputs',
       'registry-outputs',
       'retired-generated-cleanup-roots',
     ]);
