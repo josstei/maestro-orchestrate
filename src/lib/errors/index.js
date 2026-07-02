@@ -24,81 +24,24 @@ class MaestroError extends Error {
 }
 
 /**
- * Raised when input data or arguments fail validation constraints.
+ * Build a MaestroError subclass whose only specialization is its default code.
  *
- * @extends MaestroError
+ * @param {string} name - Class name (also used for stack labels)
+ * @param {string} defaultCode - Code applied when opts.code is absent
+ * @returns {typeof MaestroError}
  */
-class ValidationError extends MaestroError {
-  /**
-   * @param {string} message
-   * @param {object} [opts]
-   * @param {string} [opts.code='VALIDATION_ERROR'] - Subtype code for specific failures (e.g. HANDOFF_INCOMPLETE)
-   * @param {*} [opts.details]
-   * @param {*} [opts.context]
-   */
-  constructor(message, opts = {}) {
-    super(message, { ...opts, code: opts.code || 'VALIDATION_ERROR' });
-  }
+function defineError(name, defaultCode) {
+  const klass = class extends MaestroError {
+    constructor(message, opts = {}) {
+      super(message, { ...opts, code: opts.code || defaultCode });
+    }
+  };
+  Object.defineProperty(klass, 'name', { value: name });
+  return klass;
 }
 
-/**
- * Raised when a requested resource (agent, session, file, etc.) does not exist.
- *
- * @extends MaestroError
- */
-class NotFoundError extends MaestroError {
-  /**
-   * @param {string} message
-   * @param {object} [opts]
-   * @param {string} [opts.code='NOT_FOUND'] - Subtype code for specific failures
-   * @param {*} [opts.details]
-   * @param {*} [opts.context]
-   */
-  constructor(message, opts = {}) {
-    super(message, { ...opts, code: opts.code || 'NOT_FOUND' });
-  }
-}
+const ValidationError = defineError('ValidationError', 'VALIDATION_ERROR');
+const NotFoundError = defineError('NotFoundError', 'NOT_FOUND');
+const StateError = defineError('StateError', 'STATE_ERROR');
 
-/**
- * Raised when configuration is missing, malformed, or internally inconsistent.
- *
- * @extends MaestroError
- */
-class ConfigError extends MaestroError {
-  /**
-   * @param {string} message
-   * @param {object} [opts]
-   * @param {string} [opts.code='CONFIG_ERROR'] - Subtype code for specific failures
-   * @param {*} [opts.details]
-   * @param {*} [opts.context]
-   */
-  constructor(message, opts = {}) {
-    super(message, { ...opts, code: opts.code || 'CONFIG_ERROR' });
-  }
-}
-
-/**
- * Raised when an operation is invalid for the current session or workflow state.
- *
- * @extends MaestroError
- */
-class StateError extends MaestroError {
-  /**
-   * @param {string} message
-   * @param {object} [opts]
-   * @param {string} [opts.code='STATE_ERROR'] - Subtype code for specific failures (e.g. DESIGN_GATE_UNAPPROVED, RECONCILIATION_PENDING)
-   * @param {*} [opts.details]
-   * @param {*} [opts.context]
-   */
-  constructor(message, opts = {}) {
-    super(message, { ...opts, code: opts.code || 'STATE_ERROR' });
-  }
-}
-
-module.exports = {
-  MaestroError,
-  ValidationError,
-  NotFoundError,
-  ConfigError,
-  StateError,
-};
+module.exports = { MaestroError, ValidationError, NotFoundError, StateError };
