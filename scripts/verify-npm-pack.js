@@ -10,6 +10,7 @@ const {
   isDeniedPath,
 } = require('./release-artifact-manifest');
 const { RUNTIME_SOURCE_PATHS, releasePaths } = require('./lib/artifact-inventory');
+const { runAsMain } = require('./lib/cli');
 
 const INVENTORY_RELEASE_PATHS = releasePaths();
 
@@ -295,19 +296,14 @@ function verifyNpmPack(root = ROOT) {
   return verifyPackageEntries(runNpmPackDryRun(root));
 }
 
-if (require.main === module) {
-  try {
-    const result = verifyNpmPack();
-    console.log(
-      `Verified npm pack contents: ${result.filename} ` +
-      `(${result.entryCount} files, ${result.packedSize} packed bytes, ` +
-      `${result.unpackedSize} unpacked bytes)`
-    );
-  } catch (error) {
-    console.error(`npm pack verification failed: ${error.message}`);
-    process.exit(1);
-  }
-}
+runAsMain(module, 'npm pack verification', () => {
+  const result = verifyNpmPack();
+  console.log(
+    `Verified npm pack contents: ${result.filename} ` +
+    `(${result.entryCount} files, ${result.packedSize} packed bytes, ` +
+    `${result.unpackedSize} unpacked bytes)`
+  );
+});
 
 module.exports = {
   PACKAGE_BUDGETS,

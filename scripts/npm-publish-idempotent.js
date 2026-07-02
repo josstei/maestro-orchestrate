@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { readJson, runAsMain } = require('./lib/cli');
+const { isStable } = require('./lib/semver');
 
 const ROOT = path.resolve(__dirname, '..');
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
@@ -57,7 +58,7 @@ function parseArgs(argv) {
 }
 
 function readPackage(root) {
-  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const pkg = readJson(path.join(root, 'package.json'));
 
   if (typeof pkg.name !== 'string' || pkg.name.length === 0) {
     throw new Error('package.json missing package name');
@@ -85,7 +86,7 @@ function isPrereleaseVersion(version) {
 }
 
 function isStableVersion(version) {
-  return /^[0-9]+\.[0-9]+\.[0-9]+$/.test(version);
+  return isStable(version);
 }
 
 function compareStableVersions(left, right) {
@@ -304,21 +305,16 @@ function publishIfNeeded(options = {}) {
   };
 }
 
-if (require.main === module) {
-  try {
-    const options = parseArgs(process.argv.slice(2));
-    const result = publishIfNeeded(options);
+runAsMain(module, 'npm publish', () => {
+  const options = parseArgs(process.argv.slice(2));
+  const result = publishIfNeeded(options);
 
-    if (result.published) {
-      console.log(`Published ${result.packageSpec}`);
-    } else {
-      console.log(`Skipping npm publish; ${result.packageSpec} already exists`);
-    }
-  } catch (error) {
-    console.error(`npm publish failed: ${error.message}`);
-    process.exit(1);
+  if (result.published) {
+    console.log(`Published ${result.packageSpec}`);
+  } else {
+    console.log(`Skipping npm publish; ${result.packageSpec} already exists`);
   }
-}
+});
 
 module.exports = {
   ensureLatestTagPolicy,

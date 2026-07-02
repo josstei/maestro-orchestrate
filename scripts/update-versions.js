@@ -5,6 +5,7 @@ const {
   updateChangelog,
   updateReleaseInputs,
 } = require('./release-version-metadata');
+const { runAsMain } = require('./lib/cli');
 
 function updateVersions(version, options = {}) {
   return updateReleaseInputs(version, options);
@@ -18,13 +19,10 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  try {
+  runAsMain(module, 'version update', () => {
     updateVersions(version);
     console.log(`Updated canonical release inputs to ${version}`);
-  } catch (error) {
-    console.error(`version update failed: ${error.message}`);
-    process.exit(1);
-  }
+  });
 }
 
 module.exports = {

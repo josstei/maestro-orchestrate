@@ -15,6 +15,7 @@ const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { buildPolicyTomlOutputs } = require('../src/generator/policy-toml-emitter');
 const { buildHookConfigOutputs } = require('../src/generator/hook-config-emitter');
 const { buildContentFileOutputs } = require('../src/generator/content-file-emitter');
+const { readJson, runAsMain } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -77,13 +78,9 @@ function processEntryPoints(runtimes, session) {
   }
 }
 
-function readPackageMetadata() {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-}
-
 async function main() {
   const runtimes = loadRuntimes();
-  const packageMetadata = readPackageMetadata();
+  const packageMetadata = readJson(path.join(ROOT, 'package.json'));
   const manifestRules = require(path.join(SRC, 'manifest'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   assertNoMirroredSharedOutputs(manifest);
@@ -131,12 +128,7 @@ async function main() {
   if (stats.errors > 0) process.exit(1);
 }
 
-if (require.main === module) {
-  main().catch((err) => {
-    console.error('Generator failed:', err.message);
-    process.exit(1);
-  });
-}
+runAsMain(module, 'Generator', main);
 
 module.exports = {
   assertNoMirroredSharedOutputs,

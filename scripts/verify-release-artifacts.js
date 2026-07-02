@@ -11,6 +11,7 @@ const {
   assertRuntimeManifestShape,
   readJson,
 } = require('./release-artifact-manifest');
+const { runAsMain } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -77,16 +78,11 @@ function verifyReleaseArtifact(archivePath, options = {}) {
   }
 }
 
-if (require.main === module) {
-  try {
-    const args = parseArgs(process.argv.slice(2));
-    const result = verifyReleaseArtifact(args.archivePath);
-    console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
-  } catch (error) {
-    console.error(`release artifact verification failed: ${error.message}`);
-    process.exit(1);
-  }
-}
+runAsMain(module, 'release artifact verification', () => {
+  const args = parseArgs(process.argv.slice(2));
+  const result = verifyReleaseArtifact(args.archivePath);
+  console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
+});
 
 module.exports = {
   defaultArchivePath,

@@ -2,18 +2,15 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { readJson } = require('./lib/cli');
+const { STABLE_SEMVER_RE } = require('./lib/semver');
 
-const STABLE_SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const PACKAGE_JSON_PATH = 'package.json';
 const BADGE_FILES = [
   'README.md',
   'claude/README.md',
 ];
 const CHANGELOG_PATH = 'CHANGELOG.md';
-
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
 
 function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');

@@ -13,6 +13,7 @@ const {
   readJson,
   toPosixPath,
 } = require('./release-artifact-manifest');
+const { runAsMain } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -139,15 +140,10 @@ function packageReleaseArtifacts(options = {}) {
   }
 }
 
-if (require.main === module) {
-  try {
-    const result = packageReleaseArtifacts(parseArgs(process.argv.slice(2)));
-    console.log(`Created release artifact: ${path.relative(ROOT, result.archivePath)}`);
-  } catch (error) {
-    console.error(`release artifact packaging failed: ${error.message}`);
-    process.exit(1);
-  }
-}
+runAsMain(module, 'release artifact packaging', () => {
+  const result = packageReleaseArtifacts(parseArgs(process.argv.slice(2)));
+  console.log(`Created release artifact: ${path.relative(ROOT, result.archivePath)}`);
+});
 
 module.exports = {
   packageReleaseArtifacts,

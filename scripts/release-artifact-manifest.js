@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { RUNTIME_PAYLOAD_CONTRACT } = require('../src/platforms/runtime-payload-contract');
 const { RUNTIME_SOURCE_PATHS, releasePaths } = require('./lib/artifact-inventory');
+const { readJson: readJsonFile } = require('./lib/cli');
 
 const RELEASE_ARTIFACT_PATHS = releasePaths();
 
@@ -151,16 +152,11 @@ function assertReleaseArtifactContents(root) {
 }
 
 function readJson(root, relativePath) {
-  const filePath = path.join(root, relativePath);
-  let parsed;
-
   try {
-    parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return readJsonFile(path.join(root, relativePath));
   } catch (error) {
     throw new Error(`Invalid JSON in ${relativePath}: ${error.message}`);
   }
-
-  return parsed;
 }
 
 function requireVersion(value, label) {
