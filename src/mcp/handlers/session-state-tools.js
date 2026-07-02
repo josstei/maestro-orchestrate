@@ -21,6 +21,7 @@ const {
   writePlansDocumentContent,
   removeDesignGate,
 } = require('./design-gate');
+const { resolveDocumentInput } = require('./document-input');
 const {
   resolveBasePath,
   resolveActiveSessionPath,
@@ -84,43 +85,15 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind) {
  * @throws {ValidationError} when both variants are provided or the content variant is incomplete
  */
 function resolveImplementationPlan(params, projectRoot) {
-  const hasPath =
-    typeof params.implementation_plan === 'string' &&
-    params.implementation_plan.length > 0;
-  const hasContent =
-    typeof params.implementation_plan_content === 'string' &&
-    params.implementation_plan_content.length > 0;
-  const hasFilename =
-    typeof params.implementation_plan_filename === 'string' &&
-    params.implementation_plan_filename.length > 0;
-  const contentVariantProvided = hasContent || hasFilename;
-
-  if (hasPath && contentVariantProvided) {
-    throw new ValidationError(
-      'implementation_plan is mutually exclusive with implementation_plan_content/implementation_plan_filename'
-    );
-  }
-
-  if (contentVariantProvided) {
-    if (!hasContent) {
-      throw new ValidationError('implementation_plan_content is required');
-    }
-    if (!hasFilename) {
-      throw new ValidationError('implementation_plan_filename is required');
-    }
-    return writePlansDocumentContent(
-      projectRoot,
-      params.implementation_plan_filename,
-      params.implementation_plan_content,
-      'implementation_plan_filename'
-    );
-  }
-
-  if (hasPath) {
-    return materializeSessionDocument(projectRoot, params.implementation_plan, 'implementation_plan');
-  }
-
-  return null;
+  return resolveDocumentInput(params, {
+    pathKey: 'implementation_plan',
+    contentKey: 'implementation_plan_content',
+    filenameKey: 'implementation_plan_filename',
+    requireMessage: null,
+    resolvePath: (p) => materializeSessionDocument(projectRoot, p, 'implementation_plan'),
+    writeContent: (filename, content) =>
+      writePlansDocumentContent(projectRoot, filename, content, 'implementation_plan_filename'),
+  });
 }
 
 /**

@@ -7,6 +7,7 @@ const { assertSessionId } = require('../../lib/validation');
 const { ValidationError } = require('../../lib/errors');
 const { resolveStateDirPath } = require('../../state/session-state');
 const { atomicWriteSync } = require('../../lib/io');
+const { resolveDocumentInput } = require('./document-input');
 
 const GATE_FILENAME = '.design-gate.json';
 
@@ -175,47 +176,16 @@ function handleEnterDesignGate(params, projectRoot) {
  * @throws {ValidationError} when neither or both input variants are supplied
  */
 function resolveApprovedDesignDocument(params, projectRoot) {
-  const hasPath =
-    typeof params.design_document_path === 'string' &&
-    params.design_document_path.length > 0;
-  const hasContent =
-    typeof params.design_document_content === 'string' &&
-    params.design_document_content.length > 0;
-  const hasFilename =
-    typeof params.design_document_filename === 'string' &&
-    params.design_document_filename.length > 0;
-  const contentVariantProvided = hasContent || hasFilename;
-
-  if (hasPath && contentVariantProvided) {
-    throw new ValidationError(
-      'design_document_path is mutually exclusive with design_document_content/design_document_filename'
-    );
-  }
-
-  if (contentVariantProvided) {
-    if (!hasContent) {
-      throw new ValidationError('design_document_content is required');
-    }
-    if (!hasFilename) {
-      throw new ValidationError('design_document_filename is required');
-    }
-    return writePlansDocumentContent(
-      projectRoot,
-      params.design_document_filename,
-      params.design_document_content,
-      'design_document_filename'
-    );
-  }
-
-  if (!hasPath) {
-    throw new ValidationError(
-      'record_design_approval requires either design_document_path or both design_document_content and design_document_filename'
-    );
-  }
-
-  return path.isAbsolute(params.design_document_path)
-    ? params.design_document_path
-    : path.join(projectRoot, params.design_document_path);
+  return resolveDocumentInput(params, {
+    pathKey: 'design_document_path',
+    contentKey: 'design_document_content',
+    filenameKey: 'design_document_filename',
+    requireMessage:
+      'record_design_approval requires either design_document_path or both design_document_content and design_document_filename',
+    resolvePath: (p) => (path.isAbsolute(p) ? p : path.join(projectRoot, p)),
+    writeContent: (filename, content) =>
+      writePlansDocumentContent(projectRoot, filename, content, 'design_document_filename'),
+  });
 }
 
 /**
