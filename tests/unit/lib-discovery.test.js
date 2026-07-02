@@ -474,14 +474,16 @@ describe('parity: agent registry', () => {
         const capabilities = frontmatter.capabilities || 'read_only';
         const rawTools = frontmatter.tools || [];
         const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-        return { name, capabilities, tools };
+        const focus = frontmatter.focus || '';
+        return { name, capabilities, tools, focus };
       },
     });
 
-    const actual = entries.map(({ name, capabilities, tools }) => ({
+    const actual = entries.map(({ name, capabilities, tools, focus }) => ({
       name,
       capabilities,
       tools,
+      focus,
     }));
 
     assert.deepEqual(actual, expected);
