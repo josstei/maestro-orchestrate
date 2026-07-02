@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { StateError } = require('../../src/lib/errors');
+const { StateError, ValidationError } = require('../../src/lib/errors');
 const {
   assertActiveSessionMatches,
   extractFileManifest,
@@ -71,15 +71,26 @@ describe('extractFileManifest', () => {
     assert.equal(extractFileManifest({}).hasFiles, false);
   });
 
-  it('coerces non-array truthy values to an empty array', () => {
-    const result = extractFileManifest({
-      files_created: 'not-an-array',
-      files_modified: { not: 'an array' },
-      files_deleted: 42,
-    });
+  it('rejects non-array truthy values loudly instead of dropping the manifest', () => {
+    for (const [field, value] of [
+      ['files_created', 'not-an-array'],
+      ['files_modified', { not: 'an array' }],
+      ['files_deleted', 42],
+    ]) {
+      assert.throws(
+        () => extractFileManifest({ [field]: value }),
+        (err) => {
+          assert.ok(err instanceof ValidationError);
+          assert.equal(err.message, `${field} must be an array of file paths`);
+          return true;
+        }
+      );
+    }
+  });
+
+  it('treats null manifest fields as absent', () => {
+    const result = extractFileManifest({ files_created: null, files_modified: null });
     assert.deepEqual(result.filesCreated, []);
-    assert.deepEqual(result.filesModified, []);
-    assert.deepEqual(result.filesDeleted, []);
     assert.equal(result.hasFiles, false);
   });
 });

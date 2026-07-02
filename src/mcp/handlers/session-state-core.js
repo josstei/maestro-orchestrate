@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const markdownState = require('../../core/markdown-state');
-const { StateError } = require('../../lib/errors');
+const { StateError, ValidationError } = require('../../lib/errors');
 const {
   readState,
   writeState,
@@ -117,16 +117,26 @@ function assertActiveSessionMatches(state, sessionId) {
 /**
  * Normalize the file-manifest fields (`files_created`, `files_modified`,
  * `files_deleted`) shared by `transition_phase` and `reconcile_phase`.
- * Non-array values (including `null`/`undefined`) default to `[]`.
+ * Absent (`null`/`undefined`) fields default to `[]`; any other non-array
+ * value is rejected loudly so a malformed manifest can never be silently
+ * dropped from the handoff record.
  *
  * @param {{ files_created?: unknown, files_modified?: unknown, files_deleted?: unknown }} params
  * @returns {{ filesCreated: unknown[], filesModified: unknown[], filesDeleted: unknown[], hasFiles: boolean }}
+ * @throws {ValidationError} when a manifest field is present but not an array
  */
 function extractFileManifest(params) {
-  const arr = (v) => (Array.isArray(v) ? v : []);
-  const filesCreated = arr(params.files_created);
-  const filesModified = arr(params.files_modified);
-  const filesDeleted = arr(params.files_deleted);
+  const arr = (field) => {
+    const value = params[field];
+    if (value === undefined || value === null) return [];
+    if (!Array.isArray(value)) {
+      throw new ValidationError(`${field} must be an array of file paths`);
+    }
+    return value;
+  };
+  const filesCreated = arr('files_created');
+  const filesModified = arr('files_modified');
+  const filesDeleted = arr('files_deleted');
   return {
     filesCreated,
     filesModified,
