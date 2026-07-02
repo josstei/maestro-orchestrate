@@ -7,9 +7,23 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   REQUIRED_PACKAGE_FILES,
-  RUNTIME_SOURCE_PATHS,
   isDeniedPath,
 } = require('./release-artifact-manifest');
+const { RUNTIME_SOURCE_PATHS, releasePaths } = require('./lib/artifact-inventory');
+
+const INVENTORY_RELEASE_PATHS = releasePaths();
+
+function pickInventoryPaths(...paths) {
+  for (const inventoryPath of paths) {
+    if (!INVENTORY_RELEASE_PATHS.includes(inventoryPath)) {
+      throw new Error(
+        `Package surface rule references a path missing from the artifact inventory: ${inventoryPath}`
+      );
+    }
+  }
+
+  return Object.freeze(paths);
+}
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -84,17 +98,17 @@ function buildRuntimeSourcePackageRule() {
 const PACKAGE_SURFACE_RULES = Object.freeze([
   {
     id: 'package-metadata',
-    exact: [
+    exact: pickInventoryPaths(
       'package.json',
       'README.md',
       'CHANGELOG.md',
       'LICENSE',
-      'EXAMPLES.md',
-    ],
+      'EXAMPLES.md'
+    ),
   },
   {
     id: 'runtime-docs',
-    exact: [
+    exact: pickInventoryPaths(
       'GEMINI.md',
       'QWEN.md',
       'docs/architecture.md',
@@ -106,30 +120,29 @@ const PACKAGE_SURFACE_RULES = Object.freeze([
       'docs/runtime-codex.md',
       'docs/runtime-gemini.md',
       'docs/runtime-qwen.md',
-      'docs/usage.md',
-    ],
+      'docs/usage.md'
+    ),
   },
   {
     id: 'public-bin',
-    exact: [
+    exact: pickInventoryPaths(
       'bin/maestro-install-codex.js',
-      'bin/maestro-mcp-server.js',
-    ],
+      'bin/maestro-mcp-server.js'
+    ),
   },
   {
     id: 'root-runtime-metadata',
-    exact: [
+    exact: pickInventoryPaths(
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
       '.claude-plugin/plugin.json',
       'gemini-extension.json',
-      'qwen-extension.json',
-      'policies/maestro.toml',
-    ],
+      'qwen-extension.json'
+    ),
   },
   {
     id: 'root-generated-runtime',
-    prefixes: ['agents/', 'commands/', 'hooks/', 'mcp/'],
+    prefixes: ['agents/', 'commands/', 'hooks/', 'mcp/', 'policies/'],
   },
   {
     id: 'claude-runtime',
