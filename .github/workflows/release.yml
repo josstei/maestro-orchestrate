@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.detect.outputs.is_release == 'true'
         with:
-          node-version: '24'
+          node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Verify npm token
@@ -196,11 +196,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          NOTES=$(awk -v version="$VERSION" '
-            index($0, "## [" version "]") == 1 { found=1; next }
-            /^## \[/ && found { exit }
-            found { print }
-          ' CHANGELOG.md)
+          NOTES=$(node scripts/changelog-section.js "$VERSION")
           DELIMITER="CHANGELOG_NOTES_$(date +%s)"
           {
             echo "notes<<$DELIMITER"

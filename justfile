@@ -43,12 +43,7 @@ clean:
 
 # Run all tests
 test:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    shopt -s nullglob
-    files=(tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js)
-    if [ ${#files[@]} -eq 0 ]; then echo "No test files found"; exit 1; fi
-    node --test "${files[@]}"
+    npm test
 
 # Run only unit tests (core modules, hooks, handlers)
 test-unit:
@@ -92,7 +87,8 @@ check-layers:
     node scripts/check-layer-boundaries.js
 
 # Generate, drift-check, layer-check, and test source changes
-source-check: check check-layers test
+source-check:
+    npm run check:source
 
 # Verify npm package contents and release artifact surfaces
 release-check:

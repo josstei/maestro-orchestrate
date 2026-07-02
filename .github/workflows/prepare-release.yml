@@ -123,11 +123,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          CHANGELOG_EXCERPT=$(awk -v version="$VERSION" '
-            index($0, "## [" version "]") == 1 { found=1; next }
-            /^## \[/ && found { exit }
-            found { print }
-          ' CHANGELOG.md)
+          CHANGELOG_EXCERPT=$(node scripts/changelog-section.js "$VERSION")
           gh pr create \
             --repo "$REPOSITORY" \
             --base main \
