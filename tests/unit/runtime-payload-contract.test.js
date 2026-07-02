@@ -76,8 +76,8 @@ describe('runtime payload contract', () => {
     }
   });
 
-  for (const [name, entry] of Object.entries(RUNTIME_PAYLOAD_CONTRACT)) {
-    it(`${name} carries no retired payload/fallback keys`, () => {
+  for (const entry of RUNTIME_PAYLOAD_CONTRACT) {
+    it(`${entry.name} carries no retired payload/fallback keys`, () => {
       assert.equal(entry.detachedPayload, undefined);
       assert.equal(entry.content && entry.content.fallback, undefined);
     });
