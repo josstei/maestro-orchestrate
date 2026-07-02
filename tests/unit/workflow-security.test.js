@@ -113,6 +113,37 @@ describe('workflow shell security', () => {
     assert.match(content, /Tag \$TAG exists at \$TAG_SHA, not target commit \$TARGET_SHA/);
   });
 
+  it('stable release publishes the generated dist branch and guards the release asset shape', () => {
+    const content = readWorkflow('release.yml');
+    const npmPublishIndex = content.indexOf('node scripts/npm-publish-idempotent.js --access public');
+    const distBuildIndex = content.indexOf('node scripts/publish-dist-branch.js', npmPublishIndex);
+    const distBranchPushIndex = content.indexOf(
+      'git push --force origin "${DIST_SHA}:refs/heads/dist"',
+      distBuildIndex
+    );
+    const distTagPushIndex = content.indexOf(
+      'git push origin "${DIST_SHA}:refs/tags/${DIST_TAG}"',
+      distBranchPushIndex
+    );
+    const assetGuardIndex = content.indexOf(
+      "grep -Fxq './gemini-extension.json'",
+      distTagPushIndex
+    );
+    const releaseCreationIndex = content.indexOf('name: Create GitHub Release', assetGuardIndex);
+
+    assert.notEqual(npmPublishIndex, -1, 'release.yml should publish to npm before building the dist snapshot');
+    assert.notEqual(distBuildIndex, -1, 'release.yml should build the dist snapshot via scripts/publish-dist-branch.js');
+    assert.notEqual(distBranchPushIndex, -1, 'release.yml should force-push the snapshot SHA to refs/heads/dist');
+    assert.notEqual(distTagPushIndex, -1, 'release.yml should push the snapshot SHA to a dist/v<version> tag');
+    assert.notEqual(assetGuardIndex, -1, 'release.yml should assert gemini-extension.json sits at the release asset root');
+    assert.notEqual(releaseCreationIndex, -1, 'release.yml should create the GitHub release only after the asset guard');
+    assert.match(
+      content,
+      /ASSET="dist\/release\/maestro-v\$\{VERSION\}-extension\.tar\.gz"/,
+      'release.yml asset guard should check the versioned extension tarball path'
+    );
+  });
+
   it('the reusable prerelease-publish workflow regenerates metadata and verifies pack after npm versioning', () => {
     const content = readWorkflow('prerelease-publish.yml');
     const versionIndex = content.indexOf('eval "$VERSION_COMMAND"');

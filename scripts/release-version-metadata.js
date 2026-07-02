@@ -8,7 +8,6 @@ const { STABLE_SEMVER_RE } = require('./lib/semver');
 const PACKAGE_JSON_PATH = 'package.json';
 const BADGE_FILES = [
   'README.md',
-  'claude/README.md',
 ];
 const CHANGELOG_PATH = 'CHANGELOG.md';
 

@@ -55,6 +55,10 @@ const PRIVATE_SCRIPT_ROLES = Object.freeze({
     role: 'release-only',
     note: 'Release artifact packaging support; private to source checkouts.',
   },
+  'scripts/publish-dist-branch.js': {
+    role: 'release-only',
+    note: 'Generated dist branch snapshot publisher; private to source checkouts and release workflows.',
+  },
   'scripts/release-artifact-manifest.js': {
     role: 'release-only',
     note: 'Release and package artifact contract shared by source-checkout verifiers.',

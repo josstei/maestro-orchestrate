@@ -30,7 +30,6 @@ function createTempProject(version) {
       plugins: [{ name: 'maestro', version }],
     },
     'README.md': `# Maestro\n\n[![Version](https://img.shields.io/badge/version-${version}-blue)](link)\n`,
-    'claude/README.md': `# Claude\n\n[![Version](https://img.shields.io/badge/version-${version}-blue)](link)\n`,
     'CHANGELOG.md': [
       '# Changelog',
       '',
@@ -98,16 +97,19 @@ describe('updateVersions', () => {
     assert.equal(marketplace.plugins[0].version, '1.6.1');
   });
 
-  it('updates version badges in both readmes', () => {
+  it('updates the version badge in the hand-authored root readme only', () => {
     updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' });
 
     const rootReadme = fs.readFileSync(path.join(tempRoot, 'README.md'), 'utf8');
-    const claudeReadme = fs.readFileSync(path.join(tempRoot, 'claude/README.md'), 'utf8');
 
     assert.match(rootReadme, /version-1\.7\.0-blue/);
     assert.doesNotMatch(rootReadme, /version-1\.6\.1-blue/);
-    assert.match(claudeReadme, /version-1\.7\.0-blue/);
-    assert.doesNotMatch(claudeReadme, /version-1\.6\.1-blue/);
+  });
+
+  it('succeeds without the generated claude/README.md present in the checkout', () => {
+    assert.equal(fs.existsSync(path.join(tempRoot, 'claude/README.md')), false);
+
+    assert.doesNotThrow(() => updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' }));
   });
 
   it('moves unreleased changelog content into the new version section', () => {

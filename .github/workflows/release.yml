@@ -190,6 +190,35 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
+      - name: Build dist snapshot commit
+        if: steps.detect.outputs.is_release == 'true'
+        id: dist
+        run: |
+          DIST_SHA=$(node scripts/publish-dist-branch.js | tail -n 1)
+          if [[ ! "$DIST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::publish-dist-branch.js did not print a commit SHA; got '$DIST_SHA'"
+            exit 1
+          fi
+
+          echo "dist_sha=$DIST_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Push dist branch and tag
+        if: steps.detect.outputs.is_release == 'true'
+        env:
+          DIST_SHA: ${{ steps.dist.outputs.dist_sha }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git push --force origin "${DIST_SHA}:refs/heads/dist"
+
+          DIST_TAG="dist/v${VERSION}"
+          EXISTING_SHA=$(git ls-remote origin "refs/tags/${DIST_TAG}" | cut -f1)
+          if [ -n "$EXISTING_SHA" ]; then
+            echo "Tag ${DIST_TAG} already exists at ${EXISTING_SHA}. Skipping."
+            exit 0
+          fi
+
+          git push origin "${DIST_SHA}:refs/tags/${DIST_TAG}"
+
       - name: Extract changelog for version
         if: steps.detect.outputs.is_release == 'true'
         id: changelog
@@ -203,6 +232,22 @@ jobs:
             echo "$NOTES"
             echo "$DELIMITER"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Verify release asset shape
+        if: steps.detect.outputs.is_release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ASSET="dist/release/maestro-v${VERSION}-extension.tar.gz"
+          if [ ! -f "$ASSET" ]; then
+            echo "::error::Release asset missing: $ASSET"
+            exit 1
+          fi
+
+          if ! tar -tzf "$ASSET" | grep -Fxq './gemini-extension.json'; then
+            echo "::error::Release asset is malformed: gemini-extension.json is not at the archive root of $ASSET"
+            exit 1
+          fi
 
       - name: Create GitHub Release
         if: steps.detect.outputs.is_release == 'true'
