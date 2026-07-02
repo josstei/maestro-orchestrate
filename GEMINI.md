@@ -95,7 +95,6 @@ Apply domain analysis proportional to `task_complexity`:
 - `medium`: Engineering + domains with clear signals from the task description.
 - `complex`: Full domain sweep (current behavior).
 
-
 ## Native Parallel Contract
 
 Parallel batches use Gemini CLI's native subagent scheduler. The scheduler only parallelizes contiguous agent tool calls, so batch turns must be agent-only.

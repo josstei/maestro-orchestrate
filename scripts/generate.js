@@ -14,6 +14,7 @@ const { OWNED_GENERATED_DIRS } = require('../src/generator/generated-surface-inv
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { buildPolicyTomlOutputs } = require('../src/generator/policy-toml-emitter');
 const { buildHookConfigOutputs } = require('../src/generator/hook-config-emitter');
+const { buildContentFileOutputs } = require('../src/generator/content-file-emitter');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -106,6 +107,7 @@ async function main() {
   session.writeAll(buildPlatformMetadataOutputs(runtimes, packageMetadata));
   session.writeAll(buildPolicyTomlOutputs());
   session.writeAll(buildHookConfigOutputs(runtimes));
+  session.writeAll(buildContentFileOutputs(runtimes, SRC));
 
   const stats = session.getStats();
 

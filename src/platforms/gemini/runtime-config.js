@@ -14,4 +14,14 @@ module.exports = buildGeminiFamilyConfig({
     nameSuffix: '',
     descriptionSuffix: '',
   },
+  contextFile: {
+    outputPath: 'GEMINI.md',
+    displayName: 'Gemini CLI',
+    subagentPrerequisite: 'Verify `experimental.enableAgents` is `true` in `~/.gemini/settings.json`.',
+    extensionHome: '~/.gemini/extensions/maestro',
+    extensionManifest: 'gemini-extension.json',
+    hooksConfigPath: 'hooks/hooks.json',
+    includeToolMappingTable: false,
+    toolNames: { askUser: 'ask_user', writeTodos: 'write_todos', replace: 'replace' },
+  },
 });

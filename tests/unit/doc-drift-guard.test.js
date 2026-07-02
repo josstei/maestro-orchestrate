@@ -7,10 +7,6 @@ const REPO = path.resolve(__dirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
 const listDir = (d) => fs.readdirSync(path.join(REPO, d));
 const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;
-const canonicalAgents = () => listDir('src/agents')
-  .filter((f) => f.endsWith('.md'))
-  .map((f) => f.replace(/\.md$/, ''));
-const toSnake = (name) => name.replace(/-/g, '_');
 
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
   const canonicalCount = countMd('src/agents');
@@ -56,15 +52,6 @@ test('doc-drift: GitHub templates include Qwen runtime impact choices', () => {
   for (const surface of surfaces) {
     const body = read(surface);
     assert.ok(body.includes('Qwen Code'), `${surface}: missing Qwen Code runtime option`);
-  }
-});
-
-test('doc-drift: Gemini and Qwen context rosters list every src agent', () => {
-  for (const surface of ['GEMINI.md', 'QWEN.md']) {
-    const body = read(surface);
-    for (const agent of canonicalAgents()) {
-      assert.ok(body.includes(`| \`${toSnake(agent)}\` |`), `${surface}: Agent Roster missing ${toSnake(agent)}`);
-    }
   }
 });
 

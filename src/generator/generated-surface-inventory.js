@@ -118,6 +118,21 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     notes: 'Runtime hook configs generated from gemini-family hook metadata; the Claude config is a structurally distinct build.',
   },
   {
+    id: 'runtime-context-outputs',
+    producer: 'src/generator/content-file-emitter.js',
+    writeMode: 'generate and prepack',
+    sourceInputs: [
+      'src/platforms/shared/runtime-context-template.md',
+      'src/platforms/gemini/runtime-config.js',
+      'src/platforms/qwen/runtime-config.js',
+      'src/generated/agent-registry.json',
+    ],
+    outputs: ['GEMINI.md', 'QWEN.md'],
+    tracked: true,
+    packaged: true,
+    notes: 'Runtime context files generated from the shared template and per-runtime contextFile metadata.',
+  },
+  {
     id: 'owned-directory-pruning',
     producer: 'src/generator/stale-pruner.js',
     writeMode: 'generate and prepack only, skipped in --dry-run and --diff',

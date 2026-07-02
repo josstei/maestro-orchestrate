@@ -36,6 +36,7 @@ describe('generated surface inventory', () => {
       'policy-outputs',
       'registry-outputs',
       'retired-generated-cleanup-roots',
+      'runtime-context-outputs',
     ]);
   });
 

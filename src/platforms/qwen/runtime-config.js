@@ -22,4 +22,14 @@ module.exports = buildGeminiFamilyConfig({
     nameSuffix: '-qwen',
     descriptionSuffix: ' (Qwen Code)',
   },
+  contextFile: {
+    outputPath: 'QWEN.md',
+    displayName: 'Qwen Code',
+    subagentPrerequisite: 'Qwen Code natively supports subagents. Verify `~/.qwen/settings.json`.',
+    extensionHome: '~/.qwen/extensions/maestro',
+    extensionManifest: 'qwen-extension.json',
+    hooksConfigPath: 'qwen/hooks.json',
+    includeToolMappingTable: true,
+    toolNames: { askUser: 'ask_user_question', writeTodos: 'todo_write', replace: 'edit' },
+  },
 });
