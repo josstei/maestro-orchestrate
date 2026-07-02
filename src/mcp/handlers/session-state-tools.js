@@ -32,6 +32,8 @@ const {
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
+  assertActiveSessionMatches,
+  extractFileManifest,
 } = require('./session-state-core');
 
 /**
@@ -283,10 +285,8 @@ function handleTransitionPhase(params, projectRoot) {
   }
 
   return withSessionState(projectRoot, ({ state }) => {
-    if (params.session_id && state.session_id !== params.session_id) {
-      throw new StateError(
-        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-      );
+    if (params.session_id) {
+      assertActiveSessionMatches(state, params.session_id);
     }
 
     let completedPhase;
@@ -328,11 +328,8 @@ function handleTransitionPhase(params, projectRoot) {
     }
 
     if (completedPhase) {
-      const filesCreated = params.files_created ?? [];
-      const filesModified = params.files_modified ?? [];
-      const filesDeleted = params.files_deleted ?? [];
-      const hasFiles =
-        filesCreated.length + filesModified.length + filesDeleted.length > 0;
+      const { filesCreated, filesModified, filesDeleted, hasFiles } =
+        extractFileManifest(params);
       const normalizedContext = normalizeDownstreamContext(params.downstream_context);
       const contextProvided = isDownstreamContextPopulated(normalizedContext);
 
@@ -419,11 +416,7 @@ function handleArchiveSession(params, projectRoot) {
   const session = readActiveSession(projectRoot);
   const { state, basePath, sessionPath, content } = session;
 
-  if (state.session_id !== params.session_id) {
-    throw new StateError(
-      `Session mismatch: active session is '${state.session_id}', requested '${params.session_id}'`
-    );
-  }
+  assertActiveSessionMatches(state, params.session_id);
 
   const pendingRec = (state.phases || []).find(
     (phase) => phase.requires_reconciliation === true
@@ -491,11 +484,7 @@ function handleUpdateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
   return withSessionState(projectRoot, ({ state }) => {
-    if (state.session_id !== params.session_id) {
-      throw new StateError(
-        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-      );
-    }
+    assertActiveSessionMatches(state, params.session_id);
 
     const updatableFields = [
       'execution_mode',

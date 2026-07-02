@@ -1,6 +1,7 @@
 'use strict';
 
 const { defineToolPack } = require('../contracts');
+const { SCHEMA } = require('../schema-fragments');
 const {
   handleInitializeWorkspace,
 } = require('../../handlers/initialize-workspace');
@@ -61,7 +62,7 @@ function createToolPack() {
             plan: { type: 'object' },
             task_complexity: {
               type: 'string',
-              enum: ['simple', 'medium', 'complex'],
+              enum: SCHEMA.TASK_COMPLEXITY_ENUM,
             },
           },
           required: ['plan', 'task_complexity'],

@@ -113,6 +113,23 @@ function writePlansDocumentContent(projectRoot, filename, content, filenameParam
 }
 
 /**
+ * Build a freshly-entered gate record: `entered_at` set to now, `approved_at`
+ * and `design_document_path` unset. Shared by `handleEnterDesignGate` (new
+ * gate) and `handleRecordDesignApproval` (fallback when no gate exists yet).
+ *
+ * @param {string} sessionId
+ * @returns {{ session_id: string, entered_at: string, approved_at: null, design_document_path: null }}
+ */
+function emptyGate(sessionId) {
+  return {
+    session_id: sessionId,
+    entered_at: new Date().toISOString(),
+    approved_at: null,
+    design_document_path: null,
+  };
+}
+
+/**
  * @param {string} projectRoot
  * @param {string} sessionId
  * @returns {{ session_id: string, entered_at: string | null, approved_at: string | null, design_document_path: string | null } | null}
@@ -148,12 +165,7 @@ function handleEnterDesignGate(params, projectRoot) {
   if (existing && existing.entered_at) {
     return { success: true, entered_at: existing.entered_at, already_entered: true };
   }
-  const gate = {
-    session_id: params.session_id,
-    entered_at: new Date().toISOString(),
-    approved_at: null,
-    design_document_path: null,
-  };
+  const gate = emptyGate(params.session_id);
   writeGate(projectRoot, params.session_id, gate);
   return { success: true, entered_at: gate.entered_at, already_entered: false };
 }
@@ -196,12 +208,7 @@ function handleRecordDesignApproval(params, projectRoot) {
   assertSessionId(params.session_id);
   const absDesignPath = resolveApprovedDesignDocument(params, projectRoot);
 
-  const gate = readGate(projectRoot, params.session_id) || {
-    session_id: params.session_id,
-    entered_at: new Date().toISOString(),
-    approved_at: null,
-    design_document_path: null,
-  };
+  const gate = readGate(projectRoot, params.session_id) || emptyGate(params.session_id);
   gate.approved_at = new Date().toISOString();
   gate.design_document_path = absDesignPath;
   writeGate(projectRoot, params.session_id, gate);

@@ -5,7 +5,12 @@ const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
-const { readActiveSession, withSessionState } = require('./session-state-core');
+const {
+  readActiveSession,
+  withSessionState,
+  assertActiveSessionMatches,
+  extractFileManifest,
+} = require('./session-state-core');
 const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
@@ -124,11 +129,7 @@ function handleScanPhaseChanges(params, projectRoot) {
   }
   const { state } = readActiveSession(projectRoot);
 
-  if (state.session_id !== params.session_id) {
-    throw new StateError(
-      `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-    );
-  }
+  assertActiveSessionMatches(state, params.session_id);
 
   const phase = (state.phases || []).find((p) => p.id === params.phase_id);
   if (!phase) {
@@ -166,11 +167,8 @@ function handleReconcilePhase(params, projectRoot) {
     );
   }
 
-  const filesCreated = Array.isArray(params.files_created) ? params.files_created : [];
-  const filesModified = Array.isArray(params.files_modified) ? params.files_modified : [];
-  const filesDeleted = Array.isArray(params.files_deleted) ? params.files_deleted : [];
-  const hasFilesPayload =
-    filesCreated.length + filesModified.length + filesDeleted.length > 0;
+  const { filesCreated, filesModified, filesDeleted, hasFiles: hasFilesPayload } =
+    extractFileManifest(params);
   const normalizedContext = normalizeDownstreamContext(params.downstream_context);
   const hasContextPayload = isDownstreamContextPopulated(normalizedContext);
 
@@ -182,11 +180,7 @@ function handleReconcilePhase(params, projectRoot) {
   }
 
   return withSessionState(projectRoot, ({ state }) => {
-    if (state.session_id !== params.session_id) {
-      throw new StateError(
-        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-      );
-    }
+    assertActiveSessionMatches(state, params.session_id);
 
     const phase = (state.phases || []).find((p) => p.id === params.phase_id);
     if (!phase) {

@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const markdownState = require('../../core/markdown-state');
+const { StateError } = require('../../lib/errors');
 const {
   readState,
   writeState,
@@ -95,6 +96,45 @@ function withSessionState(projectRoot, mutator) {
   return outcome.response;
 }
 
+/**
+ * Guard shared by every handler that mutates or reads the active session
+ * on behalf of a caller-supplied `session_id`. Throws when the id the
+ * caller passed does not match the session currently on disk, so a
+ * request never silently operates against the wrong session.
+ *
+ * @param {{ session_id: string }} state - parsed active-session state
+ * @param {string} sessionId - session_id supplied by the caller
+ * @throws {StateError} when `state.session_id !== sessionId`
+ */
+function assertActiveSessionMatches(state, sessionId) {
+  if (state.session_id !== sessionId) {
+    throw new StateError(
+      `Session mismatch: active session is '${state.session_id}', got '${sessionId}'`
+    );
+  }
+}
+
+/**
+ * Normalize the file-manifest fields (`files_created`, `files_modified`,
+ * `files_deleted`) shared by `transition_phase` and `reconcile_phase`.
+ * Non-array values (including `null`/`undefined`) default to `[]`.
+ *
+ * @param {{ files_created?: unknown, files_modified?: unknown, files_deleted?: unknown }} params
+ * @returns {{ filesCreated: unknown[], filesModified: unknown[], filesDeleted: unknown[], hasFiles: boolean }}
+ */
+function extractFileManifest(params) {
+  const arr = (v) => (Array.isArray(v) ? v : []);
+  const filesCreated = arr(params.files_created);
+  const filesModified = arr(params.files_modified);
+  const filesDeleted = arr(params.files_deleted);
+  return {
+    filesCreated,
+    filesModified,
+    filesDeleted,
+    hasFiles: filesCreated.length > 0 || filesModified.length > 0 || filesDeleted.length > 0,
+  };
+}
+
 module.exports = {
   resolveBasePath,
   resolveActiveSessionPath,
@@ -105,4 +145,6 @@ module.exports = {
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
+  assertActiveSessionMatches,
+  extractFileManifest,
 };

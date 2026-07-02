@@ -1,6 +1,7 @@
 'use strict';
 
 const { defineToolPack } = require('../contracts');
+const { SCHEMA } = require('../schema-fragments');
 const { PHASE_ITEM_SCHEMA } = require('../../contracts/plan-schema');
 const {
   handleCreateSession,
@@ -31,7 +32,7 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
+            session_id: SCHEMA.SESSION_ID,
             task: { type: 'string' },
             design_document: { type: ['string', 'null'] },
             implementation_plan: { type: ['string', 'null'] },
@@ -42,8 +43,7 @@ function createToolPack() {
             },
             implementation_plan_filename: {
               type: 'string',
-              description:
-                'Basename-only filename (no separators, no \'..\') used when materializing implementation_plan_content into <state_dir>/plans/.',
+              description: `${SCHEMA.BASENAME_FILENAME_DESCRIPTION} used when materializing implementation_plan_content into <state_dir>/plans/.`,
             },
             phases: {
               type: 'array',
@@ -52,7 +52,7 @@ function createToolPack() {
             },
             task_complexity: {
               type: 'string',
-              enum: ['simple', 'medium', 'complex'],
+              enum: SCHEMA.TASK_COMPLEXITY_ENUM,
             },
             execution_mode: { type: 'string' },
             workflow_mode: {
@@ -72,7 +72,7 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
+            session_id: SCHEMA.SESSION_ID,
           },
         },
       },
@@ -84,7 +84,7 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
+            session_id: SCHEMA.SESSION_ID,
             execution_mode: {
               type: 'string',
               enum: ['parallel', 'sequential'],
@@ -103,12 +103,12 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
+            session_id: SCHEMA.SESSION_ID,
             completed_phase_id: { type: ['number', 'string'] },
-            downstream_context: { type: 'object' },
-            files_created: { type: 'array' },
-            files_modified: { type: 'array' },
-            files_deleted: { type: 'array' },
+            downstream_context: SCHEMA.DOWNSTREAM_CONTEXT,
+            files_created: SCHEMA.FILE_ARRAY,
+            files_modified: SCHEMA.FILE_ARRAY,
+            files_deleted: SCHEMA.FILE_ARRAY,
             next_phase_id: { type: ['number', 'string', 'null'] },
             next_phase_ids: {
               type: 'array',
@@ -134,7 +134,7 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
+            session_id: SCHEMA.SESSION_ID,
           },
           required: ['session_id'],
         },
@@ -146,7 +146,7 @@ function createToolPack() {
         requiresWorkspace: true,
         inputSchema: {
           type: 'object',
-          properties: { session_id: { type: 'string' } },
+          properties: { session_id: SCHEMA.SESSION_ID },
           required: ['session_id'],
         },
       },
@@ -158,7 +158,7 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
+            session_id: SCHEMA.SESSION_ID,
             design_document_path: {
               type: 'string',
               description:
@@ -171,8 +171,7 @@ function createToolPack() {
             },
             design_document_filename: {
               type: 'string',
-              description:
-                'Basename-only filename (no separators, no \'..\') used when materializing design_document_content into <state_dir>/plans/.',
+              description: `${SCHEMA.BASENAME_FILENAME_DESCRIPTION} used when materializing design_document_content into <state_dir>/plans/.`,
             },
           },
           required: ['session_id'],
@@ -185,7 +184,7 @@ function createToolPack() {
         requiresWorkspace: true,
         inputSchema: {
           type: 'object',
-          properties: { session_id: { type: 'string' } },
+          properties: { session_id: SCHEMA.SESSION_ID },
           required: ['session_id'],
         },
       },
@@ -197,8 +196,8 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
-            phase_id: { type: ['integer', 'string'] },
+            session_id: SCHEMA.SESSION_ID,
+            phase_id: SCHEMA.PHASE_ID,
           },
           required: ['session_id', 'phase_id'],
         },
@@ -211,12 +210,12 @@ function createToolPack() {
         inputSchema: {
           type: 'object',
           properties: {
-            session_id: { type: 'string' },
-            phase_id: { type: ['integer', 'string'] },
-            files_created: { type: 'array' },
-            files_modified: { type: 'array' },
-            files_deleted: { type: 'array' },
-            downstream_context: { type: 'object' },
+            session_id: SCHEMA.SESSION_ID,
+            phase_id: SCHEMA.PHASE_ID,
+            files_created: SCHEMA.FILE_ARRAY,
+            files_modified: SCHEMA.FILE_ARRAY,
+            files_deleted: SCHEMA.FILE_ARRAY,
+            downstream_context: SCHEMA.DOWNSTREAM_CONTEXT,
             reason: { type: 'string' },
           },
           required: ['session_id', 'phase_id'],
