@@ -50,3 +50,35 @@ temp/
 docs/maestro/
 docs/superpowers/
 hooks/permissions.json
+
+# Generator-owned outputs (src/ is the source of truth — see `node scripts/generate.js --list-outputs`)
+/agents/
+/commands/maestro/
+/claude/agents/
+/claude/skills/
+/qwen/agents/
+/plugins/maestro/skills/
+/src/generated/
+
+/GEMINI.md
+/QWEN.md
+/gemini-extension.json
+/qwen-extension.json
+/policies/maestro.toml
+/hooks/hooks.json
+/qwen/hooks.json
+/claude/hooks/claude-hooks.json
+/claude/README.md
+/claude/.mcp.json
+/docs/runtime-claude.md
+/docs/runtime-codex.md
+/docs/runtime-gemini.md
+/docs/runtime-qwen.md
+/plugins/maestro/.mcp.json
+/plugins/maestro/.codex-plugin/plugin.json
+
+# Tracked exemptions (see TRACKED_OUTPUT_EXEMPTIONS in src/generator/generated-surface-inventory.js) —
+# no pattern above covers these, kept here as an explicit, drift-proof guard.
+!/.agents/plugins/marketplace.json
+!/.claude-plugin/marketplace.json
+!/.claude-plugin/plugin.json
