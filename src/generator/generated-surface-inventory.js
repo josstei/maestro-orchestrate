@@ -19,6 +19,12 @@ const OWNED_GENERATED_DIRS = Object.freeze([
   ...RETIRED_GENERATED_CLEANUP_DIRS,
 ]);
 
+const TRACKED_OUTPUT_EXEMPTIONS = Object.freeze([
+  '.agents/plugins/marketplace.json',
+  '.claude-plugin/marketplace.json',
+  '.claude-plugin/plugin.json',
+]);
+
 const GENERATED_SURFACE_INVENTORY = Object.freeze([
   {
     id: 'registry-outputs',
@@ -36,7 +42,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
       'src/generated/resource-registry.json',
       'src/generated/hook-registry.json',
     ],
-    tracked: true,
+    tracked: false,
     packaged: true,
     notes: 'Runtime content handlers consume these registries directly.',
   },
@@ -56,7 +62,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
       'claude/skills/*/SKILL.md',
       'plugins/maestro/skills/*/SKILL.md',
     ],
-    tracked: true,
+    tracked: false,
     packaged: true,
     notes: 'The manifest is only one producer; it does not describe detached payloads or metadata.',
   },
@@ -74,7 +80,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
       'claude/skills/*/SKILL.md',
       'plugins/maestro/skills/*/SKILL.md',
     ],
-    tracked: true,
+    tracked: false,
     packaged: true,
     notes: 'Expands both workflow entry points and standalone core commands.',
   },
@@ -95,7 +101,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     ],
     tracked: true,
     packaged: true,
-    notes: 'Version and install metadata are generated from package metadata.',
+    notes: 'Version and install metadata are generated from package metadata. Only the 3 paths in TRACKED_OUTPUT_EXEMPTIONS stay tracked; the rest are gitignored.',
   },
   {
     id: 'policy-outputs',
@@ -103,7 +109,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     writeMode: 'generate and prepack',
     sourceInputs: ['src/core/policy-rules.js'],
     outputs: ['policies/maestro.toml'],
-    tracked: true,
+    tracked: false,
     packaged: true,
     notes: 'Gemini policy pack generated from the canonical policy rules.',
   },
@@ -113,7 +119,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     writeMode: 'generate and prepack',
     sourceInputs: ['src/platforms/gemini/runtime-config.js', 'src/platforms/qwen/runtime-config.js'],
     outputs: ['hooks/hooks.json', 'qwen/hooks.json', 'claude/hooks/claude-hooks.json'],
-    tracked: true,
+    tracked: false,
     packaged: true,
     notes: 'Runtime hook configs generated from gemini-family hook metadata; the Claude config is a structurally distinct build.',
   },
@@ -144,7 +150,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
       'docs/runtime-codex.md',
       'docs/runtime-qwen.md',
     ],
-    tracked: true,
+    tracked: false,
     packaged: true,
     notes: 'Runtime context files generated from the shared template and per-runtime contextFile metadata; claude/README.md is generated from its own template with the package version and agent roster; docs/runtime-<rt>.md is generated per runtime from src/platforms/<rt>/runtime-doc.md, expanding the <!-- @feature-flags --> marker from runtime.features (hand-written prose passes through unchanged).',
   },
@@ -154,7 +160,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     writeMode: 'generate and prepack only, skipped in --dry-run and --diff',
     sourceInputs: ['expanded manifest paths', 'entry point expansion paths'],
     outputs: LIVE_OWNED_GENERATED_DIRS,
-    tracked: true,
+    tracked: false,
     packaged: true,
     notes: 'Only these live generated roots are stale-pruned after write-mode generation.',
   },
@@ -188,4 +194,5 @@ module.exports = {
   LIVE_OWNED_GENERATED_DIRS,
   OWNED_GENERATED_DIRS,
   RETIRED_GENERATED_CLEANUP_DIRS,
+  TRACKED_OUTPUT_EXEMPTIONS,
 };

@@ -2,10 +2,11 @@
 
 const { createFileWriter } = require('./file-writer');
 
-function createGenerationSession({ rootDir, dryRun = false, diffMode = false }) {
-  const writer = createFileWriter({ rootDir, dryRun, diffMode });
+function createGenerationSession({ rootDir, dryRun = false, diffMode = false, quiet = false }) {
+  const writer = createFileWriter({ rootDir, dryRun, diffMode, quiet });
   const processingErrors = [];
   const readOnlyMode = dryRun || diffMode;
+  const plannedPaths = [];
 
   function reportError(message, error) {
     const formatted =
@@ -15,6 +16,7 @@ function createGenerationSession({ rootDir, dryRun = false, diffMode = false }) 
   }
 
   function write(outputPath, content) {
+    plannedPaths.push(outputPath);
     writer.write(outputPath, content);
   }
 
@@ -43,10 +45,15 @@ function createGenerationSession({ rootDir, dryRun = false, diffMode = false }) 
     };
   }
 
+  function getPlannedPaths() {
+    return plannedPaths.slice();
+  }
+
   return {
     diffMode,
     dryRun,
     clean,
+    getPlannedPaths,
     getStats,
     isReadOnlyMode() {
       return readOnlyMode;

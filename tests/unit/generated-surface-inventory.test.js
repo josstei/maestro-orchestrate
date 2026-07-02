@@ -10,6 +10,7 @@ const {
   LIVE_OWNED_GENERATED_DIRS,
   OWNED_GENERATED_DIRS,
   RETIRED_GENERATED_CLEANUP_DIRS,
+  TRACKED_OUTPUT_EXEMPTIONS,
 } = require('../../src/generator/generated-surface-inventory');
 const {
   OWNED_GENERATED_DIRS: GENERATE_OWNED_GENERATED_DIRS,
@@ -62,6 +63,30 @@ describe('generated surface inventory', () => {
 
     for (const ownedDir of RETIRED_GENERATED_CLEANUP_DIRS) {
       assert.equal(fs.existsSync(path.join(ROOT, ownedDir)), false, `${ownedDir} remains retired`);
+    }
+  });
+
+  it('defines the exact set of tracked-output exemptions', () => {
+    assert.deepEqual(TRACKED_OUTPUT_EXEMPTIONS, [
+      '.agents/plugins/marketplace.json',
+      '.claude-plugin/marketplace.json',
+      '.claude-plugin/plugin.json',
+    ]);
+    assert.ok(Object.isFrozen(TRACKED_OUTPUT_EXEMPTIONS));
+  });
+
+  it('only marks a surface tracked when it covers a tracked-output exemption', () => {
+    for (const surface of GENERATED_SURFACE_INVENTORY) {
+      if (surface.id === 'package-and-release-allowlists') {
+        continue;
+      }
+
+      const coversExemption = surface.outputs.some((output) => TRACKED_OUTPUT_EXEMPTIONS.includes(output));
+      assert.equal(
+        surface.tracked,
+        coversExemption,
+        `${surface.id}: tracked=${surface.tracked} coversExemption=${coversExemption}`
+      );
     }
   });
 });

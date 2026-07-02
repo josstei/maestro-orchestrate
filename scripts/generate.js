@@ -25,6 +25,7 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const diffMode = args.includes('--diff');
 const cleanMode = args.includes('--clean');
+const listOutputs = args.includes('--list-outputs');
 
 function loadRuntimes() {
   const runtimes = {};
@@ -85,7 +86,12 @@ async function main() {
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   assertNoMirroredSharedOutputs(manifest);
 
-  const session = createGenerationSession({ rootDir: ROOT, dryRun, diffMode });
+  const session = createGenerationSession({
+    rootDir: ROOT,
+    dryRun: dryRun || listOutputs,
+    diffMode,
+    quiet: listOutputs,
+  });
   session.writeAll(collectRegistryOutputs(SRC, ROOT));
 
   if (cleanMode) {
@@ -108,7 +114,9 @@ async function main() {
 
   const stats = session.getStats();
 
-  if (dryRun) {
+  if (listOutputs) {
+    console.log(session.getPlannedPaths().sort().join('\n'));
+  } else if (dryRun) {
     console.log('\n(dry-run — no files written)');
   } else if (!diffMode) {
     console.log(`\nGeneration complete: ${stats.written} written, ${stats.unchanged} unchanged, ${stats.errors} errors`);

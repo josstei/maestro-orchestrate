@@ -91,6 +91,7 @@ function executeWrite(absOutputPath, content, stats) {
  * @property {string} rootDir - Absolute path to the project root directory
  * @property {boolean} [dryRun=false] - Log intended actions without writing files
  * @property {boolean} [diffMode=false] - Show unified diffs against existing files
+ * @property {boolean} [quiet=false] - Suppress per-file dry-run/diff console output
  */
 
 /**
@@ -114,7 +115,7 @@ function executeWrite(absOutputPath, content, stats) {
  * @returns {FileWriter}
  */
 function createFileWriter(opts) {
-  const { rootDir, dryRun = false, diffMode = false } = opts;
+  const { rootDir, dryRun = false, diffMode = false, quiet = false } = opts;
   const stats = { written: 0, unchanged: 0, errors: 0 };
   const readOnlyMode = dryRun || diffMode;
 
@@ -126,9 +127,9 @@ function createFileWriter(opts) {
     try {
       const absOutputPath = safeResolve(outputPath, rootDir);
       if (diffMode) {
-        executeDiff(absOutputPath, content, outputPath);
+        if (!quiet) executeDiff(absOutputPath, content, outputPath);
       } else if (dryRun) {
-        executeDryRun(absOutputPath, content, outputPath);
+        if (!quiet) executeDryRun(absOutputPath, content, outputPath);
       } else {
         executeWrite(absOutputPath, content, stats);
       }
