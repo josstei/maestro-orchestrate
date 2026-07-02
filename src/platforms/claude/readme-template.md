@@ -1,6 +1,6 @@
 # Maestro — Claude Code Plugin
 
-[![Version](https://img.shields.io/badge/version-1.6.4-blue)](https://github.com/josstei/maestro-orchestrate/releases)
+[![Version](https://img.shields.io/badge/version-{{version}}-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache-2.0-green)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-orange)](https://docs.anthropic.com/en/docs/claude-code)
 
@@ -121,47 +121,7 @@ All agents are registered with a `maestro:` namespace prefix. When the orchestra
 
 All agents share a baseline tool set: `Read`, `Glob`, `Grep`, `Skill`. Tool tiers reflect additional capabilities beyond that baseline.
 
-| Agent | Focus | Capability Tier |
-| --- | --- | --- |
-| `accessibility-specialist` | WCAG compliance auditing, ARIA review | Read + shell |
-| `analytics-engineer` | Event tracking, conversion funnels | Full access |
-| `api-designer` | API contracts and endpoint design | Read-only |
-| `architect` | System design and architecture decisions | Read-only |
-| `cloud-architect` | AWS/GCP/Azure topology, IaC, multi-region design | Read-only |
-| `cobol-engineer` | Mainframe COBOL, JCL, CICS/IMS on z/OS | Full access |
-| `code-reviewer` | Code quality review and bug identification | Read-only |
-| `coder` | Feature implementation | Full access |
-| `compliance-reviewer` | Legal and regulatory compliance | Read-only |
-| `content-strategist` | Content planning and strategy | Read-only |
-| `copywriter` | Marketing copy and landing-page content | Read + write |
-| `data-engineer` | Schema design, queries, and data pipelines | Full access |
-| `database-administrator` | RDBMS tuning, indexes, and migration safety | Read + shell |
-| `db2-dba` | DB2 for z/OS and LUW, REORG, RUNSTATS, bind/rebind | Read + shell |
-| `debugger` | Root cause analysis and defect investigation | Read + shell |
-| `design-system-engineer` | Design tokens and theming | Full access |
-| `devops-engineer` | CI/CD, containerization, and deployment | Full access |
-| `hlasm-assembler-specialist` | IBM HLASM for z/OS, macros, SVCs | Full access |
-| `i18n-specialist` | Internationalization and locale management | Full access |
-| `ibm-i-specialist` | IBM i RPG/CL, DB2 for i, OS/400 | Full access |
-| `integration-engineer` | B2B APIs, ETL, and message brokers | Full access |
-| `ml-engineer` | Model training, feature pipelines, and evaluation | Full access |
-| `mlops-engineer` | Model registry, CI/CD for models, drift detection | Full access |
-| `mobile-engineer` | iOS/Android/React Native/Flutter platform work | Full access |
-| `observability-engineer` | Metrics, logs, traces, OpenTelemetry, dashboards | Full access |
-| `performance-engineer` | Performance profiling and optimization | Read + shell |
-| `platform-engineer` | Internal developer platforms and paved paths | Full access |
-| `product-manager` | Requirements and product strategy | Read + write |
-| `prompt-engineer` | LLM prompt design, few-shot, and RAG tuning | Read + write |
-| `refactor` | Structural refactoring and technical debt | Full access |
-| `release-manager` | Release notes, changelogs, rollout planning | Read + write |
-| `security-engineer` | Security assessment and vulnerability analysis | Read + shell |
-| `seo-specialist` | Technical SEO auditing and structured data | Read + shell |
-| `site-reliability-engineer` | SLOs, error budgets, runbooks, postmortems | Read + shell |
-| `solutions-architect` | Enterprise integration and cross-team architecture | Read-only |
-| `technical-writer` | Documentation and technical writing | Read + write |
-| `tester` | Test implementation and coverage analysis | Full access |
-| `ux-designer` | User experience design | Read + write |
-| `zos-sysprog` | z/OS systems programming, JCL, USS, RACF | Read + shell |
+<!-- @roster -->
 
 ## Claude Code Specifics
 

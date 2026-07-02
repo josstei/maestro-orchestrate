@@ -43,6 +43,18 @@ function renderToolMappingSection(runtime) {
   ].join('\n');
 }
 
+function renderTemplate(template, values, agents, agentNaming) {
+  let content = template;
+  for (const [key, value] of Object.entries(values)) {
+    content = content.split(`{{${key}}}`).join(value);
+  }
+  content = content.replace(
+    '<!-- @roster -->',
+    renderRosterTable(agents, { agentNaming })
+  );
+  return `${content.replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+}
+
 function renderContextFile(template, runtime, agents) {
   const cf = runtime.contextFile;
   const values = {
@@ -60,18 +72,14 @@ function renderContextFile(template, runtime, agents) {
     toolMappingSection: cf.includeToolMappingTable ? renderToolMappingSection(runtime) : '',
   };
 
-  let content = template;
-  for (const [key, value] of Object.entries(values)) {
-    content = content.split(`{{${key}}}`).join(value);
-  }
-  content = content.replace(
-    '<!-- @roster -->',
-    renderRosterTable(agents, { agentNaming: runtime.agentNaming })
-  );
-  return `${content.replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+  return renderTemplate(template, values, agents, runtime.agentNaming);
 }
 
-function buildContentFileOutputs(runtimes, srcDir) {
+function renderClaudeReadme(template, packageMetadata, agents, agentNaming) {
+  return renderTemplate(template, { version: packageMetadata.version }, agents, agentNaming);
+}
+
+function buildContentFileOutputs(runtimes, srcDir, packageMetadata) {
   const template = fs.readFileSync(
     path.join(srcDir, 'platforms', 'shared', 'runtime-context-template.md'),
     'utf8'
@@ -85,7 +93,19 @@ function buildContentFileOutputs(runtimes, srcDir) {
       content: renderContextFile(template, runtime, agents),
     });
   }
+
+  if (runtimes.claude) {
+    const readmeTemplate = fs.readFileSync(
+      path.join(srcDir, 'platforms', 'claude', 'readme-template.md'),
+      'utf8'
+    );
+    outputs.push({
+      outputPath: 'claude/README.md',
+      content: renderClaudeReadme(readmeTemplate, packageMetadata, agents, runtimes.claude.agentNaming),
+    });
+  }
+
   return outputs;
 }
 
-module.exports = { buildContentFileOutputs, renderContextFile };
+module.exports = { buildContentFileOutputs, renderContextFile, renderClaudeReadme };

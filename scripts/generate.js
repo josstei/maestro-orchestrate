@@ -107,7 +107,7 @@ async function main() {
   session.writeAll(buildPlatformMetadataOutputs(runtimes, packageMetadata));
   session.writeAll(buildPolicyTomlOutputs());
   session.writeAll(buildHookConfigOutputs(runtimes));
-  session.writeAll(buildContentFileOutputs(runtimes, SRC));
+  session.writeAll(buildContentFileOutputs(runtimes, SRC, packageMetadata));
 
   const stats = session.getStats();
 

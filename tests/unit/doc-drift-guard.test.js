@@ -270,28 +270,6 @@ test('doc-drift: docs/architecture.md content-tools list includes Qwen', () => {
   assert.ok(section.includes('Qwen'), 'docs/architecture.md content-tools list: does not include Qwen');
 });
 
-test('doc-drift: claude/README.md agents table lists every src/agents/*.md agent', () => {
-  const body = read('claude/README.md');
-  const canonicalAgents = listDir('src/agents')
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => f.replace(/\.md$/, ''));
-  for (const agent of canonicalAgents) {
-    assert.ok(body.includes(`| ${agent} |`), `claude/README.md: Agents table missing row for ${agent}`);
-  }
-});
-
-test('doc-drift: claude/README.md agent rows carry a valid Tool Tier value', () => {
-  const body = read('claude/README.md');
-  const canonicalAgents = listDir('src/agents')
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => f.replace(/\.md$/, ''));
-  const validTiers = ['Read-Only', 'Read \\+ Shell', 'Read \\+ Write', 'Full Access'];
-  for (const agent of canonicalAgents) {
-    const rowRegex = new RegExp(`\\| ${agent} \\|[^\\n]*\\| (?:${validTiers.join('|')}) \\|`);
-    assert.ok(rowRegex.test(body), `claude/README.md: row for ${agent} missing valid Tool Tier`);
-  }
-});
-
 test('doc-drift: claude/README.md commands use runtime-remapped names', () => {
   const body = read('claude/README.md');
   for (const remapped of ['/review-code', '/debug-workflow', '/resume-session']) {
