@@ -22,6 +22,7 @@ const RUNTIME_SOURCE_PATHS = Object.freeze([
   'src/platforms/gemini/runtime-config.js',
   'src/platforms/qwen/runtime-config.js',
   'src/platforms/shared/adapters',
+  'src/platforms/shared/gemini-family-config.js',
   'src/platforms/shared/hook-runner.js',
   'src/references',
   'src/skills',
