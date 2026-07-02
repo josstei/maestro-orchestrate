@@ -14,6 +14,7 @@ Thank you for your interest in contributing to Maestro. This guide covers everyt
 git clone https://github.com/josstei/maestro-orchestrate.git
 cd maestro-orchestrate
 npm install
+npm run generate
 ```
 
 `npm install` installs dependencies only. Local git hook activation is explicit so package, pack, and publish flows do not mutate hook configuration. To activate the repo-local `pre-commit`, `commit-msg`, and `pre-push` hooks for this checkout, run:
@@ -25,6 +26,8 @@ npm run install-hooks
 Equivalent manual command: `git config core.hooksPath .githooks`.
 
 The hooks are best-effort — CI re-validates everything on PR submission and on direct pushes to `main`.
+
+Generated runtime surfaces (`agents/`, `claude/`, `plugins/maestro/`, `qwen/`, `docs/runtime-*.md`, and friends) are untracked and governed by the `.gitignore` contract — `npm run generate` must run at least once after cloning before any runtime can see its files. Run `node scripts/generate.js --list-outputs` to print the exact list of generator-owned paths. `just ci` (and `just check`) regenerate automatically before verifying, so those gate commands never need a manual generate step first — only ad hoc local runtime usage does.
 
 ## Key Commands
 
@@ -80,7 +83,7 @@ The generator pipeline reads `src/manifest.js` and applies transforms from `src/
    just test
    ```
 
-5. **Verify zero drift** — CI enforces that generated output matches what is committed:
+5. **Verify zero drift** — CI enforces that tracked files (the three marketplace/plugin manifest exemptions, plus any hand-committed file you touched) match freshly generated output. Most generated runtime output is untracked and `.gitignore`-governed, so this check no longer diff-checks it directly — a clean, error-free `just generate` run is the correctness signal there:
    ```bash
    just check
    ```

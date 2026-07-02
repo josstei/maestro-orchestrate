@@ -68,7 +68,7 @@ graph TD
 | Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) |
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
 | Generate runtime adapters | Runs `node scripts/generate.js` to rebuild all runtime outputs |
-| Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any generated file differs from what is committed |
+| Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any tracked file (the marketplace/plugin manifest exemptions, or any hand-committed file) differs from freshly generated output. Most generated runtime output is untracked and `.gitignore`-governed, so this step does not diff-check it directly |
 | Run full test suite | Executes `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` |
 | Verify npm package contents | Runs `npm run pack:verify` to ensure npm dry-run packaging contains required runtime files and no test-only directories |
 | Package and verify release artifact | Runs `npm run release:artifacts` and `npm run release:verify-artifacts` to validate the generic GitHub Release archive |

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Generated runtime surfaces**: no longer tracked in git; installs are served from GitHub release archives (Gemini/Qwen) and the generated `dist` branch (Claude/Codex plugin content). Local development requires `npm run generate` after clone.
 - **Claude payload retirement**: Claude now uses package-root `src` directly through `claude/mcp/maestro-server.js`; the generated `claude/src` detached payload, provider fallback chain, detached payload builder, and broad Claude package/release allowlists were removed.
 - **Package surface hardening**: `maestro-install-codex` is now the public Codex installer command via `bin/maestro-install-codex.js`; root `scripts/` are source-checkout release/dev tooling and are no longer published package or release artifact content.
 - **Internal**: generator now owns GEMINI.md/QWEN.md, claude/README.md, runtime docs, hook configs, and policies/maestro.toml; canonical agent/skill content deduplicated; no public surface changes.

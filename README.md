@@ -38,6 +38,8 @@ Maestro does not edit `~/.gemini/settings.json` or `~/.qwen/settings.json` for y
 
 ### Installation
 
+Runtime surfaces (`agents/`, `commands/`, `claude/`, `plugins/maestro/`, `qwen/`, and friends) are generated from `src/` and are not tracked in git. Stable releases publish the prebuilt extension archive (Gemini/Qwen installs, below) and a generated `dist` branch (Claude/Codex marketplace plugin content), so the standard install commands need nothing extra. A fresh clone used for local development must run `npm run generate` once before the runtime can see its files — every "Local development" block below includes that step.
+
 #### Gemini CLI
 
 ```bash
@@ -49,6 +51,7 @@ Local development:
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
 cd maestro-orchestrate
+npm ci && npm run generate
 gemini extensions link .
 ```
 
@@ -67,6 +70,8 @@ Development / temporary loading:
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
+cd maestro-orchestrate
+npm ci && npm run generate
 claude --plugin-dir /path/to/maestro-orchestrate/claude
 ```
 
@@ -86,6 +91,8 @@ Local development (path must start with `./`, `../`, `/`, or `~/` — Codex othe
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
+cd maestro-orchestrate
+npm ci && npm run generate
 codex plugin marketplace add /absolute/path/to/maestro-orchestrate
 # then: start Codex, run `/plugins`, select Maestro → Install
 ```
@@ -103,6 +110,7 @@ Local development:
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
 cd maestro-orchestrate
+npm ci && npm run generate
 qwen extensions link .
 ```
 

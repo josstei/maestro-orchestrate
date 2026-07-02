@@ -318,8 +318,10 @@ so every file under those directories is picked up automatically.
 
 ### Zero-Drift Guarantee
 
-CI validates that generated output matches committed state:
+CI regenerates runtime output and validates it against the repository:
 
 1. Run `node scripts/generate.js`
 2. Check `git diff --exit-code`
-3. Fail if any generated file differs from source
+3. Fail if any tracked file differs from freshly generated output
+
+Only the three marketplace/plugin manifest exemptions (`.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.agents/plugins/marketplace.json`) and hand-committed wrapper scripts remain tracked and diff-checked this way. The rest of the generated surface (`agents/`, `claude/`, `qwen/`, `plugins/maestro/`, `docs/runtime-*.md`, and friends) is untracked and `.gitignore`-governed — see `node scripts/generate.js --list-outputs` for the full path list — so a clean, error-free regeneration is the correctness signal there, not `git diff`.
