@@ -217,7 +217,3 @@ Rule: **Never split a sentence across multiple translation keys.** Each complete
 
 - `coder`: Needs i18n architecture changes — library installation and initialization code, translation wrapper function signatures, locale file import patterns, lazy-loading configuration for locale bundles, and specific instructions for how to use translation functions in components
 - `tester`: Needs i18n-specific test cases — locale switching verification, RTL rendering screenshots, pluralization edge cases (0, 1, 2, 5, 21 for languages with complex plural rules), date/number formatting per locale, pseudo-localization tests for text overflow, and missing translation key fallback behavior
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

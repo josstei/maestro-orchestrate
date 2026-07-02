@@ -109,7 +109,3 @@ Alert when cardinality growth exceeds 10%/week — it usually means a code chang
 - `site-reliability-engineer`: Needs the SLI/SLO wiring, burn-rate alerts, and dashboards to enforce the reliability contract
 - `devops-engineer`: Needs the collector and agent deployment topology to wire infrastructure
 - `incident-responder` / on-call: Needs the runbook-linked alerts and trace-exemplar drill-downs
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

@@ -119,7 +119,3 @@ Theoretical vulnerabilities behind multiple layers of authentication + authoriza
 
 - `coder`: Needs specific remediation code patterns per vulnerability — not just "sanitize input" but the exact function, library, or pattern to use
 - `devops-engineer`: Needs infrastructure-level security findings — missing security headers, TLS configuration issues, secret exposure in environment variables or logs, network policy gaps
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

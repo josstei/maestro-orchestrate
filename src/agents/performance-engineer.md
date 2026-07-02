@@ -115,7 +115,3 @@ Every performance claim must include:
 
 - `coder`: Needs specific code locations (file:line) with before/after optimization patterns and the expected improvement for each
 - `architect`: Needs systemic findings that suggest architectural changes (adding a cache layer, introducing async processing, restructuring data flow) rather than code-level fixes
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

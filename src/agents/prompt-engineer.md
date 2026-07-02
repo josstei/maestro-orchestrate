@@ -105,7 +105,3 @@ Change one dial at a time; measure against a frozen query set.
 - `ml-engineer`: Needs prompt versions and eval results to decide between fine-tuning, RAG, and prompting
 - `mlops-engineer`: Needs prompt artifacts with version identifiers to register and deploy alongside models
 - `tester`: Needs the eval harness wired into CI so prompt regressions are caught before release
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

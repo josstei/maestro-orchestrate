@@ -139,7 +139,3 @@ Determine when and how to use ARIA roles, states, and properties. The first rule
 
 - `coder`: Needs specific ARIA attributes per component (role, states, properties), semantic HTML element recommendations, keyboard interaction patterns, and focus management instructions — not just "make it accessible" but the exact implementation pattern
 - `ux-designer`: Needs design-level accessibility issues that require design changes rather than code fixes — color-only status indicators needing shape/text alternatives, touch targets below 44px, insufficient contrast in the color palette, focus indicator styling requirements
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

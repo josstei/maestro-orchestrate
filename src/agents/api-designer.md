@@ -100,7 +100,3 @@ Map domain errors to HTTP status codes with machine-readable error contracts:
 - `coder`: Needs complete endpoint contracts (method, path, request schema, response schema, error codes) to implement route handlers
 - `tester`: Needs request/response schemas with example payloads for test case generation
 - `technical-writer`: Needs endpoint catalog with descriptions, authentication requirements, and example requests for API documentation
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

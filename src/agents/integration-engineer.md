@@ -109,7 +109,3 @@ When adding a new B2B partner:
 - `security-engineer`: Needs the auth model, certificate rotation, and partner-access boundaries
 - `observability-engineer`: Needs per-partner metrics (success, latency, dead-letter rate) and alerting on SLA breach
 - `cobol-engineer` / `db2-dba` (when integrating mainframes): Needs record layouts, EBCDIC boundaries, and batch windows
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

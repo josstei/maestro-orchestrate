@@ -110,7 +110,3 @@ For any topology review, verify:
 - `devops-engineer`: Needs the proposed topology as IaC targets, named services, and concrete parameters
 - `security-engineer`: Needs the trust boundaries, IAM model, and data perimeter to assess risk
 - `site-reliability-engineer`: Needs the failure modes per service and the expected RTO/RPO per region strategy
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

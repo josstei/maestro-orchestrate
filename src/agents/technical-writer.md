@@ -105,7 +105,3 @@ Every documentation file must declare its source of truth — the code files, co
 
 - `code-reviewer`: Needs documentation coverage as a review dimension — were public APIs documented? Do docs match implementation?
 - `orchestrator`: Needs documentation to be verifiable against source code it describes — staleness prevention metadata enables this
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

@@ -234,7 +234,3 @@ You have access to `activate_skill` for loading methodology modules when needed:
 
 - `coder`: Needs token import paths (how to reference tokens in code), component API contracts (full prop interfaces with types and defaults), theming integration instructions (provider setup, theme switching code), and migration guides if replacing existing ad-hoc styling
 - `tester`: Needs visual regression test setup instructions (tooling configuration, CI integration), component state matrices (every combination of variant, size, and state that requires a visual snapshot), and theme variation coverage (which components need snapshots in every theme)
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

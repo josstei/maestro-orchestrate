@@ -105,7 +105,3 @@ Before exposing a provision-on-demand action:
 - `devops-engineer`: Needs the IaC and pipeline contracts exposed by the platform for service deployment
 - `site-reliability-engineer`: Needs platform defaults for SLOs, runbooks, and on-call wiring that new services inherit
 - `technical-writer`: Needs the platform's public API, templates, and workflows documented for consumers
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

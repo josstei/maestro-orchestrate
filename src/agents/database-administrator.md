@@ -102,7 +102,3 @@ For large backfills:
 - `coder`: Needs specific index definitions, revised query text, and migration DDL ready to commit
 - `devops-engineer`: Needs PITR, backup verification, and monitoring thresholds for replication lag and long-running transactions
 - `data-engineer`: Needs partitioning and retention guidance for analytics-adjacent tables
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

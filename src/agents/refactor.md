@@ -114,7 +114,3 @@ You have access to `activate_skill` for loading methodology modules when needed:
 
 - `tester`: Needs to know which public interfaces changed shape (renamed methods, moved classes, new parameter signatures) so test files can be updated accordingly
 - `coder`: Needs to know new patterns established during refactoring (new base classes, new directory organization, new naming conventions) for consistency in future implementation work
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

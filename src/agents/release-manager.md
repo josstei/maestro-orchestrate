@@ -108,7 +108,3 @@ Before publishing any release:
 - `technical-writer`: Needs release notes that can be published on docs and marketing pages
 - `devops-engineer`: Needs upgrade steps and config diffs to sequence the deployment
 - `product-manager`: Needs the customer-facing highlights and breaking-change impact to prepare comms
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

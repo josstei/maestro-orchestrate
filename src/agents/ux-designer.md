@@ -144,7 +144,3 @@ Severity classification for findings:
 - `coder`: Needs component specifications with complete interaction state definitions (default, hover, focus, active, disabled, loading, error, empty, success), responsive breakpoint behavior, and exact content hierarchy per screen
 - `accessibility-specialist`: Needs user flows with interaction patterns identified so they can audit keyboard navigation paths, focus management, and ARIA requirements per component
 - `design-system-engineer`: Needs recurring UX patterns identified and documented so they can be expressed as reusable design system components with consistent APIs
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

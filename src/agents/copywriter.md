@@ -89,7 +89,3 @@ For every call-to-action, verify against these criteria:
 
 - `coder`: Needs copy as clean text blocks with clear placement instructions (which section, which component) and any dynamic content markers (e.g., `{userName}`, `{planName}`)
 - `seo-specialist`: Needs to review copy for keyword placement, heading hierarchy, and meta description content
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

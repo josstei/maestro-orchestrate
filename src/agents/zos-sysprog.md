@@ -110,7 +110,3 @@ For every resource:
 - `cobol-engineer`: Needs region size, dataset allocation, and JCL template for new batch programs
 - `db2-dba`: Needs STC identity, resource-class profiles, and subsystem parm library pointers
 - `security-engineer`: Needs RACF audit evidence and SMF record availability for external review
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

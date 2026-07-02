@@ -146,7 +146,3 @@ Minimum 3 acceptance criteria per story. If a story has only 1-2 criteria, it is
 - `architect`: Needs clear functional and non-functional requirements with priority levels to make system design decisions — scalability targets, performance requirements, integration constraints, and data ownership boundaries
 - `ux-designer`: Needs user personas with goals and context, user journey stage definitions, and success metrics to design user flows that align with product intent
 - `content-strategist`: Needs product positioning, value propositions, and target audience definitions to plan content that supports the product's go-to-market strategy
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

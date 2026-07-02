@@ -107,7 +107,3 @@ Every runbook must have:
 - `observability-engineer`: Needs SLI definitions and burn-rate alert thresholds to build dashboards and alert routes
 - `devops-engineer`: Needs capacity plans and saturation thresholds to size infrastructure
 - `incident-responder` / on-call rotations: Need runbooks that are current, owned, and executable
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

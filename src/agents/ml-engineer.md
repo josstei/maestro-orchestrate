@@ -91,7 +91,3 @@ For every model shipped to production, verify:
 - `mlops-engineer`: Needs a serialized model artifact plus a signed manifest (feature schema, metric scores, seeds, dataset hashes) to register, version, and deploy
 - `data-engineer`: Needs the exact feature list and source tables to guarantee pipeline availability in production
 - `tester`: Needs deterministic fixtures (small frozen dataset, expected metric bounds) to write regression tests
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

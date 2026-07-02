@@ -87,7 +87,3 @@ Effort = research depth + production complexity + review requirements.
 
 - `copywriter`: Needs content briefs with: topic, target audience, primary keyword, search intent, desired action, word count target, competitor references, and key points to cover
 - `seo-specialist`: Needs keyword strategy and content-to-keyword mapping for on-page optimization alignment
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

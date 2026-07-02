@@ -113,7 +113,3 @@ Before committing to a strangler-fig pattern:
 - `architect`: Needs the target-state component boundaries and data contracts to design individual components
 - `api-designer`: Needs the canonical data model and integration contract to design APIs at boundaries
 - `product-manager`: Needs the phased roadmap with exit criteria to align stakeholders and sequence delivery
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

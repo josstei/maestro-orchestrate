@@ -108,7 +108,3 @@ Use a single ERROR label per script that logs, cleans up, and sets the return co
 - `cobol-engineer`: Needs record layouts and library mapping when bridging IBM i data to mainframe batches
 - `integration-engineer`: Needs file and SQL table contracts for extraction to modern systems (Db2 Mirror, Kafka, SFTP)
 - `security-engineer`: Needs library authority lists and object authority matrix for audit
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

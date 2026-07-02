@@ -5,11 +5,6 @@ const path = require('node:path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const AGENT_DIR = path.join(REPO_ROOT, 'src', 'agents');
-const OUTPUT_POINTER = [
-  '## Output Contract',
-  '',
-  'Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator.',
-].join('\n');
 
 function agentFiles() {
   return fs.readdirSync(AGENT_DIR)
@@ -38,7 +33,7 @@ describe('canonical agent output contract', () => {
     assert.match(protocol, /\*\*Key Interfaces Introduced\*\*/);
   });
 
-  it('keeps canonical agents pointed at the shared protocol instead of duplicating it', () => {
+  it('keeps canonical agents free of the redundant output-contract pointer and the full template', () => {
     const files = agentFiles();
     assert.ok(files.length > 30, 'expected canonical agent catalog');
 
@@ -46,9 +41,10 @@ describe('canonical agent output contract', () => {
       const absolutePath = path.join(AGENT_DIR, file);
       const content = fs.readFileSync(absolutePath, 'utf8');
 
-      assert.ok(
-        content.includes(OUTPUT_POINTER),
-        `${file} must point to the shared Agent Base Protocol output contract`
+      assert.doesNotMatch(
+        content,
+        /^## Output Contract$/m,
+        `${file} must not carry the redundant per-agent output-contract pointer; the injected agent-base-protocol owns the handoff contract`
       );
       assert.doesNotMatch(
         content,

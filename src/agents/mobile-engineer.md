@@ -91,7 +91,3 @@ For every feature that persists state or holds resources:
 - `tester`: Needs testable seams in the shared business-logic module — avoid tight coupling to platform singletons
 - `ux-designer`: Needs accurate documentation of platform-idiomatic affordances so designs translate across iOS/Android
 - `security-engineer`: Needs explicit documentation of key material, secure storage choices, and network pinning
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

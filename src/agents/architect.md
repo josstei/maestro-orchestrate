@@ -96,7 +96,3 @@ Classify the system's scaling profile and map to architectural implications:
 - `api-designer`: Needs component boundaries, interface contracts, and data ownership per component to design API surfaces
 - `coder`: Needs directory structure mapping, dependency injection patterns, and layer boundaries to implement correctly
 - `data-engineer`: Needs data model relationships, storage technology decisions, and consistency requirements
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

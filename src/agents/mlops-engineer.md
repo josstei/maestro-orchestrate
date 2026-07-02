@@ -92,7 +92,3 @@ Manual rollback when drift is ambiguous — always prefer reverting over debuggi
 - `devops-engineer`: Needs infrastructure manifests (compute, autoscaling, secrets) aligned with the serving topology
 - `observability-engineer`: Needs dashboards, alert contracts, and SLOs for the serving and pipeline surfaces
 - `site-reliability-engineer`: Needs runbooks for rollback, quarantine, and on-call escalation
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

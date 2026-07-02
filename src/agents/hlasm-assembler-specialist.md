@@ -110,7 +110,3 @@ For every module claimed reentrant:
 - `cobol-engineer`: Needs the HLASM module's linkage convention and parm-list layout to call it from COBOL
 - `zos-sysprog`: Needs SMP/E packaging (SYSMOD ID, function/fix, prereqs) to integrate the module into the maintenance stream
 - `security-engineer`: Needs the trust boundary documentation when modules run in key 0 or supervisor state
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

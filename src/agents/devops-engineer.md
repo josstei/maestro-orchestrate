@@ -114,7 +114,3 @@ Every deployment must satisfy:
 - `coder`: Needs environment variable contracts (variable names, types, required vs optional, default values) and configuration schema definitions
 - `security-engineer`: Needs infrastructure configuration details for security review — exposed ports, network policies, secret injection methods, TLS termination points
 - `tester`: Needs CI pipeline stage configuration to understand where and how tests are executed, including environment setup and teardown
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

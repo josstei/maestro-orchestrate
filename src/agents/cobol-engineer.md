@@ -103,7 +103,3 @@ Every production JCL job has:
 - `db2-dba`: Needs DB2 bind requirements, cursor plans, and SQLCA patterns to assess lock and plan risk
 - `zos-sysprog`: Needs JCL resource requirements (region, DASD, tape) and scheduling dependencies
 - `integration-engineer`: Needs record layouts and EBCDIC/ASCII boundaries for downstream extraction
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

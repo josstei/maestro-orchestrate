@@ -99,7 +99,3 @@ Calibrate review depth based on what changed:
 
 - `coder`: Needs findings formatted as specific file:line locations with concrete fix recommendations, not abstract suggestions
 - `refactor`: Needs structural improvement suggestions clearly separated from behavioral bug reports
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

@@ -106,7 +106,3 @@ Destructive migrations (DROP COLUMN, DROP TABLE) require a two-phase approach:
 
 - `coder`: Needs schema type definitions and repository interface contracts to implement data access layers correctly
 - `devops-engineer`: Needs migration execution requirements — estimated duration, locks acquired, rollback procedure, and whether maintenance window is needed
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

@@ -105,7 +105,3 @@ Always validate against Google's Rich Results Test requirements — schema.org a
 
 - `coder`: Needs specific HTML/template code patterns for meta tag implementation, JSON-LD snippets ready for insertion, and exact file locations where changes should be made
 - `copywriter`: Needs content-level SEO findings — pages with thin content, missing alt text, suboptimal heading structure — as input for content improvement
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

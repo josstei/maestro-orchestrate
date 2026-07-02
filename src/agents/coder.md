@@ -108,7 +108,3 @@ You have access to `activate_skill` for loading methodology modules when needed:
 
 - `tester`: Needs clear public API surface with injectable dependencies for test doubles — avoid static methods and hard-coded dependencies
 - `code-reviewer`: Needs clean diffs that separate structural changes from behavioral ones — don't mix refactoring with new features in the same deliverable
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

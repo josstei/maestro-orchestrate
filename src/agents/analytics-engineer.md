@@ -158,7 +158,3 @@ Each cohort definition needs: cohort criteria (what puts a user in this cohort),
 - `coder`: Needs tracking implementation patterns — event function call signatures, SDK initialization code, property builder utilities, and exact file locations where tracking calls should be inserted
 - `content-strategist`: Needs content performance data definitions — which events measure content engagement (page views, scroll depth, time on page, share actions) and how to segment by content type
 - `product-manager`: Needs product analytics insights — KPI definitions, funnel conversion rates, cohort retention data, and experiment results that inform feature prioritization decisions
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

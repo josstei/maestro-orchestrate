@@ -109,7 +109,3 @@ A root cause conclusion requires:
 
 - `coder`: Needs root cause location with exact file:line reference and a specific, implementable fix recommendation
 - `tester`: Needs reproduction steps (exact inputs, environment conditions, expected vs actual behavior) for regression test creation
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.

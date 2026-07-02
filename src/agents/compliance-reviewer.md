@@ -195,7 +195,3 @@ For each right: test the actual implementation, not just the policy claim. Submi
 - `coder`: Needs consent management implementation patterns (cookie consent library integration, consent-gated analytics loading, preference storage), data handling code changes (encryption wrappers, deletion cascade procedures, data export formatters), and cookie classification for technical implementation
 - `technical-writer`: Needs privacy policy templates with sections mapped to actual data practices, terms of service updates reflecting current features, data processing agreement templates for B2B customers, and cookie policy documentation with per-cookie purpose descriptions
 - `devops-engineer`: Needs data residency requirements (which data must stay in which region), encryption standards (at-rest and in-transit requirements per data classification), infrastructure-level compliance changes (logging retention, backup encryption, access audit trails), and data deletion verification procedures
-
-## Output Contract
-
-Follow the shared Agent Base Protocol output handoff contract injected by the orchestrator. Always include both `## Task Report` and `## Downstream Context` in the final response, even when all downstream fields are `none`.
