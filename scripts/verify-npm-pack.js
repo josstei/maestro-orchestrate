@@ -29,9 +29,9 @@ function pickInventoryPaths(...paths) {
 const ROOT = path.resolve(__dirname, '..');
 
 const PACKAGE_BUDGETS = Object.freeze({
-  maxEntryCount: 360,
-  maxPackedSize: 325000,
-  maxUnpackedSize: 1200000,
+  maxEntryCount: 350,
+  maxPackedSize: 315000,
+  maxUnpackedSize: 1120000,
 });
 
 const PRIVATE_SCRIPT_ROLES = Object.freeze({
