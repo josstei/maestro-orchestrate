@@ -19,7 +19,11 @@ function buildClaudeMarketplace(context) {
     plugins: [
       {
         name: 'maestro',
-        source: '.',
+        source: {
+          source: 'github',
+          repo: 'josstei/maestro-orchestrate',
+          ref: 'dist',
+        },
         description: RUNTIME_DESCRIPTION,
         version: context.version,
         author: buildAuthor(context),

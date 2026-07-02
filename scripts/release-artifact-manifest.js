@@ -244,8 +244,13 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     'maestro',
     '.claude-plugin/marketplace.json'
   );
-  if (claudeMarketplacePlugin.source !== '.') {
-    throw new Error('.claude-plugin/marketplace.json maestro source must be package root "."');
+  if (
+    !claudeMarketplacePlugin.source ||
+    claudeMarketplacePlugin.source.source !== 'github' ||
+    claudeMarketplacePlugin.source.repo !== 'josstei/maestro-orchestrate' ||
+    claudeMarketplacePlugin.source.ref !== 'dist'
+  ) {
+    throw new Error('.claude-plugin/marketplace.json maestro source must be github josstei/maestro-orchestrate@dist');
   }
 
   const codexMarketplacePlugin = findNamedPlugin(
@@ -255,10 +260,11 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   );
   if (
     !codexMarketplacePlugin.source ||
-    codexMarketplacePlugin.source.source !== 'local' ||
-    codexMarketplacePlugin.source.path !== './plugins/maestro'
+    codexMarketplacePlugin.source.source !== 'git-subdir' ||
+    codexMarketplacePlugin.source.path !== './plugins/maestro' ||
+    codexMarketplacePlugin.source.ref !== 'dist'
   ) {
-    throw new Error('.agents/plugins/marketplace.json maestro source must be local ./plugins/maestro');
+    throw new Error('.agents/plugins/marketplace.json maestro source must be git-subdir ./plugins/maestro@dist');
   }
 
   if (gemini.contextFileName !== 'GEMINI.md' || !gemini.mcpServers || !gemini.mcpServers.maestro) {

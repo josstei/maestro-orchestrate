@@ -5,7 +5,7 @@ const {
   renderJson,
 } = require('../metadata-shared');
 
-function buildCodexMarketplace() {
+function buildCodexMarketplace(context) {
   return {
     name: 'maestro-orchestrator',
     interface: {
@@ -15,8 +15,10 @@ function buildCodexMarketplace() {
       {
         name: 'maestro',
         source: {
-          source: 'local',
+          source: 'git-subdir',
+          url: `${context.repository}.git`,
           path: './plugins/maestro',
+          ref: 'dist',
         },
         policy: {
           installation: 'AVAILABLE',

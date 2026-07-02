@@ -62,6 +62,23 @@ describe('platform metadata generation', () => {
       outputs.get('plugins/maestro/.mcp.json').mcpServers.maestro.args[2],
       `${PACKAGE_FIXTURE.name}@${PACKAGE_FIXTURE.version}`
     );
+    assert.deepEqual(
+      outputs.get('.claude-plugin/marketplace.json').plugins[0].source,
+      {
+        source: 'github',
+        repo: 'josstei/maestro-orchestrate',
+        ref: 'dist',
+      }
+    );
+    assert.deepEqual(
+      outputs.get('.agents/plugins/marketplace.json').plugins[0].source,
+      {
+        source: 'git-subdir',
+        url: 'https://github.com/example/maestro.git',
+        path: './plugins/maestro',
+        ref: 'dist',
+      }
+    );
   });
 
   it('generates only metadata for enabled runtimes', () => {
