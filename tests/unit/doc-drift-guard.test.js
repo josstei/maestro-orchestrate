@@ -178,63 +178,6 @@ test('doc-drift: docs/usage.md MCP Quick Reference includes all 10 session tools
   }
 });
 
-test('doc-drift: runtime docs reference only the canonical feature flags', () => {
-  const canonical = [
-    'exampleBlocks',
-    'mcpStateContract',
-  ];
-  const removed = [
-    ['claude', 'State', 'Contract'].join(''),
-    ['script', 'Based', 'State', 'Contract'].join(''),
-    ['codex', 'State', 'Contract'].join(''),
-    'mcpSkillContentHandler',
-    'policyEnforcer',
-    'geminiHookModel',
-    'geminiDelegation',
-    'geminiToolExamples',
-    'geminiAskFormat',
-    'geminiStateContract',
-    'geminiRuntimeConfig',
-    'claudeHookModel',
-    'claudeDelegation',
-    'claudeToolExamples',
-    'claudeRuntimeConfig',
-    'codexDelegation',
-    'codexRuntimeConfig',
-    'qwenStateContract',
-    'qwenRuntimeConfig',
-  ];
-  for (const runtime of ['gemini', 'claude', 'codex', 'qwen']) {
-    const body = read(`docs/runtime-${runtime}.md`);
-    const flagsMatch = body.match(/## Feature Flags[\s\S]*?(?=\n## |\n# |$)/);
-    assert.ok(flagsMatch, `docs/runtime-${runtime}.md: missing Feature Flags section`);
-    const section = flagsMatch[0];
-    for (const flag of canonical) {
-      assert.ok(section.includes(flag), `docs/runtime-${runtime}.md Feature Flags: missing canonical flag ${flag}`);
-    }
-    for (const flag of removed) {
-      assert.ok(!section.includes(flag + ':'), `docs/runtime-${runtime}.md Feature Flags: still lists removed flag ${flag}`);
-    }
-  }
-});
-
-test('doc-drift: runtime-docs feature-flag booleans match src/platforms/*/runtime-config.js', () => {
-  const expected = {
-    gemini: { exampleBlocks: false, mcpStateContract: true },
-    claude: { exampleBlocks: true, mcpStateContract: true },
-    codex: { exampleBlocks: false, mcpStateContract: true },
-    qwen: { exampleBlocks: false, mcpStateContract: true },
-  };
-  for (const [runtime, flags] of Object.entries(expected)) {
-    const body = read(`docs/runtime-${runtime}.md`);
-    const section = body.match(/## Feature Flags[\s\S]*?(?=\n## |\n# |$)/)[0];
-    for (const [flag, value] of Object.entries(flags)) {
-      const pattern = new RegExp(`${flag}:\\s*${value}\\b`);
-      assert.ok(pattern.test(section), `docs/runtime-${runtime}.md: flag ${flag} should be ${value}`);
-    }
-  }
-});
-
 test('doc-drift: runtime docs use generated-version placeholders', () => {
   for (const runtime of ['gemini', 'claude', 'codex', 'qwen']) {
     const surface = `docs/runtime-${runtime}.md`;

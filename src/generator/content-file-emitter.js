@@ -43,6 +43,10 @@ function renderToolMappingSection(runtime) {
   ].join('\n');
 }
 
+function finalizeContent(content) {
+  return `${content.replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+}
+
 function renderTemplate(template, values, agents, agentNaming) {
   let content = template;
   for (const [key, value] of Object.entries(values)) {
@@ -52,7 +56,23 @@ function renderTemplate(template, values, agents, agentNaming) {
     '<!-- @roster -->',
     renderRosterTable(agents, { agentNaming })
   );
-  return `${content.replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+  return finalizeContent(content);
+}
+
+function renderFeatureFlagsTable(runtime) {
+  const rows = Object.entries(runtime.features)
+    .map(([flag, value]) => `| \`${flag}\` | \`${value}\` |`)
+    .join('\n');
+  return ['| Flag | Value |', '| --- | --- |', rows].join('\n');
+}
+
+function renderRuntimeDoc(template, runtime, agents) {
+  let content = template.replace('<!-- @feature-flags -->', renderFeatureFlagsTable(runtime));
+  content = content.replace(
+    '<!-- @roster -->',
+    renderRosterTable(agents, { agentNaming: runtime.agentNaming })
+  );
+  return finalizeContent(content);
 }
 
 function renderContextFile(template, runtime, agents) {
@@ -105,7 +125,17 @@ function buildContentFileOutputs(runtimes, srcDir, packageMetadata) {
     });
   }
 
+  for (const runtime of Object.values(runtimes)) {
+    const runtimeDocPath = path.join(srcDir, 'platforms', runtime.name, 'runtime-doc.md');
+    if (!fs.existsSync(runtimeDocPath)) continue;
+    const runtimeDocTemplate = fs.readFileSync(runtimeDocPath, 'utf8');
+    outputs.push({
+      outputPath: `docs/runtime-${runtime.name}.md`,
+      content: renderRuntimeDoc(runtimeDocTemplate, runtime, agents),
+    });
+  }
+
   return outputs;
 }
 
-module.exports = { buildContentFileOutputs, renderContextFile, renderClaudeReadme };
+module.exports = { buildContentFileOutputs, renderContextFile, renderClaudeReadme, renderRuntimeDoc };

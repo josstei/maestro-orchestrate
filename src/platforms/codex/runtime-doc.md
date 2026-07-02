@@ -137,10 +137,7 @@ Codex tools use descriptive names rather than direct API mappings:
 
 The canonical feature set (same flags across all runtimes, values per runtime):
 
-| Flag | Value |
-| --- | --- |
-| `exampleBlocks` | `false` |
-| `mcpStateContract` | `true` |
+<!-- @feature-flags -->
 
 See `src/platforms/codex/runtime-config.js` for the authoritative values.
 

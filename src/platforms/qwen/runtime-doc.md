@@ -107,10 +107,7 @@ Qwen tools use canonical names with Qwen-specific overrides declared in `src/pla
 
 The canonical feature set (same flags across all runtimes, values per runtime):
 
-| Flag | Value |
-| --- | --- |
-| `exampleBlocks` | `false` |
-| `mcpStateContract` | `true` |
+<!-- @feature-flags -->
 
 See `src/platforms/qwen/runtime-config.js` for the authoritative values.
 

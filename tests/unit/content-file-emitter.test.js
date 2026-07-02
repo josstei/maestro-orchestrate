@@ -8,6 +8,7 @@ const { buildContentFileOutputs } = require('../../src/generator/content-file-em
 const gemini = require('../../src/platforms/gemini/runtime-config');
 const qwen = require('../../src/platforms/qwen/runtime-config');
 const claude = require('../../src/platforms/claude/runtime-config');
+const codex = require('../../src/platforms/codex/runtime-config');
 
 const ROOT = path.resolve(__dirname, '../..');
 const SRC = path.join(ROOT, 'src');
@@ -18,19 +19,46 @@ function outputsByPath(outputs) {
 }
 
 describe('content-file-emitter', () => {
-  it('emits GEMINI.md, QWEN.md, and claude/README.md', () => {
-    const outputs = buildContentFileOutputs({ gemini, qwen, claude }, SRC, packageMetadata);
+  it('emits GEMINI.md, QWEN.md, claude/README.md, and the per-runtime docs', () => {
+    const outputs = buildContentFileOutputs({ gemini, qwen, claude, codex }, SRC, packageMetadata);
     assert.deepEqual(
       outputs.map((output) => output.outputPath).sort(),
-      ['GEMINI.md', 'QWEN.md', 'claude/README.md']
+      [
+        'GEMINI.md',
+        'QWEN.md',
+        'claude/README.md',
+        'docs/runtime-claude.md',
+        'docs/runtime-codex.md',
+        'docs/runtime-gemini.md',
+        'docs/runtime-qwen.md',
+      ]
     );
   });
 
+  it('expands the feature-flags marker into a table sourced from runtime.features', () => {
+    const outputs = outputsByPath(buildContentFileOutputs({ gemini, qwen, claude, codex }, SRC, packageMetadata));
+    for (const [runtime, config, expected] of [
+      ['gemini', gemini, { exampleBlocks: false, mcpStateContract: true }],
+      ['claude', claude, { exampleBlocks: true, mcpStateContract: true }],
+      ['codex', codex, { exampleBlocks: false, mcpStateContract: true }],
+      ['qwen', qwen, { exampleBlocks: false, mcpStateContract: true }],
+    ]) {
+      const outputPath = `docs/runtime-${runtime}.md`;
+      const content = outputs.get(outputPath);
+      assert.deepEqual(config.features, expected, `${outputPath}: unexpected runtime.features fixture`);
+      assert.ok(!content.includes('<!-- @feature-flags -->'), `${outputPath}: unresolved feature-flags marker`);
+      for (const [flag, value] of Object.entries(expected)) {
+        assert.ok(content.includes(`| \`${flag}\` | \`${value}\` |`), `${outputPath}: missing ${flag} row`);
+      }
+    }
+  });
+
   it('leaves no unresolved placeholders in any output', () => {
-    const outputs = outputsByPath(buildContentFileOutputs({ gemini, qwen, claude }, SRC, packageMetadata));
+    const outputs = outputsByPath(buildContentFileOutputs({ gemini, qwen, claude, codex }, SRC, packageMetadata));
     for (const [outputPath, content] of outputs) {
       assert.ok(!content.includes('{{'), `${outputPath}: contains unresolved {{placeholder}}`);
       assert.ok(!content.includes('<!-- @roster -->'), `${outputPath}: unresolved roster marker`);
+      assert.ok(!content.includes('<!-- @feature-flags -->'), `${outputPath}: unresolved feature-flags marker`);
     }
   });
 
@@ -47,9 +75,10 @@ describe('content-file-emitter', () => {
     assert.ok(content.includes('## Qwen Tool Name Mapping'), 'QWEN.md missing tool mapping section');
   });
 
-  it('both Gemini-family outputs include the roster header and the zos_sysprog row', () => {
+  it('both Gemini-family context files include the roster header and the zos_sysprog row', () => {
     const outputs = outputsByPath(buildContentFileOutputs({ gemini, qwen }, SRC));
-    for (const [outputPath, content] of outputs) {
+    for (const outputPath of ['GEMINI.md', 'QWEN.md']) {
+      const content = outputs.get(outputPath);
       assert.ok(
         content.includes('| Agent | Focus | Capability Tier |'),
         `${outputPath}: missing roster header`
@@ -78,9 +107,9 @@ describe('content-file-emitter', () => {
     );
   });
 
-  it('reproduces the committed context files byte-for-byte', () => {
+  it('reproduces the committed context files and runtime docs byte-for-byte', () => {
     const fs = require('node:fs');
-    const outputs = outputsByPath(buildContentFileOutputs({ gemini, qwen, claude }, SRC, packageMetadata));
+    const outputs = outputsByPath(buildContentFileOutputs({ gemini, qwen, claude, codex }, SRC, packageMetadata));
     for (const [outputPath, content] of outputs) {
       const committed = fs.readFileSync(path.join(ROOT, outputPath), 'utf8');
       assert.equal(content, committed, outputPath);
@@ -89,6 +118,9 @@ describe('content-file-emitter', () => {
 
   it('skips runtimes without contextFile metadata and without a claude entry', () => {
     const outputs = buildContentFileOutputs({ gemini }, SRC);
-    assert.deepEqual(outputs.map((output) => output.outputPath), ['GEMINI.md']);
+    assert.deepEqual(
+      outputs.map((output) => output.outputPath),
+      ['GEMINI.md', 'docs/runtime-gemini.md']
+    );
   });
 });

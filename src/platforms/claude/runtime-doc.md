@@ -134,10 +134,7 @@ Parses compound commands (`;`, `&&`, `||`, `|`) and recursively checks subshells
 
 The canonical feature set (same flags across all runtimes, values per runtime):
 
-| Flag | Value |
-| --- | --- |
-| `exampleBlocks` | `true` |
-| `mcpStateContract` | `true` |
+<!-- @feature-flags -->
 
 See `src/platforms/claude/runtime-config.js` for the authoritative values.
 
