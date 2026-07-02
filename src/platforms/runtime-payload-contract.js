@@ -22,7 +22,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     content: {
       provider: 'filesystem',
       srcRoot: 'src',
-      fallback: 'none',
     },
     generatedSurfaces: [
       'agents/',
@@ -33,11 +32,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
       'GEMINI.md',
       'gemini-extension.json',
     ],
-    detachedPayload: {
-      requiredForStartup: false,
-      requiredForRelease: false,
-      path: null,
-    },
     packageInvariants: [
       'gemini-extension.json',
       'mcp/maestro-server.js',
@@ -56,7 +50,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     content: {
       provider: 'filesystem',
       srcRoot: 'src',
-      fallback: 'none',
     },
     generatedSurfaces: [
       '.claude-plugin/marketplace.json',
@@ -68,13 +61,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
       'claude/scripts/',
       'claude/skills/',
     ],
-    detachedPayload: {
-      requiredForStartup: false,
-      requiredForRelease: false,
-      path: null,
-      note:
-        'Retired in the no-fallback debt-removal slice. Claude resolves package-root src/ through the public claude/mcp adapter.',
-    },
     packageInvariants: [
       '.claude-plugin/plugin.json',
       'claude/.mcp.json',
@@ -94,7 +80,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     content: {
       provider: 'filesystem',
       srcRoot: 'src',
-      fallback: 'none',
     },
     generatedSurfaces: [
       '.agents/plugins/marketplace.json',
@@ -104,13 +89,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
       'plugins/maestro/references/',
       'plugins/maestro/skills/',
     ],
-    detachedPayload: {
-      requiredForStartup: false,
-      requiredForRelease: false,
-      path: null,
-      note:
-        'Retired in Phase 1. Codex MCP startup and content loading resolve through the npm package bin and package-root src/.',
-    },
     packageInvariants: [
       'bin/maestro-install-codex.js',
       'bin/maestro-mcp-server.js',
@@ -131,7 +109,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     content: {
       provider: 'filesystem',
       srcRoot: 'src',
-      fallback: 'none',
     },
     generatedSurfaces: [
       'qwen/agents/',
@@ -140,11 +117,6 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
       'qwen-extension.json',
       'mcp/',
     ],
-    detachedPayload: {
-      requiredForStartup: false,
-      requiredForRelease: false,
-      path: null,
-    },
     packageInvariants: [
       'qwen-extension.json',
       'qwen/hooks.json',

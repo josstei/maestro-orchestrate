@@ -73,19 +73,15 @@ describe('runtime payload contract', () => {
       for (const docPath of runtime.docs) {
         assert.ok(fs.existsSync(path.join(ROOT, docPath)), `${runtime.name} doc exists: ${docPath}`);
       }
-
-      if (runtime.detachedPayload.path) {
-        assert.ok(
-          fs.existsSync(path.join(ROOT, runtime.detachedPayload.path)),
-          `${runtime.name} detached payload exists`
-        );
-        assert.ok(
-          fs.existsSync(path.join(ROOT, runtime.detachedPayload.versionFile)),
-          `${runtime.name} detached payload version exists`
-        );
-      }
     }
   });
+
+  for (const [name, entry] of Object.entries(RUNTIME_PAYLOAD_CONTRACT)) {
+    it(`${name} carries no retired payload/fallback keys`, () => {
+      assert.equal(entry.detachedPayload, undefined);
+      assert.equal(entry.content && entry.content.fallback, undefined);
+    });
+  }
 
   it('keeps generated startup manifests aligned with the runtime startup contract', () => {
     for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {
@@ -97,30 +93,20 @@ describe('runtime payload contract', () => {
     }
   });
 
-  it('records Codex as package-root src only with no detached payload', () => {
+  it('records Codex as package-root src only', () => {
     const codex = getRuntimePayloadContract('codex');
 
     assert.equal(codex.content.srcRoot, 'src');
-    assert.equal(codex.detachedPayload.requiredForStartup, false);
-    assert.equal(codex.detachedPayload.requiredForRelease, false);
-    assert.equal(codex.detachedPayload.path, null);
     assert.equal(
       codex.packageInvariants.some((invariantPath) => invariantPath.startsWith('plugins/maestro/src')),
       false
     );
   });
 
-  it('records Claude as package-root src only with no detached payload', () => {
+  it('records Claude as package-root src only', () => {
     const claude = getRuntimePayloadContract('claude');
-    const runtimeConfig = getRuntimeConfig('claude');
 
     assert.equal(claude.content.srcRoot, 'src');
-    assert.equal(claude.content.fallback, 'none');
-    assert.equal(runtimeConfig.content.primary, 'filesystem');
-    assert.equal(runtimeConfig.content.fallback, claude.content.fallback);
-    assert.equal(claude.detachedPayload.requiredForStartup, false);
-    assert.equal(claude.detachedPayload.requiredForRelease, false);
-    assert.equal(claude.detachedPayload.path, null);
   });
 
   it('does not classify canonical src as a generated runtime surface', () => {

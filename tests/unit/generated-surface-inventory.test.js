@@ -37,13 +37,10 @@ describe('generated surface inventory', () => {
     ]);
   });
 
-  it('keeps detached payloads retired in runtime payload contracts', () => {
-    const contractPaths = RUNTIME_PAYLOAD_CONTRACT
-      .map((runtime) => runtime.detachedPayload.path)
-      .filter(Boolean)
-      .sort();
-
-    assert.deepEqual(contractPaths, []);
+  it('keeps detached payload keys retired in runtime payload contracts', () => {
+    for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {
+      assert.equal(runtime.detachedPayload, undefined, `${runtime.name} detachedPayload retired`);
+    }
   });
 
   it('points to existing tracked generated roots and retired cleanup roots', () => {

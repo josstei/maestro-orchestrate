@@ -84,20 +84,17 @@ describe('content provider runtime policy', () => {
     assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');
   });
 
-  it('rejects runtime configs that declare a content fallback', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-fallback-reject-'));
-    const config = {
-      ...getRuntimeConfig('claude'),
-      content: {
-        primary: 'filesystem',
-        fallback: 'source-checkout-filesystem',
-      },
-    };
+  it('createContentProvider always returns the filesystem provider', () => {
+    const srcRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-filesystem-only-'));
+    const provider = createContentProvider({ name: 'gemini' }, srcRoot);
+    assert.equal(provider.name, 'filesystem');
+    assert.equal(provider.srcRoot, path.resolve(srcRoot));
+  });
 
-    assert.throws(
-      () => createContentProvider(config, path.join(root, 'src')),
-      /Content fallback is not supported in no-fallback mode/
-    );
+  it('provider module no longer exports content-policy plumbing', () => {
+    const mod = require('../../src/mcp/content/provider');
+    assert.equal(mod.normalizeContentPolicy, undefined);
+    assert.equal(mod.createContentSourceSpecs, undefined);
   });
 
   it('does not fall back when Claude package-root content is unreadable', () => {

@@ -11,11 +11,6 @@ module.exports = {
 
   relativeExtensionPath: true,
 
-  content: {
-    primary: 'filesystem',
-    fallback: 'none',
-  },
-
   tools: {
     read_file: 'direct file reads',
     list_directory: 'exec_command (`rg --files` or `ls`)',

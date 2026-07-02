@@ -54,18 +54,10 @@ describe('src-first architecture invariants', () => {
     }
   });
 
-  it('keeps runtime content policies explicit and filesystem-first', () => {
-    const expectedFallbacks = {
-      gemini: 'none',
-      claude: 'none',
-      codex: 'none',
-      qwen: 'none',
-    };
-
-    for (const runtimeName of Object.keys(expectedFallbacks)) {
+  it('does not carry retired content-policy config on runtime configs', () => {
+    for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen']) {
       const runtimeConfig = getRuntimeConfig(runtimeName);
-      assert.equal(runtimeConfig.content.primary, 'filesystem');
-      assert.equal(runtimeConfig.content.fallback, expectedFallbacks[runtimeName]);
+      assert.equal(runtimeConfig.content, undefined);
     }
   });
 
