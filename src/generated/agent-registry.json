@@ -12,7 +12,8 @@
       "write_todos",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "WCAG compliance auditing, ARIA review"
   },
   {
     "name": "analytics-engineer",
@@ -29,7 +30,8 @@
       "write_todos",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Event tracking, conversion funnels"
   },
   {
     "name": "api-designer",
@@ -43,7 +45,8 @@
       "ask_user",
       "google_web_search",
       "web_fetch"
-    ]
+    ],
+    "focus": "API contracts and endpoint design"
   },
   {
     "name": "architect",
@@ -57,7 +60,8 @@
       "read_many_files",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "System design and architecture decisions"
   },
   {
     "name": "cloud-architect",
@@ -71,7 +75,8 @@
       "read_many_files",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "AWS/GCP/Azure topology, IaC, multi-region design"
   },
   {
     "name": "cobol-engineer",
@@ -88,7 +93,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "Mainframe COBOL, JCL, CICS/IMS on z/OS"
   },
   {
     "name": "code-reviewer",
@@ -100,7 +106,8 @@
       "grep_search",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Code quality review and bug identification"
   },
   {
     "name": "coder",
@@ -117,7 +124,8 @@
       "activate_skill",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Feature implementation"
   },
   {
     "name": "compliance-reviewer",
@@ -131,7 +139,8 @@
       "web_fetch",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Legal and regulatory compliance"
   },
   {
     "name": "content-strategist",
@@ -145,7 +154,8 @@
       "web_fetch",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Content planning and strategy"
   },
   {
     "name": "copywriter",
@@ -159,7 +169,8 @@
       "replace",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Marketing copy and landing-page content"
   },
   {
     "name": "data-engineer",
@@ -176,7 +187,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "Schema design, queries, and data pipelines"
   },
   {
     "name": "database-administrator",
@@ -192,7 +204,8 @@
       "write_todos",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "RDBMS tuning, indexes, and migration safety"
   },
   {
     "name": "db2-dba",
@@ -208,7 +221,8 @@
       "write_todos",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "DB2 for z/OS and LUW, REORG, RUNSTATS, bind/rebind"
   },
   {
     "name": "debugger",
@@ -222,7 +236,8 @@
       "run_shell_command",
       "write_todos",
       "ask_user"
-    ]
+    ],
+    "focus": "Root cause analysis and defect investigation"
   },
   {
     "name": "design-system-engineer",
@@ -239,7 +254,8 @@
       "activate_skill",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Design tokens and theming"
   },
   {
     "name": "devops-engineer",
@@ -257,7 +273,8 @@
       "read_many_files",
       "web_fetch",
       "ask_user"
-    ]
+    ],
+    "focus": "CI/CD, containerization, and deployment"
   },
   {
     "name": "hlasm-assembler-specialist",
@@ -274,7 +291,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "IBM HLASM for z/OS, macros, SVCs"
   },
   {
     "name": "i18n-specialist",
@@ -290,7 +308,8 @@
       "write_todos",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Internationalization and locale management"
   },
   {
     "name": "ibm-i-specialist",
@@ -307,7 +326,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "IBM i RPG/CL, DB2 for i, OS/400"
   },
   {
     "name": "integration-engineer",
@@ -325,7 +345,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "B2B APIs, ETL, and message brokers"
   },
   {
     "name": "ml-engineer",
@@ -343,7 +364,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "Model training, feature pipelines, and evaluation"
   },
   {
     "name": "mlops-engineer",
@@ -361,7 +383,8 @@
       "ask_user",
       "google_web_search",
       "web_fetch"
-    ]
+    ],
+    "focus": "Model registry, CI/CD for models, drift detection"
   },
   {
     "name": "mobile-engineer",
@@ -379,7 +402,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "iOS/Android/React Native/Flutter platform work"
   },
   {
     "name": "observability-engineer",
@@ -397,7 +421,8 @@
       "ask_user",
       "google_web_search",
       "web_fetch"
-    ]
+    ],
+    "focus": "Metrics, logs, traces, OpenTelemetry, dashboards"
   },
   {
     "name": "performance-engineer",
@@ -413,7 +438,8 @@
       "write_todos",
       "web_fetch",
       "ask_user"
-    ]
+    ],
+    "focus": "Performance profiling and optimization"
   },
   {
     "name": "platform-engineer",
@@ -432,7 +458,8 @@
       "ask_user",
       "google_web_search",
       "web_fetch"
-    ]
+    ],
+    "focus": "Internal developer platforms and paved paths"
   },
   {
     "name": "product-manager",
@@ -447,7 +474,8 @@
       "google_web_search",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Requirements and product strategy"
   },
   {
     "name": "prompt-engineer",
@@ -464,7 +492,8 @@
       "write_todos",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "LLM prompt design, few-shot, and RAG tuning"
   },
   {
     "name": "refactor",
@@ -481,7 +510,8 @@
       "activate_skill",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Structural refactoring and technical debt"
   },
   {
     "name": "release-manager",
@@ -498,7 +528,8 @@
       "write_todos",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "Release notes, changelogs, rollout planning"
   },
   {
     "name": "security-engineer",
@@ -514,7 +545,8 @@
       "web_fetch",
       "write_todos",
       "ask_user"
-    ]
+    ],
+    "focus": "Security assessment and vulnerability analysis"
   },
   {
     "name": "seo-specialist",
@@ -530,7 +562,8 @@
       "write_todos",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "Technical SEO auditing and structured data"
   },
   {
     "name": "site-reliability-engineer",
@@ -546,7 +579,8 @@
       "write_todos",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "SLOs, error budgets, runbooks, postmortems"
   },
   {
     "name": "solutions-architect",
@@ -560,7 +594,8 @@
       "read_many_files",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "Enterprise integration and cross-team architecture"
   },
   {
     "name": "technical-writer",
@@ -576,7 +611,8 @@
       "google_web_search",
       "ask_user",
       "write_todos"
-    ]
+    ],
+    "focus": "Documentation and technical writing"
   },
   {
     "name": "tester",
@@ -594,7 +630,8 @@
       "read_many_files",
       "ask_user",
       "google_web_search"
-    ]
+    ],
+    "focus": "Test implementation and coverage analysis"
   },
   {
     "name": "ux-designer",
@@ -609,7 +646,8 @@
       "google_web_search",
       "read_many_files",
       "ask_user"
-    ]
+    ],
+    "focus": "User experience design"
   },
   {
     "name": "zos-sysprog",
@@ -625,6 +663,7 @@
       "write_todos",
       "ask_user",
       "web_fetch"
-    ]
+    ],
+    "focus": "z/OS systems programming, JCL, USS, RACF"
   }
 ]

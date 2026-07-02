@@ -2,6 +2,7 @@
 name: hlasm-assembler-specialist
 description: "IBM High-Level Assembler (HLASM) specialist for z/OS. Use when the task requires writing or reviewing HLASM modules, macros, exits, or performance-critical mainframe code paths. For example: authoring a user SVC, reviewing a system exit, writing a macro for a shared copybook convention, or diagnosing an S0Cx abend from the compile listing and PSW."
 color: olive
+focus: "IBM HLASM for z/OS, macros, SVCs"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
 tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList]

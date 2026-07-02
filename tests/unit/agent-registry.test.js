@@ -11,6 +11,7 @@ const {
   getAgentCapability,
   canCreateFiles,
 } = require('../../src/core/agent-registry');
+const agentRegistryData = require('../../src/generated/agent-registry.json');
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
 const LEGACY_AGENT_ENV = ['MAESTRO', 'CURRENT', 'AGENT'].join('_');
@@ -51,6 +52,15 @@ describe('AGENT_CAPABILITIES', () => {
         VALID_CAPABILITY_LEVELS.includes(level),
         `Invalid capability level '${level}' for agent: ${agent}`
       );
+    }
+  });
+});
+
+describe('agent-registry.json focus field', () => {
+  it('every agent carries a non-empty focus line', () => {
+    for (const entry of agentRegistryData) {
+      assert.equal(typeof entry.focus, 'string', `Missing focus for agent: ${entry.name}`);
+      assert.ok(entry.focus.trim().length > 0, `Empty focus for agent: ${entry.name}`);
     }
   });
 });

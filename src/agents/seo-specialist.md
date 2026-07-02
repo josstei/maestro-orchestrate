@@ -2,6 +2,7 @@
 name: seo-specialist
 description: "SEO specialist for technical audits, meta tag optimization, schema markup, and crawlability analysis. Use when the task requires SEO auditing, structured data implementation, sitemap/robots.txt review, or Core Web Vitals optimization. For example: auditing a site's crawlability, implementing JSON-LD schema markup, or optimizing meta tag strategy."
 color: orange
+focus: "Technical SEO auditing and structured data"
 tools: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, web_fetch, write_todos, read_many_files, ask_user]
 tools.gemini: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, web_fetch, write_todos, read_many_files, ask_user]
 tools.claude: [Read, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]

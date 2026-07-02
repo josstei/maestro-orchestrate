@@ -2,6 +2,7 @@
 name: mobile-engineer
 description: "Mobile engineering specialist for iOS, Android, React Native, and Flutter feature work. Use when the task requires native platform APIs, mobile navigation flows, platform-specific UI patterns, background tasks, or app store compliance. For example: building a push notification handler, wiring biometric auth, implementing deep links, or diagnosing a platform-specific crash."
 color: amber
+focus: "iOS/Android/React Native/Flutter platform work"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, activate_skill, read_many_files, ask_user, google_web_search]
 tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, activate_skill, read_many_files, ask_user, google_web_search]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList, Skill]

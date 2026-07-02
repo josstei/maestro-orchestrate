@@ -18,11 +18,12 @@ function buildAgentRegistry(srcDir) {
       const capabilities = frontmatter.capabilities || 'read_only';
       const rawTools = frontmatter.tools || [];
       const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-      return { name, capabilities, tools };
+      const focus = frontmatter.focus || '';
+      return { name, capabilities, tools, focus };
     },
   });
 
-  return agentEntries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
+  return agentEntries.map(({ name, capabilities, tools, focus }) => ({ name, capabilities, tools, focus }));
 }
 
 function buildResourceRegistry(srcDir) {
