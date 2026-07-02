@@ -112,61 +112,25 @@ describe('assertSessionId', () => {
     });
   }
 
-  it('throws for empty string', () => {
-    assertThrowsValidation(
-      () => assertSessionId(''),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
+  const INVALID_SESSION_IDS = [
+    ['throws for empty string', ''],
+    ['throws for string with spaces', 'has space'],
+    ['throws for string with dots', 'has.dot'],
+    ['throws for string with slashes', 'path/traversal'],
+    ['throws for null', null],
+    ['throws for undefined', undefined],
+    ['throws for a number', 42],
+    ['throws for an object', {}],
+  ];
 
-  it('throws for string with spaces', () => {
-    assertThrowsValidation(
-      () => assertSessionId('has space'),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for string with dots', () => {
-    assertThrowsValidation(
-      () => assertSessionId('has.dot'),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for string with slashes', () => {
-    assertThrowsValidation(
-      () => assertSessionId('path/traversal'),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for null', () => {
-    assertThrowsValidation(
-      () => assertSessionId(null),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for undefined', () => {
-    assertThrowsValidation(
-      () => assertSessionId(undefined),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for a number', () => {
-    assertThrowsValidation(
-      () => assertSessionId(42),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for an object', () => {
-    assertThrowsValidation(
-      () => assertSessionId({}),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
+  for (const [name, value] of INVALID_SESSION_IDS) {
+    it(name, () => {
+      assertThrowsValidation(
+        () => assertSessionId(value),
+        'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
+      );
+    });
+  }
 
   it('includes the invalid value in error details', () => {
     try {
@@ -262,61 +226,22 @@ describe('assertRelativePath', () => {
     });
   }
 
-  it('throws for an absolute Unix path', () => {
-    assertThrowsValidation(
-      () => assertRelativePath('/etc/passwd'),
-      'Path must be relative'
-    );
-  });
+  const INVALID_RELATIVE_PATHS = [
+    ['throws for an absolute Unix path', '/etc/passwd', 'Path must be relative'],
+    ['throws for path traversal with leading ..', '../outside', 'Path traversal not allowed'],
+    ['throws for path traversal with embedded ..', 'inside/../../../outside', 'Path traversal not allowed'],
+    ['throws for path traversal with backslash separators', 'inside\\..\\outside', 'Path traversal not allowed'],
+    ['throws for null bytes', 'file\0.txt', 'Path contains null bytes'],
+    ['throws for non-string input (null)', null, 'Path must be a string'],
+    ['throws for non-string input (number)', 42, 'Path must be a string'],
+    ['throws for non-string input (undefined)', undefined, 'Path must be a string'],
+  ];
 
-  it('throws for path traversal with leading ..', () => {
-    assertThrowsValidation(
-      () => assertRelativePath('../outside'),
-      'Path traversal not allowed'
-    );
-  });
-
-  it('throws for path traversal with embedded ..', () => {
-    assertThrowsValidation(
-      () => assertRelativePath('inside/../../../outside'),
-      'Path traversal not allowed'
-    );
-  });
-
-  it('throws for path traversal with backslash separators', () => {
-    assertThrowsValidation(
-      () => assertRelativePath('inside\\..\\outside'),
-      'Path traversal not allowed'
-    );
-  });
-
-  it('throws for null bytes', () => {
-    assertThrowsValidation(
-      () => assertRelativePath('file\0.txt'),
-      'Path contains null bytes'
-    );
-  });
-
-  it('throws for non-string input (null)', () => {
-    assertThrowsValidation(
-      () => assertRelativePath(null),
-      'Path must be a string'
-    );
-  });
-
-  it('throws for non-string input (number)', () => {
-    assertThrowsValidation(
-      () => assertRelativePath(42),
-      'Path must be a string'
-    );
-  });
-
-  it('throws for non-string input (undefined)', () => {
-    assertThrowsValidation(
-      () => assertRelativePath(undefined),
-      'Path must be a string'
-    );
-  });
+  for (const [name, value, message] of INVALID_RELATIVE_PATHS) {
+    it(name, () => {
+      assertThrowsValidation(() => assertRelativePath(value), message);
+    });
+  }
 
   it('includes the invalid path in error details', () => {
     try {
