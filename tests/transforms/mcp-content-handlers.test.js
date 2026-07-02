@@ -163,6 +163,70 @@ describe('get_skill_content handler', () => {
     assert.ok(content.includes('from package-root source'));
   });
 
+  it('expands the shared roster marker in the delegation skill for gemini (snake_case)', () => {
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('gemini'),
+      path.join(REPO_ROOT, 'src')
+    );
+
+    const result = withExtensionRoot(REPO_ROOT, () =>
+      handler({ resources: ['delegation'] })
+    );
+    const content = result.contents.delegation;
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(content.includes('| `zos_sysprog` |'));
+    assert.ok(!content.includes('<!-- @roster -->'));
+  });
+
+  it('expands the shared roster marker in the delegation skill for claude (kebab-case)', () => {
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('claude'),
+      path.join(REPO_ROOT, 'src')
+    );
+
+    const result = withExtensionRoot(REPO_ROOT, () =>
+      handler({ resources: ['delegation'] })
+    );
+    const content = result.contents.delegation;
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(content.includes('| `zos-sysprog` |'));
+    assert.ok(!content.includes('<!-- @roster -->'));
+  });
+
+  it('expands the shared roster marker in the architecture reference for gemini (snake_case)', () => {
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('gemini'),
+      path.join(REPO_ROOT, 'src')
+    );
+
+    const result = withExtensionRoot(REPO_ROOT, () =>
+      handler({ resources: ['architecture'] })
+    );
+    const content = result.contents.architecture;
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(content.includes('| `zos_sysprog` |'));
+    assert.ok(!content.includes('<!-- @roster -->'));
+  });
+
+  it('expands the shared roster marker in the architecture reference for claude (kebab-case)', () => {
+    const handler = createSkillContentHandler(
+      getRuntimeConfig('claude'),
+      path.join(REPO_ROOT, 'src')
+    );
+
+    const result = withExtensionRoot(REPO_ROOT, () =>
+      handler({ resources: ['architecture'] })
+    );
+    const content = result.contents.architecture;
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(content.includes('| `zos-sysprog` |'));
+    assert.ok(!content.includes('<!-- @roster -->'));
+  });
+
   it('rejects unknown resources before filesystem lookup', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-skill-unknown-'));
     const claudeRoot = path.join(root, 'claude');

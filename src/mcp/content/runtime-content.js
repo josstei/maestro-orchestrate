@@ -5,6 +5,7 @@ const path = require('path');
 const { parseFrontmatterOnly, splitAtBoundary } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
 const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');
+const { renderRosterTable } = require('../../core/roster-renderer');
 
 const agentRegistry = require('../../generated/agent-registry.json');
 
@@ -149,13 +150,35 @@ function readRawResourceFromFilesystem(id, srcRoot) {
   }
 }
 
-function materializeResource(rawResource, runtimeConfig) {
+const ROSTER_MARKER = /<!-- @roster -->/g;
+
+function loadAgentRegistryFromSrcRoot(srcRoot) {
+  return JSON.parse(
+    fs.readFileSync(path.join(srcRoot, 'generated', 'agent-registry.json'), 'utf8')
+  );
+}
+
+function expandRosterMarker(content, runtimeConfig, srcRoot) {
+  if (!content.includes('<!-- @roster -->')) {
+    return content;
+  }
+
+  const agents = loadAgentRegistryFromSrcRoot(srcRoot);
+  return content.replace(
+    ROSTER_MARKER,
+    renderRosterTable(agents, { agentNaming: runtimeConfig.agentNaming })
+  );
+}
+
+function materializeResource(rawResource, runtimeConfig, srcRoot) {
+  const transformed = applyRuntimeTransforms(
+    rawResource.content,
+    runtimeConfig,
+    rawResource.relativePath
+  );
+
   return {
-    content: applyRuntimeTransforms(
-      rawResource.content,
-      runtimeConfig,
-      rawResource.relativePath
-    ),
+    content: expandRosterMarker(transformed, runtimeConfig, srcRoot),
   };
 }
 
@@ -165,7 +188,7 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
     return rawResource;
   }
 
-  return materializeResource(rawResource, runtimeConfig);
+  return materializeResource(rawResource, runtimeConfig, srcRoot);
 }
 
 function readRawAgentFromFilesystem(agentName, srcRoot) {
@@ -220,6 +243,8 @@ module.exports = {
   applyReplaceAgentNames,
   applyStripFeature,
   applyRuntimeTransforms,
+  loadAgentRegistryFromSrcRoot,
+  expandRosterMarker,
   stripFrontmatter,
   stripFeatureBlocks,
   parseInlineArray,

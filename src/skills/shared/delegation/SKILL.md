@@ -127,47 +127,7 @@ Explicitly state what the agent must NOT do:
 
 ## Agent Selection Guide
 
-| Task Domain | Agent | Key Capability |
-|-------------|-------|---------------|
-| System architecture, component design | `architect` | Read-only analysis, architecture patterns |
-| Cloud architecture, multi-region topology | `cloud-architect` | Read-only cloud/IaC architecture |
-| Enterprise integration architecture | `solutions-architect` | Read-only cross-team architecture |
-| API contracts, endpoint design | `api-designer` | Read-only, REST/GraphQL expertise |
-| Feature implementation, coding | `coder` | Full read/write/shell access |
-| Code quality assessment | `code-reviewer` | Read-only, verified findings |
-| Database schema, queries, ETL | `data-engineer` | Full read/write/shell access |
-| RDBMS tuning, indexes, migration safety | `database-administrator` | Read + shell for database analysis |
-| DB2 operations and tuning | `db2-dba` | Read + shell for DB2-specific work |
-| Bug investigation, root cause | `debugger` | Read + shell for investigation |
-| CI/CD, infrastructure, deployment | `devops-engineer` | Full read/write/shell access |
-| Internal platforms, paved paths | `platform-engineer` | Full platform implementation access |
-| B2B APIs, ETL, message brokers | `integration-engineer` | Full integration implementation access |
-| SLOs, runbooks, reliability | `site-reliability-engineer` | Read + shell reliability analysis |
-| Metrics, logs, traces, dashboards | `observability-engineer` | Full observability implementation access |
-| Performance analysis, profiling | `performance-engineer` | Read + shell for profiling |
-| Code restructuring, modernization | `refactor` | Read/write/shell, skill activation |
-| Security assessment, vulnerability | `security-engineer` | Read + shell for scanning |
-| Test creation, TDD, coverage | `tester` | Full read/write/shell access |
-| Documentation, READMEs, guides | `technical-writer` | Read/write, no shell |
-| Release notes, changelogs, rollout | `release-manager` | Read/write for release artifacts |
-| Technical SEO auditing | `seo-specialist` | Read + shell + web search/fetch |
-| Marketing copy, content writing | `copywriter` | Read/write |
-| Content planning, strategy | `content-strategist` | Read + web search/fetch |
-| User experience design | `ux-designer` | Read/write + web search |
-| WCAG compliance auditing | `accessibility-specialist` | Read + shell + web search |
-| Requirements, product strategy | `product-manager` | Read/write + web search |
-| Tracking, measurement | `analytics-engineer` | Full read/write/shell access |
-| Internationalization | `i18n-specialist` | Full read/write/shell access |
-| Design tokens, theming | `design-system-engineer` | Full read/write/shell access |
-| Legal, regulatory compliance | `compliance-reviewer` | Read + web search/fetch |
-| Mobile platform work | `mobile-engineer` | Full mobile implementation access |
-| Model training and inference integration | `ml-engineer` | Full ML implementation access |
-| Model operations and model CI/CD | `mlops-engineer` | Full MLOps implementation access |
-| Prompt design, few-shot, RAG tuning | `prompt-engineer` | Read/write prompt and eval design |
-| Mainframe COBOL, JCL, CICS/IMS | `cobol-engineer` | Full mainframe implementation access |
-| IBM HLASM for z/OS | `hlasm-assembler-specialist` | Full assembly implementation access |
-| IBM i RPG/CL, DB2 for i | `ibm-i-specialist` | Full IBM i implementation access |
-| z/OS systems programming, JCL, RACF | `zos-sysprog` | Read + shell for z/OS system work |
+<!-- @roster -->
 
 ## Agent Tool Dispatch Contract
 
