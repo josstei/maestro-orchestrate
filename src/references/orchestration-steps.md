@@ -9,7 +9,7 @@ STARTUP (Turn 1 — tool calls only, no text output)
 
 CLASSIFICATION (Turn 2)
  7. Pre-load architecture plus every skill used before Phase 3 in a single batch:
-    `get_skill_content(["architecture", "design-dialogue", "design-document", "implementation-planning", "implementation-plan"])`.
+    `get_skill_content(["architecture", "codebase-grounding", "design-dialogue", "design-document", "implementation-planning", "implementation-plan"])`.
     <HARD-GATE>
     This batch MUST complete before any `enter_plan_mode` call. Some runtimes
     (notably Gemini CLI) deregister MCP tools once Plan Mode is active —

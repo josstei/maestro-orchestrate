@@ -104,9 +104,7 @@ If `execution_mode` is not present in session state at the point where delegatio
 
 ## State File Access
 
-Use MCP state tools (`get_session_status`, `update_session`,
-`transition_phase`, `archive_session`) for execution state operations. They
-provide structured I/O and atomic transitions. If the required MCP state tool is
+State operations during execution follow `session-management`'s State Access Protocol (`get_session_status`, `update_session`, `transition_phase`, `archive_session`). If the required MCP state tool is
 unavailable, stop and report that the runtime state surface is unavailable; do
 not fall back to direct file reads, direct writes, or shell helper scripts.
 
@@ -116,7 +114,7 @@ Hooks fire automatically at agent boundaries. The orchestrator does not invoke t
 
 The hooks system tracks which agent is currently executing. Before each agent dispatch, a hook resolves the active agent identity from the required `Agent:` header and injects compact session context. After completion, a hook validates that the response contains both `Task Report` and `Downstream Context`; it requests one retry on the first malformed response.
 
-The hook state directory under `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` is transient and separate from orchestration state.
+See `session-management`'s Hook-Level Session State section for the hook state directory layout and its lifecycle relative to orchestration state.
 
 ## Sequential Execution Protocol
 

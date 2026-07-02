@@ -13,19 +13,7 @@ Activate this skill during Phase 2 of Maestro orchestration, after the design do
 
 Do not generate an implementation plan from guesses about the repository.
 
-Use the built-in `codebase_investigator` before phase decomposition when:
-- The task modifies an existing codebase
-- File ownership, integration points, or validation commands are still unclear after reading the approved design
-- Parallelization decisions depend on understanding current module boundaries or likely file overlap
-
-Ask the investigator for:
-- The modules and files most likely to change
-- Existing architectural boundaries and conventions the plan must preserve
-- Integration seams, dependencies, and shared ownership hotspots
-- Validation commands and test entry points already used by the project
-- Parallelization or conflict risks that should prevent batching
-
-Skip the investigator only for greenfield tasks, documentation-only work, or plans where the current turn already established the relevant repo structure from direct reads.
+Load the `codebase-grounding` reference via `get_skill_content` before phase decomposition. It defines when to delegate to `codebase_investigator` and when to skip.
 
 Reuse investigator findings directly in the implementation plan:
 - File inventories should reflect real candidate paths, not placeholders
@@ -265,24 +253,7 @@ Use the `implementation-plan` template loaded via `get_skill_content`.
 
 ### Required Sections
 
-1. **Plan Overview**: Summary of total phases, agents involved, estimated effort
-2. **Dependency Graph**: Visual representation showing phase dependencies and parallel opportunities
-3. **Execution Strategy Table**: Stage-by-stage breakdown with agent assignments and execution mode
-4. **Phase Details**: Full specification for each phase (objective, agent, files, details, validation, dependencies)
-5. **File Inventory**: Complete table mapping every file to its phase and purpose
-6. **Risk Classification**: Per-phase risk assessment (LOW/MEDIUM/HIGH) with rationale
-7. **Execution Profile**: Summary of parallel vs sequential characteristics to inform mode selection:
-   ```
-   Execution Profile:
-   - Total phases: [N]
-   - Parallelizable phases: [M] (in [B] batches)
-   - Sequential-only phases: [S]
-   - Estimated parallel wall time: [time estimate based on batch execution]
-   - Estimated sequential wall time: [time estimate based on serial execution]
-
-   Note: Native parallel execution currently runs agents in autonomous mode.
-   All tool calls are auto-approved without user confirmation.
-   ```
+The plan document must follow the `implementation-plan` template's sections exactly — no ad hoc reordering or omission.
 
 ### Completion Criteria
 The implementation plan is complete when:

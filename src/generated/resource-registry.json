@@ -12,5 +12,6 @@
   "implementation-plan": "templates/implementation-plan.md",
   "session-state": "templates/session-state.md",
   "architecture": "references/architecture.md",
+  "codebase-grounding": "references/codebase-grounding.md",
   "orchestration-steps": "references/orchestration-steps.md"
 }

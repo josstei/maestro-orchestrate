@@ -31,22 +31,7 @@ Before asking any design questions, present the user with a depth selector to co
 
 ## Repository Grounding Protocol
 
-Before you start narrowing the architecture for work that touches an existing codebase, decide whether the task is already grounded.
-
-Use the built-in `codebase_investigator` when any of the following are true:
-- The request targets an existing project or subsystem
-- The current architecture, impacted modules, or integration seams are unclear
-- You need concrete validation commands, conventions, or ownership boundaries before presenting approaches
-
-Ask the investigator for:
-- The current architecture slice relevant to the task
-- The most likely impacted modules and files
-- Existing naming, layering, and testing conventions to preserve
-- Integration points and dependency edges the design must respect
-- Validation commands already used by the repo
-- Parallelization or file-conflict risks that should shape the later implementation plan
-
-Skip `codebase_investigator` for greenfield tasks, documentation-only work, or scopes that are already well understood from direct file reads in the current turn.
+Load the `codebase-grounding` reference via `get_skill_content` before the first design question. It defines when to delegate to `codebase_investigator` and when to skip.
 
 Use the investigator's output to:
 - Tailor follow-up questions to the actual codebase

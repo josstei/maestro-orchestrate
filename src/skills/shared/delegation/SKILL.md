@@ -249,7 +249,7 @@ Runtime adapters may map a first-class subagent identity field into that header
 before invoking shared hook logic. Environment variables, `@agent` mentions, and
 natural-language phrases are not identity signals.
 
-The detected agent name is persisted to `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/active-agent` and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
+The detected agent name is persisted to the hook-state `active-agent` file (see `session-management`'s Hook-Level Session State section for the directory layout) and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
 
 ### Session Context Injection
 

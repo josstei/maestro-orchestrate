@@ -19,23 +19,7 @@ Agent names use the format specified by the runtime's Agent Naming Convention se
 
 ## State Contract
 
-Maestro maintains session state under `docs/maestro` in the workspace root
-(or the configured `MAESTRO_STATE_DIR`):
-
-- **Active session**: `docs/maestro/state/active-session.md`
-- **Plans**: `docs/maestro/plans/`
-- **Archives**: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
-
-State access is mediated by MCP state tools:
-
-- `initialize_workspace` — create workspace state directories and marker
-- `get_session_status` — read active session status
-- `create_session`, `update_session`, `transition_phase` — mutate session state
-- `archive_session` — archive completed or abandoned sessions
-- `resolve_settings` — resolve Maestro settings with documented precedence
-
-The on-disk paths are an implementation detail of the MCP server, not a public
-shell or direct-file contract.
+See the `session-management` skill (load via `get_skill_content`) for the full state-access protocol, session paths, and lifecycle. State is mediated exclusively through MCP state tools — never direct file or shell access.
 
 ## Session Management
 
@@ -52,20 +36,8 @@ Session lifecycle: create -> active -> (resume if interrupted) -> archive on com
 
 ## Execution Modes
 
-- **parallel**: Dispatch multiple child agents for phases at the same dependency depth with non-overlapping file ownership
-- **sequential**: Dispatch one child agent at a time in dependency order
-- **ask**: Prompt the user for mode selection after plan approval (default)
-
-The execution mode gate must resolve before any implementation delegation begins.
+See the `execution` skill's Execution Mode Gate (load via `get_skill_content`) for the parallel/sequential/ask modes and the gate that must resolve before any implementation delegation begins.
 
 ## Delegation Contract
 
-Every delegated agent query must include the header:
-- `Agent: <agent_name>`
-- `Phase: <id>/<total>`
-- `Batch: <batch_id|single>`
-- `Session: <session_id>`
-
-Every agent must conclude with:
-- `## Task Report` — what was done, files changed, tests run
-- `## Downstream Context` — information needed by subsequent phases
+See the `delegation` skill's Agent Tool Dispatch Contract (load via `get_skill_content`) for the required `Agent`/`Phase`/`Batch`/`Session` header, and `agent-base-protocol`'s Output Handoff Contract for the required `## Task Report` / `## Downstream Context` conclusion.

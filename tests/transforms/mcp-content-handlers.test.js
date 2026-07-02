@@ -105,7 +105,7 @@ describe('get_skill_content handler', () => {
     const content = result.contents.architecture;
 
     assert.deepEqual(result.errors, {});
-    assert.ok(content.includes('State access is mediated by MCP state tools'));
+    assert.ok(content.includes('State is mediated exclusively through MCP state tools'));
     assert.ok(!content.includes(REMOVED_SESSION_READER_PATH));
     assert.ok(!content.includes('${CLAUDE_PLUGIN_ROOT}/../' + ['src', 'scripts'].join('/')));
   });

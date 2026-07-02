@@ -25,9 +25,9 @@ describe('DEFAULT_RUNTIME_NAME', () => {
 });
 
 describe('RESOURCE_ALLOWLIST', () => {
-  it('is frozen with 14 entries', () => {
+  it('is frozen with 15 entries', () => {
     assert.equal(Object.isFrozen(RESOURCE_ALLOWLIST), true);
-    assert.equal(Object.keys(RESOURCE_ALLOWLIST).length, 14);
+    assert.equal(Object.keys(RESOURCE_ALLOWLIST).length, 15);
   });
 });
 
