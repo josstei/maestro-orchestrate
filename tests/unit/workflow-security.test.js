@@ -58,12 +58,14 @@ function collectRunBlocks(content) {
 
 describe('workflow shell security', () => {
   it('does not interpolate GitHub expressions directly inside run blocks', () => {
+    let totalRunBlocks = 0;
+
     for (const fileName of WORKFLOW_FILES) {
       const filePath = path.join(WORKFLOWS_DIR, fileName);
       const content = fs.readFileSync(filePath, 'utf8');
       const runBlocks = collectRunBlocks(content);
+      totalRunBlocks += runBlocks.length;
 
-      assert.ok(runBlocks.length > 0, `${fileName} should contain at least one run block`);
       for (const block of runBlocks) {
         assert.doesNotMatch(
           block,
@@ -72,6 +74,8 @@ describe('workflow shell security', () => {
         );
       }
     }
+
+    assert.ok(totalRunBlocks > 0, 'workflow files should contain at least one run block overall');
   });
 
   it('publishing workflows use the idempotent npm publish helper', () => {
@@ -109,39 +113,66 @@ describe('workflow shell security', () => {
     assert.match(content, /Tag \$TAG exists at \$TAG_SHA, not target commit \$TARGET_SHA/);
   });
 
-  it('prerelease workflows regenerate metadata and verify pack after npm versioning', () => {
+  it('the reusable prerelease-publish workflow regenerates metadata and verifies pack after npm versioning', () => {
+    const content = readWorkflow('prerelease-publish.yml');
+    const versionIndex = content.indexOf('eval "$VERSION_COMMAND"');
+    const generateIndex = content.indexOf('run: npm run generate', versionIndex);
+    const verifyIndex = content.indexOf('run: npm run pack:verify', generateIndex);
+    const publishIndex = content.indexOf(
+      'node scripts/npm-publish-idempotent.js --tag "$DIST_TAG" --access public',
+      verifyIndex
+    );
+
+    assert.notEqual(versionIndex, -1, 'prerelease-publish.yml should evaluate the caller-supplied version command');
+    assert.notEqual(generateIndex, -1, 'prerelease-publish.yml should regenerate after setting the version');
+    assert.notEqual(verifyIndex, -1, 'prerelease-publish.yml should verify npm pack after regenerating');
+    assert.notEqual(publishIndex, -1, 'prerelease-publish.yml should publish through the helper after verification');
+    assert.doesNotMatch(
+      content,
+      /npm-publish-idempotent\.js(?:[^\n]*\s)?--tag latest/,
+      'prerelease-publish.yml must not publish prereleases with the latest dist-tag'
+    );
+  });
+
+  it('nightly/preview/rc callers delegate to the reusable prerelease-publish workflow with the correct dist-tag', () => {
     const expectations = [
       {
         fileName: 'nightly.yml',
+        distTag: 'nightly',
         versionCommand: 'npm version "$NIGHTLY" --no-git-tag-version',
-        publishCommand: 'node scripts/npm-publish-idempotent.js --tag nightly --access public',
       },
       {
         fileName: 'preview.yml',
+        distTag: 'preview',
         versionCommand: 'npm version "$PREVIEW" --no-git-tag-version',
-        publishCommand: 'node scripts/npm-publish-idempotent.js --tag preview --access public',
       },
       {
         fileName: 'rc.yml',
+        distTag: 'rc',
         versionCommand: 'npm version "$RC_VERSION" --no-git-tag-version',
-        publishCommand: 'node scripts/npm-publish-idempotent.js --tag rc --access public',
       },
     ];
 
-    for (const { fileName, versionCommand, publishCommand } of expectations) {
+    for (const { fileName, distTag, versionCommand } of expectations) {
       const content = readWorkflow(fileName);
-      const versionIndex = content.indexOf(versionCommand);
-      const generateIndex = content.indexOf('run: npm run generate', versionIndex);
-      const verifyIndex = content.indexOf('run: npm run pack:verify', generateIndex);
-      const publishIndex = content.indexOf(publishCommand, verifyIndex);
 
-      assert.notEqual(versionIndex, -1, `${fileName} should compute a prerelease npm version`);
-      assert.notEqual(generateIndex, -1, `${fileName} should regenerate after npm version`);
-      assert.notEqual(verifyIndex, -1, `${fileName} should verify npm pack after regenerating`);
-      assert.notEqual(publishIndex, -1, `${fileName} should publish through the helper after verification`);
+      assert.match(
+        content,
+        /uses: \.\/\.github\/workflows\/prerelease-publish\.yml/,
+        `${fileName} should call the reusable prerelease-publish workflow`
+      );
+      assert.match(
+        content,
+        new RegExp(`dist-tag: ${distTag}\\b`),
+        `${fileName} should pass the ${distTag} dist-tag`
+      );
+      assert.ok(
+        content.includes(versionCommand),
+        `${fileName} should compute its prerelease version`
+      );
       assert.doesNotMatch(
         content,
-        /npm-publish-idempotent\.js(?:[^\n]*\s)?--tag latest/,
+        /dist-tag:\s*latest\b/,
         `${fileName} must not publish prereleases with the latest dist-tag`
       );
     }

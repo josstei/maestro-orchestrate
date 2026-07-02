@@ -1,0 +1,122 @@
+name: Prerelease Publish
+
+on:
+  workflow_call:
+    inputs:
+      dist-tag:
+        description: npm dist-tag to publish under (nightly, preview, rc)
+        required: true
+        type: string
+      version-command:
+        description: Shell command that computes and applies the prerelease version
+        required: true
+        type: string
+      checkout-ref:
+        description: Git ref to checkout before publishing; also exposed to steps as HEAD_SHA
+        required: true
+        type: string
+      checkout-repository:
+        description: Repository to checkout from; defaults to the calling repository
+        required: false
+        type: string
+        default: ''
+      comment-header:
+        description: PR comment marker; empty disables the PR comment step
+        required: false
+        type: string
+        default: ''
+      comment-short-sha:
+        description: Truncate HEAD_SHA to 7 characters in the PR comment
+        required: false
+        type: boolean
+        default: false
+      pr-number:
+        description: Pull request number for the PR comment step
+        required: false
+        type: string
+        default: ''
+    secrets:
+      NPM_TOKEN:
+        required: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      HEAD_SHA: ${{ inputs.checkout-ref }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ inputs.checkout-repository != '' && inputs.checkout-repository || github.repository }}
+          ref: ${{ inputs.checkout-ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Run source check
+        run: npm run check:source
+
+      - name: Determine publish eligibility
+        id: publish_gate
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set version
+        if: steps.publish_gate.outputs.enabled == 'true'
+        env:
+          VERSION_COMMAND: ${{ inputs.version-command }}
+        run: |
+          eval "$VERSION_COMMAND"
+
+      - name: Regenerate runtime metadata
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: npm run generate
+
+      - name: Verify npm package contents
+        if: steps.publish_gate.outputs.enabled == 'true'
+        run: npm run pack:verify
+
+      - name: Publish
+        if: steps.publish_gate.outputs.enabled == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+          DIST_TAG: ${{ inputs.dist-tag }}
+        run: node scripts/npm-publish-idempotent.js --tag "$DIST_TAG" --access public
+
+      - name: Upsert PR comment
+        if: inputs.comment-header != '' && steps.publish_gate.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr-number }}
+          COMMENT_HEADER: ${{ inputs.comment-header }}
+          COMMENT_SHORT_SHA: ${{ inputs.comment-short-sha }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          SHA="$HEAD_SHA"
+          if [ "$COMMENT_SHORT_SHA" = "true" ]; then
+            SHA=$(echo "$SHA" | cut -c1-7)
+          fi
+          BODY="${COMMENT_HEADER}: \`npm install @josstei/maestro@${VERSION}\`
+
+          Built from \`${SHA}\`"
+
+          EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq "map(select(.body | startswith(\"${COMMENT_HEADER}:\"))) | .[0].id")
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
+              -X PATCH \
+              -f body="$BODY"
+          else
+            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+              -X POST \
+              -f body="$BODY"
+          fi

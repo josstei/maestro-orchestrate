@@ -11,82 +11,19 @@ permissions:
 jobs:
   preview:
     if: contains(github.event.pull_request.labels.*.name, 'preview')
-    runs-on: ubuntu-latest
     concurrency:
       group: preview-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Run source check
-        run: npm run check:source
-
-      - name: Determine publish eligibility
-        id: publish_gate
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set preview version
-        if: steps.publish_gate.outputs.enabled == 'true'
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          BASE=$(node -p "require('./package.json').version")
-          SHORT_SHA=$(printf '%s' "$HEAD_SHA" | cut -c1-7)
-          PREVIEW="${BASE}-preview.${SHORT_SHA}"
-          npm version "$PREVIEW" --no-git-tag-version
-
-      - name: Regenerate runtime metadata
-        if: steps.publish_gate.outputs.enabled == 'true'
-        run: npm run generate
-
-      - name: Verify npm package contents
-        if: steps.publish_gate.outputs.enabled == 'true'
-        run: npm run pack:verify
-
-      - name: Publish preview
-        if: steps.publish_gate.outputs.enabled == 'true'
-        run: node scripts/npm-publish-idempotent.js --tag preview --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
-      - name: Upsert PR comment
-        if: steps.publish_gate.outputs.enabled == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          SHA="$HEAD_SHA"
-          BODY="Preview published: \`npm install @josstei/maestro@${VERSION}\`
-
-          Built from \`${SHA}\`"
-
-          EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq 'map(select(.body | startswith("Preview published:"))) | .[0].id')
-
-          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
-              -X PATCH \
-              -f body="$BODY"
-          else
-            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
-              -X POST \
-              -f body="$BODY"
-          fi
+    uses: ./.github/workflows/prerelease-publish.yml
+    with:
+      dist-tag: preview
+      checkout-repository: ${{ github.event.pull_request.head.repo.full_name }}
+      checkout-ref: ${{ github.event.pull_request.head.sha }}
+      comment-header: 'Preview published'
+      pr-number: ${{ github.event.pull_request.number }}
+      version-command: |
+        BASE=$(node -p "require('./package.json').version")
+        SHORT_SHA=$(printf '%s' "$HEAD_SHA" | cut -c1-7)
+        PREVIEW="${BASE}-preview.${SHORT_SHA}"
+        npm version "$PREVIEW" --no-git-tag-version
+    secrets: inherit
