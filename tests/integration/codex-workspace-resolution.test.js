@@ -6,13 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
+const { buildMcpServer } = require('../support/mcp');
 
 describe('codex workspace resolution contract', () => {
   it('rejects initialize_workspace with a path inside a plugin cache', async () => {
@@ -20,11 +14,7 @@ describe('codex workspace resolution contract', () => {
     const cache = path.join(cacheParent, '.codex', 'plugins', 'maestro');
     fs.mkdirSync(cache, { recursive: true });
 
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createWorkspacePack, createSessionPack],
-    });
+    const server = buildMcpServer({ runtime: 'codex' });
 
     const outcome = await server.callTool(
       'initialize_workspace',
@@ -36,11 +26,7 @@ describe('codex workspace resolution contract', () => {
   });
 
   it('rejects initialize_workspace with a missing workspace_path', async () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createWorkspacePack, createSessionPack],
-    });
+    const server = buildMcpServer({ runtime: 'codex' });
 
     const outcome = await server.callTool(
       'initialize_workspace',
@@ -54,11 +40,7 @@ describe('codex workspace resolution contract', () => {
   it('accepts initialize_workspace with a plain workspace and writes a marker', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-ws-'));
 
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createWorkspacePack, createSessionPack],
-    });
+    const server = buildMcpServer({ runtime: 'codex' });
 
     const outcome = await server.callTool(
       'initialize_workspace',

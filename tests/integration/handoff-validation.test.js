@@ -2,46 +2,25 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-
-function createServerForWorkspace() {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createWorkspacePack, createSessionPack],
-  });
-}
+  createInitializedMcpWorkspace,
+  phaseFixture,
+  readSessionFrontmatter,
+} = require('../support/mcp');
 
 async function prepareSession(phaseId = 1) {
-  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hv-'));
-  const server = createServerForWorkspace();
-  await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+  const { server, workspace } = await createInitializedMcpWorkspace({
+    runtime: 'codex',
+    prefix: 'maestro-hv-',
+  });
   await server.callTool(
     'create_session',
     {
       session_id: 'hv-1',
       task: 'handoff',
       task_complexity: 'simple',
-      phases: [
-        {
-          id: phaseId,
-          name: 'P1',
-          agent: 'coder',
-          parallel: false,
-          blocked_by: [],
-          files: ['x'],
-        },
-      ],
+      phases: [phaseFixture({ id: phaseId, name: 'P1', files: ['x'] })],
     },
     workspace
   );
@@ -106,11 +85,7 @@ describe('handoff validation', () => {
       `string-valued downstream_context should be accepted: ${stringForm.error || ''}`
     );
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readSessionFrontmatter(workspace);
     const phase = state.phases.find((candidate) => candidate.id === 1);
 
     assert.deepEqual(phase.downstream_context.integration_points, [
