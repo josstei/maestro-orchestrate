@@ -12,4 +12,14 @@ module.exports = buildGeminiFamilyConfig({
     write_todos: 'todo_write',
     activate_skill: 'skill',
   },
+  hooks: {
+    events: {
+      'session-start': 'SessionStart',
+      'before-agent': 'SubagentStart',
+      'after-agent': 'SubagentStop',
+      'session-end': 'SessionEnd',
+    },
+    nameSuffix: '-qwen',
+    descriptionSuffix: ' (Qwen Code)',
+  },
 });

@@ -28,6 +28,7 @@ describe('generated surface inventory', () => {
 
     assert.deepEqual(producerIds, [
       'entry-point-expander-outputs',
+      'hook-config-outputs',
       'manifest-transform-outputs',
       'owned-directory-pruning',
       'package-and-release-allowlists',

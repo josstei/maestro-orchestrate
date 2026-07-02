@@ -108,6 +108,16 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     notes: 'Gemini policy pack generated from the canonical policy rules.',
   },
   {
+    id: 'hook-config-outputs',
+    producer: 'src/generator/hook-config-emitter.js',
+    writeMode: 'generate and prepack',
+    sourceInputs: ['src/platforms/gemini/runtime-config.js', 'src/platforms/qwen/runtime-config.js'],
+    outputs: ['hooks/hooks.json', 'qwen/hooks.json', 'claude/hooks/claude-hooks.json'],
+    tracked: true,
+    packaged: true,
+    notes: 'Runtime hook configs generated from gemini-family hook metadata; the Claude config is a structurally distinct build.',
+  },
+  {
     id: 'owned-directory-pruning',
     producer: 'src/generator/stale-pruner.js',
     writeMode: 'generate and prepack only, skipped in --dry-run and --diff',

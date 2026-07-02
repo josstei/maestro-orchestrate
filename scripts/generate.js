@@ -13,6 +13,7 @@ const { collectManifestPaths } = require('../src/generator/manifest-curator');
 const { OWNED_GENERATED_DIRS } = require('../src/generator/generated-surface-inventory');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { buildPolicyTomlOutputs } = require('../src/generator/policy-toml-emitter');
+const { buildHookConfigOutputs } = require('../src/generator/hook-config-emitter');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -104,6 +105,7 @@ async function main() {
   processEntryPoints(runtimes, session);
   session.writeAll(buildPlatformMetadataOutputs(runtimes, packageMetadata));
   session.writeAll(buildPolicyTomlOutputs());
+  session.writeAll(buildHookConfigOutputs(runtimes));
 
   const stats = session.getStats();
 
