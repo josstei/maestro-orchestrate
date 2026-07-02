@@ -1,9 +1,8 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -15,12 +14,19 @@ const {
 } = require('../../src/lib/discovery');
 
 const { parse } = require('../../src/lib/frontmatter');
+const {
+  makeTempSrcRoot,
+  cleanupTempRoots,
+  writeFileUnder,
+} = require('../support/content');
 
 const WORKTREE_ROOT = path.resolve(__dirname, '..', '..');
 const SRC_DIR = path.join(WORKTREE_ROOT, 'src');
 
+after(cleanupTempRoots);
+
 function createTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-discovery-'));
+  return makeTempSrcRoot('maestro-discovery-');
 }
 
 function removeTempRoot(dir) {
@@ -28,10 +34,7 @@ function removeTempRoot(dir) {
 }
 
 function writeFile(base, relativePath, content) {
-  const full = path.join(base, relativePath);
-  fs.mkdirSync(path.dirname(full), { recursive: true });
-  fs.writeFileSync(full, content, 'utf8');
-  return full;
+  return writeFileUnder(base, relativePath, content);
 }
 
 // ---------------------------------------------------------------------------

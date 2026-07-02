@@ -1,14 +1,16 @@
-const { describe, it } = require('node:test');
+const { describe, it, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const { ROOT, createTempRepoCopy, withPackagedClaudeRuntime } = require('./helpers');
+const { makeTempSrcRoot, cleanupTempRoots } = require('../support/content');
 
 const CODEX_BIN = path.join(ROOT, 'bin', 'maestro-mcp-server.js');
 const { spawnMcpServer } = require('./mcp-stdio-client');
+
+after(cleanupTempRoots);
 
 async function withServer(options, fn) {
   const client = spawnMcpServer(options);
@@ -339,8 +341,8 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('uses MCP client roots for Codex session state when launched from a cwd outside the workspace', async () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-workspace-'));
-    const spawnCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-spawn-'));
+    const workspaceRoot = makeTempSrcRoot('maestro-codex-workspace-');
+    const spawnCwd = makeTempSrcRoot('maestro-codex-spawn-');
 
     try {
       {

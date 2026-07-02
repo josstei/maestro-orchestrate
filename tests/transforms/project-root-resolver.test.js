@@ -1,7 +1,6 @@
-const { describe, it } = require('node:test');
+const { describe, it, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -10,6 +9,9 @@ const {
   resolveProjectRootForRuntime,
 } = require('../../src/core/project-root-resolver');
 const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
+const { makeTempSrcRoot, cleanupTempRoots } = require('../support/content');
+
+after(cleanupTempRoots);
 
 function withEnv(overrides, fn) {
   const previous = {
@@ -44,8 +46,8 @@ function withEnv(overrides, fn) {
 
 describe('project root resolver', () => {
   it('prefers an explicit workspace path over inherited cwd-like env vars', () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-workspace-'));
-    const inheritedPwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-pwd-'));
+    const workspaceRoot = makeTempSrcRoot('maestro-workspace-');
+    const inheritedPwd = makeTempSrcRoot('maestro-pwd-');
 
     const result = withEnv(
       {
@@ -61,7 +63,7 @@ describe('project root resolver', () => {
   });
 
   it('falls back to inherited PWD when MCP roots are unavailable', () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-pwd-root-'));
+    const workspaceRoot = makeTempSrcRoot('maestro-pwd-root-');
 
     const result = withEnv(
       {
@@ -77,9 +79,9 @@ describe('project root resolver', () => {
   });
 
   it('prefers a runtime-specific explicit workspace env over client roots and inherited cwd', () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-runtime-root-'));
-    const clientRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-client-root-'));
-    const inheritedPwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-runtime-pwd-'));
+    const workspaceRoot = makeTempSrcRoot('maestro-runtime-root-');
+    const clientRoot = makeTempSrcRoot('maestro-client-root-');
+    const inheritedPwd = makeTempSrcRoot('maestro-runtime-pwd-');
 
     const result = withEnv(
       {
@@ -107,8 +109,8 @@ describe('project root resolver', () => {
   });
 
   it('uses client roots when the runtime does not expose an explicit workspace env', () => {
-    const clientRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-root-'));
-    const inheritedPwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-pwd-'));
+    const clientRoot = makeTempSrcRoot('maestro-codex-root-');
+    const inheritedPwd = makeTempSrcRoot('maestro-codex-pwd-');
 
     const result = withEnv(
       {
@@ -136,9 +138,9 @@ describe('project root resolver', () => {
   });
 
   it('preserves Claude workspace precedence over client roots', () => {
-    const claudeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-root-'));
-    const clientRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-client-'));
-    const inheritedPwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-pwd-'));
+    const claudeRoot = makeTempSrcRoot('maestro-claude-root-');
+    const clientRoot = makeTempSrcRoot('maestro-claude-client-');
+    const inheritedPwd = makeTempSrcRoot('maestro-claude-pwd-');
 
     const result = withEnv(
       {
@@ -171,7 +173,7 @@ describe('project root resolver', () => {
   } = require('../../src/core/project-root-resolver');
 
   it('requireExplicitWorkspaceRoot returns the explicit path when it exists', () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-explicit-'));
+    const workspaceRoot = makeTempSrcRoot('maestro-explicit-');
     const result = requireExplicitWorkspaceRoot({ workspacePath: workspaceRoot });
     assert.equal(result, workspaceRoot);
   });
@@ -191,7 +193,7 @@ describe('project root resolver', () => {
   });
 
   it('requireExplicitWorkspaceRoot throws when the path is inside an extension cache', () => {
-    const cachePath = fs.mkdtempSync(path.join(os.tmpdir(), '.codex-plugins-cache-'));
+    const cachePath = makeTempSrcRoot('.codex-plugins-cache-');
     const nested = path.join(
       path.dirname(cachePath),
       '.codex',
@@ -206,7 +208,7 @@ describe('project root resolver', () => {
   });
 
   it('workspaceSuggestion does not fall back to cwd', () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cwd-suggestion-'));
+    const cwd = makeTempSrcRoot('maestro-cwd-suggestion-');
     const cache = createProjectRootCache({
       runtimeConfig: {
         env: {

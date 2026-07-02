@@ -1,51 +1,31 @@
-const { describe, it } = require('node:test');
+const { describe, it, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createContentProvider } = require('../../src/mcp/content/provider');
-const { RESOURCE_ALLOWLIST } = require('../../src/mcp/content/runtime-content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const {
+  makeTempSrcRoot,
+  cleanupTempRoots,
+  writeAgent: writeFilesystemAgentAt,
+  writeResource: writeFilesystemResourceAt,
+  withExtensionRoot,
+} = require('../support/content');
 
-function withExtensionRoot(root, fn) {
-  const previous = process.env.MAESTRO_EXTENSION_PATH;
-  process.env.MAESTRO_EXTENSION_PATH = root;
-  try {
-    return fn();
-  } finally {
-    if (previous == null) {
-      delete process.env.MAESTRO_EXTENSION_PATH;
-    } else {
-      process.env.MAESTRO_EXTENSION_PATH = previous;
-    }
-  }
-}
+after(cleanupTempRoots);
 
 function writeFilesystemResource(root, id, content) {
-  const relativePath = RESOURCE_ALLOWLIST[id];
-  writeFilesystemResourceAt(path.join(root, 'src'), id, content);
-}
-
-function writeFilesystemResourceAt(srcRoot, id, content) {
-  const relativePath = RESOURCE_ALLOWLIST[id];
-  fs.mkdirSync(path.join(srcRoot, path.dirname(relativePath)), { recursive: true });
-  fs.writeFileSync(path.join(srcRoot, relativePath), content, 'utf8');
+  return writeFilesystemResourceAt(path.join(root, 'src'), id, content);
 }
 
 function writeFilesystemAgent(root, agentName, content) {
-  writeFilesystemAgentAt(path.join(root, 'src'), agentName, content);
-}
-
-function writeFilesystemAgentAt(srcRoot, agentName, content) {
-  const agentPath = path.join(srcRoot, 'agents', `${agentName}.md`);
-  fs.mkdirSync(path.dirname(agentPath), { recursive: true });
-  fs.writeFileSync(agentPath, content, 'utf8');
+  return writeFilesystemAgentAt(path.join(root, 'src'), agentName, content);
 }
 
 describe('content provider runtime policy', () => {
   it('reads filesystem-backed canonical content for claude', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-claude-'));
+    const root = makeTempSrcRoot('maestro-provider-claude-');
 
     writeFilesystemResource(
       root,
@@ -62,7 +42,7 @@ describe('content provider runtime policy', () => {
   });
 
   it('does not fall back from a missing Claude content root to sibling source content', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-claude-no-fallback-'));
+    const root = makeTempSrcRoot('maestro-provider-claude-no-fallback-');
     const retiredClaudeSrc = path.join(root, 'claude', 'src');
 
     writeFilesystemResource(root, 'delegation', 'Package-root source content.\n');
@@ -85,7 +65,7 @@ describe('content provider runtime policy', () => {
   });
 
   it('createContentProvider always returns the filesystem provider', () => {
-    const srcRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-filesystem-only-'));
+    const srcRoot = makeTempSrcRoot('maestro-provider-filesystem-only-');
     const provider = createContentProvider({ name: 'gemini' }, srcRoot);
     assert.equal(provider.name, 'filesystem');
     assert.equal(provider.srcRoot, path.resolve(srcRoot));
@@ -98,7 +78,7 @@ describe('content provider runtime policy', () => {
   });
 
   it('does not fall back when Claude package-root content is unreadable', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-claude-corrupt-'));
+    const root = makeTempSrcRoot('maestro-provider-claude-corrupt-');
     const sourceRoot = path.join(root, 'src');
     const detachedSkillPath = path.join(
       sourceRoot,
@@ -125,7 +105,7 @@ describe('content provider runtime policy', () => {
   });
 
   it('reads filesystem-backed canonical agent and resource content for codex', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-codex-'));
+    const root = makeTempSrcRoot('maestro-provider-codex-');
 
     writeFilesystemResource(root, 'delegation', 'Filesystem content.\n');
     writeFilesystemAgent(
@@ -147,7 +127,7 @@ describe('content provider runtime policy', () => {
   });
 
   it('returns filesystem read errors when codex exhausts its configured content sources', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-empty-'));
+    const root = makeTempSrcRoot('maestro-provider-empty-');
     const { resourceResult, agentResult } = withExtensionRoot(root, () => {
       const provider = createContentProvider(getRuntimeConfig('codex'), path.join(root, 'src'));
       return {

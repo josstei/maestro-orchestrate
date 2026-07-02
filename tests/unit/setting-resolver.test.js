@@ -3,10 +3,10 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { resolveSetting } = require('../../src/config/setting-resolver');
+const { makeTempSrcRoot, cleanupTempRoots } = require('../support/content');
 
 function withEnv(overrides, fn) {
   const previous = {};
@@ -39,16 +39,14 @@ describe('resolveSetting', () => {
   let extensionDir;
 
   before(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'setting-resolver-'));
+    tmpDir = makeTempSrcRoot('setting-resolver-');
     projectDir = path.join(tmpDir, 'project');
     extensionDir = path.join(tmpDir, 'extension');
     fs.mkdirSync(projectDir);
     fs.mkdirSync(extensionDir);
   });
 
-  after(() => {
-    fs.rmSync(tmpDir, { recursive: true });
-  });
+  after(cleanupTempRoots);
 
   function writeProjectEnv(content) {
     fs.writeFileSync(path.join(projectDir, '.env'), content, 'utf8');

@@ -9,23 +9,9 @@ const {
   createContentPack,
   makeTempWorkspace,
 } = require('../support/mcp');
+const { withExtensionRoot } = require('../support/content');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-
-function withExtensionRoot(root, fn) {
-  const previous = process.env.MAESTRO_EXTENSION_PATH;
-  process.env.MAESTRO_EXTENSION_PATH = root;
-
-  try {
-    return fn();
-  } finally {
-    if (previous == null) {
-      delete process.env.MAESTRO_EXTENSION_PATH;
-    } else {
-      process.env.MAESTRO_EXTENSION_PATH = previous;
-    }
-  }
-}
 
 describe('content tool pack', () => {
   it('registers the content and runtime metadata tools', () => {
