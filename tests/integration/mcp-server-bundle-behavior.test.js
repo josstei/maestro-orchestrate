@@ -23,6 +23,17 @@ async function withServer(options, fn) {
   }
 }
 
+const RUNTIME_BUNDLES = [
+  { cwd: ROOT, relativePath: 'mcp/maestro-server.js', env: { MAESTRO_EXTENSION_PATH: '' } },
+  {
+    cwd: ROOT,
+    relativePath: 'mcp/maestro-server.js',
+    env: { MAESTRO_EXTENSION_PATH: '', MAESTRO_RUNTIME: 'qwen' },
+  },
+  { cwd: ROOT, relativePath: 'claude/mcp/maestro-server.js', env: { MAESTRO_EXTENSION_PATH: '' } },
+  { cwd: ROOT, relativePath: CODEX_BIN, env: { MAESTRO_EXTENSION_PATH: '' } },
+];
+
 describe('mcp server bundle behavior', () => {
   it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
     await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
@@ -39,16 +50,7 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('serves updated get_skill_content metadata from every runtime bundle', async () => {
-    const staticRuntimes = [
-      { cwd: ROOT, relativePath: 'mcp/maestro-server.js', env: { MAESTRO_EXTENSION_PATH: '' } },
-      {
-        cwd: ROOT,
-        relativePath: 'mcp/maestro-server.js',
-        env: { MAESTRO_EXTENSION_PATH: '', MAESTRO_RUNTIME: 'qwen' },
-      },
-      { cwd: ROOT, relativePath: 'claude/mcp/maestro-server.js', env: { MAESTRO_EXTENSION_PATH: '' } },
-      { cwd: ROOT, relativePath: CODEX_BIN, env: { MAESTRO_EXTENSION_PATH: '' } },
-    ];
+    const staticRuntimes = RUNTIME_BUNDLES;
 
     for (const runtime of staticRuntimes) {
       await withServer(runtime, async (client) => {
@@ -85,17 +87,9 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('serves canonical src content from every runtime bundle', async () => {
-    const staticRuntimes = [
+    const canonicalContentOverrides = [
+      { expectSkill: '# Delegation Skill' },
       {
-        cwd: ROOT,
-        relativePath: 'mcp/maestro-server.js',
-        env: { MAESTRO_EXTENSION_PATH: '' },
-        expectSkill: '# Delegation Skill',
-      },
-      {
-        cwd: ROOT,
-        relativePath: 'mcp/maestro-server.js',
-        env: { MAESTRO_EXTENSION_PATH: '', MAESTRO_RUNTIME: 'qwen' },
         expectSkill: '# Delegation Skill',
         verifyAgent(agentResult) {
           const qwenAgent = agentResult.parsed.agents.ux_designer;
@@ -106,19 +100,13 @@ describe('mcp server bundle behavior', () => {
           assert.ok(qwenAgent.tools.includes('ask_user_question'));
         },
       },
-      {
-        cwd: ROOT,
-        relativePath: 'claude/mcp/maestro-server.js',
-        env: { MAESTRO_EXTENSION_PATH: '' },
-        expectSkill: 'user-invocable: false',
-      },
-      {
-        cwd: ROOT,
-        relativePath: CODEX_BIN,
-        env: { MAESTRO_EXTENSION_PATH: '' },
-        expectSkill: '# Delegation Skill',
-      },
+      { expectSkill: 'user-invocable: false' },
+      { expectSkill: '# Delegation Skill' },
     ];
+    const staticRuntimes = RUNTIME_BUNDLES.map((runtime, index) => ({
+      ...runtime,
+      ...canonicalContentOverrides[index],
+    }));
 
     for (const runtime of staticRuntimes) {
       await withServer(runtime, async (client) => {
