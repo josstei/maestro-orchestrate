@@ -111,7 +111,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 12 handler implementations
+├── handlers/                   # 13 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -123,12 +123,13 @@ src/mcp/
 │   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   ├── reconciliation.js       # Phase reconciliation (2 tools)
+│   ├── archive-index.js        # Archive index/search + cost insights (3 tools)
 │   └── blocker-parser.js       # Child-agent blocker surfacing
 ├── tool-packs/
 │   ├── index.js                # Tool pack aggregation
 │   ├── contracts.js            # Tool schema contracts
 │   ├── workspace/index.js      # 4 tools
-│   ├── session/index.js        # 10 tools
+│   ├── session/index.js        # 13 tools
 │   └── content/index.js        # 3 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
@@ -169,7 +170,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (17 tools)
+### Tool Catalog (20 tools)
 
 **Workspace Pack (4 tools):**
 
@@ -180,7 +181,7 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `validate_plan` | plan, task_complexity | Validate dependencies, file ownership, agent capabilities |
 | `resolve_settings` | — | Resolve MAESTRO_* settings with precedence |
 
-**Session Pack (10 tools):**
+**Session Pack (13 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
@@ -194,6 +195,9 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `get_design_gate_status` | session_id | Read design gate status (entered_at, approved_at) |
 | `scan_phase_changes` | session_id | Scan workspace for files created/modified since phase start |
 | `reconcile_phase` | session_id, phase_id | Record file manifests + downstream context for phase |
+| `list_archived_sessions` | — | List archived sessions (newest first) with cost/outcome/agents |
+| `search_archived_sessions` | — | Filter archived sessions by date/agent/outcome |
+| `get_cost_insights` | — | Cross-session per-agent token + latency rollup |
 
 **Content Pack (3 tools):**
 

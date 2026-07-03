@@ -19,6 +19,11 @@ const {
   handleScanPhaseChanges,
   handleReconcilePhase,
 } = require('../../handlers/reconciliation');
+const {
+  handleListArchivedSessions,
+  handleSearchArchivedSessions,
+  handleGetCostInsights,
+} = require('../../handlers/archive-index');
 
 function createToolPack() {
   return defineToolPack({
@@ -221,6 +226,43 @@ function createToolPack() {
           required: ['session_id', 'phase_id'],
         },
       },
+      {
+        name: 'list_archived_sessions',
+        description:
+          'List archived Maestro sessions (newest first) with per-session cost, outcome, and agent summaries read from the state/archive subtree.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'search_archived_sessions',
+        description:
+          'Search archived Maestro sessions filtered by created_after/created_before (ISO-8601), agent, and/or outcome (completed|failed).',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            created_after: SCHEMA.ISO_DATE,
+            created_before: SCHEMA.ISO_DATE,
+            agent: { type: 'string' },
+            outcome: { type: 'string', enum: SCHEMA.ARCHIVE_OUTCOME_ENUM },
+          },
+        },
+      },
+      {
+        name: 'get_cost_insights',
+        description:
+          'Aggregate a deterministic cross-session per-agent token and latency rollup from archived sessions. Set include_active to fold the current active session into the rollup.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            include_active: { type: 'boolean', default: false },
+          },
+        },
+      },
     ],
     handlers: {
       create_session: handleCreateSession,
@@ -233,6 +275,9 @@ function createToolPack() {
       get_design_gate_status: handleGetDesignGateStatus,
       scan_phase_changes: handleScanPhaseChanges,
       reconcile_phase: handleReconcilePhase,
+      list_archived_sessions: handleListArchivedSessions,
+      search_archived_sessions: handleSearchArchivedSessions,
+      get_cost_insights: handleGetCostInsights,
     },
   });
 }
