@@ -111,7 +111,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 17 handler implementations
+├── handlers/                   # 18 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -128,7 +128,8 @@ src/mcp/
 │   ├── session-migrations.js   # Session-state schema versioning + migration
 │   ├── recall.js               # Semantic recall over archived corpus (1 tool)
 │   ├── project-profile.js      # Project-memory profile read/update
-│   └── agent-performance.js    # Per-agent outcome ledger + priors
+│   ├── agent-performance.js    # Per-agent outcome ledger + priors
+│   └── ratings.js              # Human-satisfaction ratings
 ├── memory/
 │   └── memory-store.js         # Durable memory store facade
 ├── tool-packs/
