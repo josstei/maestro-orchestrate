@@ -127,6 +127,16 @@ function createToolPack() {
                 'Batch identifier for parallel dispatch. Sets current_batch in state.',
             },
             token_usage: { type: 'object' },
+            task_report: {
+              type: 'string',
+              description:
+                'Full agent Task Report text for the completed phase. The server derives blocker_count by parsing its Blockers section.',
+            },
+            review_finding_count: {
+              type: ['number', 'null'],
+              description:
+                'Number of Completion-phase code-review findings recorded for the completed phase. Stored as review_finding_count.',
+            },
           },
           required: ['session_id'],
         },

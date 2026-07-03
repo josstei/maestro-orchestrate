@@ -35,6 +35,8 @@ const {
   assertActiveSessionMatches,
   extractFileManifest,
 } = require('./session-state-core');
+const { parseBlockers } = require('./blocker-parser');
+const { recordAgentPerformance } = require('./agent-performance');
 const { SCHEMA_VERSION } = require('./session-migrations');
 const {
   attributePhaseCost,
@@ -366,6 +368,17 @@ function handleTransitionPhase(params, projectRoot) {
       completedPhase.files_deleted = filesDeleted;
       completedPhase.requires_reconciliation =
         !hasFiles && !contextProvided ? true : false;
+      if (typeof params.task_report === 'string') {
+        completedPhase.blocker_count = parseBlockers(params.task_report).length;
+      }
+      if (
+        params.review_finding_count !== undefined &&
+        params.review_finding_count !== null
+      ) {
+        const findingCount = Number(params.review_finding_count);
+        completedPhase.review_finding_count =
+          Number.isFinite(findingCount) && findingCount > 0 ? findingCount : 0;
+      }
 
       const durationMs = phaseDurationMs(
         completedPhase.started,
@@ -453,6 +466,10 @@ function handleArchiveSession(params, projectRoot) {
       { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
     );
   }
+
+  try {
+    recordAgentPerformance(state, projectRoot);
+  } catch {}
 
   state.status = 'completed';
   state.updated = new Date().toISOString();
