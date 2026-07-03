@@ -1,76 +1,18 @@
 'use strict';
 
-const {
-  checkPlanShape,
-  checkPhaseCount,
-  checkDuplicateIds,
-  checkDanglingDependencies,
-  checkPhaseFieldSchema,
-} = require('../validation/schema-checker');
-const {
-  checkUnknownAgents,
-  checkAgentCapabilities,
-} = require('../validation/agent-checker');
-const {
-  computeDepths,
-  checkCycles,
-  checkRedundantDependencies,
-  buildParallelizationProfile,
-} = require('../validation/dag-checker');
-const { checkFileOverlap } = require('../validation/file-overlap-checker');
+const { runPlanValidation } = require('../validation/plan-validation-pipeline');
 
+/**
+ * MCP handler for the `validate_plan` tool. Delegates to the staged
+ * plan-validation pipeline; new rules are registered in the rule registry
+ * (`src/mcp/validation/rule-registry.js`), never added here.
+ *
+ * @param {{ plan: unknown, task_complexity: string }} params
+ * @returns {{ valid: boolean, violations: Array<object>, parallelization_profile: (object|null) }}
+ */
 function handleValidatePlan(params) {
   const { plan, task_complexity: taskComplexity } = params;
-
-  const shapeViolations = checkPlanShape(plan);
-  if (shapeViolations.length > 0) {
-    return {
-      valid: false,
-      violations: shapeViolations,
-      parallelization_profile: null,
-    };
-  }
-
-  const fieldViolations = checkPhaseFieldSchema(plan.phases);
-  if (fieldViolations.length > 0) {
-    return {
-      valid: false,
-      violations: fieldViolations,
-      parallelization_profile: null,
-    };
-  }
-
-  const phases = plan.phases;
-  const phaseById = new Map(phases.map((phase) => [phase.id, phase]));
-
-  const violations = [
-    ...checkPhaseCount(phases, taskComplexity),
-    ...checkDuplicateIds(phases),
-    ...checkDanglingDependencies(phases),
-    ...checkUnknownAgents(phases),
-    ...checkAgentCapabilities(phases),
-    ...checkCycles(phases, phaseById),
-  ];
-
-  const hasCycleViolation = violations.some(
-    (violation) => violation.rule === 'cyclic_dependency'
-  );
-
-  let parallelization_profile = null;
-  if (!hasCycleViolation) {
-    const depths = computeDepths(phases, phaseById);
-    violations.push(...checkFileOverlap(phases, depths));
-    violations.push(...checkRedundantDependencies(phases, phaseById));
-    parallelization_profile = buildParallelizationProfile(phases, phaseById);
-  }
-
-  return {
-    valid: violations.every((violation) => violation.severity === 'warning'),
-    violations,
-    parallelization_profile,
-  };
+  return runPlanValidation(plan, taskComplexity);
 }
 
-module.exports = {
-  handleValidatePlan,
-};
+module.exports = { handleValidatePlan };
