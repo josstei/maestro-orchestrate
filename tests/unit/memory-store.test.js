@@ -59,17 +59,17 @@ describe('MemoryStore', () => {
 
   it('appendAgentPerformance accumulates records into agent-performance.json', () => {
     const store = MemoryStore.forProjectRoot(tmpRoot);
-    store.appendAgentPerformance({ agent: 'coder', retry_count: 0 });
-    store.appendAgentPerformance({ agent: 'tester', retry_count: 1 });
-    const records = store.readAgentPerformance();
-    assert.equal(records.length, 2);
-    assert.equal(records[0].agent, 'coder');
-    assert.equal(records[1].retry_count, 1);
+    store.appendAgentPerformance([{ agent: 'coder', retry_count: 0 }]);
+    store.appendAgentPerformance([{ agent: 'tester', retry_count: 1 }]);
+    const ledger = store.readAgentPerformance();
+    assert.equal(ledger.records.length, 2);
+    assert.equal(ledger.records[0].agent, 'coder');
+    assert.equal(ledger.records[1].retry_count, 1);
   });
 
-  it('readAgentPerformance returns [] when no ledger exists', () => {
+  it('readAgentPerformance returns an empty ledger when no ledger exists', () => {
     const store = MemoryStore.forProjectRoot(tmpRoot);
-    assert.deepEqual(store.readAgentPerformance(), []);
+    assert.deepEqual(store.readAgentPerformance(), { schema_version: 1, records: [] });
   });
 
   it('appendRating accumulates JSONL rating records', () => {

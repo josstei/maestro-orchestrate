@@ -4,10 +4,12 @@ const fs = require('fs');
 const path = require('path');
 
 const markdownState = require('../../core/markdown-state');
-const { atomicWriteSync } = require('../../lib/io');
+const { atomicWriteSync, readJsonSafe } = require('../../lib/io');
 const { resolveStateDirPath } = require('../../state/session-state');
 
 const PROFILE_SCHEMA_VERSION = 1;
+const AGENT_PERFORMANCE_SCHEMA_VERSION = 1;
+const AGENT_PERFORMANCE_FILENAME = 'agent-performance.json';
 const PROFILE_ARRAY_FIELDS = Object.freeze([
   'build_commands',
   'test_commands',
@@ -18,6 +20,33 @@ const PROFILE_ARRAY_FIELDS = Object.freeze([
   'blocked_agents',
 ]);
 const PROFILE_BODY = '# Project Memory Profile\n';
+
+/**
+ * Absolute path to a durable knowledge ledger file under `<state_dir>/knowledge/`.
+ *
+ * @param {string} projectRoot
+ * @param {string} filename
+ * @returns {string}
+ */
+function knowledgeFilePath(projectRoot, filename) {
+  return path.join(resolveStateDirPath(projectRoot), 'knowledge', filename);
+}
+
+/**
+ * Normalize any parsed ledger value into the current wrapped ledger shape.
+ *
+ * @param {unknown} ledger
+ * @returns {{ schema_version: number, records: Array<object> }}
+ */
+function normalizeAgentPerformanceLedger(ledger) {
+  if (!ledger || typeof ledger !== 'object' || Array.isArray(ledger)) {
+    return { schema_version: AGENT_PERFORMANCE_SCHEMA_VERSION, records: [] };
+  }
+  return {
+    schema_version: ledger.schema_version || AGENT_PERFORMANCE_SCHEMA_VERSION,
+    records: Array.isArray(ledger.records) ? ledger.records : [],
+  };
+}
 
 /**
  * Build a fresh, empty profile at the current schema version.
@@ -120,10 +149,11 @@ function mergeValidationCommands(profile, incoming) {
  */
 class MemoryStore {
   /**
-   * @param {string} stateDir - resolved absolute state directory
+   * @param {string} projectRoot - project root used to resolve the state directory
    */
-  constructor(stateDir) {
-    this.stateDir = stateDir;
+  constructor(projectRoot) {
+    this.projectRoot = projectRoot;
+    this.stateDir = resolveStateDirPath(projectRoot);
   }
 
   /**
@@ -131,7 +161,7 @@ class MemoryStore {
    * @returns {MemoryStore}
    */
   static forProjectRoot(projectRoot) {
-    return new MemoryStore(resolveStateDirPath(projectRoot));
+    return new MemoryStore(projectRoot);
   }
 
   /**
@@ -145,7 +175,7 @@ class MemoryStore {
    * @returns {string}
    */
   agentPerformancePath() {
-    return path.join(this.stateDir, 'knowledge', 'agent-performance.json');
+    return knowledgeFilePath(this.projectRoot, AGENT_PERFORMANCE_FILENAME);
   }
 
   /**
@@ -200,33 +230,40 @@ class MemoryStore {
   }
 
   /**
-   * @returns {object[]} durable agent-performance records ([] when absent/invalid)
+   * Read the durable per-agent outcome ledger. Returns an empty ledger when the
+   * file is absent or unreadable (never throws).
+   *
+   * @returns {{ schema_version: number, records: Array<object> }}
    */
   readAgentPerformance() {
-    let content;
-    try {
-      content = fs.readFileSync(this.agentPerformancePath(), 'utf8');
-    } catch {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(content);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+    return normalizeAgentPerformanceLedger(
+      readJsonSafe(this.agentPerformancePath(), {
+        schema_version: AGENT_PERFORMANCE_SCHEMA_VERSION,
+        records: [],
+      })
+    );
   }
 
   /**
-   * Append one agent-performance record to the durable JSON ledger.
-   * @param {object} record
-   * @returns {object} the appended record
+   * Append per-agent outcome records to the durable ledger, preserving prior
+   * records. A non-array payload is treated as no-op input.
+   *
+   * @param {Array<object>} records
+   * @returns {{ schema_version: number, records: Array<object> }}
    */
-  appendAgentPerformance(record) {
-    const records = this.readAgentPerformance();
-    records.push(record);
-    atomicWriteSync(this.agentPerformancePath(), JSON.stringify(records, null, 2));
-    return record;
+  appendAgentPerformance(records) {
+    const incoming = Array.isArray(records) ? records : [];
+    const current = this.readAgentPerformance();
+    const next = {
+      schema_version:
+        current.schema_version || AGENT_PERFORMANCE_SCHEMA_VERSION,
+      records: current.records.concat(incoming),
+    };
+    atomicWriteSync(
+      this.agentPerformancePath(),
+      `${JSON.stringify(next, null, 2)}\n`
+    );
+    return next;
   }
 
   /**
