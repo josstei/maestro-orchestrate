@@ -37,6 +37,29 @@ DESIGN GATE (Phase 1 pre-entry)
     different session_id than the one passed in.
     </HARD-GATE>
 
+MEMORY RECALL (Phase 1 pre-entry — before Plan Mode)
+ 9b. If MAESTRO_MEMORY_INJECTION is not false (unset/null means the default true)
+    and both `get_project_profile` and `recall_similar_sessions` appear in your
+    available tools, call them NOW, before entering Plan Mode (step 10):
+    `get_project_profile` for this repo's recorded build/test/lint commands,
+    conventions, do-not-touch paths, and preferred/blocked agents, and
+    `recall_similar_sessions` with the user-request task description for the
+    highest-ranked prior sessions (which agents handled similar work, contended
+    file areas, and recorded warnings).
+    <HARD-GATE>
+    These are MCP tools and MUST be called before step 10. Some runtimes (notably
+    Gemini CLI) deregister MCP tools once Plan Mode is active, so a recall
+    attempted from inside the design dialogue (step 11) or implementation planning
+    (step 15) fails with "tool not found". Carry the returned profile and
+    precedents forward as cached context for both skills — do NOT re-call these
+    tools from inside a Plan Mode skill.
+    </HARD-GATE>
+    Inject the recalled memory as OVERRIDABLE recommended defaults: surface prior
+    architectural decisions, established patterns, do-not-touch paths, and recorded
+    warnings as recommendations the user may accept or override — never as fixed
+    constraints. If MAESTRO_MEMORY_INJECTION is false, or either tool is
+    unavailable, skip this step and proceed without injected memory.
+
 DESIGN (Phase 1)
 10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
 11. Using the `design-dialogue` protocol already loaded in step 7, run the design conversation:
