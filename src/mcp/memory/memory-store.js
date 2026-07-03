@@ -10,6 +10,15 @@ const { resolveStateDirPath } = require('../../state/session-state');
 const PROFILE_SCHEMA_VERSION = 1;
 const AGENT_PERFORMANCE_SCHEMA_VERSION = 1;
 const AGENT_PERFORMANCE_FILENAME = 'agent-performance.json';
+const ARCHITECTURE_MEMORY_SCHEMA_VERSION = 1;
+const ARCHITECTURE_MEMORY_FILENAME = 'architecture-memory.json';
+const ARCHITECTURE_MEMORY_CATEGORIES = Object.freeze([
+  'interfaces',
+  'patterns',
+  'integration_points',
+  'assumptions',
+  'warnings',
+]);
 const PROFILE_ARRAY_FIELDS = Object.freeze([
   'build_commands',
   'test_commands',
@@ -46,6 +55,68 @@ function normalizeAgentPerformanceLedger(ledger) {
     schema_version: ledger.schema_version || AGENT_PERFORMANCE_SCHEMA_VERSION,
     records: Array.isArray(ledger.records) ? ledger.records : [],
   };
+}
+
+/**
+ * Build a fresh, empty architecture-memory graph.
+ * @returns {{ schema_version: number, interfaces: object[], patterns: object[], integration_points: object[], assumptions: object[], warnings: object[] }}
+ */
+function emptyArchitectureMemoryGraph() {
+  const graph = { schema_version: ARCHITECTURE_MEMORY_SCHEMA_VERSION };
+  for (const category of ARCHITECTURE_MEMORY_CATEGORIES) {
+    graph[category] = [];
+  }
+  return graph;
+}
+
+/**
+ * Normalize one architecture-memory entry to the durable `{ value, session_id }`
+ * shape. Invalid or empty values are dropped by returning null.
+ *
+ * @param {unknown} entry
+ * @returns {{ value: string, session_id: string | null } | null}
+ */
+function normalizeArchitectureMemoryEntry(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    return null;
+  }
+  const value = typeof entry.value === 'string' ? entry.value.trim() : '';
+  if (value.length === 0) {
+    return null;
+  }
+  const sessionId =
+    typeof entry.session_id === 'string' && entry.session_id.length > 0
+      ? entry.session_id
+      : null;
+  return { value, session_id: sessionId };
+}
+
+/**
+ * Normalize any parsed architecture-memory value into the current structured
+ * graph shape, de-duping each category by `value` while preserving first-seen
+ * provenance.
+ *
+ * @param {unknown} graph
+ * @returns {{ schema_version: number, interfaces: object[], patterns: object[], integration_points: object[], assumptions: object[], warnings: object[] }}
+ */
+function normalizeArchitectureMemoryGraph(graph) {
+  const next = emptyArchitectureMemoryGraph();
+  if (!graph || typeof graph !== 'object' || Array.isArray(graph)) {
+    return next;
+  }
+  next.schema_version =
+    Number(graph.schema_version) || ARCHITECTURE_MEMORY_SCHEMA_VERSION;
+  for (const category of ARCHITECTURE_MEMORY_CATEGORIES) {
+    const seen = new Set();
+    const entries = Array.isArray(graph[category]) ? graph[category] : [];
+    for (const entry of entries) {
+      const normalized = normalizeArchitectureMemoryEntry(entry);
+      if (!normalized || seen.has(normalized.value)) continue;
+      seen.add(normalized.value);
+      next[category].push(normalized);
+    }
+  }
+  return next;
 }
 
 /**
@@ -181,6 +252,13 @@ class MemoryStore {
   /**
    * @returns {string}
    */
+  architectureMemoryPath() {
+    return knowledgeFilePath(this.projectRoot, ARCHITECTURE_MEMORY_FILENAME);
+  }
+
+  /**
+   * @returns {string}
+   */
   ratingsPath() {
     return path.join(this.stateDir, 'knowledge', 'ratings.jsonl');
   }
@@ -249,6 +327,33 @@ class MemoryStore {
         records: [],
       })
     );
+  }
+
+  /**
+   * Read the structured per-project architecture-memory graph. Returns a fresh
+   * zeroed graph when the file is absent, unreadable, or malformed.
+   *
+   * @returns {{ schema_version: number, interfaces: object[], patterns: object[], integration_points: object[], assumptions: object[], warnings: object[] }}
+   */
+  readArchitectureMemory() {
+    return normalizeArchitectureMemoryGraph(
+      readJsonSafe(this.architectureMemoryPath(), emptyArchitectureMemoryGraph())
+    );
+  }
+
+  /**
+   * Atomically persist the structured architecture-memory graph.
+   *
+   * @param {object} graph
+   * @returns {{ schema_version: number, interfaces: object[], patterns: object[], integration_points: object[], assumptions: object[], warnings: object[] }}
+   */
+  writeArchitectureMemory(graph) {
+    const next = normalizeArchitectureMemoryGraph(graph);
+    atomicWriteSync(
+      this.architectureMemoryPath(),
+      `${JSON.stringify(next, null, 2)}\n`
+    );
+    return next;
   }
 
   /**
@@ -357,7 +462,10 @@ class MemoryStore {
 module.exports = {
   MemoryStore,
   PROFILE_SCHEMA_VERSION,
+  ARCHITECTURE_MEMORY_CATEGORIES,
+  ARCHITECTURE_MEMORY_SCHEMA_VERSION,
   PROFILE_ARRAY_FIELDS,
+  emptyArchitectureMemoryGraph,
   emptyProfile,
   mergeValidationCommands,
 };
