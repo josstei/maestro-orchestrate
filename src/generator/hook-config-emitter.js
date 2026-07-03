@@ -1,5 +1,7 @@
 'use strict';
 
+const { getRuntimeGeneration } = require('../platforms/runtime-descriptor');
+
 const STAGE_ORDER = ['session-start', 'before-agent', 'after-agent', 'session-end'];
 
 const STAGE_DESCRIPTIONS = {
@@ -70,11 +72,20 @@ function buildPromotedClaudeHookConfig() {
   return buildClaudeHookConfig({ scriptRoot: 'scripts' });
 }
 
+const CLAUDE_HOOK_CONFIG_OUTPUT_PATH = 'claude/hooks/claude-hooks.json';
+
 function buildHookConfigOutputs(runtimes) {
   const outputs = [];
-  if (runtimes.gemini) outputs.push({ outputPath: 'hooks/hooks.json', content: renderJson(buildGeminiFamilyHookConfig(runtimes.gemini)) });
-  if (runtimes.qwen) outputs.push({ outputPath: 'qwen/hooks.json', content: renderJson(buildGeminiFamilyHookConfig(runtimes.qwen)) });
-  outputs.push({ outputPath: 'claude/hooks/claude-hooks.json', content: renderJson(buildClaudeHookConfig()) });
+  for (const runtime of Object.values(runtimes)) {
+    if (!runtime) continue;
+    const { hooks } = getRuntimeGeneration(runtime);
+    if (!hooks || hooks.family !== 'gemini-family') continue;
+    outputs.push({
+      outputPath: hooks.configOutputPath,
+      content: renderJson(buildGeminiFamilyHookConfig(runtime)),
+    });
+  }
+  outputs.push({ outputPath: CLAUDE_HOOK_CONFIG_OUTPUT_PATH, content: renderJson(buildClaudeHookConfig()) });
   return outputs;
 }
 

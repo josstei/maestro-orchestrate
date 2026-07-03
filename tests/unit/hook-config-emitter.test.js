@@ -44,3 +44,38 @@ describe('hook-config-emitter', () => {
     );
   });
 });
+
+const codex = require('../../src/platforms/codex/runtime-config');
+
+describe('hook-config-emitter is descriptor-driven', () => {
+  it('emits a hook config for any gemini-family runtime named by its descriptor', () => {
+    const synthetic = {
+      name: 'acme',
+      hooks: {
+        events: {
+          'session-start': 'SessionStart',
+          'before-agent': 'BeforeAgent',
+          'after-agent': 'AfterAgent',
+          'session-end': 'SessionEnd',
+        },
+        nameSuffix: '-acme',
+        descriptionSuffix: ' (Acme)',
+      },
+      generation: {
+        entryPoint: null,
+        coreCommand: null,
+        hooks: { family: 'gemini-family', configOutputPath: 'acme/hooks.json' },
+      },
+    };
+    const outputs = buildHookConfigOutputs({ acme: synthetic });
+    const paths = outputs.map((o) => o.outputPath).sort();
+    assert.deepEqual(paths, ['acme/hooks.json', 'claude/hooks/claude-hooks.json']);
+    const acme = outputs.find((o) => o.outputPath === 'acme/hooks.json');
+    assert.ok(acme.content.includes('maestro-session-start-acme'));
+  });
+
+  it('emits no hook config for a runtime whose descriptor declares hooks: null (codex)', () => {
+    const outputs = buildHookConfigOutputs({ codex });
+    assert.deepEqual(outputs.map((o) => o.outputPath), ['claude/hooks/claude-hooks.json']);
+  });
+});
