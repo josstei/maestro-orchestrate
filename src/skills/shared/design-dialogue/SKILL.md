@@ -38,6 +38,17 @@ Use the investigator's output to:
 - Avoid proposing approaches that conflict with existing boundaries
 - Cite concrete modules/files when explaining trade-offs
 
+## Prior-Session Memory Injection
+
+When `MAESTRO_MEMORY_INJECTION` resolves true (default true), consume the project profile and similar-session precedents already recalled before Plan Mode (orchestration step 9b, via `get_project_profile` and `recall_similar_sessions`). Do NOT call those MCP tools from within this skill — some runtimes deregister MCP tools during Plan Mode, so rely on the results carried forward as cached context.
+
+Use the recalled memory to seed the design conversation as OVERRIDABLE recommended defaults, never as fixed constraints:
+- **Prior decisions and established patterns** — lead recommended approaches with the architecture and conventions the profile records, and let the user override them.
+- **Do-not-touch paths** — flag recorded do-not-touch areas when they intersect the proposed scope, and ask before proposing changes there.
+- **Recorded warnings** — surface warnings from similar prior sessions as risks during the Risk Assessment section.
+
+When `MAESTRO_MEMORY_INJECTION` resolves false or no memory was recalled, run the dialogue with no injected defaults.
+
 ## Question Framework
 
 ### Principles
