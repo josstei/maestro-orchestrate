@@ -50,4 +50,20 @@ module.exports = {
     skills: '${CLAUDE_PLUGIN_ROOT}/claude/skills/',
     hooks: '${CLAUDE_PLUGIN_ROOT}/claude/scripts/',
   },
+
+  generation: {
+    entryPoint: {
+      templateFile: 'claude-skill.md.tmpl',
+      outputPath: (entry) => `claude/skills/${entry.name}/SKILL.md`,
+      preamblePlaceholder: 'protocol_block',
+    },
+    coreCommand: {
+      templateFile: 'claude-core-command.md.tmpl',
+      outputPath: (entry) => `claude/skills/${entry.name}/SKILL.md`,
+    },
+    hooks: {
+      family: 'claude',
+      configOutputPath: 'claude/hooks/claude-hooks.json',
+    },
+  },
 };

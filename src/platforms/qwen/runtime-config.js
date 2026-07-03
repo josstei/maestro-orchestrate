@@ -4,6 +4,14 @@ module.exports = buildGeminiFamilyConfig({
   name: 'qwen',
   outputDir: 'qwen/',
   env: { extensionPath: 'extensionPath', workspacePath: 'workspacePath' },
+  generation: {
+    entryPoint: null,
+    coreCommand: null,
+    hooks: {
+      family: 'gemini-family',
+      configOutputPath: 'qwen/hooks.json',
+    },
+  },
   tools: {
     google_web_search: 'web_search',
     replace: 'edit',

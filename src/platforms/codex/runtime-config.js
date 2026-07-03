@@ -48,4 +48,17 @@ module.exports = {
     skills: './skills/',
     hooks: './scripts/',
   },
+
+  generation: {
+    entryPoint: {
+      templateFile: 'codex-skill.md.tmpl',
+      outputPath: (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`,
+      preamblePlaceholder: 'refs_list',
+    },
+    coreCommand: {
+      templateFile: 'codex-core-command.md.tmpl',
+      outputPath: (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`,
+    },
+    hooks: null,
+  },
 };

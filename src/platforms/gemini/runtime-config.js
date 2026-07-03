@@ -4,6 +4,22 @@ module.exports = buildGeminiFamilyConfig({
   name: 'gemini',
   outputDir: './',
   env: { extensionPath: 'extensionPath', workspacePath: null },
+  agentToolDialect: {},
+  generation: {
+    entryPoint: {
+      templateFile: 'gemini-command.toml.tmpl',
+      outputPath: (entry) => `commands/maestro/${entry.name}.toml`,
+      preamblePlaceholder: 'skills_block',
+    },
+    coreCommand: {
+      templateFile: 'gemini-core-command.toml.tmpl',
+      outputPath: (entry) => `commands/maestro/${entry.name}.toml`,
+    },
+    hooks: {
+      family: 'gemini-family',
+      configOutputPath: 'hooks/hooks.json',
+    },
+  },
   hooks: {
     events: {
       'session-start': 'SessionStart',
