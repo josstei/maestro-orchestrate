@@ -9,6 +9,8 @@
  * Rules are loaded from package-root src/core/policy-rules.js.
  */
 
+const fs = require('node:fs');
+const path = require('node:path');
 const { DENY_RULES, ASK_RULES } = require('../../core/policy-rules');
 
 const WRAPPERS = new Set(['env', 'sudo', 'doas', 'nice', 'nohup', 'time', 'command', 'builtin', 'exec', 'ionice', 'stdbuf', 'setsid']);
@@ -44,6 +46,32 @@ function normalizeSegment(segment) {
   if (toks.length) toks[0] = basename(toks[0]);
   return toks.join(' ');
 }
+
+function safeRealpath(p) {
+  let abs = path.resolve(p);
+  const tail = [];
+  for (;;) {
+    try { const real = fs.realpathSync(abs); return tail.length ? path.join(real, ...tail) : real; }
+    catch (e) {
+      if (e.code !== 'ENOENT') return abs; // unknown error: use resolved path
+      const parent = path.dirname(abs);
+      if (parent === abs) return path.join(abs, ...tail);
+      tail.unshift(path.basename(abs));
+      abs = parent;
+    }
+  }
+}
+function isWriteAllowed(filePath, root, allow) {
+  if (!root || !filePath) return false;
+  const target = safeRealpath(filePath);
+  const bases = [safeRealpath(root), ...(allow || []).filter(Boolean).map(safeRealpath)];
+  return bases.some((b) => target === b || target.startsWith(b + path.sep));
+}
+function resolveWorkspaceRoot(input) {
+  const root = process.env.MAESTRO_WORKSPACE_PATH || (input && input.cwd) || process.cwd();
+  return root ? path.resolve(root) : null;
+}
+const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit']);
 
 function splitCommands(command) {
   const parts = [];
@@ -324,8 +352,19 @@ function main() {
   process.stdin.on('end', () => {
     try {
       const input = JSON.parse(Buffer.concat(chunks).toString());
-      const command = (input.tool_input && input.tool_input.command) || '';
-      const result = checkCommand(command);
+      const toolName = input.tool_name || '';
+      let result;
+      if (WRITE_TOOLS.has(toolName)) {
+        const fp = (input.tool_input && input.tool_input.file_path) || '';
+        const root = resolveWorkspaceRoot(input);
+        const allow = [process.env.MAESTRO_STATE_DIR, ...String(process.env.MAESTRO_WRITE_ALLOW || '').split(path.delimiter)].filter(Boolean);
+        result = isWriteAllowed(fp, root, allow)
+          ? { decision: 'approve' }
+          : { decision: 'block', reason: `Write outside workspace boundary: ${fp || '(no path)'}` };
+      } else {
+        const command = (input.tool_input && input.tool_input.command) || '';
+        result = checkCommand(command);
+      }
       process.stdout.write(JSON.stringify(toHookOutput(result)) + '\n');
     } catch (err) {
       process.stderr.write('Policy enforcer error: ' + err.message + '\n');
@@ -342,6 +381,9 @@ module.exports = {
   extractSubshells,
   checkCommand,
   normalizeSegment,
+  isWriteAllowed,
+  resolveWorkspaceRoot,
+  safeRealpath,
   matchRule,
   toHookOutput,
   PERMISSION_DECISION,
