@@ -33,32 +33,37 @@ function buildGeminiFamilyHookConfig(runtime) {
   return { hooks };
 }
 
-function claudeHookCommand(script, stage) {
+function claudeHookCommand(scriptRoot, script, stage) {
   const suffix = stage ? ` claude ${stage}` : '';
-  return `node \${CLAUDE_PLUGIN_ROOT}/claude/scripts/${script}${suffix}`;
+  return `node \${CLAUDE_PLUGIN_ROOT}/${scriptRoot}/${script}${suffix}`;
 }
 
-function buildClaudeHookConfig() {
+function buildClaudeHookConfig(options = {}) {
+  const scriptRoot = options.scriptRoot || 'claude/scripts';
   return {
     hooks: {
       SessionEnd: [
-        { hooks: [{ type: 'command', command: claudeHookCommand('hook-runner.js', 'session-end'), timeout: 10 }] },
+        { hooks: [{ type: 'command', command: claudeHookCommand(scriptRoot, 'hook-runner.js', 'session-end'), timeout: 10 }] },
       ],
       SessionStart: [
-        { hooks: [{ type: 'command', command: claudeHookCommand('hook-runner.js', 'session-start'), timeout: 10 }] },
+        { hooks: [{ type: 'command', command: claudeHookCommand(scriptRoot, 'hook-runner.js', 'session-start'), timeout: 10 }] },
       ],
       PreToolUse: [
         {
-          hooks: [{ type: 'command', command: claudeHookCommand('hook-runner.js', 'before-agent'), timeout: 10 }],
+          hooks: [{ type: 'command', command: claudeHookCommand(scriptRoot, 'hook-runner.js', 'before-agent'), timeout: 10 }],
           matcher: 'Agent',
         },
         {
-          hooks: [{ type: 'command', command: claudeHookCommand('policy-enforcer.js', null), timeout: 5 }],
+          hooks: [{ type: 'command', command: claudeHookCommand(scriptRoot, 'policy-enforcer.js', null), timeout: 5 }],
           matcher: 'Bash',
         },
       ],
     },
   };
+}
+
+function buildPromotedClaudeHookConfig() {
+  return buildClaudeHookConfig({ scriptRoot: 'scripts' });
 }
 
 function buildHookConfigOutputs(runtimes) {
@@ -69,4 +74,4 @@ function buildHookConfigOutputs(runtimes) {
   return outputs;
 }
 
-module.exports = { buildHookConfigOutputs };
+module.exports = { buildHookConfigOutputs, buildClaudeHookConfig, buildPromotedClaudeHookConfig, renderJson };
