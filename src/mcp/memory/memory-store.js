@@ -53,6 +53,65 @@ function normalizeStringArray(value) {
 }
 
 /**
+ * Normalize a raw command list: trim, drop non-strings and empties, de-dupe
+ * preserving first-seen order.
+ *
+ * @param {unknown} list
+ * @returns {string[]}
+ */
+function normalizeCommands(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    if (typeof raw !== 'string') continue;
+    const command = raw.trim();
+    if (command.length === 0 || seen.has(command)) continue;
+    seen.add(command);
+    out.push(command);
+  }
+  return out;
+}
+
+/**
+ * Fold newly-recorded commands into an existing command array, most-recent-first:
+ * incoming commands take the head slots (in given order) and any prior command
+ * that is not re-recorded is retained after them in its prior order.
+ *
+ * @param {unknown} existing
+ * @param {unknown} incoming
+ * @returns {string[]}
+ */
+function foldCommands(existing, incoming) {
+  const incomingClean = normalizeCommands(incoming);
+  const incomingSet = new Set(incomingClean);
+  const retained = normalizeCommands(existing).filter(
+    (command) => !incomingSet.has(command)
+  );
+  return [...incomingClean, ...retained];
+}
+
+/**
+ * Fold known-good validation commands into a project profile's command arrays,
+ * de-duplicated and ordered most-recent-first. Pure: returns a new profile and
+ * mutates nothing.
+ *
+ * @param {object} profile - a project profile object
+ * @param {{ build?: string[], test?: string[], lint?: string[] }} incoming
+ * @returns {object} a new profile with merged *_commands arrays and refreshed `updated`
+ */
+function mergeValidationCommands(profile, incoming) {
+  const base = profile && typeof profile === 'object' ? profile : {};
+  const source = incoming && typeof incoming === 'object' ? incoming : {};
+  return {
+    ...base,
+    build_commands: foldCommands(base.build_commands, source.build),
+    test_commands: foldCommands(base.test_commands, source.test),
+    lint_commands: foldCommands(base.lint_commands, source.lint),
+    updated: new Date().toISOString(),
+  };
+}
+
+/**
  * Single facade over the durable, out-of-session memory files a repo owns:
  * `memory/project-profile.md`, `knowledge/agent-performance.json`, and
  * `knowledge/ratings.jsonl`. Each concern is a distinct method group. Built on
@@ -216,4 +275,5 @@ module.exports = {
   PROFILE_SCHEMA_VERSION,
   PROFILE_ARRAY_FIELDS,
   emptyProfile,
+  mergeValidationCommands,
 };
