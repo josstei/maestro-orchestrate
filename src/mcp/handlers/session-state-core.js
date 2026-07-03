@@ -9,6 +9,7 @@ const {
   writeState,
   resolveStateDirPath,
 } = require('../../state/session-state');
+const { migrateSessionState } = require('./session-migrations');
 
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 
@@ -21,7 +22,7 @@ function resolveActiveSessionPath(basePath) {
 }
 
 function parseSessionState(content) {
-  return markdownState.parse(content).data;
+  return migrateSessionState(markdownState.parse(content).data);
 }
 
 function serializeSessionState(data, bodyContent) {

@@ -6,6 +6,7 @@ const path = require('path');
 const markdownState = require('../../core/markdown-state');
 const { resolveBasePath, readActiveSessionOrNull } = require('./session-state-core');
 const { mergeAgentLedgers, summarizeLedger } = require('../contracts/agent-cost-ledger');
+const { migrateSessionState } = require('./session-migrations');
 
 /**
  * @param {string} basePath
@@ -80,6 +81,19 @@ function toSummary(state, archivePath) {
 }
 
 /**
+ * Parse an archived session document and bring it up to the current schema
+ * version. Shared by the archive reader and future archived-document consumers
+ * so every archive parse site is migration-routed identically to the active
+ * read path in `session-state-core.js`.
+ *
+ * @param {string} content - raw archived session-state file content
+ * @returns {object} migrated session-state frontmatter data
+ */
+function parseArchivedSessionState(content) {
+  return migrateSessionState(markdownState.parse(content).data);
+}
+
+/**
  * Read every parseable archived session under `state/archive/`, newest first.
  * Returns [] when the archive directory is absent. Unparseable or
  * id-less files are skipped rather than throwing.
@@ -102,7 +116,7 @@ function readArchivedSessionSummaries(projectRoot) {
     const absPath = path.join(dir, entry.name);
     let state;
     try {
-      state = markdownState.parse(fs.readFileSync(absPath, 'utf8')).data;
+      state = parseArchivedSessionState(fs.readFileSync(absPath, 'utf8'));
     } catch {
       continue;
     }
@@ -229,6 +243,7 @@ function handleGetCostInsights(params, projectRoot) {
 }
 
 module.exports = {
+  parseArchivedSessionState,
   readArchivedSessionSummaries,
   handleListArchivedSessions,
   handleSearchArchivedSessions,
