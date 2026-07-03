@@ -201,4 +201,24 @@ describe('session-state', () => {
     const content = fs.readFileSync(gitignorePath, 'utf8');
     assert.equal(content, 'active-session.md\narchive/\n');
   });
+
+  it('ensureWorkspace creates memory and knowledge directories', () => {
+    ensureWorkspace('workspace', tmpRoot);
+    const base = path.join(tmpRoot, 'workspace');
+    assert.ok(fs.statSync(path.join(base, 'memory')).isDirectory());
+    assert.ok(fs.statSync(path.join(base, 'knowledge')).isDirectory());
+  });
+
+  it('ensureWorkspace writes a gitignore covering memory and knowledge contents', () => {
+    ensureWorkspace('workspace', tmpRoot);
+    const base = path.join(tmpRoot, 'workspace');
+    assert.equal(
+      fs.readFileSync(path.join(base, 'memory', '.gitignore'), 'utf8'),
+      '*\n!.gitignore\n'
+    );
+    assert.equal(
+      fs.readFileSync(path.join(base, 'knowledge', '.gitignore'), 'utf8'),
+      '*\n!.gitignore\n'
+    );
+  });
 });

@@ -82,6 +82,8 @@ function ensureWorkspace(stateDir, basePath) {
     path.join(fullBase, 'state', 'archive'),
     path.join(fullBase, 'plans'),
     path.join(fullBase, 'plans', 'archive'),
+    path.join(fullBase, 'memory'),
+    path.join(fullBase, 'knowledge'),
   ];
   for (const dir of dirs) {
     try {
@@ -99,6 +101,12 @@ function ensureWorkspace(stateDir, basePath) {
   try {
     fs.writeFileSync(stateGitignore, 'active-session.md\narchive/\n', { mode: 0o600, flag: 'wx' });
   } catch {}
+  for (const ignoredDir of ['memory', 'knowledge']) {
+    const gitignore = path.join(fullBase, ignoredDir, '.gitignore');
+    try {
+      fs.writeFileSync(gitignore, '*\n!.gitignore\n', { mode: 0o600, flag: 'wx' });
+    } catch {}
+  }
 }
 
 module.exports = {
