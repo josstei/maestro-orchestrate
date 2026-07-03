@@ -1,0 +1,78 @@
+'use strict';
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+
+const { resolveTypedSetting } = require('../../src/config/setting-resolver');
+
+function withEnv(overrides, fn) {
+  const previous = {};
+  for (const key of Object.keys(overrides)) previous[key] = process.env[key];
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value == null) delete process.env[key];
+    else process.env[key] = value;
+  }
+  try {
+    return fn();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+describe('resolveTypedSetting', () => {
+  it('returns the declared default when unset', () => {
+    const result = withEnv(
+      { MAESTRO_MAX_RETRIES: null, MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_MAX_RETRIES', undefined)
+    );
+    assert.equal(result, 2);
+  });
+
+  it('coerces and validates a set integer', () => {
+    const result = withEnv(
+      { MAESTRO_MAX_CONCURRENT: '4', MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_MAX_CONCURRENT', undefined)
+    );
+    assert.equal(result, 4);
+  });
+
+  it('splits a csv setting into a trimmed array', () => {
+    const result = withEnv(
+      { MAESTRO_DISABLED_AGENTS: 'architect, tester', MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_DISABLED_AGENTS', undefined)
+    );
+    assert.deepEqual(result, ['architect', 'tester']);
+  });
+
+  it('throws ValidationError on a bad enum value', () => {
+    assert.throws(
+      () =>
+        withEnv(
+          { MAESTRO_EXECUTION_MODE: 'parralel', MAESTRO_EXTENSION_PATH: null },
+          () => resolveTypedSetting('MAESTRO_EXECUTION_MODE', undefined)
+        ),
+      (err) => {
+        assert.equal(err.name, 'ValidationError');
+        return true;
+      }
+    );
+  });
+
+  it('throws ValidationError on a non-integer value', () => {
+    assert.throws(
+      () =>
+        withEnv(
+          { MAESTRO_MAX_RETRIES: 'abc', MAESTRO_EXTENSION_PATH: null },
+          () => resolveTypedSetting('MAESTRO_MAX_RETRIES', undefined)
+        ),
+      /ValidationError/
+    );
+  });
+
+  it('throws ValidationError on an unknown setting name', () => {
+    assert.throws(() => resolveTypedSetting('MAESTRO_NOPE', undefined), /Unknown setting/);
+  });
+});

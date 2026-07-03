@@ -2,6 +2,9 @@
 
 const path = require('path');
 const { parseEnvFile } = require('../core/env-file-parser');
+const { SETTINGS_SCHEMA } = require('./settings-schema');
+const { coerceScalar, assertValid } = require('../lib/schema');
+const { ValidationError } = require('../lib/errors');
 
 function resolveSetting(varName, projectRoot) {
   const envValue = process.env[varName];
@@ -25,4 +28,28 @@ function resolveSetting(varName, projectRoot) {
   return undefined;
 }
 
-module.exports = { resolveSetting };
+/**
+ * Resolve a MAESTRO_* setting to its declared type, applying the schema
+ * default when unset and validating any present value.
+ * @param {string} varName - A key of SETTINGS_SCHEMA
+ * @param {string} [projectRoot] - Project root for .env resolution
+ * @returns {*} Coerced typed value, or the declared default when unset
+ * @throws {ValidationError} On an unknown setting name or an invalid value
+ */
+function resolveTypedSetting(varName, projectRoot) {
+  const spec = SETTINGS_SCHEMA[varName];
+  if (!spec) {
+    throw new ValidationError(`Unknown setting "${varName}"`, { details: { varName } });
+  }
+
+  const raw = resolveSetting(varName, projectRoot);
+  if (raw === undefined) {
+    return spec.default;
+  }
+
+  const value = coerceScalar(spec.schema, raw);
+  assertValid(spec.schema, value, varName);
+  return value;
+}
+
+module.exports = { resolveSetting, resolveTypedSetting };

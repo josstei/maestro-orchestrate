@@ -1,16 +1,10 @@
 'use strict';
 
 const { resolveSetting } = require('../../config/setting-resolver');
+const { SETTINGS_SCHEMA, SETTING_NAMES } = require('../../config/settings-schema');
+const { coerceScalar, assertValid } = require('../../lib/schema');
 
-const KNOWN_SETTINGS = [
-  'MAESTRO_DISABLED_AGENTS',
-  'MAESTRO_MAX_RETRIES',
-  'MAESTRO_AUTO_ARCHIVE',
-  'MAESTRO_VALIDATION_STRICTNESS',
-  'MAESTRO_STATE_DIR',
-  'MAESTRO_MAX_CONCURRENT',
-  'MAESTRO_EXECUTION_MODE',
-];
+const KNOWN_SETTINGS = SETTING_NAMES;
 
 function handleResolveSettings(params, projectRoot) {
   const requested =
@@ -20,7 +14,12 @@ function handleResolveSettings(params, projectRoot) {
 
   const settings = {};
   for (const name of requested) {
-    settings[name] = resolveSetting(name, projectRoot) ?? null;
+    const raw = resolveSetting(name, projectRoot);
+    if (raw !== undefined) {
+      const spec = SETTINGS_SCHEMA[name];
+      assertValid(spec.schema, coerceScalar(spec.schema, raw), name);
+    }
+    settings[name] = raw ?? null;
   }
 
   return {
