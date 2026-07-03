@@ -28,7 +28,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Metric | Count |
 |--------|-------|
 | Specialized agents | 39 |
-| MCP tools | 31 |
+| MCP tools | 33 |
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 4 |
@@ -102,13 +102,13 @@ maestro-orchestrate/
 
 ### MCP Server
 
-A bundled Model Context Protocol server providing 31 tools across 5 packs:
+A bundled Model Context Protocol server providing 33 tools across 5 packs:
 
 - **Workspace** (4): initialize_workspace, assess_task_complexity, validate_plan, resolve_settings
 - **Session** (13): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase, list_archived_sessions, search_archived_sessions, get_cost_insights
 - **Content** (3): get_skill_content, get_agent, get_runtime_context
 - **Memory** (7): get_project_profile, update_project_profile, record_validation_commands, get_agent_performance, recall_similar_sessions, rate_phase, rate_session
-- **History** (4): fork_session, list_lineage, list_checkpoints, restore_checkpoint
+- **History** (6): fork_session, list_lineage, list_checkpoints, restore_checkpoint, instantiate_session_blueprint, list_session_blueprints
 
 ### Skills
 

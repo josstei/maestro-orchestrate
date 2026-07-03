@@ -111,7 +111,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 20 handler implementations
+├── handlers/                   # 21 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -126,6 +126,7 @@ src/mcp/
 │   ├── archive-index.js        # Archive index/search + cost insights (3 tools)
 │   ├── session-lineage.js      # Session fork + lineage handlers (2 tools)
 │   ├── checkpoints.js          # Session checkpoint capture + restore handlers (2 tools)
+│   ├── session-blueprints.js   # Declarative session blueprint listing/instantiation (2 tools)
 │   ├── blocker-parser.js       # Child-agent blocker surfacing
 │   ├── session-migrations.js   # Session-state schema versioning + migration
 │   ├── recall.js               # Semantic recall over archived corpus (1 tool)
@@ -141,7 +142,7 @@ src/mcp/
 │   ├── session/index.js        # 13 tools
 │   ├── content/index.js        # 3 tools
 │   ├── memory/index.js         # 7 tools
-│   └── history/index.js        # 4 tools
+│   └── history/index.js        # 6 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
 └── runtime/
@@ -181,7 +182,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (31 tools)
+### Tool Catalog (33 tools)
 
 **Workspace Pack (4 tools):**
 
@@ -230,7 +231,7 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `rate_phase` | session_id, phase_id, rating | Record a thumbs up/down rating for a phase |
 | `rate_session` | session_id, rating | Record a thumbs up/down rating for a session |
 
-**History Pack (4 tools):**
+**History Pack (6 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
@@ -238,6 +239,8 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `list_lineage` | session_id | Return a session parent and direct children across active and archived sessions |
 | `list_checkpoints` | session_id | List append-only per-phase checkpoints captured during session transitions |
 | `restore_checkpoint` | session_id, phase_id | Restore a checkpoint by keeping completed phases and resetting later phases to pending |
+| `instantiate_session_blueprint` | blueprint_id, task | Instantiate an authored blueprint into create_session-compatible phases |
+| `list_session_blueprints` | — | List authored blueprints available for session planning |
 
 ## Agent System
 

@@ -10,6 +10,10 @@ const {
   handleListCheckpoints,
   handleRestoreCheckpoint,
 } = require('../../handlers/checkpoints');
+const {
+  handleInstantiateSessionBlueprint,
+  handleListSessionBlueprints,
+} = require('../../handlers/session-blueprints');
 
 function createToolPack() {
   return defineToolPack({
@@ -70,12 +74,38 @@ function createToolPack() {
           required: ['session_id', 'phase_id'],
         },
       },
+      {
+        name: 'instantiate_session_blueprint',
+        description:
+          'Instantiate an authored session blueprint into create_session-compatible phases for a concrete task.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            blueprint_id: { type: 'string' },
+            task: { type: 'string' },
+          },
+          required: ['blueprint_id', 'task'],
+        },
+      },
+      {
+        name: 'list_session_blueprints',
+        description:
+          'List authored session blueprints that can be instantiated into a ready-to-validate plan.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ],
     handlers: {
       fork_session: handleForkSession,
       list_lineage: handleListLineage,
       list_checkpoints: handleListCheckpoints,
       restore_checkpoint: handleRestoreCheckpoint,
+      instantiate_session_blueprint: handleInstantiateSessionBlueprint,
+      list_session_blueprints: handleListSessionBlueprints,
     },
   });
 }

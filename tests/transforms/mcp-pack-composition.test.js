@@ -47,6 +47,8 @@ describe('mcp pack composition', () => {
         'list_lineage',
         'list_checkpoints',
         'restore_checkpoint',
+        'instantiate_session_blueprint',
+        'list_session_blueprints',
       ]
     );
   });
