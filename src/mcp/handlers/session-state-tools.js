@@ -35,6 +35,7 @@ const {
   assertActiveSessionMatches,
   extractFileManifest,
 } = require('./session-state-core');
+const { SCHEMA_VERSION } = require('./session-migrations');
 const {
   attributePhaseCost,
   phaseDurationMs,
@@ -185,6 +186,7 @@ function handleCreateSession(params, projectRoot) {
 
   const now = new Date().toISOString();
   const state = {
+    schema_version: SCHEMA_VERSION,
     session_id: params.session_id,
     task: params.task,
     created: now,
@@ -222,6 +224,8 @@ function handleCreateSession(params, projectRoot) {
       downstream_context: createEmptyDownstreamContext(),
       errors: [],
       retry_count: 0,
+      blocker_count: 0,
+      review_finding_count: 0,
     })),
   };
 

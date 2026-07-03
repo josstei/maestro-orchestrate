@@ -1,4 +1,5 @@
 ---
+schema_version: 1
 session_id: "<YYYY-MM-DD-topic-slug>"
 task: "<user's original task description>"
 created: "<ISO 8601 timestamp>"
@@ -40,6 +41,8 @@ phases:
       warnings: []
     errors: []
     retry_count: 0
+    blocker_count: 0
+    review_finding_count: 0
 ---
 
 # <Topic> Orchestration Log
