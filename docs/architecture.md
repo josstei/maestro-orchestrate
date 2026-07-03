@@ -136,7 +136,7 @@ src/mcp/
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 13 tools
 │   ├── content/index.js        # 3 tools
-│   └── memory/index.js         # 3 tools
+│   └── memory/index.js         # 4 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
 └── runtime/
@@ -176,7 +176,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (23 tools)
+### Tool Catalog (24 tools)
 
 **Workspace Pack (4 tools):**
 
@@ -213,13 +213,14 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `get_agent` | agents | Serve agent methodologies with tool mappings |
 | `get_runtime_context` | — | Return runtime tool mappings, dispatch syntax, MCP prefixes |
 
-**Memory Pack (3 tools):**
+**Memory Pack (4 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
 | `get_project_profile` | — | Read the durable per-repo memory profile (learned commands, conventions, agent preferences) |
 | `update_project_profile` | — | Replace supplied profile fields and persist the per-repo memory profile |
 | `record_validation_commands` | commands | Fold verified build/test/lint commands into the project profile |
+| `get_agent_performance` | — | Aggregate per-agent priors from the durable knowledge ledger |
 
 ## Agent System
 

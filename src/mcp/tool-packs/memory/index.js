@@ -6,6 +6,9 @@ const {
   handleUpdateProjectProfile,
   handleRecordValidationCommands,
 } = require('../../handlers/project-profile');
+const {
+  handleGetAgentPerformance,
+} = require('../../handlers/agent-performance');
 
 const PROFILE_FIELD_SCHEMA = { type: 'array', items: { type: 'string' } };
 
@@ -61,11 +64,28 @@ function createToolPack() {
           required: ['commands'],
         },
       },
+      {
+        name: 'get_agent_performance',
+        description:
+          'Aggregate per-agent priors (blocker/finding/retry rates, average phase latency, token usage) from the durable knowledge/agent-performance.json ledger. Set agent to narrow to one agent. Returns empty priors when the ledger is absent.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            agent: {
+              type: 'string',
+              description:
+                'Optional agent name to narrow the priors to a single agent.',
+            },
+          },
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
       update_project_profile: handleUpdateProjectProfile,
       record_validation_commands: handleRecordValidationCommands,
+      get_agent_performance: handleGetAgentPerformance,
     },
   });
 }

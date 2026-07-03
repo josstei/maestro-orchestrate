@@ -39,6 +39,7 @@ describe('mcp pack composition', () => {
         'get_project_profile',
         'update_project_profile',
         'record_validation_commands',
+        'get_agent_performance',
       ]
     );
   });

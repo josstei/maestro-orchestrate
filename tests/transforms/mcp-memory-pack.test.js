@@ -10,7 +10,12 @@ describe('memory tool pack', () => {
 
     assert.deepEqual(
       server.getToolSchemas().map((schema) => schema.name),
-      ['get_project_profile', 'update_project_profile', 'record_validation_commands']
+      [
+        'get_project_profile',
+        'update_project_profile',
+        'record_validation_commands',
+        'get_agent_performance',
+      ]
     );
   });
 });
