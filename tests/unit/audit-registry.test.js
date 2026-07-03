@@ -11,10 +11,10 @@ function entry(name) {
 }
 
 describe('entry-point registry — audit archetype wiring', () => {
-  it('keeps the 9 entries in their canonical order', () => {
+  it('keeps the 10 entries in their canonical order', () => {
     assert.deepEqual(
       registry.map((item) => item.name),
-      ['review', 'debug', 'archive', 'status', 'security-audit', 'perf-check', 'seo-audit', 'a11y-audit', 'compliance-check']
+      ['review', 'debug', 'archive', 'status', 'security-audit', 'perf-check', 'seo-audit', 'a11y-audit', 'compliance-check', 'insights']
     );
   });
 

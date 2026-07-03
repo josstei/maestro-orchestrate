@@ -84,7 +84,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
 ### Entry-Point Registry
 
-9 entry-points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
+10 entry-points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
 
 - Gemini: TOML commands in `commands/maestro/`
 - Claude: Markdown skills in `claude/skills/`

@@ -45,7 +45,7 @@ maestro-orchestrate/
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
 │   ├── transforms/               # Generator transform library
-│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 6 templates
+│   ├── entry-points/             # 10 entry-point + 3 core-command registries, preamble builders, 6 templates
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
 │   ├── state/                    # Session-state helpers

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Entry-point registry -- canonical workflow content for all 9 Maestro
+ * Entry-point registry -- canonical workflow content for all 10 Maestro
  * entry points.  Each entry captures the shared intent, workflow steps,
  * and constraints extracted from the union of the Claude, Codex, and
  * Gemini runtime definitions.
@@ -183,4 +183,25 @@ module.exports = [
       'Distinguish legal-risk observations from code-level bugs',
     ],
   }),
+
+  {
+    name: 'insights',
+    description:
+      'Render a cross-session cost and latency rollup from archived Maestro sessions',
+    agents: [],
+    skills: ['session-management'],
+    refs: ['architecture'],
+    workflow: [
+      'Confirm an initialized Maestro workspace; if the MCP state surface is unavailable, stop and report that insights require an initialized workspace',
+      'Call get_cost_insights to compute the aggregated per-agent token and latency rollup across archived sessions',
+      'Optionally call list_archived_sessions or search_archived_sessions to enumerate or filter the underlying sessions by date, agent, or outcome',
+      'Present the rollup: total input/output/cached tokens, per-agent token and phase counts, and average phase latency, highest-cost agent first',
+      'Note explicitly when the rollup is empty because no sessions have been archived yet',
+    ],
+    constraints: [
+      'This is read-only; do not mutate session state or archive files',
+      'Do not fabricate cost figures — report only what get_cost_insights returns',
+      'If no archived sessions exist, say so plainly rather than inventing a rollup',
+    ],
+  },
 ];
