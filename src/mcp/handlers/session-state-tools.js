@@ -35,6 +35,11 @@ const {
   assertActiveSessionMatches,
   extractFileManifest,
 } = require('./session-state-core');
+const {
+  attributePhaseCost,
+  phaseDurationMs,
+  normalizeTokenUsage,
+} = require('../contracts/agent-cost-ledger');
 
 /**
  * Materialize a session document (design or plan) into `<state_dir>/plans/`.
@@ -357,6 +362,23 @@ function handleTransitionPhase(params, projectRoot) {
       completedPhase.files_deleted = filesDeleted;
       completedPhase.requires_reconciliation =
         !hasFiles && !contextProvided ? true : false;
+
+      const durationMs = phaseDurationMs(
+        completedPhase.started,
+        completedPhase.completed
+      );
+      completedPhase.duration_ms = durationMs;
+      if (params.token_usage) {
+        completedPhase.token_usage = normalizeTokenUsage(params.token_usage);
+      }
+      if (!state.token_usage.by_agent || typeof state.token_usage.by_agent !== 'object') {
+        state.token_usage.by_agent = {};
+      }
+      attributePhaseCost(state.token_usage.by_agent, {
+        agent: (completedPhase.agents || [])[0],
+        tokenUsage: params.token_usage,
+        durationMs,
+      });
     }
 
     let startedPhaseIds;
