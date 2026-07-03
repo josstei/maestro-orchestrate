@@ -15,10 +15,22 @@ Before constructing any delegation prompt, inject the shared agent base protocol
 1. Load `agent-base-protocol` via `get_skill_content`
 2. Load `filesystem-safety-protocol` via `get_skill_content`
 3. Prepend both protocols to the delegation prompt (base protocol first, then filesystem safety) — these appear before the task-specific content
-4. For each phase listed in the current phase's `blocked_by`, read `phases[].downstream_context` from session state and include it in the prompt
-5. If any required `downstream_context` is missing, include an explicit placeholder noting the missing dependency context (never omit silently)
+4. Call `get_agent_memory` for the target agent and include any returned memory in the delegation prompt context before task-specific instructions
+5. For each phase listed in the current phase's `blocked_by`, read `phases[].downstream_context` from session state and include it in the prompt
+6. If any required `downstream_context` is missing, include an explicit placeholder noting the missing dependency context (never omit silently)
 
 The injected protocol ensures every agent follows consistent pre-work procedures and output formatting regardless of their specialization.
+
+### Agent Memory Injection
+
+Before constructing the final delegation prompt, call `get_agent_memory` with the target agent name. If the tool returns a non-empty `memory` string, add an `Agent Memory` block inside the Context section:
+
+```
+Agent Memory for [target agent]:
+[memory returned by get_agent_memory]
+```
+
+Treat these notes as durable repo-specific context for the target agent: established conventions, prior pitfalls, preferred commands, and do-not-repeat guidance. They inform the agent's approach but do not override the current task scope, file ownership, user instructions, or tool restrictions. If no memory exists, omit the block rather than adding placeholder text.
 
 ### Context Chain Construction
 

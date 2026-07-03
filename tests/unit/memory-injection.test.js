@@ -65,3 +65,13 @@ describe('implementation-planning memory injection', () => {
     assert.match(skill, /recall/);
   });
 });
+
+describe('delegation agent memory injection', () => {
+  const skill = read('src/skills/shared/delegation/SKILL.md');
+
+  it('loads per-agent memory before constructing the delegation prompt', () => {
+    assert.match(skill, /get_agent_memory/);
+    assert.match(skill, /target agent/i);
+    assert.match(skill, /delegation prompt/i);
+  });
+});

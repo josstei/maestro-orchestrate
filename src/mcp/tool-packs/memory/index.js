@@ -13,6 +13,10 @@ const { handleGetPlanAccuracy } = require('../../handlers/plan-accuracy');
 const {
   handleQueryArchitectureMemory,
 } = require('../../handlers/architecture-memory');
+const {
+  handleAppendAgentMemory,
+  handleGetAgentMemory,
+} = require('../../handlers/agent-memory');
 const { handleRecallSimilarSessions } = require('../../handlers/recall');
 const { handleRatePhase, handleRateSession } = require('../../handlers/ratings');
 
@@ -165,6 +169,42 @@ function createToolPack() {
           },
         },
       },
+      {
+        name: 'get_agent_memory',
+        description:
+          'Read durable per-agent memory notes for the target agent from knowledge/agent-memory/<agent>.md. Returns an empty memory string when no notes exist.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            agent: {
+              type: 'string',
+              description: 'Agent identifier to read memory for.',
+            },
+          },
+          required: ['agent'],
+        },
+      },
+      {
+        name: 'append_agent_memory',
+        description:
+          'Append one durable plain-text note to the target agent memory file under knowledge/agent-memory/<agent>.md.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            agent: {
+              type: 'string',
+              description: 'Agent identifier to append memory for.',
+            },
+            note: {
+              type: 'string',
+              description: 'Non-empty memory note to append.',
+            },
+          },
+          required: ['agent', 'note'],
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
@@ -176,6 +216,8 @@ function createToolPack() {
       rate_session: handleRateSession,
       get_plan_accuracy: handleGetPlanAccuracy,
       query_architecture_memory: handleQueryArchitectureMemory,
+      get_agent_memory: handleGetAgentMemory,
+      append_agent_memory: handleAppendAgentMemory,
     },
   });
 }

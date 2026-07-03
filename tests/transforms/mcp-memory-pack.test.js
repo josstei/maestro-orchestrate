@@ -20,6 +20,8 @@ describe('memory tool pack', () => {
         'rate_session',
         'get_plan_accuracy',
         'query_architecture_memory',
+        'get_agent_memory',
+        'append_agent_memory',
       ]
     );
   });

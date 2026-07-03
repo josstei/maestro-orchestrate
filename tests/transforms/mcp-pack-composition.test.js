@@ -45,6 +45,8 @@ describe('mcp pack composition', () => {
         'rate_session',
         'get_plan_accuracy',
         'query_architecture_memory',
+        'get_agent_memory',
+        'append_agent_memory',
         'fork_session',
         'list_lineage',
         'list_checkpoints',
