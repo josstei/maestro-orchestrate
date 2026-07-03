@@ -44,6 +44,7 @@ describe('mcp pack composition', () => {
         'rate_phase',
         'rate_session',
         'get_plan_accuracy',
+        'query_architecture_memory',
         'fork_session',
         'list_lineage',
         'list_checkpoints',

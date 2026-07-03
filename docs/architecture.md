@@ -111,7 +111,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 22 handler implementations
+├── handlers/                   # 23 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -133,6 +133,7 @@ src/mcp/
 │   ├── project-profile.js      # Project-memory profile read/update
 │   ├── agent-performance.js    # Per-agent outcome ledger + priors
 │   ├── plan-accuracy.js        # Plan-vs-actual file accuracy ledger
+│   ├── architecture-memory.js  # Cross-session architecture-memory graph
 │   └── ratings.js              # Human-satisfaction ratings
 ├── memory/
 │   └── memory-store.js         # Durable memory store facade
@@ -142,7 +143,7 @@ src/mcp/
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 13 tools
 │   ├── content/index.js        # 3 tools
-│   ├── memory/index.js         # 8 tools
+│   ├── memory/index.js         # 9 tools
 │   └── history/index.js        # 6 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
@@ -183,7 +184,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (34 tools)
+### Tool Catalog (35 tools)
 
 **Workspace Pack (4 tools):**
 
@@ -220,7 +221,7 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `get_agent` | agents | Serve agent methodologies with tool mappings |
 | `get_runtime_context` | — | Return runtime tool mappings, dispatch syntax, MCP prefixes |
 
-**Memory Pack (8 tools):**
+**Memory Pack (9 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
@@ -232,6 +233,7 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `rate_phase` | session_id, phase_id, rating | Record a thumbs up/down rating for a phase |
 | `rate_session` | session_id, rating | Record a thumbs up/down rating for a session |
 | `get_plan_accuracy` | — | Aggregate plan-vs-actual file precision/recall from the durable knowledge ledger |
+| `query_architecture_memory` | — | Query the durable architecture-memory graph folded from archived downstream context |
 
 **History Pack (6 tools):**
 

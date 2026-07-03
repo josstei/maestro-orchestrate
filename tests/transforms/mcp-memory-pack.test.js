@@ -19,6 +19,7 @@ describe('memory tool pack', () => {
         'rate_phase',
         'rate_session',
         'get_plan_accuracy',
+        'query_architecture_memory',
       ]
     );
   });

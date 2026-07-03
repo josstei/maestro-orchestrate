@@ -10,6 +10,9 @@ const {
   handleGetAgentPerformance,
 } = require('../../handlers/agent-performance');
 const { handleGetPlanAccuracy } = require('../../handlers/plan-accuracy');
+const {
+  handleQueryArchitectureMemory,
+} = require('../../handlers/architecture-memory');
 const { handleRecallSimilarSessions } = require('../../handlers/recall');
 const { handleRatePhase, handleRateSession } = require('../../handlers/ratings');
 
@@ -146,6 +149,22 @@ function createToolPack() {
           properties: {},
         },
       },
+      {
+        name: 'query_architecture_memory',
+        description:
+          'Query the durable per-project architecture-memory graph folded from archived phase downstream_context. Set query for case-insensitive substring matching across interfaces, patterns, integration points, assumptions, and warnings; omit query to return the full graph.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description:
+                'Optional case-insensitive substring to match against architecture-memory entry values.',
+            },
+          },
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
@@ -156,6 +175,7 @@ function createToolPack() {
       rate_phase: handleRatePhase,
       rate_session: handleRateSession,
       get_plan_accuracy: handleGetPlanAccuracy,
+      query_architecture_memory: handleQueryArchitectureMemory,
     },
   });
 }
