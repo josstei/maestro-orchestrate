@@ -29,3 +29,20 @@ describe('no false positives', () => {
     it(`approves: ${cmd}`, () => assert.equal(checkCommand(cmd).decision, 'approve'));
   }
 });
+
+describe('expanded destructive corpus is blocked', () => {
+  const bad = [
+    'find . -delete', 'find /tmp -name x -delete', 'dd if=/dev/zero of=/dev/sda',
+    'mkfs.ext4 /dev/sdb', 'shred -u secret', 'truncate -s 0 important.log',
+    'chmod -R 000 /', 'git push --force origin main', 'git push -f origin main',
+    'rm --recursive --force /tmp/x', ':(){ :|:& };:',
+  ];
+  for (const cmd of bad) it(`blocks: ${cmd}`, () => assert.equal(checkCommand(cmd).decision, 'block'));
+});
+
+const { DENY_RULES } = require('../../src/core/policy-rules');
+describe('corpus shape', () => {
+  it('every rule declares tier command', () => {
+    for (const r of DENY_RULES) assert.equal(r.tier, 'command', `${r.pattern} missing tier`);
+  });
+});

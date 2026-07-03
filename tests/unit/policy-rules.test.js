@@ -25,8 +25,8 @@ describe('policy-rules', () => {
       assert.equal(Object.isFrozen(DENY_RULES), true);
     });
 
-    it('has the correct count of 11 rules', () => {
-      assert.equal(DENY_RULES.length, 11);
+    it('has the correct count of 20 rules', () => {
+      assert.equal(DENY_RULES.length, 20);
     });
 
     it('all entries have required fields matchType, pattern, and reason', () => {
