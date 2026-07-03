@@ -1,0 +1,58 @@
+'use strict';
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const { MemoryStore } = require('../../src/mcp/memory/memory-store');
+const { handleRateSession } = require('../../src/mcp/handlers/ratings');
+const {
+  handleGetAgentPerformance,
+} = require('../../src/mcp/handlers/agent-performance');
+
+function makeWorkspace() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-perf-ratings-'));
+  fs.mkdirSync(path.join(root, 'docs', 'maestro', 'knowledge'), {
+    recursive: true,
+    mode: 0o700,
+  });
+  return root;
+}
+
+describe('MemoryStore.readRatings', () => {
+  it('returns [] when no ratings ledger exists', () => {
+    const root = makeWorkspace();
+    assert.deepEqual(new MemoryStore(root).readRatings(), []);
+  });
+
+  it('reads back every appended rating record', () => {
+    const root = makeWorkspace();
+    handleRateSession({ session_id: 's1', rating: 'up' }, root);
+    handleRateSession({ session_id: 's2', rating: 'down', note: 'flaky' }, root);
+    const records = new MemoryStore(root).readRatings();
+    assert.equal(records.length, 2);
+    assert.equal(records[0].session_id, 's1');
+    assert.equal(records[1].rating, 'down');
+    assert.equal(records[1].note, 'flaky');
+  });
+});
+
+describe('get_agent_performance surfaces ratings', () => {
+  it('includes a deterministic ratings rollup drawn from ratings.jsonl', () => {
+    const root = makeWorkspace();
+    handleRateSession({ session_id: 's1', rating: 'up' }, root);
+    handleRateSession({ session_id: 's1', rating: 'down' }, root);
+    handleRateSession({ session_id: 's2', rating: 'up' }, root);
+    const result = handleGetAgentPerformance({}, root);
+    assert.ok(result.ratings, 'response is missing the ratings rollup');
+    assert.equal(result.ratings.total, 3);
+    assert.equal(result.ratings.up, 2);
+    assert.equal(result.ratings.down, 1);
+    assert.deepEqual(result.ratings.by_session, {
+      s1: { up: 1, down: 1 },
+      s2: { up: 1, down: 0 },
+    });
+  });
+});

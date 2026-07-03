@@ -2,6 +2,7 @@
 
 const { MemoryStore } = require('../memory/memory-store');
 const { normalizeTokenUsage } = require('../contracts/agent-cost-ledger');
+const { aggregateRatings } = require('./ratings');
 
 /**
  * Resolve the primary agent name for a phase, defaulting to `unassigned` so a
@@ -66,7 +67,7 @@ function emptyAccumulator() {
  *
  * @param {{ agent?: string }} params
  * @param {string} projectRoot
- * @returns {{ generated_at:string, agent_count:number, by_agent:Record<string,object> }}
+ * @returns {{ generated_at:string, agent_count:number, by_agent:Record<string,object>, ratings:object }}
  */
 function handleGetAgentPerformance(params, projectRoot) {
   const ledger = new MemoryStore(projectRoot).readAgentPerformance();
@@ -114,10 +115,13 @@ function handleGetAgentPerformance(params, projectRoot) {
     };
   }
 
+  const ratings = aggregateRatings(new MemoryStore(projectRoot).readRatings());
+
   return {
     generated_at: new Date().toISOString(),
     agent_count: Object.keys(byAgent).length,
     by_agent: byAgent,
+    ratings,
   };
 }
 
