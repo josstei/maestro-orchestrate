@@ -121,7 +121,8 @@ EXECUTION (Phase 3 — delegation loop)
     merge all agents' files into one call — the archive attributes files per
     phase, so empty payloads mean lost traceability.
     </HARD-GATE>
-26. Repeat steps 23-25 until all phases complete.
+25a. If the phase ran build/test/lint validation and it passed, extract the known-good commands from the agent's `## Validation Commands` handoff section and call `record_validation_commands(commands: { build: [...], test: [...], lint: [...] })`. This folds the verified commands into the per-project memory profile (de-duped, most-recent-first) so later runs consult them before heuristics. Skip when no validation ran or validation failed.
+26. Repeat steps 23-25a until all phases complete.
 
 COMPLETION (Phase 4)
 27. Call `get_skill_content` with resources: ["code-review"].

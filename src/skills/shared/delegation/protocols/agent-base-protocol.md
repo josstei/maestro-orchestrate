@@ -91,6 +91,17 @@ Every agent must conclude with a **Handoff Report** containing two parts. This r
 - **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
 ```
 
+### Part 1a — Validation Commands (optional)
+
+When this phase ran build, test, or lint validation that passed, append a `## Validation Commands` section after the Task Report, listing each verified command on its own line with a `build:`, `test:`, or `lint:` prefix:
+
+    ## Validation Commands
+    - build: <command that built the project>
+    - test: <command that ran the tests>
+    - lint: <command that linted the project>
+
+The orchestrator forwards these to `record_validation_commands` so the per-project memory profile learns the repo's known-good commands. Omit the section entirely when no validation ran or validation failed.
+
 ### Part 2 — Downstream Context
 
 Populate this section when your output feeds into subsequent phases. Read-only agents populate this with findings structured as actionable items.
