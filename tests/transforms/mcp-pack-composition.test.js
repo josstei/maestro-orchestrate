@@ -43,6 +43,7 @@ describe('mcp pack composition', () => {
         'recall_similar_sessions',
         'rate_phase',
         'rate_session',
+        'get_plan_accuracy',
         'fork_session',
         'list_lineage',
         'list_checkpoints',

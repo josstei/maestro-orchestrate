@@ -22,13 +22,14 @@ Reuse investigator findings directly in the implementation plan:
 
 ## Prior-Session Memory Injection
 
-When `MAESTRO_MEMORY_INJECTION` resolves true (default true), consume the project profile and similar-session precedents already recalled before Plan Mode (orchestration step 9b, via `get_project_profile` and `recall_similar_sessions`). Do NOT call those MCP tools from within this skill — some runtimes deregister MCP tools during Plan Mode, so rely on the results carried forward as cached context.
+When `MAESTRO_MEMORY_INJECTION` resolves true (default true), consume the project profile and similar-session precedents already recalled before Plan Mode (orchestration step 9b, via `get_project_profile` and `recall_similar_sessions`). Before finalizing the plan, consult `get_plan_accuracy` when MCP tools are available; if the runtime has already carried plan-accuracy context forward, use that cached result instead. Do NOT call `get_project_profile` or `recall_similar_sessions` from within this skill — some runtimes deregister MCP tools during Plan Mode, so rely on the results carried forward as cached context.
 
 Fold the recalled memory into phase decomposition as OVERRIDABLE recommended defaults, never as fixed constraints:
 - **Learned validation commands** — prefer the profile's recorded build/test/lint commands as each phase's Validation Criteria, and let the user override them.
 - **Preferred and blocked agents** — bias agent assignment toward the profile's preferred agents and away from its blocked agents, stated as a recommendation.
 - **Do-not-touch paths** — keep recorded do-not-touch areas out of phase file ownership unless the user explicitly approves.
 - **Recorded warnings** — carry warnings from similar prior sessions into per-phase Retry Risk notes.
+- **Plan-vs-actual calibration** — use `get_plan_accuracy` precision and recall averages to tune phase file manifests before finalizing the plan. Low precision means prior plans missed actual changed files, so broaden ownership scans and name likely integration files. Low recall means prior plans listed too many untouched files, so tighten file lists to concrete candidates and avoid speculative ownership.
 
 When `MAESTRO_MEMORY_INJECTION` resolves false or no memory was recalled, plan with no injected defaults.
 

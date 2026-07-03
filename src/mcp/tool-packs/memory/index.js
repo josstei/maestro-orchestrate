@@ -9,6 +9,7 @@ const {
 const {
   handleGetAgentPerformance,
 } = require('../../handlers/agent-performance');
+const { handleGetPlanAccuracy } = require('../../handlers/plan-accuracy');
 const { handleRecallSimilarSessions } = require('../../handlers/recall');
 const { handleRatePhase, handleRateSession } = require('../../handlers/ratings');
 
@@ -135,6 +136,16 @@ function createToolPack() {
           required: ['session_id', 'rating'],
         },
       },
+      {
+        name: 'get_plan_accuracy',
+        description:
+          'Aggregate plan-vs-actual file accuracy from the durable knowledge/plan-accuracy.jsonl ledger. Returns precision/recall averages plus recent records so implementation planning can calibrate phase file ownership.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
@@ -144,6 +155,7 @@ function createToolPack() {
       recall_similar_sessions: handleRecallSimilarSessions,
       rate_phase: handleRatePhase,
       rate_session: handleRateSession,
+      get_plan_accuracy: handleGetPlanAccuracy,
     },
   });
 }

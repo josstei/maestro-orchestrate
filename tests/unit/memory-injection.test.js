@@ -57,4 +57,11 @@ describe('implementation-planning memory injection', () => {
     assert.match(skill, /do-not-touch/i);
     assert.match(skill, /warnings/i);
   });
+
+  it('consults plan accuracy before finalizing phase file manifests', () => {
+    assert.match(skill, /get_plan_accuracy/);
+    assert.match(skill, /Before finalizing the plan/);
+    assert.match(skill, /precision/);
+    assert.match(skill, /recall/);
+  });
 });

@@ -18,6 +18,7 @@ describe('memory tool pack', () => {
         'recall_similar_sessions',
         'rate_phase',
         'rate_session',
+        'get_plan_accuracy',
       ]
     );
   });
