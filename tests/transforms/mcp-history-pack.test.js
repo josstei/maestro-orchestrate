@@ -12,7 +12,7 @@ describe('history tool pack', () => {
 
     assert.deepEqual(
       server.getToolSchemas().map((schema) => schema.name),
-      ['fork_session', 'list_lineage']
+      ['fork_session', 'list_lineage', 'list_checkpoints', 'restore_checkpoint']
     );
   });
 });

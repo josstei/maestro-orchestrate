@@ -111,7 +111,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 19 handler implementations
+├── handlers/                   # 20 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -125,6 +125,7 @@ src/mcp/
 │   ├── reconciliation.js       # Phase reconciliation (2 tools)
 │   ├── archive-index.js        # Archive index/search + cost insights (3 tools)
 │   ├── session-lineage.js      # Session fork + lineage handlers (2 tools)
+│   ├── checkpoints.js          # Session checkpoint capture + restore handlers (2 tools)
 │   ├── blocker-parser.js       # Child-agent blocker surfacing
 │   ├── session-migrations.js   # Session-state schema versioning + migration
 │   ├── recall.js               # Semantic recall over archived corpus (1 tool)
@@ -140,7 +141,7 @@ src/mcp/
 │   ├── session/index.js        # 13 tools
 │   ├── content/index.js        # 3 tools
 │   ├── memory/index.js         # 7 tools
-│   └── history/index.js        # 2 tools
+│   └── history/index.js        # 4 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
 └── runtime/
@@ -180,7 +181,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (29 tools)
+### Tool Catalog (31 tools)
 
 **Workspace Pack (4 tools):**
 
@@ -229,12 +230,14 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `rate_phase` | session_id, phase_id, rating | Record a thumbs up/down rating for a phase |
 | `rate_session` | session_id, rating | Record a thumbs up/down rating for a session |
 
-**History Pack (2 tools):**
+**History Pack (4 tools):**
 
 | Tool | Required Params | Purpose |
 |------|----------------|---------|
 | `fork_session` | source_session_id, new_session_id | Fork an archived session into a new active session with lineage metadata |
 | `list_lineage` | session_id | Return a session parent and direct children across active and archived sessions |
+| `list_checkpoints` | session_id | List append-only per-phase checkpoints captured during session transitions |
+| `restore_checkpoint` | session_id, phase_id | Restore a checkpoint by keeping completed phases and resetting later phases to pending |
 
 ## Agent System
 

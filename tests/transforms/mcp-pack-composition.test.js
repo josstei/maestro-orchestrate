@@ -45,6 +45,8 @@ describe('mcp pack composition', () => {
         'rate_session',
         'fork_session',
         'list_lineage',
+        'list_checkpoints',
+        'restore_checkpoint',
       ]
     );
   });
