@@ -57,6 +57,10 @@ function buildClaudeHookConfig(options = {}) {
           hooks: [{ type: 'command', command: claudeHookCommand(scriptRoot, 'policy-enforcer.js', null), timeout: 5 }],
           matcher: 'Bash',
         },
+        {
+          hooks: [{ type: 'command', command: claudeHookCommand(scriptRoot, 'policy-enforcer.js', null), timeout: 5 }],
+          matcher: 'Write|Edit|MultiEdit',
+        },
       ],
     },
   };
