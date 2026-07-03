@@ -42,3 +42,19 @@ describe('design-dialogue memory injection', () => {
     assert.match(skill, /warnings/i);
   });
 });
+
+describe('implementation-planning memory injection', () => {
+  const skill = read('src/skills/shared/implementation-planning/SKILL.md');
+
+  it('consumes the recalled project profile and similar sessions', () => {
+    assert.match(skill, /get_project_profile/);
+    assert.match(skill, /recall_similar_sessions/);
+  });
+
+  it('gates injection on MAESTRO_MEMORY_INJECTION and keeps defaults overridable', () => {
+    assert.match(skill, /MAESTRO_MEMORY_INJECTION/);
+    assert.match(skill, /overridable/i);
+    assert.match(skill, /do-not-touch/i);
+    assert.match(skill, /warnings/i);
+  });
+});

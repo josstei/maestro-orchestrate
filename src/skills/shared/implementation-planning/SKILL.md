@@ -20,6 +20,18 @@ Reuse investigator findings directly in the implementation plan:
 - Validation criteria should prefer repo-native commands the investigator surfaced
 - Parallel batches should account for actual ownership overlap and conflict risk
 
+## Prior-Session Memory Injection
+
+When `MAESTRO_MEMORY_INJECTION` resolves true (default true), consume the project profile and similar-session precedents already recalled before Plan Mode (orchestration step 9b, via `get_project_profile` and `recall_similar_sessions`). Do NOT call those MCP tools from within this skill — some runtimes deregister MCP tools during Plan Mode, so rely on the results carried forward as cached context.
+
+Fold the recalled memory into phase decomposition as OVERRIDABLE recommended defaults, never as fixed constraints:
+- **Learned validation commands** — prefer the profile's recorded build/test/lint commands as each phase's Validation Criteria, and let the user override them.
+- **Preferred and blocked agents** — bias agent assignment toward the profile's preferred agents and away from its blocked agents, stated as a recommendation.
+- **Do-not-touch paths** — keep recorded do-not-touch areas out of phase file ownership unless the user explicitly approves.
+- **Recorded warnings** — carry warnings from similar prior sessions into per-phase Retry Risk notes.
+
+When `MAESTRO_MEMORY_INJECTION` resolves false or no memory was recalled, plan with no injected defaults.
+
 ## Plan Generation Methodology
 
 ### Input Analysis
