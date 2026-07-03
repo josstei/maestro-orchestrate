@@ -4,7 +4,6 @@ description: "Observability engineering specialist for metrics, logs, traces, Op
 color: turquoise
 focus: "Metrics, logs, traces, OpenTelemetry, dashboards"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2

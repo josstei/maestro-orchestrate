@@ -4,7 +4,6 @@ description: "Analytics engineering specialist for event tracking implementation
 color: olive
 focus: "Event tracking, conversion funnels"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, google_web_search, write_todos, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, google_web_search, write_todos, read_many_files, ask_user]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2

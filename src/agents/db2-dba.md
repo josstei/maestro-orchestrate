@@ -4,7 +4,6 @@ description: "DB2 database administration specialist for DB2 for z/OS and DB2 LU
 color: brown
 focus: "DB2 for z/OS and LUW, REORG, RUNSTATS, bind/rebind"
 tools: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
 tools.claude: [Read, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 20
 temperature: 0.2

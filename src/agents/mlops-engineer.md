@@ -4,7 +4,6 @@ description: "MLOps specialist for model registry, CI/CD for models, deployment,
 color: indigo
 focus: "Model registry, CI/CD for models, drift detection"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2

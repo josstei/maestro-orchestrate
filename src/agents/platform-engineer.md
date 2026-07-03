@@ -4,7 +4,6 @@ description: "Platform engineering specialist for internal developer platforms, 
 color: emerald
 focus: "Internal developer platforms and paved paths"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, activate_skill, read_many_files, ask_user, google_web_search, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, activate_skill, read_many_files, ask_user, google_web_search, web_fetch]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList, Skill]
 max_turns: 25
 temperature: 0.2

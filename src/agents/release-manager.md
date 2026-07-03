@@ -4,7 +4,6 @@ description: "Release management specialist for release notes, changelogs, versi
 color: gold
 focus: "Release notes, changelogs, rollout planning"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, read_many_files, google_web_search, write_todos, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, read_many_files, google_web_search, write_todos, ask_user, web_fetch]
 tools.claude: [Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 15
 temperature: 0.3

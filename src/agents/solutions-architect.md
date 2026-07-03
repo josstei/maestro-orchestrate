@@ -4,7 +4,6 @@ description: "Solutions architecture specialist for enterprise integration patte
 color: lavender
 focus: "Enterprise integration and cross-team architecture"
 tools: [read_file, list_directory, glob, grep_search, google_web_search, read_many_files, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, google_web_search, read_many_files, ask_user, web_fetch]
 tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 max_turns: 15
 temperature: 0.3

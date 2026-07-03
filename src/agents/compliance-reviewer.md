@@ -4,7 +4,6 @@ description: "Legal and regulatory compliance specialist for privacy auditing, G
 color: maroon
 focus: "Legal and regulatory compliance"
 tools: [read_file, list_directory, glob, grep_search, google_web_search, web_fetch, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, google_web_search, web_fetch, read_many_files, ask_user]
 tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 max_turns: 15
 temperature: 0.3

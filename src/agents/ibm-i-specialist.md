@@ -4,7 +4,6 @@ description: "IBM i (AS/400, iSeries) specialist for RPG, CL, DB2 for i, and OS/
 color: bronze
 focus: "IBM i RPG/CL, DB2 for i, OS/400"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2

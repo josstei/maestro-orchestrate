@@ -4,7 +4,6 @@ description: "Performance engineering specialist for bottleneck identification, 
 color: yellow
 focus: "Performance profiling and optimization"
 tools: [read_file, list_directory, glob, grep_search, read_many_files, run_shell_command, google_web_search, write_todos, web_fetch, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, read_many_files, run_shell_command, google_web_search, write_todos, web_fetch, ask_user]
 tools.claude: [Read, Bash, Glob, Grep, WebSearch, WebFetch]
 max_turns: 20
 temperature: 0.2

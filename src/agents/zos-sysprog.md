@@ -4,7 +4,6 @@ description: "z/OS systems programming specialist for JCL, USS, SMP/E, RACF, sub
 color: slate
 focus: "z/OS systems programming, JCL, USS, RACF"
 tools: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
 tools.claude: [Read, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 20
 temperature: 0.2

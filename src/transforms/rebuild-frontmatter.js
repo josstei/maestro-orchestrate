@@ -3,6 +3,7 @@
 const { toSnakeCase } = require('../lib/naming');
 const { escapeYaml } = require('../lib/frontmatter');
 const { emitBlockList } = require('../lib/yaml-emit');
+const { getAgentToolDialect } = require('../platforms/runtime-descriptor');
 
 /**
  * Per-field emitters. Each returns the YAML line(s) to append, or an
@@ -87,9 +88,10 @@ function resolveTools(frontmatter, runtime) {
     return frontmatter[overrideKey];
   }
 
+  const dialect = getAgentToolDialect(runtime) || runtime.tools || {};
   return (frontmatter.tools || [])
     .map((tool) => {
-      const mapped = runtime.tools && runtime.tools[tool];
+      const mapped = dialect[tool];
       if (Array.isArray(mapped)) return mapped;
       return mapped || tool;
     })

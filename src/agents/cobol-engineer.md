@@ -4,7 +4,6 @@ description: "COBOL engineering specialist for mainframe program development, ma
 color: maroon
 focus: "Mainframe COBOL, JCL, CICS/IMS on z/OS"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2

@@ -4,7 +4,6 @@ description: "UX designer for user flow design, interaction patterns, wireframe 
 color: purple
 focus: "User experience design"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, google_web_search, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, google_web_search, read_many_files, ask_user]
 tools.claude: [Read, Write, Edit, Glob, Grep, WebSearch]
 max_turns: 20
 temperature: 0.2

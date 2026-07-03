@@ -4,7 +4,6 @@ description: "Code review specialist for identifying bugs, security vulnerabilit
 color: blue
 focus: "Code quality review and bug identification"
 tools: [read_file, list_directory, glob, grep_search, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, read_many_files, ask_user]
 tools.claude: [Read, Glob, Grep]
 max_turns: 15
 temperature: 0.2

@@ -4,7 +4,6 @@ description: "API design specialist for endpoint design, request/response contra
 color: cyan
 focus: "API contracts and endpoint design"
 tools: [read_file, list_directory, glob, grep_search, read_many_files, ask_user, google_web_search, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, read_many_files, ask_user, google_web_search, web_fetch]
 tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 max_turns: 15
 temperature: 0.3

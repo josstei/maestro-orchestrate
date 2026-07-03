@@ -4,7 +4,6 @@ description: "DevOps specialist for CI/CD pipelines, containerization, deploymen
 color: magenta
 focus: "CI/CD, containerization, and deployment"
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, google_web_search, write_todos, read_many_files, web_fetch, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, google_web_search, write_todos, read_many_files, web_fetch, ask_user]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, TaskCreate, TaskUpdate, TaskList, WebSearch, WebFetch]
 max_turns: 20
 temperature: 0.2
