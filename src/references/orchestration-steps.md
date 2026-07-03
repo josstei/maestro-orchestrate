@@ -154,6 +154,13 @@ COMPLETION (Phase 4)
     If Critical/Major findings: re-delegate to the implementing agent to fix.
     The orchestrator MUST NOT write code directly.
     </HARD-GATE>
+28a. Solicit a human-satisfaction rating for the completed work. Using the runtime's user-prompt tool, ask the user for a thumbs up/down judgment plus an optional note, and record it with `rate_session(session_id, rating, note?)`. When the user calls out a specific phase, additionally record `rate_phase(session_id, phase_id, rating, note?)`. Ratings persist to `<state_dir>/knowledge/ratings.jsonl` (outside the archived session document) and feed the `get_agent_performance` priors that later sessions consult.
+    <HARD-GATE>
+    The rating MUST be solicited via the user-prompt tool as a distinct call —
+    do NOT infer satisfaction from conversational tone and do NOT skip the prompt.
+    `rate_session` and `rate_phase` accept only 'up' or 'down' as the rating value.
+    Pass the session_id verbatim (the same id used for every prior MCP call).
+    </HARD-GATE>
 29. If MAESTRO_AUTO_ARCHIVE is true (or unset), call archive_session. If false, inform user session is complete but not archived.
 30. Present final summary with files changed, phase outcomes, and next steps.
 
