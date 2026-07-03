@@ -4,6 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { toTitleCase } = require('../lib/naming');
 const { emitInlineQuotedList } = require('../lib/yaml-emit');
+const { getRuntimeConfig, getRuntimeGeneration } = require('../platforms/runtime-descriptor');
 
 const DEFAULT_SRC = path.resolve(__dirname, '..');
 
@@ -14,41 +15,6 @@ const DEFAULT_SRC = path.resolve(__dirname, '..');
 const HOST_RESERVED_NAMES = {
   codex: new Set(['review', 'debug', 'resume']),
   claude: new Set(['review', 'debug', 'resume']),
-};
-
-const ENTRY_POINT_CONFIG = {
-  gemini: {
-    templateFile: 'gemini-command.toml.tmpl',
-    outputPath: (e) => `commands/maestro/${e.name}.toml`,
-    preamblePlaceholder: 'skills_block',
-  },
-  claude: {
-    templateFile: 'claude-skill.md.tmpl',
-    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
-    preamblePlaceholder: 'protocol_block',
-  },
-  codex: {
-    templateFile: 'codex-skill.md.tmpl',
-    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-    preamblePlaceholder: 'refs_list',
-  },
-  qwen: null,
-};
-
-const CORE_COMMAND_CONFIG = {
-  gemini: {
-    templateFile: 'gemini-core-command.toml.tmpl',
-    outputPath: (e) => `commands/maestro/${e.name}.toml`,
-  },
-  claude: {
-    templateFile: 'claude-core-command.md.tmpl',
-    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
-  },
-  codex: {
-    templateFile: 'codex-core-command.md.tmpl',
-    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-  },
-  qwen: null,
 };
 
 /**
@@ -99,22 +65,13 @@ function runTemplateExpansion({ runtimeName, registry, templatePath, outputPathF
   });
 }
 
-function resolveRuntimeConfig(configMap, runtimeName, kind) {
-  const config = configMap[runtimeName];
-  if (config === null) return null;
-  if (!config) {
-    throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
-  }
-  return config;
-}
-
 /**
  * @param {string} runtimeName
  * @param {string} [srcDir]
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = resolveRuntimeConfig(ENTRY_POINT_CONFIG, runtimeName, 'entry-point');
+  const config = getRuntimeGeneration(getRuntimeConfig(runtimeName, srcDir)).entryPoint;
   if (!config) return [];
 
   const registry = require(path.join(srcDir, 'entry-points', 'registry'));
@@ -144,7 +101,7 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = resolveRuntimeConfig(CORE_COMMAND_CONFIG, runtimeName, 'core-command');
+  const config = getRuntimeGeneration(getRuntimeConfig(runtimeName, srcDir)).coreCommand;
   if (!config) return [];
 
   const registry = require(path.join(srcDir, 'entry-points', 'core-command-registry'));
