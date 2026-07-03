@@ -71,9 +71,11 @@ Development / temporary loading:
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
 cd maestro-orchestrate
-npm ci && npm run generate
-claude --plugin-dir /path/to/maestro-orchestrate/claude
+npm ci
+just dev-load-claude   # or: npm run dev-load-claude
 ```
+
+`just dev-load-claude` regenerates the runtime, assembles a self-contained plugin under `dist/claude-plugin/` (with a bundled `dist/src/`), and prints the exact `claude --plugin-dir …` command to load it. Re-run it after editing anything under `src/`.
 
 More Claude-specific setup and plugin management lives in [claude/README.md](claude/README.md).
 

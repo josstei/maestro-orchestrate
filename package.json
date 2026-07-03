@@ -19,6 +19,7 @@
   },
   "scripts": {
     "generate": "node scripts/generate.js",
+    "dev-load-claude": "npm run generate && node scripts/assemble-claude-plugin.js",
     "build": "npm run generate",
     "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
     "test:coverage": "c8 npm test",

@@ -35,20 +35,16 @@ claude plugin uninstall maestro       # Remove the plugin entirely
 
 ### Development / Testing
 
-Load the plugin for a single session without persistent registration:
-
-```bash
-claude --plugin-dir /path/to/maestro-orchestrate
-```
-
-Use `/reload-plugins` inside the session to pick up file changes without restarting.
-
-For local development, clone the repo first:
+Assemble a self-contained plugin and load it in one step:
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
-claude --plugin-dir /path/to/maestro-orchestrate
+cd maestro-orchestrate
+npm ci
+just dev-load-claude   # or: npm run dev-load-claude
 ```
+
+`dev-load-claude` regenerates the runtime, assembles `dist/claude-plugin/` beside a bundled `dist/src/`, and prints the exact `claude --plugin-dir /path/to/maestro-orchestrate/dist/claude-plugin` command. Re-run it after editing anything under `src/`; use `/reload-plugins` inside the session to pick up changes without restarting.
 
 ### Verify Installation
 

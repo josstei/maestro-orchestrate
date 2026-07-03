@@ -9,6 +9,7 @@ help:
     @echo "  just dry-run          Preview what would change without writing"
     @echo "  just diff             Show unified diff of what would change"
     @echo "  just clean            Delete all generated files and regenerate"
+    @echo "  just dev-load-claude  Build dist/claude-plugin/ and print the claude --plugin-dir command"
     @echo ""
     @echo "Testing:"
     @echo "  just test             Run all tests"
@@ -40,6 +41,10 @@ diff:
 clean:
     node scripts/generate.js --clean
     node scripts/generate.js
+
+# Assemble a self-contained local Claude plugin and print the one-step load command
+dev-load-claude: generate
+    node scripts/assemble-claude-plugin.js
 
 # Run all tests
 test:
