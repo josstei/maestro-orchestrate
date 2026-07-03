@@ -38,4 +38,6 @@ const ASK_RULES = Object.freeze([
   { matchType: 'regex', pattern: '\\s>>?\\s|\\s>>?$|^>>?\\s|\\d>>?\\s', tier: 'command', reason: 'Shell output redirection' },
 ]);
 
-module.exports = { DENY_RULES, ASK_RULES };
+const KNOWN_UNENFORCED_RUNTIMES = Object.freeze(['codex']);
+
+module.exports = { DENY_RULES, ASK_RULES, KNOWN_UNENFORCED_RUNTIMES };
