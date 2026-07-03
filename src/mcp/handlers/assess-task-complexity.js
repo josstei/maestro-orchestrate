@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } = require('../../lib/framework-detection');
+const { handleGetAgentPerformance } = require('./agent-performance');
 
 function countFiles(directory, depth, depthLimit) {
   if (depth > depthLimit) {
@@ -85,6 +86,9 @@ function handleAssessTaskComplexity(_params, projectRoot) {
   const configFiles = CONFIG_FILES.filter((file) =>
     fs.existsSync(path.join(projectRoot, file))
   );
+  const agentPriors = projectRoot
+    ? handleGetAgentPerformance({}, projectRoot).by_agent
+    : {};
 
   return {
     file_count: fileCount,
@@ -100,6 +104,7 @@ function handleAssessTaskComplexity(_params, projectRoot) {
       fileCount <= 20 ? 'low' : fileCount <= 200 ? 'moderate' : 'high',
     repo_is_empty: fileCount === 0,
     repo_size_estimate: estimateSize(fileCount),
+    agent_priors: agentPriors,
   };
 }
 
