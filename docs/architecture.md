@@ -111,7 +111,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 14 handler implementations
+├── handlers/                   # 15 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -125,7 +125,8 @@ src/mcp/
 │   ├── reconciliation.js       # Phase reconciliation (2 tools)
 │   ├── archive-index.js        # Archive index/search + cost insights (3 tools)
 │   ├── blocker-parser.js       # Child-agent blocker surfacing
-│   └── session-migrations.js   # Session-state schema versioning + migration
+│   ├── session-migrations.js   # Session-state schema versioning + migration
+│   └── project-profile.js      # Project-memory profile read/update
 ├── tool-packs/
 │   ├── index.js                # Tool pack aggregation
 │   ├── contracts.js            # Tool schema contracts
