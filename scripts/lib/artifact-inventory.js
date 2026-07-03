@@ -17,6 +17,7 @@ const RUNTIME_SOURCE_PATHS = Object.freeze([
   'src/lib/frontmatter',
   'src/lib/io',
   'src/lib/naming',
+  'src/lib/schema',
   'src/lib/validation',
   'src/mcp',
   'src/platforms/claude/runtime-config.js',
