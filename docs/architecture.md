@@ -127,12 +127,15 @@ src/mcp/
 │   ├── blocker-parser.js       # Child-agent blocker surfacing
 │   ├── session-migrations.js   # Session-state schema versioning + migration
 │   └── project-profile.js      # Project-memory profile read/update
+├── memory/
+│   └── memory-store.js         # Durable memory store facade
 ├── tool-packs/
 │   ├── index.js                # Tool pack aggregation
 │   ├── contracts.js            # Tool schema contracts
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 13 tools
-│   └── content/index.js        # 3 tools
+│   ├── content/index.js        # 3 tools
+│   └── memory/index.js         # 2 tools
 ├── utils/
 │   └── extension-root.js       # Path resolution
 └── runtime/
@@ -172,7 +175,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 
-### Tool Catalog (20 tools)
+### Tool Catalog (22 tools)
 
 **Workspace Pack (4 tools):**
 
@@ -208,6 +211,13 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 | `get_skill_content` | resources | Serve skills/templates/references with runtime transforms |
 | `get_agent` | agents | Serve agent methodologies with tool mappings |
 | `get_runtime_context` | — | Return runtime tool mappings, dispatch syntax, MCP prefixes |
+
+**Memory Pack (2 tools):**
+
+| Tool | Required Params | Purpose |
+|------|----------------|---------|
+| `get_project_profile` | — | Read the durable per-repo memory profile (learned commands, conventions, agent preferences) |
+| `update_project_profile` | — | Replace supplied profile fields and persist the per-repo memory profile |
 
 ## Agent System
 
