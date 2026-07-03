@@ -60,6 +60,9 @@ function renderPolicyToml({ denyRules = DENY_RULES, askRules = ASK_RULES } = {})
     if (rule.matchType === 'prefix') throw new Error(`Unsupported ask matchType: prefix (${rule.pattern})`);
   }
 
+  denyRules = denyRules.filter((r) => (r.tier || 'command') === 'command');
+  askRules = askRules.filter((r) => (r.tier || 'command') === 'command');
+
   const blocks = [];
   for (const rule of askRules) {
     blocks.push(renderRegexRule(rule, 'ask_user', ASK_PRIORITY, null));
