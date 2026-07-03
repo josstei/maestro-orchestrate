@@ -15,6 +15,7 @@ describe('memory tool pack', () => {
         'update_project_profile',
         'record_validation_commands',
         'get_agent_performance',
+        'recall_similar_sessions',
       ]
     );
   });

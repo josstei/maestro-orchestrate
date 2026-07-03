@@ -9,6 +9,7 @@ const {
 const {
   handleGetAgentPerformance,
 } = require('../../handlers/agent-performance');
+const { handleRecallSimilarSessions } = require('../../handlers/recall');
 
 const PROFILE_FIELD_SCHEMA = { type: 'array', items: { type: 'string' } };
 
@@ -80,12 +81,35 @@ function createToolPack() {
           },
         },
       },
+      {
+        name: 'recall_similar_sessions',
+        description:
+          'Rank the most relevant prior archived sessions for a free-text task description using a deterministic BM25/TF-IDF scan of the archived corpus (task, agents, touched files, recorded warnings). Results are ordered by score descending, ties broken by session_id ascending, each with a rationale naming the agents that handled similar work, contended file areas, and recorded warnings.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Free-text task description to match against archived sessions.',
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              default: 5,
+              description: 'Maximum number of ranked precedents to return.',
+            },
+          },
+          required: ['query'],
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
       update_project_profile: handleUpdateProjectProfile,
       record_validation_commands: handleRecordValidationCommands,
       get_agent_performance: handleGetAgentPerformance,
+      recall_similar_sessions: handleRecallSimilarSessions,
     },
   });
 }
