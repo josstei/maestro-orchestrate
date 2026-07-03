@@ -11,6 +11,40 @@
 
 const { DENY_RULES, ASK_RULES } = require('../../core/policy-rules');
 
+const WRAPPERS = new Set(['env', 'sudo', 'doas', 'nice', 'nohup', 'time', 'command', 'builtin', 'exec', 'ionice', 'stdbuf', 'setsid']);
+const VALUE_FLAGS = {
+  sudo: new Set(['-u', '-g', '-U', '-C', '-D', '-p', '-h', '-R', '--user', '--group']),
+  nice: new Set(['-n', '--adjustment']),
+  ionice: new Set(['-c', '-n', '-p']),
+  stdbuf: new Set(['-i', '-o', '-e']),
+  env: new Set(['-C', '-S', '-u']),
+};
+function basename(token) {
+  const i = token.lastIndexOf('/');
+  return i === -1 ? token : token.slice(i + 1);
+}
+function normalizeSegment(segment) {
+  let toks = segment.trim().replace(/^\\(?=\S)/, '').split(/\s+/).filter(Boolean);
+  let progressed = true;
+  while (progressed && toks.length > 1) {
+    progressed = false;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(toks[0])) { toks = toks.slice(1); progressed = true; continue; }
+    const head = basename(toks[0]);
+    if (WRAPPERS.has(head)) {
+      const vf = VALUE_FLAGS[head] || new Set();
+      toks = toks.slice(1);
+      while (toks.length > 1 && toks[0].startsWith('-')) {
+        const flag = toks[0]; toks = toks.slice(1);
+        if (vf.has(flag) && toks.length > 1 && !toks[0].startsWith('-')) toks = toks.slice(1);
+      }
+      while (toks.length > 1 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(toks[0])) toks = toks.slice(1);
+      progressed = true; continue;
+    }
+  }
+  if (toks.length) toks[0] = basename(toks[0]);
+  return toks.join(' ');
+}
+
 function splitCommands(command) {
   const parts = [];
   let depth = 0;
@@ -230,20 +264,17 @@ function extractSubshells(command) {
 function checkCommand(command) {
   const segments = splitCommands(command);
   const subshells = extractSubshells(command);
-  const allParts = [...new Set([...segments, ...subshells, ...subshells.flatMap((s) => splitCommands(s))])];
+  const base = [...new Set([...segments, ...subshells, ...subshells.flatMap((s) => splitCommands(s))])];
+  const allParts = [...new Set([...base, ...base.map(normalizeSegment)])];
 
   for (const part of allParts) {
     for (const rule of DENY_RULES) {
-      if (matchRule(rule, part)) {
-        return { decision: 'block', reason: rule.reason };
-      }
+      if (matchRule(rule, part)) return { decision: 'block', reason: rule.reason };
     }
   }
   for (const part of allParts) {
     for (const rule of ASK_RULES) {
-      if (matchRule(rule, part)) {
-        return { decision: 'ask', reason: rule.reason };
-      }
+      if (matchRule(rule, part)) return { decision: 'ask', reason: rule.reason };
     }
   }
   return { decision: 'approve' };
@@ -310,6 +341,7 @@ module.exports = {
   readDollarSubshell,
   extractSubshells,
   checkCommand,
+  normalizeSegment,
   matchRule,
   toHookOutput,
   PERMISSION_DECISION,
