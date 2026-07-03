@@ -129,7 +129,7 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
     outputPathFn: config.outputPath,
     buildSubstitutions: (runtimeEntry) => ({
       name: runtimeEntry.name,
-      Name: toTitleCase(runtimeEntry.name),
+      Name: runtimeEntry.title || toTitleCase(runtimeEntry.name),
       description: runtimeEntry.description,
       workflow_numbered: runtimeEntry.workflow.map((step, i) => `${i + 1}. ${step}`).join('\n'),
       constraints_list: (runtimeEntry.constraints || []).map((c) => `- ${c}`).join('\n'),

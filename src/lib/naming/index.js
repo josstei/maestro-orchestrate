@@ -1,10 +1,5 @@
 'use strict';
 
-const TITLE_SPECIAL_CASES = {
-  'a11y-audit': 'Accessibility Audit',
-  'seo-audit': 'SEO Audit',
-};
-
 /**
  * Convert a kebab-case name to snake_case.
  * @param {string} name - Name in kebab-case (e.g. 'api-designer')
@@ -37,15 +32,11 @@ function toPascalCase(name) {
 
 /**
  * Convert a kebab-case name to title case for display.
- * Includes special-case handling for abbreviations and accessibility terms.
  *
  * @param {string} name - Name in kebab-case (e.g. 'perf-check')
  * @returns {string} Display-friendly title (e.g. 'Perf Check')
  */
 function toTitleCase(name) {
-  if (TITLE_SPECIAL_CASES[name]) {
-    return TITLE_SPECIAL_CASES[name];
-  }
   return name
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -85,7 +76,6 @@ function replaceInContent(content, names, targetCase) {
 }
 
 module.exports = {
-  TITLE_SPECIAL_CASES,
   toSnakeCase,
   toKebabCase,
   toPascalCase,
