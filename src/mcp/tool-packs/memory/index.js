@@ -10,6 +10,7 @@ const {
   handleGetAgentPerformance,
 } = require('../../handlers/agent-performance');
 const { handleRecallSimilarSessions } = require('../../handlers/recall');
+const { handleRatePhase, handleRateSession } = require('../../handlers/ratings');
 
 const PROFILE_FIELD_SCHEMA = { type: 'array', items: { type: 'string' } };
 
@@ -103,6 +104,37 @@ function createToolPack() {
           required: ['query'],
         },
       },
+      {
+        name: 'rate_phase',
+        description:
+          'Record an explicit human-satisfaction rating (thumbs up/down) for a specific phase of a session, with an optional free-text note. Persisted to knowledge/ratings.jsonl and folded into the get_agent_performance priors.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            phase_id: { type: ['integer', 'string'] },
+            rating: { type: 'string', enum: ['up', 'down'] },
+            note: { type: 'string' },
+          },
+          required: ['session_id', 'phase_id', 'rating'],
+        },
+      },
+      {
+        name: 'rate_session',
+        description:
+          'Record an explicit human-satisfaction rating (thumbs up/down) for a whole session, with an optional free-text note. Persisted to knowledge/ratings.jsonl and folded into the get_agent_performance priors.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string' },
+            rating: { type: 'string', enum: ['up', 'down'] },
+            note: { type: 'string' },
+          },
+          required: ['session_id', 'rating'],
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
@@ -110,6 +142,8 @@ function createToolPack() {
       record_validation_commands: handleRecordValidationCommands,
       get_agent_performance: handleGetAgentPerformance,
       recall_similar_sessions: handleRecallSimilarSessions,
+      rate_phase: handleRatePhase,
+      rate_session: handleRateSession,
     },
   });
 }

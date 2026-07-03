@@ -16,6 +16,8 @@ describe('memory tool pack', () => {
         'record_validation_commands',
         'get_agent_performance',
         'recall_similar_sessions',
+        'rate_phase',
+        'rate_session',
       ]
     );
   });
