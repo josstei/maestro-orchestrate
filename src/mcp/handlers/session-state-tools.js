@@ -190,6 +190,8 @@ function handleCreateSession(params, projectRoot) {
   const state = {
     schema_version: SCHEMA_VERSION,
     session_id: params.session_id,
+    parent_session_id: params.parent_session_id || null,
+    branch: params.branch || null,
     task: params.task,
     created: now,
     updated: now,

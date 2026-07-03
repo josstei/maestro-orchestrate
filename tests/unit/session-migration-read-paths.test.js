@@ -29,14 +29,18 @@ function legacyDocument(sessionId) {
 describe('session-state migration on both read paths', () => {
   it('parseSessionState backfills schema_version and phase counters', () => {
     const migrated = parseSessionState(legacyDocument('legacy-active'));
-    assert.equal(migrated.schema_version, 1);
+    assert.equal(migrated.schema_version, 2);
+    assert.equal(migrated.parent_session_id, null);
+    assert.equal(migrated.branch, null);
     assert.equal(migrated.phases[0].blocker_count, 0);
     assert.equal(migrated.phases[0].review_finding_count, 0);
   });
 
   it('parseArchivedSessionState backfills schema_version and phase counters', () => {
     const migrated = parseArchivedSessionState(legacyDocument('legacy-arch'));
-    assert.equal(migrated.schema_version, 1);
+    assert.equal(migrated.schema_version, 2);
+    assert.equal(migrated.parent_session_id, null);
+    assert.equal(migrated.branch, null);
     assert.equal(migrated.phases[0].blocker_count, 0);
     assert.equal(migrated.phases[0].review_finding_count, 0);
   });

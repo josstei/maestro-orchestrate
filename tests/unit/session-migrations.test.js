@@ -22,16 +22,28 @@ function legacyDocument() {
 
 describe('migrateSessionState', () => {
   it('exposes the current schema version', () => {
-    assert.equal(SCHEMA_VERSION, 1);
+    assert.equal(SCHEMA_VERSION, 2);
   });
 
   it('stamps the schema version and backfills per-phase counters on legacy docs', () => {
     const migrated = migrateSessionState(legacyDocument());
-    assert.equal(migrated.schema_version, 1);
+    assert.equal(migrated.schema_version, 2);
+    assert.equal(migrated.parent_session_id, null);
+    assert.equal(migrated.branch, null);
     for (const phase of migrated.phases) {
       assert.equal(phase.blocker_count, 0);
       assert.equal(phase.review_finding_count, 0);
     }
+  });
+
+  it('migrates v1 documents to v2 with lineage fields', () => {
+    const migrated = migrateSessionState({
+      schema_version: 1,
+      phases: [{ id: 1, name: 'P1', status: 'completed' }],
+    });
+    assert.equal(migrated.schema_version, 2);
+    assert.equal(migrated.parent_session_id, null);
+    assert.equal(migrated.branch, null);
   });
 
   it('is idempotent — a second application is a genuine no-op', () => {
@@ -58,6 +70,8 @@ describe('migrateSessionState', () => {
 
   it('tolerates a missing phases array', () => {
     const migrated = migrateSessionState({ session_id: 'no-phases' });
-    assert.equal(migrated.schema_version, 1);
+    assert.equal(migrated.schema_version, 2);
+    assert.equal(migrated.parent_session_id, null);
+    assert.equal(migrated.branch, null);
   });
 });

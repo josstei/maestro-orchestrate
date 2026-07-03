@@ -5,7 +5,7 @@
  * new persisted field so migrations can bring older documents forward.
  * @type {number}
  */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 /**
  * Backfill the per-phase fields introduced by schema version 1
@@ -32,12 +32,32 @@ function migrateToV1(data) {
 }
 
 /**
+ * Backfill the session lineage fields introduced by schema version 2. Existing
+ * values are preserved so forks keep their recorded ancestry.
+ *
+ * @param {object} data - parsed session-state frontmatter
+ * @returns {object} the same object, with lineage fields ensured
+ */
+function migrateToV2(data) {
+  if (typeof data.parent_session_id === 'undefined') {
+    data.parent_session_id = null;
+  }
+  if (typeof data.branch === 'undefined') {
+    data.branch = null;
+  }
+  return data;
+}
+
+/**
  * Ordered registry of schema migrations. Each entry upgrades a document to its
  * `to` version and MUST be idempotent. Future units append a new entry with the
  * next `to` value rather than editing an existing step.
  * @type {ReadonlyArray<{ to: number, migrate: (data: object) => object }>}
  */
-const MIGRATIONS = [{ to: 1, migrate: migrateToV1 }];
+const MIGRATIONS = [
+  { to: 1, migrate: migrateToV1 },
+  { to: 2, migrate: migrateToV2 },
+];
 
 /**
  * Bring a parsed session-state document up to {@link SCHEMA_VERSION}.

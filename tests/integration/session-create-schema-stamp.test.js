@@ -31,7 +31,9 @@ describe('create_session schema stamping (write path)', () => {
     assert.equal(created.ok, true, created.error || '');
 
     const frontmatter = readSessionFrontmatter(workspace);
-    assert.equal(frontmatter.schema_version, 1);
+    assert.equal(frontmatter.schema_version, 2);
+    assert.equal(frontmatter.parent_session_id, null);
+    assert.equal(frontmatter.branch, null);
     assert.equal(frontmatter.phases.length, 2);
     for (const phase of frontmatter.phases) {
       assert.equal(phase.blocker_count, 0);

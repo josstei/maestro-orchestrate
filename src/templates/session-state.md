@@ -1,6 +1,8 @@
 ---
-schema_version: 1
+schema_version: 2
 session_id: "<YYYY-MM-DD-topic-slug>"
+parent_session_id: null
+branch: null
 task: "<user's original task description>"
 created: "<ISO 8601 timestamp>"
 updated: "<ISO 8601 timestamp>"
