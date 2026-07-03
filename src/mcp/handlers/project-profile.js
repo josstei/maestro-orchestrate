@@ -1,6 +1,10 @@
 'use strict';
 
-const { MemoryStore, PROFILE_ARRAY_FIELDS } = require('../memory/memory-store');
+const {
+  MemoryStore,
+  PROFILE_ARRAY_FIELDS,
+  mergeValidationCommands,
+} = require('../memory/memory-store');
 
 /**
  * Read the durable per-repo memory profile.
@@ -33,7 +37,31 @@ function handleUpdateProjectProfile(params, projectRoot) {
   return { profile: store.writeProfile(current) };
 }
 
+/**
+ * Record known-good build/test/lint commands into the per-project memory
+ * profile, folding them into the profile command arrays (de-duplicated,
+ * most-recent-first) so later runs consult them before heuristics.
+ *
+ * @param {{ commands?: { build?: string[], test?: string[], lint?: string[] } }} params
+ * @param {string} projectRoot
+ * @returns {{ profile: object }} the persisted profile (same shape as the sibling profile handlers)
+ */
+function handleRecordValidationCommands(params, projectRoot) {
+  const commands =
+    params && typeof params.commands === 'object' && params.commands !== null
+      ? params.commands
+      : {};
+  const store = MemoryStore.forProjectRoot(projectRoot);
+  const merged = mergeValidationCommands(store.readProfile(), {
+    build: commands.build,
+    test: commands.test,
+    lint: commands.lint,
+  });
+  return { profile: store.writeProfile(merged) };
+}
+
 module.exports = {
   handleGetProjectProfile,
   handleUpdateProjectProfile,
+  handleRecordValidationCommands,
 };

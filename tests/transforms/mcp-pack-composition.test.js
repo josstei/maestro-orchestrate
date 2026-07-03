@@ -38,6 +38,7 @@ describe('mcp pack composition', () => {
         'get_runtime_context',
         'get_project_profile',
         'update_project_profile',
+        'record_validation_commands',
       ]
     );
   });
