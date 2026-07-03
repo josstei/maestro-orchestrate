@@ -11,6 +11,7 @@ const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
 const { collectManifestPaths } = require('../src/generator/manifest-curator');
 const { OWNED_GENERATED_DIRS } = require('../src/generator/generated-surface-inventory');
+const { assertCrossReferences } = require('../src/generator/cross-reference-validator');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { buildPolicyTomlOutputs } = require('../src/generator/policy-toml-emitter');
 const { buildHookConfigOutputs } = require('../src/generator/hook-config-emitter');
@@ -85,6 +86,7 @@ async function main() {
   const manifestRules = require(path.join(SRC, 'manifest'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   assertNoMirroredSharedOutputs(manifest);
+  assertCrossReferences(SRC);
 
   const session = createGenerationSession({
     rootDir: ROOT,
