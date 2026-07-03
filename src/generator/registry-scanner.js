@@ -6,6 +6,7 @@ const { discover, generateRegistry } = require('../lib/discovery');
 const { serializeRegistry } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
 const { toPascalCase } = require('../lib/naming');
+const { validateRegistry } = require('./registry-schemas');
 
 function buildAgentRegistry(srcDir) {
   const agentEntries = discover({
@@ -95,11 +96,17 @@ function buildHookRegistry(srcDir) {
 }
 
 function buildRegistries(srcDir) {
-  return [
+  const registries = [
     { fileName: 'agent-registry.json', data: buildAgentRegistry(srcDir) },
     { fileName: 'resource-registry.json', data: buildResourceRegistry(srcDir) },
     { fileName: 'hook-registry.json', data: buildHookRegistry(srcDir) },
   ];
+
+  for (const { fileName, data } of registries) {
+    validateRegistry(fileName, data);
+  }
+
+  return registries;
 }
 
 function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
@@ -126,6 +133,7 @@ function generateRegistries(srcDir) {
 }
 
 module.exports = {
+  buildRegistries,
   collectRegistryOutputs,
   generateRegistries,
 };
