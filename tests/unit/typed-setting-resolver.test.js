@@ -47,6 +47,22 @@ describe('resolveTypedSetting', () => {
     assert.deepEqual(result, ['architect', 'tester']);
   });
 
+  it('returns the memory-injection default (true) when unset', () => {
+    const result = withEnv(
+      { MAESTRO_MEMORY_INJECTION: null, MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_MEMORY_INJECTION', undefined)
+    );
+    assert.equal(result, true);
+  });
+
+  it('coerces an explicit memory-injection false', () => {
+    const result = withEnv(
+      { MAESTRO_MEMORY_INJECTION: 'false', MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_MEMORY_INJECTION', undefined)
+    );
+    assert.equal(result, false);
+  });
+
   it('throws ValidationError on a bad enum value', () => {
     assert.throws(
       () =>

@@ -19,6 +19,7 @@ const SETTINGS_SCHEMA = {
   MAESTRO_STATE_DIR: { schema: string(), default: 'docs/maestro' },
   MAESTRO_MAX_CONCURRENT: { schema: integer({ min: 0 }), default: 0 },
   MAESTRO_EXECUTION_MODE: { schema: enumOf(EXECUTION_MODES), default: 'ask' },
+  MAESTRO_MEMORY_INJECTION: { schema: boolean(), default: true },
 };
 
 const SETTING_NAMES = Object.keys(SETTINGS_SCHEMA);
