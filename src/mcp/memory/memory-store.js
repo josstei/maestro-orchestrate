@@ -4,7 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 const markdownState = require('../../core/markdown-state');
-const { atomicWriteSync, readJsonSafe } = require('../../lib/io');
+const { atomicWriteSync, readFileSafe, readJsonSafe } = require('../../lib/io');
+const { ValidationError } = require('../../lib/errors');
+const { assertRelativePath } = require('../../lib/validation');
 const { resolveStateDirPath } = require('../../state/session-state');
 
 const PROFILE_SCHEMA_VERSION = 1;
@@ -39,6 +41,31 @@ const PROFILE_BODY = '# Project Memory Profile\n';
  */
 function knowledgeFilePath(projectRoot, filename) {
   return path.join(resolveStateDirPath(projectRoot), 'knowledge', filename);
+}
+
+/**
+ * Validate a value as one safe filesystem path segment for agent memory files.
+ *
+ * @param {unknown} agent
+ * @returns {string}
+ * @throws {ValidationError}
+ */
+function assertAgentMemorySegment(agent) {
+  if (typeof agent !== 'string' || agent.length === 0) {
+    throw new ValidationError('agent must be a non-empty filesystem segment');
+  }
+  assertRelativePath(agent);
+  if (
+    agent.includes('/') ||
+    agent.includes('\\') ||
+    agent === '.' ||
+    agent === '..'
+  ) {
+    throw new ValidationError('agent must be a single filesystem segment', {
+      details: { value: agent },
+    });
+  }
+  return agent;
 }
 
 /**
@@ -257,6 +284,16 @@ class MemoryStore {
   }
 
   /**
+   * @param {string} agent
+   * @returns {string}
+   * @throws {ValidationError}
+   */
+  agentMemoryPath(agent) {
+    const segment = assertAgentMemorySegment(agent);
+    return path.join(this.stateDir, 'knowledge', 'agent-memory', `${segment}.md`);
+  }
+
+  /**
    * @returns {string}
    */
   ratingsPath() {
@@ -339,6 +376,35 @@ class MemoryStore {
     return normalizeArchitectureMemoryGraph(
       readJsonSafe(this.architectureMemoryPath(), emptyArchitectureMemoryGraph())
     );
+  }
+
+  /**
+   * Read durable memory notes for one agent.
+   *
+   * @param {string} agent
+   * @returns {string}
+   * @throws {ValidationError}
+   */
+  readAgentMemory(agent) {
+    return readFileSafe(this.agentMemoryPath(agent), '');
+  }
+
+  /**
+   * Append one plain-text note to an agent's durable memory file.
+   *
+   * @param {string} agent
+   * @param {string} note
+   * @returns {string} the appended note line
+   * @throws {ValidationError}
+   */
+  appendAgentMemory(agent, note) {
+    if (typeof note !== 'string' || note.length === 0) {
+      throw new ValidationError('note must be a non-empty string');
+    }
+    const filePath = this.agentMemoryPath(agent);
+    const line = note.endsWith('\n') ? note : `${note}\n`;
+    atomicWriteSync(filePath, `${readFileSafe(filePath, '')}${line}`);
+    return line;
   }
 
   /**
@@ -465,6 +531,7 @@ module.exports = {
   ARCHITECTURE_MEMORY_CATEGORIES,
   ARCHITECTURE_MEMORY_SCHEMA_VERSION,
   PROFILE_ARRAY_FIELDS,
+  assertAgentMemorySegment,
   emptyArchitectureMemoryGraph,
   emptyProfile,
   mergeValidationCommands,
