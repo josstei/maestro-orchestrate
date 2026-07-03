@@ -37,6 +37,7 @@ const {
 } = require('./session-state-core');
 const { parseBlockers } = require('./blocker-parser');
 const { recordAgentPerformance } = require('./agent-performance');
+const { recordPlanAccuracy } = require('./plan-accuracy');
 const { captureCheckpoint } = require('./checkpoints');
 const { SCHEMA_VERSION } = require('./session-migrations');
 const {
@@ -473,6 +474,9 @@ function handleArchiveSession(params, projectRoot) {
 
   try {
     recordAgentPerformance(state, projectRoot);
+  } catch {}
+  try {
+    recordPlanAccuracy(state, projectRoot);
   } catch {}
 
   state.status = 'completed';

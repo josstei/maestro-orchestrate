@@ -186,6 +186,13 @@ class MemoryStore {
   }
 
   /**
+   * @returns {string}
+   */
+  planAccuracyPath() {
+    return knowledgeFilePath(this.projectRoot, 'plan-accuracy.jsonl');
+  }
+
+  /**
    * Read the per-repo profile, returning a fresh empty profile when the file is
    * absent or unparseable. Array fields are normalized on read.
    * @returns {object}
@@ -296,6 +303,46 @@ class MemoryStore {
    */
   appendRating(record) {
     const filePath = this.ratingsPath();
+    let existing = '';
+    try {
+      existing = fs.readFileSync(filePath, 'utf8');
+    } catch {
+      existing = '';
+    }
+    atomicWriteSync(filePath, `${existing}${JSON.stringify(record)}\n`);
+    return record;
+  }
+
+  /**
+   * @returns {object[]} parsed plan-accuracy records ([] when absent), skipping bad lines
+   */
+  readPlanAccuracy() {
+    let content;
+    try {
+      content = fs.readFileSync(this.planAccuracyPath(), 'utf8');
+    } catch {
+      return [];
+    }
+    const out = [];
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) continue;
+      try {
+        out.push(JSON.parse(trimmed));
+      } catch {
+        continue;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Append one plan-accuracy record as a JSON line to the durable JSONL log.
+   * @param {object} record
+   * @returns {object} the appended record
+   */
+  appendPlanAccuracy(record) {
+    const filePath = this.planAccuracyPath();
     let existing = '';
     try {
       existing = fs.readFileSync(filePath, 'utf8');
