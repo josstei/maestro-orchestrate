@@ -75,6 +75,38 @@ function buildClaudeMcpConfig() {
   };
 }
 
+function buildClaudeLocalMcpConfig() {
+  return {
+    mcpServers: {
+      maestro: {
+        command: 'node',
+        args: ['${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js'],
+        cwd: '${CLAUDE_PLUGIN_ROOT}',
+      },
+    },
+  };
+}
+
+function buildClaudeLocalPluginManifest(context) {
+  return {
+    name: 'maestro',
+    version: context.version,
+    description: RUNTIME_DESCRIPTION,
+    author: buildAuthor(context),
+    license: context.license,
+    hooks: './hooks/claude-hooks.json',
+    mcpServers: './.mcp.json',
+    homepage: context.homepage,
+    repository: context.repository,
+    keywords: [
+      'orchestration',
+      'multi-agent',
+      'planning',
+      'execution',
+    ],
+  };
+}
+
 function buildMetadataOutputs(context) {
   return [
     {
@@ -93,6 +125,8 @@ function buildMetadataOutputs(context) {
 }
 
 module.exports = {
+  buildClaudeLocalMcpConfig,
+  buildClaudeLocalPluginManifest,
   buildClaudeMarketplace,
   buildClaudeMcpConfig,
   buildClaudePluginManifest,
