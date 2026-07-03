@@ -37,6 +37,7 @@ const {
 } = require('./session-state-core');
 const { parseBlockers } = require('./blocker-parser');
 const { recordAgentPerformance } = require('./agent-performance');
+const { captureCheckpoint } = require('./checkpoints');
 const { SCHEMA_VERSION } = require('./session-migrations');
 const {
   attributePhaseCost,
@@ -429,6 +430,7 @@ function handleTransitionPhase(params, projectRoot) {
     }
 
     state.updated = new Date().toISOString();
+    captureCheckpoint(state, projectRoot);
 
     const response = {
       success: true,
