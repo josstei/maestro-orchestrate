@@ -71,6 +71,20 @@ describe('resolveTypedSetting', () => {
     assert.equal(result, false);
   });
 
+  it('returns the knowledge-dir default when unset and preserves explicit strings', () => {
+    const defaultResult = withEnv(
+      { MAESTRO_KNOWLEDGE_DIR: null, MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_KNOWLEDGE_DIR', undefined)
+    );
+    assert.equal(defaultResult, '~/.maestro/knowledge');
+
+    const explicitResult = withEnv(
+      { MAESTRO_KNOWLEDGE_DIR: '/tmp/maestro-knowledge', MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_KNOWLEDGE_DIR', undefined)
+    );
+    assert.equal(explicitResult, '/tmp/maestro-knowledge');
+  });
+
   it('throws ValidationError on a bad enum value', () => {
     assert.throws(
       () =>
