@@ -12,8 +12,9 @@ const {
 const { assertValid, coerceScalar } = require('../../src/lib/schema');
 
 describe('settings-schema', () => {
-  it('declares the eight MAESTRO_* settings', () => {
+  it('declares the nine MAESTRO_* settings', () => {
     assert.deepEqual(SETTING_NAMES.sort(), [
+      'MAESTRO_ARCHIVE_RETENTION',
       'MAESTRO_AUTO_ARCHIVE',
       'MAESTRO_DISABLED_AGENTS',
       'MAESTRO_EXECUTION_MODE',
@@ -38,6 +39,7 @@ describe('settings-schema', () => {
     assert.equal(SETTINGS_SCHEMA.MAESTRO_STATE_DIR.default, 'docs/maestro');
     assert.equal(SETTINGS_SCHEMA.MAESTRO_EXECUTION_MODE.default, 'ask');
     assert.equal(SETTINGS_SCHEMA.MAESTRO_MAX_CONCURRENT.default, 0);
+    assert.equal(SETTINGS_SCHEMA.MAESTRO_ARCHIVE_RETENTION.default, 0);
     assert.equal(SETTINGS_SCHEMA.MAESTRO_AUTO_ARCHIVE.default, false);
     assert.deepEqual(SETTINGS_SCHEMA.MAESTRO_DISABLED_AGENTS.default, []);
     assert.equal(SETTINGS_SCHEMA.MAESTRO_MEMORY_INJECTION.default, true);

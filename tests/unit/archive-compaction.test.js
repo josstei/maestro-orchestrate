@@ -1,0 +1,136 @@
+'use strict';
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const { resolveStateDirPath } = require('../../src/state/session-state');
+const { handleCompactArchive } = require('../../src/mcp/handlers/archive-compaction');
+
+function withEnv(overrides, fn) {
+  const previous = {};
+  for (const key of Object.keys(overrides)) previous[key] = process.env[key];
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value == null) delete process.env[key];
+    else process.env[key] = value;
+  }
+  try {
+    return fn();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+function makeWorkspace() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-compact-'));
+}
+
+function archivePath(projectRoot, sessionId) {
+  return path.join(
+    resolveStateDirPath(projectRoot),
+    'state',
+    'archive',
+    `${sessionId}.md`
+  );
+}
+
+function writeArchive(projectRoot, sessionId, created) {
+  const filePath = archivePath(projectRoot, sessionId);
+  const data = {
+    session_id: sessionId,
+    task: `archive ${sessionId}`,
+    created,
+    updated: created,
+    status: 'completed',
+    phases: [],
+  };
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `---\n${JSON.stringify(data, null, 2)}\n---\n# ${sessionId}\n`);
+  return filePath;
+}
+
+describe('handleCompactArchive', () => {
+  it('prunes the oldest archived session documents beyond retention', () => {
+    const workspace = makeWorkspace();
+    writeArchive(workspace, 'oldest', '2026-07-01T00:00:00.000Z');
+    writeArchive(workspace, 'older', '2026-07-02T00:00:00.000Z');
+    writeArchive(workspace, 'newer', '2026-07-03T00:00:00.000Z');
+    writeArchive(workspace, 'newest', '2026-07-04T00:00:00.000Z');
+
+    const result = withEnv(
+      {
+        MAESTRO_ARCHIVE_RETENTION: '2',
+        MAESTRO_EXTENSION_PATH: null,
+        MAESTRO_STATE_DIR: null,
+      },
+      () => handleCompactArchive({}, workspace)
+    );
+
+    assert.deepEqual(result, {
+      pruned: ['oldest', 'older'],
+      retained: 2,
+    });
+    assert.equal(fs.existsSync(archivePath(workspace, 'oldest')), false);
+    assert.equal(fs.existsSync(archivePath(workspace, 'older')), false);
+    assert.equal(fs.existsSync(archivePath(workspace, 'newer')), true);
+    assert.equal(fs.existsSync(archivePath(workspace, 'newest')), true);
+  });
+
+  it('leaves archives untouched when retention is unset', () => {
+    const workspace = makeWorkspace();
+    writeArchive(workspace, 'first', '2026-07-01T00:00:00.000Z');
+    writeArchive(workspace, 'second', '2026-07-02T00:00:00.000Z');
+
+    const result = withEnv(
+      {
+        MAESTRO_ARCHIVE_RETENTION: null,
+        MAESTRO_EXTENSION_PATH: null,
+        MAESTRO_STATE_DIR: null,
+      },
+      () => handleCompactArchive({}, workspace)
+    );
+
+    assert.deepEqual(result, {
+      pruned: [],
+      retained: 2,
+    });
+    assert.equal(fs.existsSync(archivePath(workspace, 'first')), true);
+    assert.equal(fs.existsSync(archivePath(workspace, 'second')), true);
+  });
+
+  it('preserves durable knowledge and checkpoint state while compacting archives', () => {
+    const workspace = makeWorkspace();
+    const basePath = resolveStateDirPath(workspace);
+    writeArchive(workspace, 'oldest', '2026-07-01T00:00:00.000Z');
+    writeArchive(workspace, 'newest', '2026-07-02T00:00:00.000Z');
+
+    const knowledgePath = path.join(basePath, 'knowledge', 'architecture-memory.json');
+    const checkpointPath = path.join(basePath, 'state', 'checkpoints', 'newest', 'phase-1.md');
+    fs.mkdirSync(path.dirname(knowledgePath), { recursive: true });
+    fs.mkdirSync(path.dirname(checkpointPath), { recursive: true });
+    fs.writeFileSync(knowledgePath, '{"preserved":true}\n');
+    fs.writeFileSync(checkpointPath, '# checkpoint\n');
+
+    const result = withEnv(
+      {
+        MAESTRO_ARCHIVE_RETENTION: '1',
+        MAESTRO_EXTENSION_PATH: null,
+        MAESTRO_STATE_DIR: null,
+      },
+      () => handleCompactArchive({}, workspace)
+    );
+
+    assert.deepEqual(result, {
+      pruned: ['oldest'],
+      retained: 1,
+    });
+    assert.equal(fs.readFileSync(knowledgePath, 'utf8'), '{"preserved":true}\n');
+    assert.equal(fs.readFileSync(checkpointPath, 'utf8'), '# checkpoint\n');
+    assert.equal(fs.existsSync(archivePath(workspace, 'newest')), true);
+  });
+});

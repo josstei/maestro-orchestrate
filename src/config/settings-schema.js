@@ -12,6 +12,7 @@ const VALIDATION_STRICTNESS_LEVELS = ['strict', 'normal', 'lenient'];
  * @type {Record<string, { schema: object, default: * }>}
  */
 const SETTINGS_SCHEMA = {
+  MAESTRO_ARCHIVE_RETENTION: { schema: integer({ min: 0 }), default: 0 },
   MAESTRO_DISABLED_AGENTS: { schema: csv(string()), default: [] },
   MAESTRO_MAX_RETRIES: { schema: integer({ min: 0 }), default: 2 },
   MAESTRO_AUTO_ARCHIVE: { schema: boolean(), default: false },

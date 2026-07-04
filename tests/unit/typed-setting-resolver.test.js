@@ -39,6 +39,14 @@ describe('resolveTypedSetting', () => {
     assert.equal(result, 4);
   });
 
+  it('returns the archive-retention default (0) when unset', () => {
+    const result = withEnv(
+      { MAESTRO_ARCHIVE_RETENTION: null, MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_ARCHIVE_RETENTION', undefined)
+    );
+    assert.equal(result, 0);
+  });
+
   it('splits a csv setting into a trimmed array', () => {
     const result = withEnv(
       { MAESTRO_DISABLED_AGENTS: 'architect, tester', MAESTRO_EXTENSION_PATH: null },
