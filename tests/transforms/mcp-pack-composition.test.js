@@ -50,6 +50,8 @@ describe('mcp pack composition', () => {
         'compact_archive',
         'record_knowledge',
         'query_knowledge',
+        'export_memory_pack',
+        'import_memory_pack',
         'fork_session',
         'list_lineage',
         'list_checkpoints',

@@ -24,6 +24,10 @@ const {
   handleQueryKnowledge,
   handleRecordKnowledge,
 } = require('../../handlers/org-knowledge');
+const {
+  handleExportMemoryPack,
+  handleImportMemoryPack,
+} = require('../../handlers/memory-pack');
 
 const PROFILE_FIELD_SCHEMA = { type: 'array', items: { type: 'string' } };
 
@@ -256,6 +260,32 @@ function createToolPack() {
           },
         },
       },
+      {
+        name: 'export_memory_pack',
+        description:
+          'Export the durable project memory profile, agent-performance ledger, plan-accuracy ledger, and architecture-memory graph into one committable memory-pack.json artifact under the Maestro state directory. Volatile memory and knowledge ledgers stay in place.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'import_memory_pack',
+        description:
+          'Import a committable memory-pack.json artifact from the Maestro state directory and merge it additively into the durable project memory stores without duplicating existing entries.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: {
+              type: 'string',
+              description:
+                'Optional path to a memory pack under the resolved Maestro state directory. Defaults to memory-pack.json.',
+            },
+          },
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
@@ -272,6 +302,8 @@ function createToolPack() {
       compact_archive: handleCompactArchive,
       record_knowledge: handleRecordKnowledge,
       query_knowledge: handleQueryKnowledge,
+      export_memory_pack: handleExportMemoryPack,
+      import_memory_pack: handleImportMemoryPack,
     },
   });
 }

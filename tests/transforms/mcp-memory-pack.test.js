@@ -25,6 +25,8 @@ describe('memory tool pack', () => {
         'compact_archive',
         'record_knowledge',
         'query_knowledge',
+        'export_memory_pack',
+        'import_memory_pack',
       ]
     );
   });
