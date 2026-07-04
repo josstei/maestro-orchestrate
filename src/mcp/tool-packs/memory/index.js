@@ -20,6 +20,10 @@ const {
 const { handleCompactArchive } = require('../../handlers/archive-compaction');
 const { handleRecallSimilarSessions } = require('../../handlers/recall');
 const { handleRatePhase, handleRateSession } = require('../../handlers/ratings');
+const {
+  handleQueryKnowledge,
+  handleRecordKnowledge,
+} = require('../../handlers/org-knowledge');
 
 const PROFILE_FIELD_SCHEMA = { type: 'array', items: { type: 'string' } };
 
@@ -216,6 +220,42 @@ function createToolPack() {
           properties: {},
         },
       },
+      {
+        name: 'record_knowledge',
+        description:
+          'Record a cross-project knowledge note in MAESTRO_KNOWLEDGE_DIR for future sessions. Topic and note are content, not paths. Do not store secrets; notes may be shared across projects.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            topic: {
+              type: 'string',
+              description: 'Short topic label for the knowledge note.',
+            },
+            note: {
+              type: 'string',
+              description: 'Non-empty note content. Do not store secrets.',
+            },
+          },
+          required: ['topic', 'note'],
+        },
+      },
+      {
+        name: 'query_knowledge',
+        description:
+          'Query cross-project knowledge notes from MAESTRO_KNOWLEDGE_DIR. Stored notes may be shared across projects; do not store secrets.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description:
+                'Optional case-insensitive substring to match against topic or note.',
+            },
+          },
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
@@ -230,6 +270,8 @@ function createToolPack() {
       get_agent_memory: handleGetAgentMemory,
       append_agent_memory: handleAppendAgentMemory,
       compact_archive: handleCompactArchive,
+      record_knowledge: handleRecordKnowledge,
+      query_knowledge: handleQueryKnowledge,
     },
   });
 }

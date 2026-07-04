@@ -205,7 +205,8 @@ test('doc-drift: docs/architecture.md module tree shows correct handler + sessio
   assert.ok(!body.includes('# 22 handler implementations'), 'docs/architecture.md: still says 22 handler implementations');
   assert.ok(!body.includes('# 23 handler implementations'), 'docs/architecture.md: still says 23 handler implementations');
   assert.ok(!body.includes('# 24 handler implementations'), 'docs/architecture.md: still says 24 handler implementations');
-  assert.ok(body.includes('# 25 handler implementations'), 'docs/architecture.md: does not report 25 handlers');
+  assert.ok(!body.includes('# 25 handler implementations'), 'docs/architecture.md: still says 25 handler implementations');
+  assert.ok(body.includes('# 26 handler implementations'), 'docs/architecture.md: does not report 26 handlers');
   assert.ok(!body.includes('session/index.js        # 5 tools'), 'docs/architecture.md: still says session pack has 5 tools');
   assert.ok(body.includes('session/index.js        # 13 tools'), 'docs/architecture.md: does not report 13 session tools');
 });

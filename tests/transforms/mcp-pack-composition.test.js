@@ -48,6 +48,8 @@ describe('mcp pack composition', () => {
         'get_agent_memory',
         'append_agent_memory',
         'compact_archive',
+        'record_knowledge',
+        'query_knowledge',
         'fork_session',
         'list_lineage',
         'list_checkpoints',
