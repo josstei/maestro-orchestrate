@@ -22,6 +22,7 @@ describe('memory tool pack', () => {
         'query_architecture_memory',
         'get_agent_memory',
         'append_agent_memory',
+        'compact_archive',
       ]
     );
   });

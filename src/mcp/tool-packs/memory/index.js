@@ -17,6 +17,7 @@ const {
   handleAppendAgentMemory,
   handleGetAgentMemory,
 } = require('../../handlers/agent-memory');
+const { handleCompactArchive } = require('../../handlers/archive-compaction');
 const { handleRecallSimilarSessions } = require('../../handlers/recall');
 const { handleRatePhase, handleRateSession } = require('../../handlers/ratings');
 
@@ -205,6 +206,16 @@ function createToolPack() {
           required: ['agent', 'note'],
         },
       },
+      {
+        name: 'compact_archive',
+        description:
+          'Deterministically prune oldest state/archive/*.md session documents beyond MAESTRO_ARCHIVE_RETENTION. Retention 0 is a no-op and durable knowledge plus checkpoints are preserved.',
+        requiresWorkspace: true,
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ],
     handlers: {
       get_project_profile: handleGetProjectProfile,
@@ -218,6 +229,7 @@ function createToolPack() {
       query_architecture_memory: handleQueryArchitectureMemory,
       get_agent_memory: handleGetAgentMemory,
       append_agent_memory: handleAppendAgentMemory,
+      compact_archive: handleCompactArchive,
     },
   });
 }

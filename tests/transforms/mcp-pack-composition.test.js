@@ -47,6 +47,7 @@ describe('mcp pack composition', () => {
         'query_architecture_memory',
         'get_agent_memory',
         'append_agent_memory',
+        'compact_archive',
         'fork_session',
         'list_lineage',
         'list_checkpoints',
