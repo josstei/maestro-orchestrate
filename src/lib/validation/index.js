@@ -101,6 +101,23 @@ function assertContainedIn(p, base) {
 }
 
 /**
+ * @param {unknown} value
+ * @param {string} field
+ * @returns {string} the trimmed value
+ * @throws {ValidationError}
+ */
+function requireNonEmptyString(value, field) {
+  if (typeof value !== 'string') {
+    throw new ValidationError(`${field} must be a non-empty string`);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError(`${field} must be a non-empty string`);
+  }
+  return trimmed;
+}
+
+/**
  * @param {*} value
  * @returns {*}
  */
@@ -111,4 +128,4 @@ function coercePositiveInteger(value) {
   return Number.isFinite(num) && Number.isInteger(num) && num > 0 ? num : value;
 }
 
-export { assertNonEmptyArray, assertSessionId, assertAllowlisted, assertRelativePath, assertContainedIn, coercePositiveInteger };
+export { assertNonEmptyArray, assertSessionId, assertAllowlisted, assertRelativePath, assertContainedIn, coercePositiveInteger, requireNonEmptyString };

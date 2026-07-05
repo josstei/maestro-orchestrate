@@ -1,18 +1,7 @@
 import { ValidationError } from '../../lib/errors/index.js';
+import { requireNonEmptyString } from '../../lib/validation/index.js';
 import { MemoryStore } from '../memory/memory-store.js';
 const RATING_VALUES = Object.freeze(['up', 'down']);
-
-/**
- * @param {unknown} value
- * @param {string} field
- * @returns {string}
- */
-function requireNonEmptyString(value, field) {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new ValidationError(`${field} is required and must be a non-empty string`);
-  }
-  return value;
-}
 
 /**
  * @param {unknown} value

@@ -91,4 +91,13 @@ describe('agent-memory handlers', () => {
       ValidationError
     );
   });
+
+  it('rejects a whitespace-only note consistently with the other memory handlers', () => {
+    const workspace = makeWorkspace();
+
+    assert.throws(
+      () => handleAppendAgentMemory({ agent: 'coder', note: '   ' }, workspace),
+      ValidationError
+    );
+  });
 });

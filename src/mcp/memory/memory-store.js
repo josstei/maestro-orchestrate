@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import * as markdownState from '../../core/markdown-state.js';
-import { atomicWriteSync, readFileSafe, readJsonSafe } from '../../lib/io/index.js';
+import { atomicWriteSync, readFileSafe, readJsonSafe, readJsonLines, appendJsonLine } from '../../lib/io/index.js';
 import { ValidationError } from '../../lib/errors/index.js';
 import { assertRelativePath } from '../../lib/validation/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
@@ -186,26 +186,6 @@ function normalizeStringArray(value) {
 }
 
 /**
- * Normalize a raw command list: trim, drop non-strings and empties, de-dupe
- * preserving first-seen order.
- *
- * @param {unknown} list
- * @returns {string[]}
- */
-function normalizeCommands(list) {
-  const seen = new Set();
-  const out = [];
-  for (const raw of Array.isArray(list) ? list : []) {
-    if (typeof raw !== 'string') continue;
-    const command = raw.trim();
-    if (command.length === 0 || seen.has(command)) continue;
-    seen.add(command);
-    out.push(command);
-  }
-  return out;
-}
-
-/**
  * Fold newly-recorded commands into an existing command array, most-recent-first:
  * incoming commands take the head slots (in given order) and any prior command
  * that is not re-recorded is retained after them in its prior order.
@@ -215,9 +195,9 @@ function normalizeCommands(list) {
  * @returns {string[]}
  */
 function foldCommands(existing, incoming) {
-  const incomingClean = normalizeCommands(incoming);
+  const incomingClean = normalizeStringArray(incoming);
   const incomingSet = new Set(incomingClean);
-  const retained = normalizeCommands(existing).filter(
+  const retained = normalizeStringArray(existing).filter(
     (command) => !incomingSet.has(command)
   );
   return [...incomingClean, ...retained];
@@ -457,23 +437,7 @@ class MemoryStore {
    * @returns {object[]} parsed rating records ([] when absent), skipping bad lines
    */
   readRatings() {
-    let content;
-    try {
-      content = fs.readFileSync(this.ratingsPath(), 'utf8');
-    } catch {
-      return [];
-    }
-    const out = [];
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) continue;
-      try {
-        out.push(JSON.parse(trimmed));
-      } catch {
-        continue;
-      }
-    }
-    return out;
+    return readJsonLines(this.ratingsPath());
   }
 
   /**
@@ -482,38 +446,14 @@ class MemoryStore {
    * @returns {object} the appended record
    */
   appendRating(record) {
-    const filePath = this.ratingsPath();
-    let existing = '';
-    try {
-      existing = fs.readFileSync(filePath, 'utf8');
-    } catch {
-      existing = '';
-    }
-    atomicWriteSync(filePath, `${existing}${JSON.stringify(record)}\n`);
-    return record;
+    return appendJsonLine(this.ratingsPath(), record);
   }
 
   /**
    * @returns {object[]} parsed plan-accuracy records ([] when absent), skipping bad lines
    */
   readPlanAccuracy() {
-    let content;
-    try {
-      content = fs.readFileSync(this.planAccuracyPath(), 'utf8');
-    } catch {
-      return [];
-    }
-    const out = [];
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) continue;
-      try {
-        out.push(JSON.parse(trimmed));
-      } catch {
-        continue;
-      }
-    }
-    return out;
+    return readJsonLines(this.planAccuracyPath());
   }
 
   /**
@@ -522,15 +462,7 @@ class MemoryStore {
    * @returns {object} the appended record
    */
   appendPlanAccuracy(record) {
-    const filePath = this.planAccuracyPath();
-    let existing = '';
-    try {
-      existing = fs.readFileSync(filePath, 'utf8');
-    } catch {
-      existing = '';
-    }
-    atomicWriteSync(filePath, `${existing}${JSON.stringify(record)}\n`);
-    return record;
+    return appendJsonLine(this.planAccuracyPath(), record);
   }
 }
 

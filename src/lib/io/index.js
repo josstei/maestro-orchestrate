@@ -84,4 +84,49 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-export { atomicWriteSync, readFileSafe, readJsonSafe, writeIfChanged, ensureDir };
+/**
+ * Reads a JSON Lines (JSONL) file, parsing each non-blank line as JSON and
+ * skipping lines that fail to parse. Returns [] when the file is absent or
+ * unreadable.
+ *
+ * @param {string} filePath - Absolute or relative path to the JSONL file
+ * @returns {Array<*>} Parsed records, one per valid line
+ */
+function readJsonLines(filePath) {
+  const content = readFileSafe(filePath, '');
+  const records = [];
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) continue;
+    try {
+      records.push(JSON.parse(trimmed));
+    } catch {
+      continue;
+    }
+  }
+  return records;
+}
+
+/**
+ * Appends one record as a JSON line to a JSONL file, creating the file if it
+ * does not already exist.
+ *
+ * @param {string} filePath - Absolute or relative path to the JSONL file
+ * @param {*} record - Value to serialize and append as one line
+ * @returns {*} The appended record
+ */
+function appendJsonLine(filePath, record) {
+  const existing = readFileSafe(filePath, '');
+  atomicWriteSync(filePath, `${existing}${JSON.stringify(record)}\n`);
+  return record;
+}
+
+export {
+  atomicWriteSync,
+  readFileSafe,
+  readJsonSafe,
+  writeIfChanged,
+  ensureDir,
+  readJsonLines,
+  appendJsonLine,
+};

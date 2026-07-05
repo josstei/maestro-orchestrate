@@ -1,18 +1,5 @@
-import { ValidationError } from '../../lib/errors/index.js';
+import { requireNonEmptyString } from '../../lib/validation/index.js';
 import { MemoryStore } from '../memory/memory-store.js';
-
-/**
- * @param {unknown} value
- * @param {string} field
- * @returns {string}
- * @throws {ValidationError}
- */
-function requireNonEmptyString(value, field) {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new ValidationError(`${field} must be a non-empty string`);
-  }
-  return value;
-}
 
 /**
  * Return durable memory notes for one agent.

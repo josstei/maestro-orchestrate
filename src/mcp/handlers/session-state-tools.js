@@ -28,7 +28,6 @@ import {
   resolveBasePath,
   resolveActiveSessionPath,
   parseSessionState,
-  serializeSessionState,
   extractBody,
   readActiveSession,
   readActiveSessionOrNull,
@@ -472,15 +471,11 @@ function handleArchiveSession(params, projectRoot) {
     );
   }
 
-  try {
-    recordAgentPerformance(state, projectRoot);
-  } catch {}
-  try {
-    recordPlanAccuracy(state, projectRoot);
-  } catch {}
-  try {
-    recordArchitectureMemory(state, projectRoot);
-  } catch {}
+  for (const record of [recordAgentPerformance, recordPlanAccuracy, recordArchitectureMemory]) {
+    try {
+      record(state, projectRoot);
+    } catch {}
+  }
 
   state.status = 'completed';
   state.updated = new Date().toISOString();

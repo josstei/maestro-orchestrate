@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { atomicWriteSync, readFileSafe, readJsonSafe, writeIfChanged, ensureDir } from '../../src/lib/io/index.js';
+import { atomicWriteSync, readFileSafe, readJsonSafe, writeIfChanged, ensureDir, readJsonLines, appendJsonLine } from '../../src/lib/io/index.js';
 import * as ioModule from '../../src/lib/io/index.js';
 
 function createTempRoot() {
@@ -373,15 +373,17 @@ describe('ensureDir', () => {
 });
 
 describe('module exports', () => {
-  it('exports all five documented functions', () => {
+  it('exports all seven documented functions', () => {
     assert.equal(typeof atomicWriteSync, 'function');
     assert.equal(typeof readFileSafe, 'function');
     assert.equal(typeof readJsonSafe, 'function');
     assert.equal(typeof writeIfChanged, 'function');
     assert.equal(typeof ensureDir, 'function');
+    assert.equal(typeof readJsonLines, 'function');
+    assert.equal(typeof appendJsonLine, 'function');
   });
 
-  it('exports exactly five members', () => {
-    assert.equal(Object.keys(ioModule).length, 5);
+  it('exports exactly seven members', () => {
+    assert.equal(Object.keys(ioModule).length, 7);
   });
 });

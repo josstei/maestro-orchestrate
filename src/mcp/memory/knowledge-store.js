@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { resolveTypedSetting } from '../../config/setting-resolver.js';
 import { ValidationError } from '../../lib/errors/index.js';
-import { atomicWriteSync, readFileSafe } from '../../lib/io/index.js';
+import { readJsonLines, appendJsonLine } from '../../lib/io/index.js';
 const KNOWLEDGE_FILENAME = 'knowledge.jsonl';
 
 /**
@@ -63,25 +63,6 @@ function ensurePrivateMode(dir, stats) {
 }
 
 /**
- * @param {string} content
- * @returns {object[]}
- */
-function parseJsonLines(content) {
-  const records = [];
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed.length === 0) continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        records.push(parsed);
-      }
-    } catch {}
-  }
-  return records;
-}
-
-/**
  * Out-of-tree cross-project knowledge store. The configured directory is
  * independent of any workspace root and is validated as a private real
  * directory before `knowledge.jsonl` is read or written.
@@ -126,17 +107,16 @@ class KnowledgeStore {
    * @returns {object}
    */
   append(record) {
-    const filePath = this.knowledgePath();
-    const existing = readFileSafe(filePath, '');
-    atomicWriteSync(filePath, `${existing}${JSON.stringify(record)}\n`);
-    return record;
+    return appendJsonLine(this.knowledgePath(), record);
   }
 
   /**
    * @returns {object[]}
    */
   read() {
-    return parseJsonLines(readFileSafe(this.knowledgePath(), ''));
+    return readJsonLines(this.knowledgePath()).filter(
+      (record) => record && typeof record === 'object' && !Array.isArray(record)
+    );
   }
 }
 

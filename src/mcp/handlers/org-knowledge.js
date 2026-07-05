@@ -1,22 +1,6 @@
 import { ValidationError } from '../../lib/errors/index.js';
+import { requireNonEmptyString } from '../../lib/validation/index.js';
 import { KnowledgeStore } from '../memory/knowledge-store.js';
-
-/**
- * @param {unknown} value
- * @param {string} field
- * @returns {string}
- * @throws {ValidationError}
- */
-function requireNonEmptyString(value, field) {
-  if (typeof value !== 'string') {
-    throw new ValidationError(`${field} must be a non-empty string`);
-  }
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new ValidationError(`${field} must be a non-empty string`);
-  }
-  return trimmed;
-}
 
 /**
  * @param {unknown} value
