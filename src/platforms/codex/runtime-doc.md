@@ -129,7 +129,7 @@ Codex tools use descriptive names rather than direct API mappings:
 | `ask_user` | `request_user_input` |
 | `write_todos` | `update_plan` |
 | `activate_skill` | open the referenced skill and follow it |
-| `enter_plan_mode` | `update_plan` |
+| `enter_plan_mode` | not available — nudge the user to enter Plan mode manually before proceeding |
 | `exit_plan_mode` | `request_user_input` approval |
 | `codebase_investigator` | local inspection or `spawn_agent` |
 

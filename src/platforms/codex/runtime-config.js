@@ -4,6 +4,9 @@ export default {
 
   agentNaming: 'kebab-case',
 
+  mcpPrefix: 'mcp__maestro_maestro__',
+  plan_mode_native: false,
+
   env: {
     extensionPath: '.',
     workspacePath: 'MAESTRO_WORKSPACE_PATH',
@@ -25,7 +28,7 @@ export default {
     read_many_files: 'direct file reads',
     write_todos: 'update_plan',
     activate_skill: 'open the referenced skill and follow it',
-    enter_plan_mode: 'update_plan',
+    enter_plan_mode: 'not available — nudge the user to enter Plan mode manually before proceeding',
     exit_plan_mode: 'request_user_input approval',
     codebase_investigator: 'local inspection or spawn_agent',
   },

@@ -85,4 +85,39 @@ describe('get-runtime-context handler', () => {
     assert.equal(result.mcp_prefix, 'mcp__maestro_maestro__');
     assert.equal(result.tools.read_file, 'direct file reads');
   });
+
+  it('projects claude runtime facts unchanged (co-location is byte-identical)', () => {
+    const handler = createHandler('claude');
+    const result = handler({});
+
+    assert.equal(result.mcp_prefix, 'mcp__plugin_maestro_maestro__');
+    assert.equal(result.plan_mode_native, true);
+  });
+
+  it('projects gemini runtime facts unchanged (co-location is byte-identical)', () => {
+    const handler = createHandler('gemini');
+    const result = handler({});
+
+    assert.equal(result.mcp_prefix, 'mcp_maestro_');
+    assert.equal(result.plan_mode_native, true);
+  });
+
+  it('fixes Qwen mcp_prefix to mcp_maestro_ (Qwen is a Gemini fork)', () => {
+    const handler = createHandler('qwen');
+    const result = handler({});
+
+    assert.equal(result.mcp_prefix, 'mcp_maestro_');
+    assert.equal(result.plan_mode_native, false);
+  });
+
+  it('fixes the Codex enter_plan_mode projection to a user-action nudge', () => {
+    const handler = createHandler('codex');
+    const result = handler({});
+
+    assert.equal(
+      result.tools.enter_plan_mode,
+      'not available — nudge the user to enter Plan mode manually before proceeding'
+    );
+    assert.equal(result.plan_mode_native, false);
+  });
 });

@@ -4,6 +4,9 @@ export default {
 
   agentNaming: 'kebab-case',
 
+  mcpPrefix: 'mcp__plugin_maestro_maestro__',
+  plan_mode_native: true,
+
   env: {
     extensionPath: 'CLAUDE_PLUGIN_ROOT',
     workspacePath: 'CLAUDE_PROJECT_DIR',

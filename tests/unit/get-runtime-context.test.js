@@ -33,4 +33,14 @@ describe('get_runtime_context response shape', () => {
     assert.equal(result.delegation.pattern, 'spawn_agent(...)');
     assert.equal(result.delegation.naming, 'kebab-case');
   });
+
+  it('codex nudges the user to enter Plan mode instead of pointing at update_plan', () => {
+    const handler = createHandler(codex, () => null);
+    const result = handler({});
+    assert.equal(
+      result.tools.enter_plan_mode,
+      'not available — nudge the user to enter Plan mode manually before proceeding'
+    );
+    assert.notEqual(result.tools.enter_plan_mode, 'update_plan');
+  });
 });

@@ -3,6 +3,8 @@ import { buildGeminiFamilyConfig } from '../shared/gemini-family-config.js';
 export default buildGeminiFamilyConfig({
   name: 'qwen',
   outputDir: 'qwen/',
+  mcpPrefix: 'mcp_maestro_',
+  plan_mode_native: false,
   env: { extensionPath: 'extensionPath', workspacePath: 'workspacePath' },
   generation: {
     entryPoint: null,
