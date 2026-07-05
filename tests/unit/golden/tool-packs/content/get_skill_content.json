@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "properties": {
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Resource identifiers to read. Skills: \"delegation\", \"execution\", \"validation\", \"session-management\", \"implementation-planning\", \"code-review\", \"design-dialogue\". Protocols: \"agent-base-protocol\", \"filesystem-safety-protocol\". Templates: \"design-document\", \"implementation-plan\", \"session-state\". References: \"architecture\", \"orchestration-steps\"."
+    }
+  },
+  "required": [
+    "resources"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

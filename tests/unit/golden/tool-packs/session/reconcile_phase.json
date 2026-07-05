@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "phase_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "files_created": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files_modified": {
+      "$ref": "#/properties/files_created"
+    },
+    "files_deleted": {
+      "$ref": "#/properties/files_created"
+    },
+    "downstream_context": {
+      "type": "object",
+      "properties": {
+        "key_interfaces_introduced": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "patterns_established": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        },
+        "integration_points": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        },
+        "assumptions": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        },
+        "warnings": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        }
+      },
+      "additionalProperties": true
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id",
+    "phase_id"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

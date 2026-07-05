@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Free-text task description to match against archived sessions."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5,
+      "description": "Maximum number of ranked precedents to return."
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

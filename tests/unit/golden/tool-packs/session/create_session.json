@@ -1,0 +1,108 @@
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    },
+    "design_document": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "implementation_plan": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "implementation_plan_content": {
+      "type": "string",
+      "description": "Inline implementation-plan Markdown. Requires implementation_plan_filename; mutually exclusive with implementation_plan."
+    },
+    "implementation_plan_filename": {
+      "type": "string",
+      "description": "Basename-only filename (no separators, no '..') used when materializing implementation_plan_content into <state_dir>/plans/."
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parallel": {
+            "type": "boolean"
+          },
+          "blocked_by": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/phases/items/properties/id"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "agent",
+          "parallel",
+          "blocked_by"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "task_complexity": {
+      "type": "string",
+      "enum": [
+        "simple",
+        "medium",
+        "complex"
+      ]
+    },
+    "execution_mode": {
+      "type": "string"
+    },
+    "workflow_mode": {
+      "type": "string",
+      "enum": [
+        "express",
+        "standard"
+      ],
+      "default": "standard"
+    }
+  },
+  "required": [
+    "session_id",
+    "task",
+    "phases"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

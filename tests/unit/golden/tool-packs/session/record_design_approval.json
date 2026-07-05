@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "design_document_path": {
+      "type": "string",
+      "description": "Absolute or workspace-relative path to the approved design document. Mutually exclusive with design_document_content."
+    },
+    "design_document_content": {
+      "type": "string",
+      "description": "Inline design-document Markdown. Requires design_document_filename; mutually exclusive with design_document_path."
+    },
+    "design_document_filename": {
+      "type": "string",
+      "description": "Basename-only filename (no separators, no '..') used when materializing design_document_content into <state_dir>/plans/."
+    }
+  },
+  "required": [
+    "session_id"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

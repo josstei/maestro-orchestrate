@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "created_after": {
+      "type": "string",
+      "description": "ISO-8601 timestamp (e.g. 2026-07-02T00:00:00.000Z)"
+    },
+    "created_before": {
+      "type": "string",
+      "description": "ISO-8601 timestamp (e.g. 2026-07-02T00:00:00.000Z)"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "failed"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

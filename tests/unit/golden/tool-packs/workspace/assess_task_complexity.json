@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "task_description": {
+      "type": "string",
+      "description": "The task description (reserved for future keyword analysis)."
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
