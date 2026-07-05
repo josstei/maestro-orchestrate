@@ -1,11 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import { assertSessionId } from '../../lib/validation/index.js';
-import { ValidationError } from '../../lib/errors/index.js';
+import { ValidationError, StateError } from '../../lib/errors/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
 import { atomicWriteSync } from '../../lib/io/index.js';
-import { resolveDocumentInput } from './document-input.js';
+import { resolveDocumentInputVariant } from './document-input.js';
+import { buildDesignApprovalConsentSchema } from '../server/elicitation-schemas.js';
 const GATE_FILENAME = '.design-gate.json';
+const MODEL_ATTESTED_CONSENT = 'model-attested';
+const FIRST_PARTY_CONSENT = 'first-party';
 
 /**
  * Resolves the filesystem path for the gate file for a given session.
@@ -167,46 +170,121 @@ function handleEnterDesignGate(params, projectRoot) {
 }
 
 /**
- * Resolve the caller's approved-design input to a canonical absolute path.
- * Accepts exactly one of (design_document_path) or (design_document_content +
- * design_document_filename). The content variant materializes the file
- * immediately inside `<state_dir>/plans/`, eliminating the path-resolution
- * ambiguity that arises when callers write through a runtime surface whose
- * filesystem root differs from the MCP server's workspace (e.g. Gemini Plan
- * Mode writes to `~/.gemini/tmp/<uuid>/...`).
+ * Validate the SHAPE of the caller's approved-design input with NO filesystem
+ * mutation. Accepts exactly one of (design_document_path) or
+ * (design_document_content + design_document_filename); for the content
+ * variant this also validates the filename is a safe plans/ basename and the
+ * content is a non-empty string. Malformed-params errors must surface here,
+ * BEFORE any consent prompt — see `materializeApprovedDesignDocument` for the
+ * write, which only happens after consent is resolved.
  *
  * @param {object} params
  * @param {string} [params.design_document_path]
  * @param {string} [params.design_document_content]
  * @param {string} [params.design_document_filename]
- * @param {string} projectRoot
- * @returns {string} canonical absolute path of the approved design document
- * @throws {ValidationError} when neither or both input variants are supplied
+ * @returns {{kind: 'path', path: string} | {kind: 'content', filename: string, content: string}}
+ * @throws {ValidationError} when neither or both input variants are supplied, or the content variant is malformed
  */
-function resolveApprovedDesignDocument(params, projectRoot) {
-  return resolveDocumentInput(params, {
+function validateApprovedDesignDocumentShape(params) {
+  const variant = resolveDocumentInputVariant(params, {
     pathKey: 'design_document_path',
     contentKey: 'design_document_content',
     filenameKey: 'design_document_filename',
     requireMessage:
       'record_design_approval requires either design_document_path or both design_document_content and design_document_filename',
-    resolvePath: (p) => (path.isAbsolute(p) ? p : path.join(projectRoot, p)),
-    writeContent: (filename, content) =>
-      writePlansDocumentContent(projectRoot, filename, content, 'design_document_filename'),
   });
+  if (variant.kind === 'content') {
+    assertPlansFilename(variant.filename, 'design_document_filename');
+    if (typeof variant.content !== 'string' || variant.content.length === 0) {
+      throw new ValidationError('design_document_content must be a non-empty string');
+    }
+  }
+  return variant;
+}
+
+/**
+ * Materialize a shape-validated approved-design input to a canonical absolute
+ * path. The content variant writes the file immediately inside
+ * `<state_dir>/plans/`, eliminating the path-resolution ambiguity that arises
+ * when callers write through a runtime surface whose filesystem root differs
+ * from the MCP server's workspace (e.g. Gemini Plan Mode writes to
+ * `~/.gemini/tmp/<uuid>/...`). Callers MUST only invoke this after consent has
+ * been granted — it performs the filesystem mutation that a decline must not
+ * cause.
+ *
+ * @param {{kind: 'path', path: string} | {kind: 'content', filename: string, content: string}} variant
+ * @param {string} projectRoot
+ * @returns {string} canonical absolute path of the approved design document
+ */
+function materializeApprovedDesignDocument(variant, projectRoot) {
+  if (variant.kind === 'path') {
+    return path.isAbsolute(variant.path) ? variant.path : path.join(projectRoot, variant.path);
+  }
+  return writePlansDocumentContent(projectRoot, variant.filename, variant.content, 'design_document_filename');
+}
+
+/**
+ * Resolve first-party consent evidence for a design approval via `ctx.elicit`
+ * (the single elicitation seam built at Task 3.4 — this function never calls
+ * `elicitInput` directly and never re-implements its capability precheck,
+ * timeout, or error handling). Maps the SDK's `elicitInput` outcome to
+ * maestro's consent model:
+ *
+ * - `ctx.elicit` unsupported / errored (returns `null`) -> model-attested.
+ * - `action === 'accept'` -> first-party consent, carrying the elicited
+ *   content forward for audit.
+ * - `action === 'decline'` -> hard-fail; the caller must not record approval.
+ * - any other action (`cancel`, timeout, signal-abort) -> model-attested
+ *   fallback, matching the unsupported-client behavior.
+ *
+ * @param {(params: {message: string, requestedSchema: object}) => Promise<{action: string, content?: object}|null>} elicit
+ * @param {string} sessionId
+ * @returns {Promise<{evidence: 'model-attested'} | {evidence: 'first-party', content: object|undefined}>}
+ * @throws {StateError} when the elicited action is `decline`
+ */
+async function resolveDesignApprovalConsent(elicit, sessionId) {
+  if (typeof elicit !== 'function') {
+    return { evidence: MODEL_ATTESTED_CONSENT };
+  }
+
+  const elicited = await elicit({
+    message: `Approve the design document for session "${sessionId}"?`,
+    requestedSchema: buildDesignApprovalConsentSchema(),
+  });
+
+  if (!elicited || elicited.action !== 'accept') {
+    if (elicited && elicited.action === 'decline') {
+      throw new StateError(
+        `Design approval was declined for session "${sessionId}"; the design gate remains unapproved.`,
+        { code: 'DESIGN_APPROVAL_DECLINED', details: { session_id: sessionId } }
+      );
+    }
+    return { evidence: MODEL_ATTESTED_CONSENT };
+  }
+
+  return { evidence: FIRST_PARTY_CONSENT, content: elicited.content };
 }
 
 /**
  * @param {{ session_id: string, design_document_path?: string, design_document_content?: string, design_document_filename?: string }} params
- * @param {string} projectRoot
+ * @param {{ projectRoot: string, elicit: (params: {message: string, requestedSchema: object}) => Promise<{action: string, content?: object}|null> }} ctx
  */
-function handleRecordDesignApproval(params, projectRoot) {
+async function handleRecordDesignApproval(params, ctx) {
   assertSessionId(params.session_id);
-  const absDesignPath = resolveApprovedDesignDocument(params, projectRoot);
+  const { projectRoot, elicit } = ctx;
+  const documentVariant = validateApprovedDesignDocumentShape(params);
+
+  const consent = await resolveDesignApprovalConsent(elicit, params.session_id);
+
+  const absDesignPath = materializeApprovedDesignDocument(documentVariant, projectRoot);
 
   const gate = readGate(projectRoot, params.session_id) || emptyGate(params.session_id);
   gate.approved_at = new Date().toISOString();
   gate.design_document_path = absDesignPath;
+  gate.consent_evidence = consent.evidence;
+  if (consent.evidence === FIRST_PARTY_CONSENT && consent.content !== undefined) {
+    gate.consent_content = consent.content;
+  }
   writeGate(projectRoot, params.session_id, gate);
 
   return {
@@ -214,6 +292,7 @@ function handleRecordDesignApproval(params, projectRoot) {
     entered_at: gate.entered_at,
     approved_at: gate.approved_at,
     design_document_path: absDesignPath,
+    consent_evidence: gate.consent_evidence,
   };
 }
 

@@ -113,6 +113,7 @@ function registerSessionPack({ server, registry, ...contextOptions } = {}) {
   ];
 
   for (const tool of sessionTools) {
+    const usesFullHandlerContext = tool.name === 'record_design_approval';
     defineTool({
       server,
       registry,
@@ -120,7 +121,9 @@ function registerSessionPack({ server, registry, ...contextOptions } = {}) {
       description: tool.description,
       requiresWorkspace: true,
       schema: zodSchemas[tool.name],
-      handler: (args, ctx) => tool.handler(args, ctx.projectRoot),
+      handler: usesFullHandlerContext
+        ? (args, ctx) => tool.handler(args, ctx)
+        : (args, ctx) => tool.handler(args, ctx.projectRoot),
       ...contextOptions,
     });
   }
