@@ -1,91 +1,68 @@
-import { defineToolPack } from '../contracts.js';
-import { SCHEMA } from '../schema-fragments.js';
+import { defineTool } from '../contracts.js';
+import { zodSchemas } from './zod-schemas.js';
 import { handleInitializeWorkspace } from '../../handlers/initialize-workspace.js';
 import { handleAssessTaskComplexity } from '../../handlers/assess-task-complexity.js';
 import { handleValidatePlan } from '../../handlers/validate-plan.js';
 import { handleResolveSettings } from '../../handlers/resolve-settings.js';
 
-function createToolPack() {
-  return defineToolPack({
-    name: 'workspace',
-    tools: [
-      {
-        name: 'initialize_workspace',
-        description:
-          'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback. Writes a workspace marker for session persistence.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            workspace_path: {
-              type: 'string',
-              description:
-                'Absolute path to the user workspace. Required. Must not be inside an extension cache directory.',
-            },
-            state_dir: {
-              type: 'string',
-              description:
-                'State directory relative to workspace_path. Defaults to docs/maestro.',
-            },
-          },
-          required: ['workspace_path'],
-        },
-      },
-      {
-        name: 'assess_task_complexity',
-        description:
-          'Analyze repo structure and return factual signals for complexity classification. Does NOT classify — returns signals for the model to interpret.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            task_description: {
-              type: 'string',
-              description:
-                'The task description (reserved for future keyword analysis).',
-            },
-          },
-        },
-      },
-      {
-        name: 'validate_plan',
-        description:
-          'Validate an implementation plan against complexity constraints, file ownership, dependency cycles, and agent registry.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            plan: { type: 'object' },
-            task_complexity: {
-              type: 'string',
-              enum: SCHEMA.TASK_COMPLEXITY_ENUM,
-            },
-          },
-          required: ['plan', 'task_complexity'],
-        },
-      },
-      {
-        name: 'resolve_settings',
-        description:
-          'Resolve Maestro settings using script-accurate precedence (env var > workspace .env > extension .env). Returns resolved values for requested or all known settings.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            settings: {
-              type: 'array',
-              items: { type: 'string' },
-              description:
-                'Setting names to resolve (e.g., ["MAESTRO_DISABLED_AGENTS"]). If empty or omitted, resolves all known settings.',
-            },
-          },
-        },
-      },
-    ],
-    handlers: {
-      initialize_workspace: handleInitializeWorkspace,
-      assess_task_complexity: handleAssessTaskComplexity,
-      validate_plan: handleValidatePlan,
-      resolve_settings: handleResolveSettings,
-    },
+/**
+ * Register the `workspace` pack's tools (`initialize_workspace`,
+ * `assess_task_complexity`, `validate_plan`, `resolve_settings`) via
+ * `defineTool`, each consuming its shape from `./zod-schemas.js`.
+ *
+ * `onInitializeWorkspace` is wired as `initialize_workspace`'s pipeline
+ * post-call effect — the SDK-cutover replacement for the old dispatcher's
+ * `server.onToolCall('initialize_workspace', ...)` — so the caller (the live
+ * server) can feed its project-root cache without the pack knowing about it.
+ *
+ * @param {{server: object, registry: object, onInitializeWorkspace?: (result: object) => void}} options
+ */
+function registerWorkspacePack({ server, registry, onInitializeWorkspace, ...contextOptions } = {}) {
+  defineTool({
+    server,
+    registry,
+    name: 'initialize_workspace',
+    description:
+      'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback. Writes a workspace marker for session persistence.',
+    schema: zodSchemas.initialize_workspace,
+    handler: (args) => handleInitializeWorkspace(args),
+    onPostCall: onInitializeWorkspace,
+    ...contextOptions,
+  });
+
+  defineTool({
+    server,
+    registry,
+    name: 'assess_task_complexity',
+    description:
+      'Analyze repo structure and return factual signals for complexity classification. Does NOT classify — returns signals for the model to interpret.',
+    requiresWorkspace: true,
+    schema: zodSchemas.assess_task_complexity,
+    handler: (args, ctx) => handleAssessTaskComplexity(args, ctx.projectRoot),
+    ...contextOptions,
+  });
+
+  defineTool({
+    server,
+    registry,
+    name: 'validate_plan',
+    description:
+      'Validate an implementation plan against complexity constraints, file ownership, dependency cycles, and agent registry.',
+    schema: zodSchemas.validate_plan,
+    handler: (args, ctx) => handleValidatePlan(args, ctx.projectRoot),
+    ...contextOptions,
+  });
+
+  defineTool({
+    server,
+    registry,
+    name: 'resolve_settings',
+    description:
+      'Resolve Maestro settings using script-accurate precedence (env var > workspace .env > extension .env). Returns resolved values for requested or all known settings.',
+    schema: zodSchemas.resolve_settings,
+    handler: (args, ctx) => handleResolveSettings(args, ctx.projectRoot),
+    ...contextOptions,
   });
 }
 
-export { createToolPack };
+export { registerWorkspacePack };

@@ -131,7 +131,7 @@ test('full order on a workspace-gated tool: gate then handler then post-call, no
     {
       server: fakeSdkServer(),
       runtimeConfig: RUNTIME_CONFIG,
-      env: { MAESTRO_TEST_WORKSPACE_PATH: process.cwd() },
+      getProjectRoot: () => process.cwd(),
     }
   );
 

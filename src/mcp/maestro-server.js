@@ -1,16 +1,9 @@
 import { log, fatal } from '../core/logger.js';
 import { resolveVersion } from '../core/version.js';
-import { createServer } from './core/create-server.js';
-import { createLineDispatcher } from './core/line-reader.js';
+import { createMcpServer, startMcpServer } from './server/create-mcp-server.js';
+import { createMaestroToolRegistry } from './tool-packs/contracts.js';
 import { createProjectRootCache } from './core/project-root-cache.js';
-
-import {
-  DEFAULT_PROTOCOL_VERSION,
-  buildInitializeResult,
-  createToolErrorResult,
-  createToolSuccessResult,
-  createProtocolHandlers,
-} from './core/protocol-dispatcher.js';
+import { RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { DEFAULT_TOOL_PACKS } from './tool-packs/index.js';
 import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from './runtime/runtime-config-map.js';
@@ -26,10 +19,6 @@ const SERVER_INFO = Object.freeze({
   version: resolveVersion(moduleDirname),
 });
 
-function createInitializeResult(protocolVersion) {
-  return buildInitializeResult(protocolVersion, SERVER_INFO);
-}
-
 function runRuntimeServer(runtimeConfig, options = {}) {
   const resolvedRuntimeConfig = normalizeRuntimeConfig(runtimeConfig);
   const canonicalSrcRoot =
@@ -37,79 +26,76 @@ function runRuntimeServer(runtimeConfig, options = {}) {
   const toolPacks = Array.isArray(options.toolPacks)
     ? options.toolPacks
     : DEFAULT_TOOL_PACKS;
-  const stdin = options.stdin || process.stdin;
-  const stdout = options.stdout || process.stdout;
 
-  let requestFromClient;
+  const server = options.server || createMcpServer();
+  const registry = createMaestroToolRegistry();
+
   const cache = createProjectRootCache({
     runtimeConfig: resolvedRuntimeConfig,
-    requestClientRoots: () => requestFromClient('roots/list', {}),
+    requestClientRoots: async () => {
+      const lowLevelServer = server.server;
+      if (!lowLevelServer || typeof lowLevelServer.listRoots !== 'function') {
+        return { roots: [] };
+      }
+      return lowLevelServer.listRoots();
+    },
   });
 
-  const server = createServer({
+  server.server.oninitialized = () => {
+    const capabilities = server.server.getClientCapabilities();
+    cache.setClientSupportsRoots(Boolean(capabilities && capabilities.roots));
+    cache.refreshClientRoots().catch(() => {});
+  };
+
+  server.server.setNotificationHandler(RootsListChangedNotificationSchema, () => {
+    cache.invalidateClientRoots();
+  });
+
+  const contextOptions = {
+    server,
     runtimeConfig: resolvedRuntimeConfig,
+    getProjectRoot: () => cache.resolveProjectRoot(),
     services: {
       canonicalSrcRoot,
       workspaceSuggestion: () => cache.workspaceSuggestion(),
     },
-    toolPacks,
-  });
+  };
 
-  const handlers = createProtocolHandlers(server, cache.getProjectRoot, stdout, {
-    serverInfo: SERVER_INFO,
-    callbacks: {
-      onInitialize(params) {
-        cache.setClientSupportsRoots(
-          Boolean(params && params.capabilities && params.capabilities.roots)
-        );
+  for (const registerPack of toolPacks) {
+    registerPack({
+      server,
+      registry,
+      onInitializeWorkspace(result) {
+        if (result && result.success && result.workspace_path) {
+          cache.setExplicitWorkspacePath(result.workspace_path);
+        }
       },
-      async onInitialized() {
-        await cache.refreshClientRoots();
-      },
-      onRootsListChanged() {
-        cache.invalidateClientRoots();
-      },
-    },
-  });
-
-  requestFromClient = handlers.requestFromClient;
-
-  server.onToolCall('initialize_workspace', (result) => {
-    if (result && result.success && result.workspace_path) {
-      cache.setExplicitWorkspacePath(result.workspace_path);
-    }
-  });
-
-  const lineReader = createLineDispatcher(stdin, (message) => {
-    Promise.resolve(handlers.respond(message)).catch((error) => {
-      log('error', `Failed to handle MCP message: ${error.message}`);
+      ...contextOptions,
     });
-  });
+  }
 
   log('info', 'MCP server starting');
-  log('info', 'MCP server connected');
 
   return {
-    close() {
-      lineReader.close();
-      handlers.drain();
+    async connect() {
+      await startMcpServer(server);
+      log('info', 'MCP server connected');
     },
     server,
   };
 }
 
-function main(runtimeConfig) {
+async function main(runtimeConfig) {
   const resolved =
     runtimeConfig || process.env.MAESTRO_RUNTIME || getDefaultRuntimeConfig();
-  runRuntimeServer(resolved);
+  const instance = runRuntimeServer(resolved);
+  await instance.connect();
 }
 
 if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     fatal(error && error.message ? error.message : String(error));
-  }
+  });
 }
 
-export { DEFAULT_PROTOCOL_VERSION, SERVER_INFO, createInitializeResult, createToolErrorResult, createToolSuccessResult, normalizeRuntimeConfig, runRuntimeServer, main };
+export { SERVER_INFO, normalizeRuntimeConfig, runRuntimeServer, main };

@@ -17,16 +17,17 @@ function makeSessionWorkspace(prefix = 'maestro-session-') {
   return ensureMaestroWorkspace(makeTempWorkspace(prefix));
 }
 
-function buildSessionServer() {
+async function buildSessionServer() {
   return buildMcpServer({ toolPacks: [createSessionPack] });
 }
 
 describe('session tool pack', () => {
-  it('registers the session lifecycle tools through the kernel', () => {
-    const server = buildSessionServer();
+  it('registers the session lifecycle tools through the kernel', async () => {
+    const server = await buildSessionServer();
 
+    const schemas = await server.getToolSchemas();
     assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
+      schemas.map((schema) => schema.name),
       [
         'create_session',
         'get_session_status',
@@ -49,7 +50,7 @@ describe('session tool pack', () => {
     const projectRoot = makeSessionWorkspace();
     writeWorkspaceFile(projectRoot, 'docs/maestro/plans/design.md', '# Design\n');
     writeWorkspaceFile(projectRoot, 'docs/maestro/plans/plan.md', '# Plan\n');
-    const server = buildSessionServer();
+    const server = await buildSessionServer();
 
     const createResult = await server.callTool(
       'create_session',
@@ -115,7 +116,7 @@ describe('session tool pack', () => {
 
   it('rejects create_session when a phase is missing required fields', async () => {
     const projectRoot = makeSessionWorkspace();
-    const server = buildSessionServer();
+    const server = await buildSessionServer();
 
     const outcome = await server.callTool(
       'create_session',
@@ -133,7 +134,7 @@ describe('session tool pack', () => {
 
   it('persists planned_files for every phase', async () => {
     const projectRoot = makeSessionWorkspace();
-    const server = buildSessionServer();
+    const server = await buildSessionServer();
 
     await server.callTool(
       'create_session',
@@ -161,7 +162,7 @@ describe('session tool pack', () => {
 
   it('preserves string phase ids end-to-end through create_session and transition_phase', async () => {
     const projectRoot = makeSessionWorkspace('maestro-string-id-');
-    const server = buildSessionServer();
+    const server = await buildSessionServer();
 
     const createResult = await server.callTool(
       'create_session',
@@ -227,7 +228,7 @@ describe('session tool pack', () => {
     const projectRoot = makeSessionWorkspace('maestro-archive-');
     writeWorkspaceFile(projectRoot, 'docs/maestro/plans/design.md', '# design\n');
     writeWorkspaceFile(projectRoot, 'docs/maestro/plans/plan.md', '# plan\n');
-    const server = buildSessionServer();
+    const server = await buildSessionServer();
 
     await server.callTool(
       'create_session',
@@ -273,7 +274,7 @@ describe('session tool pack', () => {
 
   it('transition_phase rejects completion with files but empty downstream_context', async () => {
     const projectRoot = makeSessionWorkspace('maestro-handoff-');
-    const server = buildSessionServer();
+    const server = await buildSessionServer();
 
     await server.callTool(
       'create_session',
@@ -318,7 +319,7 @@ describe('session tool pack', () => {
 
   it('archive_session blocks when a phase requires reconciliation', async () => {
     const projectRoot = makeSessionWorkspace('maestro-archive-');
-    const server = buildSessionServer();
+    const server = await buildSessionServer();
 
     await server.callTool(
       'create_session',

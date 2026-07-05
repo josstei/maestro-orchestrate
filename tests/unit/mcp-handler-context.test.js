@@ -24,89 +24,105 @@ function fakeSdkServer({ capabilities = {}, elicitInput } = {}) {
   };
 }
 
-test('projectRoot is null when no workspace signal is present', () => {
-  const ctx = buildHandlerContext(
+test('projectRoot is null when no getProjectRoot resolver is supplied', async () => {
+  const ctx = await buildHandlerContext(
     {},
     { signal: new AbortController().signal },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG }
   );
   assert.equal(ctx.projectRoot, null);
 });
 
-test('projectRoot stays null against real process.env even when CLAUDE_PROJECT_DIR/PWD/INIT_CWD are set, absent the runtime-declared var', () => {
-  const ctx = buildHandlerContext(
+test('projectRoot is null when the injected resolver returns null, never falling back to cwd/env', async () => {
+  const ctx = await buildHandlerContext(
     {},
     {},
-    { server: fakeSdkServer(), runtimeConfig: { env: { workspacePath: 'X_DEFINITELY_UNSET' } } }
+    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, getProjectRoot: () => null }
   );
   assert.equal(ctx.projectRoot, null);
 });
 
-test('projectRoot resolves from the runtime-declared workspace env var, never falling back to cwd', () => {
+test('projectRoot resolves from the injected getProjectRoot resolver (sync)', async () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handler-ctx-'));
   try {
-    const ctx = buildHandlerContext(
+    const ctx = await buildHandlerContext(
       {},
       { signal: new AbortController().signal },
       {
         server: fakeSdkServer(),
         runtimeConfig: RUNTIME_CONFIG,
-        env: { MAESTRO_TEST_WORKSPACE_PATH: tmpRoot },
+        getProjectRoot: () => tmpRoot,
       }
     );
-    assert.equal(ctx.projectRoot, path.resolve(tmpRoot));
+    assert.equal(ctx.projectRoot, tmpRoot);
   } finally {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   }
 });
 
-test('signal is bridged verbatim from extra.signal', () => {
+test('projectRoot resolves from the injected getProjectRoot resolver (async)', async () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handler-ctx-'));
+  try {
+    const ctx = await buildHandlerContext(
+      {},
+      {},
+      {
+        server: fakeSdkServer(),
+        runtimeConfig: RUNTIME_CONFIG,
+        getProjectRoot: async () => tmpRoot,
+      }
+    );
+    assert.equal(ctx.projectRoot, tmpRoot);
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+});
+
+test('signal is bridged verbatim from extra.signal', async () => {
   const signal = new AbortController().signal;
-  const ctx = buildHandlerContext(
+  const ctx = await buildHandlerContext(
     {},
     { signal },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG }
   );
   assert.equal(ctx.signal, signal);
 });
 
-test('runtimeConfig is passed through composition-stable', () => {
-  const ctx = buildHandlerContext(
+test('runtimeConfig is passed through composition-stable', async () => {
+  const ctx = await buildHandlerContext(
     {},
     {},
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG }
   );
   assert.equal(ctx.runtimeConfig, RUNTIME_CONFIG);
 });
 
-test('services.memoryStore/knowledgeStore throw WORKSPACE_NOT_INITIALIZED when projectRoot is null (no cwd fallback)', () => {
-  const ctx = buildHandlerContext(
+test('services.memoryStore/knowledgeStore throw WORKSPACE_NOT_INITIALIZED when projectRoot is null (no cwd fallback)', async () => {
+  const ctx = await buildHandlerContext(
     {},
     {},
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG }
   );
   assert.equal(ctx.projectRoot, null);
   assert.throws(() => ctx.services.memoryStore, /WORKSPACE_NOT_INITIALIZED|initialized workspace/i);
   assert.throws(() => ctx.services.knowledgeStore, /WORKSPACE_NOT_INITIALIZED|initialized workspace/i);
 });
 
-test('services are lazily constructed and reused (memoized) with an injected clock', () => {
+test('services are lazily constructed and reused (memoized) with an injected clock', async () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handler-ctx-'));
   try {
-    let memoryStoreConstructions = 0;
     const clock = { now: () => new Date('2021-06-01T00:00:00.000Z') };
-    const ctx = buildHandlerContext(
+    const ctx = await buildHandlerContext(
       {},
       {},
       {
         server: fakeSdkServer(),
         runtimeConfig: RUNTIME_CONFIG,
-        env: { MAESTRO_TEST_WORKSPACE_PATH: tmpRoot },
+        getProjectRoot: () => tmpRoot,
         clock,
       }
     );
 
-    assert.equal(memoryStoreConstructions, 0);
     const first = ctx.services.memoryStore;
     assert.ok(first instanceof MemoryStore);
     const second = ctx.services.memoryStore;
@@ -122,15 +138,14 @@ test('services are lazily constructed and reused (memoized) with an injected clo
   }
 });
 
-test('services carries io, canonicalSrcRoot, workspaceSuggestion through from options', () => {
+test('services carries io, canonicalSrcRoot, workspaceSuggestion through from options', async () => {
   const workspaceSuggestion = () => '/suggested/path';
-  const ctx = buildHandlerContext(
+  const ctx = await buildHandlerContext(
     {},
     {},
     {
       server: fakeSdkServer(),
       runtimeConfig: RUNTIME_CONFIG,
-      env: {},
       services: { canonicalSrcRoot: '/src/root', workspaceSuggestion },
     }
   );
@@ -148,7 +163,7 @@ test('ctx.elicit returns null when the client capability precheck fails, without
       return { action: 'accept', content: {} };
     },
   });
-  const ctx = buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG, env: {} });
+  const ctx = await buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG });
   const result = await ctx.elicit({ message: 'Approve?', requestedSchema: { type: 'object', properties: {} } });
   assert.equal(result, null);
   assert.equal(calls, 0);
@@ -163,7 +178,7 @@ test('ctx.elicit passes an explicit long timeout and returns the accept outcome'
       return { action: 'accept', content: { approved: true } };
     },
   });
-  const ctx = buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG, env: {} });
+  const ctx = await buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG });
   const result = await ctx.elicit({
     message: 'Approve?',
     requestedSchema: { type: 'object', properties: { approved: { type: 'boolean' } } },
@@ -178,14 +193,14 @@ test('ctx.elicit returns decline/cancel outcomes verbatim', async () => {
     capabilities: { elicitation: { form: true } },
     elicitInput: async () => ({ action: 'decline' }),
   });
-  const declineCtx = buildHandlerContext({}, {}, { server: declineServer, runtimeConfig: RUNTIME_CONFIG, env: {} });
+  const declineCtx = await buildHandlerContext({}, {}, { server: declineServer, runtimeConfig: RUNTIME_CONFIG });
   assert.deepEqual(await declineCtx.elicit({ message: 'x', requestedSchema: {} }), { action: 'decline' });
 
   const cancelServer = fakeSdkServer({
     capabilities: { elicitation: { form: true } },
     elicitInput: async () => ({ action: 'cancel' }),
   });
-  const cancelCtx = buildHandlerContext({}, {}, { server: cancelServer, runtimeConfig: RUNTIME_CONFIG, env: {} });
+  const cancelCtx = await buildHandlerContext({}, {}, { server: cancelServer, runtimeConfig: RUNTIME_CONFIG });
   assert.deepEqual(await cancelCtx.elicit({ message: 'x', requestedSchema: {} }), { action: 'cancel' });
 });
 
@@ -196,7 +211,7 @@ test('ctx.elicit catches a thrown error (client lacks form capability) and retur
       throw new Error('Client does not support form elicitation.');
     },
   });
-  const ctx = buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG, env: {} });
+  const ctx = await buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG });
   const result = await ctx.elicit({ message: 'x', requestedSchema: {} });
   assert.equal(result, null);
 });
@@ -210,7 +225,7 @@ test('ctx.elicit catches an McpError thrown on requestedSchema validation failur
       throw error;
     },
   });
-  const ctx = buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG, env: {} });
+  const ctx = await buildHandlerContext({}, {}, { server, runtimeConfig: RUNTIME_CONFIG });
   const result = await ctx.elicit({ message: 'x', requestedSchema: {} });
   assert.equal(result, null);
 });
@@ -222,10 +237,9 @@ test('ctx.elicit end-to-end over a real SDK McpServer/Client pair without elicit
     'probe',
     { description: 'probe', inputSchema: {} },
     async (args, extra) => {
-      capturedCtx = buildHandlerContext(args, extra, {
+      capturedCtx = await buildHandlerContext(args, extra, {
         server: mcpServer,
         runtimeConfig: RUNTIME_CONFIG,
-        env: {},
       });
       const elicited = await capturedCtx.elicit({ message: 'hi', requestedSchema: { type: 'object', properties: {} } });
       return { content: [{ type: 'text', text: JSON.stringify({ elicited }) }] };
@@ -251,10 +265,9 @@ test('ctx.elicit end-to-end accepts over a real SDK McpServer/Client pair with e
     'probe',
     { description: 'probe', inputSchema: {} },
     async (args, extra) => {
-      const ctx = buildHandlerContext(args, extra, {
+      const ctx = await buildHandlerContext(args, extra, {
         server: mcpServer,
         runtimeConfig: RUNTIME_CONFIG,
-        env: {},
       });
       const elicited = await ctx.elicit({
         message: 'Approve?',

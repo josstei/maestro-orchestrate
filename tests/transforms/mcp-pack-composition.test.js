@@ -1,19 +1,34 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer } from '../../src/mcp/core/create-server.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { createMcpServer } from '../../src/mcp/server/create-mcp-server.js';
+import { createMaestroToolRegistry } from '../../src/mcp/tool-packs/contracts.js';
 import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
 import { DEFAULT_TOOL_PACKS } from '../../src/mcp/tool-packs/index.js';
 
-describe('mcp pack composition', () => {
-  it('mounts the default tool packs in a stable order', () => {
-    const kernel = createServer({
-      runtimeConfig: getRuntimeConfig('codex'),
-      services: {},
-      toolPacks: DEFAULT_TOOL_PACKS,
-    });
+async function mountDefaultToolPacks(runtimeConfig) {
+  const server = createMcpServer();
+  const registry = createMaestroToolRegistry();
 
+  for (const registerPack of DEFAULT_TOOL_PACKS) {
+    registerPack({ server, registry, runtimeConfig, services: {}, getProjectRoot: () => null });
+  }
+
+  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: 'mcp-pack-composition-test', version: '0.0.0' }, { capabilities: {} });
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+  return { server, client };
+}
+
+describe('mcp pack composition', () => {
+  it('mounts the default tool packs in a stable order', async () => {
+    const { server, client } = await mountDefaultToolPacks(getRuntimeConfig('codex'));
+
+    const { tools } = await client.listTools();
     assert.deepEqual(
-      kernel.getToolSchemas().map((schema) => schema.name),
+      tools.map((tool) => tool.name),
       [
         'initialize_workspace',
         'assess_task_complexity',
@@ -59,19 +74,22 @@ describe('mcp pack composition', () => {
         'list_session_blueprints',
       ]
     );
+
+    await client.close();
+    await server.close();
   });
 
   it('propagates runtime config through the composed tool surface', async () => {
-    const kernel = createServer({
-      runtimeConfig: getRuntimeConfig('codex'),
-      services: {},
-      toolPacks: DEFAULT_TOOL_PACKS,
-    });
+    const { server, client } = await mountDefaultToolPacks(getRuntimeConfig('codex'));
 
-    const result = await kernel.callTool('get_runtime_context');
+    const response = await client.callTool({ name: 'get_runtime_context', arguments: {} });
+    const result = JSON.parse(response.content[0].text);
 
-    assert.equal(result.ok, true);
-    assert.equal(result.result.runtime, 'codex');
-    assert.equal(result.result.mcp_prefix, 'mcp__maestro_maestro__');
+    assert.equal(response.isError, undefined);
+    assert.equal(result.runtime, 'codex');
+    assert.equal(result.mcp_prefix, 'mcp__maestro_maestro__');
+
+    await client.close();
+    await server.close();
   });
 });

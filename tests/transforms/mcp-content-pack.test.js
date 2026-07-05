@@ -11,8 +11,8 @@ const moduleDirname = path.dirname(moduleFilename);
 const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
 
 describe('content tool pack', () => {
-  it('registers the content and runtime metadata tools', () => {
-    const server = buildMcpServer({
+  it('registers the content and runtime metadata tools', async () => {
+    const server = await buildMcpServer({
       runtimeConfig: getRuntimeConfig('claude'),
       services: {
         canonicalSrcRoot: path.join(REPO_ROOT, 'src'),
@@ -20,8 +20,9 @@ describe('content tool pack', () => {
       toolPacks: [createContentPack],
     });
 
+    const schemas = await server.getToolSchemas();
     assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
+      schemas.map((schema) => schema.name),
       ['get_skill_content', 'get_agent', 'get_runtime_context']
     );
   });
@@ -50,7 +51,7 @@ describe('content tool pack', () => {
       'utf8'
     );
 
-    const server = buildMcpServer({
+    const server = await buildMcpServer({
       runtimeConfig: getRuntimeConfig('claude'),
       services: {
         canonicalSrcRoot: path.join(root, 'src'),

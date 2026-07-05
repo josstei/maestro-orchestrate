@@ -11,7 +11,7 @@ describe('codex workspace resolution contract', () => {
     const cache = path.join(cacheParent, '.codex', 'plugins', 'maestro');
     fs.mkdirSync(cache, { recursive: true });
 
-    const server = buildMcpServer({ runtime: 'codex' });
+    const server = await buildMcpServer({ runtime: 'codex' });
 
     const outcome = await server.callTool(
       'initialize_workspace',
@@ -23,7 +23,7 @@ describe('codex workspace resolution contract', () => {
   });
 
   it('rejects initialize_workspace with a missing workspace_path', async () => {
-    const server = buildMcpServer({ runtime: 'codex' });
+    const server = await buildMcpServer({ runtime: 'codex' });
 
     const outcome = await server.callTool(
       'initialize_workspace',
@@ -37,7 +37,7 @@ describe('codex workspace resolution contract', () => {
   it('accepts initialize_workspace with a plain workspace and writes a marker', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-ws-'));
 
-    const server = buildMcpServer({ runtime: 'codex' });
+    const server = await buildMcpServer({ runtime: 'codex' });
 
     const outcome = await server.callTool(
       'initialize_workspace',

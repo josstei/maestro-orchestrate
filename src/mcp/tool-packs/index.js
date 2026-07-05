@@ -1,15 +1,15 @@
-import { createToolPack as createWorkspaceToolPack } from './workspace/index.js';
-import { createToolPack as createSessionToolPack } from './session/index.js';
-import { createToolPack as createContentToolPack } from './content/index.js';
-import { createToolPack as createMemoryToolPack } from './memory/index.js';
-import { createToolPack as createHistoryToolPack } from './history/index.js';
+import { registerWorkspacePack } from './workspace/index.js';
+import { registerSessionPack } from './session/index.js';
+import { registerContentPack } from './content/index.js';
+import { registerMemoryPack } from './memory/index.js';
+import { registerHistoryPack } from './history/index.js';
 
 const DEFAULT_TOOL_PACKS = Object.freeze([
-  createWorkspaceToolPack,
-  createSessionToolPack,
-  createContentToolPack,
-  createMemoryToolPack,
-  createHistoryToolPack,
+  registerWorkspacePack,
+  registerSessionPack,
+  registerContentPack,
+  registerMemoryPack,
+  registerHistoryPack,
 ]);
 
 export { DEFAULT_TOOL_PACKS };

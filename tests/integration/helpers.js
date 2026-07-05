@@ -72,6 +72,7 @@ async function withPackagedClaudeRuntime(fn) {
     JSON.stringify({ name: '@josstei/maestro', type: 'module' }, null, 2) + '\n',
     'utf8'
   );
+  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(packageRoot, 'node_modules'), 'dir');
 
   try {
     return await fn(packageRoot);

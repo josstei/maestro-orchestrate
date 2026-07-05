@@ -24,16 +24,17 @@ afterEach(() => {
   }
 });
 
-function buildWorkspaceServer() {
+async function buildWorkspaceServer() {
   return buildMcpServer({ toolPacks: [createWorkspacePack] });
 }
 
 describe('workspace tool pack', () => {
-  it('registers the workspace and planning tool surface through the kernel', () => {
-    const server = buildWorkspaceServer();
+  it('registers the workspace and planning tool surface through the kernel', async () => {
+    const server = await buildWorkspaceServer();
 
+    const schemas = await server.getToolSchemas();
     assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
+      schemas.map((schema) => schema.name),
       [
         'initialize_workspace',
         'assess_task_complexity',
@@ -50,13 +51,13 @@ describe('workspace tool pack', () => {
       'MAESTRO_DISABLED_AGENTS=architect, tester\n'
     );
 
-    const server = buildWorkspaceServer();
+    const server = await buildWorkspaceServer();
+    const init = await server.callTool('initialize_workspace', { workspace_path: projectRoot });
+    assert.equal(init.ok, true);
 
-    const result = await server.callTool(
-      'resolve_settings',
-      { settings: ['MAESTRO_DISABLED_AGENTS'] },
-      projectRoot
-    );
+    const result = await server.callTool('resolve_settings', {
+      settings: ['MAESTRO_DISABLED_AGENTS'],
+    });
 
     assert.equal(result.ok, true);
     assert.equal(
@@ -68,13 +69,12 @@ describe('workspace tool pack', () => {
 
   it('initializes the workspace directories under the provided project root', async () => {
     const projectRoot = makeTempWorkspace('maestro-workspace-');
-    const server = buildWorkspaceServer();
+    const server = await buildWorkspaceServer();
 
-    const result = await server.callTool(
-      'initialize_workspace',
-      { workspace_path: projectRoot, state_dir: 'docs/maestro' },
-      projectRoot
-    );
+    const result = await server.callTool('initialize_workspace', {
+      workspace_path: projectRoot,
+      state_dir: 'docs/maestro',
+    });
 
     assert.equal(result.ok, true);
     assert.equal(result.result.state_dir, 'docs/maestro');
@@ -89,45 +89,42 @@ describe('workspace tool pack', () => {
   });
 
   it('reports overlapping files for parallel phases', async () => {
-    const server = buildWorkspaceServer();
+    const server = await buildWorkspaceServer();
 
-    const result = await server.callTool(
-      'validate_plan',
-      {
-        task_complexity: 'complex',
-        plan: {
-          phases: [
-            {
-              id: 1,
-              name: 'Foundation',
-              agent: 'coder',
-              parallel: false,
-              blocked_by: [],
-              files_created: [],
-              files_modified: ['src/shared.js'],
-            },
-            {
-              id: 2,
-              name: 'Phase A',
-              agent: 'coder',
-              parallel: true,
-              blocked_by: [1],
-              files_created: [],
-              files_modified: ['src/conflict.js'],
-            },
-            {
-              id: 3,
-              name: 'Phase B',
-              agent: 'coder',
-              parallel: true,
-              blocked_by: [1],
-              files_created: [],
-              files_modified: ['src/conflict.js'],
-            },
-          ],
-        },
-      }
-    );
+    const result = await server.callTool('validate_plan', {
+      task_complexity: 'complex',
+      plan: {
+        phases: [
+          {
+            id: 1,
+            name: 'Foundation',
+            agent: 'coder',
+            parallel: false,
+            blocked_by: [],
+            files_created: [],
+            files_modified: ['src/shared.js'],
+          },
+          {
+            id: 2,
+            name: 'Phase A',
+            agent: 'coder',
+            parallel: true,
+            blocked_by: [1],
+            files_created: [],
+            files_modified: ['src/conflict.js'],
+          },
+          {
+            id: 3,
+            name: 'Phase B',
+            agent: 'coder',
+            parallel: true,
+            blocked_by: [1],
+            files_created: [],
+            files_modified: ['src/conflict.js'],
+          },
+        ],
+      },
+    });
 
     assert.equal(result.ok, true);
     assert.equal(result.result.valid, false);

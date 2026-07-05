@@ -20,7 +20,7 @@ function createToolPipeline(tool, contextOptions) {
   const { name, handler, requiresWorkspace = false, onPostCall } = tool;
 
   return async function sdkCallback(args, extra) {
-    const ctx = buildHandlerContext(args, extra, contextOptions);
+    const ctx = await buildHandlerContext(args, extra, contextOptions);
     let outcome;
 
     try {

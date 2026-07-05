@@ -1,14 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildMcpServer } from '../support/mcp.js';
-import { createToolPack as createMemoryPack } from '../../src/mcp/tool-packs/memory/index.js';
+import { registerMemoryPack as createMemoryPack } from '../../src/mcp/tool-packs/memory/index.js';
 
 describe('memory tool pack', () => {
-  it('registers the memory profile tools through the kernel', () => {
-    const server = buildMcpServer({ toolPacks: [createMemoryPack] });
+  it('registers the memory profile tools through the kernel', async () => {
+    const server = await buildMcpServer({ toolPacks: [createMemoryPack] });
 
+    const schemas = await server.getToolSchemas();
     assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
+      schemas.map((schema) => schema.name),
       [
         'get_project_profile',
         'update_project_profile',

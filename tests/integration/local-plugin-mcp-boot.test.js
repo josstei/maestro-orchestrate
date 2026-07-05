@@ -23,6 +23,7 @@ describe('assembled local claude plugin MCP boot (integration)', () => {
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-local-boot-'));
     try {
       const { pluginDir } = assembleClaudePlugin({ root: ROOT, outDir });
+      fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(outDir, 'node_modules'), 'dir');
 
       await withServer(
         {

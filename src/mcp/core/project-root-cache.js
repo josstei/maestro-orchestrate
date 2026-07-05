@@ -90,8 +90,21 @@ function createProjectRootCache(options) {
     return explicitWorkspacePath;
   }
 
+  /**
+   * Non-throwing, synchronous projectRoot resolver for the SDK cutover path
+   * (injected into `buildHandlerContext` as `getProjectRoot`). Returns `null`
+   * absent an explicit `initialize_workspace` call so the gate is enforced
+   * uniformly by `requireWorkspaceRoot` inside the tool pipeline, never here.
+   *
+   * @returns {string|null}
+   */
+  function resolveProjectRoot() {
+    return explicitWorkspacePath;
+  }
+
   return {
     getProjectRoot,
+    resolveProjectRoot,
     setExplicitWorkspacePath,
     workspaceSuggestion,
     setClientSupportsRoots(supports) {

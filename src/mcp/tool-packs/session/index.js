@@ -1,6 +1,5 @@
-import { defineToolPack } from '../contracts.js';
-import { SCHEMA } from '../schema-fragments.js';
-import { PHASE_ITEM_SCHEMA } from '../../contracts/plan-schema.js';
+import { defineTool } from '../contracts.js';
+import { zodSchemas } from './zod-schemas.js';
 
 import {
   handleCreateSession,
@@ -24,271 +23,107 @@ import {
   handleGetCostInsights,
 } from '../../handlers/archive-index.js';
 
-function createToolPack() {
-  return defineToolPack({
-    name: 'session',
-    tools: [
-      {
-        name: 'create_session',
-        description:
-          'Create a new Maestro orchestration session. Supply the implementation plan either by path (implementation_plan) or by inline content (implementation_plan_content + implementation_plan_filename); the two variants are mutually exclusive. The content variant is required when the caller cannot guarantee the plan file is visible to the MCP server under the configured workspace (e.g. Gemini Plan Mode writes to a tmp root).',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-            task: { type: 'string' },
-            design_document: { type: ['string', 'null'] },
-            implementation_plan: { type: ['string', 'null'] },
-            implementation_plan_content: {
-              type: 'string',
-              description:
-                'Inline implementation-plan Markdown. Requires implementation_plan_filename; mutually exclusive with implementation_plan.',
-            },
-            implementation_plan_filename: {
-              type: 'string',
-              description: `${SCHEMA.BASENAME_FILENAME_DESCRIPTION} used when materializing implementation_plan_content into <state_dir>/plans/.`,
-            },
-            phases: {
-              type: 'array',
-              minItems: 1,
-              items: PHASE_ITEM_SCHEMA,
-            },
-            task_complexity: {
-              type: 'string',
-              enum: SCHEMA.TASK_COMPLEXITY_ENUM,
-            },
-            execution_mode: { type: 'string' },
-            workflow_mode: {
-              type: 'string',
-              enum: ['express', 'standard'],
-              default: 'standard',
-            },
-          },
-          required: ['session_id', 'task', 'phases'],
-        },
-      },
-      {
-        name: 'get_session_status',
-        description:
-          'Read current session status including workflow_mode. Returns { exists: false } if no active session, or { exists: true, ...status } if one exists.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-          },
-        },
-      },
-      {
-        name: 'update_session',
-        description:
-          'Update session metadata fields (execution_mode, current_batch) after session creation. Use after execution-mode gate resolves.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-            execution_mode: {
-              type: 'string',
-              enum: ['parallel', 'sequential'],
-            },
-            execution_backend: { type: 'string' },
-            current_batch: { type: ['string', 'null'] },
-          },
-          required: ['session_id'],
-        },
-      },
-      {
-        name: 'transition_phase',
-        description:
-          'Atomically mark a phase completed and start the next phase(s). Supports single or batch transitions.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-            completed_phase_id: { type: ['number', 'string'] },
-            downstream_context: SCHEMA.DOWNSTREAM_CONTEXT,
-            files_created: SCHEMA.FILE_ARRAY,
-            files_modified: SCHEMA.FILE_ARRAY,
-            files_deleted: SCHEMA.FILE_ARRAY,
-            next_phase_id: { type: ['number', 'string', 'null'] },
-            next_phase_ids: {
-              type: 'array',
-              items: { type: ['number', 'string'] },
-              description:
-                'Start multiple phases (parallel batch). Mutually exclusive with next_phase_id.',
-            },
-            batch_id: {
-              type: ['string', 'null'],
-              description:
-                'Batch identifier for parallel dispatch. Sets current_batch in state.',
-            },
-            token_usage: { type: 'object' },
-            task_report: {
-              type: 'string',
-              description:
-                'Full agent Task Report text for the completed phase. The server derives blocker_count by parsing its Blockers section.',
-            },
-            review_finding_count: {
-              type: ['number', 'null'],
-              description:
-                'Number of Completion-phase code-review findings recorded for the completed phase. Stored as review_finding_count.',
-            },
-          },
-          required: ['session_id'],
-        },
-      },
-      {
-        name: 'archive_session',
-        description:
-          'Move active session to archive. Also moves associated design document and implementation plan to plans/archive/ if they exist.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-          },
-          required: ['session_id'],
-        },
-      },
-      {
-        name: 'enter_design_gate',
-        description:
-          'Mark a session as having entered the design phase. Idempotent. Blocks create_session until record_design_approval is called.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: { session_id: SCHEMA.SESSION_ID },
-          required: ['session_id'],
-        },
-      },
-      {
-        name: 'record_design_approval',
-        description:
-          'Record user approval of the design document, clearing the design gate for session creation. Supply the document either by path (design_document_path) or by inline content (design_document_content + design_document_filename); exactly one variant is required. Use the content variant when the caller cannot guarantee the file is visible to the MCP server under the configured workspace (e.g. Gemini Plan Mode resolves relative paths against ~/.gemini/tmp/<uuid>/).',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-            design_document_path: {
-              type: 'string',
-              description:
-                'Absolute or workspace-relative path to the approved design document. Mutually exclusive with design_document_content.',
-            },
-            design_document_content: {
-              type: 'string',
-              description:
-                'Inline design-document Markdown. Requires design_document_filename; mutually exclusive with design_document_path.',
-            },
-            design_document_filename: {
-              type: 'string',
-              description: `${SCHEMA.BASENAME_FILENAME_DESCRIPTION} used when materializing design_document_content into <state_dir>/plans/.`,
-            },
-          },
-          required: ['session_id'],
-        },
-      },
-      {
-        name: 'get_design_gate_status',
-        description:
-          'Read the design gate status for a session. Returns entered_at, approved_at, and design_document_path (all nullable).',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: { session_id: SCHEMA.SESSION_ID },
-          required: ['session_id'],
-        },
-      },
-      {
-        name: 'scan_phase_changes',
-        description:
-          'Scan the workspace for files created or modified since the phase started. Does not attribute files — returns candidates for the orchestrator to reconcile.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-            phase_id: SCHEMA.PHASE_ID,
-          },
-          required: ['session_id', 'phase_id'],
-        },
-      },
-      {
-        name: 'reconcile_phase',
-        description:
-          'Record file manifests and downstream context for a phase that could not be handed off cleanly. Requires at least one of files_created/files_modified/files_deleted or a populated downstream_context. Clears requires_reconciliation on success.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: SCHEMA.SESSION_ID,
-            phase_id: SCHEMA.PHASE_ID,
-            files_created: SCHEMA.FILE_ARRAY,
-            files_modified: SCHEMA.FILE_ARRAY,
-            files_deleted: SCHEMA.FILE_ARRAY,
-            downstream_context: SCHEMA.DOWNSTREAM_CONTEXT,
-            reason: { type: 'string' },
-          },
-          required: ['session_id', 'phase_id'],
-        },
-      },
-      {
-        name: 'list_archived_sessions',
-        description:
-          'List archived Maestro sessions (newest first) with per-session cost, outcome, and agent summaries read from the state/archive subtree.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {},
-        },
-      },
-      {
-        name: 'search_archived_sessions',
-        description:
-          'Search archived Maestro sessions filtered by created_after/created_before (ISO-8601), agent, and/or outcome (completed|failed).',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            created_after: SCHEMA.ISO_DATE,
-            created_before: SCHEMA.ISO_DATE,
-            agent: { type: 'string' },
-            outcome: { type: 'string', enum: SCHEMA.ARCHIVE_OUTCOME_ENUM },
-          },
-        },
-      },
-      {
-        name: 'get_cost_insights',
-        description:
-          'Aggregate a deterministic cross-session per-agent token and latency rollup from archived sessions. Set include_active to fold the current active session into the rollup.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            include_active: { type: 'boolean', default: false },
-          },
-        },
-      },
-    ],
-    handlers: {
-      create_session: handleCreateSession,
-      get_session_status: handleGetSessionStatus,
-      update_session: handleUpdateSession,
-      transition_phase: handleTransitionPhase,
-      archive_session: handleArchiveSession,
-      enter_design_gate: handleEnterDesignGate,
-      record_design_approval: handleRecordDesignApproval,
-      get_design_gate_status: handleGetDesignGateStatus,
-      scan_phase_changes: handleScanPhaseChanges,
-      reconcile_phase: handleReconcilePhase,
-      list_archived_sessions: handleListArchivedSessions,
-      search_archived_sessions: handleSearchArchivedSessions,
-      get_cost_insights: handleGetCostInsights,
+/**
+ * Register the `session` pack's 13 tools via `defineTool`, each consuming
+ * its shape from `./zod-schemas.js`. Every tool in this pack requires an
+ * initialized workspace.
+ *
+ * @param {{server: object, registry: object}} options
+ */
+function registerSessionPack({ server, registry, ...contextOptions } = {}) {
+  const sessionTools = [
+    {
+      name: 'create_session',
+      description:
+        'Create a new Maestro orchestration session. Supply the implementation plan either by path (implementation_plan) or by inline content (implementation_plan_content + implementation_plan_filename); the two variants are mutually exclusive. The content variant is required when the caller cannot guarantee the plan file is visible to the MCP server under the configured workspace (e.g. Gemini Plan Mode writes to a tmp root).',
+      handler: handleCreateSession,
     },
-  });
+    {
+      name: 'get_session_status',
+      description:
+        'Read current session status including workflow_mode. Returns { exists: false } if no active session, or { exists: true, ...status } if one exists.',
+      handler: handleGetSessionStatus,
+    },
+    {
+      name: 'update_session',
+      description:
+        'Update session metadata fields (execution_mode, current_batch) after session creation. Use after execution-mode gate resolves.',
+      handler: handleUpdateSession,
+    },
+    {
+      name: 'transition_phase',
+      description:
+        'Atomically mark a phase completed and start the next phase(s). Supports single or batch transitions.',
+      handler: handleTransitionPhase,
+    },
+    {
+      name: 'archive_session',
+      description:
+        'Move active session to archive. Also moves associated design document and implementation plan to plans/archive/ if they exist.',
+      handler: handleArchiveSession,
+    },
+    {
+      name: 'enter_design_gate',
+      description:
+        'Mark a session as having entered the design phase. Idempotent. Blocks create_session until record_design_approval is called.',
+      handler: handleEnterDesignGate,
+    },
+    {
+      name: 'record_design_approval',
+      description:
+        'Record user approval of the design document, clearing the design gate for session creation. Supply the document either by path (design_document_path) or by inline content (design_document_content + design_document_filename); exactly one variant is required. Use the content variant when the caller cannot guarantee the file is visible to the MCP server under the configured workspace (e.g. Gemini Plan Mode resolves relative paths against ~/.gemini/tmp/<uuid>/).',
+      handler: handleRecordDesignApproval,
+    },
+    {
+      name: 'get_design_gate_status',
+      description:
+        'Read the design gate status for a session. Returns entered_at, approved_at, and design_document_path (all nullable).',
+      handler: handleGetDesignGateStatus,
+    },
+    {
+      name: 'scan_phase_changes',
+      description:
+        'Scan the workspace for files created or modified since the phase started. Does not attribute files — returns candidates for the orchestrator to reconcile.',
+      handler: handleScanPhaseChanges,
+    },
+    {
+      name: 'reconcile_phase',
+      description:
+        'Record file manifests and downstream context for a phase that could not be handed off cleanly. Requires at least one of files_created/files_modified/files_deleted or a populated downstream_context. Clears requires_reconciliation on success.',
+      handler: handleReconcilePhase,
+    },
+    {
+      name: 'list_archived_sessions',
+      description:
+        'List archived Maestro sessions (newest first) with per-session cost, outcome, and agent summaries read from the state/archive subtree.',
+      handler: handleListArchivedSessions,
+    },
+    {
+      name: 'search_archived_sessions',
+      description:
+        'Search archived Maestro sessions filtered by created_after/created_before (ISO-8601), agent, and/or outcome (completed|failed).',
+      handler: handleSearchArchivedSessions,
+    },
+    {
+      name: 'get_cost_insights',
+      description:
+        'Aggregate a deterministic cross-session per-agent token and latency rollup from archived sessions. Set include_active to fold the current active session into the rollup.',
+      handler: handleGetCostInsights,
+    },
+  ];
+
+  for (const tool of sessionTools) {
+    defineTool({
+      server,
+      registry,
+      name: tool.name,
+      description: tool.description,
+      requiresWorkspace: true,
+      schema: zodSchemas[tool.name],
+      handler: (args, ctx) => tool.handler(args, ctx.projectRoot),
+      ...contextOptions,
+    });
+  }
 }
 
-export { createToolPack };
+export { registerSessionPack };

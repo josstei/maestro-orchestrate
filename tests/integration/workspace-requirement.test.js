@@ -7,9 +7,11 @@ import {
   createInitializedMcpWorkspace,
   createSessionPack,
   createWorkspacePack,
+  phaseFixture,
+  readSessionFrontmatter,
 } from '../support/mcp.js';
 
-function createFullServer() {
+async function createFullServer() {
   return buildMcpServer({
     runtime: 'gemini',
     toolPacks: [createWorkspacePack, createSessionPack, createContentPack],
@@ -18,9 +20,9 @@ function createFullServer() {
 
 describe('workspace requirement contract', () => {
   it('returns typed WORKSPACE_NOT_INITIALIZED error when workspace-dependent tools are called without a workspace', async () => {
-    const server = createFullServer();
+    const server = await createFullServer();
     const workspaceDependentTools = [
-      { name: 'create_session', args: { session_id: 's1', task: 't', phases: [] } },
+      { name: 'create_session', args: { session_id: 's1', task: 't', phases: [phaseFixture()] } },
       { name: 'get_session_status', args: {} },
       { name: 'transition_phase', args: { session_id: 's1', completed_phase_id: 1 } },
       { name: 'archive_session', args: { session_id: 's1' } },
@@ -54,7 +56,7 @@ describe('workspace requirement contract', () => {
   });
 
   it('startup-phase tools succeed without a workspace (resolve_settings, get_runtime_context, get_skill_content, get_agent, initialize_workspace itself)', async () => {
-    const server = createFullServer();
+    const server = await createFullServer();
 
     const settings = await server.callTool('resolve_settings', {}, null);
     assert.equal(settings.ok, true, `resolve_settings must tolerate null projectRoot: ${settings.error || ''}`);
@@ -81,5 +83,46 @@ describe('workspace requirement contract', () => {
     const status = await server.callTool('get_session_status', {}, workspace);
     assert.equal(status.ok, true);
     assert.equal(status.result.exists, false);
+  });
+
+  it('resolves the initialized workspace root even when process.cwd()/ambient env point elsewhere (discriminating test for the injected projectRoot seam)', async () => {
+    const { workspace, server, init } = await createInitializedMcpWorkspace({
+      prefix: 'maestro-wr-discriminating-',
+      runtime: 'gemini',
+      toolPacks: [createWorkspacePack, createSessionPack, createContentPack],
+    });
+    assert.equal(init.ok, true);
+    assert.notEqual(workspace, process.cwd());
+
+    const decoyEnv = { CLAUDE_PROJECT_DIR: '/definitely/not/the/workspace', PWD: '/also/not/it', INIT_CWD: '/nope' };
+    const originalValues = {};
+    for (const [key, value] of Object.entries(decoyEnv)) {
+      originalValues[key] = process.env[key];
+      process.env[key] = value;
+    }
+
+    try {
+      const created = await server.callTool('create_session', {
+        session_id: 'discriminating-1',
+        task: 'prove projectRoot threading ignores ambient env/cwd',
+        phases: [phaseFixture()],
+      });
+      assert.equal(created.ok, true, created.error || '');
+
+      const status = await server.callTool('get_session_status', {});
+      assert.equal(status.ok, true);
+      assert.equal(status.result.exists, true);
+
+      const written = readSessionFrontmatter(workspace);
+      assert.equal(written.session_id, 'discriminating-1');
+    } finally {
+      for (const [key, value] of Object.entries(originalValues)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
   });
 });
