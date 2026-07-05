@@ -1,16 +1,10 @@
-'use strict';
-
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const os = require('node:os');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { ensureWorkspace } = require('../../src/state/session-state');
-const {
-  handleRecordValidationCommands,
-  handleGetProjectProfile,
-} = require('../../src/mcp/handlers/project-profile');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import os from 'node:os';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ensureWorkspace } from '../../src/state/session-state.js';
+import { handleRecordValidationCommands, handleGetProjectProfile } from '../../src/mcp/handlers/project-profile.js';
 
 function makeWorkspace() {
   delete process.env.MAESTRO_STATE_DIR;

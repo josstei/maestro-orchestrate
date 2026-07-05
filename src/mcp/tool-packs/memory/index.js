@@ -1,34 +1,20 @@
-'use strict';
+import { defineToolPack } from '../contracts.js';
 
-const { defineToolPack } = require('../contracts');
-const {
+import {
   handleGetProjectProfile,
   handleUpdateProjectProfile,
   handleRecordValidationCommands,
-} = require('../../handlers/project-profile');
-const {
-  handleGetAgentPerformance,
-} = require('../../handlers/agent-performance');
-const { handleGetPlanAccuracy } = require('../../handlers/plan-accuracy');
-const {
-  handleQueryArchitectureMemory,
-} = require('../../handlers/architecture-memory');
-const {
-  handleAppendAgentMemory,
-  handleGetAgentMemory,
-} = require('../../handlers/agent-memory');
-const { handleCompactArchive } = require('../../handlers/archive-compaction');
-const { handleRecallSimilarSessions } = require('../../handlers/recall');
-const { handleRatePhase, handleRateSession } = require('../../handlers/ratings');
-const {
-  handleQueryKnowledge,
-  handleRecordKnowledge,
-} = require('../../handlers/org-knowledge');
-const {
-  handleExportMemoryPack,
-  handleImportMemoryPack,
-} = require('../../handlers/memory-pack');
+} from '../../handlers/project-profile.js';
 
+import { handleGetAgentPerformance } from '../../handlers/agent-performance.js';
+import { handleGetPlanAccuracy } from '../../handlers/plan-accuracy.js';
+import { handleQueryArchitectureMemory } from '../../handlers/architecture-memory.js';
+import { handleAppendAgentMemory, handleGetAgentMemory } from '../../handlers/agent-memory.js';
+import { handleCompactArchive } from '../../handlers/archive-compaction.js';
+import { handleRecallSimilarSessions } from '../../handlers/recall.js';
+import { handleRatePhase, handleRateSession } from '../../handlers/ratings.js';
+import { handleQueryKnowledge, handleRecordKnowledge } from '../../handlers/org-knowledge.js';
+import { handleExportMemoryPack, handleImportMemoryPack } from '../../handlers/memory-pack.js';
 const PROFILE_FIELD_SCHEMA = { type: 'array', items: { type: 'string' } };
 
 function createToolPack() {
@@ -308,6 +294,4 @@ function createToolPack() {
   });
 }
 
-module.exports = {
-  createToolPack,
-};
+export { createToolPack };

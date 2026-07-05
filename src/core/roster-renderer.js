@@ -1,6 +1,4 @@
-'use strict';
-
-const { toSnakeCase } = require('../lib/naming');
+import { toSnakeCase } from '../lib/naming/index.js';
 
 const CAPABILITY_TIER_LABELS = Object.freeze({
   read_only: 'Read-only',
@@ -29,4 +27,4 @@ function renderRosterTable(agents, { agentNaming }) {
   return lines.join('\n');
 }
 
-module.exports = { renderRosterTable, CAPABILITY_TIER_LABELS };
+export { renderRosterTable, CAPABILITY_TIER_LABELS };

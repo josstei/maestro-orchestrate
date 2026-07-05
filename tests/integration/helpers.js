@@ -1,9 +1,11 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const { execFileSync } = require('node:child_process');
-const path = require('node:path');
-
-const ROOT = path.resolve(__dirname, '../..');
+import fs from 'node:fs';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '../..');
 const DRY_RUN_MARKER = '(dry-run — no files written)';
 const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
 
@@ -65,6 +67,11 @@ async function withPackagedClaudeRuntime(fn) {
   });
   fs.cpSync(path.join(ROOT, 'claude'), path.join(packageRoot, 'claude'), { recursive: true });
   fs.cpSync(path.join(ROOT, 'src'), path.join(packageRoot, 'src'), { recursive: true });
+  fs.writeFileSync(
+    path.join(packageRoot, 'package.json'),
+    JSON.stringify({ name: '@josstei/maestro', type: 'module' }, null, 2) + '\n',
+    'utf8'
+  );
 
   try {
     return await fn(packageRoot);
@@ -93,13 +100,4 @@ function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
   return repoRoot;
 }
 
-module.exports = {
-  DRY_RUN_MARKER,
-  ROOT,
-  createTempRepoCopy,
-  getGitStatus,
-  parseDryRunReport,
-  runGenerator,
-  runGeneratorExpectFailure,
-  withPackagedClaudeRuntime,
-};
+export { DRY_RUN_MARKER, ROOT, createTempRepoCopy, getGitStatus, parseDryRunReport, runGenerator, runGeneratorExpectFailure, withPackagedClaudeRuntime };

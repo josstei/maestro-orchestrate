@@ -1,21 +1,15 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { listApprovedGates, findOrphanedApprovedGates, hasDesignGate } from '../../src/mcp/handlers/design-gate.js';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const {
-  listApprovedGates,
-  findOrphanedApprovedGates,
-  hasDesignGate,
-} = require('../../src/mcp/handlers/design-gate');
-const {
+import {
   createInitializedMcpWorkspace,
   makeTempWorkspace,
   phaseFixture,
   writeWorkspaceFile,
-} = require('../support/mcp');
+} from '../support/mcp.js';
 
 async function buildInitializedServer() {
   return createInitializedMcpWorkspace({ prefix: 'maestro-gate-' });

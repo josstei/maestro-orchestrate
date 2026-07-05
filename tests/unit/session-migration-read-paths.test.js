@@ -1,18 +1,10 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { makeTempWorkspace } = require('../support/mcp');
-const {
-  parseSessionState,
-} = require('../../src/mcp/handlers/session-state-core');
-const {
-  parseArchivedSessionState,
-  readArchivedSessionSummaries,
-} = require('../../src/mcp/handlers/archive-index');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { makeTempWorkspace } from '../support/mcp.js';
+import { parseSessionState } from '../../src/mcp/handlers/session-state-core.js';
+import { parseArchivedSessionState, readArchivedSessionSummaries } from '../../src/mcp/handlers/archive-index.js';
 
 function legacyDocument(sessionId) {
   const data = {

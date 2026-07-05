@@ -1,6 +1,4 @@
-'use strict';
-
-const { computeDepths } = require('./dag-checker');
+import { computeDepths } from './dag-checker.js';
 
 /**
  * Shared derivation context passed to every plan-validation rule. Wraps the raw
@@ -57,4 +55,4 @@ class PlanValidationContext {
   }
 }
 
-module.exports = { PlanValidationContext };
+export { PlanValidationContext };

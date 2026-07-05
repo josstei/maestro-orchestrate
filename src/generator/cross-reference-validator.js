@@ -1,8 +1,7 @@
-'use strict';
-
-const path = require('node:path');
-const { ValidationError } = require('../lib/errors');
-const { buildRegistries } = require('./registry-scanner');
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { ValidationError } from '../lib/errors/index.js';
+import { buildRegistries } from './registry-scanner.js';
 
 /**
  * Assert that every name referenced by an entry point or core command resolves
@@ -55,16 +54,18 @@ function validateCrossReferences({ agentNames, resourceIds, entryPoints, coreCom
  * @param {string} srcDir - Absolute path to src/
  * @returns {{ agentNames: string[], resourceIds: string[], entryPoints: object[], coreCommands: object[] }}
  */
-function collectCrossReferenceInputs(srcDir) {
+async function collectCrossReferenceInputs(srcDir) {
   const registries = buildRegistries(srcDir);
   const agentData = registries.find((r) => r.fileName === 'agent-registry.json').data;
   const resourceData = registries.find((r) => r.fileName === 'resource-registry.json').data;
+  const { default: entryPoints } = await import(pathToFileURL(path.join(srcDir, 'entry-points', 'registry.js')).href);
+  const { default: coreCommands } = await import(pathToFileURL(path.join(srcDir, 'entry-points', 'core-command-registry.js')).href);
 
   return {
     agentNames: agentData.map((agent) => agent.name),
     resourceIds: Object.keys(resourceData),
-    entryPoints: require(path.join(srcDir, 'entry-points', 'registry')),
-    coreCommands: require(path.join(srcDir, 'entry-points', 'core-command-registry')),
+    entryPoints,
+    coreCommands,
   };
 }
 
@@ -73,12 +74,8 @@ function collectCrossReferenceInputs(srcDir) {
  * @param {string} srcDir - Absolute path to src/
  * @throws {ValidationError}
  */
-function assertCrossReferences(srcDir) {
-  validateCrossReferences(collectCrossReferenceInputs(srcDir));
+async function assertCrossReferences(srcDir) {
+  validateCrossReferences(await collectCrossReferenceInputs(srcDir));
 }
 
-module.exports = {
-  validateCrossReferences,
-  collectCrossReferenceInputs,
-  assertCrossReferences,
-};
+export { validateCrossReferences, collectCrossReferenceInputs, assertCrossReferences };

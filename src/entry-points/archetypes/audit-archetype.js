@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * The presentation-discipline constraints shared by the "pure" audit entry
  * points (SEO, accessibility, compliance). Frozen so no consumer mutates the
@@ -62,4 +60,4 @@ function defineAudit(spec) {
   return entry;
 }
 
-module.exports = { defineAudit, AUDIT_PRESENTATION_CONSTRAINTS };
+export { defineAudit, AUDIT_PRESENTATION_CONSTRAINTS };

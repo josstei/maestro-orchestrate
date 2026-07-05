@@ -1,7 +1,6 @@
-'use strict';
-
-const { toSnakeCase } = require('../lib/naming');
-const agentRegistryData = require('../generated/agent-registry.json');
+import { toSnakeCase } from '../lib/naming/index.js';
+import { readFileSync } from 'node:fs';
+const agentRegistryData = JSON.parse(readFileSync(new URL('../generated/agent-registry.json', import.meta.url)));
 
 const KNOWN_AGENTS = Object.freeze(
   agentRegistryData.map((entry) => toSnakeCase(entry.name))
@@ -40,4 +39,4 @@ function canCreateFiles(name) {
   return cap === 'read_write' || cap === 'full';
 }
 
-module.exports = { KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability, canCreateFiles };
+export { KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability, canCreateFiles };

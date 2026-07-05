@@ -1,12 +1,10 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { createHookState, DEFAULT_BASE_DIR } = require('../../src/hooks/logic/hook-state');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import hookStateDefault from '../../src/hooks/logic/hook-state.js';
+const { createHookState, DEFAULT_BASE_DIR } = hookStateDefault;
 
 function makeTempBaseDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hook-state-test-'));

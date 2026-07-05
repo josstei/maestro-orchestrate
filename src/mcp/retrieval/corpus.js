@@ -1,11 +1,8 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-
-const markdownState = require('../../core/markdown-state');
-const { resolveStateDirPath } = require('../../state/session-state');
-const { migrateSessionState } = require('../handlers/session-migrations');
+import fs from 'fs';
+import path from 'path';
+import * as markdownState from '../../core/markdown-state.js';
+import { resolveStateDirPath } from '../../state/session-state.js';
+import { migrateSessionState } from '../handlers/session-migrations.js';
 
 /**
  * @param {string} projectRoot
@@ -127,4 +124,4 @@ function buildRetrievalCorpus(projectRoot) {
   return records;
 }
 
-module.exports = { buildRetrievalCorpus };
+export { buildRetrievalCorpus };

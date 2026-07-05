@@ -1,6 +1,4 @@
-'use strict';
-
-const { emitInlineQuotedList } = require('../lib/yaml-emit');
+import { emitInlineQuotedList } from '../lib/yaml-emit.js';
 
 function buildGeminiPreamble(entry) {
   const resources = [];
@@ -47,8 +45,4 @@ function buildCodexPreamble(entry) {
   return refs.join('\n');
 }
 
-module.exports = {
-  gemini: buildGeminiPreamble,
-  claude: buildClaudePreamble,
-  codex: buildCodexPreamble,
-};
+export { buildGeminiPreamble as gemini, buildClaudePreamble as claude, buildCodexPreamble as codex };

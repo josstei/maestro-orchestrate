@@ -1,6 +1,4 @@
-'use strict';
-
-const { readFileSafe } = require('../lib/io');
+import { readFileSafe } from '../lib/io/index.js';
 
 function trimQuotes(value) {
   if ((value.startsWith('"') && value.endsWith('"')) ||
@@ -79,4 +77,4 @@ function parseEnvFile(filePath) {
   return result;
 }
 
-module.exports = { parseEnvFile };
+export { parseEnvFile };

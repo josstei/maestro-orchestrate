@@ -1,17 +1,14 @@
 #!/usr/bin/env node
-'use strict';
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-const {
-  REQUIRED_PACKAGE_FILES,
-  isDeniedPath,
-} = require('./release-artifact-manifest');
-const { RUNTIME_SOURCE_PATHS, releasePaths } = require('./lib/artifact-inventory');
-const { runAsMain } = require('./lib/cli');
-
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { REQUIRED_PACKAGE_FILES, isDeniedPath } from './release-artifact-manifest.js';
+import { RUNTIME_SOURCE_PATHS, releasePaths } from './lib/artifact-inventory.js';
+import { runAsMain } from './lib/cli.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 const INVENTORY_RELEASE_PATHS = releasePaths();
 
 function pickInventoryPaths(...paths) {
@@ -26,7 +23,7 @@ function pickInventoryPaths(...paths) {
   return Object.freeze(paths);
 }
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(moduleDirname, '..');
 
 const PACKAGE_BUDGETS = Object.freeze({
   maxEntryCount: 350,
@@ -35,6 +32,10 @@ const PACKAGE_BUDGETS = Object.freeze({
 });
 
 const PRIVATE_SCRIPT_ROLES = Object.freeze({
+  'scripts/check-esm-imports.js': {
+    role: 'dev-only',
+    note: 'Local and CI ESM import-specifier gate; private to source checkouts.',
+  },
   'scripts/check-layer-boundaries.js': {
     role: 'dev-only',
     note: 'Local and CI layer-boundary gate; private to source checkouts.',
@@ -300,7 +301,7 @@ function verifyNpmPack(root = ROOT) {
   return verifyPackageEntries(runNpmPackDryRun(root));
 }
 
-runAsMain(module, 'npm pack verification', () => {
+runAsMain(import.meta.url, 'npm pack verification', () => {
   const result = verifyNpmPack();
   console.log(
     `Verified npm pack contents: ${result.filename} ` +
@@ -309,16 +310,4 @@ runAsMain(module, 'npm pack verification', () => {
   );
 });
 
-module.exports = {
-  PACKAGE_BUDGETS,
-  PACKAGE_SURFACE_RULES,
-  PRIVATE_SCRIPT_ROLES,
-  assertPackageBudgets,
-  assertPositivePackageInventory,
-  assertNoPackagedRootScripts,
-  classifyPackageEntry,
-  parsePackJson,
-  runNpmPackDryRun,
-  verifyNpmPack,
-  verifyPackageEntries,
-};
+export { PACKAGE_BUDGETS, PACKAGE_SURFACE_RULES, PRIVATE_SCRIPT_ROLES, assertPackageBudgets, assertPositivePackageInventory, assertNoPackagedRootScripts, classifyPackageEntry, parsePackJson, runNpmPackDryRun, verifyNpmPack, verifyPackageEntries };

@@ -1,12 +1,8 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  createTempRepoCopy,
-  runGeneratorExpectFailure,
-} = require('./helpers');
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createTempRepoCopy, runGeneratorExpectFailure } from './helpers.js';
 
 describe('generator failure handling', () => {
   it('fails the run when the manifest references a missing source file', () => {
@@ -15,7 +11,7 @@ describe('generator failure handling', () => {
     try {
       fs.writeFileSync(
         path.join(repoRoot, 'src/manifest.js'),
-        "module.exports = [{ src: 'missing-source.md', transforms: [], runtimes: ['gemini'] }];\n",
+        "export default [{ src: 'missing-source.md', transforms: [], runtimes: ['gemini'] }];\n",
         'utf8'
       );
 

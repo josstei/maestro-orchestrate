@@ -1,14 +1,8 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const {
-  createInitializedMcpWorkspace,
-  phaseFixture,
-} = require('../support/mcp');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createInitializedMcpWorkspace, phaseFixture } from '../support/mcp.js';
 
 async function bootstrap() {
   const { server, workspace } = await createInitializedMcpWorkspace({

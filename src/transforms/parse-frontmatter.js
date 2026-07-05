@@ -1,6 +1,4 @@
-'use strict';
-
-const { parse } = require('../lib/frontmatter');
+import { parse } from '../lib/frontmatter/index.js';
 
 /**
  * Transform: parse-frontmatter
@@ -20,4 +18,4 @@ function parseFrontmatterTransform(content, _runtime, options) {
   return content;
 }
 
-module.exports = parseFrontmatterTransform;
+export default parseFrontmatterTransform;

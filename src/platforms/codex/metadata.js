@@ -1,9 +1,4 @@
-'use strict';
-
-const {
-  buildAuthor,
-  renderJson,
-} = require('../metadata-shared');
+import { buildAuthor, renderJson } from '../metadata-shared.js';
 
 function buildCodexMarketplace(context) {
   return {
@@ -101,9 +96,4 @@ function buildMetadataOutputs(context) {
   ];
 }
 
-module.exports = {
-  buildCodexMarketplace,
-  buildCodexMcpConfig,
-  buildCodexPluginManifest,
-  buildMetadataOutputs,
-};
+export { buildCodexMarketplace, buildCodexMcpConfig, buildCodexPluginManifest, buildMetadataOutputs };

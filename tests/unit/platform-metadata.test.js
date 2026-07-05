@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { buildPlatformMetadataOutputs } = require('../../src/platforms/metadata');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { buildPlatformMetadataOutputs } from '../../src/platforms/metadata.js';
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',
@@ -26,8 +23,8 @@ function outputsByPath(outputs) {
 }
 
 describe('platform metadata generation', () => {
-  it('generates all runtime metadata from package identity', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({
+  it('generates all runtime metadata from package identity', async () => {
+    const outputs = outputsByPath(await buildPlatformMetadataOutputs({
       claude: {},
       codex: {},
       gemini: {},
@@ -85,8 +82,8 @@ describe('platform metadata generation', () => {
     );
   });
 
-  it('generates only metadata for enabled runtimes', () => {
-    const outputs = buildPlatformMetadataOutputs({ codex: {} }, PACKAGE_FIXTURE);
+  it('generates only metadata for enabled runtimes', async () => {
+    const outputs = await buildPlatformMetadataOutputs({ codex: {} }, PACKAGE_FIXTURE);
 
     assert.deepEqual(
       outputs.map((output) => output.outputPath).sort(),

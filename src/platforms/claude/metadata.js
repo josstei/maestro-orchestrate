@@ -1,10 +1,4 @@
-'use strict';
-
-const {
-  RUNTIME_DESCRIPTION,
-  buildAuthor,
-  renderJson,
-} = require('../metadata-shared');
+import { RUNTIME_DESCRIPTION, buildAuthor, renderJson } from '../metadata-shared.js';
 
 function buildClaudeMarketplace(context) {
   return {
@@ -126,11 +120,4 @@ function buildMetadataOutputs(context) {
   ];
 }
 
-module.exports = {
-  buildClaudeLocalMcpConfig,
-  buildClaudeLocalPluginManifest,
-  buildClaudeMarketplace,
-  buildClaudeMcpConfig,
-  buildClaudePluginManifest,
-  buildMetadataOutputs,
-};
+export { buildClaudeLocalMcpConfig, buildClaudeLocalPluginManifest, buildClaudeMarketplace, buildClaudeMcpConfig, buildClaudePluginManifest, buildMetadataOutputs };

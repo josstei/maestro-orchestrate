@@ -1,16 +1,16 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-
-const { readJson, runAsMain } = require('../../scripts/lib/cli');
-const { STABLE_SEMVER_RE, isStable } = require('../../scripts/lib/semver');
-
-const CLI_LIB_PATH = path.resolve(__dirname, '../../scripts/lib/cli.js');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { readJson, runAsMain } from '../../scripts/lib/cli.js';
+import { STABLE_SEMVER_RE, isStable } from '../../scripts/lib/semver.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const CLI_LIB_PATH = path.resolve(moduleDirname, '../../scripts/lib/cli.js');
+const CLI_LIB_URL = pathToFileURL(CLI_LIB_PATH).href;
 
 function writeTempFile(content) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cli-lib-'));
@@ -21,7 +21,7 @@ function writeTempFile(content) {
 
 function runFixtureScript(script) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cli-lib-fixture-'));
-  const fixturePath = path.join(dir, 'fixture.js');
+  const fixturePath = path.join(dir, 'fixture.mjs');
   fs.writeFileSync(fixturePath, script, 'utf8');
 
   try {
@@ -84,20 +84,20 @@ describe('scripts/lib/semver isStable', () => {
 });
 
 describe('scripts/lib/cli runAsMain', () => {
-  it('does not invoke fn when currentModule is not require.main', () => {
+  it('does not invoke fn when moduleUrl is not the main module', () => {
     let called = false;
 
-    runAsMain({}, 'demo', () => {
+    runAsMain('file:///not-the-main-module.js', 'demo', () => {
       called = true;
     });
 
     assert.equal(called, false);
   });
 
-  it('invokes fn and reports success when currentModule is require.main', async () => {
+  it('invokes fn and reports success when moduleUrl is the main module', async () => {
     let called = false;
 
-    runAsMain(require.main, 'demo', () => {
+    runAsMain(pathToFileURL(process.argv[1]).href, 'demo', () => {
       called = true;
     });
 
@@ -107,8 +107,8 @@ describe('scripts/lib/cli runAsMain', () => {
 
   it('prints "<label> failed: <message>" and exits 1 when fn throws', () => {
     const script = [
-      `const { runAsMain } = require(${JSON.stringify(CLI_LIB_PATH)});`,
-      "runAsMain(module, 'demo', () => { throw new Error('boom'); });",
+      `import { runAsMain } from ${JSON.stringify(CLI_LIB_URL)};`,
+      "runAsMain(import.meta.url, 'demo', () => { throw new Error('boom'); });",
     ].join('\n');
 
     assert.throws(
@@ -123,8 +123,8 @@ describe('scripts/lib/cli runAsMain', () => {
 
   it('prints "<label> failed: <message>" and exits 1 when fn rejects', () => {
     const script = [
-      `const { runAsMain } = require(${JSON.stringify(CLI_LIB_PATH)});`,
-      "runAsMain(module, 'demo', () => Promise.reject(new Error('async boom')));",
+      `import { runAsMain } from ${JSON.stringify(CLI_LIB_URL)};`,
+      "runAsMain(import.meta.url, 'demo', () => Promise.reject(new Error('async boom')));",
     ].join('\n');
 
     assert.throws(
@@ -139,8 +139,8 @@ describe('scripts/lib/cli runAsMain', () => {
 
   it('runs fn to completion without exiting when fn succeeds', () => {
     const script = [
-      `const { runAsMain } = require(${JSON.stringify(CLI_LIB_PATH)});`,
-      "runAsMain(module, 'demo', () => { console.log('ran'); });",
+      `import { runAsMain } from ${JSON.stringify(CLI_LIB_URL)};`,
+      "runAsMain(import.meta.url, 'demo', () => { console.log('ran'); });",
     ].join('\n');
 
     const stdout = runFixtureScript(script);

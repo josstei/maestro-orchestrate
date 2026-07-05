@@ -1,7 +1,5 @@
-'use strict';
-
-const { runPlanValidation } = require('../validation/plan-validation-pipeline');
-const { handleGetAgentPerformance } = require('./agent-performance');
+import { runPlanValidation } from '../validation/plan-validation-pipeline.js';
+import { handleGetAgentPerformance } from './agent-performance.js';
 
 /**
  * MCP handler for the `validate_plan` tool. Delegates to the staged
@@ -26,4 +24,4 @@ function handleValidatePlan(params, projectRoot) {
   return result;
 }
 
-module.exports = { handleValidatePlan };
+export { handleValidatePlan };

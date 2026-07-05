@@ -1,10 +1,7 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { fileURLToPath } = require('node:url');
-
-const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isExtensionCachePath } from '../contracts/cache-path-rejector.js';
 
 /**
  * Project-root cache for the MCP session.
@@ -110,4 +107,4 @@ function createProjectRootCache(options) {
   };
 }
 
-module.exports = { createProjectRootCache };
+export { createProjectRootCache };

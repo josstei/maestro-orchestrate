@@ -1,5 +1,3 @@
-'use strict';
-
 function createCompositionContext(options = {}) {
   const runtimeConfig =
     options.runtimeConfig && typeof options.runtimeConfig === 'object'
@@ -24,7 +22,4 @@ function defineToolPack(pack) {
   return pack;
 }
 
-module.exports = {
-  createCompositionContext,
-  defineToolPack,
-};
+export { createCompositionContext, defineToolPack };

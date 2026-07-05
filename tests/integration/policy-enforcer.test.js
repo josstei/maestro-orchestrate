@@ -1,14 +1,13 @@
-'use strict';
-
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const { spawnSync } = require('node:child_process');
-const path = require('node:path');
-const test = require('node:test');
-
-const { ROOT, withPackagedClaudeRuntime } = require('./helpers');
-
-const SCRIPT_PATH = path.resolve(__dirname, '..', '..', 'claude', 'scripts', 'policy-enforcer.js');
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import test from 'node:test';
+import { ROOT, withPackagedClaudeRuntime } from './helpers.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const SCRIPT_PATH = path.resolve(moduleDirname, '..', '..', 'claude', 'scripts', 'policy-enforcer.js');
 const DOLLAR = '$';
 const BACKTICK = '`';
 const BACKSLASH = '\\';

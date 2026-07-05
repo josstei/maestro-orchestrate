@@ -1,7 +1,5 @@
-'use strict';
-
-const hookState = require('./hook-state');
-const state = require('../../state/session-state');
+import hookState from './hook-state.js';
+import * as state from '../../state/session-state.js';
 
 /**
  * Session-start hook logic (runtime-agnostic).
@@ -22,4 +20,4 @@ function handleSessionStart(ctx) {
   return { action: 'advisory', message: null, reason: null };
 }
 
-module.exports = { handleSessionStart };
+export { handleSessionStart };

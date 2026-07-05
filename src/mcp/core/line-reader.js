@@ -1,8 +1,5 @@
-'use strict';
-
-const readline = require('node:readline');
-
-const { log } = require('../../core/logger');
+import readline from 'node:readline';
+import { log } from '../../core/logger.js';
 
 /**
  * Create a readline-based line dispatcher for a stdin stream.
@@ -30,6 +27,4 @@ function createLineDispatcher(stdin, onMessage) {
   return lineReader;
 }
 
-module.exports = {
-  createLineDispatcher,
-};
+export { createLineDispatcher };

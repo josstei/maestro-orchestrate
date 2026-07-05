@@ -1,15 +1,12 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-
-const { createTempRepoCopy } = require('./helpers');
-const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
-const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifacts');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createTempRepoCopy } from './helpers.js';
+import { packageReleaseArtifacts } from '../../scripts/package-release-artifacts.js';
+import { verifyReleaseArtifact } from '../../scripts/verify-release-artifacts.js';
 
 const BUILD_ONLY_SOURCE_ARCHIVE_PATHS = [
   './src/generator/file-writer.js',

@@ -1,20 +1,19 @@
-'use strict';
-
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
 const SCRIPT = path.join(REPO_ROOT, 'scripts', 'check-layer-boundaries.js');
-
 const tmpDirs = [];
 
 /**
  * Build a scratch repo that mirrors the expected layout so the script's
- * hardcoded `path.resolve(__dirname, '..', 'src', 'lib')` resolves onto
+ * hardcoded `path.resolve(moduleDirname, '..', 'src', 'lib')` resolves onto
  * a directory we control.
  */
 function makeFixtureRepo() {
@@ -23,6 +22,7 @@ function makeFixtureRepo() {
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'src', 'lib'), { recursive: true });
   fs.copyFileSync(SCRIPT, path.join(root, 'scripts', 'check-layer-boundaries.js'));
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ type: 'module' }, null, 2) + '\n', 'utf8');
   return root;
 }
 

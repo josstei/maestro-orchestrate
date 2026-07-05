@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-
-const LIB_DIR = path.resolve(__dirname, '..', 'src', 'lib');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const LIB_DIR = path.resolve(moduleDirname, '..', 'src', 'lib');
 
 function collectJsFiles(dir) {
   const results = [];
@@ -22,11 +22,11 @@ function collectJsFiles(dir) {
 
 function scanFile(filepath) {
   const content = fs.readFileSync(filepath, 'utf8');
-  const requirePattern = /require\(['"]([^'"]+)['"]\)/g;
+  const importPattern = /(?:require\(|import\(|from\s+)['"]([^'"]+)['"]\)?/g;
   const violations = [];
   let match;
 
-  while ((match = requirePattern.exec(content)) !== null) {
+  while ((match = importPattern.exec(content)) !== null) {
     const modPath = match[1];
 
     if (modPath.startsWith('node:')) {

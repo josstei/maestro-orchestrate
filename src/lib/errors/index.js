@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Base error class for the Maestro platform.
  * Provides structured error metadata via `code`, `details`, and `context` properties.
@@ -43,5 +41,4 @@ function defineError(name, defaultCode) {
 const ValidationError = defineError('ValidationError', 'VALIDATION_ERROR');
 const NotFoundError = defineError('NotFoundError', 'NOT_FOUND');
 const StateError = defineError('StateError', 'STATE_ERROR');
-
-module.exports = { MaestroError, ValidationError, NotFoundError, StateError };
+export { MaestroError, ValidationError, NotFoundError, StateError };

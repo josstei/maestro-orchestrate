@@ -1,27 +1,29 @@
-'use strict';
+import { log, fatal } from '../core/logger.js';
+import { resolveVersion } from '../core/version.js';
+import { createServer } from './core/create-server.js';
+import { createLineDispatcher } from './core/line-reader.js';
+import { createProjectRootCache } from './core/project-root-cache.js';
 
-const { log, fatal } = require('../core/logger');
-const { resolveVersion } = require('../core/version');
-const { createServer } = require('./core/create-server');
-const { createLineDispatcher } = require('./core/line-reader');
-const { createProjectRootCache } = require('./core/project-root-cache');
-const {
+import {
   DEFAULT_PROTOCOL_VERSION,
   buildInitializeResult,
   createToolErrorResult,
   createToolSuccessResult,
   createProtocolHandlers,
-} = require('./core/protocol-dispatcher');
-const { DEFAULT_TOOL_PACKS } = require('./tool-packs');
-const {
-  getDefaultRuntimeConfig,
-  normalizeRuntimeConfig,
-} = require('./runtime/runtime-config-map');
-const { resolveCanonicalSrcFromExtensionRoot } = require('./utils/extension-root');
+} from './core/protocol-dispatcher.js';
+
+import { DEFAULT_TOOL_PACKS } from './tool-packs/index.js';
+import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from './runtime/runtime-config-map.js';
+import { resolveCanonicalSrcFromExtensionRoot } from './utils/extension-root.js';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+import { dirname } from 'node:path';
+const moduleDirname = dirname(moduleFilename);
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
-  version: resolveVersion(__dirname),
+  version: resolveVersion(moduleDirname),
 });
 
 function createInitializeResult(protocolVersion) {
@@ -102,7 +104,7 @@ function main(runtimeConfig) {
   runRuntimeServer(resolved);
 }
 
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     main();
   } catch (error) {
@@ -110,13 +112,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {
-  DEFAULT_PROTOCOL_VERSION,
-  SERVER_INFO,
-  createInitializeResult,
-  createToolErrorResult,
-  createToolSuccessResult,
-  normalizeRuntimeConfig,
-  runRuntimeServer,
-  main,
-};
+export { DEFAULT_PROTOCOL_VERSION, SERVER_INFO, createInitializeResult, createToolErrorResult, createToolSuccessResult, normalizeRuntimeConfig, runRuntimeServer, main };

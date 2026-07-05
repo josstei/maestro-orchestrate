@@ -1,10 +1,8 @@
-'use strict';
-
-const path = require('path');
-const { parseEnvFile } = require('../core/env-file-parser');
-const { SETTINGS_SCHEMA } = require('./settings-schema');
-const { coerceScalar, assertValid } = require('../lib/schema');
-const { ValidationError } = require('../lib/errors');
+import path from 'path';
+import { parseEnvFile } from '../core/env-file-parser.js';
+import { SETTINGS_SCHEMA } from './settings-schema.js';
+import { coerceScalar, assertValid } from '../lib/schema/index.js';
+import { ValidationError } from '../lib/errors/index.js';
 
 function resolveSetting(varName, projectRoot) {
   const envValue = process.env[varName];
@@ -52,4 +50,4 @@ function resolveTypedSetting(varName, projectRoot) {
   return value;
 }
 
-module.exports = { resolveSetting, resolveTypedSetting };
+export { resolveSetting, resolveTypedSetting };

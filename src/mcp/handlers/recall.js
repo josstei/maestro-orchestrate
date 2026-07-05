@@ -1,8 +1,5 @@
-'use strict';
-
-const { Bm25Provider } = require('../retrieval/bm25-provider');
-const { buildRetrievalCorpus } = require('../retrieval/corpus');
-
+import { Bm25Provider } from '../retrieval/bm25-provider.js';
+import { buildRetrievalCorpus } from '../retrieval/corpus.js';
 const DEFAULT_LIMIT = 5;
 
 /**
@@ -67,4 +64,4 @@ function handleRecallSimilarSessions(params, projectRoot) {
   return { query, count: results.length, results };
 }
 
-module.exports = { handleRecallSimilarSessions };
+export { handleRecallSimilarSessions };

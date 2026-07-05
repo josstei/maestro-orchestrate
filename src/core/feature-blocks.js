@@ -1,5 +1,3 @@
-'use strict';
-
 const FEATURE_BLOCK_REGEX =
   /^[ \t]*<!-- @feature (\S+) -->\n([\s\S]*?)^[ \t]*<!-- @end-feature -->\n?/gm;
 
@@ -31,4 +29,4 @@ function stripFeatureBlocks(content, features, opts) {
   return replaced.replace(COLLAPSED_NEWLINE_REGEX, '\n\n');
 }
 
-module.exports = { stripFeatureBlocks };
+export { stripFeatureBlocks };

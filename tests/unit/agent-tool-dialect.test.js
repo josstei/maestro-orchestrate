@@ -1,12 +1,13 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const rebuildFrontmatter = require('../../src/transforms/rebuild-frontmatter');
-const gemini = require('../../src/platforms/gemini/runtime-config');
-const qwen = require('../../src/platforms/qwen/runtime-config');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import rebuildFrontmatter from '../../src/transforms/rebuild-frontmatter.js';
+import gemini from '../../src/platforms/gemini/runtime-config.js';
+import qwen from '../../src/platforms/qwen/runtime-config.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
 const CANONICAL = [
   'read_file', 'list_directory', 'glob', 'grep_search', 'write_file', 'replace',
@@ -35,7 +36,7 @@ describe('agent tool derivation without tools.gemini', () => {
 });
 
 describe('tools.gemini duplication is eliminated', () => {
-  const AGENT_DIR = path.resolve(__dirname, '../../src/agents');
+  const AGENT_DIR = path.resolve(moduleDirname, '../../src/agents');
   it('no canonical agent declares tools.gemini', () => {
     const files = fs.readdirSync(AGENT_DIR).filter((f) => f.endsWith('.md'));
     assert.ok(files.length > 30, 'expected the canonical agent catalog');

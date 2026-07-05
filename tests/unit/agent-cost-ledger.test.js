@@ -1,16 +1,14 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   createAgentBucket,
   normalizeTokenUsage,
   phaseDurationMs,
   attributePhaseCost,
   mergeAgentLedgers,
   summarizeLedger,
-} = require('../../src/mcp/contracts/agent-cost-ledger');
+} from '../../src/mcp/contracts/agent-cost-ledger.js';
 
 describe('agent-cost-ledger', () => {
   it('createAgentBucket returns a zeroed bucket', () => {

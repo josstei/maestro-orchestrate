@@ -1,11 +1,12 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const WORKFLOWS_DIR = path.resolve(moduleDirname, '..', '..', '.github', 'workflows');
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const WORKFLOWS_DIR = path.resolve(__dirname, '..', '..', '.github', 'workflows');
 const WORKFLOW_FILES = fs
   .readdirSync(WORKFLOWS_DIR)
   .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))

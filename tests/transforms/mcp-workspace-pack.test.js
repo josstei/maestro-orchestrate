@@ -1,13 +1,8 @@
-const { afterEach, describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-
-const {
-  buildMcpServer,
-  createWorkspacePack,
-  makeTempWorkspace,
-} = require('../support/mcp');
+import { afterEach, describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'fs';
+import path from 'path';
+import { buildMcpServer, createWorkspacePack, makeTempWorkspace } from '../support/mcp.js';
 
 const envKeysToRestore = [
   'MAESTRO_DISABLED_AGENTS',

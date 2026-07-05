@@ -1,12 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  createInitializedMcpWorkspace,
-  phaseFixture,
-} = require('../support/mcp');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createInitializedMcpWorkspace, phaseFixture } from '../support/mcp.js';
 
 async function createCompleteArchive(server, workspace, { session_id, agent, tokens }) {
   await server.callTool(

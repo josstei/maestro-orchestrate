@@ -1,13 +1,7 @@
-'use strict';
-
-const { getDefaultRuntimeConfig } = require('../runtime/runtime-config-map');
-const {
-  RESOURCE_ALLOWLIST,
-  applyRuntimeTransforms,
-} = require('../content/runtime-content');
-const { createContentProvider } = require('../content/provider');
-const { ValidationError } = require('../../lib/errors');
-
+import { getDefaultRuntimeConfig } from '../runtime/runtime-config-map.js';
+import { RESOURCE_ALLOWLIST, applyRuntimeTransforms } from '../content/runtime-content.js';
+import { createContentProvider } from '../content/provider.js';
+import { ValidationError } from '../../lib/errors/index.js';
 const DEFAULT_RUNTIME_CONFIG = getDefaultRuntimeConfig();
 
 function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot) {
@@ -41,11 +35,4 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
 }
 
 const handleGetSkillContent = createHandler();
-
-module.exports = {
-  RESOURCE_ALLOWLIST,
-  DEFAULT_RUNTIME_CONFIG,
-  applyRuntimeTransforms,
-  createHandler,
-  handleGetSkillContent,
-};
+export { RESOURCE_ALLOWLIST, DEFAULT_RUNTIME_CONFIG, applyRuntimeTransforms, createHandler, handleGetSkillContent };

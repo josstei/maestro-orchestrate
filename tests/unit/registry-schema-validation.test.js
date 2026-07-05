@@ -1,17 +1,12 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-
-const {
-  validateRegistry,
-  REGISTRY_SCHEMAS,
-  CAPABILITY_TIERS,
-} = require('../../src/generator/registry-schemas');
-const { buildRegistries } = require('../../src/generator/registry-scanner');
-
-const REPO_SRC = path.resolve(__dirname, '..', '..', 'src');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { validateRegistry, REGISTRY_SCHEMAS, CAPABILITY_TIERS } from '../../src/generator/registry-schemas.js';
+import { buildRegistries } from '../../src/generator/registry-scanner.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_SRC = path.resolve(moduleDirname, '..', '..', 'src');
 
 describe('validateRegistry — agent-registry.json', () => {
   const good = [

@@ -1,8 +1,5 @@
-'use strict';
-
-const { getRecoveryHint } = require('./recovery-hints');
-const { MaestroError } = require('../../lib/errors');
-
+import { getRecoveryHint } from './recovery-hints.js';
+import { MaestroError } from '../../lib/errors/index.js';
 const UNKNOWN_TOOL_CODE = 'UNKNOWN_TOOL';
 const INTERNAL_TOOL_ERROR_CODE = 'INTERNAL_TOOL_ERROR';
 
@@ -66,12 +63,4 @@ function normalizeToolError(toolName, error) {
   });
 }
 
-module.exports = {
-  INTERNAL_TOOL_ERROR_CODE,
-  UNKNOWN_TOOL_CODE,
-  createToolFailure,
-  createToolSuccess,
-  createUnknownToolFailure,
-  normalizeToolError,
-  sanitizeErrorMessage,
-};
+export { INTERNAL_TOOL_ERROR_CODE, UNKNOWN_TOOL_CODE, createToolFailure, createToolSuccess, createUnknownToolFailure, normalizeToolError, sanitizeErrorMessage };

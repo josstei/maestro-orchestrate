@@ -1,5 +1,3 @@
-'use strict';
-
 const TOPOLOGY_DECISION = Object.freeze({
   id: 'phase-0-live-js-source-first',
   date: '2026-06-30',
@@ -134,8 +132,4 @@ function getRuntimePayloadContract(runtimeName) {
   return RUNTIME_PAYLOAD_CONTRACT.find((runtime) => runtime.name === runtimeName) || null;
 }
 
-module.exports = {
-  RUNTIME_PAYLOAD_CONTRACT,
-  TOPOLOGY_DECISION,
-  getRuntimePayloadContract,
-};
+export { RUNTIME_PAYLOAD_CONTRACT, TOPOLOGY_DECISION, getRuntimePayloadContract };

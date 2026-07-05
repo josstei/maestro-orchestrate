@@ -1,15 +1,14 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   CLAUDE_LOCAL_PLUGIN_DIR,
   CLAUDE_LOCAL_BUNDLE_DIR,
   PROMOTED_CONTENT_COPY_MAP,
   buildPromotedPluginManifestFiles,
-} = require('../../src/platforms/claude/local-plugin-layout');
-const { buildMetadataContext } = require('../../src/platforms/metadata-shared');
+} from '../../src/platforms/claude/local-plugin-layout.js';
+
+import { buildMetadataContext } from '../../src/platforms/metadata-shared.js';
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',

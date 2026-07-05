@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { serialize, parse } = require('../../src/core/markdown-state');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { serialize, parse } from '../../src/core/markdown-state.js';
 
 describe('markdown-state', () => {
   describe('serialize', () => {

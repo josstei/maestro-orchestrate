@@ -1,4 +1,3 @@
 #!/usr/bin/env node
-'use strict';
-
-require('../../src/hooks/policy/policy-enforcer').main();
+import { main } from '../../src/hooks/policy/policy-enforcer.js';
+main();

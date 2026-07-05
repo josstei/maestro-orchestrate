@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Abstract retrieval seam ranking a corpus of records against a text query.
  * Concrete providers (BM25 today, an embeddings-backed provider later)
@@ -28,4 +26,4 @@ class RetrievalProvider {
   }
 }
 
-module.exports = { RetrievalProvider };
+export { RetrievalProvider };

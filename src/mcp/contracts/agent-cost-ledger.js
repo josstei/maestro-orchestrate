@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Canonical per-agent cost ledger contract.
  *
@@ -137,12 +135,4 @@ function summarizeLedger(byAgent) {
   return { totals, by_agent: perAgent };
 }
 
-module.exports = {
-  TOKEN_FIELDS,
-  createAgentBucket,
-  normalizeTokenUsage,
-  phaseDurationMs,
-  attributePhaseCost,
-  mergeAgentLedgers,
-  summarizeLedger,
-};
+export { TOKEN_FIELDS, createAgentBucket, normalizeTokenUsage, phaseDurationMs, attributePhaseCost, mergeAgentLedgers, summarizeLedger };

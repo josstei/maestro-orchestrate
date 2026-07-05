@@ -1,13 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  createToolRegistry,
-  normalizeToolPack,
-} = require('../../src/mcp/core/tool-registry');
-const { defineToolPack } = require('../../src/mcp/tool-packs/contracts');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createToolRegistry, normalizeToolPack } from '../../src/mcp/core/tool-registry.js';
+import { defineToolPack } from '../../src/mcp/tool-packs/contracts.js';
 
 describe('normalizeToolPack', () => {
   it('accepts a plain pack object', () => {

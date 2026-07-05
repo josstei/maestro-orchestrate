@@ -1,20 +1,13 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  INVENTORY,
-  RUNTIME_SOURCE_PATHS,
-  npmFiles,
-  releasePaths,
-} = require('../../scripts/lib/artifact-inventory');
-
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { INVENTORY, RUNTIME_SOURCE_PATHS, npmFiles, releasePaths } from '../../scripts/lib/artifact-inventory.js';
+import { readFileSync } from 'node:fs';
 const VALID_SCOPES = new Set(['both', 'npm', 'release']);
+const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 
 describe('artifact inventory', () => {
   it('package.json files exactly equals the npm projection', () => {
-    const pkg = require('../../package.json');
+    const pkg = packageJson;
     assert.deepEqual([...pkg.files].sort(), npmFiles());
   });
 

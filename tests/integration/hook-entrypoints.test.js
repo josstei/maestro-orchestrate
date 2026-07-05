@@ -1,10 +1,9 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-
-const { ROOT, withPackagedClaudeRuntime } = require('./helpers');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { ROOT, withPackagedClaudeRuntime } from './helpers.js';
 
 function runHook(relativePath, runtime, hookName, payload, cwd = ROOT) {
   return spawnSync('node', [relativePath, runtime, hookName], {
@@ -117,9 +116,10 @@ describe('hook entrypoints', () => {
       assert.equal(fs.existsSync(detachedPayload), false);
 
       const result = spawnSync(process.execPath, [
+        '--input-type=module',
         '-e',
         [
-          "const adapter = require('./claude/scripts/adapters/claude-adapter.js');",
+          "const { default: adapter } = await import('./claude/scripts/adapters/claude-adapter.js');",
           "process.stdout.write(JSON.stringify(adapter.formatOutput({ action: 'deny', reason: 'blocked' })));",
         ].join(''),
       ], {

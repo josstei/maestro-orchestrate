@@ -1,12 +1,10 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { getRuntimeGeneration, getAgentToolDialect } = require('../../src/platforms/runtime-descriptor');
-const gemini = require('../../src/platforms/gemini/runtime-config');
-const claude = require('../../src/platforms/claude/runtime-config');
-const codex = require('../../src/platforms/codex/runtime-config');
-const qwen = require('../../src/platforms/qwen/runtime-config');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { getRuntimeGeneration, getAgentToolDialect } from '../../src/platforms/runtime-descriptor.js';
+import gemini from '../../src/platforms/gemini/runtime-config.js';
+import claude from '../../src/platforms/claude/runtime-config.js';
+import codex from '../../src/platforms/codex/runtime-config.js';
+import qwen from '../../src/platforms/qwen/runtime-config.js';
 
 describe('runtime generation descriptors mirror the historical hardcoded maps', () => {
   it('gemini entry-point + core-command + hooks', () => {

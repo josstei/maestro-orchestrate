@@ -1,15 +1,16 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const {
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
   DRY_RUN_MARKER,
   createTempRepoCopy,
   getGitStatus,
   parseDryRunReport,
   ROOT,
   runGenerator,
-} = require('./helpers');
+} from './helpers.js';
 
 describe('generator integration', () => {
   it('--dry-run reports manifest status without mutating the worktree', () => {

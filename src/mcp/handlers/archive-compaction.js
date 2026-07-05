@@ -1,12 +1,9 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { resolveTypedSetting } = require('../../config/setting-resolver');
-const { assertContainedIn } = require('../../lib/validation');
-const { readArchivedSessionSummaries } = require('./archive-index');
-const { resolveBasePath } = require('./session-state-core');
+import fs from 'node:fs';
+import path from 'node:path';
+import { resolveTypedSetting } from '../../config/setting-resolver.js';
+import { assertContainedIn } from '../../lib/validation/index.js';
+import { readArchivedSessionSummaries } from './archive-index.js';
+import { resolveBasePath } from './session-state-core.js';
 
 /**
  * Resolve and validate the concrete archive document path for a summary.
@@ -59,6 +56,4 @@ function handleCompactArchive(_params, projectRoot) {
   return { pruned, retained: retention };
 }
 
-module.exports = {
-  handleCompactArchive,
-};
+export { handleCompactArchive };

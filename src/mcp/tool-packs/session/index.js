@@ -1,29 +1,28 @@
-'use strict';
+import { defineToolPack } from '../contracts.js';
+import { SCHEMA } from '../schema-fragments.js';
+import { PHASE_ITEM_SCHEMA } from '../../contracts/plan-schema.js';
 
-const { defineToolPack } = require('../contracts');
-const { SCHEMA } = require('../schema-fragments');
-const { PHASE_ITEM_SCHEMA } = require('../../contracts/plan-schema');
-const {
+import {
   handleCreateSession,
   handleGetSessionStatus,
   handleTransitionPhase,
   handleArchiveSession,
   handleUpdateSession,
-} = require('../../handlers/session-state-tools');
-const {
+} from '../../handlers/session-state-tools.js';
+
+import {
   handleEnterDesignGate,
   handleRecordDesignApproval,
   handleGetDesignGateStatus,
-} = require('../../handlers/design-gate');
-const {
-  handleScanPhaseChanges,
-  handleReconcilePhase,
-} = require('../../handlers/reconciliation');
-const {
+} from '../../handlers/design-gate.js';
+
+import { handleScanPhaseChanges, handleReconcilePhase } from '../../handlers/reconciliation.js';
+
+import {
   handleListArchivedSessions,
   handleSearchArchivedSessions,
   handleGetCostInsights,
-} = require('../../handlers/archive-index');
+} from '../../handlers/archive-index.js';
 
 function createToolPack() {
   return defineToolPack({
@@ -292,6 +291,4 @@ function createToolPack() {
   });
 }
 
-module.exports = {
-  createToolPack,
-};
+export { createToolPack };

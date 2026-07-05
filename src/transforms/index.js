@@ -1,9 +1,9 @@
-'use strict';
-
-const path = require('node:path');
-const { discover } = require('../lib/discovery');
-
-const TRANSFORMS_DIR = path.resolve(__dirname);
+import path from 'node:path';
+import { discover } from '../lib/discovery/index.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const TRANSFORMS_DIR = path.resolve(moduleDirname);
 
 const entries = discover({
   dir: TRANSFORMS_DIR,
@@ -13,8 +13,10 @@ const entries = discover({
 });
 
 const transforms = Object.create(null);
+
 for (const entry of entries) {
-  transforms[entry.id] = require(path.join(TRANSFORMS_DIR, `${entry.id}.js`));
+  const { default: transform } = await import(pathToFileURL(path.join(TRANSFORMS_DIR, `${entry.id}.js`)).href);
+  transforms[entry.id] = transform;
 }
 
 /**
@@ -32,4 +34,4 @@ function resolve(name) {
   return { fn, param: param || null };
 }
 
-module.exports = { resolve, transforms };
+export { resolve, transforms };

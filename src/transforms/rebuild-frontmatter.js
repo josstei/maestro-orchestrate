@@ -1,9 +1,7 @@
-'use strict';
-
-const { toSnakeCase } = require('../lib/naming');
-const { escapeYaml } = require('../lib/frontmatter');
-const { emitBlockList } = require('../lib/yaml-emit');
-const { getAgentToolDialect } = require('../platforms/runtime-descriptor');
+import { toSnakeCase } from '../lib/naming/index.js';
+import { escapeYaml } from '../lib/frontmatter/index.js';
+import { emitBlockList } from '../lib/yaml-emit.js';
+import { getAgentToolDialect } from '../platforms/runtime-descriptor.js';
 
 /**
  * Per-field emitters. Each returns the YAML line(s) to append, or an
@@ -149,4 +147,4 @@ function rebuildFrontmatterTransform(_content, runtime, options) {
   return lines.join('\n') + '\n' + body;
 }
 
-module.exports = rebuildFrontmatterTransform;
+export default rebuildFrontmatterTransform;

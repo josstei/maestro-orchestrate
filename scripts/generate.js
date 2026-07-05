@@ -1,41 +1,40 @@
 #!/usr/bin/env node
-'use strict';
-
-const path = require('node:path');
-const fs = require('node:fs');
-const { resolve: resolveTransform } = require('../src/transforms');
-const { createGenerationSession } = require('../src/generator/generation-session');
-const { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } = require('../src/generator/manifest-expander');
-const { pruneStaleFiles } = require('../src/generator/stale-pruner');
-const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
-const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
-const { collectManifestPaths } = require('../src/generator/manifest-curator');
-const { OWNED_GENERATED_DIRS } = require('../src/generator/generated-surface-inventory');
-const { assertCrossReferences } = require('../src/generator/cross-reference-validator');
-const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
-const { buildPolicyTomlOutputs } = require('../src/generator/policy-toml-emitter');
-const { buildHookConfigOutputs } = require('../src/generator/hook-config-emitter');
-const { buildContentFileOutputs } = require('../src/generator/content-file-emitter');
-const { readJson, runAsMain } = require('./lib/cli');
-
-const ROOT = path.resolve(__dirname, '..');
+import path from 'node:path';
+import fs from 'node:fs';
+import { resolve as resolveTransform } from '../src/transforms/index.js';
+import { createGenerationSession } from '../src/generator/generation-session.js';
+import { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } from '../src/generator/manifest-expander.js';
+import { pruneStaleFiles } from '../src/generator/stale-pruner.js';
+import { collectRegistryOutputs } from '../src/generator/registry-scanner.js';
+import { expandEntryPoints, expandCoreCommands } from '../src/generator/entry-point-expander.js';
+import { collectManifestPaths } from '../src/generator/manifest-curator.js';
+import { OWNED_GENERATED_DIRS } from '../src/generator/generated-surface-inventory.js';
+import { assertCrossReferences } from '../src/generator/cross-reference-validator.js';
+import { buildPlatformMetadataOutputs } from '../src/platforms/metadata.js';
+import { buildPolicyTomlOutputs } from '../src/generator/policy-toml-emitter.js';
+import { buildHookConfigOutputs } from '../src/generator/hook-config-emitter.js';
+import { buildContentFileOutputs } from '../src/generator/content-file-emitter.js';
+import { readJson, runAsMain } from './lib/cli.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '..');
 const SRC = path.join(ROOT, 'src');
 const ENTRY_POINT_EXPANDERS = [expandEntryPoints, expandCoreCommands];
-
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const diffMode = args.includes('--diff');
 const cleanMode = args.includes('--clean');
 const listOutputs = args.includes('--list-outputs');
 
-function loadRuntimes() {
+async function loadRuntimes() {
   const runtimes = {};
   const configs = fs.readdirSync(path.join(SRC, 'platforms'), { withFileTypes: true })
     .filter((e) => e.isDirectory() && e.name !== 'shared')
     .map((e) => path.join(e.name, 'runtime-config.js'))
     .filter((rel) => fs.existsSync(path.join(SRC, 'platforms', rel)));
   for (const file of configs) {
-    const config = require(path.join(SRC, 'platforms', file));
+    const { default: config } = await import(pathToFileURL(path.join(SRC, 'platforms', file)).href);
     runtimes[config.name] = config;
   }
   return runtimes;
@@ -70,10 +69,10 @@ function processManifestEntry(entry, runtimes, session) {
   }
 }
 
-function processEntryPoints(runtimes, session) {
+async function processEntryPoints(runtimes, session) {
   for (const fn of ENTRY_POINT_EXPANDERS) {
     for (const runtimeName of Object.keys(runtimes)) {
-      for (const { outputPath, content } of fn(runtimeName, SRC)) {
+      for (const { outputPath, content } of await fn(runtimeName, SRC)) {
         session.write(outputPath, content);
       }
     }
@@ -81,12 +80,12 @@ function processEntryPoints(runtimes, session) {
 }
 
 async function main() {
-  const runtimes = loadRuntimes();
+  const runtimes = await loadRuntimes();
   const packageMetadata = readJson(path.join(ROOT, 'package.json'));
-  const manifestRules = require(path.join(SRC, 'manifest'));
+  const { default: manifestRules } = await import(pathToFileURL(path.join(SRC, 'manifest.js')).href);
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   assertNoMirroredSharedOutputs(manifest);
-  assertCrossReferences(SRC);
+  await assertCrossReferences(SRC);
 
   const session = createGenerationSession({
     rootDir: ROOT,
@@ -108,8 +107,8 @@ async function main() {
     processManifestEntry(entry, runtimes, session);
   }
 
-  processEntryPoints(runtimes, session);
-  session.writeAll(buildPlatformMetadataOutputs(runtimes, packageMetadata));
+  await processEntryPoints(runtimes, session);
+  session.writeAll(await buildPlatformMetadataOutputs(runtimes, packageMetadata));
   session.writeAll(buildPolicyTomlOutputs());
   session.writeAll(buildHookConfigOutputs(runtimes));
   session.writeAll(buildContentFileOutputs(runtimes, SRC, packageMetadata));
@@ -125,7 +124,7 @@ async function main() {
   }
 
   if (!session.isReadOnlyMode()) {
-    const manifestPaths = collectManifestPaths(manifest, runtimes, SRC, ENTRY_POINT_EXPANDERS);
+    const manifestPaths = await collectManifestPaths(manifest, runtimes, SRC, ENTRY_POINT_EXPANDERS);
     const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_GENERATED_DIRS });
     if (pruned.length > 0) {
       console.log('\nPruning stale files (not in manifest):');
@@ -138,14 +137,5 @@ async function main() {
   if (stats.errors > 0) process.exit(1);
 }
 
-runAsMain(module, 'Generator', main);
-
-module.exports = {
-  assertNoMirroredSharedOutputs,
-  buildRuntimeOutputPath,
-  expandCoreCommands,
-  buildPlatformMetadataOutputs,
-  expandManifest,
-  expandEntryPoints,
-  OWNED_GENERATED_DIRS,
-};
+runAsMain(import.meta.url, 'Generator', main);
+export { assertNoMirroredSharedOutputs, buildRuntimeOutputPath, expandCoreCommands, buildPlatformMetadataOutputs, expandManifest, expandEntryPoints, OWNED_GENERATED_DIRS };

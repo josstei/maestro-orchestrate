@@ -1,13 +1,8 @@
-'use strict';
-
-const { defineToolPack } = require('../contracts');
-const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
-const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
-const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
-const {
-  getDefaultRuntimeConfig,
-  normalizeRuntimeConfig,
-} = require('../../runtime/runtime-config-map');
+import { defineToolPack } from '../contracts.js';
+import { createHandler as createSkillContentHandler } from '../../handlers/get-skill-content.js';
+import { createHandler as createAgentHandler } from '../../handlers/get-agent.js';
+import { createHandler as createRuntimeContextHandler } from '../../handlers/get-runtime-context.js';
+import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from '../../runtime/runtime-config-map.js';
 
 function createToolPack(context = {}) {
   const runtimeConfig = normalizeRuntimeConfig(
@@ -80,6 +75,4 @@ function createToolPack(context = {}) {
   });
 }
 
-module.exports = {
-  createToolPack,
-};
+export { createToolPack };

@@ -1,7 +1,4 @@
-'use strict';
-
-const { string, integer, boolean, enumOf, csv } = require('../lib/schema');
-
+import { string, integer, boolean, enumOf, csv } from '../lib/schema/index.js';
 const EXECUTION_MODES = ['ask', 'parallel', 'sequential'];
 const VALIDATION_STRICTNESS_LEVELS = ['strict', 'normal', 'lenient'];
 
@@ -25,10 +22,4 @@ const SETTINGS_SCHEMA = {
 };
 
 const SETTING_NAMES = Object.keys(SETTINGS_SCHEMA);
-
-module.exports = {
-  SETTINGS_SCHEMA,
-  SETTING_NAMES,
-  EXECUTION_MODES,
-  VALIDATION_STRICTNESS_LEVELS,
-};
+export { SETTINGS_SCHEMA, SETTING_NAMES, EXECUTION_MODES, VALIDATION_STRICTNESS_LEVELS };

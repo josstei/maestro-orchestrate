@@ -1,21 +1,13 @@
-'use strict';
-
-const { describe, it, beforeEach, afterEach } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
-  handleExportMemoryPack,
-  handleImportMemoryPack,
-} = require('../../src/mcp/handlers/memory-pack');
-const { handleGetProjectProfile } = require('../../src/mcp/handlers/project-profile');
-const {
-  handleQueryArchitectureMemory,
-} = require('../../src/mcp/handlers/architecture-memory');
-const { MemoryStore } = require('../../src/mcp/memory/memory-store');
-const { resolveStateDirPath } = require('../../src/state/session-state');
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { handleExportMemoryPack, handleImportMemoryPack } from '../../src/mcp/handlers/memory-pack.js';
+import { handleGetProjectProfile } from '../../src/mcp/handlers/project-profile.js';
+import { handleQueryArchitectureMemory } from '../../src/mcp/handlers/architecture-memory.js';
+import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
+import { resolveStateDirPath } from '../../src/state/session-state.js';
 
 function listFiles(root) {
   const out = [];

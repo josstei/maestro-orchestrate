@@ -1,17 +1,14 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const {
-  buildMcpServer,
-  createContentPack,
-  makeTempWorkspace,
-} = require('../support/mcp');
-const { withExtensionRoot } = require('../support/content');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'fs';
+import path from 'path';
+import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { buildMcpServer, createContentPack, makeTempWorkspace } from '../support/mcp.js';
+import { withExtensionRoot } from '../support/content.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
 
 describe('content tool pack', () => {
   it('registers the content and runtime metadata tools', () => {

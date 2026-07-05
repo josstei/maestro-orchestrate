@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { parseBlockers } = require('../../src/mcp/handlers/blocker-parser');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseBlockers } from '../../src/mcp/handlers/blocker-parser.js';
 
 describe('parseBlockers', () => {
   it('returns an empty list when the text has no ## Blockers section', () => {

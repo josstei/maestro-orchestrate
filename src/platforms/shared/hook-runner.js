@@ -1,18 +1,21 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { isAdapterFile, extractRuntime } from './adapters/conventions.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ADAPTERS_DIR = path.join(moduleDirname, 'adapters');
 
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { isAdapterFile, extractRuntime } = require('./adapters/conventions');
-
-const ADAPTERS_DIR = path.join(__dirname, 'adapters');
 const VALID_RUNTIMES = new Set(
   fs.readdirSync(ADAPTERS_DIR)
     .filter(isAdapterFile)
     .map(extractRuntime)
 );
 
-const HOOK_MAP = require('../../generated/hook-registry.json');
+const HOOK_MAP = JSON.parse(
+  readFileSync(new URL('../../generated/hook-registry.json', import.meta.url))
+);
 
 const runtime  = process.argv[2];
 const hookName = process.argv[3];
@@ -28,13 +31,14 @@ if (!VALID_RUNTIMES.has(runtime)) {
 }
 
 const hookEntry = HOOK_MAP[hookName];
+
 if (!hookEntry) {
   process.stderr.write('Unknown hook: ' + hookName + '\n');
   process.exit(1);
 }
 
-const adapter = require('./adapters/' + runtime + '-adapter');
-const logicModule = require(path.resolve(__dirname, '../../', hookEntry.module));
+const { default: adapter } = await import(pathToFileURL(path.join(ADAPTERS_DIR, runtime + '-adapter.js')).href);
+const logicModule = await import(pathToFileURL(path.resolve(moduleDirname, '../../', hookEntry.module)).href);
 const handler = logicModule[hookEntry.fn];
 
 adapter.readBoundedStdin()

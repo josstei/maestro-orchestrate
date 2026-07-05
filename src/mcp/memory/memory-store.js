@@ -1,19 +1,16 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-
-const markdownState = require('../../core/markdown-state');
-const { atomicWriteSync, readFileSafe, readJsonSafe } = require('../../lib/io');
-const { ValidationError } = require('../../lib/errors');
-const { assertRelativePath } = require('../../lib/validation');
-const { resolveStateDirPath } = require('../../state/session-state');
-
+import fs from 'fs';
+import path from 'path';
+import * as markdownState from '../../core/markdown-state.js';
+import { atomicWriteSync, readFileSafe, readJsonSafe } from '../../lib/io/index.js';
+import { ValidationError } from '../../lib/errors/index.js';
+import { assertRelativePath } from '../../lib/validation/index.js';
+import { resolveStateDirPath } from '../../state/session-state.js';
 const PROFILE_SCHEMA_VERSION = 1;
 const AGENT_PERFORMANCE_SCHEMA_VERSION = 1;
 const AGENT_PERFORMANCE_FILENAME = 'agent-performance.json';
 const ARCHITECTURE_MEMORY_SCHEMA_VERSION = 1;
 const ARCHITECTURE_MEMORY_FILENAME = 'architecture-memory.json';
+
 const ARCHITECTURE_MEMORY_CATEGORIES = Object.freeze([
   'interfaces',
   'patterns',
@@ -21,6 +18,7 @@ const ARCHITECTURE_MEMORY_CATEGORIES = Object.freeze([
   'assumptions',
   'warnings',
 ]);
+
 const PROFILE_ARRAY_FIELDS = Object.freeze([
   'build_commands',
   'test_commands',
@@ -30,6 +28,7 @@ const PROFILE_ARRAY_FIELDS = Object.freeze([
   'preferred_agents',
   'blocked_agents',
 ]);
+
 const PROFILE_BODY = '# Project Memory Profile\n';
 
 /**
@@ -525,14 +524,4 @@ class MemoryStore {
   }
 }
 
-module.exports = {
-  MemoryStore,
-  PROFILE_SCHEMA_VERSION,
-  ARCHITECTURE_MEMORY_CATEGORIES,
-  ARCHITECTURE_MEMORY_SCHEMA_VERSION,
-  PROFILE_ARRAY_FIELDS,
-  assertAgentMemorySegment,
-  emptyArchitectureMemoryGraph,
-  emptyProfile,
-  mergeValidationCommands,
-};
+export { MemoryStore, PROFILE_SCHEMA_VERSION, ARCHITECTURE_MEMORY_CATEGORIES, ARCHITECTURE_MEMORY_SCHEMA_VERSION, PROFILE_ARRAY_FIELDS, assertAgentMemorySegment, emptyArchitectureMemoryGraph, emptyProfile, mergeValidationCommands };

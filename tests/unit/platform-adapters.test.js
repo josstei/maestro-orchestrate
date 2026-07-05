@@ -1,10 +1,8 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const claudeAdapter = require('../../src/platforms/shared/adapters/claude-adapter');
-const geminiAdapter = require('../../src/platforms/shared/adapters/gemini-adapter');
-const qwenAdapter = require('../../src/platforms/shared/adapters/qwen-adapter');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import claudeAdapter from '../../src/platforms/shared/adapters/claude-adapter.js';
+import geminiAdapter from '../../src/platforms/shared/adapters/gemini-adapter.js';
+import qwenAdapter from '../../src/platforms/shared/adapters/qwen-adapter.js';
 
 describe('claude-adapter', () => {
   describe('normalizeInput', () => {

@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Minimal YAML fragment emitters used by the generator.
  *
@@ -32,7 +30,4 @@ function emitInlineQuotedList(items) {
   return items.map((item) => `"${item}"`).join(', ');
 }
 
-module.exports = {
-  emitBlockList,
-  emitInlineQuotedList,
-};
+export { emitBlockList, emitInlineQuotedList };

@@ -1,4 +1,4 @@
-module.exports = [
+export default [
   // ── Agent discovery stubs — Gemini, Claude, and Qwen ───────────────
   { glob: 'agents/*.md',
     transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],

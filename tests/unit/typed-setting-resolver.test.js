@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { resolveTypedSetting } = require('../../src/config/setting-resolver');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { resolveTypedSetting } from '../../src/config/setting-resolver.js';
 
 function withEnv(overrides, fn) {
   const previous = {};

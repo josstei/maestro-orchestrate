@@ -1,8 +1,6 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { spawnMcpServer } = require('../integration/mcp-stdio-client');
-
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnMcpServer } from '../integration/mcp-stdio-client.js';
 const BIN_RELATIVE_PATH = 'bin/maestro-mcp-server.js';
 
 async function resolveRuntime(env) {

@@ -1,18 +1,22 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { parseFrontmatterOnly, splitAtBoundary } from '../../lib/frontmatter/index.js';
+import { replaceInContent } from '../../lib/naming/index.js';
+import { stripFeatureBlocks as stripFeatureBlocksCore } from '../../core/feature-blocks.js';
+import { renderRosterTable } from '../../core/roster-renderer.js';
+import { readFileSync } from 'node:fs';
 
-const fs = require('fs');
-const path = require('path');
-const { parseFrontmatterOnly, splitAtBoundary } = require('../../lib/frontmatter');
-const { replaceInContent } = require('../../lib/naming');
-const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');
-const { renderRosterTable } = require('../../core/roster-renderer');
-
-const agentRegistry = require('../../generated/agent-registry.json');
+const agentRegistry = JSON.parse(
+  readFileSync(new URL('../../generated/agent-registry.json', import.meta.url))
+);
 
 const DEFAULT_RUNTIME_NAME = 'gemini';
 
-const RESOURCE_ALLOWLIST = Object.freeze(require('../../generated/resource-registry.json'));
+const resourceRegistryJson = JSON.parse(
+  readFileSync(new URL('../../generated/resource-registry.json', import.meta.url))
+);
 
+const RESOURCE_ALLOWLIST = Object.freeze(resourceRegistryJson);
 const AGENT_ALLOWLIST = Object.freeze(agentRegistry.map((entry) => entry.name));
 
 function applyReplacePaths(content, runtimeConfig) {
@@ -234,26 +238,4 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
   return materializeAgent(rawAgent, runtimeConfig);
 }
 
-module.exports = {
-  DEFAULT_RUNTIME_NAME,
-  RESOURCE_ALLOWLIST,
-  AGENT_ALLOWLIST,
-  applyReplacePaths,
-  applySkillMetadata,
-  applyReplaceAgentNames,
-  applyStripFeature,
-  applyRuntimeTransforms,
-  loadAgentRegistryFromSrcRoot,
-  expandRosterMarker,
-  stripFrontmatter,
-  stripFeatureBlocks,
-  parseInlineArray,
-  parseFrontmatter,
-  mapTools,
-  readRawResourceFromFilesystem,
-  materializeResource,
-  readResourceFromFilesystem,
-  readRawAgentFromFilesystem,
-  materializeAgent,
-  readAgentFromFilesystem,
-};
+export { DEFAULT_RUNTIME_NAME, RESOURCE_ALLOWLIST, AGENT_ALLOWLIST, applyReplacePaths, applySkillMetadata, applyReplaceAgentNames, applyStripFeature, applyRuntimeTransforms, loadAgentRegistryFromSrcRoot, expandRosterMarker, stripFrontmatter, stripFeatureBlocks, parseInlineArray, parseFrontmatter, mapTools, readRawResourceFromFilesystem, materializeResource, readResourceFromFilesystem, readRawAgentFromFilesystem, materializeAgent, readAgentFromFilesystem };

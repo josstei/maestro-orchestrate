@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-'use strict';
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-const { readJson, runAsMain } = require('./lib/cli');
-
-const ROOT = path.resolve(__dirname, '..');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { readJson, runAsMain } from './lib/cli.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '..');
 
 const COMMIT_IDENTITY = Object.freeze({
   GIT_AUTHOR_NAME: 'maestro-release-bot',
@@ -115,11 +115,9 @@ function publishDistBranch(options = {}) {
   }
 }
 
-runAsMain(module, 'dist branch publish', () => {
+runAsMain(import.meta.url, 'dist branch publish', () => {
   const result = publishDistBranch();
   console.log(result.sha);
 });
 
-module.exports = {
-  publishDistBranch,
-};
+export { publishDistBranch };

@@ -1,15 +1,13 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   buildMcpServer,
   createContentPack,
   createInitializedMcpWorkspace,
   createSessionPack,
   createWorkspacePack,
-} = require('../support/mcp');
+} from '../support/mcp.js';
 
 function createFullServer() {
   return buildMcpServer({

@@ -1,9 +1,4 @@
-'use strict';
-
-const {
-  buildExtensionManifest,
-  renderJson,
-} = require('../metadata-shared');
+import { buildExtensionManifest, renderJson } from '../metadata-shared.js';
 
 function buildGeminiExtensionManifest(context) {
   return buildExtensionManifest(context, {
@@ -21,7 +16,4 @@ function buildMetadataOutputs(context) {
   ];
 }
 
-module.exports = {
-  buildGeminiExtensionManifest,
-  buildMetadataOutputs,
-};
+export { buildGeminiExtensionManifest, buildMetadataOutputs };

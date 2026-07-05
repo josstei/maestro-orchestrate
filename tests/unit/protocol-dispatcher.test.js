@@ -1,17 +1,15 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { PassThrough } from 'node:stream';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { PassThrough } = require('node:stream');
-
-const {
+import {
   DEFAULT_PROTOCOL_VERSION,
   writeMessage,
   buildInitializeResult,
   createToolErrorResult,
   createToolSuccessResult,
   createProtocolHandlers,
-} = require('../../src/mcp/core/protocol-dispatcher');
+} from '../../src/mcp/core/protocol-dispatcher.js';
 
 function captureWrites(stream) {
   const frames = [];

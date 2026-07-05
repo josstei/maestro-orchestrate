@@ -1,15 +1,15 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { buildHookConfigOutputs } = require('../../src/generator/hook-config-emitter');
-const gemini = require('../../src/platforms/gemini/runtime-config');
-const qwen = require('../../src/platforms/qwen/runtime-config');
-
-const ROOT = path.resolve(__dirname, '../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { buildHookConfigOutputs } from '../../src/generator/hook-config-emitter.js';
+import gemini from '../../src/platforms/gemini/runtime-config.js';
+import qwen from '../../src/platforms/qwen/runtime-config.js';
+import codex from '../../src/platforms/codex/runtime-config.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '../..');
 
 function outputsByPath(outputs) {
   return new Map(outputs.map((output) => [output.outputPath, output.content]));
@@ -44,8 +44,6 @@ describe('hook-config-emitter', () => {
     );
   });
 });
-
-const codex = require('../../src/platforms/codex/runtime-config');
 
 describe('hook-config-emitter is descriptor-driven', () => {
   it('emits a hook config for any gemini-family runtime named by its descriptor', () => {

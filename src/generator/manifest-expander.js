@@ -1,8 +1,6 @@
-'use strict';
-
-const path = require('node:path');
-const fs = require('node:fs');
-const { toSnakeCase } = require('../lib/naming');
+import path from 'node:path';
+import fs from 'node:fs';
+import { toSnakeCase } from '../lib/naming/index.js';
 
 /**
  * Expand a glob pattern relative to srcDir.
@@ -199,11 +197,4 @@ function expandManifest(rules, runtimes, srcDir) {
   return entries;
 }
 
-module.exports = {
-  expandGlob,
-  normalizeSrcRelPath,
-  computeOutputPath,
-  buildRuntimeOutputPath,
-  assertNoMirroredSharedOutputs,
-  expandManifest,
-};
+export { expandGlob, normalizeSrcRelPath, computeOutputPath, buildRuntimeOutputPath, assertNoMirroredSharedOutputs, expandManifest };

@@ -1,10 +1,7 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { buildMcpServer } = require('../support/mcp');
-const {
-  createToolPack: createHistoryPack,
-} = require('../../src/mcp/tool-packs/history');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { buildMcpServer } from '../support/mcp.js';
+import { createToolPack as createHistoryPack } from '../../src/mcp/tool-packs/history/index.js';
 
 describe('history tool pack', () => {
   it('registers the session lineage tools through the kernel', () => {

@@ -1,7 +1,5 @@
-'use strict';
-
-const { ValidationError } = require('../../lib/errors');
-const { MemoryStore } = require('../memory/memory-store');
+import { ValidationError } from '../../lib/errors/index.js';
+import { MemoryStore } from '../memory/memory-store.js';
 
 /**
  * @param {unknown} value
@@ -47,7 +45,4 @@ function handleAppendAgentMemory(params, projectRoot) {
   return { agent, appended: true };
 }
 
-module.exports = {
-  handleAppendAgentMemory,
-  handleGetAgentMemory,
-};
+export { handleAppendAgentMemory, handleGetAgentMemory };

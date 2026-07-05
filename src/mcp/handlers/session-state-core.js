@@ -1,16 +1,9 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-const markdownState = require('../../core/markdown-state');
-const { StateError, ValidationError } = require('../../lib/errors');
-const {
-  readState,
-  writeState,
-  resolveStateDirPath,
-} = require('../../state/session-state');
-const { migrateSessionState } = require('./session-migrations');
-
+import fs from 'fs';
+import path from 'path';
+import * as markdownState from '../../core/markdown-state.js';
+import { StateError, ValidationError } from '../../lib/errors/index.js';
+import { readState, writeState, resolveStateDirPath } from '../../state/session-state.js';
+import { migrateSessionState } from './session-migrations.js';
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 
 function resolveBasePath(projectRoot) {
@@ -146,16 +139,4 @@ function extractFileManifest(params) {
   };
 }
 
-module.exports = {
-  resolveBasePath,
-  resolveActiveSessionPath,
-  parseSessionState,
-  serializeSessionState,
-  extractBody,
-  readActiveSession,
-  readActiveSessionOrNull,
-  writeActiveSession,
-  withSessionState,
-  assertActiveSessionMatches,
-  extractFileManifest,
-};
+export { resolveBasePath, resolveActiveSessionPath, parseSessionState, serializeSessionState, extractBody, readActiveSession, readActiveSessionOrNull, writeActiveSession, withSessionState, assertActiveSessionMatches, extractFileManifest };

@@ -1,5 +1,3 @@
-'use strict';
-
 const SCOPE = Object.freeze({
   BOTH: 'both',
   NPM: 'npm',
@@ -107,10 +105,4 @@ function releasePaths() {
   return projectByScopes([SCOPE.BOTH, SCOPE.RELEASE]);
 }
 
-module.exports = {
-  SCOPE,
-  INVENTORY,
-  RUNTIME_SOURCE_PATHS,
-  npmFiles,
-  releasePaths,
-};
+export { SCOPE, INVENTORY, RUNTIME_SOURCE_PATHS, npmFiles, releasePaths };

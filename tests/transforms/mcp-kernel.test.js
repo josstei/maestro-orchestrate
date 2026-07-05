@@ -1,10 +1,9 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { createServer } = require('../../src/mcp/core/create-server');
-const { createToolRegistry } = require('../../src/mcp/core/tool-registry');
-const { defineToolPack } = require('../../src/mcp/tool-packs/contracts');
-const { ValidationError } = require('../../src/lib/errors');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from '../../src/mcp/core/create-server.js';
+import { createToolRegistry } from '../../src/mcp/core/tool-registry.js';
+import { defineToolPack } from '../../src/mcp/tool-packs/contracts.js';
+import { ValidationError } from '../../src/lib/errors/index.js';
 
 describe('mcp kernel', () => {
   it('assembles tool schemas and handlers in pack order', () => {

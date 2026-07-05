@@ -1,20 +1,24 @@
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHandler as createSkillContentHandler } from '../../src/mcp/handlers/get-skill-content.js';
+import { createHandler as createAgentHandler } from '../../src/mcp/handlers/get-agent.js';
+import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
 
-const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
-const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const {
+import {
   makeTempSrcRoot,
   cleanupTempRoots,
   writeAgent,
   writeResource,
   withExtensionRoot,
-} = require('../support/content');
+} from '../support/content.js';
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
+
 const REMOVED_SESSION_READER_PATH = [
   'src',
   'scripts',

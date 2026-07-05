@@ -1,10 +1,8 @@
-'use strict';
-
-const { DENY_RULES, ASK_RULES } = require('../core/policy-rules');
-
+import { DENY_RULES, ASK_RULES } from '../core/policy-rules.js';
 const TOOL_NAME = 'run_shell_command';
 const ASK_PRIORITY = 850;
 const DENY_PRIORITY = 950;
+
 const DENY_PREFIX_MESSAGE =
   'Maestro blocks destructive shell commands. Use safer targeted tools or handle the cleanup manually.';
 
@@ -82,4 +80,4 @@ function buildPolicyTomlOutputs() {
   return [{ outputPath: 'policies/maestro.toml', content: renderPolicyToml() }];
 }
 
-module.exports = { buildPolicyTomlOutputs, renderPolicyToml };
+export { buildPolicyTomlOutputs, renderPolicyToml };

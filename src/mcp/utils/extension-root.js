@@ -1,7 +1,5 @@
-'use strict';
-
-const path = require('path');
-const { resolveCanonicalProjectRoot, resolveCanonicalSrcRoot } = require('../../core/canonical-source');
+import path from 'path';
+import { resolveCanonicalProjectRoot, resolveCanonicalSrcRoot } from '../../core/canonical-source.js';
 
 function resolveExtensionRoot() {
   if (process.env.MAESTRO_EXTENSION_PATH) {
@@ -24,8 +22,4 @@ function resolveCanonicalSrcFromExtensionRoot() {
   return resolveCanonicalSrcRoot(resolveExtensionRoot());
 }
 
-module.exports = {
-  resolveCanonicalSrcFromExtensionRoot,
-  resolveExtensionRoot,
-  resolveRepoRoot,
-};
+export { resolveCanonicalSrcFromExtensionRoot, resolveExtensionRoot, resolveRepoRoot };

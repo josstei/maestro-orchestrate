@@ -1,45 +1,42 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { collectManifestPaths } = require('../../src/generator/manifest-curator');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { collectManifestPaths } from '../../src/generator/manifest-curator.js';
 
 describe('collectManifestPaths', () => {
-  it('returns an empty set when manifest, runtimes, and expanders are all empty', () => {
-    const paths = collectManifestPaths([], {}, '/src', []);
+  it('returns an empty set when manifest, runtimes, and expanders are all empty', async () => {
+    const paths = await collectManifestPaths([], {}, '/src', []);
     assert.ok(paths instanceof Set);
     assert.equal(paths.size, 0);
   });
 
-  it('collects output paths from every manifest entry', () => {
+  it('collects output paths from every manifest entry', async () => {
     const manifest = [
       { outputs: { gemini: 'out/gemini/a.md', claude: 'out/claude/a.md' } },
       { outputs: { codex: 'out/codex/b.md' } },
     ];
-    const paths = collectManifestPaths(manifest, {}, '/src', []);
+    const paths = await collectManifestPaths(manifest, {}, '/src', []);
     assert.deepEqual(
       [...paths].sort(),
       ['out/claude/a.md', 'out/codex/b.md', 'out/gemini/a.md']
     );
   });
 
-  it('deduplicates identical output paths across entries', () => {
+  it('deduplicates identical output paths across entries', async () => {
     const manifest = [
       { outputs: { a: 'out/dup.md' } },
       { outputs: { b: 'out/dup.md' } },
     ];
-    const paths = collectManifestPaths(manifest, {}, '/src', []);
+    const paths = await collectManifestPaths(manifest, {}, '/src', []);
     assert.deepEqual([...paths], ['out/dup.md']);
   });
 
-  it('invokes each expander once per runtime and collects outputPath', () => {
+  it('invokes each expander once per runtime and collects outputPath', async () => {
     const calls = [];
     const expander = (runtime, srcDir) => {
       calls.push({ runtime, srcDir });
       return [{ outputPath: `out/${runtime}/ep.md` }];
     };
-    const paths = collectManifestPaths(
+    const paths = await collectManifestPaths(
       [],
       { gemini: {}, claude: {} },
       '/src',
@@ -53,10 +50,10 @@ describe('collectManifestPaths', () => {
     );
   });
 
-  it('merges manifest outputs with expander outputs into a single set', () => {
+  it('merges manifest outputs with expander outputs into a single set', async () => {
     const manifest = [{ outputs: { gemini: 'out/gemini/from-manifest.md' } }];
     const expander = (runtime) => [{ outputPath: `out/${runtime}/from-expander.md` }];
-    const paths = collectManifestPaths(
+    const paths = await collectManifestPaths(
       manifest,
       { gemini: {} },
       '/src',
@@ -68,10 +65,10 @@ describe('collectManifestPaths', () => {
     );
   });
 
-  it('runs multiple expanders and combines their results', () => {
+  it('runs multiple expanders and combines their results', async () => {
     const expander1 = () => [{ outputPath: 'a.md' }];
     const expander2 = () => [{ outputPath: 'b.md' }, { outputPath: 'c.md' }];
-    const paths = collectManifestPaths(
+    const paths = await collectManifestPaths(
       [],
       { gemini: {} },
       '/src',
@@ -80,17 +77,17 @@ describe('collectManifestPaths', () => {
     assert.deepEqual([...paths].sort(), ['a.md', 'b.md', 'c.md']);
   });
 
-  it('handles expanders that return an empty array', () => {
+  it('handles expanders that return an empty array', async () => {
     const expander = () => [];
-    const paths = collectManifestPaths([], { gemini: {} }, '/src', [expander]);
+    const paths = await collectManifestPaths([], { gemini: {} }, '/src', [expander]);
     assert.equal(paths.size, 0);
   });
 
-  it('propagates exceptions thrown by an expander', () => {
+  it('propagates exceptions thrown by an expander', async () => {
     const expander = () => {
       throw new Error('expander exploded');
     };
-    assert.throws(
+    await assert.rejects(
       () => collectManifestPaths([], { gemini: {} }, '/src', [expander]),
       /expander exploded/
     );

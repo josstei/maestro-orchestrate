@@ -1,10 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { handleResolveSettings, KNOWN_SETTINGS } = require('../../src/mcp/handlers/resolve-settings');
-const { SETTING_NAMES } = require('../../src/config/settings-schema');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { handleResolveSettings, KNOWN_SETTINGS } from '../../src/mcp/handlers/resolve-settings.js';
+import { SETTING_NAMES } from '../../src/config/settings-schema.js';
 
 function withEnv(overrides, fn) {
   const previous = {};

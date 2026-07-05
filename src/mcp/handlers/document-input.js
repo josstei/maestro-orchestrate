@@ -1,6 +1,4 @@
-'use strict';
-
-const { ValidationError } = require('../../lib/errors');
+import { ValidationError } from '../../lib/errors/index.js';
 
 /**
  * Resolve a document supplied as exactly one of (path) or (content + filename).
@@ -39,4 +37,4 @@ function resolveDocumentInput(params, options) {
   return null;
 }
 
-module.exports = { resolveDocumentInput };
+export { resolveDocumentInput };

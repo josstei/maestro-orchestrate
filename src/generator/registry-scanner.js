@@ -1,12 +1,10 @@
-'use strict';
-
-const path = require('node:path');
-const fs = require('node:fs');
-const { discover, generateRegistry } = require('../lib/discovery');
-const { serializeRegistry } = require('../lib/discovery');
-const { parse } = require('../lib/frontmatter');
-const { toPascalCase } = require('../lib/naming');
-const { validateRegistry } = require('./registry-schemas');
+import path from 'node:path';
+import fs from 'node:fs';
+import { discover, generateRegistry } from '../lib/discovery/index.js';
+import { serializeRegistry } from '../lib/discovery/index.js';
+import { parse } from '../lib/frontmatter/index.js';
+import { toPascalCase } from '../lib/naming/index.js';
+import { validateRegistry } from './registry-schemas.js';
 
 function buildAgentRegistry(srcDir) {
   const agentEntries = discover({
@@ -132,8 +130,4 @@ function generateRegistries(srcDir) {
   }
 }
 
-module.exports = {
-  buildRegistries,
-  collectRegistryOutputs,
-  generateRegistries,
-};
+export { buildRegistries, collectRegistryOutputs, generateRegistries };

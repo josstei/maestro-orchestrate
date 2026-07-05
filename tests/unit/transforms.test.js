@@ -1,9 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const agentStub = require('../../src/transforms/agent-stub');
-const skillDiscoveryStub = require('../../src/transforms/skill-discovery-stub');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import agentStub from '../../src/transforms/agent-stub.js';
+import skillDiscoveryStub from '../../src/transforms/skill-discovery-stub.js';
 
 describe('agent-stub transform', () => {
   const kebabRuntime = { name: 'claude', agentNaming: 'kebab-case' };

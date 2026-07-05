@@ -1,9 +1,9 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'fs';
+import path from 'path';
 
-const {
+import {
   buildMcpServer,
   createSessionPack,
   ensureMaestroWorkspace,
@@ -11,7 +11,7 @@ const {
   phaseFixture,
   readSessionFrontmatter,
   writeWorkspaceFile,
-} = require('../support/mcp');
+} from '../support/mcp.js';
 
 function makeSessionWorkspace(prefix = 'maestro-session-') {
   return ensureMaestroWorkspace(makeTempWorkspace(prefix));

@@ -1,15 +1,12 @@
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { pathToFileURL } = require('node:url');
-
-const { ROOT, createTempRepoCopy, withPackagedClaudeRuntime } = require('./helpers');
-const { makeTempSrcRoot, cleanupTempRoots } = require('../support/content');
-
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { ROOT, createTempRepoCopy, withPackagedClaudeRuntime } from './helpers.js';
+import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
 const CODEX_BIN = path.join(ROOT, 'bin', 'maestro-mcp-server.js');
-const { spawnMcpServer } = require('./mcp-stdio-client');
-
+import { spawnMcpServer } from './mcp-stdio-client.js';
 after(cleanupTempRoots);
 
 async function withServer(options, fn) {

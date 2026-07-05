@@ -1,16 +1,10 @@
-'use strict';
-
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
-  handleAssessTaskComplexity,
-} = require('../../src/mcp/handlers/assess-task-complexity');
-const { handleValidatePlan } = require('../../src/mcp/handlers/validate-plan');
-
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { handleAssessTaskComplexity } from '../../src/mcp/handlers/assess-task-complexity.js';
+import { handleValidatePlan } from '../../src/mcp/handlers/validate-plan.js';
 const tmpRoots = [];
 
 function makeWorkspace() {

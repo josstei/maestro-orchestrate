@@ -1,13 +1,10 @@
-'use strict';
-
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { resolveStateDirPath } = require('../../src/state/session-state');
-const { buildRetrievalCorpus } = require('../../src/mcp/retrieval/corpus');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { resolveStateDirPath } from '../../src/state/session-state.js';
+import { buildRetrievalCorpus } from '../../src/mcp/retrieval/corpus.js';
 
 function writeArchive(projectRoot, sessionId, data) {
   const dir = path.join(resolveStateDirPath(projectRoot), 'state', 'archive');

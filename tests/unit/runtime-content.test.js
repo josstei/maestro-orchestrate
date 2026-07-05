@@ -1,9 +1,7 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   DEFAULT_RUNTIME_NAME,
   RESOURCE_ALLOWLIST,
   AGENT_ALLOWLIST,
@@ -16,7 +14,7 @@ const {
   parseInlineArray,
   parseFrontmatter,
   mapTools,
-} = require('../../src/mcp/content/runtime-content');
+} from '../../src/mcp/content/runtime-content.js';
 
 describe('DEFAULT_RUNTIME_NAME', () => {
   it('equals gemini', () => {

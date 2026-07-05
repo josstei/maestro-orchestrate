@@ -1,13 +1,12 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { createHandler } from '../../src/mcp/handlers/get-runtime-context.js';
 
 describe('get-runtime-context handler', () => {
   const legacyDispatchKey = ['agent', 'dispatch'].join('_');
 
   it('returns structured runtime config with required fields', () => {
-    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
-
     const handler = createHandler({
       name: 'claude',
       tools: { read_file: 'Read', write_file: 'Write' },
@@ -35,7 +34,6 @@ describe('get-runtime-context handler', () => {
   });
 
   it('includes MCP prefix for claude runtime', () => {
-    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler({
       name: 'claude',
       tools: {},
@@ -49,7 +47,6 @@ describe('get-runtime-context handler', () => {
   });
 
   it('returns gemini MCP prefix for gemini runtime', () => {
-    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler({
       name: 'gemini',
       tools: {},
@@ -64,7 +61,6 @@ describe('get-runtime-context handler', () => {
   });
 
   it('returns codex MCP prefix and kebab-case naming for codex runtime', () => {
-    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler({
       name: 'codex',
       tools: { run_shell_command: 'exec_command' },
@@ -82,7 +78,6 @@ describe('get-runtime-context handler', () => {
   });
 
   it('accepts a runtime name and resolves it through the shared runtime config map', () => {
-    const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
     const handler = createHandler('codex');
     const result = handler({});
 

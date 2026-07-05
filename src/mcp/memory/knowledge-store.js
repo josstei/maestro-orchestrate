@@ -1,13 +1,9 @@
-'use strict';
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { resolveTypedSetting } = require('../../config/setting-resolver');
-const { ValidationError } = require('../../lib/errors');
-const { atomicWriteSync, readFileSafe } = require('../../lib/io');
-
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { resolveTypedSetting } from '../../config/setting-resolver.js';
+import { ValidationError } from '../../lib/errors/index.js';
+import { atomicWriteSync, readFileSafe } from '../../lib/io/index.js';
 const KNOWLEDGE_FILENAME = 'knowledge.jsonl';
 
 /**
@@ -144,7 +140,4 @@ class KnowledgeStore {
   }
 }
 
-module.exports = {
-  KnowledgeStore,
-  KNOWLEDGE_FILENAME,
-};
+export { KnowledgeStore, KNOWLEDGE_FILENAME };

@@ -1,15 +1,9 @@
-'use strict';
-
-const { defineToolPack } = require('../contracts');
-const { SCHEMA } = require('../schema-fragments');
-const {
-  handleInitializeWorkspace,
-} = require('../../handlers/initialize-workspace');
-const {
-  handleAssessTaskComplexity,
-} = require('../../handlers/assess-task-complexity');
-const { handleValidatePlan } = require('../../handlers/validate-plan');
-const { handleResolveSettings } = require('../../handlers/resolve-settings');
+import { defineToolPack } from '../contracts.js';
+import { SCHEMA } from '../schema-fragments.js';
+import { handleInitializeWorkspace } from '../../handlers/initialize-workspace.js';
+import { handleAssessTaskComplexity } from '../../handlers/assess-task-complexity.js';
+import { handleValidatePlan } from '../../handlers/validate-plan.js';
+import { handleResolveSettings } from '../../handlers/resolve-settings.js';
 
 function createToolPack() {
   return defineToolPack({
@@ -94,6 +88,4 @@ function createToolPack() {
   });
 }
 
-module.exports = {
-  createToolPack,
-};
+export { createToolPack };

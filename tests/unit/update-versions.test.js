@@ -1,12 +1,9 @@
-'use strict';
-
-const { afterEach, beforeEach, describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { updateVersions } = require('../../scripts/update-versions');
+import { afterEach, beforeEach, describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { updateVersions } from '../../scripts/update-versions.js';
 
 function createTempProject(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-update-versions-'));

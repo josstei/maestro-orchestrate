@@ -1,6 +1,6 @@
-const { buildGeminiFamilyConfig } = require('../shared/gemini-family-config');
+import { buildGeminiFamilyConfig } from '../shared/gemini-family-config.js';
 
-module.exports = buildGeminiFamilyConfig({
+export default buildGeminiFamilyConfig({
   name: 'gemini',
   outputDir: './',
   env: { extensionPath: 'extensionPath', workspacePath: null },

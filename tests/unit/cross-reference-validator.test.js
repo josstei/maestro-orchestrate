@@ -1,15 +1,11 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-
-const {
-  validateCrossReferences,
-  assertCrossReferences,
-} = require('../../src/generator/cross-reference-validator');
-
-const REPO_SRC = path.resolve(__dirname, '..', '..', 'src');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { validateCrossReferences, assertCrossReferences } from '../../src/generator/cross-reference-validator.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_SRC = path.resolve(moduleDirname, '..', '..', 'src');
 
 const base = {
   agentNames: ['code-reviewer'],
@@ -49,7 +45,7 @@ describe('validateCrossReferences', () => {
 });
 
 describe('assertCrossReferences on the live tree', () => {
-  it('resolves every reference in the real src/', () => {
-    assert.doesNotThrow(() => assertCrossReferences(REPO_SRC));
+  it('resolves every reference in the real src/', async () => {
+    await assert.doesNotReject(() => assertCrossReferences(REPO_SRC));
   });
 });

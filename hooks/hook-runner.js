@@ -1,3 +1,1 @@
-'use strict';
-
-require('../src/platforms/shared/hook-runner');
+import '../src/platforms/shared/hook-runner.js';

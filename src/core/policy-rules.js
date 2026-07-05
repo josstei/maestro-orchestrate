@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Canonical policy rules for Maestro command safety enforcement.
  * Used by:
@@ -39,5 +37,4 @@ const ASK_RULES = Object.freeze([
 ]);
 
 const KNOWN_UNENFORCED_RUNTIMES = Object.freeze(['codex']);
-
-module.exports = { DENY_RULES, ASK_RULES, KNOWN_UNENFORCED_RUNTIMES };
+export { DENY_RULES, ASK_RULES, KNOWN_UNENFORCED_RUNTIMES };

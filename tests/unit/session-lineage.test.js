@@ -1,26 +1,12 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const markdownState = require('../../src/core/markdown-state');
-const {
-  createEmptyDownstreamContext,
-} = require('../../src/mcp/contracts/downstream-context');
-const {
-  handleGetDesignGateStatus,
-} = require('../../src/mcp/handlers/design-gate');
-const {
-  handleForkSession,
-  handleListLineage,
-} = require('../../src/mcp/handlers/session-lineage');
-const {
-  ensureMaestroWorkspace,
-  makeTempWorkspace,
-  readSessionFrontmatter,
-} = require('../support/mcp');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import * as markdownState from '../../src/core/markdown-state.js';
+import { createEmptyDownstreamContext } from '../../src/mcp/contracts/downstream-context.js';
+import { handleGetDesignGateStatus } from '../../src/mcp/handlers/design-gate.js';
+import { handleForkSession, handleListLineage } from '../../src/mcp/handlers/session-lineage.js';
+import { ensureMaestroWorkspace, makeTempWorkspace, readSessionFrontmatter } from '../support/mcp.js';
 
 function phaseFixture(overrides = {}) {
   return {

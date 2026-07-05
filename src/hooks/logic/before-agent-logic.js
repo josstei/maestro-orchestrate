@@ -1,11 +1,9 @@
-'use strict';
-
-const { log } = require('../../core/logger');
-const { detectAgentFromPrompt } = require('../../core/agent-registry');
-const { assertSessionId } = require('../../lib/validation');
-const { readFileSafe } = require('../../lib/io');
-const hookState = require('./hook-state');
-const state = require('../../state/session-state');
+import { log } from '../../core/logger.js';
+import { detectAgentFromPrompt } from '../../core/agent-registry.js';
+import { assertSessionId } from '../../lib/validation/index.js';
+import { readFileSafe } from '../../lib/io/index.js';
+import hookState from './hook-state.js';
+import * as state from '../../state/session-state.js';
 
 /**
  * Before-agent hook logic (runtime-agnostic).
@@ -54,4 +52,4 @@ function handleBeforeAgent(ctx) {
   return { action: 'allow', message: null, reason: null };
 }
 
-module.exports = { handleBeforeAgent };
+export { handleBeforeAgent };

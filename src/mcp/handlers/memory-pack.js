@@ -1,18 +1,10 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { atomicWriteSync } = require('../../lib/io');
-const { ValidationError } = require('../../lib/errors');
-const { assertContainedIn } = require('../../lib/validation');
-const { resolveStateDirPath } = require('../../state/session-state');
-const {
-  ARCHITECTURE_MEMORY_CATEGORIES,
-  MemoryStore,
-  PROFILE_ARRAY_FIELDS,
-} = require('../memory/memory-store');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import { atomicWriteSync } from '../../lib/io/index.js';
+import { ValidationError } from '../../lib/errors/index.js';
+import { assertContainedIn } from '../../lib/validation/index.js';
+import { resolveStateDirPath } from '../../state/session-state.js';
+import { ARCHITECTURE_MEMORY_CATEGORIES, MemoryStore, PROFILE_ARRAY_FIELDS } from '../memory/memory-store.js';
 const MEMORY_PACK_SCHEMA_VERSION = 1;
 const MEMORY_PACK_FILENAME = 'memory-pack.json';
 
@@ -239,9 +231,4 @@ function handleImportMemoryPack(params, projectRoot) {
   };
 }
 
-module.exports = {
-  MEMORY_PACK_SCHEMA_VERSION,
-  handleExportMemoryPack,
-  handleImportMemoryPack,
-  resolveMemoryPackPath,
-};
+export { MEMORY_PACK_SCHEMA_VERSION, handleExportMemoryPack, handleImportMemoryPack, resolveMemoryPackPath };

@@ -1,7 +1,5 @@
-'use strict';
-
-const { ValidationError } = require('../../lib/errors');
-const { KnowledgeStore } = require('../memory/knowledge-store');
+import { ValidationError } from '../../lib/errors/index.js';
+import { KnowledgeStore } from '../memory/knowledge-store.js';
 
 /**
  * @param {unknown} value
@@ -90,7 +88,4 @@ function handleQueryKnowledge(params, projectRoot) {
   return { query, entries };
 }
 
-module.exports = {
-  handleRecordKnowledge,
-  handleQueryKnowledge,
-};
+export { handleRecordKnowledge, handleQueryKnowledge };

@@ -1,12 +1,9 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const { fileURLToPath } = require('node:url');
-
-const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
-const { MaestroError } = require('../lib/errors');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'node:url';
+import { isExtensionCachePath } from '../mcp/contracts/cache-path-rejector.js';
+import { MaestroError } from '../lib/errors/index.js';
 
 class WorkspaceResolutionError extends MaestroError {
   constructor(message, { code = 'WORKSPACE_RESOLUTION_FAILED', details = null } = {}) {
@@ -175,10 +172,4 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
   }
 }
 
-module.exports = {
-  resolveProjectRoot,
-  resolveProjectRootForRuntime,
-  requireExplicitWorkspaceRoot,
-  requireWorkspaceRoot,
-  WorkspaceResolutionError,
-};
+export { resolveProjectRoot, resolveProjectRootForRuntime, requireExplicitWorkspaceRoot, requireWorkspaceRoot, WorkspaceResolutionError };

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { runAsMain } = require('./lib/cli');
-
-const CHANGELOG_PATH = path.resolve(__dirname, '..', 'CHANGELOG.md');
+import fs from 'node:fs';
+import path from 'node:path';
+import { runAsMain } from './lib/cli.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const CHANGELOG_PATH = path.resolve(moduleDirname, '..', 'CHANGELOG.md');
 
 function extractChangelogSection(changelogPath, version) {
   const header = `## [${version}]`;
@@ -29,7 +29,7 @@ function extractChangelogSection(changelogPath, version) {
   return sectionLines.join('\n');
 }
 
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const version = process.argv[2];
 
   if (!version) {
@@ -37,9 +37,9 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  runAsMain(module, 'changelog section', () => {
+  runAsMain(import.meta.url, 'changelog section', () => {
     process.stdout.write(`${extractChangelogSection(CHANGELOG_PATH, version)}\n`);
   });
 }
 
-module.exports = { extractChangelogSection };
+export { extractChangelogSection };

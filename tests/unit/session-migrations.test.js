@@ -1,12 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  SCHEMA_VERSION,
-  migrateSessionState,
-} = require('../../src/mcp/handlers/session-migrations');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { SCHEMA_VERSION, migrateSessionState } from '../../src/mcp/handlers/session-migrations.js';
 
 function legacyDocument() {
   return {

@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Convert a kebab-case name to snake_case.
  * @param {string} name - Name in kebab-case (e.g. 'api-designer')
@@ -75,10 +73,4 @@ function replaceInContent(content, names, targetCase) {
   return result;
 }
 
-module.exports = {
-  toSnakeCase,
-  toKebabCase,
-  toPascalCase,
-  toTitleCase,
-  replaceInContent,
-};
+export { toSnakeCase, toKebabCase, toPascalCase, toTitleCase, replaceInContent };

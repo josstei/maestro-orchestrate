@@ -1,9 +1,6 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { ValidationError } = require('../errors');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import { ValidationError } from '../errors/index.js';
 const SESSION_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 /**
@@ -114,11 +111,4 @@ function coercePositiveInteger(value) {
   return Number.isFinite(num) && Number.isInteger(num) && num > 0 ? num : value;
 }
 
-module.exports = {
-  assertNonEmptyArray,
-  assertSessionId,
-  assertAllowlisted,
-  assertRelativePath,
-  assertContainedIn,
-  coercePositiveInteger,
-};
+export { assertNonEmptyArray, assertSessionId, assertAllowlisted, assertRelativePath, assertContainedIn, coercePositiveInteger };

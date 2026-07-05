@@ -1,6 +1,4 @@
-'use strict';
-
-const { splitAtBoundary } = require('../lib/frontmatter');
+import { splitAtBoundary } from '../lib/frontmatter/index.js';
 
 function skillMetadata(content, runtime) {
   if (runtime.name !== 'claude') return content;
@@ -11,4 +9,4 @@ function skillMetadata(content, runtime) {
   return '---\n' + raw + '\nuser-invocable: false\n---' + (body ? '\n' + body : '');
 }
 
-module.exports = skillMetadata;
+export default skillMetadata;

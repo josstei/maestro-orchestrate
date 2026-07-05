@@ -1,13 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { StateError, ValidationError } = require('../../src/lib/errors');
-const {
-  assertActiveSessionMatches,
-  extractFileManifest,
-} = require('../../src/mcp/handlers/session-state-core');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { StateError, ValidationError } from '../../src/lib/errors/index.js';
+import { assertActiveSessionMatches, extractFileManifest } from '../../src/mcp/handlers/session-state-core.js';
 
 describe('assertActiveSessionMatches', () => {
   it('does not throw when the session_id matches', () => {

@@ -1,12 +1,10 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
+import {
   DENIED_ARTIFACT_PATHS,
   RELEASE_ARTIFACT_PATHS,
   RUNTIME_SOURCE_PATHS,
@@ -15,9 +13,13 @@ const {
   assertRuntimeManifestShape,
   isDeniedPath,
   isReleaseArtifactPathAllowed,
-} = require('../../scripts/release-artifact-manifest');
+} from '../../scripts/release-artifact-manifest.js';
 
-const ROOT = path.resolve(__dirname, '../..');
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '../..');
+
 const BUILD_ONLY_SOURCE_PATHS = [
   'src/generator/file-writer.js',
   'src/transforms/index.js',
@@ -30,6 +32,7 @@ const BUILD_ONLY_SOURCE_PATHS = [
   'src/platforms/claude/metadata.js',
   'src/platforms/runtime-payload-contract.js',
 ];
+
 const removedRuntimePath = (...parts) => parts.join('/');
 
 describe('release artifact manifest', () => {

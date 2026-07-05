@@ -1,18 +1,16 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'path';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('path');
-
-const {
+import {
   assertNonEmptyArray,
   assertSessionId,
   assertAllowlisted,
   assertRelativePath,
   assertContainedIn,
-} = require('../../src/lib/validation');
+} from '../../src/lib/validation/index.js';
 
-const { ValidationError } = require('../../src/lib/errors');
+import { ValidationError } from '../../src/lib/errors/index.js';
 
 function assertThrowsValidation(fn, messagePattern) {
   assert.throws(fn, (err) => {

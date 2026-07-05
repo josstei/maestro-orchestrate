@@ -1,14 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  PHASE_ID_SCHEMA,
-  PHASE_ITEM_SCHEMA,
-  PHASE_REQUIRED_FIELDS,
-  validatePhases,
-} = require('../../src/mcp/contracts/plan-schema');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { PHASE_ID_SCHEMA, PHASE_ITEM_SCHEMA, PHASE_REQUIRED_FIELDS, validatePhases } from '../../src/mcp/contracts/plan-schema.js';
 
 describe('plan-schema', () => {
   it('exposes the required field list in declaration order', () => {

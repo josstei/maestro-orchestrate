@@ -1,8 +1,7 @@
-'use strict';
-const { describe, it } = require('node:test');
-const assert = require('node:assert');
-const { resolveDocumentInput } = require('../../src/mcp/handlers/document-input');
-const { ValidationError } = require('../../src/lib/errors');
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { resolveDocumentInput } from '../../src/mcp/handlers/document-input.js';
+import { ValidationError } from '../../src/lib/errors/index.js';
 
 const opts = (over = {}) => ({
   pathKey: 'doc_path', contentKey: 'doc_content', filenameKey: 'doc_filename',

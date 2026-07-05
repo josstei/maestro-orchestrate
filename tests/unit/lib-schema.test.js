@@ -1,9 +1,7 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   string,
   integer,
   boolean,
@@ -15,7 +13,7 @@ const {
   validate,
   assertValid,
   coerceScalar,
-} = require('../../src/lib/schema');
+} from '../../src/lib/schema/index.js';
 
 describe('validate — scalars', () => {
   it('accepts a valid string', () => {

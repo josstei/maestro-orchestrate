@@ -1,10 +1,4 @@
-'use strict';
-
-const {
-  MemoryStore,
-  PROFILE_ARRAY_FIELDS,
-  mergeValidationCommands,
-} = require('../memory/memory-store');
+import { MemoryStore, PROFILE_ARRAY_FIELDS, mergeValidationCommands } from '../memory/memory-store.js';
 
 /**
  * Read the durable per-repo memory profile.
@@ -60,8 +54,4 @@ function handleRecordValidationCommands(params, projectRoot) {
   return { profile: store.writeProfile(merged) };
 }
 
-module.exports = {
-  handleGetProjectProfile,
-  handleUpdateProjectProfile,
-  handleRecordValidationCommands,
-};
+export { handleGetProjectProfile, handleUpdateProjectProfile, handleRecordValidationCommands };

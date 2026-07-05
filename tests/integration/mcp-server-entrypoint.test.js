@@ -1,8 +1,7 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
-
-const { ROOT, withPackagedClaudeRuntime } = require('./helpers');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { ROOT, withPackagedClaudeRuntime } from './helpers.js';
 
 function waitForServerStartup(relativePath, cwd = ROOT) {
   return new Promise((resolve, reject) => {

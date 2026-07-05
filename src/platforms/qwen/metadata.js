@@ -1,9 +1,4 @@
-'use strict';
-
-const {
-  buildExtensionManifest,
-  renderJson,
-} = require('../metadata-shared');
+import { buildExtensionManifest, renderJson } from '../metadata-shared.js';
 
 function buildQwenExtensionManifest(context) {
   return buildExtensionManifest(context, {
@@ -21,7 +16,4 @@ function buildMetadataOutputs(context) {
   ];
 }
 
-module.exports = {
-  buildMetadataOutputs,
-  buildQwenExtensionManifest,
-};
+export { buildMetadataOutputs, buildQwenExtensionManifest };

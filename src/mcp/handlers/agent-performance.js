@@ -1,8 +1,6 @@
-'use strict';
-
-const { MemoryStore } = require('../memory/memory-store');
-const { normalizeTokenUsage } = require('../contracts/agent-cost-ledger');
-const { aggregateRatings } = require('./ratings');
+import { MemoryStore } from '../memory/memory-store.js';
+import { normalizeTokenUsage } from '../contracts/agent-cost-ledger.js';
+import { aggregateRatings } from './ratings.js';
 
 /**
  * Resolve the primary agent name for a phase, defaulting to `unassigned` so a
@@ -125,7 +123,4 @@ function handleGetAgentPerformance(params, projectRoot) {
   };
 }
 
-module.exports = {
-  recordAgentPerformance,
-  handleGetAgentPerformance,
-};
+export { recordAgentPerformance, handleGetAgentPerformance };

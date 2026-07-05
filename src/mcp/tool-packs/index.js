@@ -1,10 +1,8 @@
-'use strict';
-
-const { createToolPack: createWorkspaceToolPack } = require('./workspace');
-const { createToolPack: createSessionToolPack } = require('./session');
-const { createToolPack: createContentToolPack } = require('./content');
-const { createToolPack: createMemoryToolPack } = require('./memory');
-const { createToolPack: createHistoryToolPack } = require('./history');
+import { createToolPack as createWorkspaceToolPack } from './workspace/index.js';
+import { createToolPack as createSessionToolPack } from './session/index.js';
+import { createToolPack as createContentToolPack } from './content/index.js';
+import { createToolPack as createMemoryToolPack } from './memory/index.js';
+import { createToolPack as createHistoryToolPack } from './history/index.js';
 
 const DEFAULT_TOOL_PACKS = Object.freeze([
   createWorkspaceToolPack,
@@ -14,6 +12,4 @@ const DEFAULT_TOOL_PACKS = Object.freeze([
   createHistoryToolPack,
 ]);
 
-module.exports = {
-  DEFAULT_TOOL_PACKS,
-};
+export { DEFAULT_TOOL_PACKS };

@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Current session-state schema version. Bumped by whichever unit introduces a
  * new persisted field so migrations can bring older documents forward.
@@ -85,4 +83,4 @@ function migrateSessionState(data) {
   return data;
 }
 
-module.exports = { SCHEMA_VERSION, migrateSessionState };
+export { SCHEMA_VERSION, migrateSessionState };

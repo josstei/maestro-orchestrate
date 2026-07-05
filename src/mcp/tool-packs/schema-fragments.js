@@ -1,5 +1,3 @@
-'use strict';
-
 const SCHEMA = Object.freeze({
   SESSION_ID: Object.freeze({ type: 'string' }),
   PHASE_ID: Object.freeze({ type: ['integer', 'string'] }),
@@ -14,4 +12,4 @@ const SCHEMA = Object.freeze({
   ARCHIVE_OUTCOME_ENUM: Object.freeze(['completed', 'failed']),
 });
 
-module.exports = { SCHEMA };
+export { SCHEMA };

@@ -1,9 +1,6 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-const { atomicWriteSync } = require('../lib/io');
-
+import fs from 'fs';
+import path from 'path';
+import { atomicWriteSync } from '../lib/io/index.js';
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
 function validateRelativePath(filePath) {
@@ -109,13 +106,4 @@ function ensureWorkspace(stateDir, basePath) {
   }
 }
 
-module.exports = {
-  DEFAULT_STATE_DIR,
-  validateContainment,
-  resolveStateDirPath,
-  resolveActiveSessionPath,
-  hasActiveSession,
-  readState,
-  writeState,
-  ensureWorkspace,
-};
+export { DEFAULT_STATE_DIR, validateContainment, resolveStateDirPath, resolveActiveSessionPath, hasActiveSession, readState, writeState, ensureWorkspace };

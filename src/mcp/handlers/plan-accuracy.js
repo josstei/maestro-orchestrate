@@ -1,6 +1,4 @@
-'use strict';
-
-const { MemoryStore } = require('../memory/memory-store');
+import { MemoryStore } from '../memory/memory-store.js';
 
 /**
  * @param {unknown} value
@@ -123,7 +121,4 @@ function handleGetPlanAccuracy(_params, projectRoot) {
   };
 }
 
-module.exports = {
-  recordPlanAccuracy,
-  handleGetPlanAccuracy,
-};
+export { recordPlanAccuracy, handleGetPlanAccuracy };

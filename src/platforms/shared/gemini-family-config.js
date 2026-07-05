@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Shared runtime-config base for the Gemini-family runtimes (Gemini CLI, Qwen Code).
  * Per-runtime files override name, outputDir, env, and tool-dialect entries.
@@ -61,4 +59,4 @@ function buildGeminiFamilyConfig(overrides) {
   };
 }
 
-module.exports = { GEMINI_FAMILY_BASE, buildGeminiFamilyConfig };
+export { GEMINI_FAMILY_BASE, buildGeminiFamilyConfig };

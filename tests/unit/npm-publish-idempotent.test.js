@@ -1,18 +1,20 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
+import {
   highestStableVersion,
   isNpmNotFoundError,
   parseArgs,
   parseDistTagOutput,
   publishIfNeeded,
-} = require('../../scripts/npm-publish-idempotent');
+} from '../../scripts/npm-publish-idempotent.js';
+
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
 function createPackageRoot(version = '1.2.3') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-publish-'));
@@ -316,7 +318,7 @@ describe('idempotent npm publish', () => {
 
   it('does not remove latest through npm dist-tag policy', () => {
     const source = fs.readFileSync(
-      path.resolve(__dirname, '..', '..', 'scripts', 'npm-publish-idempotent.js'),
+      path.resolve(moduleDirname, '..', '..', 'scripts', 'npm-publish-idempotent.js'),
       'utf8'
     );
 

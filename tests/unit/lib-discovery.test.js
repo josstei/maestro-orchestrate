@@ -1,28 +1,15 @@
-'use strict';
-
-const { describe, it, beforeEach, afterEach, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const {
-  discover,
-  generateRegistry,
-  patternToRegex,
-  parsePattern,
-  collectFiles,
-} = require('../../src/lib/discovery');
-
-const { parse } = require('../../src/lib/frontmatter');
-const {
-  makeTempSrcRoot,
-  cleanupTempRoots,
-  writeFileUnder,
-} = require('../support/content');
-
-const WORKTREE_ROOT = path.resolve(__dirname, '..', '..');
+import { describe, it, beforeEach, afterEach, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { discover, generateRegistry, patternToRegex, parsePattern, collectFiles } from '../../src/lib/discovery/index.js';
+import { parse } from '../../src/lib/frontmatter/index.js';
+import { makeTempSrcRoot, cleanupTempRoots, writeFileUnder } from '../support/content.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const WORKTREE_ROOT = path.resolve(moduleDirname, '..', '..');
 const SRC_DIR = path.join(WORKTREE_ROOT, 'src');
-
 after(cleanupTempRoots);
 
 function createTempRoot() {
@@ -439,16 +426,14 @@ describe('generateRegistry', () => {
 
 describe('module exports', () => {
   it('exports discover and generateRegistry as functions', () => {
-    const mod = require('../../src/lib/discovery');
-    assert.equal(typeof mod.discover, 'function');
-    assert.equal(typeof mod.generateRegistry, 'function');
+    assert.equal(typeof discover, 'function');
+    assert.equal(typeof generateRegistry, 'function');
   });
 
   it('exports internal helpers for testing', () => {
-    const mod = require('../../src/lib/discovery');
-    assert.equal(typeof mod.patternToRegex, 'function');
-    assert.equal(typeof mod.parsePattern, 'function');
-    assert.equal(typeof mod.collectFiles, 'function');
+    assert.equal(typeof patternToRegex, 'function');
+    assert.equal(typeof parsePattern, 'function');
+    assert.equal(typeof collectFiles, 'function');
   });
 });
 

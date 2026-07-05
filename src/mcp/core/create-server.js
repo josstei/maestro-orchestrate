@@ -1,13 +1,13 @@
-'use strict';
+import { createToolRegistry } from './tool-registry.js';
 
-const { createToolRegistry } = require('./tool-registry');
-const {
+import {
   createToolSuccess,
   createUnknownToolFailure,
   normalizeToolError,
   sanitizeErrorMessage,
-} = require('./tool-outcome');
-const { requireWorkspaceRoot } = require('../../core/project-root-resolver');
+} from './tool-outcome.js';
+
+import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
 
 function createServer(options = {}) {
   const { runtimeConfig = {}, services = {} } = options;
@@ -70,7 +70,4 @@ function createServer(options = {}) {
   };
 }
 
-module.exports = {
-  createServer,
-  sanitizeErrorMessage,
-};
+export { createServer, sanitizeErrorMessage };

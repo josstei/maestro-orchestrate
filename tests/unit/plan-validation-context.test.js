@@ -1,10 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { PlanValidationContext } = require('../../src/mcp/validation/plan-validation-context');
-const { computeDepths } = require('../../src/mcp/validation/dag-checker');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { PlanValidationContext } from '../../src/mcp/validation/plan-validation-context.js';
+import { computeDepths } from '../../src/mcp/validation/dag-checker.js';
 
 function phase(id, blocked_by = []) {
   return { id, name: `Phase ${id}`, agent: 'architect', parallel: false, blocked_by };

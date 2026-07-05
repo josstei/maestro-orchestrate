@@ -1,8 +1,6 @@
-'use strict';
-
-const { PlanValidationContext } = require('./plan-validation-context');
-const { PLAN_VALIDATION_STAGES } = require('./rule-registry');
-const { buildParallelizationProfile } = require('./dag-checker');
+import { PlanValidationContext } from './plan-validation-context.js';
+import { PLAN_VALIDATION_STAGES } from './rule-registry.js';
+import { buildParallelizationProfile } from './dag-checker.js';
 
 /**
  * Execute a staged plan-validation registry against a plan and return the
@@ -52,4 +50,4 @@ function runPlanValidation(plan, taskComplexity, stages = PLAN_VALIDATION_STAGES
   };
 }
 
-module.exports = { runPlanValidation };
+export { runPlanValidation };

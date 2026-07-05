@@ -1,7 +1,5 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 function hasCanonicalSrcRoot(candidateRoot) {
   return fs.existsSync(path.join(candidateRoot, 'src', 'mcp', 'maestro-server.js'));
@@ -28,7 +26,4 @@ function resolveCanonicalSrcRoot(startDir = process.cwd()) {
   return path.join(resolveCanonicalProjectRoot(startDir), 'src');
 }
 
-module.exports = {
-  resolveCanonicalProjectRoot,
-  resolveCanonicalSrcRoot,
-};
+export { resolveCanonicalProjectRoot, resolveCanonicalSrcRoot };

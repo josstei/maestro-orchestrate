@@ -1,5 +1,3 @@
-'use strict';
-
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
 /**
@@ -33,4 +31,4 @@ function parse(content) {
   };
 }
 
-module.exports = { serialize, parse };
+export { serialize, parse };

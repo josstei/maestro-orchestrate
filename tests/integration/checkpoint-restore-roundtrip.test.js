@@ -1,16 +1,14 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createToolPack as createHistoryPack } from '../../src/mcp/tool-packs/history/index.js';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { createToolPack: createHistoryPack } = require('../../src/mcp/tool-packs/history');
-const {
+import {
   createInitializedMcpWorkspace,
   createSessionPack,
   createWorkspacePack,
   phaseFixture,
   readSessionFrontmatter,
-} = require('../support/mcp');
+} from '../support/mcp.js';
 
 const SESSION_ID = 'checkpoint-roundtrip';
 

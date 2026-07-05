@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Unified frontmatter parsing module.
  *
@@ -251,12 +249,4 @@ function escapeYaml(value) {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-module.exports = {
-  parse,
-  parseFrontmatterOnly,
-  extractValue,
-  escapeYaml,
-  splitAtBoundary,
-  parseValue,
-  parseDoubleQuotedValue,
-};
+export { parse, parseFrontmatterOnly, extractValue, escapeYaml, splitAtBoundary, parseValue, parseDoubleQuotedValue };

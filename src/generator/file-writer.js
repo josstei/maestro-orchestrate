@@ -1,8 +1,6 @@
-'use strict';
-
-const path = require('node:path');
-const fs = require('node:fs');
-const { execFileSync } = require('node:child_process');
+import path from 'node:path';
+import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 /**
  * @param {string} relativePath
@@ -165,4 +163,4 @@ function createFileWriter(opts) {
   return { write, clean, getStats };
 }
 
-module.exports = { createFileWriter, safeResolve };
+export { createFileWriter, safeResolve };

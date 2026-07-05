@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { coercePositiveInteger } = require('../../src/lib/validation');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { coercePositiveInteger } from '../../src/lib/validation/index.js';
 
 describe('coercePositiveInteger', () => {
   it('passes through null', () => {

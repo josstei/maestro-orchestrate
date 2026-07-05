@@ -1,6 +1,6 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { DRY_RUN_MARKER, parseDryRunReport, runGenerator } = require('./helpers');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { DRY_RUN_MARKER, parseDryRunReport, runGenerator } from './helpers.js';
 
 describe('zero-diff validation', () => {
   it('generator output matches committed files exactly', () => {

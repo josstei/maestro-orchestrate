@@ -1,11 +1,13 @@
-'use strict';
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const path = require('node:path');
-const { TRACKED_OUTPUT_EXEMPTIONS } = require('../../src/generator/generated-surface-inventory');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { TRACKED_OUTPUT_EXEMPTIONS } from '../../src/generator/generated-surface-inventory.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '../..');
 
-const ROOT = path.resolve(__dirname, '../..');
 const outputs = execFileSync('node', ['scripts/generate.js', '--list-outputs'], { cwd: ROOT, encoding: 'utf8' })
   .trim().split('\n');
 
@@ -30,6 +32,7 @@ function checkIgnored(paths) {
 }
 
 const ignored = checkIgnored(outputs);
+
 const tracked = new Set(
   execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
 );

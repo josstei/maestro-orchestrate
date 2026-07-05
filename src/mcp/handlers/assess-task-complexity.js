@@ -1,10 +1,7 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-
-const { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } = require('../../lib/framework-detection');
-const { handleGetAgentPerformance } = require('./agent-performance');
+import fs from 'fs';
+import path from 'path';
+import { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } from '../../lib/framework-detection.js';
+import { handleGetAgentPerformance } from './agent-performance.js';
 
 function countFiles(directory, depth, depthLimit) {
   if (depth > depthLimit) {
@@ -108,6 +105,4 @@ function handleAssessTaskComplexity(_params, projectRoot) {
   };
 }
 
-module.exports = {
-  handleAssessTaskComplexity,
-};
+export { handleAssessTaskComplexity };

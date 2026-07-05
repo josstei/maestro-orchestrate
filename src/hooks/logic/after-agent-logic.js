@@ -1,7 +1,5 @@
-'use strict';
-
-const { log } = require('../../core/logger');
-const hookState = require('./hook-state');
+import { log } from '../../core/logger.js';
+import hookState from './hook-state.js';
 
 /**
  * Parse categorized known-good validation commands from an agent handoff.
@@ -100,4 +98,4 @@ function handleAfterAgent(ctx) {
   };
 }
 
-module.exports = { handleAfterAgent, extractValidationCommands };
+export { handleAfterAgent, extractValidationCommands };

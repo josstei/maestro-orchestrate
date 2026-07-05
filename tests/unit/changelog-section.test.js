@@ -1,12 +1,9 @@
-'use strict';
-
-const { afterEach, describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { extractChangelogSection } = require('../../scripts/changelog-section');
+import { afterEach, describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { extractChangelogSection } from '../../scripts/changelog-section.js';
 
 function writeChangelog(content) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-changelog-section-'));

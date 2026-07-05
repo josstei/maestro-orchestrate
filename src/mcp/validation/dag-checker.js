@@ -1,6 +1,4 @@
-'use strict';
-
-const { StateError } = require('../../lib/errors');
+import { StateError } from '../../lib/errors/index.js';
 
 /**
  * Compute the topological depth (longest incoming dependency chain) for
@@ -205,10 +203,4 @@ function buildParallelizationProfile(phases, phaseById) {
   };
 }
 
-module.exports = {
-  computeDepths,
-  getTransitiveDependencies,
-  checkCycles,
-  checkRedundantDependencies,
-  buildParallelizationProfile,
-};
+export { computeDepths, getTransitiveDependencies, checkCycles, checkRedundantDependencies, buildParallelizationProfile };

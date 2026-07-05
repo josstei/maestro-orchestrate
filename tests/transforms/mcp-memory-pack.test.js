@@ -1,8 +1,7 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { buildMcpServer } = require('../support/mcp');
-const { createToolPack: createMemoryPack } = require('../../src/mcp/tool-packs/memory');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { buildMcpServer } from '../support/mcp.js';
+import { createToolPack as createMemoryPack } from '../../src/mcp/tool-packs/memory/index.js';
 
 describe('memory tool pack', () => {
   it('registers the memory profile tools through the kernel', () => {

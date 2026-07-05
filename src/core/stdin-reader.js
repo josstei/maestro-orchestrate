@@ -1,7 +1,4 @@
-'use strict';
-
-const { log } = require('./logger');
-
+import { log } from './logger.js';
 const MAX_STDIN_BYTES = 1024 * 1024;
 
 function readText() {
@@ -74,4 +71,4 @@ function readBoundedJson() {
   });
 }
 
-module.exports = { readText, readJson, readBoundedJson };
+export { readText, readJson, readBoundedJson };

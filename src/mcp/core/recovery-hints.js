@@ -1,5 +1,3 @@
-'use strict';
-
 const RECOVERY_TABLE = [
   {
     tool: 'create_session',
@@ -38,6 +36,4 @@ function getRecoveryHint(toolName, errorMessage) {
   return row ? row.hint : null;
 }
 
-module.exports = {
-  getRecoveryHint,
-};
+export { getRecoveryHint };

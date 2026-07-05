@@ -1,8 +1,6 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { renderRosterTable } = require('../core/roster-renderer');
+import fs from 'node:fs';
+import path from 'node:path';
+import { renderRosterTable } from '../core/roster-renderer.js';
 
 const TOOL_MAPPING_DISPLAY_ORDER = Object.freeze([
   'read_file',
@@ -138,4 +136,4 @@ function buildContentFileOutputs(runtimes, srcDir, packageMetadata) {
   return outputs;
 }
 
-module.exports = { buildContentFileOutputs, renderContextFile, renderClaudeReadme, renderRuntimeDoc };
+export { buildContentFileOutputs, renderContextFile, renderClaudeReadme, renderRuntimeDoc };

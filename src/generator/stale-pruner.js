@@ -1,7 +1,5 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Recursively collect all file paths under a directory.
@@ -110,4 +108,4 @@ function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
   return { pruned, emptyDirsRemoved };
 }
 
-module.exports = { pruneStaleFiles };
+export { pruneStaleFiles };

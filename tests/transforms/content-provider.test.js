@@ -1,17 +1,18 @@
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createContentProvider } from '../../src/mcp/content/provider.js';
+import * as contentProviderModule from '../../src/mcp/content/provider.js';
+import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
 
-const { createContentProvider } = require('../../src/mcp/content/provider');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const {
+import {
   makeTempSrcRoot,
   cleanupTempRoots,
-  writeAgent: writeFilesystemAgentAt,
-  writeResource: writeFilesystemResourceAt,
+  writeAgent as writeFilesystemAgentAt,
+  writeResource as writeFilesystemResourceAt,
   withExtensionRoot,
-} = require('../support/content');
+} from '../support/content.js';
 
 after(cleanupTempRoots);
 
@@ -72,9 +73,8 @@ describe('content provider runtime policy', () => {
   });
 
   it('provider module no longer exports content-policy plumbing', () => {
-    const mod = require('../../src/mcp/content/provider');
-    assert.equal(mod.normalizeContentPolicy, undefined);
-    assert.equal(mod.createContentSourceSpecs, undefined);
+    assert.equal(contentProviderModule.normalizeContentPolicy, undefined);
+    assert.equal(contentProviderModule.createContentSourceSpecs, undefined);
   });
 
   it('does not fall back when Claude package-root content is unreadable', () => {

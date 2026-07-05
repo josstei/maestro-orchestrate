@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-'use strict';
-
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-const { readJson, runAsMain } = require('./lib/cli');
-const { isStable } = require('./lib/semver');
-
-const ROOT = path.resolve(__dirname, '..');
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { readJson, runAsMain } from './lib/cli.js';
+import { isStable } from './lib/semver.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '..');
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
 
 function printHelp() {
@@ -305,7 +305,7 @@ function publishIfNeeded(options = {}) {
   };
 }
 
-runAsMain(module, 'npm publish', () => {
+runAsMain(import.meta.url, 'npm publish', () => {
   const options = parseArgs(process.argv.slice(2));
   const result = publishIfNeeded(options);
 
@@ -316,19 +316,4 @@ runAsMain(module, 'npm publish', () => {
   }
 });
 
-module.exports = {
-  ensureLatestTagPolicy,
-  getDistTags,
-  getPublishedVersions,
-  highestStableVersion,
-  isNpmNotFoundError,
-  isPrereleaseVersion,
-  isStableVersion,
-  packageVersionExists,
-  parseDistTagOutput,
-  parseArgs,
-  parseVersionsOutput,
-  publishIfNeeded,
-  readPackage,
-  validatePublishTag,
-};
+export { ensureLatestTagPolicy, getDistTags, getPublishedVersions, highestStableVersion, isNpmNotFoundError, isPrereleaseVersion, isStableVersion, packageVersionExists, parseDistTagOutput, parseArgs, parseVersionsOutput, publishIfNeeded, readPackage, validatePublishTag };

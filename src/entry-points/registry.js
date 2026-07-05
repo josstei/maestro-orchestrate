@@ -1,20 +1,6 @@
-'use strict';
+import { defineAudit } from './archetypes/audit-archetype.js';
 
-/**
- * Entry-point registry -- canonical workflow content for all 10 Maestro
- * entry points.  Each entry captures the shared intent, workflow steps,
- * and constraints extracted from the union of the Claude, Codex, and
- * Gemini runtime definitions.
- *
- * Content lives here once; format-specific rendering (TOML commands,
- * SKILL.md files) is handled by templates + the generator.  The six standalone
- * audit entry points are built from the shared `defineAudit` archetype so a new
- * audit is a data diff, not a hand-copied object.
- */
-
-const { defineAudit } = require('./archetypes/audit-archetype');
-
-module.exports = [
+export default [
   defineAudit({
     name: 'review',
     runtimeNames: { codex: 'review-code', claude: 'review-code' },

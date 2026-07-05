@@ -1,16 +1,9 @@
-'use strict';
-
-const { describe, it, beforeEach, afterEach } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
-  MemoryStore,
-  emptyProfile,
-  PROFILE_SCHEMA_VERSION,
-} = require('../../src/mcp/memory/memory-store');
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { MemoryStore, emptyProfile, PROFILE_SCHEMA_VERSION } from '../../src/mcp/memory/memory-store.js';
 
 describe('MemoryStore', () => {
   let tmpRoot;

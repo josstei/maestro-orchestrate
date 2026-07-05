@@ -1,10 +1,5 @@
-'use strict';
-
-const {
-  ARCHITECTURE_MEMORY_CATEGORIES,
-  MemoryStore,
-} = require('../memory/memory-store');
-const { normalizeDownstreamContext } = require('../contracts/downstream-context');
+import { ARCHITECTURE_MEMORY_CATEGORIES, MemoryStore } from '../memory/memory-store.js';
+import { normalizeDownstreamContext } from '../contracts/downstream-context.js';
 
 const DOWNSTREAM_CATEGORY_MAP = Object.freeze({
   key_interfaces_introduced: 'interfaces',
@@ -102,7 +97,4 @@ function handleQueryArchitectureMemory(params, projectRoot) {
   return response;
 }
 
-module.exports = {
-  recordArchitectureMemory,
-  handleQueryArchitectureMemory,
-};
+export { recordArchitectureMemory, handleQueryArchitectureMemory };

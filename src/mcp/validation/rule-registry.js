@@ -1,15 +1,14 @@
-'use strict';
-
-const {
+import {
   checkPlanShape,
   checkPhaseCount,
   checkDuplicateIds,
   checkDanglingDependencies,
   checkPhaseFieldSchema,
-} = require('./schema-checker');
-const { checkUnknownAgents, checkAgentCapabilities } = require('./agent-checker');
-const { checkCycles, checkRedundantDependencies } = require('./dag-checker');
-const { checkFileOverlap } = require('./file-overlap-checker');
+} from './schema-checker.js';
+
+import { checkUnknownAgents, checkAgentCapabilities } from './agent-checker.js';
+import { checkCycles, checkRedundantDependencies } from './dag-checker.js';
+import { checkFileOverlap } from './file-overlap-checker.js';
 
 /**
  * @typedef {import('./plan-validation-context').PlanValidationContext} PlanValidationContext
@@ -82,4 +81,4 @@ const PLAN_VALIDATION_STAGES = Object.freeze([
   }),
 ]);
 
-module.exports = { PLAN_VALIDATION_STAGES, cycleFreeGuard };
+export { PLAN_VALIDATION_STAGES, cycleFreeGuard };

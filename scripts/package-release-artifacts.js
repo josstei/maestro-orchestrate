@@ -1,21 +1,23 @@
 #!/usr/bin/env node
-'use strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-const {
+import {
   RELEASE_ARTIFACT_PATHS,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
   readJson,
   toPosixPath,
-} = require('./release-artifact-manifest');
-const { runAsMain } = require('./lib/cli');
+} from './release-artifact-manifest.js';
 
-const ROOT = path.resolve(__dirname, '..');
+import { runAsMain } from './lib/cli.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '..');
 
 function printHelp() {
   console.log(`Package Maestro release artifacts.
@@ -140,13 +142,9 @@ function packageReleaseArtifacts(options = {}) {
   }
 }
 
-runAsMain(module, 'release artifact packaging', () => {
+runAsMain(import.meta.url, 'release artifact packaging', () => {
   const result = packageReleaseArtifacts(parseArgs(process.argv.slice(2)));
   console.log(`Created release artifact: ${path.relative(ROOT, result.archivePath)}`);
 });
 
-module.exports = {
-  packageReleaseArtifacts,
-  parseArgs,
-  resolveVersion,
-};
+export { packageReleaseArtifacts, parseArgs, resolveVersion };

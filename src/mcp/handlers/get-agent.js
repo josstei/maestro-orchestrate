@@ -1,10 +1,8 @@
-'use strict';
-
-const { DEFAULT_RUNTIME_CONFIG } = require('./get-skill-content');
-const { AGENT_ALLOWLIST } = require('../content/runtime-content');
-const { createContentProvider } = require('../content/provider');
-const { ValidationError } = require('../../lib/errors');
-const { toSnakeCase, toKebabCase } = require('../../lib/naming');
+import { DEFAULT_RUNTIME_CONFIG } from './get-skill-content.js';
+import { AGENT_ALLOWLIST } from '../content/runtime-content.js';
+import { createContentProvider } from '../content/provider.js';
+import { ValidationError } from '../../lib/errors/index.js';
+import { toSnakeCase, toKebabCase } from '../../lib/naming/index.js';
 
 function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot) {
   return function handleGetAgent(params) {
@@ -46,9 +44,4 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
 }
 
 const handleGetAgent = createHandler();
-
-module.exports = {
-  AGENT_ALLOWLIST,
-  createHandler,
-  handleGetAgent,
-};
+export { AGENT_ALLOWLIST, createHandler, handleGetAgent };

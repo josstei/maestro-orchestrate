@@ -1,8 +1,6 @@
-'use strict';
-
-const { KNOWN_AGENTS, AGENT_CAPABILITIES } = require('../../core/agent-registry');
-const { normalizeRuntimeConfig } = require('../runtime/runtime-config-map');
-const { toKebabCase } = require('../../lib/naming');
+import { KNOWN_AGENTS, AGENT_CAPABILITIES } from '../../core/agent-registry.js';
+import { normalizeRuntimeConfig } from '../runtime/runtime-config-map.js';
+import { toKebabCase } from '../../lib/naming/index.js';
 
 const MCP_PREFIXES = {
   gemini: 'mcp_maestro_',
@@ -41,4 +39,4 @@ function createHandler(runtimeConfig, getWorkspaceSuggestion = () => null) {
   };
 }
 
-module.exports = { createHandler };
+export { createHandler };

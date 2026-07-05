@@ -1,6 +1,4 @@
-'use strict';
-
-const { validatePhases } = require('../contracts/plan-schema');
+import { validatePhases } from '../contracts/plan-schema.js';
 
 const PHASE_LIMITS = {
   simple: 3,
@@ -99,10 +97,4 @@ function checkPhaseFieldSchema(phases) {
   }));
 }
 
-module.exports = {
-  checkPlanShape,
-  checkPhaseCount,
-  checkDuplicateIds,
-  checkDanglingDependencies,
-  checkPhaseFieldSchema,
-};
+export { checkPlanShape, checkPhaseCount, checkDuplicateIds, checkDanglingDependencies, checkPhaseFieldSchema };

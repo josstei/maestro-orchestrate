@@ -1,5 +1,5 @@
-const { extractValue, splitAtBoundary } = require('../lib/frontmatter');
-const { toKebabCase } = require('../lib/naming');
+import { extractValue, splitAtBoundary } from '../lib/frontmatter/index.js';
+import { toKebabCase } from '../lib/naming/index.js';
 
 function canonicalAgentName(name, runtime) {
   if (!name) return name;
@@ -26,4 +26,4 @@ function agentStub(content, runtime) {
   return replaceBodyWithStub(content, stubBody);
 }
 
-module.exports = agentStub;
+export default agentStub;

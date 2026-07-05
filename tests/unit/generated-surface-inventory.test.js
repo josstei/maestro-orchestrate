@@ -1,23 +1,22 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const {
+import {
   GENERATED_SURFACE_INVENTORY,
   LIVE_OWNED_GENERATED_DIRS,
   OWNED_GENERATED_DIRS,
   RETIRED_GENERATED_CLEANUP_DIRS,
   TRACKED_OUTPUT_EXEMPTIONS,
-} = require('../../src/generator/generated-surface-inventory');
-const {
-  OWNED_GENERATED_DIRS: GENERATE_OWNED_GENERATED_DIRS,
-} = require('../../scripts/generate');
-const { RUNTIME_PAYLOAD_CONTRACT } = require('../../src/platforms/runtime-payload-contract');
+} from '../../src/generator/generated-surface-inventory.js';
 
-const ROOT = path.resolve(__dirname, '../..');
+import { OWNED_GENERATED_DIRS as GENERATE_OWNED_GENERATED_DIRS } from '../../scripts/generate.js';
+import { RUNTIME_PAYLOAD_CONTRACT } from '../../src/platforms/runtime-payload-contract.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '../..');
 
 describe('generated surface inventory', () => {
   it('is the generator source for owned dirs', () => {

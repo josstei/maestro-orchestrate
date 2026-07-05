@@ -1,13 +1,11 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   buildHookConfigOutputs,
   buildClaudeHookConfig,
   buildPromotedClaudeHookConfig,
-} = require('../../src/generator/hook-config-emitter');
+} from '../../src/generator/hook-config-emitter.js';
 
 function commandsOf(config) {
   return Object.values(config.hooks).flatMap((entries) =>

@@ -1,6 +1,4 @@
-'use strict';
-
-const path = require('node:path');
+import path from 'node:path';
 
 const CACHE_PATH_SEGMENTS = [
   path.join('.codex', 'plugins'),
@@ -36,4 +34,4 @@ function isExtensionCachePath(candidate) {
   return CACHE_PATH_SEGMENTS.some((cacheSegment) => windows.includes(cacheSegment));
 }
 
-module.exports = { CACHE_PATH_SEGMENTS, isExtensionCachePath };
+export { CACHE_PATH_SEGMENTS, isExtensionCachePath };

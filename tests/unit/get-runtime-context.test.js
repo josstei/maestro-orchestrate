@@ -1,10 +1,8 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const codex = require('../../src/platforms/codex/runtime-config');
-const claude = require('../../src/platforms/claude/runtime-config');
-const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import codex from '../../src/platforms/codex/runtime-config.js';
+import claude from '../../src/platforms/claude/runtime-config.js';
+import { createHandler } from '../../src/mcp/handlers/get-runtime-context.js';
 
 describe('get_runtime_context response shape', () => {
   const legacyDispatchKey = ['agent', 'dispatch'].join('_');

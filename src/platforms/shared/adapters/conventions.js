@@ -1,5 +1,3 @@
-'use strict';
-
 /** @type {string} */
 const ADAPTER_SUFFIX = '-adapter.js';
 
@@ -26,4 +24,4 @@ function extractRuntime(filename) {
   return filename.slice(0, -ADAPTER_SUFFIX.length);
 }
 
-module.exports = { ADAPTER_SUFFIX, isAdapterFile, extractRuntime };
+export { ADAPTER_SUFFIX, isAdapterFile, extractRuntime };

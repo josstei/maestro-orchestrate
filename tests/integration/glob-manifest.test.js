@@ -1,8 +1,10 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-
-const { expandManifest } = require('../../scripts/generate');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { expandManifest } from '../../scripts/generate.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
 describe('expandManifest', () => {
   it('expands a glob entry into explicit entries per runtime', () => {
@@ -15,7 +17,7 @@ describe('expandManifest', () => {
       gemini: { name: 'gemini', outputDir: './', agentNaming: 'snake_case' },
       claude: { name: 'claude', outputDir: 'claude/', agentNaming: 'kebab-case' },
     };
-    const srcDir = path.resolve(__dirname, '../../src');
+    const srcDir = path.resolve(moduleDirname, '../../src');
     const entries = expandManifest([rule], runtimes, srcDir);
 
     assert.ok(entries.length >= 22, `Expected >= 22 entries, got ${entries.length}`);
@@ -37,7 +39,7 @@ describe('expandManifest', () => {
       claude: { name: 'claude', outputDir: 'claude/', agentNaming: 'kebab-case' },
       codex: { name: 'codex', outputDir: 'plugins/maestro/', agentNaming: 'kebab-case' },
     };
-    const srcDir = path.resolve(__dirname, '../../src');
+    const srcDir = path.resolve(moduleDirname, '../../src');
     const entries = expandManifest(rules, runtimes, srcDir);
 
     const coderEntries = entries.filter((e) => e.src === 'agents/coder.md');
@@ -59,7 +61,7 @@ describe('expandManifest', () => {
     const runtimes = {
       gemini: { name: 'gemini', outputDir: './', agentNaming: 'snake_case' },
     };
-    const srcDir = path.resolve(__dirname, '../../src');
+    const srcDir = path.resolve(moduleDirname, '../../src');
     const entries = expandManifest([rule], runtimes, srcDir);
 
     const crEntry = entries.find((e) => e.src === 'agents/code-reviewer.md');
@@ -118,7 +120,7 @@ describe('expandManifest', () => {
     const runtimes = {
       claude: { name: 'claude', outputDir: 'claude/' },
     };
-    const srcDir = path.resolve(__dirname, '../../src');
+    const srcDir = path.resolve(moduleDirname, '../../src');
 
     assert.throws(
       () => expandManifest([rule], runtimes, srcDir),

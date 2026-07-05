@@ -1,9 +1,9 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-
-const PLATFORMS_DIR = path.resolve(__dirname, '..', '..', 'platforms');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const PLATFORMS_DIR = path.resolve(moduleDirname, '..', '..', 'platforms');
 
 const RUNTIME_NAMES = fs.readdirSync(PLATFORMS_DIR, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && entry.name !== 'shared')
@@ -15,15 +15,14 @@ const RUNTIME_NAMES = fs.readdirSync(PLATFORMS_DIR, { withFileTypes: true })
 
 const configCache = Object.create(null);
 
-function loadRuntimeConfig(name) {
-  if (configCache[name]) {
-    return configCache[name];
-  }
-
+for (const name of RUNTIME_NAMES) {
   const configPath = path.join(PLATFORMS_DIR, name, 'runtime-config.js');
-  const config = require(configPath);
+  const { default: config } = await import(pathToFileURL(configPath).href);
   configCache[name] = config;
-  return config;
+}
+
+function loadRuntimeConfig(name) {
+  return configCache[name];
 }
 
 function getRuntimeConfig(name) {
@@ -83,8 +82,4 @@ function normalizeRuntimeConfig(runtimeConfig) {
   return getDefaultRuntimeConfig();
 }
 
-module.exports = {
-  getRuntimeConfig,
-  getDefaultRuntimeConfig,
-  normalizeRuntimeConfig,
-};
+export { getRuntimeConfig, getDefaultRuntimeConfig, normalizeRuntimeConfig };

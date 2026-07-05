@@ -1,12 +1,10 @@
-'use strict';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
+import {
   DEFAULT_STATE_DIR,
   validateContainment,
   resolveStateDirPath,
@@ -15,7 +13,7 @@ const {
   readState,
   writeState,
   ensureWorkspace,
-} = require('../../src/state/session-state');
+} from '../../src/state/session-state.js';
 
 function withEnv(overrides, fn) {
   const previous = {};

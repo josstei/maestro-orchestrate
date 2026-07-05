@@ -1,7 +1,4 @@
-'use strict';
-
-const { shape, recordOf, arrayOf, string, enumOf, assertValid } = require('../lib/schema');
-
+import { shape, recordOf, arrayOf, string, enumOf, assertValid } from '../lib/schema/index.js';
 const CAPABILITY_TIERS = ['read_only', 'read_shell', 'read_write', 'full'];
 
 const agentEntrySchema = shape({
@@ -37,8 +34,4 @@ function validateRegistry(fileName, data) {
   assertValid(schema, data, fileName);
 }
 
-module.exports = {
-  REGISTRY_SCHEMAS,
-  CAPABILITY_TIERS,
-  validateRegistry,
-};
+export { REGISTRY_SCHEMAS, CAPABILITY_TIERS, validateRegistry };

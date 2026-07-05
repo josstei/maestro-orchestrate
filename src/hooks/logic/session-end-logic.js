@@ -1,6 +1,4 @@
-'use strict';
-
-const hookState = require('./hook-state');
+import hookState from './hook-state.js';
 
 /**
  * Session-end hook logic (runtime-agnostic).
@@ -14,4 +12,4 @@ function handleSessionEnd(ctx) {
   return { action: 'advisory', message: null, reason: null };
 }
 
-module.exports = { handleSessionEnd };
+export { handleSessionEnd };

@@ -1,9 +1,8 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { createServer } = require('../../src/mcp/core/create-server');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const { DEFAULT_TOOL_PACKS } = require('../../src/mcp/tool-packs');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from '../../src/mcp/core/create-server.js';
+import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { DEFAULT_TOOL_PACKS } from '../../src/mcp/tool-packs/index.js';
 
 describe('mcp pack composition', () => {
   it('mounts the default tool packs in a stable order', () => {

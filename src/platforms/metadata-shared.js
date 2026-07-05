@@ -1,5 +1,3 @@
-'use strict';
-
 const RUNTIME_DESCRIPTION = 'Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands';
 
 function renderJson(value) {
@@ -121,12 +119,4 @@ function buildAuthor(context) {
   };
 }
 
-module.exports = {
-  RUNTIME_DESCRIPTION,
-  buildAuthor,
-  buildExtensionManifest,
-  buildMetadataContext,
-  buildSettings,
-  normalizeRepositoryUrl,
-  renderJson,
-};
+export { RUNTIME_DESCRIPTION, buildAuthor, buildExtensionManifest, buildMetadataContext, buildSettings, normalizeRepositoryUrl, renderJson };

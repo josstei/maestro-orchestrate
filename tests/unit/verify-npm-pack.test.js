@@ -1,9 +1,7 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   PACKAGE_BUDGETS,
   PACKAGE_SURFACE_RULES,
   PRIVATE_SCRIPT_ROLES,
@@ -11,14 +9,13 @@ const {
   classifyPackageEntry,
   parsePackJson,
   verifyPackageEntries,
-} = require('../../scripts/verify-npm-pack');
-const packageJson = require('../../package.json');
-const {
-  REQUIRED_PACKAGE_FILES,
-  RUNTIME_SOURCE_PATHS,
-} = require('../../scripts/release-artifact-manifest');
+} from '../../scripts/verify-npm-pack.js';
 
+const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
+import { REQUIRED_PACKAGE_FILES, RUNTIME_SOURCE_PATHS } from '../../scripts/release-artifact-manifest.js';
+import { readFileSync } from 'node:fs';
 const REQUIRED_FIXTURE_FILES = [...REQUIRED_PACKAGE_FILES];
+
 const BUILD_ONLY_SOURCE_PATHS = [
   'src/generator/file-writer.js',
   'src/transforms/index.js',
@@ -31,6 +28,7 @@ const BUILD_ONLY_SOURCE_PATHS = [
   'src/platforms/claude/metadata.js',
   'src/platforms/runtime-payload-contract.js',
 ];
+
 const removedRuntimePath = (...parts) => parts.join('/');
 
 function packageFiles(extraFiles = [], packageFields = {}) {

@@ -1,9 +1,9 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { readJsonSafe } = require('../lib/io');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import { readJsonSafe } from '../lib/io/index.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 const PACKAGE_NAME = '@josstei/maestro';
 const VERSION_JSON_FILENAME = 'version.json';
 
@@ -30,7 +30,7 @@ function findPackageJsonVersion(startDir) {
 }
 
 function findVersionJsonFallback() {
-  const versionJsonPath = path.join(__dirname, '..', VERSION_JSON_FILENAME);
+  const versionJsonPath = path.join(moduleDirname, '..', VERSION_JSON_FILENAME);
   const versionData = readJsonSafe(versionJsonPath);
 
   if (versionData && typeof versionData.version === 'string') {
@@ -44,7 +44,4 @@ function resolveVersion(startDir) {
   return findPackageJsonVersion(startDir) || findVersionJsonFallback() || 'unknown';
 }
 
-module.exports = {
-  PACKAGE_NAME,
-  resolveVersion,
-};
+export { PACKAGE_NAME, resolveVersion };

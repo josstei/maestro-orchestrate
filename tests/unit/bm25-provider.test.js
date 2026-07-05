@@ -1,13 +1,6 @@
-'use strict';
-
-const test = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  RetrievalProvider,
-  Bm25Provider,
-  tokenize,
-} = require('../../src/mcp/retrieval/bm25-provider');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { RetrievalProvider, Bm25Provider, tokenize } from '../../src/mcp/retrieval/bm25-provider.js';
 
 test('tokenize lowercases and splits on Unicode punctuation and whitespace', () => {
   assert.deepEqual(tokenize('src/Auth/OAuth.js  token-refresh'), [

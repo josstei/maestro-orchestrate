@@ -1,14 +1,10 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-
-const { assertSessionId } = require('../../lib/validation');
-const { ValidationError } = require('../../lib/errors');
-const { resolveStateDirPath } = require('../../state/session-state');
-const { atomicWriteSync } = require('../../lib/io');
-const { resolveDocumentInput } = require('./document-input');
-
+import fs from 'fs';
+import path from 'path';
+import { assertSessionId } from '../../lib/validation/index.js';
+import { ValidationError } from '../../lib/errors/index.js';
+import { resolveStateDirPath } from '../../state/session-state.js';
+import { atomicWriteSync } from '../../lib/io/index.js';
+import { resolveDocumentInput } from './document-input.js';
 const GATE_FILENAME = '.design-gate.json';
 
 /**
@@ -354,17 +350,4 @@ function removeDesignGate(projectRoot, sessionId) {
   return filePath;
 }
 
-module.exports = {
-  handleEnterDesignGate,
-  handleRecordDesignApproval,
-  handleGetDesignGateStatus,
-  isDesignGateBlockingCreate,
-  hasDesignGate,
-  getApprovedDesignDocumentPath,
-  listApprovedGates,
-  findOrphanedApprovedGates,
-  ensureDesignDocumentInPlans,
-  writePlansDocumentContent,
-  plansDirPath,
-  removeDesignGate,
-};
+export { handleEnterDesignGate, handleRecordDesignApproval, handleGetDesignGateStatus, isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, listApprovedGates, findOrphanedApprovedGates, ensureDesignDocumentInPlans, writePlansDocumentContent, plansDirPath, removeDesignGate };

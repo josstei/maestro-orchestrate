@@ -17,9 +17,11 @@ help:
     @echo "  just test-integration Run only integration tests"
     @echo ""
     @echo "CI:"
-    @echo "  just source-check     Generate, drift-check, layer-check, and test"
+    @echo "  just source-check     Generate, drift-check, layer-check, ESM-import-check, and test"
     @echo "  just release-check    Verify npm and release artifact surfaces"
     @echo "  just check            Generate + verify zero drift"
+    @echo "  just check-layers     Verify src/lib/ layer boundary"
+    @echo "  just check-esm-imports Verify explicit .js/.json specifiers and SDK deep-import rule"
     @echo "  just ci               Source CI equivalent"
     @echo ""
     @echo "Maintenance:"
@@ -91,7 +93,11 @@ check: generate
 check-layers:
     node scripts/check-layer-boundaries.js
 
-# Generate, drift-check, layer-check, and test source changes
+# Verify explicit .js/.json specifiers and the SDK deep-import rule
+check-esm-imports:
+    node scripts/check-esm-imports.js
+
+# Generate, drift-check, layer-check, ESM-import-check, and test source changes
 source-check:
     npm run check:source
 

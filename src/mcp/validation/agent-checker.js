@@ -1,11 +1,4 @@
-'use strict';
-
-const {
-  KNOWN_AGENTS,
-  normalizeAgentName,
-  getAgentCapability,
-  canCreateFiles,
-} = require('../../core/agent-registry');
+import { KNOWN_AGENTS, normalizeAgentName, getAgentCapability, canCreateFiles } from '../../core/agent-registry.js';
 
 const CREATION_SIGNAL_PATTERNS =
   /\b(implement|create|build|scaffold|write|generate|set\s*up|develop)\b/i;
@@ -75,7 +68,4 @@ function checkAgentCapabilities(phases) {
   return violations;
 }
 
-module.exports = {
-  checkUnknownAgents,
-  checkAgentCapabilities,
-};
+export { checkUnknownAgents, checkAgentCapabilities };

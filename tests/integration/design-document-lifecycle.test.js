@@ -1,16 +1,9 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
-  createInitializedMcpWorkspace,
-  readSessionFrontmatter,
-  writeWorkspaceFile,
-} = require('../support/mcp');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createInitializedMcpWorkspace, readSessionFrontmatter, writeWorkspaceFile } from '../support/mcp.js';
 
 describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive', () => {
   it('record_design_approval records the path without requiring the file to exist (Plan Mode parallel-dispatch tolerance)', async () => {

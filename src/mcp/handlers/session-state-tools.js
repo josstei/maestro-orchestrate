@@ -1,18 +1,18 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { assertSessionId } from '../../lib/validation/index.js';
+import { validatePhases } from '../contracts/plan-schema.js';
 
-const fs = require('fs');
-const path = require('path');
-
-const { assertSessionId } = require('../../lib/validation');
-const { validatePhases } = require('../contracts/plan-schema');
-const {
+import {
   createEmptyDownstreamContext,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
-  describeShape: describeDownstreamContextShape,
-} = require('../contracts/downstream-context');
-const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
-const {
+  describeShape as describeDownstreamContextShape,
+} from '../contracts/downstream-context.js';
+
+import { ValidationError, StateError, NotFoundError } from '../../lib/errors/index.js';
+
+import {
   isDesignGateBlockingCreate,
   hasDesignGate,
   getApprovedDesignDocumentPath,
@@ -20,9 +20,11 @@ const {
   ensureDesignDocumentInPlans,
   writePlansDocumentContent,
   removeDesignGate,
-} = require('./design-gate');
-const { resolveDocumentInput } = require('./document-input');
-const {
+} from './design-gate.js';
+
+import { resolveDocumentInput } from './document-input.js';
+
+import {
   resolveBasePath,
   resolveActiveSessionPath,
   parseSessionState,
@@ -34,18 +36,15 @@ const {
   withSessionState,
   assertActiveSessionMatches,
   extractFileManifest,
-} = require('./session-state-core');
-const { parseBlockers } = require('./blocker-parser');
-const { recordAgentPerformance } = require('./agent-performance');
-const { recordPlanAccuracy } = require('./plan-accuracy');
-const { recordArchitectureMemory } = require('./architecture-memory');
-const { captureCheckpoint } = require('./checkpoints');
-const { SCHEMA_VERSION } = require('./session-migrations');
-const {
-  attributePhaseCost,
-  phaseDurationMs,
-  normalizeTokenUsage,
-} = require('../contracts/agent-cost-ledger');
+} from './session-state-core.js';
+
+import { parseBlockers } from './blocker-parser.js';
+import { recordAgentPerformance } from './agent-performance.js';
+import { recordPlanAccuracy } from './plan-accuracy.js';
+import { recordArchitectureMemory } from './architecture-memory.js';
+import { captureCheckpoint } from './checkpoints.js';
+import { SCHEMA_VERSION } from './session-migrations.js';
+import { attributePhaseCost, phaseDurationMs, normalizeTokenUsage } from '../contracts/agent-cost-ledger.js';
 
 /**
  * Materialize a session document (design or plan) into `<state_dir>/plans/`.
@@ -570,10 +569,4 @@ function handleUpdateSession(params, projectRoot) {
   });
 }
 
-module.exports = {
-  handleCreateSession,
-  handleGetSessionStatus,
-  handleTransitionPhase,
-  handleArchiveSession,
-  handleUpdateSession,
-};
+export { handleCreateSession, handleGetSessionStatus, handleTransitionPhase, handleArchiveSession, handleUpdateSession };

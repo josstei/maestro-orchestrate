@@ -1,18 +1,20 @@
 #!/usr/bin/env node
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { readJson, runAsMain } from './lib/cli.js';
+import { buildMetadataContext } from '../src/platforms/metadata-shared.js';
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { readJson, runAsMain } = require('./lib/cli');
-const { buildMetadataContext } = require('../src/platforms/metadata-shared');
-const {
+import {
   CLAUDE_LOCAL_PLUGIN_DIR,
   CLAUDE_LOCAL_BUNDLE_DIR,
   PROMOTED_CONTENT_COPY_MAP,
   buildPromotedPluginManifestFiles,
-} = require('../src/platforms/claude/local-plugin-layout');
+} from '../src/platforms/claude/local-plugin-layout.js';
 
-const ROOT = path.resolve(__dirname, '..');
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '..');
 
 function assertAssemblyInputs(root) {
   if (!fs.existsSync(path.join(root, 'claude', 'agents'))) {
@@ -62,7 +64,7 @@ function assembleClaudePlugin(options = {}) {
   };
 }
 
-runAsMain(module, 'Assemble Claude plugin', () => {
+runAsMain(import.meta.url, 'Assemble Claude plugin', () => {
   const result = assembleClaudePlugin();
   console.log('Assembled a self-contained Claude plugin for local development:');
   console.log(`  plugin dir:  ${result.pluginDir}`);
@@ -74,4 +76,4 @@ runAsMain(module, 'Assemble Claude plugin', () => {
   console.log("Re-run 'just dev-load-claude' after editing anything under src/ to refresh the promoted agents, skills, and bundled server.");
 });
 
-module.exports = { assembleClaudePlugin };
+export { assembleClaudePlugin };

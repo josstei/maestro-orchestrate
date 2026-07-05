@@ -1,9 +1,6 @@
-'use strict';
-
-const { resolveSetting } = require('../../config/setting-resolver');
-const { SETTINGS_SCHEMA, SETTING_NAMES } = require('../../config/settings-schema');
-const { coerceScalar, assertValid } = require('../../lib/schema');
-
+import { resolveSetting } from '../../config/setting-resolver.js';
+import { SETTINGS_SCHEMA, SETTING_NAMES } from '../../config/settings-schema.js';
+import { coerceScalar, assertValid } from '../../lib/schema/index.js';
 const KNOWN_SETTINGS = SETTING_NAMES;
 
 function handleResolveSettings(params, projectRoot) {
@@ -32,7 +29,4 @@ function handleResolveSettings(params, projectRoot) {
   };
 }
 
-module.exports = {
-  KNOWN_SETTINGS,
-  handleResolveSettings,
-};
+export { KNOWN_SETTINGS, handleResolveSettings };

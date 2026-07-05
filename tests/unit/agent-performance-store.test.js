@@ -1,13 +1,9 @@
-'use strict';
-
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { MemoryStore } = require('../../src/mcp/memory/memory-store');
-
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
 const tmpRoots = [];
 
 function makeWorkspace() {

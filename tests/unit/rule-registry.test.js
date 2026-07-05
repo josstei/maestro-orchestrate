@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { PLAN_VALIDATION_STAGES, cycleFreeGuard } = require('../../src/mcp/validation/rule-registry');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { PLAN_VALIDATION_STAGES, cycleFreeGuard } from '../../src/mcp/validation/rule-registry.js';
 
 describe('PLAN_VALIDATION_STAGES', () => {
   it('declares the four stages in canonical order', () => {

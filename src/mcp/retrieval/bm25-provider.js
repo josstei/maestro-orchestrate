@@ -1,7 +1,4 @@
-'use strict';
-
-const { RetrievalProvider } = require('./retrieval-provider');
-
+import { RetrievalProvider } from './retrieval-provider.js';
 const K1 = 1.2;
 const B = 0.75;
 
@@ -109,4 +106,4 @@ class Bm25Provider extends RetrievalProvider {
   }
 }
 
-module.exports = { RetrievalProvider, Bm25Provider, tokenize, K1, B };
+export { RetrievalProvider, Bm25Provider, tokenize, K1, B };

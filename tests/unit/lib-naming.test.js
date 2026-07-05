@@ -1,15 +1,11 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  toSnakeCase,
-  toKebabCase,
-  toPascalCase,
-  toTitleCase,
-  replaceInContent,
-} = require('../../src/lib/naming');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { toSnakeCase, toKebabCase, toPascalCase, toTitleCase, replaceInContent } from '../../src/lib/naming/index.js';
+import { expandEntryPoints } from '../../src/generator/entry-point-expander.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+import path, { dirname } from 'node:path';
+const moduleDirname = dirname(moduleFilename);
 
 const AGENT_NAMES = [
   'accessibility-specialist',
@@ -245,12 +241,10 @@ describe('toTitleCase matches entry-point-expander toTitle', () => {
 });
 
 describe('entry-point title override', () => {
-  const path = require('node:path');
-  const { expandEntryPoints } = require('../../src/generator/entry-point-expander');
-  const SRC = path.resolve(__dirname, '..', '..', 'src');
+  const SRC = path.resolve(moduleDirname, '..', '..', 'src');
 
-  it('renders the registry title for a11y-audit into the Claude skill', () => {
-    const outputs = expandEntryPoints('claude', SRC);
+  it('renders the registry title for a11y-audit into the Claude skill', async () => {
+    const outputs = await expandEntryPoints('claude', SRC);
     const a11y = outputs.find((o) => o.outputPath === 'claude/skills/a11y-audit/SKILL.md');
     assert.ok(a11y, 'a11y-audit skill is generated');
     assert.match(a11y.content, /# Maestro Accessibility Audit/);

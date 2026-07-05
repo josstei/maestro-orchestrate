@@ -1,11 +1,6 @@
-'use strict';
-
-const path = require('path');
-const { resolveCanonicalSrcFromExtensionRoot } = require('../utils/extension-root');
-const {
-  readResourceFromFilesystem,
-  readAgentFromFilesystem,
-} = require('./runtime-content');
+import path from 'path';
+import { resolveCanonicalSrcFromExtensionRoot } from '../utils/extension-root.js';
+import { readResourceFromFilesystem, readAgentFromFilesystem } from './runtime-content.js';
 
 function createFilesystemProvider(
   runtimeConfig,
@@ -31,7 +26,4 @@ function createContentProvider(runtimeConfig, canonicalSrcRoot = resolveCanonica
   return createFilesystemProvider(runtimeConfig, canonicalSrcRoot);
 }
 
-module.exports = {
-  createContentProvider,
-  createFilesystemProvider,
-};
+export { createContentProvider, createFilesystemProvider };

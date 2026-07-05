@@ -1,13 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  createInitializedMcpWorkspace,
-  phaseFixture,
-  readSessionFrontmatter,
-} = require('../support/mcp');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createInitializedMcpWorkspace, phaseFixture, readSessionFrontmatter } from '../support/mcp.js';
 
 describe('plan contract round-trip', () => {
   it('validate_plan output is accepted verbatim by create_session', async () => {

@@ -1,12 +1,9 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-
-const markdownState = require('../../core/markdown-state');
-const { resolveBasePath, readActiveSessionOrNull } = require('./session-state-core');
-const { mergeAgentLedgers, summarizeLedger } = require('../contracts/agent-cost-ledger');
-const { migrateSessionState } = require('./session-migrations');
+import fs from 'fs';
+import path from 'path';
+import * as markdownState from '../../core/markdown-state.js';
+import { resolveBasePath, readActiveSessionOrNull } from './session-state-core.js';
+import { mergeAgentLedgers, summarizeLedger } from '../contracts/agent-cost-ledger.js';
+import { migrateSessionState } from './session-migrations.js';
 
 /**
  * @param {string} basePath
@@ -242,10 +239,4 @@ function handleGetCostInsights(params, projectRoot) {
   };
 }
 
-module.exports = {
-  parseArchivedSessionState,
-  readArchivedSessionSummaries,
-  handleListArchivedSessions,
-  handleSearchArchivedSessions,
-  handleGetCostInsights,
-};
+export { parseArchivedSessionState, readArchivedSessionSummaries, handleListArchivedSessions, handleSearchArchivedSessions, handleGetCostInsights };

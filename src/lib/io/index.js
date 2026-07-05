@@ -1,8 +1,5 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-
+import fs from 'node:fs';
+import path from 'node:path';
 let counter = 0;
 
 /**
@@ -87,10 +84,4 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-module.exports = {
-  atomicWriteSync,
-  readFileSafe,
-  readJsonSafe,
-  writeIfChanged,
-  ensureDir,
-};
+export { atomicWriteSync, readFileSafe, readJsonSafe, writeIfChanged, ensureDir };

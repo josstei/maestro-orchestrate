@@ -1,3 +1,1 @@
-'use strict';
-
-module.exports = require('../../../src/platforms/shared/adapters/claude-adapter.js');
+export { default } from '../../../src/platforms/shared/adapters/claude-adapter.js';

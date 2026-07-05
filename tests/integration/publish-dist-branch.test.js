@@ -1,25 +1,12 @@
-'use strict';
-
-// Integration-weight: this suite runs the REAL scripts/publish-dist-branch.js
-// script (including a real `git worktree add` and a real
-// `node scripts/generate.js` run) against a disposable git repository built
-// from a full copy of this repo's source tree. It intentionally does not use
-// a hand-rolled minimal fixture (a fake package.json/generator) -- the whole
-// point is to exercise the actual generator pipeline. It also does not touch
-// the developer's live checkout: the fixture gets its own throwaway `git
-// init`, so every git operation the script performs (worktree add/remove,
-// commit-tree) is fully isolated from this repository's real HEAD, branches,
-// and working tree.
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-
-const { createTempRepoCopy } = require('./helpers');
-const { publishDistBranch } = require('../../scripts/publish-dist-branch');
-const packageJson = require('../../package.json');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createTempRepoCopy } from './helpers.js';
+import { publishDistBranch } from '../../scripts/publish-dist-branch.js';
+import { readFileSync } from 'node:fs';
+const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 
 function git(root, args, options = {}) {
   return execFileSync('git', args, {

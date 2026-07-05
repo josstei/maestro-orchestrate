@@ -1,6 +1,6 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const skillMetadata = require('../../src/transforms/skill-metadata');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import skillMetadata from '../../src/transforms/skill-metadata.js';
 
 describe('skill-metadata transform', () => {
   const skillContent = [

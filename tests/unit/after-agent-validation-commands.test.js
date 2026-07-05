@@ -1,21 +1,17 @@
-'use strict';
-
-const os = require('node:os');
-const fs = require('node:fs');
-const path = require('node:path');
+import os from 'node:os';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
 const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-vc-'));
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
 
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-
-const hookState = require('../../src/hooks/logic/hook-state');
-const {
-  handleAfterAgent,
-  extractValidationCommands,
-} = require('../../src/hooks/logic/after-agent-logic');
-
+const { default: hookState } = await import('../../src/hooks/logic/hook-state.js');
+const { handleAfterAgent, extractValidationCommands } = await import('../../src/hooks/logic/after-agent-logic.js');
 const SESSION_ID = 'vc-session-xyz';
 
 describe('extractValidationCommands', () => {
@@ -75,7 +71,7 @@ describe('handleAfterAgent surfaces validation_commands', () => {
 });
 
 describe('capture trigger is authored into the protocol and steps', () => {
-  const REPO = path.resolve(__dirname, '../..');
+  const REPO = path.resolve(moduleDirname, '../..');
   it('agent-base-protocol documents the Validation Commands handoff section', () => {
     const body = fs.readFileSync(
       path.join(REPO, 'src/skills/shared/delegation/protocols/agent-base-protocol.md'),

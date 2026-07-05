@@ -1,16 +1,10 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { parseSessionState } = require('../../src/mcp/handlers/session-state-core');
-const {
-  createInitializedMcpWorkspace,
-  phaseFixture,
-} = require('../support/mcp');
-
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { parseSessionState } from '../../src/mcp/handlers/session-state-core.js';
+import { handleListCheckpoints } from '../../src/mcp/handlers/checkpoints.js';
+import { createInitializedMcpWorkspace, phaseFixture } from '../support/mcp.js';
 const SESSION_ID = 'checkpoint-session';
 
 function checkpointPath(workspace, phaseId) {
@@ -105,7 +99,6 @@ describe('session checkpoints', () => {
     assert.equal(phaseTwoSnapshot.phases[1].status, 'completed');
     assert.equal(phaseTwoSnapshot.phases[2].status, 'in_progress');
 
-    const { handleListCheckpoints } = require('../../src/mcp/handlers/checkpoints');
     const listed = handleListCheckpoints({ session_id: SESSION_ID }, workspace);
     assert.deepEqual(
       listed.checkpoints.map((checkpoint) => checkpoint.phase_id),

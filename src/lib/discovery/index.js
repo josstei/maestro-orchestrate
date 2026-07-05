@@ -1,8 +1,6 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { readFileSafe, writeIfChanged } = require('../io');
+import fs from 'node:fs';
+import path from 'node:path';
+import { readFileSafe, writeIfChanged } from '../io/index.js';
 
 /**
  * @typedef {Object} DiscoveryEntry
@@ -162,11 +160,4 @@ function serializeRegistry(data) {
   return JSON.stringify(data, null, 2) + '\n';
 }
 
-module.exports = {
-  discover,
-  generateRegistry,
-  serializeRegistry,
-  patternToRegex,
-  parsePattern,
-  collectFiles,
-};
+export { discover, generateRegistry, serializeRegistry, patternToRegex, parsePattern, collectFiles };

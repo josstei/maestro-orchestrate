@@ -1,19 +1,8 @@
-'use strict';
-
-const { defineToolPack } = require('../contracts');
-const { SCHEMA } = require('../schema-fragments');
-const {
-  handleForkSession,
-  handleListLineage,
-} = require('../../handlers/session-lineage');
-const {
-  handleListCheckpoints,
-  handleRestoreCheckpoint,
-} = require('../../handlers/checkpoints');
-const {
-  handleInstantiateSessionBlueprint,
-  handleListSessionBlueprints,
-} = require('../../handlers/session-blueprints');
+import { defineToolPack } from '../contracts.js';
+import { SCHEMA } from '../schema-fragments.js';
+import { handleForkSession, handleListLineage } from '../../handlers/session-lineage.js';
+import { handleListCheckpoints, handleRestoreCheckpoint } from '../../handlers/checkpoints.js';
+import { handleInstantiateSessionBlueprint, handleListSessionBlueprints } from '../../handlers/session-blueprints.js';
 
 function createToolPack() {
   return defineToolPack({
@@ -110,6 +99,4 @@ function createToolPack() {
   });
 }
 
-module.exports = {
-  createToolPack,
-};
+export { createToolPack };

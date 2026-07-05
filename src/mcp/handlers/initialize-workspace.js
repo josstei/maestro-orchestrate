@@ -1,14 +1,9 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-
-const { ensureWorkspace, resolveStateDirPath } = require('../../state/session-state');
-const { resolveSetting } = require('../../config/setting-resolver');
-const {
-  requireExplicitWorkspaceRoot,
-} = require('../../core/project-root-resolver');
-const { writeWorkspaceMarker } = require('../contracts/workspace-marker');
+import fs from 'fs';
+import path from 'path';
+import { ensureWorkspace, resolveStateDirPath } from '../../state/session-state.js';
+import { resolveSetting } from '../../config/setting-resolver.js';
+import { requireExplicitWorkspaceRoot } from '../../core/project-root-resolver.js';
+import { writeWorkspaceMarker } from '../contracts/workspace-marker.js';
 
 async function handleInitializeWorkspace(params = {}) {
   const resolvedWorkspace = requireExplicitWorkspaceRoot({
@@ -39,4 +34,4 @@ async function handleInitializeWorkspace(params = {}) {
   };
 }
 
-module.exports = { handleInitializeWorkspace };
+export { handleInitializeWorkspace };

@@ -1,5 +1,3 @@
-'use strict';
-
 const PHASE_REQUIRED_FIELDS = ['id', 'name', 'agent', 'parallel', 'blocked_by'];
 
 const PHASE_ID_SCHEMA = {
@@ -139,10 +137,4 @@ function validatePhases(phases) {
   return { valid: violations.length === 0, violations };
 }
 
-module.exports = {
-  PHASE_ID_SCHEMA,
-  PHASE_ITEM_SCHEMA,
-  PHASE_REQUIRED_FIELDS,
-  isValidPhaseId,
-  validatePhases,
-};
+export { PHASE_ID_SCHEMA, PHASE_ITEM_SCHEMA, PHASE_REQUIRED_FIELDS, isValidPhaseId, validatePhases };

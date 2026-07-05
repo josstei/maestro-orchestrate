@@ -1,7 +1,6 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 /**
  * @typedef {Object} EntryPointDescriptor
@@ -106,17 +105,13 @@ function getAgentToolDialect(runtime) {
  * @returns {object} The runtime config.
  * @throws {Error} When no runtime-config.js exists for `name`.
  */
-function getRuntimeConfig(name, srcDir) {
+async function getRuntimeConfig(name, srcDir) {
   const configPath = path.join(srcDir, 'platforms', name, 'runtime-config.js');
   if (!fs.existsSync(configPath)) {
     throw new Error(`Unknown runtime "${name}": no config at ${configPath}`);
   }
-  return require(configPath);
+  const { default: config } = await import(pathToFileURL(configPath).href);
+  return config;
 }
 
-module.exports = {
-  assertValidRuntimeGeneration,
-  getRuntimeGeneration,
-  getAgentToolDialect,
-  getRuntimeConfig,
-};
+export { assertValidRuntimeGeneration, getRuntimeGeneration, getAgentToolDialect, getRuntimeConfig };

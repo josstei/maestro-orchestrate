@@ -1,18 +1,16 @@
-'use strict';
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-const fs = require('node:fs');
-const os = require('node:os');
-
-const {
+import {
   expandGlob,
   computeOutputPath,
   buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
-} = require('../../src/generator/manifest-expander');
+} from '../../src/generator/manifest-expander.js';
 
 describe('manifest-expander', () => {
   let tmpDir;

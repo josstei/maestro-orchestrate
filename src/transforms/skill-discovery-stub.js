@@ -1,4 +1,4 @@
-const { parse } = require('../lib/frontmatter');
+import { parse } from '../lib/frontmatter/index.js';
 
 function skillDiscoveryStub(content, runtime) {
   const { frontmatter } = parse(content);
@@ -24,4 +24,4 @@ function skillDiscoveryStub(content, runtime) {
   return lines.join('\n');
 }
 
-module.exports = skillDiscoveryStub;
+export default skillDiscoveryStub;

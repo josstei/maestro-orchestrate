@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Emit `file_overlap` violations when two phases marked `parallel` at
  * the same dependency depth both declare ownership of the same file.
@@ -58,6 +56,4 @@ function checkFileOverlap(phases, depths) {
   return violations;
 }
 
-module.exports = {
-  checkFileOverlap,
-};
+export { checkFileOverlap };

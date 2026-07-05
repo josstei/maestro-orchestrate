@@ -1,16 +1,10 @@
-'use strict';
-
-const { describe, it, beforeEach, afterEach } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { KnowledgeStore } = require('../../src/mcp/memory/knowledge-store');
-const {
-  handleQueryKnowledge,
-  handleRecordKnowledge,
-} = require('../../src/mcp/handlers/org-knowledge');
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { KnowledgeStore } from '../../src/mcp/memory/knowledge-store.js';
+import { handleQueryKnowledge, handleRecordKnowledge } from '../../src/mcp/handlers/org-knowledge.js';
 
 describe('org knowledge handlers', () => {
   let tmpRoot;

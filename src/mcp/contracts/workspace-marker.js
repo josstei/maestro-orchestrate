@@ -1,8 +1,5 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-
+import fs from 'node:fs';
+import path from 'node:path';
 const MARKER_FILENAME = '.workspace-root';
 const SCHEMA_VERSION = 1;
 
@@ -58,4 +55,4 @@ function writeWorkspaceMarker(stateDir, workspacePath) {
   fs.writeFileSync(markerPathFor(stateDir), JSON.stringify(payload, null, 2));
 }
 
-module.exports = { MARKER_FILENAME, SCHEMA_VERSION, readWorkspaceMarker, writeWorkspaceMarker };
+export { MARKER_FILENAME, SCHEMA_VERSION, readWorkspaceMarker, writeWorkspaceMarker };

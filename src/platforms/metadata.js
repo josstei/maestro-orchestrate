@@ -1,18 +1,19 @@
-'use strict';
+import path from 'node:path';
+import { buildMetadataContext } from './metadata-shared.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
-const path = require('node:path');
-const { buildMetadataContext } = require('./metadata-shared');
-
-function loadMetadataBuilder(runtimeName) {
-  return require(path.join(__dirname, runtimeName, 'metadata.js'));
+async function loadMetadataBuilder(runtimeName) {
+  return import(pathToFileURL(path.join(moduleDirname, runtimeName, 'metadata.js')).href);
 }
 
-function buildPlatformMetadataOutputs(runtimes, pkg) {
+async function buildPlatformMetadataOutputs(runtimes, pkg) {
   const context = buildMetadataContext(pkg);
   const outputs = [];
 
   for (const runtimeName of Object.keys(runtimes).sort()) {
-    const metadata = loadMetadataBuilder(runtimeName);
+    const metadata = await loadMetadataBuilder(runtimeName);
     if (typeof metadata.buildMetadataOutputs !== 'function') {
       continue;
     }
@@ -23,7 +24,4 @@ function buildPlatformMetadataOutputs(runtimes, pkg) {
   return outputs;
 }
 
-module.exports = {
-  buildPlatformMetadataOutputs,
-  loadMetadataBuilder,
-};
+export { buildPlatformMetadataOutputs, loadMetadataBuilder };

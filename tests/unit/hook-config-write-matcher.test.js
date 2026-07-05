@@ -1,7 +1,6 @@
-'use strict';
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { buildHookConfigOutputs } = require('../../src/generator/hook-config-emitter');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { buildHookConfigOutputs } from '../../src/generator/hook-config-emitter.js';
 
 describe('claude PreToolUse matchers', () => {
   it('registers the policy enforcer for write tools', () => {

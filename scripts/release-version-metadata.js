@@ -1,14 +1,16 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { readJson } = require('./lib/cli');
-const { STABLE_SEMVER_RE } = require('./lib/semver');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import { readJson } from './lib/cli.js';
+import { STABLE_SEMVER_RE } from './lib/semver.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 const PACKAGE_JSON_PATH = 'package.json';
+
 const BADGE_FILES = [
   'README.md',
 ];
+
 const CHANGELOG_PATH = 'CHANGELOG.md';
 
 function writeJson(filePath, value) {
@@ -95,7 +97,7 @@ function updateChangelog(filePath, version, dateString = new Date().toISOString(
 }
 
 function updateReleaseInputs(version, options = {}) {
-  const root = options.root || path.resolve(__dirname, '..');
+  const root = options.root || path.resolve(moduleDirname, '..');
 
   if (!STABLE_SEMVER_RE.test(version)) {
     throw new Error(`Invalid semver version: "${version}"`);
@@ -112,14 +114,4 @@ function updateReleaseInputs(version, options = {}) {
   return { version };
 }
 
-module.exports = {
-  BADGE_FILES,
-  CHANGELOG_PATH,
-  PACKAGE_JSON_PATH,
-  STABLE_SEMVER_RE,
-  trimBlankEdges,
-  updateBadge,
-  updateChangelog,
-  updatePackageVersion,
-  updateReleaseInputs,
-};
+export { BADGE_FILES, CHANGELOG_PATH, PACKAGE_JSON_PATH, STABLE_SEMVER_RE, trimBlankEdges, updateBadge, updateChangelog, updatePackageVersion, updateReleaseInputs };

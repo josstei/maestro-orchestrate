@@ -1,13 +1,14 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { expandCoreCommands, expandEntryPoints } = require('../../scripts/generate');
-const entryPointRegistry = require('../../src/entry-points/registry');
-const coreCommandRegistry = require('../../src/entry-points/core-command-registry');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { expandCoreCommands, expandEntryPoints } from '../../scripts/generate.js';
+import entryPointRegistry from '../../src/entry-points/registry.js';
+import coreCommandRegistry from '../../src/entry-points/core-command-registry.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
 
 function runtimeEntryName(entry, runtime) {
   return entry.runtimeNames?.[runtime] || entry.name;
@@ -30,7 +31,7 @@ function coreOutputPath(entry, runtime) {
 }
 
 describe('delegation protocol invariant', () => {
-  it('keeps delegation loaded for every agent-backed runtime entry point', () => {
+  it('keeps delegation loaded for every agent-backed runtime entry point', async () => {
     const runtimes = ['gemini', 'claude', 'codex'];
 
     for (const entry of entryPointRegistry.filter((item) => item.agents.length > 0)) {
@@ -40,7 +41,7 @@ describe('delegation protocol invariant', () => {
       );
 
       for (const runtime of runtimes) {
-        const generated = expandEntryPoints(runtime);
+        const generated = await expandEntryPoints(runtime);
         const outputPath = entryOutputPath(entry, runtime);
         const result = generated.find((item) => item.outputPath === outputPath);
 
@@ -54,7 +55,7 @@ describe('delegation protocol invariant', () => {
     }
   });
 
-  it('keeps execution and resume commands preloading delegation methodology', () => {
+  it('keeps execution and resume commands preloading delegation methodology', async () => {
     const runtimes = ['gemini', 'claude', 'codex'];
     const delegatingCoreCommands = coreCommandRegistry.filter((entry) =>
       ['execute', 'resume'].includes(entry.name)
@@ -67,7 +68,7 @@ describe('delegation protocol invariant', () => {
       );
 
       for (const runtime of runtimes) {
-        const generated = expandCoreCommands(runtime);
+        const generated = await expandCoreCommands(runtime);
         const outputPath = coreOutputPath(entry, runtime);
         const result = generated.find((item) => item.outputPath === outputPath);
 

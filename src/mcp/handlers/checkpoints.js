@@ -1,9 +1,7 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const fs = require('node:fs');
-const path = require('node:path');
-
-const {
+import {
   assertActiveSessionMatches,
   extractBody,
   parseSessionState,
@@ -12,11 +10,12 @@ const {
   resolveBasePath,
   serializeSessionState,
   writeActiveSession,
-} = require('./session-state-core');
-const { createEmptyDownstreamContext } = require('../contracts/downstream-context');
-const { NotFoundError, StateError, ValidationError } = require('../../lib/errors');
-const { assertSessionId } = require('../../lib/validation');
-const { readState, writeState } = require('../../state/session-state');
+} from './session-state-core.js';
+
+import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
+import { NotFoundError, StateError, ValidationError } from '../../lib/errors/index.js';
+import { assertSessionId } from '../../lib/validation/index.js';
+import { readState, writeState } from '../../state/session-state.js';
 
 function assertPositiveIntegerPhaseId(value) {
   const phaseId = typeof value === 'string' ? Number(value) : value;
@@ -211,8 +210,4 @@ function handleRestoreCheckpoint(params, projectRoot) {
   };
 }
 
-module.exports = {
-  captureCheckpoint,
-  handleListCheckpoints,
-  handleRestoreCheckpoint,
-};
+export { captureCheckpoint, handleListCheckpoints, handleRestoreCheckpoint };

@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { defineAudit, AUDIT_PRESENTATION_CONSTRAINTS } = require('../../src/entry-points/archetypes/audit-archetype');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { defineAudit, AUDIT_PRESENTATION_CONSTRAINTS } from '../../src/entry-points/archetypes/audit-archetype.js';
 
 describe('AUDIT_PRESENTATION_CONSTRAINTS', () => {
   it('is the frozen shared presentation pair', () => {

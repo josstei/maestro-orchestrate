@@ -1,11 +1,7 @@
-'use strict';
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { RESOURCE_ALLOWLIST } = require('../../src/mcp/content/runtime-content');
-
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { RESOURCE_ALLOWLIST } from '../../src/mcp/content/runtime-content.js';
 const createdRoots = [];
 
 function makeTempSrcRoot(prefix = 'maestro-content-') {
@@ -47,11 +43,4 @@ function withExtensionRoot(value, fn) {
   }
 }
 
-module.exports = {
-  makeTempSrcRoot,
-  cleanupTempRoots,
-  writeFileUnder,
-  writeAgent,
-  writeResource,
-  withExtensionRoot,
-};
+export { makeTempSrcRoot, cleanupTempRoots, writeFileUnder, writeAgent, writeResource, withExtensionRoot };

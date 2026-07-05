@@ -1,11 +1,8 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { RUNTIME_PAYLOAD_CONTRACT } = require('../src/platforms/runtime-payload-contract');
-const { RUNTIME_SOURCE_PATHS, releasePaths } = require('./lib/artifact-inventory');
-const { readJson: readJsonFile } = require('./lib/cli');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import { RUNTIME_PAYLOAD_CONTRACT } from '../src/platforms/runtime-payload-contract.js';
+import { RUNTIME_SOURCE_PATHS, releasePaths } from './lib/artifact-inventory.js';
+import { readJson as readJsonFile } from './lib/cli.js';
 const RELEASE_ARTIFACT_PATHS = releasePaths();
 
 const DENIED_ARTIFACT_PATHS = [
@@ -349,20 +346,4 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   return version;
 }
 
-module.exports = {
-  DENIED_ARTIFACT_PATHS,
-  DENIED_ARTIFACT_PATTERNS,
-  RELEASE_ARTIFACT_PATHS,
-  REQUIRED_PACKAGE_FILES,
-  RUNTIME_SOURCE_PATHS,
-  assertReleaseArtifactContents,
-  assertRequiredArtifactPaths,
-  assertRuntimeManifestShape,
-  assertVersionConsistency,
-  getVersionEntries,
-  isDeniedPath,
-  isReleaseArtifactPathAllowed,
-  requireString,
-  readJson,
-  toPosixPath,
-};
+export { DENIED_ARTIFACT_PATHS, DENIED_ARTIFACT_PATTERNS, RELEASE_ARTIFACT_PATHS, REQUIRED_PACKAGE_FILES, RUNTIME_SOURCE_PATHS, assertReleaseArtifactContents, assertRequiredArtifactPaths, assertRuntimeManifestShape, assertVersionConsistency, getVersionEntries, isDeniedPath, isReleaseArtifactPathAllowed, requireString, readJson, toPosixPath };

@@ -1,22 +1,19 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
-const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const {
-  RUNTIME_PAYLOAD_CONTRACT,
-  TOPOLOGY_DECISION,
-  getRuntimePayloadContract,
-} = require('../../src/platforms/runtime-payload-contract');
-
-const ROOT = path.resolve(__dirname, '../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHandler as createAgentHandler } from '../../src/mcp/handlers/get-agent.js';
+import { createHandler as createSkillContentHandler } from '../../src/mcp/handlers/get-skill-content.js';
+import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { RUNTIME_PAYLOAD_CONTRACT, TOPOLOGY_DECISION, getRuntimePayloadContract } from '../../src/platforms/runtime-payload-contract.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '../..');
 const SRC = path.join(ROOT, 'src');
-const PACKAGE_VERSION = require('../../package.json').version;
+const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
+const PACKAGE_VERSION = packageJson.version;
 
 function runtimeConfigNames() {
   return fs.readdirSync(path.join(SRC, 'platforms'), { withFileTypes: true })

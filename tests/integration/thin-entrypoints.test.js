@@ -1,9 +1,8 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { ROOT } = require('./helpers');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT } from './helpers.js';
 
 describe('thin entrypoint design', () => {
   it('each MCP entrypoint sets its own MAESTRO_RUNTIME default', () => {
@@ -29,8 +28,8 @@ describe('thin entrypoint design', () => {
       'Expected claude/mcp/maestro-server.js to have no bundled fallback resolution'
     );
     assert.ok(
-      content.includes("require('../../src/mcp/maestro-server.js')"),
-      'Expected claude/mcp/maestro-server.js to require package-root src directly'
+      content.includes("from '../../src/mcp/maestro-server.js'"),
+      'Expected claude/mcp/maestro-server.js to import package-root src directly'
     );
   });
 
@@ -41,8 +40,8 @@ describe('thin entrypoint design', () => {
       'Expected Gemini entrypoint to NOT have bundled fallback'
     );
     assert.ok(
-      content.includes("require('../src/mcp/maestro-server')"),
-      'Expected Gemini entrypoint to require directly from src/'
+      content.includes("from '../src/mcp/maestro-server.js'"),
+      'Expected Gemini entrypoint to import directly from src/'
     );
   });
 

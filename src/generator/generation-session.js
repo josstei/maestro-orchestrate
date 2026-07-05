@@ -1,6 +1,4 @@
-'use strict';
-
-const { createFileWriter } = require('./file-writer');
+import { createFileWriter } from './file-writer.js';
 
 function createGenerationSession({ rootDir, dryRun = false, diffMode = false, quiet = false }) {
   const writer = createFileWriter({ rootDir, dryRun, diffMode, quiet });
@@ -64,6 +62,4 @@ function createGenerationSession({ rootDir, dryRun = false, diffMode = false, qu
   };
 }
 
-module.exports = {
-  createGenerationSession,
-};
+export { createGenerationSession };

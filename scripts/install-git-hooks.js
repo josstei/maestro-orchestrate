@@ -1,24 +1,7 @@
 #!/usr/bin/env node
-'use strict';
-
-/**
- * Postinstall step that activates the repo-local git hooks under .githooks/.
- *
- * Activation conditions (all must hold):
- *   1. Current directory contains .githooks/ — i.e. we are in the maestro
- *      source tree, not a downstream npm consumer's node_modules entry
- *      (.githooks is intentionally excluded from the published `files:` list).
- *   2. `git rev-parse --show-toplevel` resolves to the current directory —
- *      this is true in the main checkout AND in any git worktree pointing
- *      at it. False outside a git checkout entirely.
- *
- * If either condition fails, the script exits 0 with no side effect.
- */
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 const HOOKS_DIR = '.githooks';
 
 if (!fs.existsSync(HOOKS_DIR)) {
@@ -26,6 +9,7 @@ if (!fs.existsSync(HOOKS_DIR)) {
 }
 
 let topLevel;
+
 try {
   topLevel = execSync('git rev-parse --show-toplevel', {
     encoding: 'utf8',

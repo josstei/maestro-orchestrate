@@ -1,21 +1,17 @@
-'use strict';
-
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+import os from 'os';
+import fs from 'fs';
+import path from 'path';
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
 
 const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-test-'));
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
 
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert/strict');
-
-const hookState = require('../../src/hooks/logic/hook-state');
-const { handleAfterAgent } = require('../../src/hooks/logic/after-agent-logic');
-const { handleBeforeAgent } = require('../../src/hooks/logic/before-agent-logic');
-const { handleSessionStart } = require('../../src/hooks/logic/session-start-logic');
-const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
-
+const { default: hookState } = await import('../../src/hooks/logic/hook-state.js');
+const { handleAfterAgent } = await import('../../src/hooks/logic/after-agent-logic.js');
+const { handleBeforeAgent } = await import('../../src/hooks/logic/before-agent-logic.js');
+const { handleSessionStart } = await import('../../src/hooks/logic/session-start-logic.js');
+const { handleSessionEnd } = await import('../../src/hooks/logic/session-end-logic.js');
 const SESSION_ID = 'test-session-abc123';
 const VALID_RESULT = '## Task Report\nDone.\n\n## Downstream Context\nContext info.';
 const LEGACY_AGENT_ENV = ['MAESTRO', 'CURRENT', 'AGENT'].join('_');

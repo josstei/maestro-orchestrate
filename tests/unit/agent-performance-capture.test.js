@@ -1,21 +1,9 @@
-'use strict';
-
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const {
-  handleCreateSession,
-  handleTransitionPhase,
-  handleArchiveSession,
-} = require('../../src/mcp/handlers/session-state-tools');
-const {
-  ensureMaestroWorkspace,
-  makeTempWorkspace,
-  readSessionFrontmatter,
-} = require('../support/mcp');
-
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { handleCreateSession, handleTransitionPhase, handleArchiveSession } from '../../src/mcp/handlers/session-state-tools.js';
+import { ensureMaestroWorkspace, makeTempWorkspace, readSessionFrontmatter } from '../support/mcp.js';
 const tmpRoots = [];
 
 function makeWorkspace() {

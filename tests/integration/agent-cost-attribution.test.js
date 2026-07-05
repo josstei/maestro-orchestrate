@@ -1,13 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  createInitializedMcpWorkspace,
-  phaseFixture,
-  readSessionFrontmatter,
-} = require('../support/mcp');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createInitializedMcpWorkspace, phaseFixture, readSessionFrontmatter } from '../support/mcp.js';
 
 describe('per-agent cost attribution', () => {
   it('populates by_agent and phase timing on transition_phase', async () => {

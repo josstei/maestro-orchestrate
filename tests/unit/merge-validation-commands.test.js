@@ -1,9 +1,6 @@
-'use strict';
-
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { mergeValidationCommands } = require('../../src/mcp/memory/memory-store');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mergeValidationCommands } from '../../src/mcp/memory/memory-store.js';
 
 const EMPTY_PROFILE = {
   schema_version: 1,

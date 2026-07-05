@@ -1,14 +1,11 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { ROOT } = require('./helpers');
-const { spawnMcpServer } = require('./mcp-stdio-client');
-const { assembleClaudePlugin } = require('../../scripts/assemble-claude-plugin');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { ROOT } from './helpers.js';
+import { spawnMcpServer } from './mcp-stdio-client.js';
+import { assembleClaudePlugin } from '../../scripts/assemble-claude-plugin.js';
 
 async function withServer(options, fn) {
   const client = spawnMcpServer(options);

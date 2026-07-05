@@ -1,19 +1,8 @@
-'use strict';
-
-/**
- * Maestro policy enforcer for Claude Code.
- * Reads stdin (Claude Code PreToolUse hook input for Bash),
- * checks tool_input.command against deny and ask patterns,
- * and outputs a decision JSON to stdout.
- *
- * Rules are loaded from package-root src/core/policy-rules.js.
- */
-
-const fs = require('node:fs');
-const path = require('node:path');
-const { DENY_RULES, ASK_RULES } = require('../../core/policy-rules');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import { DENY_RULES, ASK_RULES } from '../../core/policy-rules.js';
 const WRAPPERS = new Set(['env', 'sudo', 'doas', 'nice', 'nohup', 'time', 'command', 'builtin', 'exec', 'ionice', 'stdbuf', 'setsid']);
+
 const VALUE_FLAGS = {
   sudo: new Set(['-u', '-g', '-U', '-C', '-D', '-p', '-h', '-R', '--user', '--group']),
   nice: new Set(['-n', '--adjustment']),
@@ -21,10 +10,12 @@ const VALUE_FLAGS = {
   stdbuf: new Set(['-i', '-o', '-e']),
   env: new Set(['-C', '-S', '-u']),
 };
+
 function basename(token) {
   const i = token.lastIndexOf('/');
   return i === -1 ? token : token.slice(i + 1);
 }
+
 function normalizeSegment(segment) {
   let toks = segment.trim().replace(/^\\(?=\S)/, '').split(/\s+/).filter(Boolean);
   let progressed = true;
@@ -61,16 +52,19 @@ function safeRealpath(p) {
     }
   }
 }
+
 function isWriteAllowed(filePath, root, allow) {
   if (!root || !filePath) return false;
   const target = safeRealpath(filePath);
   const bases = [safeRealpath(root), ...(allow || []).filter(Boolean).map(safeRealpath)];
   return bases.some((b) => target === b || target.startsWith(b + path.sep));
 }
+
 function resolveWorkspaceRoot(input) {
   const root = process.env.MAESTRO_WORKSPACE_PATH || (input && input.cwd) || process.cwd();
   return root ? path.resolve(root) : null;
 }
+
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit']);
 
 function splitCommands(command) {
@@ -373,19 +367,4 @@ function main() {
   });
 }
 
-module.exports = {
-  main,
-  splitCommands,
-  readBacktickSubshell,
-  readDollarSubshell,
-  extractSubshells,
-  checkCommand,
-  normalizeSegment,
-  isWriteAllowed,
-  resolveWorkspaceRoot,
-  safeRealpath,
-  matchRule,
-  toHookOutput,
-  PERMISSION_DECISION,
-  MAX_STDIN_BYTES,
-};
+export { main, splitCommands, readBacktickSubshell, readDollarSubshell, extractSubshells, checkCommand, normalizeSegment, isWriteAllowed, resolveWorkspaceRoot, safeRealpath, matchRule, toHookOutput, PERMISSION_DECISION, MAX_STDIN_BYTES };

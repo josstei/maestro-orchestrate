@@ -1,12 +1,9 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { buildMcpServer } = require('../support/mcp');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { buildMcpServer } from '../support/mcp.js';
 
 describe('codex workspace resolution contract', () => {
   it('rejects initialize_workspace with a path inside a plugin cache', async () => {

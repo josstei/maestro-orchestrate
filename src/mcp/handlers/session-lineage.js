@@ -1,21 +1,11 @@
-'use strict';
-
-const path = require('path');
-
-const { NotFoundError } = require('../../lib/errors');
-const { assertSessionId } = require('../../lib/validation');
-const { readState, writeState } = require('../../state/session-state');
-const { createEmptyDownstreamContext } = require('../contracts/downstream-context');
-const {
-  parseArchivedSessionState,
-  readArchivedSessionSummaries,
-} = require('./archive-index');
-const {
-  resolveBasePath,
-  readActiveSessionOrNull,
-  writeActiveSession,
-} = require('./session-state-core');
-const { SCHEMA_VERSION } = require('./session-migrations');
+import path from 'path';
+import { NotFoundError } from '../../lib/errors/index.js';
+import { assertSessionId } from '../../lib/validation/index.js';
+import { readState, writeState } from '../../state/session-state.js';
+import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
+import { parseArchivedSessionState, readArchivedSessionSummaries } from './archive-index.js';
+import { resolveBasePath, readActiveSessionOrNull, writeActiveSession } from './session-state-core.js';
+import { SCHEMA_VERSION } from './session-migrations.js';
 
 function normalizeBranch(value) {
   return typeof value === 'string' && value.length > 0 ? value : null;
@@ -194,7 +184,4 @@ function handleListLineage(params, projectRoot) {
   };
 }
 
-module.exports = {
-  handleForkSession,
-  handleListLineage,
-};
+export { handleForkSession, handleListLineage };

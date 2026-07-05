@@ -1,16 +1,11 @@
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { pathToFileURL } = require('node:url');
-
-const {
-  resolveProjectRoot,
-  resolveProjectRootForRuntime,
-} = require('../../src/core/project-root-resolver');
-const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
-const { makeTempSrcRoot, cleanupTempRoots } = require('../support/content');
-
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { resolveProjectRoot, resolveProjectRootForRuntime, requireExplicitWorkspaceRoot, WorkspaceResolutionError } from '../../src/core/project-root-resolver.js';
+import { createProjectRootCache } from '../../src/mcp/core/project-root-cache.js';
+import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
 after(cleanupTempRoots);
 
 function withEnv(overrides, fn) {
@@ -166,11 +161,6 @@ describe('project root resolver', () => {
 
     assert.equal(result, claudeRoot);
   });
-
-  const {
-    requireExplicitWorkspaceRoot,
-    WorkspaceResolutionError,
-  } = require('../../src/core/project-root-resolver');
 
   it('requireExplicitWorkspaceRoot returns the explicit path when it exists', () => {
     const workspaceRoot = makeTempSrcRoot('maestro-explicit-');

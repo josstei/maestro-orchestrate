@@ -1,22 +1,18 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { assertSessionId } from '../../lib/validation/index.js';
+import { ValidationError, NotFoundError, StateError } from '../../lib/errors/index.js';
 
-const fs = require('fs');
-const path = require('path');
-
-const { assertSessionId } = require('../../lib/validation');
-const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
-const {
+import {
   readActiveSession,
   withSessionState,
   assertActiveSessionMatches,
   extractFileManifest,
-} = require('./session-state-core');
-const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
-const { isValidPhaseId } = require('../contracts/plan-schema');
-const {
-  normalizeDownstreamContext,
-  isDownstreamContextPopulated,
-} = require('../contracts/downstream-context');
+} from './session-state-core.js';
+
+import { isExtensionCachePath } from '../contracts/cache-path-rejector.js';
+import { isValidPhaseId } from '../contracts/plan-schema.js';
+import { normalizeDownstreamContext, isDownstreamContextPopulated } from '../contracts/downstream-context.js';
 
 const DEFAULT_IGNORE_DIRS = new Set([
   '.git',
@@ -24,6 +20,7 @@ const DEFAULT_IGNORE_DIRS = new Set([
   '.worktrees',
   '.claude',
 ]);
+
 const DOCS_MAESTRO = path.join('docs', 'maestro');
 
 /**
@@ -215,4 +212,4 @@ function handleReconcilePhase(params, projectRoot) {
   });
 }
 
-module.exports = { handleScanPhaseChanges, handleReconcilePhase };
+export { handleScanPhaseChanges, handleReconcilePhase };

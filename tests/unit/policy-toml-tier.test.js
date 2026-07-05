@@ -1,7 +1,6 @@
-'use strict';
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { renderPolicyToml } = require('../../src/generator/policy-toml-emitter');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { renderPolicyToml } from '../../src/generator/policy-toml-emitter.js';
 
 describe('toml emitter', () => {
   it('excludes non-command-tier rules', () => {

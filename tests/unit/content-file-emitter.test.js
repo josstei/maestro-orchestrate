@@ -1,18 +1,18 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-
-const { buildContentFileOutputs } = require('../../src/generator/content-file-emitter');
-const gemini = require('../../src/platforms/gemini/runtime-config');
-const qwen = require('../../src/platforms/qwen/runtime-config');
-const claude = require('../../src/platforms/claude/runtime-config');
-const codex = require('../../src/platforms/codex/runtime-config');
-
-const ROOT = path.resolve(__dirname, '../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { buildContentFileOutputs } from '../../src/generator/content-file-emitter.js';
+import gemini from '../../src/platforms/gemini/runtime-config.js';
+import qwen from '../../src/platforms/qwen/runtime-config.js';
+import claude from '../../src/platforms/claude/runtime-config.js';
+import codex from '../../src/platforms/codex/runtime-config.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const ROOT = path.resolve(moduleDirname, '../..');
 const SRC = path.join(ROOT, 'src');
-const packageMetadata = require('../../package.json');
+const packageMetadata = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 
 function outputsByPath(outputs) {
   return new Map(outputs.map((output) => [output.outputPath, output.content]));
@@ -108,10 +108,9 @@ describe('content-file-emitter', () => {
   });
 
   it('reproduces the committed context files and runtime docs byte-for-byte', () => {
-    const fs = require('node:fs');
     const outputs = outputsByPath(buildContentFileOutputs({ gemini, qwen, claude, codex }, SRC, packageMetadata));
     for (const [outputPath, content] of outputs) {
-      const committed = fs.readFileSync(path.join(ROOT, outputPath), 'utf8');
+      const committed = readFileSync(path.join(ROOT, outputPath), 'utf8');
       assert.equal(content, committed, outputPath);
     }
   });

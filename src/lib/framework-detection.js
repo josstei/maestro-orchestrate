@@ -1,5 +1,3 @@
-'use strict';
-
 const CONFIG_FILES = [
   '.eslintrc',
   '.prettierrc',
@@ -43,8 +41,4 @@ const FRAMEWORK_INDICATORS = {
   rails: ['rails'],
 };
 
-module.exports = {
-  CONFIG_FILES,
-  SKIP_DIRS,
-  FRAMEWORK_INDICATORS,
-};
+export { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS };

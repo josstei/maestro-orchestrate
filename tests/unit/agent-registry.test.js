@@ -1,17 +1,20 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   KNOWN_AGENTS,
   AGENT_CAPABILITIES,
   normalizeAgentName,
   detectAgentFromPrompt,
   getAgentCapability,
   canCreateFiles,
-} = require('../../src/core/agent-registry');
-const agentRegistryData = require('../../src/generated/agent-registry.json');
+} from '../../src/core/agent-registry.js';
+
+import { readFileSync } from 'node:fs';
+
+const agentRegistryData = JSON.parse(
+  readFileSync(new URL('../../src/generated/agent-registry.json', import.meta.url))
+);
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
 const LEGACY_AGENT_ENV = ['MAESTRO', 'CURRENT', 'AGENT'].join('_');

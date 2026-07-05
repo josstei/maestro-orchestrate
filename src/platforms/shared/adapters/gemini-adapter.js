@@ -1,6 +1,4 @@
-'use strict';
-
-const { defineAdapter } = require('./factory');
+import { defineAdapter } from './factory.js';
 
 /**
  * Gemini hook I/O adapter.
@@ -31,4 +29,4 @@ function errorFallback() {
   return { continue: false };
 }
 
-module.exports = defineAdapter({ normalizeInput, formatOutput, errorFallback });
+export default defineAdapter({ normalizeInput, formatOutput, errorFallback });

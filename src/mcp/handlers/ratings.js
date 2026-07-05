@@ -1,8 +1,5 @@
-'use strict';
-
-const { ValidationError } = require('../../lib/errors');
-const { MemoryStore } = require('../memory/memory-store');
-
+import { ValidationError } from '../../lib/errors/index.js';
+import { MemoryStore } from '../memory/memory-store.js';
 const RATING_VALUES = Object.freeze(['up', 'down']);
 
 /**
@@ -135,9 +132,4 @@ function aggregateRatings(ratings) {
   };
 }
 
-module.exports = {
-  RATING_VALUES,
-  handleRatePhase,
-  handleRateSession,
-  aggregateRatings,
-};
+export { RATING_VALUES, handleRatePhase, handleRateSession, aggregateRatings };

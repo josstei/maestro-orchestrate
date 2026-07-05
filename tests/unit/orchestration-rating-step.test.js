@@ -1,13 +1,14 @@
-'use strict';
-
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
 test('orchestration-steps.md solicits a Completion-phase satisfaction rating', () => {
   const body = fs.readFileSync(
-    path.join(__dirname, '../../src/references/orchestration-steps.md'),
+    path.join(moduleDirname, '../../src/references/orchestration-steps.md'),
     'utf8'
   );
   assert.ok(body.includes('rate_session'), 'missing rate_session capture step');

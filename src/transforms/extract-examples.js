@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Transform: extract-examples
  *
@@ -60,4 +58,4 @@ function extractExamples(body) {
   return { examples, remaining };
 }
 
-module.exports = extractExamplesTransform;
+export default extractExamplesTransform;

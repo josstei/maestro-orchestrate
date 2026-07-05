@@ -1,9 +1,11 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const REPO = path.resolve(__dirname, '../..');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO = path.resolve(moduleDirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
 const listDir = (d) => fs.readdirSync(path.join(REPO, d));
 const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;

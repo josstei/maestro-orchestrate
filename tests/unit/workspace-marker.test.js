@@ -1,16 +1,9 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
-  MARKER_FILENAME,
-  readWorkspaceMarker,
-  writeWorkspaceMarker,
-} = require('../../src/mcp/contracts/workspace-marker');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { MARKER_FILENAME, readWorkspaceMarker, writeWorkspaceMarker } from '../../src/mcp/contracts/workspace-marker.js';
 
 function makeTempWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-marker-'));

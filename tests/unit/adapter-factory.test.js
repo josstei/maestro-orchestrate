@@ -1,11 +1,8 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { defineAdapter } = require('../../src/platforms/shared/adapters/factory');
-const { readBoundedJson } = require('../../src/core/stdin-reader');
-const { EXIT_SUCCESS } = require('../../src/platforms/shared/adapters/exit-codes');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { defineAdapter } from '../../src/platforms/shared/adapters/factory.js';
+import { readBoundedJson } from '../../src/core/stdin-reader.js';
+import { EXIT_SUCCESS } from '../../src/platforms/shared/adapters/exit-codes.js';
 
 const minimalSpec = () => ({
   normalizeInput: (raw) => raw,

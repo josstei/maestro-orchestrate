@@ -1,10 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { PassThrough } = require('node:stream');
-
-const { createLineDispatcher } = require('../../src/mcp/core/line-reader');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { PassThrough } from 'node:stream';
+import { createLineDispatcher } from '../../src/mcp/core/line-reader.js';
 
 function waitForClose(reader) {
   return new Promise((resolve) => reader.once('close', resolve));

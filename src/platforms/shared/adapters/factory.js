@@ -1,7 +1,5 @@
-'use strict';
-
-const { readBoundedJson } = require('../../../core/stdin-reader');
-const { EXIT_SUCCESS } = require('./exit-codes');
+import { readBoundedJson } from '../../../core/stdin-reader.js';
+import { EXIT_SUCCESS } from './exit-codes.js';
 
 /**
  * Adapter contract expected by `hook-runner.js`:
@@ -37,4 +35,4 @@ function defineAdapter(spec) {
   };
 }
 
-module.exports = { defineAdapter };
+export { defineAdapter };

@@ -1,15 +1,12 @@
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { log } = require('../../core/logger');
-const { assertSessionId } = require('../../lib/validation');
-const { atomicWriteSync, readFileSafe } = require('../../lib/io');
-
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { log } from '../../core/logger.js';
+import { assertSessionId } from '../../lib/validation/index.js';
+import { atomicWriteSync, readFileSafe } from '../../lib/io/index.js';
 const HOOK_STATE_TTL_MS = 2 * 60 * 60 * 1000;
-
 const uid = process.getuid ? process.getuid() : 'default';
+
 const DEFAULT_BASE_DIR = process.env.MAESTRO_HOOKS_DIR
   || path.join(os.tmpdir(), `maestro-hooks-${uid}`);
 
@@ -120,7 +117,7 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
 
 const defaultInstance = createHookState();
 
-module.exports = {
+export default {
   createHookState,
   DEFAULT_BASE_DIR,
   ...defaultInstance,

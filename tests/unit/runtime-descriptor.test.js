@@ -1,16 +1,18 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-const {
+import {
   assertValidRuntimeGeneration,
   getRuntimeGeneration,
   getAgentToolDialect,
   getRuntimeConfig,
-} = require('../../src/platforms/runtime-descriptor');
+} from '../../src/platforms/runtime-descriptor.js';
 
-const SRC = path.resolve(__dirname, '../../src');
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const SRC = path.resolve(moduleDirname, '../../src');
 
 function validGeneration() {
   return {
@@ -84,11 +86,11 @@ describe('getAgentToolDialect', () => {
 });
 
 describe('getRuntimeConfig', () => {
-  it('loads a real runtime config by name', () => {
-    assert.equal(getRuntimeConfig('gemini', SRC).name, 'gemini');
+  it('loads a real runtime config by name', async () => {
+    assert.equal((await getRuntimeConfig('gemini', SRC)).name, 'gemini');
   });
 
-  it('throws for an unknown runtime', () => {
-    assert.throws(() => getRuntimeConfig('definitely-not-a-runtime', SRC), /Unknown runtime "definitely-not-a-runtime"/);
+  it('throws for an unknown runtime', async () => {
+    await assert.rejects(() => getRuntimeConfig('definitely-not-a-runtime', SRC), /Unknown runtime "definitely-not-a-runtime"/);
   });
 });

@@ -1,8 +1,4 @@
-'use strict';
-
-const {
-  createCompositionContext,
-} = require('../tool-packs/contracts');
+import { createCompositionContext } from '../tool-packs/contracts.js';
 
 function normalizeToolPack(entry, context, index) {
   let pack = entry;
@@ -76,7 +72,4 @@ function createToolRegistry(options = {}) {
   };
 }
 
-module.exports = {
-  createToolRegistry,
-  normalizeToolPack,
-};
+export { createToolRegistry, normalizeToolPack };

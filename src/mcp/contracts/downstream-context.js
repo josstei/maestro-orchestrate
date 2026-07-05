@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Canonical downstream-context contract.
  *
@@ -97,10 +95,4 @@ function describeShape() {
   );
 }
 
-module.exports = {
-  CANONICAL_FIELDS,
-  createEmptyDownstreamContext,
-  normalizeDownstreamContext,
-  isDownstreamContextPopulated,
-  describeShape,
-};
+export { CANONICAL_FIELDS, createEmptyDownstreamContext, normalizeDownstreamContext, isDownstreamContextPopulated, describeShape };

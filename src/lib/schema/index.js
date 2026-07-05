@@ -1,7 +1,4 @@
-'use strict';
-
-const { ValidationError } = require('../errors');
-
+import { ValidationError } from '../errors/index.js';
 const string = () => ({ kind: 'string' });
 const integer = (opts = {}) => ({ kind: 'integer', min: opts.min == null ? null : opts.min });
 const boolean = () => ({ kind: 'boolean' });
@@ -130,16 +127,4 @@ function coerceScalar(schema, raw) {
   }
 }
 
-module.exports = {
-  string,
-  integer,
-  boolean,
-  enumOf,
-  arrayOf,
-  csv,
-  recordOf,
-  shape,
-  validate,
-  assertValid,
-  coerceScalar,
-};
+export { string, integer, boolean, enumOf, arrayOf, csv, recordOf, shape, validate, assertValid, coerceScalar };

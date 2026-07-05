@@ -1,9 +1,6 @@
-'use strict';
-
-const { renderJson } = require('../metadata-shared');
-const { buildClaudeLocalMcpConfig, buildClaudeLocalPluginManifest } = require('./metadata');
-const { buildPromotedClaudeHookConfig } = require('../../generator/hook-config-emitter');
-
+import { renderJson } from '../metadata-shared.js';
+import { buildClaudeLocalMcpConfig, buildClaudeLocalPluginManifest } from './metadata.js';
+import { buildPromotedClaudeHookConfig } from '../../generator/hook-config-emitter.js';
 const CLAUDE_LOCAL_PLUGIN_DIR = 'claude-plugin';
 const CLAUDE_LOCAL_BUNDLE_DIR = 'src';
 
@@ -22,9 +19,4 @@ function buildPromotedPluginManifestFiles(context) {
   ];
 }
 
-module.exports = {
-  CLAUDE_LOCAL_PLUGIN_DIR,
-  CLAUDE_LOCAL_BUNDLE_DIR,
-  PROMOTED_CONTENT_COPY_MAP,
-  buildPromotedPluginManifestFiles,
-};
+export { CLAUDE_LOCAL_PLUGIN_DIR, CLAUDE_LOCAL_BUNDLE_DIR, PROMOTED_CONTENT_COPY_MAP, buildPromotedPluginManifestFiles };

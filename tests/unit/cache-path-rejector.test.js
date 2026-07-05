@@ -1,13 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-
-const {
-  CACHE_PATH_SEGMENTS,
-  isExtensionCachePath,
-} = require('../../src/mcp/contracts/cache-path-rejector');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { CACHE_PATH_SEGMENTS, isExtensionCachePath } from '../../src/mcp/contracts/cache-path-rejector.js';
 
 describe('cache-path-rejector', () => {
   it('exposes the canonical segment set', () => {

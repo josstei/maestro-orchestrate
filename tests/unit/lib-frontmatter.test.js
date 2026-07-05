@@ -1,9 +1,7 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   parse,
   parseFrontmatterOnly,
   extractValue,
@@ -11,7 +9,7 @@ const {
   splitAtBoundary,
   parseValue,
   parseDoubleQuotedValue,
-} = require('../../src/lib/frontmatter');
+} from '../../src/lib/frontmatter/index.js';
 
 describe('parseDoubleQuotedValue', () => {
   const cases = [

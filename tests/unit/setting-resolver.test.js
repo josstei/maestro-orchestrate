@@ -1,12 +1,9 @@
-'use strict';
-
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { resolveSetting } = require('../../src/config/setting-resolver');
-const { makeTempSrcRoot, cleanupTempRoots } = require('../support/content');
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { resolveSetting } from '../../src/config/setting-resolver.js';
+import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
 
 function withEnv(overrides, fn) {
   const previous = {};

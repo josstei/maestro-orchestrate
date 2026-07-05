@@ -1,13 +1,12 @@
-'use strict';
-
-const fs = require('node:fs');
-const path = require('node:path');
-
-const markdownState = require('../../core/markdown-state');
-const { NotFoundError, ValidationError } = require('../../lib/errors');
-
+import fs from 'node:fs';
+import path from 'node:path';
+import * as markdownState from '../../core/markdown-state.js';
+import { NotFoundError, ValidationError } from '../../lib/errors/index.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 const BLUEPRINT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
-const BLUEPRINT_DIR = path.join(__dirname, '..', '..', 'templates', 'session-blueprints');
+const BLUEPRINT_DIR = path.join(moduleDirname, '..', '..', 'templates', 'session-blueprints');
 
 /**
  * Resolve an authored session blueprint file from the installed package payload.
@@ -124,7 +123,4 @@ function handleInstantiateSessionBlueprint(params) {
   };
 }
 
-module.exports = {
-  handleInstantiateSessionBlueprint,
-  handleListSessionBlueprints,
-};
+export { handleInstantiateSessionBlueprint, handleListSessionBlueprints };

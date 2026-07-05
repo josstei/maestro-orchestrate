@@ -1,21 +1,11 @@
-'use strict';
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-const {
-  createToolPack: createContentPack,
-} = require('../../src/mcp/tool-packs/content');
-const { ensureWorkspace } = require('../../src/state/session-state');
-
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createServer } from '../../src/mcp/core/create-server.js';
+import { createToolPack as createWorkspacePack } from '../../src/mcp/tool-packs/workspace/index.js';
+import { createToolPack as createSessionPack } from '../../src/mcp/tool-packs/session/index.js';
+import { createToolPack as createContentPack } from '../../src/mcp/tool-packs/content/index.js';
+import { ensureWorkspace } from '../../src/state/session-state.js';
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
 function makeTempWorkspace(prefix = 'maestro-test-') {
@@ -92,17 +82,4 @@ function phaseFixture(overrides = {}) {
   };
 }
 
-module.exports = {
-  buildMcpServer,
-  createContentPack,
-  createInitializedMcpWorkspace,
-  createSessionPack,
-  createWorkspacePack,
-  ensureMaestroWorkspace,
-  initializeWorkspace,
-  makeTempWorkspace,
-  phaseFixture,
-  readJsonFrontmatter,
-  readSessionFrontmatter,
-  writeWorkspaceFile,
-};
+export { buildMcpServer, createContentPack, createInitializedMcpWorkspace, createSessionPack, createWorkspacePack, ensureMaestroWorkspace, initializeWorkspace, makeTempWorkspace, phaseFixture, readJsonFrontmatter, readSessionFrontmatter, writeWorkspaceFile };

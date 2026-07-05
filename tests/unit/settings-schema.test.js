@@ -1,15 +1,14 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   SETTINGS_SCHEMA,
   SETTING_NAMES,
   EXECUTION_MODES,
   VALIDATION_STRICTNESS_LEVELS,
-} = require('../../src/config/settings-schema');
-const { assertValid, coerceScalar } = require('../../src/lib/schema');
+} from '../../src/config/settings-schema.js';
+
+import { assertValid, coerceScalar } from '../../src/lib/schema/index.js';
 
 describe('settings-schema', () => {
   it('declares the ten MAESTRO_* settings', () => {

@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { DENY_RULES, ASK_RULES } = require('../../src/core/policy-rules');
-
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { DENY_RULES, ASK_RULES } from '../../src/core/policy-rules.js';
 const VALID_MATCH_TYPES = new Set(['prefix', 'regex', 'word']);
 
 function matchesRule(rule, command) {

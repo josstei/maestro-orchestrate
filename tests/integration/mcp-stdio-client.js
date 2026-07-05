@@ -1,8 +1,7 @@
-const { spawn } = require('node:child_process');
-const path = require('node:path');
-const { pathToFileURL } = require('node:url');
-
-const { ROOT } = require('./helpers');
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { ROOT } from './helpers.js';
 
 function spawnMcpServer(options) {
   const cwd = options.cwd || ROOT;
@@ -223,6 +222,4 @@ function spawnMcpServer(options) {
   };
 }
 
-module.exports = {
-  spawnMcpServer,
-};
+export { spawnMcpServer };

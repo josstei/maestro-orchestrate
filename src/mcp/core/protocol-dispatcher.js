@@ -1,7 +1,4 @@
-'use strict';
-
-const { log } = require('../../core/logger');
-
+import { log } from '../../core/logger.js';
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
 const DEFAULT_CLIENT_REQUEST_TIMEOUT_MS = 5000;
 
@@ -263,12 +260,4 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
   return { requestFromClient, respond, drain };
 }
 
-module.exports = {
-  DEFAULT_PROTOCOL_VERSION,
-  DEFAULT_CLIENT_REQUEST_TIMEOUT_MS,
-  writeMessage,
-  buildInitializeResult,
-  createToolErrorResult,
-  createToolSuccessResult,
-  createProtocolHandlers,
-};
+export { DEFAULT_PROTOCOL_VERSION, DEFAULT_CLIENT_REQUEST_TIMEOUT_MS, writeMessage, buildInitializeResult, createToolErrorResult, createToolSuccessResult, createProtocolHandlers };

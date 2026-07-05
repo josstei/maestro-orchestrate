@@ -1,6 +1,6 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { resolve, transforms } = require('../../src/transforms');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { resolve, transforms } from '../../src/transforms/index.js';
 
 describe('transforms/index resolve', () => {
   it('resolves all remaining registered transform names', () => {

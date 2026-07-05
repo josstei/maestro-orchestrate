@@ -1,10 +1,10 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const { describe, it } = require('node:test');
-const { ROOT } = require('./helpers');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { describe, it } from 'node:test';
+import { ROOT } from './helpers.js';
 
 function runInstaller(homeDir, args = []) {
   return execFileSync('node', ['bin/maestro-install-codex.js', ...args], {

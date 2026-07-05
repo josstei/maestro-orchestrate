@@ -1,17 +1,14 @@
 #!/usr/bin/env node
-'use strict';
-
-const {
-  updateChangelog,
-  updateReleaseInputs,
-} = require('./release-version-metadata');
-const { runAsMain } = require('./lib/cli');
+import { updateChangelog, updateReleaseInputs } from './release-version-metadata.js';
+import { runAsMain } from './lib/cli.js';
+import { realpathSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 function updateVersions(version, options = {}) {
   return updateReleaseInputs(version, options);
 }
 
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const version = process.argv[2];
 
   if (!version) {
@@ -19,13 +16,10 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  runAsMain(module, 'version update', () => {
+  runAsMain(import.meta.url, 'version update', () => {
     updateVersions(version);
     console.log(`Updated canonical release inputs to ${version}`);
   });
 }
 
-module.exports = {
-  updateChangelog,
-  updateVersions,
-};
+export { updateChangelog, updateVersions };

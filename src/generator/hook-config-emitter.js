@@ -1,7 +1,4 @@
-'use strict';
-
-const { getRuntimeGeneration } = require('../platforms/runtime-descriptor');
-
+import { getRuntimeGeneration } from '../platforms/runtime-descriptor.js';
 const STAGE_ORDER = ['session-start', 'before-agent', 'after-agent', 'session-end'];
 
 const STAGE_DESCRIPTIONS = {
@@ -89,4 +86,4 @@ function buildHookConfigOutputs(runtimes) {
   return outputs;
 }
 
-module.exports = { buildHookConfigOutputs, buildClaudeHookConfig, buildPromotedClaudeHookConfig, renderJson };
+export { buildHookConfigOutputs, buildClaudeHookConfig, buildPromotedClaudeHookConfig, renderJson };

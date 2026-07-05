@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * @param {string} text - Full text of an agent Task Report.
  * @returns {{ question: string, context: string, required: string }[]}
@@ -31,4 +29,4 @@ function parseBlockers(text) {
   return blockers;
 }
 
-module.exports = { parseBlockers };
+export { parseBlockers };

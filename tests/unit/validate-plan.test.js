@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { handleValidatePlan } = require('../../src/mcp/handlers/validate-plan');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { handleValidatePlan } from '../../src/mcp/handlers/validate-plan.js';
 
 function makePhase(overrides = {}) {
   return { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [], ...overrides };

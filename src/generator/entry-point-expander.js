@@ -1,12 +1,12 @@
-'use strict';
-
-const path = require('node:path');
-const fs = require('node:fs');
-const { toTitleCase } = require('../lib/naming');
-const { emitInlineQuotedList } = require('../lib/yaml-emit');
-const { getRuntimeConfig, getRuntimeGeneration } = require('../platforms/runtime-descriptor');
-
-const DEFAULT_SRC = path.resolve(__dirname, '..');
+import path from 'node:path';
+import fs from 'node:fs';
+import { toTitleCase } from '../lib/naming/index.js';
+import { emitInlineQuotedList } from '../lib/yaml-emit.js';
+import { getRuntimeConfig, getRuntimeGeneration } from '../platforms/runtime-descriptor.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const DEFAULT_SRC = path.resolve(moduleDirname, '..');
 
 // Host platform names that must never appear as public skill names.
 // Confirmed: Claude /review shadows the built-in PR review command.
@@ -70,12 +70,12 @@ function runTemplateExpansion({ runtimeName, registry, templatePath, outputPathF
  * @param {string} [srcDir]
  * @returns {Array<{ outputPath: string, content: string }>}
  */
-function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = getRuntimeGeneration(getRuntimeConfig(runtimeName, srcDir)).entryPoint;
+async function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
+  const config = getRuntimeGeneration(await getRuntimeConfig(runtimeName, srcDir)).entryPoint;
   if (!config) return [];
 
-  const registry = require(path.join(srcDir, 'entry-points', 'registry'));
-  const preambleBuilders = require(path.join(srcDir, 'entry-points', 'preamble-builders'));
+  const { default: registry } = await import(pathToFileURL(path.join(srcDir, 'entry-points', 'registry.js')).href);
+  const preambleBuilders = await import(pathToFileURL(path.join(srcDir, 'entry-points', 'preamble-builders.js')).href);
   const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
   const buildPreamble = preambleBuilders[runtimeName];
 
@@ -100,11 +100,11 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
  * @param {string} [srcDir]
  * @returns {Array<{ outputPath: string, content: string }>}
  */
-function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = getRuntimeGeneration(getRuntimeConfig(runtimeName, srcDir)).coreCommand;
+async function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
+  const config = getRuntimeGeneration(await getRuntimeConfig(runtimeName, srcDir)).coreCommand;
   if (!config) return [];
 
-  const registry = require(path.join(srcDir, 'entry-points', 'core-command-registry'));
+  const { default: registry } = await import(pathToFileURL(path.join(srcDir, 'entry-points', 'core-command-registry.js')).href);
   const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
 
   return runTemplateExpansion({
@@ -124,4 +124,4 @@ function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
   });
 }
 
-module.exports = { expandEntryPoints, expandCoreCommands };
+export { expandEntryPoints, expandCoreCommands };

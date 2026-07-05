@@ -1,10 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { runPlanValidation } = require('../../src/mcp/validation/plan-validation-pipeline');
-
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { runPlanValidation } from '../../src/mcp/validation/plan-validation-pipeline.js';
 const emptyPlan = { phases: [] };
 
 function rule(id, violations) {
