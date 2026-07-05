@@ -12,9 +12,8 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
 
 ```json
 {
-  "command": "node",
-  "args": ["${extensionPath}/mcp/maestro-server.js"],
-  "cwd": "${extensionPath}",
+  "command": "npx",
+  "args": ["-y", "-p", "@josstei/maestro@<package version>", "maestro-mcp-server"],
   "env": {
     "MAESTRO_RUNTIME": "qwen",
     "MAESTRO_WORKSPACE_PATH": "${workspacePath}"
@@ -22,7 +21,7 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
 }
 ```
 
-Qwen reuses the repo-root public server at `mcp/maestro-server.js`. The Qwen manifest launches that shared adapter with `MAESTRO_RUNTIME=qwen`; without that env var the adapter defaults to Gemini. The adapter requires canonical `src/mcp/maestro-server.js` directly and runs the Qwen runtime against shared source in `src/`. Qwen declares `primary: filesystem` and `fallback: none`.
+The Qwen manifest launches the server via `npx` against the versioned `@josstei/maestro` npm package, with `MAESTRO_RUNTIME=qwen`. The `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) respects that env var (defaulting to `codex` if absent) and requires canonical `src/mcp/maestro-server.js` directly, running the Qwen runtime against shared source in `src/`. The repo-root `mcp/maestro-server.js` adapter still ships (shared with Gemini) but is no longer the launch target. Qwen declares `primary: filesystem` and `fallback: none`.
 
 ## Agent Naming
 
