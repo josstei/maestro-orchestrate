@@ -1,29 +1,5 @@
 import { createToolPipeline } from '../server/tool-pipeline.js';
 
-function createCompositionContext(options = {}) {
-  const runtimeConfig =
-    options.runtimeConfig && typeof options.runtimeConfig === 'object'
-      ? options.runtimeConfig
-      : {};
-  const services =
-    options.services && typeof options.services === 'object'
-      ? options.services
-      : {};
-
-  return Object.freeze({
-    runtimeConfig,
-    services,
-  });
-}
-
-function defineToolPack(pack) {
-  if (!pack || typeof pack !== 'object' || Array.isArray(pack)) {
-    throw new TypeError('Tool pack must be an object.');
-  }
-
-  return pack;
-}
-
 /**
  * Create maestro's own cross-pack tool registry, tracking metadata
  * (`requiresWorkspace`) the SDK's `registerTool` config silently drops.
@@ -98,4 +74,4 @@ function defineTool({
   return server.registerTool(name, { description, inputSchema: schema }, callback);
 }
 
-export { createCompositionContext, createMaestroToolRegistry, defineTool, defineToolPack };
+export { createMaestroToolRegistry, defineTool };

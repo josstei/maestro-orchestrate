@@ -1,6 +1,5 @@
 import { getRecoveryHint } from './recovery-hints.js';
 import { MaestroError } from '../../lib/errors/index.js';
-const UNKNOWN_TOOL_CODE = 'UNKNOWN_TOOL';
 const INTERNAL_TOOL_ERROR_CODE = 'INTERNAL_TOOL_ERROR';
 
 function sanitizeErrorMessage(error) {
@@ -38,13 +37,6 @@ function createToolFailure({
   return outcome;
 }
 
-function createUnknownToolFailure(name) {
-  return createToolFailure({
-    error: `Unknown tool: ${name}`,
-    code: UNKNOWN_TOOL_CODE,
-  });
-}
-
 function normalizeToolError(toolName, error) {
   if (error instanceof MaestroError) {
     return createToolFailure({
@@ -63,4 +55,4 @@ function normalizeToolError(toolName, error) {
   });
 }
 
-export { INTERNAL_TOOL_ERROR_CODE, UNKNOWN_TOOL_CODE, createToolFailure, createToolSuccess, createUnknownToolFailure, normalizeToolError, sanitizeErrorMessage };
+export { createToolFailure, createToolSuccess, normalizeToolError };

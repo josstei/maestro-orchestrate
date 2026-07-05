@@ -11,9 +11,9 @@ import { handleResolveSettings } from '../../handlers/resolve-settings.js';
  * `defineTool`, each consuming its shape from `./zod-schemas.js`.
  *
  * `onInitializeWorkspace` is wired as `initialize_workspace`'s pipeline
- * post-call effect — the SDK-cutover replacement for the old dispatcher's
- * `server.onToolCall('initialize_workspace', ...)` — so the caller (the live
- * server) can feed its project-root cache without the pack knowing about it.
+ * post-call effect, invoked by `createToolPipeline` after a successful
+ * handler run, so the caller (the live server) can feed its project-root
+ * cache without the pack knowing about it.
  *
  * @param {{server: object, registry: object, onInitializeWorkspace?: (result: object) => void}} options
  */

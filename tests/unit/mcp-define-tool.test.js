@@ -7,17 +7,9 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   createMaestroToolRegistry,
   defineTool,
-  defineToolPack,
 } from '../../src/mcp/tool-packs/contracts.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
-
-test('defineToolPack still works unchanged for still-unconverted packs', () => {
-  const pack = defineToolPack({ name: 'legacy', tools: [], handlers: {} });
-  assert.equal(pack.name, 'legacy');
-  assert.deepEqual(pack.tools, []);
-  assert.deepEqual(pack.handlers, {});
-});
 
 test('defineTool registers a tool via server.registerTool with the given description/inputSchema', async () => {
   const server = new McpServer({ name: 'test', version: '0.0.0' }, { capabilities: { tools: {} } });
