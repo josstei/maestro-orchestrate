@@ -1,4 +1,3 @@
-import { RetrievalProvider } from './retrieval-provider.js';
 const K1 = 1.2;
 const B = 0.75;
 
@@ -21,10 +20,13 @@ function tokenize(text) {
  * Deterministic hand-rolled BM25/TF-IDF provider. Pure Node, zero deps.
  * Enforces a strict total order: score descending, ties broken by
  * `session_id` ascending, independent of index/input order.
+ *
+ * A record is `{ session_id: string, text: string, summary: object }`.
+ * A ranked result is `{ session_id: string, score: number, summary: object }`,
+ * ordered by score descending, ties broken by `session_id` ascending.
  */
-class Bm25Provider extends RetrievalProvider {
+class Bm25Provider {
   constructor() {
-    super();
     this.documents = [];
     this.documentFrequency = new Map();
     this.averageLength = 0;
@@ -106,4 +108,4 @@ class Bm25Provider extends RetrievalProvider {
   }
 }
 
-export { RetrievalProvider, Bm25Provider, tokenize, K1, B };
+export { Bm25Provider, tokenize, K1, B };

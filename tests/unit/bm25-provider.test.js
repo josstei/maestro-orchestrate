@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RetrievalProvider, Bm25Provider, tokenize } from '../../src/mcp/retrieval/bm25-provider.js';
+import { Bm25Provider, tokenize } from '../../src/mcp/retrieval/bm25-provider.js';
 
 test('tokenize lowercases and splits on Unicode punctuation and whitespace', () => {
   assert.deepEqual(tokenize('src/Auth/OAuth.js  token-refresh'), [
@@ -13,12 +13,6 @@ test('tokenize lowercases and splits on Unicode punctuation and whitespace', () 
   ]);
   assert.deepEqual(tokenize(''), []);
   assert.deepEqual(tokenize(null), []);
-});
-
-test('RetrievalProvider is an abstract seam that must be implemented', () => {
-  const provider = new RetrievalProvider();
-  assert.throws(() => provider.index([]), /must be implemented/);
-  assert.throws(() => provider.query('x'), /must be implemented/);
 });
 
 test('Bm25Provider ranks documents by descending relevance', () => {
