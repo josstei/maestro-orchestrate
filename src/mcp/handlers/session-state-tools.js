@@ -29,12 +29,12 @@ import {
   resolveActiveSessionPath,
   parseSessionState,
   extractBody,
-  readActiveSession,
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
-  assertActiveSessionMatches,
   extractFileManifest,
+  assertValidActiveSession,
+  withValidatedSession,
 } from './session-state-core.js';
 
 import { parseBlockers } from './blocker-parser.js';
@@ -298,11 +298,7 @@ function handleTransitionPhase(params, projectRoot) {
     );
   }
 
-  return withSessionState(projectRoot, ({ state }) => {
-    if (params.session_id) {
-      assertActiveSessionMatches(state, params.session_id);
-    }
-
+  const mutator = ({ state }) => {
     let completedPhase;
     if (hasCompletedPhase) {
       completedPhase = state.phases.find(
@@ -450,16 +446,18 @@ function handleTransitionPhase(params, projectRoot) {
     }
 
     return { response, writeBack: true };
-  });
+  };
+
+  return params.session_id
+    ? withValidatedSession(projectRoot, params.session_id, mutator)
+    : withSessionState(projectRoot, mutator);
 }
 
 function handleArchiveSession(params, projectRoot) {
-  assertSessionId(params.session_id);
-
-  const session = readActiveSession(projectRoot);
-  const { state, basePath, sessionPath, content } = session;
-
-  assertActiveSessionMatches(state, params.session_id);
+  const { state, basePath, sessionPath, content } = assertValidActiveSession(
+    projectRoot,
+    params.session_id
+  );
 
   const pendingRec = (state.phases || []).find(
     (phase) => phase.requires_reconciliation === true
@@ -530,11 +528,7 @@ function handleArchiveSession(params, projectRoot) {
 }
 
 function handleUpdateSession(params, projectRoot) {
-  assertSessionId(params.session_id);
-
-  return withSessionState(projectRoot, ({ state }) => {
-    assertActiveSessionMatches(state, params.session_id);
-
+  return withValidatedSession(projectRoot, params.session_id, ({ state }) => {
     const updatableFields = [
       'execution_mode',
       'execution_backend',

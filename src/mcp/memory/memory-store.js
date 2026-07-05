@@ -3,7 +3,7 @@ import path from 'path';
 import * as markdownState from '../../core/markdown-state.js';
 import { atomicWriteSync, readFileSafe, readJsonSafe, readJsonLines, appendJsonLine } from '../../lib/io/index.js';
 import { ValidationError } from '../../lib/errors/index.js';
-import { assertRelativePath } from '../../lib/validation/index.js';
+import { assertRelativePath, normalizeUniqueStringList } from '../../lib/validation/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
 const PROFILE_SCHEMA_VERSION = 1;
 const AGENT_PERFORMANCE_SCHEMA_VERSION = 1;
@@ -165,25 +165,7 @@ function emptyProfile() {
   return profile;
 }
 
-/**
- * Coerce an arbitrary value into a trimmed, de-duplicated, insertion-ordered
- * array of non-empty strings. Non-array input yields [].
- * @param {unknown} value
- * @returns {string[]}
- */
-function normalizeStringArray(value) {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set();
-  const out = [];
-  for (const item of value) {
-    if (typeof item !== 'string') continue;
-    const trimmed = item.trim();
-    if (trimmed.length === 0 || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
-}
+const normalizeStringArray = normalizeUniqueStringList;
 
 /**
  * Fold newly-recorded commands into an existing command array, most-recent-first:
@@ -347,12 +329,7 @@ class MemoryStore {
    * @returns {{ schema_version: number, records: Array<object> }}
    */
   readAgentPerformance() {
-    return normalizeAgentPerformanceLedger(
-      readJsonSafe(this.agentPerformancePath(), {
-        schema_version: AGENT_PERFORMANCE_SCHEMA_VERSION,
-        records: [],
-      })
-    );
+    return normalizeAgentPerformanceLedger(readJsonSafe(this.agentPerformancePath()));
   }
 
   /**
@@ -362,9 +339,7 @@ class MemoryStore {
    * @returns {{ schema_version: number, interfaces: object[], patterns: object[], integration_points: object[], assumptions: object[], warnings: object[] }}
    */
   readArchitectureMemory() {
-    return normalizeArchitectureMemoryGraph(
-      readJsonSafe(this.architectureMemoryPath(), emptyArchitectureMemoryGraph())
-    );
+    return normalizeArchitectureMemoryGraph(readJsonSafe(this.architectureMemoryPath()));
   }
 
   /**

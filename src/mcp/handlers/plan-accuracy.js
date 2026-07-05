@@ -1,22 +1,5 @@
 import { MemoryStore } from '../memory/memory-store.js';
-
-/**
- * @param {unknown} value
- * @returns {string[]}
- */
-function normalizeFileList(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  const seen = new Set();
-  for (const item of value) {
-    if (typeof item !== 'string') continue;
-    const trimmed = item.trim();
-    if (trimmed.length === 0 || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
-}
+import { normalizeUniqueStringList as normalizeFileList } from '../../lib/validation/index.js';
 
 /**
  * @param {Set<string>} left

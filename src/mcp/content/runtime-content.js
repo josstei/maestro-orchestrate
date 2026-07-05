@@ -129,11 +129,12 @@ function mapTools(frontmatter, runtimeConfig) {
   });
 }
 
-function readRawResourceFromFilesystem(id, srcRoot) {
-  const relativePath = RESOURCE_ALLOWLIST[id];
+/** Shared allowlist-lookup -> path.join -> read/catch envelope. */
+function readAllowlistedFile(id, srcRoot, { unknownLabel, resolveRelativePath, knownIdsForError }) {
+  const relativePath = resolveRelativePath(id);
   if (!relativePath) {
     return {
-      error: `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCE_ALLOWLIST).join(', ')}`,
+      error: `Unknown ${unknownLabel} identifier: "${id}". Known identifiers: ${knownIdsForError}`,
     };
   }
 
@@ -147,11 +148,19 @@ function readRawResourceFromFilesystem(id, srcRoot) {
     };
   } catch (err) {
     return {
-      error: `Failed to read resource "${id}": ${err.code || 'UNKNOWN'}`,
+      error: `Failed to read ${unknownLabel} "${id}": ${err.code || 'UNKNOWN'}`,
       code: err.code || 'UNKNOWN',
       path: absolutePath,
     };
   }
+}
+
+function readRawResourceFromFilesystem(id, srcRoot) {
+  return readAllowlistedFile(id, srcRoot, {
+    unknownLabel: 'resource',
+    resolveRelativePath: (resourceId) => RESOURCE_ALLOWLIST[resourceId],
+    knownIdsForError: Object.keys(RESOURCE_ALLOWLIST).join(', '),
+  });
 }
 
 const ROSTER_MARKER = /<!-- @roster -->/g;
@@ -186,37 +195,24 @@ function materializeResource(rawResource, runtimeConfig, srcRoot) {
   };
 }
 
+function readAndMaterialize(raw, materializer) {
+  return raw.error ? raw : materializer(raw);
+}
+
 function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
   const rawResource = readRawResourceFromFilesystem(id, srcRoot);
-  if (rawResource.error) {
-    return rawResource;
-  }
-
-  return materializeResource(rawResource, runtimeConfig, srcRoot);
+  return readAndMaterialize(rawResource, (raw) =>
+    materializeResource(raw, runtimeConfig, srcRoot)
+  );
 }
 
 function readRawAgentFromFilesystem(agentName, srcRoot) {
-  if (!AGENT_ALLOWLIST.includes(agentName)) {
-    return {
-      error: `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
-    };
-  }
-
-  const absolutePath = path.join(srcRoot, 'agents', `${agentName}.md`);
-  try {
-    const content = fs.readFileSync(absolutePath, 'utf8');
-    return {
-      content,
-      path: absolutePath,
-      relativePath: path.join('agents', `${agentName}.md`),
-    };
-  } catch (err) {
-    return {
-      error: `Failed to read agent "${agentName}": ${err.code || 'UNKNOWN'}`,
-      code: err.code || 'UNKNOWN',
-      path: absolutePath,
-    };
-  }
+  return readAllowlistedFile(agentName, srcRoot, {
+    unknownLabel: 'agent',
+    resolveRelativePath: (name) =>
+      AGENT_ALLOWLIST.includes(name) ? path.join('agents', `${name}.md`) : null,
+    knownIdsForError: AGENT_ALLOWLIST.join(', '),
+  });
 }
 
 function materializeAgent(rawAgent, runtimeConfig) {
@@ -231,11 +227,7 @@ function materializeAgent(rawAgent, runtimeConfig) {
 
 function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
   const rawAgent = readRawAgentFromFilesystem(agentName, srcRoot);
-  if (rawAgent.error) {
-    return rawAgent;
-  }
-
-  return materializeAgent(rawAgent, runtimeConfig);
+  return readAndMaterialize(rawAgent, (raw) => materializeAgent(raw, runtimeConfig));
 }
 
 export { DEFAULT_RUNTIME_NAME, RESOURCE_ALLOWLIST, AGENT_ALLOWLIST, applyReplacePaths, applySkillMetadata, applyReplaceAgentNames, applyStripFeature, applyRuntimeTransforms, loadAgentRegistryFromSrcRoot, expandRosterMarker, stripFrontmatter, stripFeatureBlocks, parseInlineArray, parseFrontmatter, mapTools, readRawResourceFromFilesystem, materializeResource, readResourceFromFilesystem, readRawAgentFromFilesystem, materializeAgent, readAgentFromFilesystem };

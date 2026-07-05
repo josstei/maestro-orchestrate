@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   assertActiveSessionMatches,
+  createPendingPhaseProgress,
   extractBody,
   parseSessionState,
   readActiveSession,
@@ -12,7 +13,6 @@ import {
   writeActiveSession,
 } from './session-state-core.js';
 
-import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
 import { NotFoundError, StateError, ValidationError } from '../../lib/errors/index.js';
 import { assertSessionId } from '../../lib/validation/index.js';
 import { readState, writeState } from '../../state/session-state.js';
@@ -103,21 +103,14 @@ function readCheckpoint(basePath, sessionId, phaseId) {
 }
 
 function resetFuturePhase(phase) {
-  const next = { ...phase };
-  next.status = 'pending';
-  next.started = null;
-  next.completed = null;
-  next.files_created = [];
-  next.files_modified = [];
-  next.files_deleted = [];
-  next.downstream_context = createEmptyDownstreamContext();
-  next.requires_reconciliation = false;
+  const next = {
+    ...phase,
+    status: 'pending',
+    ...createPendingPhaseProgress(),
+    requires_reconciliation: false,
+  };
   delete next.duration_ms;
   delete next.token_usage;
-  next.errors = [];
-  next.retry_count = 0;
-  next.blocker_count = 0;
-  next.review_finding_count = 0;
   return next;
 }
 

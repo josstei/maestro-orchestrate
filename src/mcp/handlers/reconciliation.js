@@ -1,12 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { assertSessionId } from '../../lib/validation/index.js';
 import { ValidationError, NotFoundError, StateError } from '../../lib/errors/index.js';
 
 import {
-  readActiveSession,
-  withSessionState,
-  assertActiveSessionMatches,
+  assertValidActiveSession,
+  withValidatedSession,
   extractFileManifest,
 } from './session-state-core.js';
 
@@ -118,15 +116,12 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
  * @param {string} projectRoot
  */
 function handleScanPhaseChanges(params, projectRoot) {
-  assertSessionId(params.session_id);
   if (!isValidPhaseId(params.phase_id)) {
     throw new ValidationError(
       'phase_id must be a positive integer or a non-empty string'
     );
   }
-  const { state } = readActiveSession(projectRoot);
-
-  assertActiveSessionMatches(state, params.session_id);
+  const { state } = assertValidActiveSession(projectRoot, params.session_id);
 
   const phase = (state.phases || []).find((p) => p.id === params.phase_id);
   if (!phase) {
@@ -157,7 +152,6 @@ function handleScanPhaseChanges(params, projectRoot) {
  * @param {string} projectRoot
  */
 function handleReconcilePhase(params, projectRoot) {
-  assertSessionId(params.session_id);
   if (!isValidPhaseId(params.phase_id)) {
     throw new ValidationError(
       'phase_id must be a positive integer or a non-empty string'
@@ -176,9 +170,7 @@ function handleReconcilePhase(params, projectRoot) {
     );
   }
 
-  return withSessionState(projectRoot, ({ state }) => {
-    assertActiveSessionMatches(state, params.session_id);
-
+  return withValidatedSession(projectRoot, params.session_id, ({ state }) => {
     const phase = (state.phases || []).find((p) => p.id === params.phase_id);
     if (!phase) {
       throw new NotFoundError(`Phase ${params.phase_id} not found`);

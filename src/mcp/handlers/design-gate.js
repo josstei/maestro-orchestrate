@@ -431,4 +431,4 @@ function removeDesignGate(projectRoot, sessionId) {
   return filePath;
 }
 
-export { handleEnterDesignGate, handleRecordDesignApproval, handleGetDesignGateStatus, isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, listApprovedGates, findOrphanedApprovedGates, ensureDesignDocumentInPlans, writePlansDocumentContent, plansDirPath, removeDesignGate };
+export { handleEnterDesignGate, handleRecordDesignApproval, handleGetDesignGateStatus, isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, listApprovedGates, findOrphanedApprovedGates, ensureDesignDocumentInPlans, writePlansDocumentContent, plansDirPath, removeDesignGate, writeGate };

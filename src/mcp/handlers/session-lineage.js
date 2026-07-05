@@ -1,11 +1,16 @@
 import path from 'path';
 import { NotFoundError } from '../../lib/errors/index.js';
 import { assertSessionId } from '../../lib/validation/index.js';
-import { readState, writeState } from '../../state/session-state.js';
-import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
+import { readState } from '../../state/session-state.js';
 import { parseArchivedSessionState, readArchivedSessionSummaries } from './archive-index.js';
-import { resolveBasePath, readActiveSessionOrNull, writeActiveSession } from './session-state-core.js';
+import {
+  createPendingPhaseProgress,
+  resolveBasePath,
+  readActiveSessionOrNull,
+  writeActiveSession,
+} from './session-state-core.js';
 import { SCHEMA_VERSION } from './session-migrations.js';
+import { writeGate } from './design-gate.js';
 
 function normalizeBranch(value) {
   return typeof value === 'string' && value.length > 0 ? value : null;
@@ -22,17 +27,8 @@ function cloneForkPhase(phase) {
     status: 'pending',
     agents: cloneStringArray(phase.agents),
     parallel: phase.parallel === true,
-    started: null,
-    completed: null,
     blocked_by: cloneStringArray(phase.blocked_by),
-    files_created: [],
-    files_modified: [],
-    files_deleted: [],
-    downstream_context: createEmptyDownstreamContext(),
-    errors: [],
-    retry_count: 0,
-    blocker_count: 0,
-    review_finding_count: 0,
+    ...createPendingPhaseProgress(),
   };
   if (Array.isArray(phase.planned_files)) {
     next.planned_files = [...phase.planned_files];
@@ -52,20 +48,6 @@ function readArchivedSession(basePath, sessionId) {
     throw error;
   }
   return parseArchivedSessionState(content);
-}
-
-function writeApprovedDesignGate(basePath, state, timestamp) {
-  const gate = {
-    session_id: state.session_id,
-    entered_at: timestamp,
-    approved_at: timestamp,
-    design_document_path: state.design_document || null,
-  };
-  writeState(
-    path.join('state', `${state.session_id}.design-gate.json`),
-    JSON.stringify(gate, null, 2),
-    basePath
-  );
 }
 
 function toLineageNode(state, archivePath) {
@@ -146,7 +128,12 @@ function handleForkSession(params, projectRoot) {
   };
 
   writeActiveSession(basePath, state, `# ${state.task || state.session_id} Orchestration Log\n`);
-  writeApprovedDesignGate(basePath, state, now);
+  writeGate(projectRoot, state.session_id, {
+    session_id: state.session_id,
+    entered_at: now,
+    approved_at: now,
+    design_document_path: state.design_document || null,
+  });
 
   return {
     success: true,

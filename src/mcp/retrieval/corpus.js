@@ -1,30 +1,4 @@
-import fs from 'fs';
-import path from 'path';
-import * as markdownState from '../../core/markdown-state.js';
-import { resolveStateDirPath } from '../../state/session-state.js';
-import { migrateSessionState } from '../handlers/session-migrations.js';
-
-/**
- * @param {string} projectRoot
- * @returns {string}
- */
-function archiveDir(projectRoot) {
-  return path.join(resolveStateDirPath(projectRoot), 'state', 'archive');
-}
-
-/**
- * @param {Array<{ agents?: unknown }>} phases
- * @returns {string[]} sorted unique agent names
- */
-function collectAgents(phases) {
-  const agents = new Set();
-  for (const phase of Array.isArray(phases) ? phases : []) {
-    for (const agent of Array.isArray(phase.agents) ? phase.agents : []) {
-      if (typeof agent === 'string' && agent.length > 0) agents.add(agent);
-    }
-  }
-  return [...agents].sort();
-}
+import { collectAgents, mapArchivedSessionStates } from '../handlers/archive-scan.js';
 
 /**
  * @param {Array<object>} phases
@@ -101,27 +75,7 @@ function toRecord(state, archivePath) {
  * @returns {Array<{ session_id: string, text: string, summary: object }>}
  */
 function buildRetrievalCorpus(projectRoot) {
-  const dir = archiveDir(projectRoot);
-  let entries;
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  const records = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
-    let state;
-    try {
-      const parsed = markdownState.parse(fs.readFileSync(path.join(dir, entry.name), 'utf8'));
-      state = migrateSessionState(parsed.data);
-    } catch {
-      continue;
-    }
-    if (!state || typeof state.session_id !== 'string') continue;
-    records.push(toRecord(state, path.join('state', 'archive', entry.name)));
-  }
-  return records;
+  return mapArchivedSessionStates(projectRoot, toRecord);
 }
 
 export { buildRetrievalCorpus };

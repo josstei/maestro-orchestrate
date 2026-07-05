@@ -1,17 +1,11 @@
-import fs from 'fs';
 import path from 'path';
-import * as markdownState from '../../core/markdown-state.js';
-import { resolveBasePath, readActiveSessionOrNull } from './session-state-core.js';
+import { readActiveSessionOrNull } from './session-state-core.js';
 import { mergeAgentLedgers, summarizeLedger } from '../contracts/agent-cost-ledger.js';
-import { migrateSessionState } from './session-migrations.js';
-
-/**
- * @param {string} basePath
- * @returns {string}
- */
-function archiveDir(basePath) {
-  return path.join(basePath, 'state', 'archive');
-}
+import {
+  parseArchivedSessionState,
+  collectAgents,
+  mapArchivedSessionStates,
+} from './archive-scan.js';
 
 /**
  * Derived session outcome: 'failed' if any phase failed, else 'completed'.
@@ -23,22 +17,6 @@ function deriveOutcome(phases) {
   return list.some((phase) => phase && phase.status === 'failed')
     ? 'failed'
     : 'completed';
-}
-
-/**
- * @param {Array<{agents?:string[]}>} phases
- * @returns {string[]} sorted unique agent names
- */
-function collectAgents(phases) {
-  const agents = new Set();
-  for (const phase of Array.isArray(phases) ? phases : []) {
-    for (const agent of Array.isArray(phase.agents) ? phase.agents : []) {
-      if (typeof agent === 'string' && agent.length > 0) {
-        agents.add(agent);
-      }
-    }
-  }
-  return [...agents].sort();
 }
 
 /**
@@ -78,19 +56,6 @@ function toSummary(state, archivePath) {
 }
 
 /**
- * Parse an archived session document and bring it up to the current schema
- * version. Shared by the archive reader and future archived-document consumers
- * so every archive parse site is migration-routed identically to the active
- * read path in `session-state-core.js`.
- *
- * @param {string} content - raw archived session-state file content
- * @returns {object} migrated session-state frontmatter data
- */
-function parseArchivedSessionState(content) {
-  return migrateSessionState(markdownState.parse(content).data);
-}
-
-/**
  * Read every parseable archived session under `state/archive/`, newest first.
  * Returns [] when the archive directory is absent. Unparseable or
  * id-less files are skipped rather than throwing.
@@ -99,27 +64,7 @@ function parseArchivedSessionState(content) {
  * @returns {object[]}
  */
 function readArchivedSessionSummaries(projectRoot) {
-  const basePath = resolveBasePath(projectRoot);
-  const dir = archiveDir(basePath);
-  let entries;
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  const summaries = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
-    const absPath = path.join(dir, entry.name);
-    let state;
-    try {
-      state = parseArchivedSessionState(fs.readFileSync(absPath, 'utf8'));
-    } catch {
-      continue;
-    }
-    if (!state || typeof state.session_id !== 'string') continue;
-    summaries.push(toSummary(state, path.join('state', 'archive', entry.name)));
-  }
+  const summaries = mapArchivedSessionStates(projectRoot, toSummary);
   summaries.sort(
     (a, b) => (Date.parse(b.created) || 0) - (Date.parse(a.created) || 0)
   );

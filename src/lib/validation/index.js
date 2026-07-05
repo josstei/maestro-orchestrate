@@ -128,4 +128,24 @@ function coercePositiveInteger(value) {
   return Number.isFinite(num) && Number.isInteger(num) && num > 0 ? num : value;
 }
 
-export { assertNonEmptyArray, assertSessionId, assertAllowlisted, assertRelativePath, assertContainedIn, coercePositiveInteger, requireNonEmptyString };
+/**
+ * Coerce an arbitrary value into a trimmed, de-duplicated, insertion-ordered
+ * array of non-empty strings. Non-array input yields [].
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function normalizeUniqueStringList(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (trimmed.length === 0 || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+export { assertNonEmptyArray, assertSessionId, assertAllowlisted, assertRelativePath, assertContainedIn, coercePositiveInteger, requireNonEmptyString, normalizeUniqueStringList };

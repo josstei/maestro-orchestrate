@@ -2,7 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import * as markdownState from '../../core/markdown-state.js';
 import { StateError, ValidationError } from '../../lib/errors/index.js';
+import { assertSessionId } from '../../lib/validation/index.js';
 import { readState, writeState, resolveStateDirPath } from '../../state/session-state.js';
+import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
 import { migrateSessionState } from './session-migrations.js';
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 
@@ -108,6 +110,39 @@ function assertActiveSessionMatches(state, sessionId) {
   }
 }
 
+/** The shared "not run yet" progress block for a pending phase. */
+function createPendingPhaseProgress() {
+  return {
+    started: null,
+    completed: null,
+    files_created: [],
+    files_modified: [],
+    files_deleted: [],
+    downstream_context: createEmptyDownstreamContext(),
+    errors: [],
+    retry_count: 0,
+    blocker_count: 0,
+    review_finding_count: 0,
+  };
+}
+
+/** Folds assertSessionId + readActiveSession + assertActiveSessionMatches. */
+function assertValidActiveSession(projectRoot, sessionId) {
+  assertSessionId(sessionId);
+  const session = readActiveSession(projectRoot);
+  assertActiveSessionMatches(session.state, sessionId);
+  return session;
+}
+
+/** Folds assertSessionId + withSessionState + assertActiveSessionMatches. */
+function withValidatedSession(projectRoot, sessionId, mutator) {
+  assertSessionId(sessionId);
+  return withSessionState(projectRoot, (session) => {
+    assertActiveSessionMatches(session.state, sessionId);
+    return mutator(session);
+  });
+}
+
 /**
  * Normalize the file-manifest fields (`files_created`, `files_modified`,
  * `files_deleted`) shared by `transition_phase` and `reconcile_phase`.
@@ -139,4 +174,4 @@ function extractFileManifest(params) {
   };
 }
 
-export { resolveBasePath, resolveActiveSessionPath, parseSessionState, serializeSessionState, extractBody, readActiveSession, readActiveSessionOrNull, writeActiveSession, withSessionState, assertActiveSessionMatches, extractFileManifest };
+export { resolveBasePath, resolveActiveSessionPath, parseSessionState, serializeSessionState, extractBody, readActiveSession, readActiveSessionOrNull, writeActiveSession, withSessionState, assertActiveSessionMatches, extractFileManifest, createPendingPhaseProgress, assertValidActiveSession, withValidatedSession };
