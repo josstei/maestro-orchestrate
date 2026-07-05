@@ -29,6 +29,25 @@ describe('MemoryStore', () => {
     assert.deepEqual(store.readProfile(), emptyProfile());
   });
 
+  it('writeProfile uses an injected clock instead of the real wall clock', () => {
+    const fixedInstant = new Date('2020-01-01T00:00:00.000Z');
+    const store = MemoryStore.forProjectRoot(tmpRoot, {
+      clock: { now: () => fixedInstant },
+    });
+    const written = store.writeProfile({ build_commands: ['npm run build'] });
+    assert.equal(written.updated, fixedInstant.toISOString());
+    assert.equal(store.readProfile().updated, fixedInstant.toISOString());
+  });
+
+  it('defaults to a real clock when none is injected', () => {
+    const store = new MemoryStore(tmpRoot);
+    const before = Date.now();
+    const written = store.writeProfile({ build_commands: [] });
+    const after = Date.now();
+    const writtenMs = new Date(written.updated).getTime();
+    assert.ok(writtenMs >= before && writtenMs <= after);
+  });
+
   it('writeProfile then readProfile round-trips normalized fields', () => {
     const store = MemoryStore.forProjectRoot(tmpRoot);
     store.writeProfile({

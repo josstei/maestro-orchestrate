@@ -32,6 +32,13 @@ const PROFILE_ARRAY_FIELDS = Object.freeze([
 const PROFILE_BODY = '# Project Memory Profile\n';
 
 /**
+ * @returns {{now: () => Date}} a clock backed by the real wall-clock
+ */
+function createSystemClock() {
+  return { now: () => new Date() };
+}
+
+/**
  * Absolute path to a durable knowledge ledger file under `<state_dir>/knowledge/`.
  *
  * @param {string} projectRoot
@@ -247,18 +254,21 @@ function mergeValidationCommands(profile, incoming) {
 class MemoryStore {
   /**
    * @param {string} projectRoot - project root used to resolve the state directory
+   * @param {{clock?: {now: () => Date}}} [options] - injected clock, defaults to the real wall-clock
    */
-  constructor(projectRoot) {
+  constructor(projectRoot, { clock = createSystemClock() } = {}) {
     this.projectRoot = projectRoot;
     this.stateDir = resolveStateDirPath(projectRoot);
+    this.clock = clock;
   }
 
   /**
    * @param {string} projectRoot
+   * @param {{clock?: {now: () => Date}}} [options]
    * @returns {MemoryStore}
    */
-  static forProjectRoot(projectRoot) {
-    return new MemoryStore(projectRoot);
+  static forProjectRoot(projectRoot, options) {
+    return new MemoryStore(projectRoot, options);
   }
 
   /**
@@ -345,7 +355,7 @@ class MemoryStore {
     for (const field of PROFILE_ARRAY_FIELDS) {
       next[field] = normalizeStringArray(source[field]);
     }
-    next.updated = new Date().toISOString();
+    next.updated = this.clock.now().toISOString();
     atomicWriteSync(this.profilePath(), markdownState.serialize(next, PROFILE_BODY));
     return next;
   }
@@ -524,4 +534,4 @@ class MemoryStore {
   }
 }
 
-export { MemoryStore, PROFILE_SCHEMA_VERSION, ARCHITECTURE_MEMORY_CATEGORIES, ARCHITECTURE_MEMORY_SCHEMA_VERSION, PROFILE_ARRAY_FIELDS, assertAgentMemorySegment, emptyArchitectureMemoryGraph, emptyProfile, mergeValidationCommands };
+export { MemoryStore, PROFILE_SCHEMA_VERSION, ARCHITECTURE_MEMORY_CATEGORIES, ARCHITECTURE_MEMORY_SCHEMA_VERSION, PROFILE_ARRAY_FIELDS, assertAgentMemorySegment, createSystemClock, emptyArchitectureMemoryGraph, emptyProfile, mergeValidationCommands };
