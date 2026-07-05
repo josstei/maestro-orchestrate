@@ -23,9 +23,10 @@ function isValidBlockerId(value) {
  * T9 `create_session` maps it to the session state's `planned_files` field
  * for later reconciliation. The runtime-populated manifests
  * (`files_created`, `files_modified`, `files_deleted`) are NOT plan inputs;
- * they are set by `transition_phase` after an agent completes, and they
- * pass through this schema via `additionalProperties: true` without
- * validation. Plan authors should populate `files`, not the runtime fields.
+ * they are set by `transition_phase` after an agent completes, and this
+ * schema permits them to pass through unchecked since it does not reject
+ * unrecognized fields. Plan authors should populate `files`, not the
+ * runtime fields.
  *
  * @param {unknown} phases - Input value expected to be an array of phase objects.
  * @returns {{ valid: boolean, violations: Array<object> }}

@@ -35,7 +35,6 @@ function createToolPipeline(tool, contextOptions) {
         try {
           onPostCall(result, args);
         } catch {
-          // Post-call effects must never mask the tool result.
         }
       }
     } catch (error) {

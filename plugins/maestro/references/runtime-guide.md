@@ -38,7 +38,7 @@ Translate bare tool references from shared skills as follows:
 | `activate_skill` | Read the referenced `SKILL.md` and follow it |
 | `ask_user` | `request_user_input`; use a direct question only when structured options do not fit |
 | `write_todos` | `update_plan` |
-| `enter_plan_mode` | `update_plan` plus direct document writing |
+| `enter_plan_mode` | not available — nudge the user to enter Plan mode manually before proceeding |
 | `exit_plan_mode` | explicit approval via `request_user_input` |
 | `run_shell_command` | `exec_command` |
 | `write_file` / `replace` | `apply_patch` |

@@ -107,9 +107,15 @@ src/mcp/
 ├── content/
 │   ├── provider.js             # Content provider abstraction
 │   └── runtime-content.js      # Runtime-specific content resolution
+├── server/
+│   ├── create-mcp-server.js    # SDK McpServer factory + StdioServerTransport connect
+│   ├── tool-pipeline.js        # Reduced decorator pipeline bridging handlers to the SDK
+│   ├── handler-context.js      # Per-call handler context construction
+│   ├── tool-result.js          # Tool-outcome → CallToolResult mapping
+│   └── elicitation-schemas.js  # `requestedSchema` payloads for `ctx.elicit`
 ├── core/
-│   ├── create-server.js        # Server factory + error sanitization
-│   ├── tool-registry.js        # Tool schema/handler composition
+│   ├── project-root-cache.js   # Client-roots resolution + workspace-path caching
+│   ├── tool-outcome.js         # Success/error tool-outcome normalization
 │   └── recovery-hints.js       # Error → recovery guidance mapping
 ├── handlers/                   # 27 handler implementations
 │   ├── get-agent.js            # Agent methodology serving

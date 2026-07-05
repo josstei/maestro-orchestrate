@@ -2,7 +2,7 @@
  * `requestedSchema` payloads for `ctx.elicit` calls. These are sent verbatim
  * to the MCP client and validated there by the SDK against the JSON-Schema
  * spec — they are consumed by `elicitInput`, not by maestro's own tool-input
- * validation (which is zod-owned; see `src/mcp/tool-packs/*​/zod-schemas.js`).
+ * validation (which is zod-owned; see the per-pack zod-schemas.js files).
  * Kept out of `src/mcp/tool-packs/` and `src/mcp/handlers/` so the
  * hand-authored-JSON-Schema guard over the tool surface stays scoped to tool
  * input shapes.

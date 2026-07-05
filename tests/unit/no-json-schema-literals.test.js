@@ -11,6 +11,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const SCOPED_DIRECTORIES = [
   path.join(ROOT, 'src', 'mcp', 'tool-packs'),
   path.join(ROOT, 'src', 'mcp', 'handlers'),
+  path.join(ROOT, 'src', 'mcp', 'contracts'),
 ];
 
 const JSON_SCHEMA_LITERAL_PATTERNS = [

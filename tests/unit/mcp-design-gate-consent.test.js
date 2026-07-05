@@ -174,6 +174,37 @@ describe('design gate — elicitation-backed consent', () => {
     assert.equal(outcome.result.consent_evidence, 'model-attested');
   });
 
+  it('a first-party -> model-attested downgrade on re-approval clears the stale consent_content', async () => {
+    const { workspace, server } = await createInitializedMcpWorkspace({
+      prefix: 'maestro-gate-consent-',
+    });
+    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const designPath = writeWorkspaceFile(
+      workspace,
+      'docs/maestro/plans/design.md',
+      '# Design\n'
+    );
+
+    const acceptElicit = async () => ({ action: 'accept', content: { note: 'looks good' } });
+    await handleRecordDesignApproval(
+      { session_id: 'alpha', design_document_path: designPath },
+      fakeCtx(workspace, acceptElicit)
+    );
+
+    const firstStatus = await server.callTool('get_design_gate_status', { session_id: 'alpha' }, workspace);
+    assert.deepEqual(firstStatus.result.consent_content, { note: 'looks good' });
+
+    const cancelElicit = async () => ({ action: 'cancel' });
+    await handleRecordDesignApproval(
+      { session_id: 'alpha', design_document_path: designPath },
+      fakeCtx(workspace, cancelElicit)
+    );
+
+    const secondStatus = await server.callTool('get_design_gate_status', { session_id: 'alpha' }, workspace);
+    assert.equal(secondStatus.result.consent_evidence, 'model-attested');
+    assert.equal('consent_content' in secondStatus.result, false);
+  });
+
   it('the record_design_approval tool is wired to reach ctx.elicit (the seam), not a raw elicitInput call', async () => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',

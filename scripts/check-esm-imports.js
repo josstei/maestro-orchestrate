@@ -20,7 +20,7 @@ function isCommentLine(line) {
 
 function scanFile(relativePath) {
   const lines = fs.readFileSync(path.join(ROOT, relativePath), 'utf8').split('\n');
-  const specifierPattern = /(?:from\s+|import\()\s*['"]([^'"]+)['"]/g;
+  const specifierPattern = /(?:from|import)\b\s*\(?\s*['"]([^'"]+)['"]/g;
   const violations = [];
 
   for (const line of lines) {

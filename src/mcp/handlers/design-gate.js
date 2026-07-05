@@ -284,6 +284,8 @@ async function handleRecordDesignApproval(params, ctx) {
   gate.consent_evidence = consent.evidence;
   if (consent.evidence === FIRST_PARTY_CONSENT && consent.content !== undefined) {
     gate.consent_content = consent.content;
+  } else {
+    delete gate.consent_content;
   }
   writeGate(projectRoot, params.session_id, gate);
 
