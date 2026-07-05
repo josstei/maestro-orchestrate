@@ -15,9 +15,9 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     name: 'gemini',
     startup: {
       manifest: 'gemini-extension.json',
-      command: 'node',
-      args: ['${extensionPath}/mcp/maestro-server.js'],
-      entrypoint: 'mcp/maestro-server.js',
+      command: 'npx',
+      args: ['-y', '-p', '@josstei/maestro@${version}', 'maestro-mcp-server'],
+      entrypoint: 'bin/maestro-mcp-server.js',
     },
     content: {
       provider: 'filesystem',
@@ -33,6 +33,7 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
       'gemini-extension.json',
     ],
     packageInvariants: [
+      'bin/maestro-mcp-server.js',
       'gemini-extension.json',
       'mcp/maestro-server.js',
       'src/mcp/maestro-server.js',
@@ -43,9 +44,9 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     name: 'claude',
     startup: {
       manifest: 'claude/.mcp.json',
-      command: 'node',
-      args: ['${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js'],
-      entrypoint: 'claude/mcp/maestro-server.js',
+      command: 'npx',
+      args: ['-y', '-p', '@josstei/maestro@${version}', 'maestro-mcp-server'],
+      entrypoint: 'bin/maestro-mcp-server.js',
     },
     content: {
       provider: 'filesystem',
@@ -63,6 +64,7 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     ],
     packageInvariants: [
       '.claude-plugin/plugin.json',
+      'bin/maestro-mcp-server.js',
       'claude/.mcp.json',
       'claude/mcp/maestro-server.js',
       'src/mcp/maestro-server.js',
@@ -102,9 +104,9 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
     name: 'qwen',
     startup: {
       manifest: 'qwen-extension.json',
-      command: 'node',
-      args: ['${extensionPath}/mcp/maestro-server.js'],
-      entrypoint: 'mcp/maestro-server.js',
+      command: 'npx',
+      args: ['-y', '-p', '@josstei/maestro@${version}', 'maestro-mcp-server'],
+      entrypoint: 'bin/maestro-mcp-server.js',
     },
     content: {
       provider: 'filesystem',
@@ -118,6 +120,7 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
       'mcp/',
     ],
     packageInvariants: [
+      'bin/maestro-mcp-server.js',
       'qwen-extension.json',
       'qwen/hooks.json',
       'mcp/maestro-server.js',

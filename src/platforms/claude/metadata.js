@@ -63,13 +63,15 @@ function buildClaudePluginManifest(context) {
   };
 }
 
-function buildClaudeMcpConfig() {
+function buildClaudeMcpConfig(context) {
   return {
     mcpServers: {
       maestro: {
-        command: 'node',
-        args: ['${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js'],
-        cwd: '${CLAUDE_PLUGIN_ROOT}',
+        command: 'npx',
+        args: ['-y', '-p', `${context.packageName}@${context.version}`, 'maestro-mcp-server'],
+        env: {
+          MAESTRO_RUNTIME: 'claude',
+        },
       },
     },
   };
@@ -119,7 +121,7 @@ function buildMetadataOutputs(context) {
     },
     {
       outputPath: 'claude/.mcp.json',
-      content: renderJson(buildClaudeMcpConfig()),
+      content: renderJson(buildClaudeMcpConfig(context)),
     },
   ];
 }

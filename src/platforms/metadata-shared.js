@@ -84,7 +84,7 @@ function buildSettings() {
   ];
 }
 
-function buildExtensionMcpServer(runtime) {
+function buildExtensionMcpServer(context, runtime) {
   const env = {
     MAESTRO_RUNTIME: runtime,
   };
@@ -94,9 +94,8 @@ function buildExtensionMcpServer(runtime) {
   }
 
   return {
-    command: 'node',
-    args: ['${extensionPath}/mcp/maestro-server.js'],
-    cwd: '${extensionPath}',
+    command: 'npx',
+    args: ['-y', '-p', `${context.packageName}@${context.version}`, 'maestro-mcp-server'],
     env,
   };
 }
@@ -109,7 +108,7 @@ function buildExtensionManifest(context, options) {
     contextFileName: options.contextFileName,
     settings: buildSettings(),
     mcpServers: {
-      maestro: buildExtensionMcpServer(options.runtime),
+      maestro: buildExtensionMcpServer(context, options.runtime),
     },
   };
 }

@@ -56,6 +56,10 @@ describe('platform metadata generation', () => {
       outputs.get('qwen-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
       'qwen'
     );
+    assert.equal(
+      outputs.get('claude/.mcp.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
+      'claude'
+    );
     assert.equal(outputs.get('.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(

@@ -291,18 +291,23 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     throw new Error('Codex plugin manifest must reference skills, MCP, and app config files');
   }
 
+  const expectedPackageSpec = `${packageName}@${version}`;
+
   const claudeServer = claudeMcp.mcpServers && claudeMcp.mcpServers.maestro;
   if (
     !claudeServer ||
-    claudeServer.command !== 'node' ||
+    claudeServer.command !== 'npx' ||
     !Array.isArray(claudeServer.args) ||
-    !claudeServer.args.includes('${CLAUDE_PLUGIN_ROOT}/claude/mcp/maestro-server.js')
+    !claudeServer.args.includes('-p') ||
+    !claudeServer.args.includes(expectedPackageSpec) ||
+    !claudeServer.args.includes('maestro-mcp-server') ||
+    !claudeServer.env ||
+    claudeServer.env.MAESTRO_RUNTIME !== 'claude'
   ) {
-    throw new Error('claude/.mcp.json must launch the bundled Maestro MCP server');
+    throw new Error(`claude/.mcp.json must launch ${expectedPackageSpec} with MAESTRO_RUNTIME=claude`);
   }
 
   const codexServer = codexMcp.mcpServers && codexMcp.mcpServers.maestro;
-  const expectedPackageSpec = `${packageName}@${version}`;
   if (
     !codexServer ||
     codexServer.command !== 'npx' ||
