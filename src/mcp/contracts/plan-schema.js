@@ -1,26 +1,5 @@
 const PHASE_REQUIRED_FIELDS = ['id', 'name', 'agent', 'parallel', 'blocked_by'];
 
-const PHASE_ID_SCHEMA = {
-  oneOf: [
-    { type: 'integer', minimum: 1 },
-    { type: 'string', minLength: 1 },
-  ],
-};
-
-const PHASE_ITEM_SCHEMA = {
-  type: 'object',
-  properties: {
-    id: PHASE_ID_SCHEMA,
-    name: { type: 'string', minLength: 1 },
-    agent: { type: 'string', minLength: 1 },
-    parallel: { type: 'boolean' },
-    blocked_by: { type: 'array', items: PHASE_ID_SCHEMA },
-    files: { type: 'array', items: { type: 'string', minLength: 1 } },
-  },
-  required: PHASE_REQUIRED_FIELDS,
-  additionalProperties: true,
-};
-
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.length > 0;
 }
@@ -137,4 +116,4 @@ function validatePhases(phases) {
   return { valid: violations.length === 0, violations };
 }
 
-export { PHASE_ID_SCHEMA, PHASE_ITEM_SCHEMA, PHASE_REQUIRED_FIELDS, isValidPhaseId, validatePhases };
+export { PHASE_REQUIRED_FIELDS, isValidPhaseId, validatePhases };
