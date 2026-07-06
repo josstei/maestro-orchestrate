@@ -2,7 +2,7 @@ import { log, fatal } from '../core/logger.js';
 import { resolveVersion } from '../core/version.js';
 import { createMcpServer, startMcpServer } from './server/create-mcp-server.js';
 import { createMaestroToolRegistry } from './tool-packs/contracts.js';
-import { createProjectRootCache } from './core/project-root-cache.js';
+import { createProjectRootCache } from './server/project-root-cache.js';
 import { RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { DEFAULT_TOOL_PACKS } from './tool-packs/index.js';

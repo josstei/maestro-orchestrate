@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createToolFailure, createToolSuccess } from '../../src/mcp/core/tool-outcome.js';
+import { createToolFailure, createToolSuccess } from '../../src/mcp/server/tool-outcome.js';
 import { toolOutcomeToCallToolResult } from '../../src/mcp/server/tool-result.js';
 
 test('serializes a success ToolOutcome to a non-error CallToolResult', () => {

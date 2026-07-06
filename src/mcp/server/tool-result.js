@@ -1,5 +1,5 @@
 /**
- * Serialize a maestro `ToolOutcome` (see `../core/tool-outcome.js`) into an SDK
+ * Serialize a maestro `ToolOutcome` (see `./tool-outcome.js`) into an SDK
  * `CallToolResult`. Preserves the structured recovery-hint envelope
  * (`error`, `recovery_hint`, `code`, `details`) on failure so downstream
  * clients keep the same recoverability UX as the JSON-RPC dispatcher.

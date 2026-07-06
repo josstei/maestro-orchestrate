@@ -22,7 +22,7 @@ function ensureMaestroWorkspace(workspace) {
 
 /**
  * Reconstruct maestro's `ToolOutcome` shape (see
- * `src/mcp/core/tool-outcome.js`) from an SDK `CallToolResult`. A resolved
+ * `src/mcp/server/tool-outcome.js`) from an SDK `CallToolResult`. A resolved
  * `isError` result whose text parses as maestro's JSON envelope (a thrown
  * `MaestroError`, normalized by the tool pipeline) keeps its `code` and
  * `recovery_hint`; a resolved `isError` result whose text is the SDK's own

@@ -1,5 +1,5 @@
 import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
-import { createToolSuccess, normalizeToolError } from '../core/tool-outcome.js';
+import { createToolSuccess, normalizeToolError } from './tool-outcome.js';
 import { buildHandlerContext } from './handler-context.js';
 import { toolOutcomeToCallToolResult } from './tool-result.js';
 
