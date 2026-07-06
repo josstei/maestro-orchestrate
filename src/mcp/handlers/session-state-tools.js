@@ -44,6 +44,7 @@ import { recordArchitectureMemory } from './architecture-memory.js';
 import { captureCheckpoint } from './checkpoints.js';
 import { SCHEMA_VERSION } from './session-migrations.js';
 import { attributePhaseCost, phaseDurationMs, normalizeTokenUsage } from '../contracts/agent-cost-ledger.js';
+import { attempt } from './attempt.js';
 
 /**
  * Materialize a session document (design or plan) into `<state_dir>/plans/`.
@@ -470,9 +471,7 @@ function handleArchiveSession(params, projectRoot) {
   }
 
   for (const record of [recordAgentPerformance, recordPlanAccuracy, recordArchitectureMemory]) {
-    try {
-      record(state, projectRoot);
-    } catch {}
+    attempt(() => record(state, projectRoot));
   }
 
   state.status = 'completed';

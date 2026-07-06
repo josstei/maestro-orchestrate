@@ -11,6 +11,7 @@ import {
 import { isExtensionCachePath } from '../contracts/cache-path-rejector.js';
 import { isValidPhaseId } from '../contracts/plan-schema.js';
 import { normalizeDownstreamContext, isDownstreamContextPopulated } from '../contracts/downstream-context.js';
+import { attempt } from './attempt.js';
 
 const DEFAULT_IGNORE_DIRS = new Set([
   '.git',
@@ -66,12 +67,8 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
       truncated = true;
       return;
     }
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
+    const entries = attempt(() => fs.readdirSync(dir, { withFileTypes: true }), null);
+    if (!entries) return;
     for (const entry of entries) {
       if (seen >= maxFiles) {
         truncated = true;
@@ -89,12 +86,8 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
       }
       if (!entry.isFile()) continue;
       seen += 1;
-      let stat;
-      try {
-        stat = fs.statSync(absPath);
-      } catch {
-        continue;
-      }
+      const stat = attempt(() => fs.statSync(absPath), null);
+      if (!stat) continue;
       const mtimeMs = stat.mtimeMs || 0;
       const birthtimeMs = stat.birthtimeMs || 0;
       const isNewByBirthtime = birthtimeMs > 0 && birthtimeMs >= startedMs;

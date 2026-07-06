@@ -6,6 +6,7 @@ import { resolveStateDirPath } from '../../state/session-state.js';
 import { atomicWriteSync } from '../../lib/io/index.js';
 import { resolveDocumentInputVariant } from './document-input.js';
 import { buildDesignApprovalConsentSchema } from '../server/elicitation-schemas.js';
+import { attempt } from './attempt.js';
 const GATE_FILENAME = '.design-gate.json';
 const MODEL_ATTESTED_CONSENT = 'model-attested';
 const FIRST_PARTY_CONSENT = 'first-party';
@@ -136,11 +137,7 @@ function emptyGate(sessionId) {
 function readGate(projectRoot, sessionId) {
   const filePath = gatePath(projectRoot, sessionId);
   if (!fs.existsSync(filePath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return null;
-  }
+  return attempt(() => JSON.parse(fs.readFileSync(filePath, 'utf8')), null);
 }
 
 /**
@@ -369,29 +366,21 @@ function getApprovedDesignDocumentPath(projectRoot, sessionId) {
 function listApprovedGates(projectRoot) {
   const stateDir = path.join(resolveStateDirPath(projectRoot), 'state');
   if (!fs.existsSync(stateDir)) return [];
-  let entries;
-  try {
-    entries = fs.readdirSync(stateDir);
-  } catch {
-    return [];
-  }
+  const entries = attempt(() => fs.readdirSync(stateDir), null);
+  if (!entries) return [];
   const gates = [];
   for (const entry of entries) {
     if (!entry.endsWith(GATE_FILENAME)) continue;
     const sessionId = entry.slice(0, -GATE_FILENAME.length);
     if (sessionId.length === 0) continue;
     const filePath = path.join(stateDir, entry);
-    try {
-      const gate = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      if (gate && typeof gate.approved_at === 'string' && gate.approved_at.length > 0) {
-        gates.push({
-          session_id: sessionId,
-          approved_at: gate.approved_at,
-          design_document_path: gate.design_document_path || null,
-        });
-      }
-    } catch {
-      // unreadable or corrupt gate — skip; detection is best-effort.
+    const gate = attempt(() => JSON.parse(fs.readFileSync(filePath, 'utf8')), null);
+    if (gate && typeof gate.approved_at === 'string' && gate.approved_at.length > 0) {
+      gates.push({
+        session_id: sessionId,
+        approved_at: gate.approved_at,
+        design_document_path: gate.design_document_path || null,
+      });
     }
   }
   return gates;

@@ -11,6 +11,7 @@ import {
 } from './session-state-core.js';
 import { SCHEMA_VERSION } from './session-migrations.js';
 import { writeGate } from './design-gate.js';
+import { attempt } from './attempt.js';
 
 function normalizeBranch(value) {
   return typeof value === 'string' && value.length > 0 ? value : null;
@@ -71,14 +72,9 @@ function readLineageSources(projectRoot) {
     if (!summary.archive_path) {
       continue;
     }
-    try {
-      const content = readState(summary.archive_path, basePath);
-      const state = parseArchivedSessionState(content);
-      if (state && typeof state.session_id === 'string') {
-        sources.push({ state, archivePath: summary.archive_path });
-      }
-    } catch {
-      continue;
+    const state = attempt(() => parseArchivedSessionState(readState(summary.archive_path, basePath)), null);
+    if (state && typeof state.session_id === 'string') {
+      sources.push({ state, archivePath: summary.archive_path });
     }
   }
   return sources;

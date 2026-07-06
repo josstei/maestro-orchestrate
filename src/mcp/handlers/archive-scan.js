@@ -3,6 +3,7 @@ import path from 'path';
 import * as markdownState from '../../core/markdown-state.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
 import { migrateSessionState } from './session-migrations.js';
+import { attempt } from './attempt.js';
 
 /**
  * @param {string} projectRoot
@@ -52,22 +53,13 @@ function collectAgents(phases) {
  */
 function mapArchivedSessionStates(projectRoot, projector) {
   const dir = archiveDirectoryPath(projectRoot);
-  let entries;
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
+  const entries = attempt(() => fs.readdirSync(dir, { withFileTypes: true }), null);
+  if (!entries) return [];
   const results = [];
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
     const absPath = path.join(dir, entry.name);
-    let state;
-    try {
-      state = parseArchivedSessionState(fs.readFileSync(absPath, 'utf8'));
-    } catch {
-      continue;
-    }
+    const state = attempt(() => parseArchivedSessionState(fs.readFileSync(absPath, 'utf8')), null);
     if (!state || typeof state.session_id !== 'string') continue;
     results.push(projector(state, path.join('state', 'archive', entry.name)));
   }
