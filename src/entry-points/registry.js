@@ -180,7 +180,7 @@ export default [
     workflow: [
       'Confirm an initialized Maestro workspace; if the MCP state surface is unavailable, stop and report that insights require an initialized workspace',
       'Call get_cost_insights to compute the aggregated per-agent token and latency rollup across archived sessions',
-      'Optionally call list_archived_sessions or search_archived_sessions to enumerate or filter the underlying sessions by date, agent, or outcome',
+      'Optionally call search_archived_sessions to enumerate or filter the underlying sessions by date, agent, or outcome',
       'Present the rollup: total input/output/cached tokens, per-agent token and phase counts, and average phase latency, highest-cost agent first',
       'Note explicitly when the rollup is empty because no sessions have been archived yet',
     ],

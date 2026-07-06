@@ -72,15 +72,6 @@ function readArchivedSessionSummaries(projectRoot) {
 }
 
 /**
- * @param {object} _params
- * @param {string} projectRoot
- */
-function handleListArchivedSessions(_params, projectRoot) {
-  const sessions = readArchivedSessionSummaries(projectRoot);
-  return { count: sessions.length, sessions };
-}
-
-/**
  * @param {object} summary
  * @param {{ agent:string|null, outcome:string|null, created_after:string|null, created_before:string|null }} filters
  * @returns {boolean}
@@ -184,4 +175,4 @@ function handleGetCostInsights(params, projectRoot) {
   };
 }
 
-export { parseArchivedSessionState, readArchivedSessionSummaries, handleListArchivedSessions, handleSearchArchivedSessions, handleGetCostInsights };
+export { parseArchivedSessionState, readArchivedSessionSummaries, handleSearchArchivedSessions, handleGetCostInsights };

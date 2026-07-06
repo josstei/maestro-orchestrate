@@ -44,7 +44,6 @@ describe('mcp pack composition', () => {
         'get_design_gate_status',
         'scan_phase_changes',
         'reconcile_phase',
-        'list_archived_sessions',
         'search_archived_sessions',
         'get_cost_insights',
         'get_skill_content',

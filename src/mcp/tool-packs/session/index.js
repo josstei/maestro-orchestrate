@@ -18,13 +18,12 @@ import {
 import { handleScanPhaseChanges, handleReconcilePhase } from '../../handlers/reconciliation.js';
 
 import {
-  handleListArchivedSessions,
   handleSearchArchivedSessions,
   handleGetCostInsights,
 } from '../../handlers/archive-index.js';
 
 /**
- * Register the `session` pack's 13 tools via `defineTool`, each consuming
+ * Register the `session` pack's 12 tools via `defineTool`, each consuming
  * its shape from `./zod-schemas.js`. Every tool in this pack requires an
  * initialized workspace.
  *
@@ -93,15 +92,9 @@ function registerSessionPack({ server, registry, ...contextOptions } = {}) {
       handler: handleReconcilePhase,
     },
     {
-      name: 'list_archived_sessions',
-      description:
-        'List archived Maestro sessions (newest first) with per-session cost, outcome, and agent summaries read from the state/archive subtree.',
-      handler: handleListArchivedSessions,
-    },
-    {
       name: 'search_archived_sessions',
       description:
-        'Search archived Maestro sessions filtered by created_after/created_before (ISO-8601), agent, and/or outcome (completed|failed).',
+        'Search archived Maestro sessions filtered by created_after/created_before (ISO-8601), agent, and/or outcome (completed|failed). Call with no filters to list all archived sessions (newest first).',
       handler: handleSearchArchivedSessions,
     },
     {

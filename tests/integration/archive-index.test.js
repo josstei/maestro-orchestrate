@@ -44,7 +44,7 @@ describe('archive index, search, and cost insights', () => {
       tokens: { input: 20, output: 8, cached: 2 },
     });
 
-    const list = await server.callTool('list_archived_sessions', {}, workspace);
+    const list = await server.callTool('search_archived_sessions', {}, workspace);
     assert.equal(list.ok, true, list.error || '');
     assert.equal(list.result.count, 2);
     const ids = list.result.sessions.map((s) => s.session_id);
@@ -92,7 +92,7 @@ describe('archive index, search, and cost insights', () => {
       prefix: 'maestro-archive-empty-',
     });
 
-    const list = await server.callTool('list_archived_sessions', {}, workspace);
+    const list = await server.callTool('search_archived_sessions', {}, workspace);
     assert.equal(list.ok, true);
     assert.equal(list.result.count, 0);
 

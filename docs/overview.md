@@ -102,10 +102,10 @@ maestro-orchestrate/
 
 ### MCP Server
 
-A bundled Model Context Protocol server providing 42 tools across 5 packs:
+A bundled Model Context Protocol server providing 41 tools across 5 packs:
 
 - **Workspace** (4): initialize_workspace, assess_task_complexity, validate_plan, resolve_settings
-- **Session** (13): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase, list_archived_sessions, search_archived_sessions, get_cost_insights
+- **Session** (12): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase, search_archived_sessions, get_cost_insights
 - **Content** (3): get_skill_content, get_agent, get_runtime_context
 - **Memory** (16): get_project_profile, update_project_profile, record_validation_commands, get_agent_performance, recall_similar_sessions, rate_phase, rate_session, get_plan_accuracy, query_architecture_memory, get_agent_memory, append_agent_memory, compact_archive, record_knowledge, query_knowledge, export_memory_pack, import_memory_pack
 - **History** (6): fork_session, list_lineage, list_checkpoints, restore_checkpoint, instantiate_session_blueprint, list_session_blueprints

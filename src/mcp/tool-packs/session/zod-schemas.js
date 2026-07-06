@@ -108,7 +108,6 @@ export const zodSchemas = {
     downstream_context: DOWNSTREAM_CONTEXT.optional(),
     reason: z.string().optional(),
   },
-  list_archived_sessions: {},
   search_archived_sessions: {
     created_after: z
       .string()
