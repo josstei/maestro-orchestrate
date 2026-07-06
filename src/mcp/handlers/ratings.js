@@ -30,38 +30,32 @@ function normalizeNote(value) {
 }
 
 /**
- * Record a human-satisfaction rating for a specific phase.
+ * Record a human-satisfaction rating for a whole session or a single phase.
+ * `target` selects the scope; `phase_id` is required when `target` is
+ * 'phase' (a cross-field rule the flat raw-shape schema cannot express, so
+ * it is enforced here). Persisted record shapes are identical to the
+ * pre-merge rate_phase/rate_session records.
  *
- * @param {{ session_id: string, phase_id: number|string, rating: string, note?: string }} params
+ * @param {{ target: 'phase'|'session', session_id: string, phase_id?: number|string, rating: 'up'|'down', note?: string }} params
  * @param {string} projectRoot
  * @returns {{ recorded: true, rating: object }}
  */
-function handleRatePhase(params, projectRoot) {
-  const record = {
-    session_id: requireNonEmptyString(params.session_id, 'session_id'),
-    phase_id: requirePhaseId(params.phase_id),
-    rating: params.rating,
-    note: normalizeNote(params.note),
-    at: new Date().toISOString(),
-  };
-  new MemoryStore(projectRoot).appendRating(record);
-  return { recorded: true, rating: record };
-}
-
-/**
- * Record a human-satisfaction rating for a whole session.
- *
- * @param {{ session_id: string, rating: string, note?: string }} params
- * @param {string} projectRoot
- * @returns {{ recorded: true, rating: object }}
- */
-function handleRateSession(params, projectRoot) {
-  const record = {
-    session_id: requireNonEmptyString(params.session_id, 'session_id'),
-    rating: params.rating,
-    note: normalizeNote(params.note),
-    at: new Date().toISOString(),
-  };
+function handleRate(params, projectRoot) {
+  const record =
+    params.target === 'phase'
+      ? {
+          session_id: requireNonEmptyString(params.session_id, 'session_id'),
+          phase_id: requirePhaseId(params.phase_id),
+          rating: params.rating,
+          note: normalizeNote(params.note),
+          at: new Date().toISOString(),
+        }
+      : {
+          session_id: requireNonEmptyString(params.session_id, 'session_id'),
+          rating: params.rating,
+          note: normalizeNote(params.note),
+          at: new Date().toISOString(),
+        };
   new MemoryStore(projectRoot).appendRating(record);
   return { recorded: true, rating: record };
 }
@@ -107,4 +101,4 @@ function aggregateRatings(ratings) {
   };
 }
 
-export { RATING_VALUES, handleRatePhase, handleRateSession, aggregateRatings };
+export { RATING_VALUES, handleRate, aggregateRatings };

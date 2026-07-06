@@ -1,6 +1,14 @@
 {
   "type": "object",
   "properties": {
+    "target": {
+      "type": "string",
+      "enum": [
+        "phase",
+        "session"
+      ],
+      "description": "Rating scope: a single phase or the whole session."
+    },
     "session_id": {
       "type": "string"
     },
@@ -12,7 +20,8 @@
         {
           "type": "string"
         }
-      ]
+      ],
+      "description": "Required when target is phase."
     },
     "rating": {
       "type": "string",
@@ -26,8 +35,8 @@
     }
   },
   "required": [
+    "target",
     "session_id",
-    "phase_id",
     "rating"
   ],
   "additionalProperties": false,

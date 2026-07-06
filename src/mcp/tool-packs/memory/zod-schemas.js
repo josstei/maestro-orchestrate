@@ -38,14 +38,12 @@ export const zodSchemas = {
       .default(5)
       .describe('Maximum number of ranked precedents to return.'),
   },
-  rate_phase: {
+  rate: {
+    target: z
+      .enum(['phase', 'session'])
+      .describe('Rating scope: a single phase or the whole session.'),
     session_id: z.string(),
-    phase_id: PHASE_ID,
-    rating: z.enum(['up', 'down']),
-    note: z.string().optional(),
-  },
-  rate_session: {
-    session_id: z.string(),
+    phase_id: PHASE_ID.optional().describe('Required when target is phase.'),
     rating: z.enum(['up', 'down']),
     note: z.string().optional(),
   },

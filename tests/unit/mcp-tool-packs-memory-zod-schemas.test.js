@@ -52,13 +52,13 @@ test('record_validation_commands.commands is required', () => {
   assert.throws(() => zodSchemas.record_validation_commands.commands.parse(undefined));
 });
 
-test('rate_phase.rating rejects a value outside the enum', () => {
-  assert.throws(() => zodSchemas.rate_phase.rating.parse('sideways'));
+test('rate.rating rejects a value outside the enum', () => {
+  assert.throws(() => zodSchemas.rate.rating.parse('sideways'));
 });
 
-test('rate_phase.phase_id accepts an integer or a string', () => {
-  assert.equal(zodSchemas.rate_phase.phase_id.parse(1), 1);
-  assert.equal(zodSchemas.rate_phase.phase_id.parse('phase-1'), 'phase-1');
+test('rate.phase_id accepts an integer or a string', () => {
+  assert.equal(zodSchemas.rate.phase_id.parse(1), 1);
+  assert.equal(zodSchemas.rate.phase_id.parse('phase-1'), 'phase-1');
 });
 
 test('recall_similar_sessions.limit defaults to 5 and enforces a minimum of 1', () => {

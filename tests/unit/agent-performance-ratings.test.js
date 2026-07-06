@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
-import { handleRateSession } from '../../src/mcp/handlers/ratings.js';
+import { handleRate } from '../../src/mcp/handlers/ratings.js';
 import { handleGetAgentPerformance } from '../../src/mcp/handlers/agent-performance.js';
 
 function makeWorkspace() {
@@ -24,8 +24,8 @@ describe('MemoryStore.readRatings', () => {
 
   it('reads back every appended rating record', () => {
     const root = makeWorkspace();
-    handleRateSession({ session_id: 's1', rating: 'up' }, root);
-    handleRateSession({ session_id: 's2', rating: 'down', note: 'flaky' }, root);
+    handleRate({ target: 'session', session_id: 's1', rating: 'up' }, root);
+    handleRate({ target: 'session', session_id: 's2', rating: 'down', note: 'flaky' }, root);
     const records = new MemoryStore(root).readRatings();
     assert.equal(records.length, 2);
     assert.equal(records[0].session_id, 's1');
@@ -37,9 +37,9 @@ describe('MemoryStore.readRatings', () => {
 describe('get_agent_performance surfaces ratings', () => {
   it('includes a deterministic ratings rollup drawn from ratings.jsonl', () => {
     const root = makeWorkspace();
-    handleRateSession({ session_id: 's1', rating: 'up' }, root);
-    handleRateSession({ session_id: 's1', rating: 'down' }, root);
-    handleRateSession({ session_id: 's2', rating: 'up' }, root);
+    handleRate({ target: 'session', session_id: 's1', rating: 'up' }, root);
+    handleRate({ target: 'session', session_id: 's1', rating: 'down' }, root);
+    handleRate({ target: 'session', session_id: 's2', rating: 'up' }, root);
     const result = handleGetAgentPerformance({}, root);
     assert.ok(result.ratings, 'response is missing the ratings rollup');
     assert.equal(result.ratings.total, 3);

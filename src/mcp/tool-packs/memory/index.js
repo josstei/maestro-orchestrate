@@ -13,12 +13,12 @@ import { handleQueryArchitectureMemory } from '../../handlers/architecture-memor
 import { handleAppendAgentMemory, handleGetAgentMemory } from '../../handlers/agent-memory.js';
 import { handleCompactArchive } from '../../handlers/archive-compaction.js';
 import { handleRecallSimilarSessions } from '../../handlers/recall.js';
-import { handleRatePhase, handleRateSession } from '../../handlers/ratings.js';
+import { handleRate } from '../../handlers/ratings.js';
 import { handleQueryKnowledge, handleRecordKnowledge } from '../../handlers/org-knowledge.js';
 import { handleExportMemoryPack, handleImportMemoryPack } from '../../handlers/memory-pack.js';
 
 /**
- * Register the `memory` pack's 16 tools via `defineTool`, each consuming its
+ * Register the `memory` pack's 15 tools via `defineTool`, each consuming its
  * shape from `./zod-schemas.js`. Every tool in this pack requires an
  * initialized workspace.
  *
@@ -57,16 +57,10 @@ function registerMemoryPack({ server, registry, ...contextOptions } = {}) {
       handler: handleRecallSimilarSessions,
     },
     {
-      name: 'rate_phase',
+      name: 'rate',
       description:
-        'Record an explicit human-satisfaction rating (thumbs up/down) for a specific phase of a session, with an optional free-text note. Persisted to knowledge/ratings.jsonl and folded into the get_agent_performance priors.',
-      handler: handleRatePhase,
-    },
-    {
-      name: 'rate_session',
-      description:
-        'Record an explicit human-satisfaction rating (thumbs up/down) for a whole session, with an optional free-text note. Persisted to knowledge/ratings.jsonl and folded into the get_agent_performance priors.',
-      handler: handleRateSession,
+        "Record an explicit human-satisfaction rating (thumbs up/down) for a whole session (target: 'session') or a specific phase (target: 'phase', phase_id required), with an optional free-text note. Persisted to knowledge/ratings.jsonl and folded into the get_agent_performance priors.",
+      handler: handleRate,
     },
     {
       name: 'get_plan_accuracy',

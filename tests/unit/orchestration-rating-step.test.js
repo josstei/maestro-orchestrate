@@ -11,8 +11,7 @@ test('orchestration-steps.md solicits a Completion-phase satisfaction rating', (
     path.join(moduleDirname, '../../src/references/orchestration-steps.md'),
     'utf8'
   );
-  assert.ok(body.includes('rate_session'), 'missing rate_session capture step');
-  assert.ok(body.includes('rate_phase'), 'missing rate_phase capture step');
+  assert.ok(body.includes('rate('), 'missing rate capture step');
 
   const completionIdx = body.indexOf('COMPLETION (Phase 4)');
   assert.ok(completionIdx >= 0, 'Completion phase section not found');
@@ -29,7 +28,7 @@ test('orchestration-steps.md solicits a Completion-phase satisfaction rating', (
   const summaryIdx = body.indexOf('Present final summary', completionIdx);
   assert.ok(summaryIdx > archiveIdx, 'final-summary step missing or misordered');
 
-  const ratingIdx = body.indexOf('rate_session', completionIdx);
+  const ratingIdx = body.indexOf('rate(', completionIdx);
   assert.ok(
     ratingIdx > codeReviewIdx && ratingIdx < archiveIdx,
     'rating step is not inside the Completion phase after code review and before archive'

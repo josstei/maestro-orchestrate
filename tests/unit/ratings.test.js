@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { RATING_VALUES, handleRatePhase, handleRateSession, aggregateRatings } from '../../src/mcp/handlers/ratings.js';
+import { RATING_VALUES, handleRate, aggregateRatings } from '../../src/mcp/handlers/ratings.js';
 import { buildMcpServer, ensureMaestroWorkspace, makeTempWorkspace } from '../support/mcp.js';
 import { registerMemoryPack } from '../../src/mcp/tool-packs/memory/index.js';
 
@@ -35,8 +35,8 @@ describe('ratings handlers', () => {
 
   it('appends a session rating as one JSONL record without a phase_id', () => {
     const root = makeWorkspace();
-    const result = handleRateSession(
-      { session_id: '2026-07-03-demo', rating: 'up', note: '  solid run  ' },
+    const result = handleRate(
+      { target: 'session', session_id: '2026-07-03-demo', rating: 'up', note: '  solid run  ' },
       root
     );
     assert.equal(result.recorded, true);
@@ -56,9 +56,9 @@ describe('ratings handlers', () => {
 
   it('appends a phase rating and preserves prior records (true append)', () => {
     const root = makeWorkspace();
-    handleRateSession({ session_id: 's1', rating: 'up' }, root);
-    const result = handleRatePhase(
-      { session_id: 's1', phase_id: 2, rating: 'down' },
+    handleRate({ target: 'session', session_id: 's1', rating: 'up' }, root);
+    const result = handleRate(
+      { target: 'phase', session_id: 's1', phase_id: 2, rating: 'down' },
       root
     );
     assert.equal(result.rating.phase_id, 2);
@@ -72,7 +72,7 @@ describe('ratings handlers', () => {
   it('rejects a phase rating with no phase_id', () => {
     const root = makeWorkspace();
     assert.throws(
-      () => handleRatePhase({ session_id: 's1', rating: 'up' }, root),
+      () => handleRate({ target: 'phase', session_id: 's1', rating: 'up' }, root),
       /phase_id is required/
     );
   });
@@ -112,7 +112,7 @@ describe('rating enforcement at the SDK boundary', () => {
   it('the composed server rejects an invalid rating value before the handler runs', async () => {
     const server = await buildMcpServer({ toolPacks: [registerMemoryPack] });
     const workspace = ensureMaestroWorkspace(makeTempWorkspace());
-    const result = await server.callTool('rate_session', { session_id: 's1', rating: 'meh' }, workspace);
+    const result = await server.callTool('rate', { target: 'session', session_id: 's1', rating: 'meh' }, workspace);
     assert.equal(result.ok, false);
     assert.equal(result.code, 'INVALID_PARAMS');
     await server.close();
