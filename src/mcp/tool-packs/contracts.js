@@ -34,8 +34,10 @@ function createMaestroToolRegistry() {
  * `registry` (see `createMaestroToolRegistry`) — `registerTool` destructures
  * only `{title, description, inputSchema, outputSchema, annotations, _meta}`
  * from its config and silently drops any other field, so the SDK never sees
- * `requiresWorkspace`. Throws when `name` duplicates a tool already present
- * in `registry` (cross-pack duplicate detection).
+ * `requiresWorkspace`. The pipeline resolves the workspace gate from
+ * `registry.requiresWorkspace(name)` at call time, making the registry the
+ * single source of truth for tool metadata. Throws when `name` duplicates a
+ * tool already present in `registry` (cross-pack duplicate detection).
  *
  * @param {{server: object, registry: object, name: string, description?: string, schema?: object, handler: Function, requiresWorkspace?: boolean, runtimeConfig?: object, onPostCall?: Function, env?: object, clientRoots?: Array, clock?: {now: () => Date}, services?: object}} options
  * @returns {*} the SDK's `RegisteredTool`
@@ -67,8 +69,8 @@ function defineTool({
   registry.register(name, { requiresWorkspace: requiresWorkspace === true });
 
   const callback = createToolPipeline(
-    { name, handler, requiresWorkspace: requiresWorkspace === true, onPostCall },
-    { server, ...contextOptions }
+    { name, handler, onPostCall },
+    { server, registry, ...contextOptions }
   );
 
   return server.registerTool(name, { description, inputSchema: schema }, callback);

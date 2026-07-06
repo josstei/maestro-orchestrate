@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createToolPipeline } from '../../src/mcp/server/tool-pipeline.js';
+import { createMaestroToolRegistry } from '../../src/mcp/tool-packs/contracts.js';
 import { MaestroError } from '../../src/lib/errors/index.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
@@ -9,18 +10,23 @@ function fakeSdkServer() {
   return { server: { getClientCapabilities: () => ({}), elicitInput: async () => null } };
 }
 
+function registryFor(name, requiresWorkspace) {
+  const registry = createMaestroToolRegistry();
+  registry.register(name, { requiresWorkspace });
+  return registry;
+}
+
 test('workspace gate runs before the handler and rejects when requiresWorkspace and projectRoot is absent', async () => {
   let handlerCalled = false;
   const callback = createToolPipeline(
     {
       name: 'needs_workspace_tool',
-      requiresWorkspace: true,
       handler: async () => {
         handlerCalled = true;
         return { ok: true };
       },
     },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), registry: registryFor('needs_workspace_tool', true), runtimeConfig: RUNTIME_CONFIG, env: {} }
   );
 
   const result = await callback({}, {});
@@ -34,10 +40,9 @@ test('handler runs and its result is serialized as success when workspace is not
   const callback = createToolPipeline(
     {
       name: 'no_workspace_tool',
-      requiresWorkspace: false,
       handler: async (args, ctx) => ({ echoed: args, hasCtx: typeof ctx === 'object' }),
     },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), registry: registryFor('no_workspace_tool', false), runtimeConfig: RUNTIME_CONFIG, env: {} }
   );
 
   const result = await callback({ a: 1 }, {});
@@ -52,7 +57,6 @@ test('a handler throw is normalized to a failure outcome with a recovery hint, a
   const callback = createToolPipeline(
     {
       name: 'create_session',
-      requiresWorkspace: false,
       handler: async () => {
         throw new MaestroError('a session already exists', { code: 'ALREADY_EXISTS' });
       },
@@ -60,7 +64,7 @@ test('a handler throw is normalized to a failure outcome with a recovery hint, a
         postCallInvoked = true;
       },
     },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), registry: registryFor('create_session', false), runtimeConfig: RUNTIME_CONFIG, env: {} }
   );
 
   const result = await callback({}, {});
@@ -78,7 +82,6 @@ test('post-call effect runs once, after the handler, only on a non-throwing retu
   const callback = createToolPipeline(
     {
       name: 'tracked_tool',
-      requiresWorkspace: false,
       handler: async (args) => {
         order.push('handler');
         return { value: args.n };
@@ -88,7 +91,7 @@ test('post-call effect runs once, after the handler, only on a non-throwing retu
         postCallArgs = { result, args };
       },
     },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), registry: registryFor('tracked_tool', false), runtimeConfig: RUNTIME_CONFIG, env: {} }
   );
 
   await callback({ n: 7 }, {});
@@ -100,13 +103,12 @@ test('a throwing post-call effect is swallowed and does not mask the tool result
   const callback = createToolPipeline(
     {
       name: 'tracked_tool',
-      requiresWorkspace: false,
       handler: async () => ({ value: 1 }),
       onPostCall: () => {
         throw new Error('post-call boom');
       },
     },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), registry: registryFor('tracked_tool', false), runtimeConfig: RUNTIME_CONFIG, env: {} }
   );
 
   const result = await callback({}, {});
@@ -119,7 +121,6 @@ test('full order on a workspace-gated tool: gate then handler then post-call, no
   const callback = createToolPipeline(
     {
       name: 'gated_tracked_tool',
-      requiresWorkspace: true,
       handler: async () => {
         order.push('handler');
         return { done: true };
@@ -130,6 +131,7 @@ test('full order on a workspace-gated tool: gate then handler then post-call, no
     },
     {
       server: fakeSdkServer(),
+      registry: registryFor('gated_tracked_tool', true),
       runtimeConfig: RUNTIME_CONFIG,
       getProjectRoot: () => process.cwd(),
     }
@@ -144,10 +146,9 @@ test('there is no validate stage: malformed args reach the handler untouched (zo
   const callback = createToolPipeline(
     {
       name: 'no_validate_tool',
-      requiresWorkspace: false,
       handler: async (args) => ({ receivedType: typeof args.weird }),
     },
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, env: {} }
+    { server: fakeSdkServer(), registry: registryFor('no_validate_tool', false), runtimeConfig: RUNTIME_CONFIG, env: {} }
   );
 
   const result = await callback({ weird: Symbol('nope') }, {});
