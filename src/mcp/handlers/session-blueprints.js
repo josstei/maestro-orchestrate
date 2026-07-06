@@ -3,10 +3,44 @@ import path from 'node:path';
 import * as markdownState from '../../core/markdown-state.js';
 import { NotFoundError, ValidationError } from '../../lib/errors/index.js';
 import { fileURLToPath } from 'node:url';
+import { z } from 'zod';
+import { PHASE_ID } from '../tool-packs/zod-fragments.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const BLUEPRINT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const BLUEPRINT_DIR = path.join(moduleDirname, '..', '..', 'templates', 'session-blueprints');
+
+/**
+ * Shape contract for an authored session blueprint's frontmatter. Parsing
+ * validates and transforms in one pass: each authored phase is normalized
+ * into the exact create_session phase-item shape with a 1-based id, and
+ * unknown keys are stripped (zod default) so the output carries exactly
+ * the five phase-item fields.
+ */
+const BLUEPRINT_SCHEMA = z.object({
+  id: z.string(),
+  title: z.string(),
+  design_outline: z.string().default(''),
+  phases: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1),
+        agent: z.string().trim().min(1),
+        parallel: z.boolean().default(false),
+        blocked_by: z.array(PHASE_ID).default([]),
+      })
+    )
+    .min(1)
+    .transform((phases) =>
+      phases.map((phase, index) => ({
+        id: index + 1,
+        name: phase.name,
+        agent: phase.agent,
+        parallel: phase.parallel,
+        blocked_by: phase.blocked_by,
+      }))
+    ),
+});
 
 /**
  * Resolve an authored session blueprint file from the installed package payload.
@@ -37,41 +71,12 @@ function resolveBlueprintPath(blueprintId) {
  */
 function parseBlueprint(filePath) {
   try {
-    return markdownState.parse(fs.readFileSync(filePath, 'utf8')).data;
+    return BLUEPRINT_SCHEMA.parse(markdownState.parse(fs.readFileSync(filePath, 'utf8')).data);
   } catch (err) {
     throw new ValidationError(`Invalid session blueprint: ${path.basename(filePath)}`, {
       details: { file: filePath, message: err.message },
     });
   }
-}
-
-/**
- * Normalize an authored phase into the exact create_session phase item shape.
- *
- * @param {object} phase - Authored phase descriptor.
- * @param {number} index - Zero-based phase index.
- * @returns {{ id: number, name: string, agent: string, parallel: boolean, blocked_by: Array<number|string> }}
- * @throws {ValidationError} When required phase fields are malformed.
- */
-function instantiatePhase(phase, index) {
-  const id = index + 1;
-  if (!phase || typeof phase.name !== 'string' || phase.name.trim() === '') {
-    throw new ValidationError(`Session blueprint phase ${id} must define a non-empty name`);
-  }
-  if (typeof phase.agent !== 'string' || phase.agent.trim() === '') {
-    throw new ValidationError(`Session blueprint phase ${id} must define a non-empty agent`);
-  }
-  if (phase.blocked_by !== undefined && !Array.isArray(phase.blocked_by)) {
-    throw new ValidationError(`Session blueprint phase ${id} blocked_by must be an array`);
-  }
-
-  return {
-    id,
-    name: phase.name,
-    agent: phase.agent,
-    parallel: phase.parallel === true,
-    blocked_by: phase.blocked_by || [],
-  };
 }
 
 /**
@@ -107,19 +112,15 @@ function handleListSessionBlueprints() {
  * @param {{ blueprint_id: string, task: string }} params - Blueprint id and concrete task.
  * @returns {{ task: string, phases: Array<object>, design_outline: string }}
  * @throws {NotFoundError} When the blueprint id is unknown.
- * @throws {ValidationError} When the blueprint is malformed.
+ * @throws {ValidationError} When the blueprint frontmatter fails the blueprint schema.
  */
 function handleInstantiateSessionBlueprint(params) {
   const blueprint = parseBlueprint(resolveBlueprintPath(params.blueprint_id));
 
-  if (!Array.isArray(blueprint.phases) || blueprint.phases.length === 0) {
-    throw new ValidationError(`Session blueprint '${params.blueprint_id}' must define phases`);
-  }
-
   return {
     task: params.task,
-    phases: blueprint.phases.map(instantiatePhase),
-    design_outline: blueprint.design_outline || '',
+    phases: blueprint.phases,
+    design_outline: blueprint.design_outline,
   };
 }
 
