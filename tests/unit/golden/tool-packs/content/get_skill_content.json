@@ -6,6 +6,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "description": "Resource identifiers to read. Skills: \"delegation\", \"execution\", \"validation\", \"session-management\", \"implementation-planning\", \"code-review\", \"design-dialogue\". Protocols: \"agent-base-protocol\", \"filesystem-safety-protocol\". Templates: \"design-document\", \"implementation-plan\", \"session-state\". References: \"architecture\", \"orchestration-steps\"."
     }
   },

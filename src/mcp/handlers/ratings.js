@@ -5,17 +5,6 @@ const RATING_VALUES = Object.freeze(['up', 'down']);
 
 /**
  * @param {unknown} value
- * @returns {'up'|'down'}
- */
-function requireRating(value) {
-  if (!RATING_VALUES.includes(value)) {
-    throw new ValidationError("rating must be either 'up' or 'down'");
-  }
-  return value;
-}
-
-/**
- * @param {unknown} value
  * @returns {number|string}
  */
 function requirePhaseId(value) {
@@ -36,9 +25,6 @@ function normalizeNote(value) {
   if (value === undefined || value === null) {
     return null;
   }
-  if (typeof value !== 'string') {
-    throw new ValidationError('note must be a string when provided');
-  }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
@@ -54,7 +40,7 @@ function handleRatePhase(params, projectRoot) {
   const record = {
     session_id: requireNonEmptyString(params.session_id, 'session_id'),
     phase_id: requirePhaseId(params.phase_id),
-    rating: requireRating(params.rating),
+    rating: params.rating,
     note: normalizeNote(params.note),
     at: new Date().toISOString(),
   };
@@ -72,7 +58,7 @@ function handleRatePhase(params, projectRoot) {
 function handleRateSession(params, projectRoot) {
   const record = {
     session_id: requireNonEmptyString(params.session_id, 'session_id'),
-    rating: requireRating(params.rating),
+    rating: params.rating,
     note: normalizeNote(params.note),
     at: new Date().toISOString(),
   };

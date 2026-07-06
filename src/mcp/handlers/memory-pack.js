@@ -30,9 +30,6 @@ function resolveMemoryPackPath(packPath, projectRoot) {
   if (packPath == null || packPath === '') {
     return defaultMemoryPackPath(projectRoot);
   }
-  if (typeof packPath !== 'string') {
-    throw new ValidationError('path must be a string');
-  }
   if (packPath.includes('\0')) {
     throw new ValidationError('path contains null bytes');
   }

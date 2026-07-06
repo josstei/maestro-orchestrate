@@ -6,6 +6,7 @@
       "items": {
         "type": "string"
       },
+      "minItems": 1,
       "description": "Agent identifiers (kebab-case or snake_case): \"coder\", \"code-reviewer\" / \"code_reviewer\", \"ux-designer\" / \"ux_designer\", etc."
     }
   },

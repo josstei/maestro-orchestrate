@@ -1,18 +1,13 @@
-import { ValidationError } from '../../lib/errors/index.js';
 import { requireNonEmptyString } from '../../lib/validation/index.js';
 import { KnowledgeStore } from '../memory/knowledge-store.js';
 
 /**
  * @param {unknown} value
  * @returns {string}
- * @throws {ValidationError}
  */
 function normalizeQuery(value) {
   if (value === undefined || value === null) {
     return '';
-  }
-  if (typeof value !== 'string') {
-    throw new ValidationError('query must be a string when provided');
   }
   return value.trim();
 }

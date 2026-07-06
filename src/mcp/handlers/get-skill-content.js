@@ -1,7 +1,6 @@
 import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from '../runtime/runtime-config-map.js';
 import { RESOURCE_ALLOWLIST, applyRuntimeTransforms } from '../content/runtime-content.js';
 import { createContentProvider } from '../content/provider.js';
-import { ValidationError } from '../../lib/errors/index.js';
 
 /**
  * Read one or more Maestro content resources through the runtime-configured
@@ -15,9 +14,6 @@ import { ValidationError } from '../../lib/errors/index.js';
  */
 function handleGetSkillContent(params, ctx = {}) {
   const resources = params.resources;
-  if (!Array.isArray(resources) || resources.length === 0) {
-    throw new ValidationError('resources must be a non-empty array of resource identifiers');
-  }
 
   const runtimeConfig = normalizeRuntimeConfig(ctx.runtimeConfig || getDefaultRuntimeConfig());
   const services = ctx.services || {};

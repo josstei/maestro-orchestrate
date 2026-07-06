@@ -198,9 +198,15 @@ function spawnMcpServer(options) {
       arguments: args,
     });
     const text = result && result.content && result.content[0] ? result.content[0].text : '{}';
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = null;
+    }
     return {
       raw: result,
-      parsed: JSON.parse(text),
+      parsed,
     };
   }
 

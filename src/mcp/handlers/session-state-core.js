@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import * as markdownState from '../../core/markdown-state.js';
-import { StateError, ValidationError } from '../../lib/errors/index.js';
+import { StateError } from '../../lib/errors/index.js';
 import { assertSessionId } from '../../lib/validation/index.js';
 import { readState, writeState, resolveStateDirPath } from '../../state/session-state.js';
 import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
@@ -146,23 +146,14 @@ function withValidatedSession(projectRoot, sessionId, mutator) {
 /**
  * Normalize the file-manifest fields (`files_created`, `files_modified`,
  * `files_deleted`) shared by `transition_phase` and `reconcile_phase`.
- * Absent (`null`/`undefined`) fields default to `[]`; any other non-array
- * value is rejected loudly so a malformed manifest can never be silently
- * dropped from the handoff record.
+ * Absent fields default to `[]`; `FILE_ARRAY` at the zod boundary owns
+ * array-ness.
  *
  * @param {{ files_created?: unknown, files_modified?: unknown, files_deleted?: unknown }} params
  * @returns {{ filesCreated: unknown[], filesModified: unknown[], filesDeleted: unknown[], hasFiles: boolean }}
- * @throws {ValidationError} when a manifest field is present but not an array
  */
 function extractFileManifest(params) {
-  const arr = (field) => {
-    const value = params[field];
-    if (value === undefined || value === null) return [];
-    if (!Array.isArray(value)) {
-      throw new ValidationError(`${field} must be an array of file paths`);
-    }
-    return value;
-  };
+  const arr = (field) => params[field] ?? [];
   const filesCreated = arr('files_created');
   const filesModified = arr('files_modified');
   const filesDeleted = arr('files_deleted');

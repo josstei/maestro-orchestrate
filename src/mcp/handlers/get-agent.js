@@ -1,7 +1,6 @@
 import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from '../runtime/runtime-config-map.js';
 import { AGENT_ALLOWLIST } from '../content/runtime-content.js';
 import { createContentProvider } from '../content/provider.js';
-import { ValidationError } from '../../lib/errors/index.js';
 import { toSnakeCase, toKebabCase } from '../../lib/naming/index.js';
 
 /**
@@ -16,9 +15,6 @@ import { toSnakeCase, toKebabCase } from '../../lib/naming/index.js';
  */
 function handleGetAgent(params, ctx = {}) {
   const requestedAgents = params.agents;
-  if (!Array.isArray(requestedAgents) || requestedAgents.length === 0) {
-    throw new ValidationError('agents must be a non-empty array of agent identifiers');
-  }
 
   const runtimeConfig = normalizeRuntimeConfig(ctx.runtimeConfig || getDefaultRuntimeConfig());
   const services = ctx.services || {};

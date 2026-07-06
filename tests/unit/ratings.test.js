@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { RATING_VALUES, handleRatePhase, handleRateSession, aggregateRatings } from '../../src/mcp/handlers/ratings.js';
+import { buildMcpServer, ensureMaestroWorkspace, makeTempWorkspace } from '../support/mcp.js';
+import { registerMemoryPack } from '../../src/mcp/tool-packs/memory/index.js';
 
 function makeWorkspace() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ratings-'));
@@ -67,14 +69,6 @@ describe('ratings handlers', () => {
     assert.equal(records[1].rating, 'down');
   });
 
-  it('rejects an invalid rating value', () => {
-    const root = makeWorkspace();
-    assert.throws(
-      () => handleRateSession({ session_id: 's1', rating: 'meh' }, root),
-      /rating must be either/
-    );
-  });
-
   it('rejects a phase rating with no phase_id', () => {
     const root = makeWorkspace();
     assert.throws(
@@ -111,5 +105,16 @@ describe('ratings handlers', () => {
       satisfaction_ratio: 0,
       by_session: {},
     });
+  });
+});
+
+describe('rating enforcement at the SDK boundary', () => {
+  it('the composed server rejects an invalid rating value before the handler runs', async () => {
+    const server = await buildMcpServer({ toolPacks: [registerMemoryPack] });
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace());
+    const result = await server.callTool('rate_session', { session_id: 's1', rating: 'meh' }, workspace);
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'INVALID_PARAMS');
+    await server.close();
   });
 });

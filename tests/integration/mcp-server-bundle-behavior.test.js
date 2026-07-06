@@ -32,17 +32,12 @@ const RUNTIME_BUNDLES = [
 ];
 
 describe('mcp server bundle behavior', () => {
-  it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
+  it('rejects empty agent arrays at the SDK zod boundary', async () => {
     await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
       const result = await client.callTool('get_agent', { agents: [] });
 
       assert.equal(result.raw.isError, true);
-      assert.equal(
-        result.parsed.error,
-        'agents must be a non-empty array of agent identifiers'
-      );
-      assert.equal(result.parsed.code, 'VALIDATION_ERROR');
-      assert.equal(result.parsed.recovery_hint, null);
+      assert.match(result.raw.content[0].text, /agents/);
     });
   });
 
