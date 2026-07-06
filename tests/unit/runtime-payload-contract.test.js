@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHandler as createAgentHandler } from '../../src/mcp/handlers/get-agent.js';
-import { createHandler as createSkillContentHandler } from '../../src/mcp/handlers/get-skill-content.js';
+import { handleGetAgent } from '../../src/mcp/handlers/get-agent.js';
+import { handleGetSkillContent } from '../../src/mcp/handlers/get-skill-content.js';
 import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
 import { RUNTIME_PAYLOAD_CONTRACT, TOPOLOGY_DECISION, getRuntimePayloadContract } from '../../src/platforms/runtime-payload-contract.js';
 import { readFileSync } from 'node:fs';
@@ -120,8 +120,8 @@ describe('runtime payload contract', () => {
     for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {
       const runtimeConfig = getRuntimeConfig(runtime.name);
       const contentRoot = path.join(ROOT, runtime.content.srcRoot);
-      const skillHandler = createSkillContentHandler(runtimeConfig, contentRoot);
-      const agentHandler = createAgentHandler(runtimeConfig, contentRoot);
+      const skillHandler = (params) => handleGetSkillContent(params, { runtimeConfig, services: { canonicalSrcRoot: contentRoot } });
+      const agentHandler = (params) => handleGetAgent(params, { runtimeConfig, services: { canonicalSrcRoot: contentRoot } });
 
       const skillResult = skillHandler({ resources: ['delegation'] });
       const agentResult = agentHandler({ agents: ['coder'] });

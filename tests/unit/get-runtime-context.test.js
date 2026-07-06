@@ -2,13 +2,13 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import codex from '../../src/platforms/codex/runtime-config.js';
 import claude from '../../src/platforms/claude/runtime-config.js';
-import { createHandler } from '../../src/mcp/handlers/get-runtime-context.js';
+import { handleGetRuntimeContext } from '../../src/mcp/handlers/get-runtime-context.js';
 
 describe('get_runtime_context response shape', () => {
   const legacyDispatchKey = ['agent', 'dispatch'].join('_');
 
   it('codex returns delegation.constraints and plan_mode_native=false', () => {
-    const handler = createHandler(codex, () => '/workspace/suggestion');
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: codex, services: { workspaceSuggestion: () => '/workspace/suggestion' } });
     const result = handler({});
     assert.equal(result.plan_mode_native, false);
     assert.deepEqual(
@@ -19,7 +19,7 @@ describe('get_runtime_context response shape', () => {
   });
 
   it('claude returns plan_mode_native=true', () => {
-    const handler = createHandler(claude, () => null);
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: claude, services: { workspaceSuggestion: () => null } });
     const result = handler({});
     assert.equal(result.plan_mode_native, true);
     assert.equal(result.delegation.constraints.result_surface, 'synchronous');
@@ -27,7 +27,7 @@ describe('get_runtime_context response shape', () => {
   });
 
   it('does not expose legacy dispatch fields', () => {
-    const handler = createHandler(codex, () => null);
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: codex, services: { workspaceSuggestion: () => null } });
     const result = handler({});
     assert.equal(Object.hasOwn(result, legacyDispatchKey), false);
     assert.equal(result.delegation.pattern, 'spawn_agent(...)');
@@ -35,7 +35,7 @@ describe('get_runtime_context response shape', () => {
   });
 
   it('codex nudges the user to enter Plan mode instead of pointing at update_plan', () => {
-    const handler = createHandler(codex, () => null);
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: codex, services: { workspaceSuggestion: () => null } });
     const result = handler({});
     assert.equal(
       result.tools.enter_plan_mode,
