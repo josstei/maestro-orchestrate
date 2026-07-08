@@ -4,7 +4,11 @@ import { assertSessionId } from '../../lib/validation/index.js';
 import { ValidationError, StateError } from '../../lib/errors/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
 import { atomicWriteSync } from '../../lib/io/index.js';
-import { resolveDocumentInputVariant } from './document-input.js';
+import {
+  assertPlansFilename,
+  resolveDocumentInputVariant,
+  writePlansDocumentContent,
+} from './document-input.js';
 import { buildDesignApprovalConsentSchema } from '../server/elicitation-schemas.js';
 import { attempt } from './attempt.js';
 import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
@@ -26,96 +30,6 @@ type RecordDesignApprovalParams = z.infer<z.ZodObject<typeof zodSchemas.record_d
 function gatePath(projectRoot: any, sessionId: any) {
   const stateDir = resolveStateDirPath(projectRoot);
   return path.join(stateDir, 'state', `${sessionId}${GATE_FILENAME}`);
-}
-
-/**
- * Canonical location where approved design documents live. Runtimes (including
- * Plan Mode) may write design docs to arbitrary temporary locations; this
- * function is the single source of truth for the post-approval location so the
- * archive flow can reliably find and move the document.
- *
- * @param {string} projectRoot
- * @returns {string}
- */
-function plansDirPath(projectRoot: any) {
-  return path.join(resolveStateDirPath(projectRoot), 'plans');
-}
-
-/**
- * Copy a design document to `<state_dir>/plans/<basename>` when it isn't
- * already there. Idempotent: returns the in-plans path regardless of whether a
- * copy was needed. Preserves the source file so runtime-managed tmp locations
- * (Plan Mode) remain intact.
- *
- * @param {string} projectRoot
- * @param {string} sourcePath - absolute path to the approved design document
- * @returns {string} absolute path to the canonical location inside plans/
- */
-function ensureDesignDocumentInPlans(projectRoot: any, sourcePath: any) {
-  const plansDir = plansDirPath(projectRoot);
-  const resolvedPlansDir = path.resolve(plansDir) + path.sep;
-  const resolvedSource = path.resolve(sourcePath);
-
-  if (resolvedSource.startsWith(resolvedPlansDir)) {
-    return resolvedSource;
-  }
-
-  fs.mkdirSync(plansDir, { recursive: true });
-  const destination = path.join(plansDir, path.basename(resolvedSource));
-  fs.copyFileSync(resolvedSource, destination);
-  return destination;
-}
-
-/**
- * Validate that a caller-provided filename is safe to join into the plans
- * directory. Rejects anything that could escape the directory or collide with a
- * nested path.
- *
- * @param {string} filename
- * @param {string} paramName - name of the parameter for error messages (e.g. "design_document_filename")
- * @throws {ValidationError}
- */
-function assertPlansFilename(filename: any, paramName: any) {
-  if (typeof filename !== 'string' || filename.length === 0) {
-    throw new ValidationError(`${paramName} is required`);
-  }
-  if (filename.includes('\0')) {
-    throw new ValidationError(`${paramName} contains null bytes`, {
-      details: { value: filename },
-    });
-  }
-  if (filename !== path.basename(filename) || filename === '..' || filename === '.') {
-    throw new ValidationError(
-      `${paramName} must be a pure basename (no path separators, no '.' or '..')`,
-      { details: { value: filename } }
-    );
-  }
-}
-
-/**
- * Write caller-supplied document content to `<state_dir>/plans/<filename>`
- * atomically and return the canonical absolute path. The content-based
- * counterpart to `ensureDesignDocumentInPlans` — callers that cannot guarantee
- * filesystem visibility across runtime boundaries (e.g. Gemini Plan Mode writes
- * to `~/.gemini/tmp/...`) use this to bypass path-resolution ambiguity
- * entirely.
- *
- * @param {string} projectRoot
- * @param {string} filename - basename-only, validated via assertPlansFilename
- * @param {string} content - UTF-8 document content
- * @param {string} filenameParam - parameter name for validation errors
- * @returns {string} absolute canonical path inside plans/
- */
-function writePlansDocumentContent(projectRoot: any, filename: any, content: any, filenameParam: any) {
-  assertPlansFilename(filename, filenameParam);
-  if (typeof content !== 'string' || content.length === 0) {
-    throw new ValidationError(
-      `${filenameParam.replace(/_filename$/, '_content')} must be a non-empty string`
-    );
-  }
-  const destination = path.join(plansDirPath(projectRoot), filename);
-  atomicWriteSync(destination, content);
-  return destination;
 }
 
 /**
@@ -203,9 +117,6 @@ function validateApprovedDesignDocumentShape(params: any) {
   }
   if (variant.kind === 'content') {
     assertPlansFilename(variant.filename, 'design_document_filename');
-    if (typeof variant.content !== 'string' || variant.content.length === 0) {
-      throw new ValidationError('design_document_content must be a non-empty string');
-    }
   }
   return variant;
 }
@@ -432,4 +343,4 @@ function removeDesignGate(projectRoot: any, sessionId: any) {
   return filePath;
 }
 
-export { handleEnterDesignGate, handleRecordDesignApproval, handleGetDesignGateStatus, isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, listApprovedGates, findOrphanedApprovedGates, ensureDesignDocumentInPlans, writePlansDocumentContent, plansDirPath, removeDesignGate, writeGate };
+export { handleEnterDesignGate, handleRecordDesignApproval, handleGetDesignGateStatus, isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, listApprovedGates, findOrphanedApprovedGates, removeDesignGate, writeGate };

@@ -4,8 +4,8 @@ import { assertSessionId } from '../../lib/validation/index.js';
 import { validatePhases } from '../contracts/plan-schema.js';
 import { createEmptyDownstreamContext, normalizeDownstreamContext, isDownstreamContextPopulated, describeShape as describeDownstreamContextShape, } from '../contracts/downstream-context.js';
 import { ValidationError, StateError, NotFoundError } from '../../lib/errors/index.js';
-import { isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, findOrphanedApprovedGates, ensureDesignDocumentInPlans, writePlansDocumentContent, removeDesignGate, } from './design-gate.js';
-import { resolveDocumentInput } from './document-input.js';
+import { isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, findOrphanedApprovedGates, removeDesignGate, } from './design-gate.js';
+import { ensurePlansDocumentInPlans, resolveDocumentInput, writePlansDocumentContent, } from './document-input.js';
 import { resolveBasePath, resolveActiveSessionPath, parseSessionState, extractBody, readActiveSessionOrNull, writeActiveSession, withSessionState, extractFileManifest, assertValidActiveSession, withValidatedSession, } from './session-state-core.js';
 import { parseBlockers } from './blocker-parser.js';
 import { recordAgentPerformance } from './agent-performance.js';
@@ -43,15 +43,15 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind) {
             : ' (confirm the plan was written to disk before calling create_session)';
         throw new NotFoundError(`${documentKind} does not exist: ${absolutePath}${context}`);
     }
-    return ensureDesignDocumentInPlans(projectRoot, absolutePath);
+    return ensurePlansDocumentInPlans(projectRoot, absolutePath);
 }
 /**
  * Resolve the caller's implementation-plan input to a canonical absolute path.
  * At-most-one-of (implementation_plan) or (implementation_plan_content +
  * implementation_plan_filename); absent entirely is valid and returns null
  * (the session simply has no recorded plan). The content variant closes the
- * same path-resolution gap that `resolveApprovedDesignDocument` addresses for
- * design docs: a runtime whose write surface resolves relative paths against
+ * same path-resolution gap addressed by the design-document content variant:
+ * a runtime whose write surface resolves relative paths against
  * a different root than the MCP workspace cannot pass a path the server can
  * find, so it passes content instead.
  *

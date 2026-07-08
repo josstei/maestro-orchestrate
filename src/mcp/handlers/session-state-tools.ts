@@ -17,12 +17,14 @@ import {
   hasDesignGate,
   getApprovedDesignDocumentPath,
   findOrphanedApprovedGates,
-  ensureDesignDocumentInPlans,
-  writePlansDocumentContent,
   removeDesignGate,
 } from './design-gate.js';
 
-import { resolveDocumentInput } from './document-input.js';
+import {
+  ensurePlansDocumentInPlans,
+  resolveDocumentInput,
+  writePlansDocumentContent,
+} from './document-input.js';
 
 import {
   resolveBasePath,
@@ -75,7 +77,7 @@ function materializeSessionDocument(projectRoot: any, documentPath: any, documen
         : ' (confirm the plan was written to disk before calling create_session)';
     throw new NotFoundError(`${documentKind} does not exist: ${absolutePath}${context}`);
   }
-  return ensureDesignDocumentInPlans(projectRoot, absolutePath);
+  return ensurePlansDocumentInPlans(projectRoot, absolutePath);
 }
 
 /**
@@ -83,8 +85,8 @@ function materializeSessionDocument(projectRoot: any, documentPath: any, documen
  * At-most-one-of (implementation_plan) or (implementation_plan_content +
  * implementation_plan_filename); absent entirely is valid and returns null
  * (the session simply has no recorded plan). The content variant closes the
- * same path-resolution gap that `resolveApprovedDesignDocument` addresses for
- * design docs: a runtime whose write surface resolves relative paths against
+ * same path-resolution gap addressed by the design-document content variant:
+ * a runtime whose write surface resolves relative paths against
  * a different root than the MCP workspace cannot pass a path the server can
  * find, so it passes content instead.
  *
