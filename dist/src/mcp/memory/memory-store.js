@@ -5,8 +5,6 @@ import { atomicWriteSync, readJsonSafe } from '../../lib/io/index.js';
 import { normalizeUniqueStringList } from '../../lib/validation/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
 const PROFILE_SCHEMA_VERSION = 1;
-const AGENT_PERFORMANCE_SCHEMA_VERSION = 1;
-const AGENT_PERFORMANCE_FILENAME = 'agent-performance.json';
 const ARCHITECTURE_MEMORY_SCHEMA_VERSION = 1;
 const ARCHITECTURE_MEMORY_FILENAME = 'architecture-memory.json';
 const ARCHITECTURE_MEMORY_CATEGORIES = Object.freeze([
@@ -41,21 +39,6 @@ function createSystemClock() {
  */
 function knowledgeFilePath(projectRoot, filename) {
     return path.join(resolveStateDirPath(projectRoot), 'knowledge', filename);
-}
-/**
- * Normalize any parsed ledger value into the current wrapped ledger shape.
- *
- * @param {unknown} ledger
- * @returns {{ schema_version: number, records: Array<object> }}
- */
-function normalizeAgentPerformanceLedger(ledger) {
-    if (!ledger || typeof ledger !== 'object' || Array.isArray(ledger)) {
-        return { schema_version: AGENT_PERFORMANCE_SCHEMA_VERSION, records: [] };
-    }
-    return {
-        schema_version: ledger.schema_version || AGENT_PERFORMANCE_SCHEMA_VERSION,
-        records: Array.isArray(ledger.records) ? ledger.records : [],
-    };
 }
 /**
  * Build a fresh, empty architecture-memory graph.
@@ -166,9 +149,10 @@ function mergeValidationCommands(profile, incoming) {
 }
 /**
  * Facade over the durable, out-of-session memory files that still need
- * structured read/modify/write behavior: project profiles, agent performance,
- * and architecture memory. Append-only JSONL ledgers live in `jsonl-ledgers.ts`;
- * per-agent notes live in `agent-memory-store.ts`.
+ * structured read/modify/write behavior: project profiles and architecture
+ * memory. Append-only JSONL ledgers live in `jsonl-ledgers.ts`; per-agent notes
+ * live in `agent-memory-store.ts`; agent outcome history lives in
+ * `agent-performance-store.ts`.
  */
 class MemoryStore {
     projectRoot;
@@ -196,12 +180,6 @@ class MemoryStore {
      */
     profilePath() {
         return path.join(this.stateDir, 'memory', 'project-profile.md');
-    }
-    /**
-     * @returns {string}
-     */
-    agentPerformancePath() {
-        return knowledgeFilePath(this.projectRoot, AGENT_PERFORMANCE_FILENAME);
     }
     /**
      * @returns {string}
@@ -254,15 +232,6 @@ class MemoryStore {
         return next;
     }
     /**
-     * Read the durable per-agent outcome ledger. Returns an empty ledger when the
-     * file is absent or unreadable (never throws).
-     *
-     * @returns {{ schema_version: number, records: Array<object> }}
-     */
-    readAgentPerformance() {
-        return normalizeAgentPerformanceLedger(readJsonSafe(this.agentPerformancePath()));
-    }
-    /**
      * Read the structured per-project architecture-memory graph. Returns a fresh
      * zeroed graph when the file is absent, unreadable, or malformed.
      *
@@ -280,23 +249,6 @@ class MemoryStore {
     writeArchitectureMemory(graph) {
         const next = normalizeArchitectureMemoryGraph(graph);
         atomicWriteSync(this.architectureMemoryPath(), `${JSON.stringify(next, null, 2)}\n`);
-        return next;
-    }
-    /**
-     * Append per-agent outcome records to the durable ledger, preserving prior
-     * records. A non-array payload is treated as no-op input.
-     *
-     * @param {Array<object>} records
-     * @returns {{ schema_version: number, records: Array<object> }}
-     */
-    appendAgentPerformance(records) {
-        const incoming = Array.isArray(records) ? records : [];
-        const current = this.readAgentPerformance();
-        const next = {
-            schema_version: current.schema_version || AGENT_PERFORMANCE_SCHEMA_VERSION,
-            records: current.records.concat(incoming),
-        };
-        atomicWriteSync(this.agentPerformancePath(), `${JSON.stringify(next, null, 2)}\n`);
         return next;
     }
 }

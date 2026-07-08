@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { appendAgentPerformance, readAgentPerformance } from '../../dist/src/mcp/memory/agent-performance-store.js';
 const tmpRoots = [];
 
 function makeWorkspace() {
@@ -18,10 +18,9 @@ after(() => {
   }
 });
 
-describe('MemoryStore agent-performance ledger', () => {
+describe('agent-performance store', () => {
   it('returns an empty ledger when the file is absent', () => {
-    const store = new MemoryStore(makeWorkspace());
-    assert.deepEqual(store.readAgentPerformance(), {
+    assert.deepEqual(readAgentPerformance(makeWorkspace()), {
       schema_version: 1,
       records: [],
     });
@@ -29,7 +28,6 @@ describe('MemoryStore agent-performance ledger', () => {
 
   it('appends records and round-trips them from disk', () => {
     const workspace = makeWorkspace();
-    const store = new MemoryStore(workspace);
     const first = {
       session_id: 's1',
       agent: 'coder',
@@ -40,7 +38,7 @@ describe('MemoryStore agent-performance ledger', () => {
       phase_duration_ms: 1000,
       token_usage: { input: 10, output: 20, cached: 5 },
     };
-    store.appendAgentPerformance([first]);
+    appendAgentPerformance(workspace, [first]);
 
     const onDisk = JSON.parse(
       fs.readFileSync(
@@ -54,21 +52,30 @@ describe('MemoryStore agent-performance ledger', () => {
   });
 
   it('append-merges across calls without dropping prior records', () => {
-    const store = new MemoryStore(makeWorkspace());
-    store.appendAgentPerformance([{ session_id: 's1', agent: 'coder', phase_id: 1 }]);
-    store.appendAgentPerformance([{ session_id: 's2', agent: 'tester', phase_id: 1 }]);
-    const ledger = store.readAgentPerformance();
+    const workspace = makeWorkspace();
+    appendAgentPerformance(workspace, [{ session_id: 's1', agent: 'coder', phase_id: 1 }]);
+    appendAgentPerformance(workspace, [{ session_id: 's2', agent: 'tester', phase_id: 1 }]);
+    const ledger = readAgentPerformance(workspace);
     assert.equal(ledger.records.length, 2);
     assert.equal(ledger.records[0].agent, 'coder');
     assert.equal(ledger.records[1].agent, 'tester');
   });
 
   it('ignores a non-array append payload', () => {
-    const store = new MemoryStore(makeWorkspace());
-    store.appendAgentPerformance(null);
-    assert.deepEqual(store.readAgentPerformance(), {
+    const workspace = makeWorkspace();
+    appendAgentPerformance(workspace, null);
+    assert.deepEqual(readAgentPerformance(workspace), {
       schema_version: 1,
       records: [],
     });
+  });
+
+  it('preserves prior records when appending a non-array payload', () => {
+    const workspace = makeWorkspace();
+    appendAgentPerformance(workspace, [{ session_id: 's1', agent: 'coder', phase_id: 1 }]);
+    appendAgentPerformance(workspace, null);
+    assert.deepEqual(readAgentPerformance(workspace).records, [
+      { session_id: 's1', agent: 'coder', phase_id: 1 },
+    ]);
   });
 });

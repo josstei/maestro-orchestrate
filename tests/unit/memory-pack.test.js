@@ -7,6 +7,7 @@ import { handleExportMemoryPack, handleImportMemoryPack } from '../../dist/src/m
 import { handleGetProjectProfile } from '../../dist/src/mcp/handlers/project-profile.js';
 import { handleQueryArchitectureMemory } from '../../dist/src/mcp/handlers/architecture-memory.js';
 import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { appendAgentPerformance } from '../../dist/src/mcp/memory/agent-performance-store.js';
 import { appendPlanAccuracy } from '../../dist/src/mcp/memory/jsonl-ledgers.js';
 import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
 
@@ -35,7 +36,7 @@ function seedMemory(workspace) {
     do_not_touch: ['generated runtime output'],
     preferred_agents: ['coder'],
   });
-  store.appendAgentPerformance([
+  appendAgentPerformance(workspace, [
     { session_id: 'session-1', agent: 'coder', phase_id: 1, retry_count: 0 },
   ]);
   appendPlanAccuracy(workspace, { session_id: 'session-1', precision: 1, recall: 1 });

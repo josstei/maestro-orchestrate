@@ -5,6 +5,7 @@ import { ValidationError } from '../../lib/errors/index.js';
 import { assertContainedIn } from '../../lib/validation/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
 import { ARCHITECTURE_MEMORY_CATEGORIES, MemoryStore, PROFILE_ARRAY_FIELDS } from '../memory/memory-store.js';
+import { appendAgentPerformance, readAgentPerformance } from '../memory/agent-performance-store.js';
 import { appendPlanAccuracy, readPlanAccuracy } from '../memory/jsonl-ledgers.js';
 const MEMORY_PACK_SCHEMA_VERSION = 1;
 const MEMORY_PACK_FILENAME = 'memory-pack.json';
@@ -170,7 +171,7 @@ function handleExportMemoryPack(_params: any, projectRoot: any) {
     schema_version: MEMORY_PACK_SCHEMA_VERSION,
     exported_at: new Date().toISOString(),
     profile: store.readProfile(),
-    agent_performance: store.readAgentPerformance(),
+    agent_performance: readAgentPerformance(projectRoot),
     plan_accuracy: readPlanAccuracy(projectRoot),
     architecture_memory: store.readArchitectureMemory(),
   };
@@ -197,7 +198,7 @@ function handleImportMemoryPack(params: any, projectRoot: any) {
   const store = MemoryStore.forProjectRoot(projectRoot);
   const profileMerge = mergeProfile(store.readProfile(), pack.profile);
   const agentPerformanceRecords = newRecordsByValue(
-    store.readAgentPerformance().records,
+    readAgentPerformance(projectRoot).records,
     pack.agent_performance && pack.agent_performance.records
   );
   const planAccuracyRecords = newRecordsByValue(
@@ -211,7 +212,7 @@ function handleImportMemoryPack(params: any, projectRoot: any) {
 
   store.writeProfile(profileMerge.profile);
   if (agentPerformanceRecords.length > 0) {
-    store.appendAgentPerformance(agentPerformanceRecords);
+    appendAgentPerformance(projectRoot, agentPerformanceRecords);
   }
   for (const record of planAccuracyRecords) {
     appendPlanAccuracy(projectRoot, record);

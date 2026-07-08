@@ -1,4 +1,4 @@
-import { MemoryStore } from '../memory/memory-store.js';
+import { appendAgentPerformance, readAgentPerformance } from '../memory/agent-performance-store.js';
 import { readRatings } from '../memory/jsonl-ledgers.js';
 import { normalizeTokenUsage } from '../contracts/agent-cost-ledger.js';
 import { aggregateRatings } from './ratings.js';
@@ -39,7 +39,7 @@ function recordAgentPerformance(state: any, projectRoot: any) {
     token_usage: normalizeTokenUsage(phase.token_usage),
   }));
   if (records.length > 0) {
-    new MemoryStore(projectRoot).appendAgentPerformance(records);
+    appendAgentPerformance(projectRoot, records);
   }
   return records;
 }
@@ -69,7 +69,7 @@ function emptyAccumulator() {
  * @returns {{ generated_at:string, agent_count:number, by_agent:Record<string,object>, ratings:object }}
  */
 function handleGetAgentPerformance(params: any, projectRoot: any) {
-  const ledger = new MemoryStore(projectRoot).readAgentPerformance();
+  const ledger = readAgentPerformance(projectRoot);
   const allRecords = Array.isArray(ledger.records) ? ledger.records : [];
   const filterAgent =
     params && typeof params.agent === 'string' && params.agent.length > 0
