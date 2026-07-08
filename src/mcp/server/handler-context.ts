@@ -1,5 +1,4 @@
 import * as io from '../../lib/io/index.js';
-import { MemoryStore, createSystemClock } from '../memory/memory-store.js';
 import { KnowledgeStore } from '../memory/knowledge-store.js';
 import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
 import type { ElicitParams, ElicitResult, HandlerContext, HandlerContextOptions, HandlerServices, SystemClock } from './tool-types.js';
@@ -22,23 +21,14 @@ type ElicitServer = {
 
 /**
  * Build the lazy, clock-injected `ctx.services` facade. Stateful services
- * (`memoryStore`, `knowledgeStore`) are constructed on first access and
- * memoized; they refuse to build against a null `projectRoot` rather than
- * ever falling back to the process cwd.
+ * are constructed on first access and memoized; they refuse to build against a
+ * null `projectRoot` rather than ever falling back to the process cwd.
  *
  */
 function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggestion }: BuildServicesOptions): HandlerServices {
-  let memoryStoreInstance: MemoryStore | null = null;
   let knowledgeStoreInstance: KnowledgeStore | null = null;
 
   return {
-    get memoryStore() {
-      requireWorkspaceRoot(projectRoot, 'ctx.services.memoryStore');
-      if (!memoryStoreInstance) {
-        memoryStoreInstance = new MemoryStore(projectRoot, { clock });
-      }
-      return memoryStoreInstance;
-    },
     get knowledgeStore() {
       requireWorkspaceRoot(projectRoot, 'ctx.services.knowledgeStore');
       if (!knowledgeStoreInstance) {
@@ -51,6 +41,10 @@ function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggesti
     canonicalSrcRoot,
     workspaceSuggestion,
   };
+}
+
+function createSystemClock(): SystemClock {
+  return { now: () => new Date() };
 }
 
 /**

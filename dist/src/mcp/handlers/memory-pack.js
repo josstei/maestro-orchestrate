@@ -4,9 +4,10 @@ import { atomicWriteSync } from '../../lib/io/index.js';
 import { ValidationError } from '../../lib/errors/index.js';
 import { assertContainedIn } from '../../lib/validation/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
-import { ARCHITECTURE_MEMORY_CATEGORIES, MemoryStore, PROFILE_ARRAY_FIELDS } from '../memory/memory-store.js';
+import { ARCHITECTURE_MEMORY_CATEGORIES, readArchitectureMemory, writeArchitectureMemory } from '../memory/architecture-memory-store.js';
 import { appendAgentPerformance, readAgentPerformance } from '../memory/agent-performance-store.js';
 import { appendPlanAccuracy, readPlanAccuracy } from '../memory/jsonl-ledgers.js';
+import { PROFILE_ARRAY_FIELDS, readProfile, writeProfile } from '../memory/project-profile-store.js';
 const MEMORY_PACK_SCHEMA_VERSION = 1;
 const MEMORY_PACK_FILENAME = 'memory-pack.json';
 /**
@@ -152,15 +153,14 @@ function mergeArchitectureMemory(current, imported) {
  * @returns {{ path: string, pack: object }}
  */
 function handleExportMemoryPack(_params, projectRoot) {
-    const store = MemoryStore.forProjectRoot(projectRoot);
     const packPath = defaultMemoryPackPath(projectRoot);
     const pack = {
         schema_version: MEMORY_PACK_SCHEMA_VERSION,
         exported_at: new Date().toISOString(),
-        profile: store.readProfile(),
+        profile: readProfile(projectRoot),
         agent_performance: readAgentPerformance(projectRoot),
         plan_accuracy: readPlanAccuracy(projectRoot),
-        architecture_memory: store.readArchitectureMemory(),
+        architecture_memory: readArchitectureMemory(projectRoot),
     };
     atomicWriteSync(packPath, `${JSON.stringify(pack, null, 2)}\n`);
     return { path: packPath, pack };
@@ -179,19 +179,18 @@ function handleImportMemoryPack(params, projectRoot) {
     if (!pack || typeof pack !== 'object' || Array.isArray(pack)) {
         throw new ValidationError('memory pack must be a JSON object');
     }
-    const store = MemoryStore.forProjectRoot(projectRoot);
-    const profileMerge = mergeProfile(store.readProfile(), pack.profile);
+    const profileMerge = mergeProfile(readProfile(projectRoot), pack.profile);
     const agentPerformanceRecords = newRecordsByValue(readAgentPerformance(projectRoot).records, pack.agent_performance && pack.agent_performance.records);
     const planAccuracyRecords = newRecordsByValue(readPlanAccuracy(projectRoot), pack.plan_accuracy);
-    const architectureMerge = mergeArchitectureMemory(store.readArchitectureMemory(), pack.architecture_memory);
-    store.writeProfile(profileMerge.profile);
+    const architectureMerge = mergeArchitectureMemory(readArchitectureMemory(projectRoot), pack.architecture_memory);
+    writeProfile(projectRoot, profileMerge.profile);
     if (agentPerformanceRecords.length > 0) {
         appendAgentPerformance(projectRoot, agentPerformanceRecords);
     }
     for (const record of planAccuracyRecords) {
         appendPlanAccuracy(projectRoot, record);
     }
-    store.writeArchitectureMemory(architectureMerge.graph);
+    writeArchitectureMemory(projectRoot, architectureMerge.graph);
     return {
         imported: true,
         counts: {

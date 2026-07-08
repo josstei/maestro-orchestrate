@@ -3,9 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore, emptyProfile, PROFILE_SCHEMA_VERSION } from '../../dist/src/mcp/memory/memory-store.js';
+import {
+  emptyProfile,
+  PROFILE_SCHEMA_VERSION,
+  readProfile,
+  writeProfile,
+} from '../../dist/src/mcp/memory/project-profile-store.js';
 
-describe('MemoryStore', () => {
+describe('project-profile store', () => {
   let tmpRoot;
   let savedStateDirEnv;
 
@@ -25,32 +30,30 @@ describe('MemoryStore', () => {
   });
 
   it('readProfile returns an empty profile when no file exists', () => {
-    const store = MemoryStore.forProjectRoot(tmpRoot);
-    assert.deepEqual(store.readProfile(), emptyProfile());
+    assert.deepEqual(readProfile(tmpRoot), emptyProfile());
   });
 
   it('writeProfile uses an injected clock instead of the real wall clock', () => {
     const fixedInstant = new Date('2020-01-01T00:00:00.000Z');
-    const store = MemoryStore.forProjectRoot(tmpRoot, {
-      clock: { now: () => fixedInstant },
-    });
-    const written = store.writeProfile({ build_commands: ['npm run build'] });
+    const written = writeProfile(
+      tmpRoot,
+      { build_commands: ['npm run build'] },
+      { clock: { now: () => fixedInstant } }
+    );
     assert.equal(written.updated, fixedInstant.toISOString());
-    assert.equal(store.readProfile().updated, fixedInstant.toISOString());
+    assert.equal(readProfile(tmpRoot).updated, fixedInstant.toISOString());
   });
 
   it('defaults to a real clock when none is injected', () => {
-    const store = new MemoryStore(tmpRoot);
     const before = Date.now();
-    const written = store.writeProfile({ build_commands: [] });
+    const written = writeProfile(tmpRoot, { build_commands: [] });
     const after = Date.now();
     const writtenMs = new Date(written.updated).getTime();
     assert.ok(writtenMs >= before && writtenMs <= after);
   });
 
   it('writeProfile then readProfile round-trips normalized fields', () => {
-    const store = MemoryStore.forProjectRoot(tmpRoot);
-    store.writeProfile({
+    writeProfile(tmpRoot, {
       build_commands: ['npm run build', 'npm run build'],
       test_commands: ['  npm test  '],
       lint_commands: [],
@@ -59,7 +62,7 @@ describe('MemoryStore', () => {
       preferred_agents: ['coder'],
       blocked_agents: [],
     });
-    const profile = store.readProfile();
+    const profile = readProfile(tmpRoot);
     assert.equal(profile.schema_version, PROFILE_SCHEMA_VERSION);
     assert.deepEqual(profile.build_commands, ['npm run build']);
     assert.deepEqual(profile.test_commands, ['npm test']);

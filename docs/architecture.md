@@ -149,7 +149,11 @@ src/mcp/
 │   ├── org-knowledge.js        # Cross-project out-of-tree knowledge notes
 │   └── ratings.js              # Human-satisfaction ratings
 ├── memory/
-│   ├── memory-store.js         # Durable memory store facade
+│   ├── project-profile-store.js # Per-project profile persistence
+│   ├── architecture-memory-store.js # Architecture-memory graph persistence
+│   ├── agent-performance-store.js # Per-agent outcome ledger
+│   ├── agent-memory-store.js   # Per-agent durable memory notes
+│   ├── jsonl-ledgers.js        # Ratings and plan-accuracy ledgers
 │   └── knowledge-store.js      # Out-of-tree cross-project knowledge store
 ├── tool-packs/
 │   ├── index.js                # Tool pack aggregation

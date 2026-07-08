@@ -1,5 +1,4 @@
 import type * as io from '../../lib/io/index.js';
-import type { MemoryStore } from '../memory/memory-store.js';
 import type { KnowledgeStore } from '../memory/knowledge-store.js';
 
 export type MaybePromise<T> = T | Promise<T>;
@@ -39,7 +38,6 @@ export type ElicitResult = {
 } | null;
 
 export type HandlerServices = {
-  readonly memoryStore: MemoryStore;
   readonly knowledgeStore: KnowledgeStore;
   io: typeof io;
   clock: SystemClock;

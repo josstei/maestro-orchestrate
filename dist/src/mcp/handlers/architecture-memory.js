@@ -1,4 +1,4 @@
-import { ARCHITECTURE_MEMORY_CATEGORIES, MemoryStore } from '../memory/memory-store.js';
+import { ARCHITECTURE_MEMORY_CATEGORIES, readArchitectureMemory, writeArchitectureMemory, } from '../memory/architecture-memory-store.js';
 import { normalizeDownstreamContext } from '../contracts/downstream-context.js';
 const DOWNSTREAM_CATEGORY_MAP = Object.freeze({
     key_interfaces_introduced: 'interfaces',
@@ -51,8 +51,7 @@ function appendCategoryValues(graph, category, values, sessionId) {
  * @returns {object} the persisted architecture-memory graph
  */
 function recordArchitectureMemory(state, projectRoot) {
-    const store = new MemoryStore(projectRoot);
-    const graph = store.readArchitectureMemory();
+    const graph = readArchitectureMemory(projectRoot);
     const sessionId = state && typeof state.session_id === 'string' && state.session_id.length > 0
         ? state.session_id
         : null;
@@ -63,7 +62,7 @@ function recordArchitectureMemory(state, projectRoot) {
             appendCategoryValues(graph, category, context[sourceField], sessionId);
         }
     }
-    return store.writeArchitectureMemory(graph);
+    return writeArchitectureMemory(projectRoot, graph);
 }
 /**
  * Return a queryable view of the durable architecture-memory graph. A query
@@ -75,7 +74,7 @@ function recordArchitectureMemory(state, projectRoot) {
  * @returns {{ query: string | null, interfaces: object[], patterns: object[], integration_points: object[], assumptions: object[], warnings: object[] }}
  */
 function handleQueryArchitectureMemory(params, projectRoot) {
-    const graph = new MemoryStore(projectRoot).readArchitectureMemory();
+    const graph = readArchitectureMemory(projectRoot);
     const query = normalizeQuery(params && params.query);
     const needle = query ? query.toLowerCase() : null;
     const response = { query };

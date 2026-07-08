@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import {
+  readArchitectureMemory,
+  writeArchitectureMemory,
+} from '../../dist/src/mcp/memory/architecture-memory-store.js';
 import { recordArchitectureMemory, handleQueryArchitectureMemory } from '../../dist/src/mcp/handlers/architecture-memory.js';
 const tmpRoots = [];
 
@@ -30,24 +33,22 @@ after(() => {
   }
 });
 
-describe('MemoryStore architecture-memory graph', () => {
+describe('architecture-memory store', () => {
   it('returns an empty graph when no architecture memory exists', () => {
-    const store = new MemoryStore(makeWorkspace());
-    assert.deepEqual(store.readArchitectureMemory(), emptyGraph());
+    assert.deepEqual(readArchitectureMemory(makeWorkspace()), emptyGraph());
   });
 
   it('round-trips the structured architecture-memory object', () => {
     const workspace = makeWorkspace();
-    const store = new MemoryStore(workspace);
     const graph = {
       ...emptyGraph(),
       interfaces: [{ value: 'refreshToken()', session_id: 'session-1' }],
       warnings: [{ value: 'ttl assumed', session_id: 'session-1' }],
     };
 
-    store.writeArchitectureMemory(graph);
+    writeArchitectureMemory(workspace, graph);
 
-    assert.deepEqual(store.readArchitectureMemory(), graph);
+    assert.deepEqual(readArchitectureMemory(workspace), graph);
     const raw = fs.readFileSync(
       path.join(workspace, 'docs', 'maestro', 'knowledge', 'architecture-memory.json'),
       'utf8'
@@ -71,7 +72,7 @@ describe('recordArchitectureMemory', () => {
         {
           downstream_context: {
             key_interfaces_introduced: ['refreshToken()'],
-            patterns_established: ['MemoryStore facade'],
+            patterns_established: ['focused memory stores'],
             integration_points: ['handleArchiveSession'],
             assumptions: ['state_dir exists'],
             warnings: ['ttl assumed'],
@@ -83,10 +84,10 @@ describe('recordArchitectureMemory', () => {
     recordArchitectureMemory(state, workspace);
     recordArchitectureMemory(state, workspace);
 
-    assert.deepEqual(new MemoryStore(workspace).readArchitectureMemory(), {
+    assert.deepEqual(readArchitectureMemory(workspace), {
       schema_version: 1,
       interfaces: [{ value: 'refreshToken()', session_id: 'session-1' }],
-      patterns: [{ value: 'MemoryStore facade', session_id: 'session-1' }],
+      patterns: [{ value: 'focused memory stores', session_id: 'session-1' }],
       integration_points: [{ value: 'handleArchiveSession', session_id: 'session-1' }],
       assumptions: [{ value: 'state_dir exists', session_id: 'session-1' }],
       warnings: [{ value: 'ttl assumed', session_id: 'session-1' }],
@@ -100,12 +101,12 @@ describe('handleQueryArchitectureMemory', () => {
     const graph = {
       schema_version: 1,
       interfaces: [{ value: 'refreshToken()', session_id: 'session-1' }],
-      patterns: [{ value: 'MemoryStore facade', session_id: 'session-1' }],
+      patterns: [{ value: 'focused memory stores', session_id: 'session-1' }],
       integration_points: [{ value: 'Token vault integration', session_id: 'session-1' }],
       assumptions: [{ value: 'Cache TTL exists', session_id: 'session-1' }],
       warnings: [{ value: 'ttl assumed', session_id: 'session-1' }],
     };
-    new MemoryStore(workspace).writeArchitectureMemory(graph);
+    writeArchitectureMemory(workspace, graph);
 
     assert.deepEqual(handleQueryArchitectureMemory({ query: 'token' }, workspace), {
       query: 'token',

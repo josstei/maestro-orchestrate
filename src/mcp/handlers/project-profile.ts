@@ -1,4 +1,9 @@
-import { MemoryStore, PROFILE_ARRAY_FIELDS, mergeValidationCommands } from '../memory/memory-store.js';
+import {
+  PROFILE_ARRAY_FIELDS,
+  mergeValidationCommands,
+  readProfile,
+  writeProfile,
+} from '../memory/project-profile-store.js';
 
 /**
  * Read the durable per-repo memory profile.
@@ -7,8 +12,7 @@ import { MemoryStore, PROFILE_ARRAY_FIELDS, mergeValidationCommands } from '../m
  * @returns {{ profile: object }}
  */
 function handleGetProjectProfile(_params: any, projectRoot: any) {
-  const store = MemoryStore.forProjectRoot(projectRoot);
-  return { profile: store.readProfile() };
+  return { profile: readProfile(projectRoot) };
 }
 
 /**
@@ -20,15 +24,14 @@ function handleGetProjectProfile(_params: any, projectRoot: any) {
  * @returns {{ profile: object }}
  */
 function handleUpdateProjectProfile(params: any, projectRoot: any) {
-  const store = MemoryStore.forProjectRoot(projectRoot);
-  const current = store.readProfile();
+  const current = readProfile(projectRoot);
   const source = params && typeof params === 'object' ? params : {};
   for (const field of PROFILE_ARRAY_FIELDS) {
     if (Array.isArray(source[field])) {
       current[field] = source[field];
     }
   }
-  return { profile: store.writeProfile(current) };
+  return { profile: writeProfile(projectRoot, current) };
 }
 
 /**
@@ -45,13 +48,12 @@ function handleRecordValidationCommands(params: any, projectRoot: any) {
     params && typeof params.commands === 'object' && params.commands !== null
       ? params.commands
       : {};
-  const store = MemoryStore.forProjectRoot(projectRoot);
-  const merged = mergeValidationCommands(store.readProfile(), {
+  const merged = mergeValidationCommands(readProfile(projectRoot), {
     build: commands.build,
     test: commands.test,
     lint: commands.lint,
   });
-  return { profile: store.writeProfile(merged) };
+  return { profile: writeProfile(projectRoot, merged) };
 }
 
 export { handleGetProjectProfile, handleUpdateProjectProfile, handleRecordValidationCommands };

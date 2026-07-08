@@ -6,9 +6,10 @@ import path from 'node:path';
 import { handleExportMemoryPack, handleImportMemoryPack } from '../../dist/src/mcp/handlers/memory-pack.js';
 import { handleGetProjectProfile } from '../../dist/src/mcp/handlers/project-profile.js';
 import { handleQueryArchitectureMemory } from '../../dist/src/mcp/handlers/architecture-memory.js';
-import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { readArchitectureMemory, writeArchitectureMemory } from '../../dist/src/mcp/memory/architecture-memory-store.js';
 import { appendAgentPerformance } from '../../dist/src/mcp/memory/agent-performance-store.js';
 import { appendPlanAccuracy } from '../../dist/src/mcp/memory/jsonl-ledgers.js';
+import { writeProfile } from '../../dist/src/mcp/memory/project-profile-store.js';
 import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
 
 function listFiles(root) {
@@ -28,8 +29,7 @@ function listFiles(root) {
 }
 
 function seedMemory(workspace) {
-  const store = new MemoryStore(workspace);
-  store.writeProfile({
+  writeProfile(workspace, {
     build_commands: ['npm run build'],
     test_commands: ['node --test tests/unit/*.test.js'],
     conventions: ['src-first handlers'],
@@ -40,9 +40,9 @@ function seedMemory(workspace) {
     { session_id: 'session-1', agent: 'coder', phase_id: 1, retry_count: 0 },
   ]);
   appendPlanAccuracy(workspace, { session_id: 'session-1', precision: 1, recall: 1 });
-  store.writeArchitectureMemory({
+  writeArchitectureMemory(workspace, {
     schema_version: 1,
-    interfaces: [{ value: 'MemoryStore.forProjectRoot', session_id: 'session-1' }],
+    interfaces: [{ value: 'project-profile-store', session_id: 'session-1' }],
     patterns: [],
     integration_points: [],
     assumptions: [],
@@ -99,7 +99,7 @@ describe('memory-pack handlers', () => {
       { session_id: 'session-1', precision: 1, recall: 1 },
     ]);
     assert.deepEqual(pack.architecture_memory.interfaces, [
-      { value: 'MemoryStore.forProjectRoot', session_id: 'session-1' },
+      { value: 'project-profile-store', session_id: 'session-1' },
     ]);
     assert.deepEqual(result.pack, pack);
   });
@@ -121,11 +121,11 @@ describe('memory-pack handlers', () => {
       'npm run build',
     ]);
     assert.deepEqual(
-      handleQueryArchitectureMemory({ query: 'MemoryStore' }, target).interfaces,
-      [{ value: 'MemoryStore.forProjectRoot', session_id: 'session-1' }]
+      handleQueryArchitectureMemory({ query: 'profile' }, target).interfaces,
+      [{ value: 'project-profile-store', session_id: 'session-1' }]
     );
-    assert.deepEqual(new MemoryStore(target).readArchitectureMemory().interfaces, [
-      { value: 'MemoryStore.forProjectRoot', session_id: 'session-1' },
+    assert.deepEqual(readArchitectureMemory(target).interfaces, [
+      { value: 'project-profile-store', session_id: 'session-1' },
     ]);
     assert.equal(firstImport.imported, true);
     assert.equal(secondImport.imported, true);

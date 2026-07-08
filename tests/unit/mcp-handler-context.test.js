@@ -8,7 +8,6 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { buildHandlerContext } from '../../dist/src/mcp/server/handler-context.js';
-import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
 import { KnowledgeStore } from '../../dist/src/mcp/memory/knowledge-store.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
@@ -97,18 +96,17 @@ test('runtimeConfig is passed through composition-stable', async () => {
   assert.equal(ctx.runtimeConfig, RUNTIME_CONFIG);
 });
 
-test('services.memoryStore/knowledgeStore throw WORKSPACE_NOT_INITIALIZED when projectRoot is null (no cwd fallback)', async () => {
+test('services.knowledgeStore throws WORKSPACE_NOT_INITIALIZED when projectRoot is null (no cwd fallback)', async () => {
   const ctx = await buildHandlerContext(
     {},
     {},
     { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG }
   );
   assert.equal(ctx.projectRoot, null);
-  assert.throws(() => ctx.services.memoryStore, /WORKSPACE_NOT_INITIALIZED|initialized workspace/i);
   assert.throws(() => ctx.services.knowledgeStore, /WORKSPACE_NOT_INITIALIZED|initialized workspace/i);
 });
 
-test('services are lazily constructed and reused (memoized) with an injected clock', async () => {
+test('knowledgeStore is lazily constructed and reused while carrying an injected clock', async () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handler-ctx-'));
   try {
     const clock = { now: () => new Date('2021-06-01T00:00:00.000Z') };
@@ -123,15 +121,11 @@ test('services are lazily constructed and reused (memoized) with an injected clo
       }
     );
 
-    const first = ctx.services.memoryStore;
-    assert.ok(first instanceof MemoryStore);
-    const second = ctx.services.memoryStore;
+    const first = ctx.services.knowledgeStore;
+    assert.ok(first instanceof KnowledgeStore);
+    const second = ctx.services.knowledgeStore;
     assert.equal(first, second);
 
-    const written = first.writeProfile({ build_commands: [] });
-    assert.equal(written.updated, clock.now().toISOString());
-
-    assert.ok(ctx.services.knowledgeStore instanceof KnowledgeStore);
     assert.equal(ctx.services.clock, clock);
   } finally {
     fs.rmSync(tmpRoot, { recursive: true, force: true });

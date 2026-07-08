@@ -1,4 +1,8 @@
-import { ARCHITECTURE_MEMORY_CATEGORIES, MemoryStore } from '../memory/memory-store.js';
+import {
+  ARCHITECTURE_MEMORY_CATEGORIES,
+  readArchitectureMemory,
+  writeArchitectureMemory,
+} from '../memory/architecture-memory-store.js';
 import { normalizeDownstreamContext } from '../contracts/downstream-context.js';
 
 const DOWNSTREAM_CATEGORY_MAP: Record<string, string> = Object.freeze({
@@ -52,8 +56,7 @@ function appendCategoryValues(graph: any, category: any, values: any, sessionId:
  * @returns {object} the persisted architecture-memory graph
  */
 function recordArchitectureMemory(state: any, projectRoot: any) {
-  const store = new MemoryStore(projectRoot);
-  const graph = store.readArchitectureMemory();
+  const graph = readArchitectureMemory(projectRoot);
   const sessionId =
     state && typeof state.session_id === 'string' && state.session_id.length > 0
       ? state.session_id
@@ -69,7 +72,7 @@ function recordArchitectureMemory(state: any, projectRoot: any) {
     }
   }
 
-  return store.writeArchitectureMemory(graph);
+  return writeArchitectureMemory(projectRoot, graph);
 }
 
 /**
@@ -82,7 +85,7 @@ function recordArchitectureMemory(state: any, projectRoot: any) {
  * @returns {{ query: string | null, interfaces: object[], patterns: object[], integration_points: object[], assumptions: object[], warnings: object[] }}
  */
 function handleQueryArchitectureMemory(params: any, projectRoot: any) {
-  const graph = new MemoryStore(projectRoot).readArchitectureMemory();
+  const graph = readArchitectureMemory(projectRoot);
   const query = normalizeQuery(params && params.query);
   const needle = query ? query.toLowerCase() : null;
   const response: Record<string, any> = { query };

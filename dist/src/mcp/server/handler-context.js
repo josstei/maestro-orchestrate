@@ -1,26 +1,16 @@
 import * as io from '../../lib/io/index.js';
-import { MemoryStore, createSystemClock } from '../memory/memory-store.js';
 import { KnowledgeStore } from '../memory/knowledge-store.js';
 import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
 const ELICIT_TIMEOUT_MS = 10 * 60 * 1000;
 /**
  * Build the lazy, clock-injected `ctx.services` facade. Stateful services
- * (`memoryStore`, `knowledgeStore`) are constructed on first access and
- * memoized; they refuse to build against a null `projectRoot` rather than
- * ever falling back to the process cwd.
+ * are constructed on first access and memoized; they refuse to build against a
+ * null `projectRoot` rather than ever falling back to the process cwd.
  *
  */
 function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggestion }) {
-    let memoryStoreInstance = null;
     let knowledgeStoreInstance = null;
     return {
-        get memoryStore() {
-            requireWorkspaceRoot(projectRoot, 'ctx.services.memoryStore');
-            if (!memoryStoreInstance) {
-                memoryStoreInstance = new MemoryStore(projectRoot, { clock });
-            }
-            return memoryStoreInstance;
-        },
         get knowledgeStore() {
             requireWorkspaceRoot(projectRoot, 'ctx.services.knowledgeStore');
             if (!knowledgeStoreInstance) {
@@ -33,6 +23,9 @@ function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggesti
         canonicalSrcRoot,
         workspaceSuggestion,
     };
+}
+function createSystemClock() {
+    return { now: () => new Date() };
 }
 /**
  * Build `ctx.elicit` — the single elicitation seam. Prechecks the client's
