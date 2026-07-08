@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listAgentSources } from '../core/agent-sources.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const ROOT = path.resolve(moduleDirname, '../../..');
@@ -13,6 +14,7 @@ const ASSET_ROOTS = Object.freeze([
     'generated',
 ]);
 const RUNTIME_CONTENT_ROOTS = Object.freeze([
+    'agent-profiles',
     'agents',
     'skills',
     'references',
@@ -54,8 +56,7 @@ function copyAssetsFrom(relativeRoot) {
 function readJsonAsset(relativePath) {
     return JSON.parse(fs.readFileSync(path.join(SRC, relativePath), 'utf8'));
 }
-function readRegistryEntry(relativePath) {
-    const content = fs.readFileSync(path.join(SRC, relativePath), 'utf8');
+function readRegistryEntry(relativePath, content = fs.readFileSync(path.join(SRC, relativePath), 'utf8')) {
     const start = registryPayload.length;
     registryPayload += content;
     return Object.freeze([relativePath, start, content.length]);
@@ -75,22 +76,35 @@ function readBlueprintEntries() {
     })
         .sort(([a], [b]) => a.localeCompare(b)));
 }
+function readAgentProfileEntries() {
+    const profileDir = path.join(SRC, 'agent-profiles');
+    if (!fs.existsSync(profileDir)) {
+        return {};
+    }
+    return Object.fromEntries(fs
+        .readdirSync(profileDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.profile'))
+        .map((entry) => {
+        const id = path.basename(entry.name, '.profile');
+        return [id, readRegistryEntry(path.join('agent-profiles', entry.name))];
+    })
+        .sort(([a], [b]) => a.localeCompare(b)));
+}
 function createRuntimeContentRegistry() {
     registryPayload = '';
     const resourceRegistry = readJsonAsset('generated/resource-registry.json');
-    const agentRegistry = readJsonAsset('generated/agent-registry.json');
     const resources = Object.fromEntries(Object.entries(resourceRegistry)
         .map(([id, relativePath]) => [id, readRegistryEntry(String(relativePath))])
         .sort(([a], [b]) => String(a).localeCompare(String(b))));
-    const agents = Object.fromEntries(agentRegistry
-        .map((entry) => entry.name)
-        .sort((a, b) => a.localeCompare(b))
-        .map((name) => [name, readRegistryEntry(path.join('agents', `${name}.md`))]));
+    const agents = Object.fromEntries(listAgentSources(SRC)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((source) => [source.name, Object.freeze([source.relativePath, 0, 0])]));
     return Object.freeze({
         schemaVersion: 1,
         payload: RUNTIME_CONTENT_PAYLOAD,
         resources,
         agents,
+        agentProfiles: readAgentProfileEntries(),
         blueprints: readBlueprintEntries(),
     });
 }

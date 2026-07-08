@@ -280,7 +280,7 @@ Project-root resolution is also runtime-aware. Gemini and Claude prefer their ex
 
 ### Agent Definitions
 
-Each agent in `src/agents/` has:
+Each canonical agent source is either a physical file under `src/agents/` or a composed profile in `src/agent-profiles/`. The rendered agent markdown has:
 
 - **YAML frontmatter**: name, description, color, tools (per-runtime), max_turns, temperature, timeout_mins
 - **Methodology body**: role description, assessment areas, decision frameworks, anti-patterns

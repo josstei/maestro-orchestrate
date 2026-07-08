@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listAgentSources } from '../core/agent-sources.js';
 
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
@@ -16,6 +17,7 @@ const ASSET_ROOTS = Object.freeze([
 ]);
 
 const RUNTIME_CONTENT_ROOTS = Object.freeze([
+  'agent-profiles',
   'agents',
   'skills',
   'references',
@@ -31,6 +33,7 @@ type RuntimeContentRegistry = Readonly<{
   payload: string;
   resources: Record<string, RegistryEntry>;
   agents: Record<string, RegistryEntry>;
+  agentProfiles: Record<string, RegistryEntry>;
   blueprints: Record<string, RegistryEntry>;
 }>;
 
@@ -79,8 +82,7 @@ function readJsonAsset(relativePath: string): any {
   return JSON.parse(fs.readFileSync(path.join(SRC, relativePath), 'utf8'));
 }
 
-function readRegistryEntry(relativePath: string): RegistryEntry {
-  const content = fs.readFileSync(path.join(SRC, relativePath), 'utf8');
+function readRegistryEntry(relativePath: string, content = fs.readFileSync(path.join(SRC, relativePath), 'utf8')): RegistryEntry {
   const start = registryPayload.length;
   registryPayload += content;
   return Object.freeze([relativePath, start, content.length] as const);
@@ -106,10 +108,27 @@ function readBlueprintEntries(): Record<string, RegistryEntry> {
   );
 }
 
+function readAgentProfileEntries(): Record<string, RegistryEntry> {
+  const profileDir = path.join(SRC, 'agent-profiles');
+  if (!fs.existsSync(profileDir)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    fs
+      .readdirSync(profileDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.profile'))
+      .map((entry): [string, RegistryEntry] => {
+        const id = path.basename(entry.name, '.profile');
+        return [id, readRegistryEntry(path.join('agent-profiles', entry.name))];
+      })
+      .sort(([a], [b]) => a.localeCompare(b))
+  );
+}
+
 function createRuntimeContentRegistry(): RuntimeContentRegistry {
   registryPayload = '';
   const resourceRegistry = readJsonAsset('generated/resource-registry.json');
-  const agentRegistry = readJsonAsset('generated/agent-registry.json');
 
   const resources = Object.fromEntries(
     Object.entries(resourceRegistry)
@@ -118,10 +137,9 @@ function createRuntimeContentRegistry(): RuntimeContentRegistry {
   );
 
   const agents = Object.fromEntries(
-    agentRegistry
-      .map((entry: any) => entry.name)
-      .sort((a: string, b: string) => a.localeCompare(b))
-      .map((name: string) => [name, readRegistryEntry(path.join('agents', `${name}.md`))])
+    listAgentSources(SRC)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((source) => [source.name, Object.freeze([source.relativePath, 0, 0] as const)])
   );
 
   return Object.freeze({
@@ -129,6 +147,7 @@ function createRuntimeContentRegistry(): RuntimeContentRegistry {
     payload: RUNTIME_CONTENT_PAYLOAD,
     resources,
     agents,
+    agentProfiles: readAgentProfileEntries(),
     blueprints: readBlueprintEntries(),
   });
 }

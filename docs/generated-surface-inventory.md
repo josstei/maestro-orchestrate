@@ -6,6 +6,8 @@ This is the Phase 0 inventory of generated and package-controlled surfaces. It e
 
 The machine-readable source for generator-owned directories and retired cleanup roots is `src/generator/generated-surface-inventory.ts`.
 
+Agent registry and manifest generation read the canonical agent source set: physical `src/agents/*.md` files plus composed profile data in `src/agent-profiles/*.profile`.
+
 ## Producers
 
 | Surface | Producer | Write mode | Outputs | Public status |

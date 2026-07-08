@@ -4,6 +4,7 @@ import { discover, generateRegistry } from '../lib/discovery/index.js';
 import { serializeRegistry } from '../lib/discovery/index.js';
 import { parse } from '../lib/frontmatter/index.js';
 import { toPascalCase } from '../lib/naming/index.js';
+import { listAgentSources } from '../core/agent-sources.js';
 import { validateRegistry } from './registry-schemas.js';
 function stringValue(value, fallback = '') {
     return typeof value === 'string' ? value : fallback;
@@ -20,20 +21,14 @@ function capabilityValue(value) {
         : 'read_only';
 }
 function buildAgentRegistry(srcDir) {
-    const agentEntries = discover({
-        dir: path.join(srcDir, 'agents'),
-        pattern: '*.md',
-        identity: (filepath) => path.basename(filepath, '.md'),
-        metadata: (filepath, content) => {
-            const { frontmatter } = parse(content);
-            const name = stringValue(frontmatter.name, path.basename(filepath, '.md'));
-            const capabilities = capabilityValue(frontmatter.capabilities);
-            const tools = stringArrayValue(frontmatter.tools);
-            const focus = stringValue(frontmatter.focus);
-            return { name, capabilities, tools, focus };
-        },
+    return listAgentSources(srcDir).map(({ name: fallbackName, content }) => {
+        const { frontmatter } = parse(content);
+        const name = stringValue(frontmatter.name, fallbackName);
+        const capabilities = capabilityValue(frontmatter.capabilities);
+        const tools = stringArrayValue(frontmatter.tools);
+        const focus = stringValue(frontmatter.focus);
+        return { name, capabilities, tools, focus };
     });
-    return agentEntries.map(({ name, capabilities, tools, focus }) => ({ name, capabilities, tools, focus }));
 }
 function buildResourceRegistry(srcDir) {
     const skillsParentDir = path.join(srcDir, 'skills');

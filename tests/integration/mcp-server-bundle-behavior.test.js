@@ -76,6 +76,38 @@ function appendRegistryResource(packageRoot, resourceId, content) {
 }
 
 function appendRegistryAgent(packageRoot, agentName, content) {
+  let updatedProfile = false;
+  updateRuntimeContentRegistry(packageRoot, (registry) => {
+    if (!registry.agentProfiles) {
+      return;
+    }
+
+    const payloadPath = runtimeContentPayloadPath(packageRoot, registry);
+    const payload = fs.readFileSync(payloadPath, 'utf8');
+    for (const entry of Object.values(registry.agentProfiles)) {
+      assert.ok(Array.isArray(entry), 'Expected packed agent profile registry entry');
+      const profileContent = payload.slice(entry[1], entry[1] + entry[2]);
+      const agentStart = profileContent.indexOf(`A|${agentName}|`);
+      if (agentStart === -1) {
+        continue;
+      }
+      const bodyStart = profileContent.indexOf('\nB\n', agentStart);
+      const bodyEnd = bodyStart === -1 ? -1 : profileContent.indexOf('\n.\n', bodyStart);
+      assert.notEqual(bodyStart, -1, `Expected body marker for ${agentName}`);
+      assert.notEqual(bodyEnd, -1, `Expected body terminator for ${agentName}`);
+      const updatedContent = profileContent.slice(0, bodyEnd) + content + profileContent.slice(bodyEnd);
+      entry[1] = payload.length;
+      entry[2] = updatedContent.length;
+      fs.writeFileSync(payloadPath, payload + updatedContent, 'utf8');
+      updatedProfile = true;
+      return;
+    }
+  });
+
+  if (updatedProfile) {
+    return;
+  }
+
   appendRegistryEntry(packageRoot, 'agents', agentName, content);
 }
 

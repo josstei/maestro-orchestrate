@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { discover, generateRegistry, patternToRegex, parsePattern, collectFiles } from '../../dist/src/lib/discovery/index.js';
 import { parse } from '../../dist/src/lib/frontmatter/index.js';
+import { listAgentSources } from '../../dist/src/core/agent-sources.js';
 import { makeTempSrcRoot, cleanupTempRoots, writeFileUnder } from '../support/content.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -443,36 +444,24 @@ describe('module exports', () => {
 
 describe('parity: agent registry', () => {
   it('reproduces src/generated/agent-registry.json', () => {
-    const agentsDir = path.join(SRC_DIR, 'agents');
     const expected = JSON.parse(
       fs.readFileSync(path.join(SRC_DIR, 'generated', 'agent-registry.json'), 'utf8')
     );
 
-    const entries = discover({
-      dir: agentsDir,
-      pattern: '*.md',
-      identity: (fp) => {
-        const content = fs.readFileSync(fp, 'utf8');
-        const { frontmatter } = parse(content);
-        return frontmatter.name || path.basename(fp, '.md');
-      },
-      metadata: (fp, content) => {
-        const { frontmatter } = parse(content);
-        const name = frontmatter.name || path.basename(fp, '.md');
-        const capabilities = frontmatter.capabilities || 'read_only';
-        const rawTools = frontmatter.tools || [];
-        const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-        const focus = frontmatter.focus || '';
-        return { name, capabilities, tools, focus };
-      },
-    });
-
-    const actual = entries.map(({ name, capabilities, tools, focus }) => ({
+    const actual = listAgentSources(SRC_DIR).map(({ name: fallbackName, content }) => {
+      const { frontmatter } = parse(content);
+      const name = frontmatter.name || fallbackName;
+      const capabilities = frontmatter.capabilities || 'read_only';
+      const rawTools = frontmatter.tools || [];
+      const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
+      const focus = frontmatter.focus || '';
+      return {
       name,
       capabilities,
       tools,
       focus,
-    }));
+      };
+    });
 
     assert.deepEqual(actual, expected);
   });

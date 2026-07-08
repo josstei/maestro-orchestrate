@@ -7,11 +7,10 @@ const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const REPO = path.resolve(moduleDirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
-const listDir = (d) => fs.readdirSync(path.join(REPO, d));
-const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;
+const canonicalAgentCount = () => JSON.parse(read('src/generated/agent-registry.json')).length;
 
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
-  const canonicalCount = countMd('src/agents');
+  const canonicalCount = canonicalAgentCount();
   const surfaces = [
     'docs/overview.md',
     'README.md',

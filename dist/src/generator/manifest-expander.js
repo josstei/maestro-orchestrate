@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import { listAgentSourcePaths } from '../core/agent-sources.js';
 import { toSnakeCase } from '../lib/naming/index.js';
 /**
  * Expand a glob pattern relative to srcDir.
@@ -10,6 +11,9 @@ import { toSnakeCase } from '../lib/naming/index.js';
  * @returns {string[]} Sorted array of matched relative paths
  */
 function expandGlob(pattern, srcDir) {
+    if (pattern === 'agents/*.md') {
+        return listAgentSourcePaths(srcDir);
+    }
     const segments = pattern.split('/');
     const results = [];
     function walk(dir, segIndex) {

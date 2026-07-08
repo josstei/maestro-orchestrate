@@ -2,6 +2,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createContentProvider } from '../../dist/src/mcp/content/provider.js';
 import * as contentProviderModule from '../../dist/src/mcp/content/provider.js';
 import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
@@ -14,6 +15,10 @@ import {
   writeResource as writeFilesystemResourceAt,
   withExtensionRoot,
 } from '../support/content.js';
+
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_SRC = path.resolve(moduleDirname, '../../src');
 
 after(cleanupTempRoots);
 
@@ -79,6 +84,16 @@ describe('content provider runtime policy', () => {
     const provider = createContentProvider({ name: 'gemini' }, srcRoot);
     assert.equal(provider.name, 'filesystem');
     assert.equal(provider.srcRoot, path.resolve(srcRoot));
+  });
+
+  it('filesystem provider reads composed canonical agents when no registry exists', () => {
+    const provider = createContentProvider(getRuntimeConfig('codex'), REPO_SRC);
+    const result = provider.readAgent('accessibility-specialist');
+
+    assert.equal(provider.name, 'filesystem');
+    assert.equal(result.error, undefined);
+    assert.ok(result.agent.body.includes('You are an **Accessibility Specialist**'));
+    assert.ok(result.agent.tools.includes('direct file reads'));
   });
 
   it('createContentProvider returns the registry provider when a registry exists', () => {

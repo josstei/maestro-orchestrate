@@ -30,6 +30,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     writeMode: 'generate and prepack',
     sourceInputs: [
       'src/agents/*.md',
+      'src/agent-profiles/*.profile',
       'src/skills/shared/**/*.md',
       'src/templates/*.md',
       'src/references/*.md',
@@ -50,6 +51,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     writeMode: 'generate and prepack',
     sourceInputs: [
       'src/agents/*.md',
+      'src/agent-profiles/*.profile',
       'src/skills/shared/**/SKILL.md',
       'src/platforms/*/runtime-config.ts',
     ],

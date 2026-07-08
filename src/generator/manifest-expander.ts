@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import { listAgentSourcePaths } from '../core/agent-sources.js';
 import { toSnakeCase } from '../lib/naming/index.js';
 import type { GeneratorRuntimeConfig, GeneratorRuntimeMap, ManifestEntry, ManifestRule } from './types.js';
 
@@ -12,6 +13,10 @@ import type { GeneratorRuntimeConfig, GeneratorRuntimeMap, ManifestEntry, Manife
  * @returns {string[]} Sorted array of matched relative paths
  */
 function expandGlob(pattern: string, srcDir: string): string[] {
+  if (pattern === 'agents/*.md') {
+    return listAgentSourcePaths(srcDir);
+  }
+
   const segments = pattern.split('/');
   const results: string[] = [];
 

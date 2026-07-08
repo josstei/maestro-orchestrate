@@ -3,16 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listAgentSources } from '../../dist/src/core/agent-sources.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
-const AGENT_DIR = path.join(REPO_ROOT, 'src', 'agents');
-
-function agentFiles() {
-  return fs.readdirSync(AGENT_DIR)
-    .filter((file) => file.endsWith('.md'))
-    .sort();
-}
 
 describe('canonical agent output contract', () => {
   it('keeps the full handoff template in the shared agent base protocol', () => {
@@ -36,27 +30,24 @@ describe('canonical agent output contract', () => {
   });
 
   it('keeps canonical agents free of the redundant output-contract pointer and the full template', () => {
-    const files = agentFiles();
-    assert.ok(files.length > 30, 'expected canonical agent catalog');
+    const sources = listAgentSources(path.join(REPO_ROOT, 'src'));
+    assert.ok(sources.length > 30, 'expected canonical agent catalog');
 
-    for (const file of files) {
-      const absolutePath = path.join(AGENT_DIR, file);
-      const content = fs.readFileSync(absolutePath, 'utf8');
-
+    for (const source of sources) {
       assert.doesNotMatch(
-        content,
+        source.content,
         /^## Output Contract$/m,
-        `${file} must not carry the redundant per-agent output-contract pointer; the injected agent-base-protocol owns the handoff contract`
+        `${source.relativePath} must not carry the redundant per-agent output-contract pointer; the injected agent-base-protocol owns the handoff contract`
       );
       assert.doesNotMatch(
-        content,
+        source.content,
         /^## Task Report$/m,
-        `${file} must not duplicate the full Task Report template`
+        `${source.relativePath} must not duplicate the full Task Report template`
       );
       assert.doesNotMatch(
-        content,
+        source.content,
         /^## Downstream Context$/m,
-        `${file} must not duplicate the full Downstream Context template`
+        `${source.relativePath} must not duplicate the full Downstream Context template`
       );
     }
   });

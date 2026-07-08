@@ -3,6 +3,7 @@ import path from 'path';
 import { parseFrontmatterOnly, splitAtBoundary } from '../../lib/frontmatter/index.js';
 import { replaceInContent } from '../../lib/naming/index.js';
 import { stripFeatureBlocks as stripFeatureBlocksCore } from '../../core/feature-blocks.js';
+import { readAgentSourceContent, renderAgentProfileSources } from '../../core/agent-sources.js';
 import { renderRosterTable } from '../../core/roster-renderer.js';
 import { readFileSync } from 'node:fs';
 const agentRegistry = JSON.parse(readFileSync(new URL('../../generated/agent-registry.json', import.meta.url), 'utf8'));
@@ -224,13 +225,62 @@ function readResourceFromRegistry(id, runtimeConfig, srcRoot) {
     return readAndMaterialize(rawResource, (raw) => materializeResource(raw, runtimeConfig, srcRoot));
 }
 function readRawAgentFromFilesystem(agentName, srcRoot) {
-    return readAllowlistedFile(agentName, srcRoot, {
-        unknownLabel: 'agent',
-        resolveRelativePath: (name) => AGENT_ALLOWLIST.includes(name) ? path.join('agents', `${name}.md`) : null,
-        knownIdsForError: AGENT_ALLOWLIST.join(', '),
-    });
+    if (!AGENT_ALLOWLIST.includes(agentName)) {
+        return {
+            error: `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
+        };
+    }
+    const relativePath = path.join('agents', `${agentName}.md`);
+    const absolutePath = path.join(srcRoot, relativePath);
+    try {
+        return {
+            content: readAgentSourceContent(srcRoot, relativePath),
+            path: absolutePath,
+            relativePath,
+        };
+    }
+    catch (err) {
+        return {
+            error: `Failed to read agent "${agentName}": ${err.code || 'UNKNOWN'}`,
+            code: err.code || 'UNKNOWN',
+            path: absolutePath,
+        };
+    }
 }
 function readRawAgentFromRegistry(agentName, srcRoot) {
+    if (!AGENT_ALLOWLIST.includes(agentName)) {
+        return {
+            error: `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
+        };
+    }
+    const registryPath = runtimeContentRegistryPath(srcRoot);
+    try {
+        const registry = readRuntimeContentRegistry(srcRoot);
+        if (registry.agentProfiles) {
+            const profiles = Object.entries(registry.agentProfiles)
+                .map(([id, entry]) => {
+                const materialized = materializeRegistryEntry(entry, srcRoot, registry);
+                return materialized ? { profilePath: materialized.relativePath || id, content: materialized.content } : null;
+            })
+                .filter(Boolean);
+            const source = renderAgentProfileSources(profiles)
+                .find((entry) => entry.name === agentName);
+            if (source) {
+                return {
+                    content: source.content,
+                    path: path.join(srcRoot, source.relativePath),
+                    relativePath: source.relativePath,
+                };
+            }
+        }
+    }
+    catch (err) {
+        return {
+            error: `Failed to read agent "${agentName}": ${err.code || 'UNKNOWN'}`,
+            code: err.code || 'UNKNOWN',
+            path: registryPath,
+        };
+    }
     return readRegistryEntry(agentName, srcRoot, {
         unknownLabel: 'agent',
         entries: AGENT_ALLOWLIST,

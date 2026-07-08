@@ -6,6 +6,7 @@ import { createGenerationSession } from '../generator/generation-session.js';
 import { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } from '../generator/manifest-expander.js';
 import { pruneStaleFiles } from '../generator/stale-pruner.js';
 import { collectRegistryOutputs } from '../generator/registry-scanner.js';
+import { readAgentSourceContent } from '../core/agent-sources.js';
 import { expandEntryPoints, expandCoreCommands } from '../generator/entry-point-expander.js';
 import { collectManifestPaths } from '../generator/manifest-curator.js';
 import { OWNED_GENERATED_DIRS } from '../generator/generated-surface-inventory.js';
@@ -62,13 +63,14 @@ async function loadRuntimes(): Promise<Record<string, RuntimeConfig>> {
 }
 
 function processManifestEntry(entry: ManifestEntry, runtimes: Record<string, RuntimeConfig>, session: GenerationSession): void {
-  const srcPath = path.join(SRC, entry.src);
-  if (!fs.existsSync(srcPath)) {
-    session.reportError(`Source not found: ${entry.src}`);
+  let sourceContent: string;
+  try {
+    sourceContent = readAgentSourceContent(SRC, entry.src);
+  } catch (err) {
+    session.reportError(`Source not found: ${entry.src}`, err);
     return;
   }
 
-  const sourceContent = fs.readFileSync(srcPath, 'utf8');
   for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
     const runtime = runtimes[runtimeName];
     if (!runtime) {
