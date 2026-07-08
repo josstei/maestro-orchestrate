@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rootDir": ".",
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/manifest.js",
+    "src/entry-points/registry.js",
+    "src/entry-points/core-command-registry.js"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "tests",
+    "docs/maestro",
+    "docs/superpowers",
+    ".superpowers",
+    "agents",
+    "commands",
+    "hooks",
+    "mcp",
+    "policies",
+    "claude",
+    "plugins/maestro",
+    "qwen"
+  ]
+}

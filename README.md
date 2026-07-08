@@ -207,7 +207,7 @@ Canonical source lives under `src/`. Runtime files in `agents/`, `commands/`, `h
 
 ```bash
 npm ci
-node scripts/generate.js
+npm run generate
 git diff --exit-code --name-only
 node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 npm run pack:verify
@@ -215,7 +215,7 @@ npm run release:artifacts
 npm run release:verify-artifacts
 ```
 
-Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `gemini-extension.json`, `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payload needed by Gemini CLI, Qwen Code, Claude Code, and Codex.
+`npm run generate` builds the NodeNext runtime first, then runs `dist/src/tooling/generate.js`. Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `gemini-extension.json`, `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the generated runtime surfaces and compiled `dist/src/` runtime needed by Gemini CLI, Qwen Code, Claude Code, and Codex. Package and release artifacts do not include package-root raw `src/`, root `scripts/`, or root `bin/`.
 
 Stable releases publish three aligned outputs:
 

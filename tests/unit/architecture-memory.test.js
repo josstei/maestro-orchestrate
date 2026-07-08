@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
-import { recordArchitectureMemory, handleQueryArchitectureMemory } from '../../src/mcp/handlers/architecture-memory.js';
+import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { recordArchitectureMemory, handleQueryArchitectureMemory } from '../../dist/src/mcp/handlers/architecture-memory.js';
 const tmpRoots = [];
 
 function makeWorkspace() {

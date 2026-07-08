@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import skillMetadata from '../../src/transforms/skill-metadata.js';
+import skillMetadata from '../../dist/src/transforms/skill-metadata.js';
 
 describe('skill-metadata transform', () => {
   const skillContent = [

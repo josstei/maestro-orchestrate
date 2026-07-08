@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { coercePositiveInteger } from '../../src/lib/validation/index.js';
+import { coercePositiveInteger } from '../../dist/src/lib/validation/index.js';
 
 describe('coercePositiveInteger', () => {
   it('passes through null', () => {

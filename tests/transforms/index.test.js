@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolve, transforms } from '../../src/transforms/index.js';
+import { resolve, transforms } from '../../dist/src/transforms/index.js';
 
 describe('transforms/index resolve', () => {
   it('resolves all remaining registered transform names', () => {

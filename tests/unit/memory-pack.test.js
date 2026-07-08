@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { handleExportMemoryPack, handleImportMemoryPack } from '../../src/mcp/handlers/memory-pack.js';
-import { handleGetProjectProfile } from '../../src/mcp/handlers/project-profile.js';
-import { handleQueryArchitectureMemory } from '../../src/mcp/handlers/architecture-memory.js';
-import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
-import { resolveStateDirPath } from '../../src/state/session-state.js';
+import { handleExportMemoryPack, handleImportMemoryPack } from '../../dist/src/mcp/handlers/memory-pack.js';
+import { handleGetProjectProfile } from '../../dist/src/mcp/handlers/project-profile.js';
+import { handleQueryArchitectureMemory } from '../../dist/src/mcp/handlers/architecture-memory.js';
+import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
 
 function listFiles(root) {
   const out = [];

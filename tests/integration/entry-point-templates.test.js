@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { expandCoreCommands, expandEntryPoints } from '../../scripts/generate.js';
+import { expandCoreCommands, expandEntryPoints } from '../../dist/src/tooling/generate.js';
 
 describe('expandEntryPoints', () => {
   it('produces gemini TOML for each registry entry', async () => {

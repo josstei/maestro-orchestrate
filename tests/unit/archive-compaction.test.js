@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { resolveStateDirPath } from '../../src/state/session-state.js';
-import { handleCompactArchive } from '../../src/mcp/handlers/archive-compaction.js';
+import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
+import { handleCompactArchive } from '../../dist/src/mcp/handlers/archive-compaction.js';
 
 function withEnv(overrides, fn) {
   const previous = {};

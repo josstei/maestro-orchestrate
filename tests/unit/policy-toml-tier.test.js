@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderPolicyToml } from '../../src/generator/policy-toml-emitter.js';
+import { renderPolicyToml } from '../../dist/src/generator/policy-toml-emitter.js';
 
 describe('toml emitter', () => {
   it('excludes non-command-tier rules', () => {

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleValidatePlan } from '../../src/mcp/handlers/validate-plan.js';
+import { handleValidatePlan } from '../../dist/src/mcp/handlers/validate-plan.js';
 
 function makePhase(overrides = {}) {
   return { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [], ...overrides };

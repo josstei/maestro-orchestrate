@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createTempRepoCopy } from './helpers.js';
-import { publishDistBranch } from '../../scripts/publish-dist-branch.js';
+import { publishDistBranch } from '../../dist/src/tooling/publish-dist-branch.js';
 import { readFileSync } from 'node:fs';
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 

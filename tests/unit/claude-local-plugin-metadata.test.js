@@ -5,9 +5,9 @@ import {
   buildClaudeLocalMcpConfig,
   buildClaudeLocalPluginManifest,
   buildMetadataOutputs,
-} from '../../src/platforms/claude/metadata.js';
+} from '../../dist/src/platforms/claude/metadata.js';
 
-import { buildMetadataContext } from '../../src/platforms/metadata-shared.js';
+import { buildMetadataContext } from '../../dist/src/platforms/metadata-shared.js';
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',

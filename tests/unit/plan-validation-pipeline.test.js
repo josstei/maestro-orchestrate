@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { runPlanValidation } from '../../src/mcp/validation/plan-validation-pipeline.js';
+import { runPlanValidation } from '../../dist/src/mcp/validation/plan-validation-pipeline.js';
 const emptyPlan = { phases: [] };
 
 function rule(id, violations) {

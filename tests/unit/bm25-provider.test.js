@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Bm25Provider, tokenize } from '../../src/mcp/retrieval/bm25-provider.js';
+import { Bm25Provider, tokenize } from '../../dist/src/mcp/retrieval/bm25-provider.js';
 
 test('tokenize lowercases and splits on Unicode punctuation and whitespace', () => {
   assert.deepEqual(tokenize('src/Auth/OAuth.js  token-refresh'), [

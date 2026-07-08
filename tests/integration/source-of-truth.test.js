@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './helpers.js';
-import { expandManifest, assertNoMirroredSharedOutputs } from '../../scripts/generate.js';
-import manifestRules from '../../src/manifest.js';
-import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { expandManifest, assertNoMirroredSharedOutputs } from '../../dist/src/tooling/generate.js';
+import manifestRules from '../../dist/src/manifest.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 
 describe('src-first architecture invariants', () => {
   it('does not ship a detached src payload for Claude installs', () => {

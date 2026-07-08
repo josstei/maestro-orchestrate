@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import registry from '../../src/entry-points/registry.js';
-import { AUDIT_PRESENTATION_CONSTRAINTS } from '../../src/entry-points/archetypes/audit-archetype.js';
+import registry from '../../dist/src/entry-points/registry.js';
+import { AUDIT_PRESENTATION_CONSTRAINTS } from '../../dist/src/entry-points/archetypes/audit-archetype.js';
 
 function entry(name) {
   return registry.find((item) => item.name === name);

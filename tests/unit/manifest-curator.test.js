@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectManifestPaths } from '../../src/generator/manifest-curator.js';
+import { collectManifestPaths } from '../../dist/src/generator/manifest-curator.js';
 
 describe('collectManifestPaths', () => {
   it('returns an empty set when manifest, runtimes, and expanders are all empty', async () => {
@@ -32,18 +32,20 @@ describe('collectManifestPaths', () => {
 
   it('invokes each expander once per runtime and collects outputPath', async () => {
     const calls = [];
-    const expander = (runtime, srcDir) => {
-      calls.push({ runtime, srcDir });
+    const expander = (runtime, srcDir, codeSrcDir) => {
+      calls.push({ runtime, srcDir, codeSrcDir });
       return [{ outputPath: `out/${runtime}/ep.md` }];
     };
     const paths = await collectManifestPaths(
       [],
       { gemini: {}, claude: {} },
       '/src',
-      [expander]
+      [expander],
+      '/dist/src'
     );
     assert.deepEqual(calls.map((c) => c.runtime).sort(), ['claude', 'gemini']);
     assert.ok(calls.every((c) => c.srcDir === '/src'));
+    assert.ok(calls.every((c) => c.codeSrcDir === '/dist/src'));
     assert.deepEqual(
       [...paths].sort(),
       ['out/claude/ep.md', 'out/gemini/ep.md']

@@ -2,15 +2,15 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { runPlanValidation } from '../../src/mcp/validation/plan-validation-pipeline.js';
-import { PLAN_VALIDATION_STAGES } from '../../src/mcp/validation/rule-registry.js';
-import { handleValidatePlan } from '../../src/mcp/handlers/validate-plan.js';
+import { runPlanValidation } from '../../dist/src/mcp/validation/plan-validation-pipeline.js';
+import { PLAN_VALIDATION_STAGES } from '../../dist/src/mcp/validation/rule-registry.js';
+import { handleValidatePlan } from '../../dist/src/mcp/handlers/validate-plan.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 
 const handlerSource = fs.readFileSync(
-  path.join(moduleDirname, '../../src/mcp/handlers/validate-plan.js'),
+  path.join(moduleDirname, '../../src/mcp/handlers/validate-plan.ts'),
   'utf8'
 );
 

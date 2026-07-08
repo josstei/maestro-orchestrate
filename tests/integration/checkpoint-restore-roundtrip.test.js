@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { registerHistoryPack as createHistoryPack } from '../../src/mcp/tool-packs/history/index.js';
+import { registerHistoryPack as createHistoryPack } from '../../dist/src/mcp/tool-packs/history/index.js';
 
 import {
   createInitializedMcpWorkspace,

@@ -7,9 +7,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { buildHandlerContext } from '../../src/mcp/server/handler-context.js';
-import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
-import { KnowledgeStore } from '../../src/mcp/memory/knowledge-store.js';
+import { buildHandlerContext } from '../../dist/src/mcp/server/handler-context.js';
+import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { KnowledgeStore } from '../../dist/src/mcp/memory/knowledge-store.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
 

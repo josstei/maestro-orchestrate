@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { handleInitializeWorkspace } from '../../src/mcp/handlers/initialize-workspace.js';
-import { MARKER_FILENAME } from '../../src/mcp/contracts/workspace-marker.js';
-import { WorkspaceResolutionError } from '../../src/core/project-root-resolver.js';
+import { handleInitializeWorkspace } from '../../dist/src/mcp/handlers/initialize-workspace.js';
+import { MARKER_FILENAME } from '../../dist/src/mcp/contracts/workspace-marker.js';
+import { WorkspaceResolutionError } from '../../dist/src/core/project-root-resolver.js';
 
 function makeWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-init-'));

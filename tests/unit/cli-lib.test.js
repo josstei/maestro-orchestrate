@@ -4,12 +4,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { readJson, runAsMain } from '../../scripts/lib/cli.js';
-import { STABLE_SEMVER_RE, isStable } from '../../scripts/lib/semver.js';
+import { readJson, runAsMain } from '../../dist/src/tooling/lib/cli.js';
+import { STABLE_SEMVER_RE, isStable } from '../../dist/src/tooling/lib/semver.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
-const CLI_LIB_PATH = path.resolve(moduleDirname, '../../scripts/lib/cli.js');
+const CLI_LIB_PATH = path.resolve(moduleDirname, '../../dist/src/tooling/lib/cli.js');
 const CLI_LIB_URL = pathToFileURL(CLI_LIB_PATH).href;
 
 function writeTempFile(content) {
@@ -31,7 +31,7 @@ function runFixtureScript(script) {
   }
 }
 
-describe('scripts/lib/cli readJson', () => {
+describe('src/tooling/lib/cli readJson', () => {
   it('parses a well-formed JSON file', () => {
     const { dir, filePath } = writeTempFile('{"name":"maestro","version":"1.2.3"}\n');
 
@@ -57,7 +57,7 @@ describe('scripts/lib/cli readJson', () => {
   });
 });
 
-describe('scripts/lib/semver isStable', () => {
+describe('src/tooling/lib/semver isStable', () => {
   it('accepts stable semver strings', () => {
     assert.equal(isStable('1.2.3'), true);
     assert.equal(isStable('0.0.1'), true);
@@ -83,7 +83,7 @@ describe('scripts/lib/semver isStable', () => {
   });
 });
 
-describe('scripts/lib/cli runAsMain', () => {
+describe('src/tooling/lib/cli runAsMain', () => {
   it('does not invoke fn when moduleUrl is not the main module', () => {
     let called = false;
 

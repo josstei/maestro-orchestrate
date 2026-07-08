@@ -1,12 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
-const STDIN_READER_URL = pathToFileURL(path.join(REPO_ROOT, 'src', 'core', 'stdin-reader.js')).href;
+import { distModuleUrl } from '../support/dist.js';
+const STDIN_READER_URL = distModuleUrl('src/core/stdin-reader.js');
 
 function runWithStdin(fnName, stdin, { buffer = false } = {}) {
   const script = `

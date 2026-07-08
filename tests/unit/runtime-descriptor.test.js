@@ -7,7 +7,7 @@ import {
   getRuntimeGeneration,
   getAgentToolDialect,
   getRuntimeConfig,
-} from '../../src/platforms/runtime-descriptor.js';
+} from '../../dist/src/platforms/runtime-descriptor.js';
 
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { DENY_RULES, ASK_RULES } from '../../src/core/policy-rules.js';
+import { DENY_RULES, ASK_RULES } from '../../dist/src/core/policy-rules.js';
 const VALID_MATCH_TYPES = new Set(['prefix', 'regex', 'word']);
 
 function matchesRule(rule, command) {

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { resolveStateDirPath } from '../../src/state/session-state.js';
-import { buildRetrievalCorpus } from '../../src/mcp/retrieval/corpus.js';
+import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
+import { buildRetrievalCorpus } from '../../dist/src/mcp/retrieval/corpus.js';
 
 function writeArchive(projectRoot, sessionId, data) {
   const dir = path.join(resolveStateDirPath(projectRoot), 'state', 'archive');

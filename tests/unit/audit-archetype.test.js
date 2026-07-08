@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { defineAudit, AUDIT_PRESENTATION_CONSTRAINTS } from '../../src/entry-points/archetypes/audit-archetype.js';
+import { defineAudit, AUDIT_PRESENTATION_CONSTRAINTS } from '../../dist/src/entry-points/archetypes/audit-archetype.js';
 
 describe('AUDIT_PRESENTATION_CONSTRAINTS', () => {
   it('is the frozen shared presentation pair', () => {

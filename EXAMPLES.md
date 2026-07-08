@@ -4,7 +4,7 @@ This guide is a scenario catalog for Maestro public entry points across Gemini C
 
 Canonical sources for this page:
 
-- Command names and runtime remapping: `src/entry-points/core-command-registry.js`, `src/entry-points/registry.js`, and `src/generator/entry-point-expander.js`
+- Command names and runtime remapping: `src/entry-points/core-command-registry.js`, `src/entry-points/registry.js`, and `src/generator/entry-point-expander.ts`
 - Orchestration behavior: `src/references/orchestration-steps.md` and `docs/flow.md`
 - Quick-start task wording: `README.md`
 - Standalone entry-point behavior: `src/entry-points/registry.js`
@@ -217,8 +217,8 @@ Use these when changing Maestro itself.
 
 ```bash
 # edit source files under src/
-node scripts/generate.js --diff
-npm run build
+npm run generate
+node dist/src/tooling/generate.js --diff
 just check
 ```
 
@@ -247,7 +247,8 @@ Source: `justfile`, `package.json`
 ```bash
 # edit README.md, EXAMPLES.md, docs/*.md, or canonical src/ docs as appropriate
 node --test tests/unit/doc-drift-guard.test.js
-node scripts/generate.js --diff
+npm run generate
+node dist/src/tooling/generate.js --diff
 ```
 
 Expected outcome: user-facing docs remain aligned with command names, runtime counts, MCP tool names, and generated-output rules, and the generator reports no additional pending runtime output. In CI or a clean worktree, `just check` covers the same drift check with `git diff --exit-code`.

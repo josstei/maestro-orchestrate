@@ -31,6 +31,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Infer version from commits
         if: inputs.version == ''
         id: infer
@@ -95,7 +98,7 @@ jobs:
       - name: Update canonical release inputs
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: node scripts/update-versions.js "$VERSION"
+        run: node dist/src/tooling/update-versions.js "$VERSION"
 
       - name: Regenerate with new version
         run: |
@@ -123,7 +126,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          CHANGELOG_EXCERPT=$(node scripts/changelog-section.js "$VERSION")
+          CHANGELOG_EXCERPT=$(node dist/src/tooling/changelog-section.js "$VERSION")
           gh pr create \
             --repo "$REPOSITORY" \
             --base main \

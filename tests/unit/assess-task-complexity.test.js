@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { handleAssessTaskComplexity } from '../../src/mcp/handlers/assess-task-complexity.js';
+import { handleAssessTaskComplexity } from '../../dist/src/mcp/handlers/assess-task-complexity.js';
 const tmpRoots = [];
 
 function makeRepo() {

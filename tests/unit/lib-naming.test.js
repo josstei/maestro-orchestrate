@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { toSnakeCase, toKebabCase, toPascalCase, toTitleCase, replaceInContent } from '../../src/lib/naming/index.js';
-import { expandEntryPoints } from '../../src/generator/entry-point-expander.js';
+import { toSnakeCase, toKebabCase, toPascalCase, toTitleCase, replaceInContent } from '../../dist/src/lib/naming/index.js';
+import { expandEntryPoints } from '../../dist/src/generator/entry-point-expander.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 import path, { dirname } from 'node:path';

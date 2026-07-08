@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MARKER_FILENAME, writeWorkspaceMarker } from '../../src/mcp/contracts/workspace-marker.js';
+import { MARKER_FILENAME, writeWorkspaceMarker } from '../../dist/src/mcp/contracts/workspace-marker.js';
 
 function makeTempWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-marker-'));

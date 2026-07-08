@@ -28,12 +28,12 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Metric | Count |
 |--------|-------|
 | Specialized agents | 39 |
-| MCP tools | 42 |
+| MCP tools | 40 |
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 4 |
 | Source transforms | 6 |
-| Test files | 86 files across unit, transforms, and integration |
+| Test files | 180 files across unit, transforms, and integration |
 
 ## Project Structure
 
@@ -44,6 +44,8 @@ maestro-orchestrate/
 │   ├── skills/shared/            # 7 shared methodology modules + protocols
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
+│   ├── bin/                      # TypeScript public bin sources
+│   ├── tooling/                  # TypeScript generator, package, and release tooling
 │   ├── transforms/               # Generator transform library
 │   ├── entry-points/             # 10 entry-point + 3 core-command registries, preamble builders, 6 templates
 │   ├── config/                   # Canonical config helpers
@@ -53,11 +55,12 @@ maestro-orchestrate/
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime adapters, manifests, and public shells
-│   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
 │   └── manifest.js               # Declarative file mapping rules
-├── scripts/
-│   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 86 test files across unit, transforms, and integration
+├── dist/src/                     # Compiled NodeNext runtime and copied assets
+│   ├── bin/                      # Public package bin entrypoints
+│   ├── mcp/                      # Compiled MCP runtime
+│   └── tooling/generate.js       # Built generator entrypoint
+├── tests/                        # 180 test files across unit, transforms, and integration
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
@@ -124,7 +127,7 @@ A bundled Model Context Protocol server providing 40 tools across 5 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
+A manifest-driven code generator (`src/tooling/generate.ts`, run through `npm run generate` as `dist/src/tooling/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI. Public package bins execute compiled `dist/src/bin/*` entrypoints, not package-root raw `src/`.
 
 ### State Management
 

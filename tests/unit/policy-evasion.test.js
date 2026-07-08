@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkCommand, normalizeSegment } from '../../src/hooks/policy/policy-enforcer.js';
+import { checkCommand, normalizeSegment } from '../../dist/src/hooks/policy/policy-enforcer.js';
 
 describe('prefix-evasion is blocked', () => {
   const evasions = [
@@ -39,7 +39,7 @@ describe('expanded destructive corpus is blocked', () => {
   for (const cmd of bad) it(`blocks: ${cmd}`, () => assert.equal(checkCommand(cmd).decision, 'block'));
 });
 
-import { DENY_RULES } from '../../src/core/policy-rules.js';
+import { DENY_RULES } from '../../dist/src/core/policy-rules.js';
 
 describe('corpus shape', () => {
   it('every rule declares tier command', () => {

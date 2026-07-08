@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import hookStateDefault from '../../src/hooks/logic/hook-state.js';
+import hookStateDefault from '../../dist/src/hooks/logic/hook-state.js';
 const { createHookState, DEFAULT_BASE_DIR } = hookStateDefault;
 
 function makeTempBaseDir() {

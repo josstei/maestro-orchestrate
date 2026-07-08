@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolveSetting } from '../../src/config/setting-resolver.js';
+import { resolveSetting } from '../../dist/src/config/setting-resolver.js';
 import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
 
 function withEnv(overrides, fn) {

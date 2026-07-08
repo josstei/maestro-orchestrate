@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPlatformMetadataOutputs } from '../../src/platforms/metadata.js';
+import { buildPlatformMetadataOutputs } from '../../dist/src/platforms/metadata.js';
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',

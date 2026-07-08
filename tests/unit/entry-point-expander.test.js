@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { expandEntryPoints, expandCoreCommands } from '../../src/generator/entry-point-expander.js';
+import { expandEntryPoints, expandCoreCommands } from '../../dist/src/generator/entry-point-expander.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);

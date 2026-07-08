@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createToolFailure, createToolSuccess } from '../../src/mcp/server/tool-outcome.js';
-import { toolOutcomeToCallToolResult } from '../../src/mcp/server/tool-result.js';
+import { createToolFailure, createToolSuccess } from '../../dist/src/mcp/server/tool-outcome.js';
+import { toolOutcomeToCallToolResult } from '../../dist/src/mcp/server/tool-result.js';
 
 test('serializes a success ToolOutcome to a non-error CallToolResult', () => {
   const outcome = createToolSuccess({ ok: true, value: 42 });

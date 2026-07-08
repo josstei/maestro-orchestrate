@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import codex from '../../src/platforms/codex/runtime-config.js';
-import claude from '../../src/platforms/claude/runtime-config.js';
-import { handleGetRuntimeContext } from '../../src/mcp/handlers/get-runtime-context.js';
+import codex from '../../dist/src/platforms/codex/runtime-config.js';
+import claude from '../../dist/src/platforms/claude/runtime-config.js';
+import { handleGetRuntimeContext } from '../../dist/src/mcp/handlers/get-runtime-context.js';
 
 describe('get_runtime_context response shape', () => {
   const legacyDispatchKey = ['agent', 'dispatch'].join('_');

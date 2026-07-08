@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ensureWorkspace } from '../../src/state/session-state.js';
-import { handleRecordValidationCommands, handleGetProjectProfile } from '../../src/mcp/handlers/project-profile.js';
+import { ensureWorkspace } from '../../dist/src/state/session-state.js';
+import { handleRecordValidationCommands, handleGetProjectProfile } from '../../dist/src/mcp/handlers/project-profile.js';
 
 function makeWorkspace() {
   delete process.env.MAESTRO_STATE_DIR;

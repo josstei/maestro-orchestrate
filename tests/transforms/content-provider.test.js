@@ -2,9 +2,9 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createContentProvider } from '../../src/mcp/content/provider.js';
-import * as contentProviderModule from '../../src/mcp/content/provider.js';
-import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { createContentProvider } from '../../dist/src/mcp/content/provider.js';
+import * as contentProviderModule from '../../dist/src/mcp/content/provider.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 
 import {
   makeTempSrcRoot,

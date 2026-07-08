@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PHASE_REQUIRED_FIELDS, validatePhases } from '../../src/mcp/contracts/plan-schema.js';
+import { PHASE_REQUIRED_FIELDS, validatePhases } from '../../dist/src/mcp/contracts/plan-schema.js';
 
 describe('plan-schema', () => {
   it('exposes the required field list in declaration order', () => {

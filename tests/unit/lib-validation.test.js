@@ -8,9 +8,9 @@ import {
   assertAllowlisted,
   assertRelativePath,
   assertContainedIn,
-} from '../../src/lib/validation/index.js';
+} from '../../dist/src/lib/validation/index.js';
 
-import { ValidationError } from '../../src/lib/errors/index.js';
+import { ValidationError } from '../../dist/src/lib/errors/index.js';
 
 function assertThrowsValidation(fn, messagePattern) {
   assert.throws(fn, (err) => {

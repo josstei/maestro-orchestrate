@@ -13,7 +13,7 @@ import {
   readState,
   writeState,
   ensureWorkspace,
-} from '../../src/state/session-state.js';
+} from '../../dist/src/state/session-state.js';
 
 function withEnv(overrides, fn) {
   const previous = {};

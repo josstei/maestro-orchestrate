@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createGenerationSession } from '../../src/generator/generation-session.js';
+import { createGenerationSession } from '../../dist/src/generator/generation-session.js';
 
 function createTempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-generation-session-'));

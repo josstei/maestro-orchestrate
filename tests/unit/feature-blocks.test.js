@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { stripFeatureBlocks } from '../../src/core/feature-blocks.js';
+import { stripFeatureBlocks } from '../../dist/src/core/feature-blocks.js';
 
 describe('stripFeatureBlocks', () => {
   it('keeps body content when flag is truthy', () => {

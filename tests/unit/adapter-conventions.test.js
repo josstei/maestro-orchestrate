@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ADAPTER_SUFFIX, isAdapterFile, extractRuntime } from '../../src/platforms/shared/adapters/conventions.js';
+import { ADAPTER_SUFFIX, isAdapterFile, extractRuntime } from '../../dist/src/platforms/shared/adapters/conventions.js';
 
 describe('ADAPTER_SUFFIX', () => {
   it('is the string "-adapter.js"', () => {

@@ -24,7 +24,7 @@ codex plugin marketplace add /absolute/path/to/maestro-orchestrate
 
 Codex shares the same canonical `src/` source tree as the Gemini CLI, Claude Code, and Qwen Code outputs:
 - shared methodology, references, templates, hooks, and MCP server logic are authored only in `src/`
-- this plugin contains public entry skills, manifests, and the Codex runtime guide; MCP code and content load from package-root `src/` through the versioned npm bin
+- this plugin contains public entry skills, manifests, and the Codex runtime guide; MCP code and content load from package-root `dist/src/` through the versioned npm bin
 - Codex-specific behavior is isolated to this plugin's runtime guide and public entry skills, exposed under the plugin namespace as `$maestro:<skill>`
 - Codex does not consume plugin agent files; Maestro serves agent methodology through MCP `get_agent`
 

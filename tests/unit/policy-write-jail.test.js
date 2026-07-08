@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
-import { isWriteAllowed } from '../../src/hooks/policy/policy-enforcer.js';
+import { isWriteAllowed } from '../../dist/src/hooks/policy/policy-enforcer.js';
 const ROOT = path.join(os.tmpdir());
 
 describe('write-boundary jail', () => {

@@ -56,6 +56,9 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run source check
         run: npm run check:source
 
@@ -88,7 +91,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
           DIST_TAG: ${{ inputs.dist-tag }}
-        run: node scripts/npm-publish-idempotent.js --tag "$DIST_TAG" --access public
+        run: node dist/src/tooling/npm-publish-idempotent.js --tag "$DIST_TAG" --access public
 
       - name: Upsert PR comment
         if: inputs.comment-header != '' && steps.publish_gate.outputs.enabled == 'true'

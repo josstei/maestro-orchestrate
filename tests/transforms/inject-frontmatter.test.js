@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import parseFrontmatter from '../../src/transforms/parse-frontmatter.js';
-import extractExamples from '../../src/transforms/extract-examples.js';
-import rebuildFrontmatter from '../../src/transforms/rebuild-frontmatter.js';
+import parseFrontmatter from '../../dist/src/transforms/parse-frontmatter.js';
+import extractExamples from '../../dist/src/transforms/extract-examples.js';
+import rebuildFrontmatter from '../../dist/src/transforms/rebuild-frontmatter.js';
 
 function injectFrontmatter(content, runtime, opts) {
   const state = {};

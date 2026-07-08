@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { INVENTORY, RUNTIME_SOURCE_PATHS, npmFiles, releasePaths } from '../../scripts/lib/artifact-inventory.js';
+import { INVENTORY, RUNTIME_DIST_PATHS, npmFiles, releasePaths } from '../../dist/src/tooling/lib/artifact-inventory.js';
 import { readFileSync } from 'node:fs';
 const VALID_SCOPES = new Set(['both', 'npm', 'release']);
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
@@ -50,13 +50,21 @@ describe('artifact inventory', () => {
     }
   });
 
-  it('exposes the runtime source path subset used by release and package tooling', () => {
-    assert.ok(Array.isArray(RUNTIME_SOURCE_PATHS));
-    assert.ok(Object.isFrozen(RUNTIME_SOURCE_PATHS));
+  it('does not project package-root source paths into package or release artifacts', () => {
+    for (const projectedPath of [...npmFiles(), ...releasePaths()]) {
+      assert.equal(projectedPath === 'src' || projectedPath.startsWith('src/'), false, projectedPath);
+    }
+  });
 
-    for (const runtimeSourcePath of RUNTIME_SOURCE_PATHS) {
-      assert.ok(npmFiles().includes(runtimeSourcePath));
-      assert.ok(releasePaths().includes(runtimeSourcePath));
+  it('exposes the final runtime dist path subset used by release and package tooling', () => {
+    assert.ok(Array.isArray(RUNTIME_DIST_PATHS));
+    assert.ok(Object.isFrozen(RUNTIME_DIST_PATHS));
+    assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/bin/maestro-mcp-server.js'));
+    assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/mcp'));
+
+    for (const runtimeDistPath of RUNTIME_DIST_PATHS) {
+      assert.ok(npmFiles().includes(runtimeDistPath));
+      assert.ok(releasePaths().includes(runtimeDistPath));
     }
   });
 

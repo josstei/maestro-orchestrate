@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildMcpServer } from '../support/mcp.js';
-import { registerMemoryPack as createMemoryPack } from '../../src/mcp/tool-packs/memory/index.js';
+import { registerMemoryPack as createMemoryPack } from '../../dist/src/mcp/tool-packs/memory/index.js';
 
 describe('memory tool pack', () => {
   it('registers the memory profile tools through the kernel', async () => {

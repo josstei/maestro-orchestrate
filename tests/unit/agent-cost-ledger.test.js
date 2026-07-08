@@ -8,7 +8,7 @@ import {
   attributePhaseCost,
   mergeAgentLedgers,
   summarizeLedger,
-} from '../../src/mcp/contracts/agent-cost-ledger.js';
+} from '../../dist/src/mcp/contracts/agent-cost-ledger.js';
 
 describe('agent-cost-ledger', () => {
   it('createAgentBucket returns a zeroed bucket', () => {

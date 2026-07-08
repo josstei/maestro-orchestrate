@@ -10,7 +10,7 @@ import {
   parseArgs,
   parseDistTagOutput,
   publishIfNeeded,
-} from '../../scripts/npm-publish-idempotent.js';
+} from '../../dist/src/tooling/npm-publish-idempotent.js';
 
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -318,7 +318,7 @@ describe('idempotent npm publish', () => {
 
   it('does not remove latest through npm dist-tag policy', () => {
     const source = fs.readFileSync(
-      path.resolve(moduleDirname, '..', '..', 'scripts', 'npm-publish-idempotent.js'),
+      path.resolve(moduleDirname, '..', '..', 'src', 'tooling', 'npm-publish-idempotent.ts'),
       'utf8'
     );
 

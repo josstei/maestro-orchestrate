@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PLAN_VALIDATION_STAGES, cycleFreeGuard } from '../../src/mcp/validation/rule-registry.js';
+import { PLAN_VALIDATION_STAGES, cycleFreeGuard } from '../../dist/src/mcp/validation/rule-registry.js';
 
 describe('PLAN_VALIDATION_STAGES', () => {
   it('declares the four stages in canonical order', () => {

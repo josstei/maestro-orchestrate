@@ -1,2 +1,9 @@
 # package.json "files" is the allowlist; only within-included-dir exclusions live here.
+# Future dist package entries should be added to package.json "files", not hidden here.
 hooks/permissions.json
+*.d.ts
+**/*.d.ts
+*.d.ts.map
+**/*.d.ts.map
+*.map
+**/*.map

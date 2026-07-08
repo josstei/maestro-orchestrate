@@ -2,10 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import * as markdownState from '../../src/core/markdown-state.js';
-import { createEmptyDownstreamContext } from '../../src/mcp/contracts/downstream-context.js';
-import { handleGetDesignGateStatus } from '../../src/mcp/handlers/design-gate.js';
-import { handleForkSession, handleListLineage } from '../../src/mcp/handlers/session-lineage.js';
+import * as markdownState from '../../dist/src/core/markdown-state.js';
+import { createEmptyDownstreamContext } from '../../dist/src/mcp/contracts/downstream-context.js';
+import { handleGetDesignGateStatus } from '../../dist/src/mcp/handlers/design-gate.js';
+import { handleForkSession, handleListLineage } from '../../dist/src/mcp/handlers/session-lineage.js';
 import { ensureMaestroWorkspace, makeTempWorkspace, readSessionFrontmatter } from '../support/mcp.js';
 
 function phaseFixture(overrides = {}) {

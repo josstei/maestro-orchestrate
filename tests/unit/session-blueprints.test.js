@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { NotFoundError } from '../../src/lib/errors/index.js';
-import { handleInstantiateSessionBlueprint, handleListSessionBlueprints } from '../../src/mcp/handlers/session-blueprints.js';
+import { NotFoundError } from '../../dist/src/lib/errors/index.js';
+import { handleInstantiateSessionBlueprint, handleListSessionBlueprints } from '../../dist/src/mcp/handlers/session-blueprints.js';
 const PROJECT_ROOT = process.cwd();
 
 describe('session blueprints', () => {

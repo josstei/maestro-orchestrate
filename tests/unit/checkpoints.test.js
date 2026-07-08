@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseSessionState } from '../../src/mcp/handlers/session-state-core.js';
-import { handleListCheckpoints } from '../../src/mcp/handlers/checkpoints.js';
+import { parseSessionState } from '../../dist/src/mcp/handlers/session-state-core.js';
+import { handleListCheckpoints } from '../../dist/src/mcp/handlers/checkpoints.js';
 import { createInitializedMcpWorkspace, phaseFixture } from '../support/mcp.js';
 const SESSION_ID = 'checkpoint-session';
 

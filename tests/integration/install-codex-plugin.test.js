@@ -5,9 +5,11 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { describe, it } from 'node:test';
 import { ROOT } from './helpers.js';
+import { assertDistBuilt } from '../support/dist.js';
 
 function runInstaller(homeDir, args = []) {
-  return execFileSync('node', ['bin/maestro-install-codex.js', ...args], {
+  assertDistBuilt(['src/bin/maestro-install-codex.js']);
+  return execFileSync('node', ['dist/src/bin/maestro-install-codex.js', ...args], {
     cwd: ROOT,
     env: { ...process.env, HOME: homeDir },
     encoding: 'utf8',

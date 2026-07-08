@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { StateError, ValidationError } from '../../src/lib/errors/index.js';
-import { assertActiveSessionMatches, extractFileManifest } from '../../src/mcp/handlers/session-state-core.js';
+import { StateError, ValidationError } from '../../dist/src/lib/errors/index.js';
+import { assertActiveSessionMatches, extractFileManifest } from '../../dist/src/mcp/handlers/session-state-core.js';
 import { buildMcpServer, ensureMaestroWorkspace, makeTempWorkspace } from '../support/mcp.js';
-import { registerSessionPack } from '../../src/mcp/tool-packs/session/index.js';
+import { registerSessionPack } from '../../dist/src/mcp/tool-packs/session/index.js';
 
 describe('assertActiveSessionMatches', () => {
   it('does not throw when the session_id matches', () => {

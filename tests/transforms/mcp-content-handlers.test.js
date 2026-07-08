@@ -2,9 +2,9 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { handleGetSkillContent } from '../../src/mcp/handlers/get-skill-content.js';
-import { handleGetAgent } from '../../src/mcp/handlers/get-agent.js';
-import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { handleGetSkillContent } from '../../dist/src/mcp/handlers/get-skill-content.js';
+import { handleGetAgent } from '../../dist/src/mcp/handlers/get-agent.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 
 import {
   makeTempSrcRoot,

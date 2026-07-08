@@ -2,7 +2,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { handleCreateSession, handleTransitionPhase, handleArchiveSession } from '../../src/mcp/handlers/session-state-tools.js';
+import { handleCreateSession, handleTransitionPhase, handleArchiveSession } from '../../dist/src/mcp/handlers/session-state-tools.js';
 import { ensureMaestroWorkspace, makeTempWorkspace, readSessionFrontmatter } from '../support/mcp.js';
 const tmpRoots = [];
 

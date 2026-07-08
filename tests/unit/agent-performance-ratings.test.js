@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
-import { handleRate } from '../../src/mcp/handlers/ratings.js';
-import { handleGetAgentPerformance } from '../../src/mcp/handlers/agent-performance.js';
+import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { handleRate } from '../../dist/src/mcp/handlers/ratings.js';
+import { handleGetAgentPerformance } from '../../dist/src/mcp/handlers/agent-performance.js';
 
 function makeWorkspace() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-perf-ratings-'));

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { validateCrossReferences, assertCrossReferences } from '../../src/generator/cross-reference-validator.js';
+import { validateCrossReferences, assertCrossReferences } from '../../dist/src/generator/cross-reference-validator.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);

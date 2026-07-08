@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore, emptyProfile, PROFILE_SCHEMA_VERSION } from '../../src/mcp/memory/memory-store.js';
+import { MemoryStore, emptyProfile, PROFILE_SCHEMA_VERSION } from '../../dist/src/mcp/memory/memory-store.js';
 
 describe('MemoryStore', () => {
   let tmpRoot;

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
-import { handleGetRuntimeContext } from '../../src/mcp/handlers/get-runtime-context.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
+import { handleGetRuntimeContext } from '../../dist/src/mcp/handlers/get-runtime-context.js';
 
 describe('get-runtime-context handler', () => {
   const legacyDispatchKey = ['agent', 'dispatch'].join('_');

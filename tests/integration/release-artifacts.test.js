@@ -5,21 +5,33 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createTempRepoCopy } from './helpers.js';
-import { packageReleaseArtifacts } from '../../scripts/package-release-artifacts.js';
-import { verifyReleaseArtifact } from '../../scripts/verify-release-artifacts.js';
+import { packageReleaseArtifacts } from '../../dist/src/tooling/package-release-artifacts.js';
+import { verifyReleaseArtifact } from '../../dist/src/tooling/verify-release-artifacts.js';
 
 const BUILD_ONLY_SOURCE_ARCHIVE_PATHS = [
-  './src/generator/file-writer.js',
-  './src/transforms/index.js',
+  './src/generator/file-writer.ts',
+  './src/transforms/index.ts',
   './src/entry-points/registry.js',
-  './src/lib/discovery/index.js',
-  './src/lib/yaml-emit.js',
+  './src/lib/discovery/index.ts',
+  './src/lib/yaml-emit.ts',
   './src/manifest.js',
-  './src/platforms/metadata.js',
-  './src/platforms/metadata-shared.js',
-  './src/platforms/claude/metadata.js',
-  './src/platforms/runtime-payload-contract.js',
+  './src/platforms/metadata.ts',
+  './src/platforms/metadata-shared.ts',
+  './src/platforms/claude/metadata.ts',
+  './src/platforms/runtime-payload-contract.ts',
 ];
+
+const sourceArchivePathToDistArchivePath = (sourcePath) => {
+  const withoutPrefix = sourcePath.slice(2);
+  const emittedPath = withoutPrefix.endsWith('.ts')
+    ? withoutPrefix.slice(0, -3) + '.js'
+    : withoutPrefix;
+  return `./dist/${emittedPath}`;
+};
+
+const BUILD_ONLY_DIST_ARCHIVE_PATHS = BUILD_ONLY_SOURCE_ARCHIVE_PATHS.map((sourcePath) =>
+  sourceArchivePathToDistArchivePath(sourcePath)
+);
 
 function cleanupRepoCopy(repoRoot) {
   fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
@@ -43,11 +55,21 @@ describe('release artifact packaging', () => {
       const archiveEntries = execFileSync('tar', ['-tzf', archivePath], { encoding: 'utf8' })
         .trim()
         .split('\n');
+      assert.equal(archiveEntries.some((entry) => entry === './src/' || entry.startsWith('./src/')), false);
+      assert.equal(archiveEntries.some((entry) => entry === './scripts/' || entry.startsWith('./scripts/')), false);
+      assert.equal(archiveEntries.some((entry) => entry === './bin/' || entry.startsWith('./bin/')), false);
+      assert.equal(archiveEntries.some((entry) => entry.endsWith('.d.ts')), false);
+      assert.equal(archiveEntries.some((entry) => entry.endsWith('.map')), false);
       assert.equal(archiveEntries.includes('./claude/scripts/policy-enforcer.test.js'), false);
-      assert.ok(archiveEntries.includes('./src/mcp/maestro-server.js'));
-      assert.ok(archiveEntries.includes('./src/lib/framework-detection.js'));
-      assert.ok(archiveEntries.includes('./src/platforms/codex/runtime-config.js'));
+      assert.ok(archiveEntries.includes('./dist/src/bin/maestro-install-codex.js'));
+      assert.ok(archiveEntries.includes('./dist/src/bin/maestro-mcp-server.js'));
+      assert.ok(archiveEntries.includes('./dist/src/mcp/maestro-server.js'));
+      assert.ok(archiveEntries.includes('./dist/src/lib/framework-detection.js'));
+      assert.ok(archiveEntries.includes('./dist/src/platforms/codex/runtime-config.js'));
       for (const buildOnlyPath of BUILD_ONLY_SOURCE_ARCHIVE_PATHS) {
+        assert.equal(archiveEntries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be archived`);
+      }
+      for (const buildOnlyPath of BUILD_ONLY_DIST_ARCHIVE_PATHS) {
         assert.equal(archiveEntries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be archived`);
       }
       assert.equal(
@@ -67,7 +89,27 @@ describe('release artifact packaging', () => {
         false
       );
       assert.equal(
-        archiveEntries.some((entry) => /^\.\/src\/platforms\/[^/]+\/metadata\.js$/.test(entry)),
+        archiveEntries.some((entry) => /^\.\/src\/platforms\/[^/]+\/metadata\.ts$/.test(entry)),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/generator/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/transforms/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/entry-points/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/lib/discovery/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => /^\.\/dist\/src\/platforms\/[^/]+\/metadata\.js$/.test(entry)),
         false
       );
     } finally {
@@ -148,7 +190,7 @@ describe('release artifact packaging', () => {
 
       assert.throws(
         () => verifyReleaseArtifact(extraArchivePath, { root: repoRoot }),
-        /Release artifact contains unallowlisted paths: src\/generator, src\/generator\/private\.js/
+        /Release artifact contains denied paths: src, src\/generator, src\/generator\/private\.js/
       );
     } finally {
       fs.rmSync(extractRoot, { recursive: true, force: true });

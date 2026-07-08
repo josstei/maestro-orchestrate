@@ -2,10 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createMcpServer } from '../../src/mcp/server/create-mcp-server.js';
-import { createMaestroToolRegistry } from '../../src/mcp/tool-packs/contracts.js';
-import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
-import { DEFAULT_TOOL_PACKS } from '../../src/mcp/tool-packs/index.js';
+import { createMcpServer } from '../../dist/src/mcp/server/create-mcp-server.js';
+import { createMaestroToolRegistry } from '../../dist/src/mcp/tool-packs/contracts.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
+import { DEFAULT_TOOL_PACKS } from '../../dist/src/mcp/tool-packs/index.js';
 
 async function mountDefaultToolPacks(runtimeConfig) {
   const server = createMcpServer();

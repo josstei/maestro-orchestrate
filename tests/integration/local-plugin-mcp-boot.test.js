@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { ROOT } from './helpers.js';
 import { spawnMcpServer } from './mcp-stdio-client.js';
-import { assembleClaudePlugin } from '../../scripts/assemble-claude-plugin.js';
+import { assembleClaudePlugin } from '../../dist/src/tooling/assemble-claude-plugin.js';
 
 async function withServer(options, fn) {
   const client = spawnMcpServer(options);
@@ -19,7 +19,7 @@ async function withServer(options, fn) {
 }
 
 describe('assembled local claude plugin MCP boot (integration)', () => {
-  it('boots the promoted server and serves canonical content from the bundled src', async () => {
+  it('boots the promoted server and serves runtime content from bundled dist', async () => {
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-local-boot-'));
     try {
       const { pluginDir } = assembleClaudePlugin({ root: ROOT, outDir });

@@ -2,8 +2,8 @@ import { describe, it, beforeEach, afterEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { discover, generateRegistry, patternToRegex, parsePattern, collectFiles } from '../../src/lib/discovery/index.js';
-import { parse } from '../../src/lib/frontmatter/index.js';
+import { discover, generateRegistry, patternToRegex, parsePattern, collectFiles } from '../../dist/src/lib/discovery/index.js';
+import { parse } from '../../dist/src/lib/frontmatter/index.js';
 import { makeTempSrcRoot, cleanupTempRoots, writeFileUnder } from '../support/content.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -495,13 +495,14 @@ describe('parity: hook registry', () => {
 
     const entries = discover({
       dir: logicDir,
-      pattern: '*-logic.js',
-      identity: (fp) => path.basename(fp).replace(/-logic\.js$/, ''),
+      pattern: '*-logic.ts',
+      identity: (fp) => path.basename(fp).replace(/-logic\.ts$/, ''),
       metadata: (fp) => {
         const file = path.basename(fp);
-        const hookName = file.replace(/-logic\.js$/, '');
+        const hookName = file.replace(/-logic\.ts$/, '');
+        const runtimeFile = file.replace(/\.ts$/, '.js');
         return {
-          module: `hooks/logic/${file}`,
+          module: `hooks/logic/${runtimeFile}`,
           fn: hookNameToFunctionName(hookName),
         };
       },

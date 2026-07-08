@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { validateRegistry, REGISTRY_SCHEMAS, CAPABILITY_TIERS } from '../../src/generator/registry-schemas.js';
-import { buildRegistries } from '../../src/generator/registry-scanner.js';
+import { validateRegistry, REGISTRY_SCHEMAS, CAPABILITY_TIERS } from '../../dist/src/generator/registry-schemas.js';
+import { buildRegistries } from '../../dist/src/generator/registry-scanner.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { handleRecordDesignApproval } from '../../src/mcp/handlers/design-gate.js';
+import { handleRecordDesignApproval } from '../../dist/src/mcp/handlers/design-gate.js';
 import {
   createInitializedMcpWorkspace,
   writeWorkspaceFile,

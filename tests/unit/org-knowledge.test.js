@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { KnowledgeStore } from '../../src/mcp/memory/knowledge-store.js';
-import { handleQueryKnowledge, handleRecordKnowledge } from '../../src/mcp/handlers/org-knowledge.js';
+import { KnowledgeStore } from '../../dist/src/mcp/memory/knowledge-store.js';
+import { handleQueryKnowledge, handleRecordKnowledge } from '../../dist/src/mcp/handlers/org-knowledge.js';
 
 describe('org knowledge handlers', () => {
   let tmpRoot;

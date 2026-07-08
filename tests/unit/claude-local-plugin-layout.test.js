@@ -6,9 +6,9 @@ import {
   CLAUDE_LOCAL_BUNDLE_DIR,
   PROMOTED_CONTENT_COPY_MAP,
   buildPromotedPluginManifestFiles,
-} from '../../src/platforms/claude/local-plugin-layout.js';
+} from '../../dist/src/platforms/claude/local-plugin-layout.js';
 
-import { buildMetadataContext } from '../../src/platforms/metadata-shared.js';
+import { buildMetadataContext } from '../../dist/src/platforms/metadata-shared.js';
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',
@@ -22,7 +22,7 @@ const PACKAGE_FIXTURE = {
 describe('claude local plugin layout contract', () => {
   it('defines the plugin dir and bundle dir names', () => {
     assert.equal(CLAUDE_LOCAL_PLUGIN_DIR, 'claude-plugin');
-    assert.equal(CLAUDE_LOCAL_BUNDLE_DIR, 'src');
+    assert.equal(CLAUDE_LOCAL_BUNDLE_DIR, 'dist/src');
   });
 
   it('promotes claude/ content subdirs to plugin-root-level dirs', () => {

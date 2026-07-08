@@ -5,13 +5,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createMcpServer } from '../../src/mcp/server/create-mcp-server.js';
+import { createMcpServer } from '../../dist/src/mcp/server/create-mcp-server.js';
 import {
   PHASE_ID,
   FILE_ARRAY,
   DOWNSTREAM_CONTEXT,
   PHASE_ITEM,
-} from '../../src/mcp/tool-packs/zod-fragments.js';
+} from '../../dist/src/mcp/tool-packs/zod-fragments.js';
 
 const moduleDirname = path.dirname(fileURLToPath(import.meta.url));
 const goldenDir = path.join(moduleDirname, 'golden');

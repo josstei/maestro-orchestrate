@@ -27,7 +27,7 @@ Equivalent manual command: `git config core.hooksPath .githooks`.
 
 The hooks are best-effort — CI re-validates everything on PR submission and on direct pushes to `main`.
 
-Generated runtime surfaces (`agents/`, `claude/`, `plugins/maestro/`, `qwen/`, `docs/runtime-*.md`, and friends) are untracked and governed by the `.gitignore` contract — `npm run generate` must run at least once after cloning before any runtime can see its files. Run `node scripts/generate.js --list-outputs` to print the exact list of generator-owned paths. `just ci` (and `just check`) regenerate automatically before verifying, so those gate commands never need a manual generate step first — only ad hoc local runtime usage does.
+Generated runtime surfaces (`agents/`, `claude/`, `plugins/maestro/`, `qwen/`, `docs/runtime-*.md`, and friends) are untracked and governed by the `.gitignore` contract — `npm run generate` must run at least once after cloning before any runtime can see its files. Run `npm run generate -- --list-outputs` to print the exact list of generator-owned paths. `just ci` (and `just check`) regenerate automatically before verifying, so those gate commands never need a manual generate step first — only ad hoc local runtime usage does.
 
 ## Key Commands
 

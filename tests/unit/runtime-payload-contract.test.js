@@ -2,10 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { handleGetAgent } from '../../src/mcp/handlers/get-agent.js';
-import { handleGetSkillContent } from '../../src/mcp/handlers/get-skill-content.js';
-import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
-import { RUNTIME_PAYLOAD_CONTRACT, TOPOLOGY_DECISION, getRuntimePayloadContract } from '../../src/platforms/runtime-payload-contract.js';
+import { handleGetAgent } from '../../dist/src/mcp/handlers/get-agent.js';
+import { handleGetSkillContent } from '../../dist/src/mcp/handlers/get-skill-content.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
+import { RUNTIME_PAYLOAD_CONTRACT, TOPOLOGY_DECISION, getRuntimePayloadContract } from '../../dist/src/platforms/runtime-payload-contract.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -18,7 +18,7 @@ const PACKAGE_VERSION = packageJson.version;
 function runtimeConfigNames() {
   return fs.readdirSync(path.join(SRC, 'platforms'), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && entry.name !== 'shared')
-    .filter((entry) => fs.existsSync(path.join(SRC, 'platforms', entry.name, 'runtime-config.js')))
+    .filter((entry) => fs.existsSync(path.join(SRC, 'platforms', entry.name, 'runtime-config.ts')))
     .map((entry) => entry.name)
     .sort();
 }
@@ -40,10 +40,11 @@ function readManifestServer(runtime) {
 }
 
 describe('runtime payload contract', () => {
-  it('records the live JS source-first topology decision for Phase 0', () => {
-    assert.equal(TOPOLOGY_DECISION.mode, 'live-js-source-first');
-    assert.equal(TOPOLOGY_DECISION.canonicalSource, 'src/**/*.js');
-    assert.match(TOPOLOGY_DECISION.note, /TypeScript\/dist topology/);
+  it('records the TypeScript dist terminal topology decision', () => {
+    assert.equal(TOPOLOGY_DECISION.mode, 'typescript-dist-terminal');
+    assert.match(TOPOLOGY_DECISION.canonicalSource, /src\/\*\*\/\*\.ts/);
+    assert.match(TOPOLOGY_DECISION.runtimeFormat, /dist\/src/);
+    assert.match(TOPOLOGY_DECISION.note, /dist\/src runtime entries/);
   });
 
   it('covers every runtime config exactly once', () => {
@@ -90,20 +91,32 @@ describe('runtime payload contract', () => {
     }
   });
 
-  it('records Codex as package-root src only', () => {
+  it('records Codex as dist-only package runtime content', () => {
     const codex = getRuntimePayloadContract('codex');
 
-    assert.equal(codex.content.srcRoot, 'src');
+    assert.equal(codex.content.srcRoot, 'dist/src');
+    assert.ok(codex.packageInvariants.includes('dist/src/bin/maestro-mcp-server.js'));
+    assert.ok(codex.packageInvariants.includes('dist/src/mcp/maestro-server.js'));
+    assert.equal(
+      codex.packageInvariants.some((invariantPath) => invariantPath.startsWith('src/')),
+      false
+    );
     assert.equal(
       codex.packageInvariants.some((invariantPath) => invariantPath.startsWith('plugins/maestro/src')),
       false
     );
   });
 
-  it('records Claude as package-root src only', () => {
+  it('records Claude as dist-only package runtime content', () => {
     const claude = getRuntimePayloadContract('claude');
 
-    assert.equal(claude.content.srcRoot, 'src');
+    assert.equal(claude.content.srcRoot, 'dist/src');
+    assert.ok(claude.packageInvariants.includes('dist/src/bin/maestro-mcp-server.js'));
+    assert.ok(claude.packageInvariants.includes('dist/src/mcp/maestro-server.js'));
+    assert.equal(
+      claude.packageInvariants.some((invariantPath) => invariantPath.startsWith('src/')),
+      false
+    );
   });
 
   it('does not classify canonical src as a generated runtime surface', () => {

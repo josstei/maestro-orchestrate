@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { atomicWriteSync, readFileSafe, readJsonSafe, writeIfChanged, ensureDir, readJsonLines, appendJsonLine } from '../../src/lib/io/index.js';
-import * as ioModule from '../../src/lib/io/index.js';
+import { atomicWriteSync, readFileSafe, readJsonSafe, writeIfChanged, ensureDir, readJsonLines, appendJsonLine } from '../../dist/src/lib/io/index.js';
+import * as ioModule from '../../dist/src/lib/io/index.js';
 
 function createTempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-io-'));

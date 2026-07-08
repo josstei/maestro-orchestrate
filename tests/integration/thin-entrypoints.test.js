@@ -9,7 +9,7 @@ describe('thin entrypoint design', () => {
     const expectations = [
       { file: 'mcp/maestro-server.js', runtime: 'gemini' },
       { file: 'claude/mcp/maestro-server.js', runtime: 'claude' },
-      { file: 'bin/maestro-mcp-server.js', runtime: 'codex' },
+      { file: 'src/bin/maestro-mcp-server.ts', runtime: 'codex' },
     ];
 
     for (const { file, runtime } of expectations) {
@@ -21,27 +21,35 @@ describe('thin entrypoint design', () => {
     }
   });
 
-  it('Claude entrypoint uses direct package-root src resolution only', () => {
+  it('Claude entrypoint uses compiled runtime resolution only', () => {
     const content = fs.readFileSync(path.join(ROOT, 'claude/mcp/maestro-server.js'), 'utf8');
     assert.ok(
-      !content.includes('repoEntry') && !content.includes('bundledEntry'),
-      'Expected claude/mcp/maestro-server.js to have no bundled fallback resolution'
+      content.includes("'dist', 'src', 'mcp', 'maestro-server.js'"),
+      'Expected claude/mcp/maestro-server.js to resolve the compiled dist server'
     );
     assert.ok(
-      content.includes("from '../../src/mcp/maestro-server.js'"),
-      'Expected claude/mcp/maestro-server.js to import package-root src directly'
+      !content.includes("from '../../src/mcp/maestro-server.js'"),
+      'Expected claude/mcp/maestro-server.js to stop importing package-root src directly'
+    );
+    assert.ok(
+      !content.includes("'..', '..', 'src', 'mcp', 'maestro-server.js'"),
+      'Expected claude/mcp/maestro-server.js to remove package-root src fallback candidates'
     );
   });
 
-  it('Gemini entrypoint uses direct repo-local resolution only', () => {
+  it('Gemini entrypoint uses compiled runtime resolution only', () => {
     const content = fs.readFileSync(path.join(ROOT, 'mcp/maestro-server.js'), 'utf8');
     assert.ok(
-      !content.includes('bundledEntry'),
-      'Expected Gemini entrypoint to NOT have bundled fallback'
+      content.includes("'dist', 'src', 'mcp', 'maestro-server.js'"),
+      'Expected Gemini entrypoint to resolve the compiled dist server'
     );
     assert.ok(
-      content.includes("from '../src/mcp/maestro-server.js'"),
-      'Expected Gemini entrypoint to import directly from src/'
+      !content.includes("from '../src/mcp/maestro-server.js'"),
+      'Expected Gemini entrypoint to stop importing package-root src directly'
+    );
+    assert.ok(
+      !content.includes("'..', 'src', 'mcp', 'maestro-server.js'"),
+      'Expected Gemini entrypoint to remove package-root src fallback candidates'
     );
   });
 

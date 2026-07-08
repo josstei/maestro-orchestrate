@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { makeTempWorkspace } from '../support/mcp.js';
-import { parseSessionState } from '../../src/mcp/handlers/session-state-core.js';
-import { parseArchivedSessionState, readArchivedSessionSummaries } from '../../src/mcp/handlers/archive-index.js';
+import { parseSessionState } from '../../dist/src/mcp/handlers/session-state-core.js';
+import { parseArchivedSessionState, readArchivedSessionSummaries } from '../../dist/src/mcp/handlers/archive-index.js';
 
 function legacyDocument(sessionId) {
   const data = {

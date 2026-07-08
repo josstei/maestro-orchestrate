@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import codex from '../../src/platforms/codex/runtime-config.js';
-import claude from '../../src/platforms/claude/runtime-config.js';
-import gemini from '../../src/platforms/gemini/runtime-config.js';
-import qwen from '../../src/platforms/qwen/runtime-config.js';
+import codex from '../../dist/src/platforms/codex/runtime-config.js';
+import claude from '../../dist/src/platforms/claude/runtime-config.js';
+import gemini from '../../dist/src/platforms/gemini/runtime-config.js';
+import qwen from '../../dist/src/platforms/qwen/runtime-config.js';
 
 describe('runtime-config delegation.constraints', () => {
   it('codex declares fork incompatibility and deferred result surface', () => {

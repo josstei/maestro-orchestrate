@@ -8,21 +8,30 @@ import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
-const SCRIPT = path.join(REPO_ROOT, 'scripts', 'check-layer-boundaries.js');
+const SCRIPT_RELATIVE_PATH = path.join('dist', 'src', 'tooling', 'check-layer-boundaries.js');
+const SCRIPT = path.join(REPO_ROOT, SCRIPT_RELATIVE_PATH);
+const CLI_LIB_RELATIVE_PATH = path.join('dist', 'src', 'tooling', 'lib', 'cli.js');
+const CLI_LIB = path.join(REPO_ROOT, CLI_LIB_RELATIVE_PATH);
 const tmpDirs = [];
 
 /**
  * Build a scratch repo that mirrors the expected layout so the script's
- * hardcoded `path.resolve(moduleDirname, '..', 'src', 'lib')` resolves onto
- * a directory we control.
+ * package-root resolution from the compiled checker resolves onto a directory
+ * we control.
  */
 function makeFixtureRepo() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-lint-'));
   tmpDirs.push(root);
-  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  fs.mkdirSync(path.dirname(path.join(root, SCRIPT_RELATIVE_PATH)), { recursive: true });
+  fs.mkdirSync(path.dirname(path.join(root, CLI_LIB_RELATIVE_PATH)), { recursive: true });
   fs.mkdirSync(path.join(root, 'src', 'lib'), { recursive: true });
-  fs.copyFileSync(SCRIPT, path.join(root, 'scripts', 'check-layer-boundaries.js'));
-  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ type: 'module' }, null, 2) + '\n', 'utf8');
+  fs.copyFileSync(SCRIPT, path.join(root, SCRIPT_RELATIVE_PATH));
+  fs.copyFileSync(CLI_LIB, path.join(root, CLI_LIB_RELATIVE_PATH));
+  fs.writeFileSync(
+    path.join(root, 'package.json'),
+    JSON.stringify({ name: '@josstei/maestro', type: 'module' }, null, 2) + '\n',
+    'utf8'
+  );
   return root;
 }
 
@@ -33,7 +42,7 @@ function writeLibFile(root, relPath, contents) {
 }
 
 function runScript(root) {
-  return spawnSync(process.execPath, [path.join(root, 'scripts', 'check-layer-boundaries.js')], {
+  return spawnSync(process.execPath, [path.join(root, SCRIPT_RELATIVE_PATH)], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
   });

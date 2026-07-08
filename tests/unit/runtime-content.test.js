@@ -14,7 +14,7 @@ import {
   parseInlineArray,
   parseFrontmatter,
   mapTools,
-} from '../../src/mcp/content/runtime-content.js';
+} from '../../dist/src/mcp/content/runtime-content.js';
 
 describe('DEFAULT_RUNTIME_NAME', () => {
   it('equals gemini', () => {

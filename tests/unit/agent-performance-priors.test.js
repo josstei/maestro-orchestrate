@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { handleAssessTaskComplexity } from '../../src/mcp/handlers/assess-task-complexity.js';
-import { handleValidatePlan } from '../../src/mcp/handlers/validate-plan.js';
+import { handleAssessTaskComplexity } from '../../dist/src/mcp/handlers/assess-task-complexity.js';
+import { handleValidatePlan } from '../../dist/src/mcp/handlers/validate-plan.js';
 const tmpRoots = [];
 
 function makeWorkspace() {

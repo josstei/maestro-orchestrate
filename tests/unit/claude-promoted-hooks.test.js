@@ -5,7 +5,7 @@ import {
   buildHookConfigOutputs,
   buildClaudeHookConfig,
   buildPromotedClaudeHookConfig,
-} from '../../src/generator/hook-config-emitter.js';
+} from '../../dist/src/generator/hook-config-emitter.js';
 
 function commandsOf(config) {
   return Object.values(config.hooks).flatMap((entries) =>

@@ -9,10 +9,10 @@ import {
   OWNED_GENERATED_DIRS,
   RETIRED_GENERATED_CLEANUP_DIRS,
   TRACKED_OUTPUT_EXEMPTIONS,
-} from '../../src/generator/generated-surface-inventory.js';
+} from '../../dist/src/generator/generated-surface-inventory.js';
 
-import { OWNED_GENERATED_DIRS as GENERATE_OWNED_GENERATED_DIRS } from '../../scripts/generate.js';
-import { RUNTIME_PAYLOAD_CONTRACT } from '../../src/platforms/runtime-payload-contract.js';
+import { OWNED_GENERATED_DIRS as GENERATE_OWNED_GENERATED_DIRS } from '../../dist/src/tooling/generate.js';
+import { RUNTIME_PAYLOAD_CONTRACT } from '../../dist/src/platforms/runtime-payload-contract.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);

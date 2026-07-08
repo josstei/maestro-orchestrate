@@ -7,13 +7,13 @@ import path from 'node:path';
 import {
   DENIED_ARTIFACT_PATHS,
   RELEASE_ARTIFACT_PATHS,
-  RUNTIME_SOURCE_PATHS,
+  RUNTIME_DIST_PATHS,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
   isReleaseArtifactPathAllowed,
-} from '../../scripts/release-artifact-manifest.js';
+} from '../../dist/src/tooling/release-artifact-manifest.js';
 
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -21,17 +21,22 @@ const moduleDirname = path.dirname(moduleFilename);
 const ROOT = path.resolve(moduleDirname, '../..');
 
 const BUILD_ONLY_SOURCE_PATHS = [
-  'src/generator/file-writer.js',
-  'src/transforms/index.js',
+  'src/generator/file-writer.ts',
+  'src/transforms/index.ts',
   'src/entry-points/registry.js',
-  'src/lib/discovery/index.js',
-  'src/lib/yaml-emit.js',
+  'src/lib/discovery/index.ts',
+  'src/lib/yaml-emit.ts',
   'src/manifest.js',
-  'src/platforms/metadata.js',
-  'src/platforms/metadata-shared.js',
-  'src/platforms/claude/metadata.js',
-  'src/platforms/runtime-payload-contract.js',
+  'src/platforms/metadata.ts',
+  'src/platforms/metadata-shared.ts',
+  'src/platforms/claude/metadata.ts',
+  'src/platforms/runtime-payload-contract.ts',
 ];
+
+const sourcePathToDistPath = (sourcePath) =>
+  `dist/${sourcePath.endsWith('.ts') ? sourcePath.slice(0, -3) + '.js' : sourcePath}`;
+
+const BUILD_ONLY_DIST_PATHS = BUILD_ONLY_SOURCE_PATHS.map(sourcePathToDistPath);
 
 const removedRuntimePath = (...parts) => parts.join('/');
 
@@ -53,8 +58,8 @@ describe('release artifact manifest', () => {
       'plugins/maestro/.mcp.json',
       'plugins/maestro/references',
       'plugins/maestro/skills',
-      'bin/maestro-install-codex.js',
-      'bin/maestro-mcp-server.js',
+      'dist/src/bin/maestro-install-codex.js',
+      'dist/src/bin/maestro-mcp-server.js',
     ];
 
     for (const expectedPath of expectedPaths) {
@@ -64,14 +69,16 @@ describe('release artifact manifest', () => {
       );
     }
 
-    for (const runtimeSourcePath of RUNTIME_SOURCE_PATHS) {
+    for (const runtimeDistPath of RUNTIME_DIST_PATHS) {
       assert.ok(
-        RELEASE_ARTIFACT_PATHS.includes(runtimeSourcePath),
-        `Expected release allowlist to include runtime source ${runtimeSourcePath}`
+        RELEASE_ARTIFACT_PATHS.includes(runtimeDistPath),
+        `Expected release allowlist to include runtime dist ${runtimeDistPath}`
       );
     }
 
     assert.equal(RELEASE_ARTIFACT_PATHS.includes('src'), false);
+    assert.equal(RELEASE_ARTIFACT_PATHS.includes('dist'), false);
+    assert.equal(RELEASE_ARTIFACT_PATHS.some((releasePath) => releasePath.startsWith('src/')), false);
   });
 
   it('does not include denied paths in the release allowlist', () => {
@@ -97,13 +104,25 @@ describe('release artifact manifest', () => {
     assert.equal(isDeniedPath('scripts/generate.js'), true);
   });
 
-  it('does not allow build-only source checkout tooling in release artifacts', () => {
+  it('denies package-root source checkout content in release artifacts', () => {
     for (const buildOnlyPath of BUILD_ONLY_SOURCE_PATHS) {
       assert.equal(
         isReleaseArtifactPathAllowed(buildOnlyPath),
         false,
         `${buildOnlyPath} must not be release-allowlisted`
       );
+      assert.equal(isDeniedPath(buildOnlyPath), true, `${buildOnlyPath} must be denied`);
+    }
+  });
+
+  it('denies build-only dist checkout tooling in release artifacts', () => {
+    for (const buildOnlyPath of BUILD_ONLY_DIST_PATHS) {
+      assert.equal(
+        isReleaseArtifactPathAllowed(buildOnlyPath),
+        false,
+        `${buildOnlyPath} must not be release-allowlisted`
+      );
+      assert.equal(isDeniedPath(buildOnlyPath), true, `${buildOnlyPath} must be denied`);
     }
   });
 
@@ -137,7 +156,7 @@ describe('release artifact manifest', () => {
     );
   });
 
-  it('fails when extracted artifact contents contain build-only source checkout tooling', () => {
+  it('fails when extracted artifact contents contain package-root source checkout tooling', () => {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-source-tooling-'));
 
     try {
@@ -147,7 +166,7 @@ describe('release artifact manifest', () => {
 
       assert.throws(
         () => assertReleaseArtifactContents(tempRoot),
-        /Release artifact contains unallowlisted paths: src\/generator, src\/generator\/file-writer\.js/
+        /Release artifact contains denied paths: src, src\/generator, src\/generator\/file-writer\.js/
       );
     } finally {
       fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -155,10 +174,25 @@ describe('release artifact manifest', () => {
   });
 
   it('allows only public bin files in release artifacts', () => {
-    assert.equal(isReleaseArtifactPathAllowed('bin'), true);
-    assert.equal(isReleaseArtifactPathAllowed('bin/maestro-install-codex.js'), true);
-    assert.equal(isReleaseArtifactPathAllowed('bin/maestro-mcp-server.js'), true);
+    assert.equal(isReleaseArtifactPathAllowed('bin'), false);
+    assert.equal(isReleaseArtifactPathAllowed('bin/maestro-install-codex.js'), false);
+    assert.equal(isReleaseArtifactPathAllowed('bin/maestro-mcp-server.js'), false);
     assert.equal(isReleaseArtifactPathAllowed('bin/private-helper.js'), false);
+    assert.equal(isReleaseArtifactPathAllowed('dist/bin'), false);
+    assert.equal(isReleaseArtifactPathAllowed('dist/src/bin'), true);
+    assert.equal(isReleaseArtifactPathAllowed('dist/src/bin/maestro-install-codex.js'), true);
+    assert.equal(isReleaseArtifactPathAllowed('dist/src/bin/maestro-mcp-server.js'), true);
+    assert.equal(isReleaseArtifactPathAllowed('dist/src/bin/private-helper.js'), false);
+  });
+
+  it('denies declaration files and source maps inside allowlisted dist runtime roots', () => {
+    for (const privateDistPath of ['dist/src/mcp/maestro-server.d.ts', 'dist/src/mcp/maestro-server.js.map']) {
+      assert.equal(isReleaseArtifactPathAllowed(privateDistPath), true);
+      assert.equal(isDeniedPath(privateDistPath), true);
+    }
+
+    assert.equal(isReleaseArtifactPathAllowed('dist/src/bin/maestro-mcp-server.d.ts'), false);
+    assert.equal(isDeniedPath('dist/src/bin/maestro-mcp-server.d.ts'), true);
   });
 
   it('allows parent directories needed to reach explicitly allowlisted files', () => {

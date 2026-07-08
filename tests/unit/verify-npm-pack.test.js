@@ -9,27 +9,32 @@ import {
   classifyPackageEntry,
   parsePackJson,
   verifyPackageEntries,
-} from '../../scripts/verify-npm-pack.js';
+} from '../../dist/src/tooling/verify-npm-pack.js';
 
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
-import { REQUIRED_PACKAGE_FILES, RUNTIME_SOURCE_PATHS } from '../../scripts/release-artifact-manifest.js';
+import { REQUIRED_PACKAGE_FILES, RUNTIME_DIST_PATHS } from '../../dist/src/tooling/release-artifact-manifest.js';
 import { readFileSync } from 'node:fs';
 const REQUIRED_FIXTURE_FILES = [...REQUIRED_PACKAGE_FILES];
 
 const BUILD_ONLY_SOURCE_PATHS = [
-  'src/generator/file-writer.js',
-  'src/transforms/index.js',
+  'src/generator/file-writer.ts',
+  'src/transforms/index.ts',
   'src/entry-points/registry.js',
-  'src/lib/discovery/index.js',
-  'src/lib/yaml-emit.js',
+  'src/lib/discovery/index.ts',
+  'src/lib/yaml-emit.ts',
   'src/manifest.js',
-  'src/platforms/metadata.js',
-  'src/platforms/metadata-shared.js',
-  'src/platforms/claude/metadata.js',
-  'src/platforms/runtime-payload-contract.js',
+  'src/platforms/metadata.ts',
+  'src/platforms/metadata-shared.ts',
+  'src/platforms/claude/metadata.ts',
+  'src/platforms/runtime-payload-contract.ts',
 ];
 
+const sourcePathToDistPath = (sourcePath) =>
+  `dist/${sourcePath.endsWith('.ts') ? sourcePath.slice(0, -3) + '.js' : sourcePath}`;
+
+const BUILD_ONLY_DIST_PATHS = BUILD_ONLY_SOURCE_PATHS.map(sourcePathToDistPath);
 const removedRuntimePath = (...parts) => parts.join('/');
+const escaped = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function packageFiles(extraFiles = [], packageFields = {}) {
   return [{
@@ -109,25 +114,63 @@ describe('verify npm pack', () => {
   });
 
   it('classifies both public bins as the package command surface', () => {
-    assert.deepEqual(classifyPackageEntry('bin/maestro-install-codex.js'), ['public-bin']);
-    assert.deepEqual(classifyPackageEntry('bin/maestro-mcp-server.js'), ['public-bin']);
+    assert.deepEqual(classifyPackageEntry('bin/maestro-install-codex.js'), []);
+    assert.deepEqual(classifyPackageEntry('bin/maestro-mcp-server.js'), []);
+    assert.deepEqual(classifyPackageEntry('dist/src/bin/maestro-install-codex.js'), ['public-bin', 'runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/bin/maestro-mcp-server.js'), ['public-bin', 'runtime-dist']);
   });
 
-  it('classifies runtime source only through the explicit runtime-source inventory', () => {
+  it('does not classify package-root source as package runtime content', () => {
     assert.equal(PACKAGE_SURFACE_RULES.some((rule) => rule.id === 'canonical-source'), false);
-    assert.deepEqual(classifyPackageEntry('src/mcp/maestro-server.js'), ['runtime-source']);
-    assert.deepEqual(classifyPackageEntry('src/platforms/claude/runtime-config.js'), ['runtime-source']);
+    assert.equal(PACKAGE_SURFACE_RULES.some((rule) => rule.id === 'runtime-source'), false);
+
+    for (const sourcePath of [
+      'src/mcp/maestro-server.ts',
+      'src/platforms/claude/runtime-config.ts',
+      'src/lib/framework-detection.ts',
+    ]) {
+      assert.deepEqual(classifyPackageEntry(sourcePath), []);
+      assert.throws(
+        () => verifyPackageEntries(packageFiles([sourcePath])),
+        new RegExp(`npm package contains forbidden path: ${escaped(sourcePath)}`)
+      );
+    }
   });
 
-  it('keeps package.json runtime source entries aligned with the shared inventory', () => {
+  it('classifies final dist runtime only through the explicit runtime-dist inventory', () => {
+    assert.deepEqual(classifyPackageEntry('dist/src/bin/maestro-install-codex.js'), ['public-bin', 'runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/bin/maestro-mcp-server.js'), ['public-bin', 'runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/mcp/maestro-server.js'), ['runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/platforms/claude/runtime-config.js'), ['runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/generator/file-writer.js'), []);
+  });
+
+  it('keeps package.json free of private package roots', () => {
     const normalizePackagePath = (filePath) => filePath.replace(/\/+$/, '');
-    const packageRuntimeSourcePaths = packageJson.files
+    const privateRootPaths = packageJson.files
       .map(normalizePackagePath)
-      .filter((filePath) => filePath === 'src' || filePath.startsWith('src/'))
+      .filter((filePath) =>
+        filePath === 'src' ||
+        filePath.startsWith('src/') ||
+        filePath === 'scripts' ||
+        filePath.startsWith('scripts/') ||
+        filePath === 'bin' ||
+        filePath.startsWith('bin/')
+      )
       .sort();
 
-    assert.equal(packageRuntimeSourcePaths.includes('src'), false);
-    assert.deepEqual(packageRuntimeSourcePaths, [...RUNTIME_SOURCE_PATHS].sort());
+    assert.deepEqual(privateRootPaths, []);
+  });
+
+  it('keeps package.json dist runtime entries aligned with the shared final inventory', () => {
+    const normalizePackagePath = (filePath) => filePath.replace(/\/+$/, '');
+    const packageRuntimeDistPaths = packageJson.files
+      .map(normalizePackagePath)
+      .filter((filePath) => filePath === 'dist' || filePath.startsWith('dist/'))
+      .sort();
+
+    assert.equal(packageRuntimeDistPaths.includes('dist'), false);
+    assert.deepEqual(packageRuntimeDistPaths, [...RUNTIME_DIST_PATHS].sort());
   });
 
   it('does not classify removed state helper scripts as package runtime source', () => {
@@ -141,7 +184,7 @@ describe('verify npm pack', () => {
       assert.deepEqual(classifyPackageEntry(removedScript), []);
       assert.throws(
         () => verifyPackageEntries(packageFiles([removedScript])),
-        new RegExp(`npm package contains unclassified paths: ${removedScript.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+        new RegExp(`npm package contains forbidden path: ${escaped(removedScript)}`)
       );
     }
   });
@@ -156,16 +199,39 @@ describe('verify npm pack', () => {
     assert.deepEqual(classifyPackageEntry(removedPath), []);
     assert.throws(
       () => verifyPackageEntries(packageFiles([removedPath])),
-      new RegExp(`npm package contains unclassified paths: ${removedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+      new RegExp(`npm package contains forbidden path: ${escaped(removedPath)}`)
     );
   });
 
-  it('rejects build-only source checkout tooling as unclassified package content', () => {
+  it('rejects package-root source checkout tooling as forbidden package content', () => {
     for (const buildOnlyPath of BUILD_ONLY_SOURCE_PATHS) {
       assert.deepEqual(classifyPackageEntry(buildOnlyPath), []);
       assert.throws(
         () => verifyPackageEntries(packageFiles([buildOnlyPath])),
-        new RegExp(`npm package contains unclassified paths: ${buildOnlyPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+        new RegExp(`npm package contains forbidden path: ${escaped(buildOnlyPath)}`)
+      );
+    }
+  });
+
+  it('rejects build-only dist checkout tooling as forbidden package content', () => {
+    for (const buildOnlyPath of BUILD_ONLY_DIST_PATHS) {
+      assert.deepEqual(classifyPackageEntry(buildOnlyPath), []);
+      assert.throws(
+        () => verifyPackageEntries(packageFiles([buildOnlyPath])),
+        new RegExp(`npm package contains forbidden path: ${escaped(buildOnlyPath)}`)
+      );
+    }
+  });
+
+  it('rejects declaration files and source maps inside otherwise allowlisted dist runtime roots', () => {
+    for (const privateDistPath of [
+      'dist/src/bin/maestro-mcp-server.d.ts',
+      'dist/src/mcp/maestro-server.d.ts',
+      'dist/src/mcp/maestro-server.js.map',
+    ]) {
+      assert.throws(
+        () => verifyPackageEntries(packageFiles([privateDistPath])),
+        new RegExp(`npm package contains forbidden path: ${escaped(privateDistPath)}`)
       );
     }
   });
@@ -191,6 +257,13 @@ describe('verify npm pack', () => {
     assert.throws(
       () => verifyPackageEntries(packageFiles(['scripts/new-helper.js'])),
       /npm package contains private root scripts: scripts\/new-helper\.js/
+    );
+  });
+
+  it('rejects any packaged root bins as private source-checkout content', () => {
+    assert.throws(
+      () => verifyPackageEntries(packageFiles(['bin/maestro-mcp-server.js'])),
+      /npm package contains forbidden path: bin\/maestro-mcp-server\.js/
     );
   });
 

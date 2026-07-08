@@ -15,21 +15,26 @@
     "url": "https://github.com/josstei/maestro-orchestrate.git"
   },
   "bin": {
-    "maestro-install-codex": "./bin/maestro-install-codex.js",
-    "maestro-mcp-server": "./bin/maestro-mcp-server.js"
+    "maestro-install-codex": "./dist/src/bin/maestro-install-codex.js",
+    "maestro-mcp-server": "./dist/src/bin/maestro-mcp-server.js"
   },
   "scripts": {
-    "generate": "node scripts/generate.js",
-    "dev-load-claude": "npm run generate && node scripts/assemble-claude-plugin.js",
-    "build": "npm run generate",
-    "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
+    "generate": "npm run build && node dist/src/tooling/generate.js",
+    "dev-load-claude": "npm run generate && node dist/src/tooling/assemble-claude-plugin.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:clean": "node -e \"require('node:fs').rmSync('dist/src', { recursive: true, force: true })\"",
+    "build:code": "tsc -p tsconfig.build.json",
+    "build:assets": "node dist/src/tooling/copy-runtime-assets.js",
+    "build:bin-mode": "node -e \"const fs=require('node:fs'); for (const f of ['dist/src/bin/maestro-install-codex.js','dist/src/bin/maestro-mcp-server.js']) fs.chmodSync(f, 0o755)\"",
+    "build": "npm run build:clean && npm run build:code && npm run build:assets && npm run build:bin-mode",
+    "test": "npm run build && node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
     "test:coverage": "c8 npm test",
-    "check:source": "npm run generate && git diff --exit-code --name-only && node scripts/check-layer-boundaries.js && node scripts/check-esm-imports.js && npm test",
+    "check:source": "npm run generate && git diff --exit-code --name-only && node dist/src/tooling/check-layer-boundaries.js && node dist/src/tooling/check-esm-imports.js && npm test",
     "check:release": "npm run pack:verify && npm run release:artifacts && npm run release:verify-artifacts",
-    "release:artifacts": "node scripts/package-release-artifacts.js --out-dir dist/release",
-    "release:verify-artifacts": "node scripts/verify-release-artifacts.js",
-    "pack:verify": "node scripts/verify-npm-pack.js",
-    "install-hooks": "node scripts/install-git-hooks.js",
+    "release:artifacts": "npm run build && node dist/src/tooling/package-release-artifacts.js --out-dir dist/release",
+    "release:verify-artifacts": "npm run build && node dist/src/tooling/verify-release-artifacts.js",
+    "pack:verify": "npm run build && node dist/src/tooling/verify-npm-pack.js",
+    "install-hooks": "npm run build && node dist/src/tooling/install-git-hooks.js",
     "prepack": "npm run generate"
   },
   "c8": {
@@ -41,8 +46,7 @@
     ],
     "include": [
       "src/**/*.js",
-      "scripts/**/*.js",
-      "bin/**/*.js"
+      "src/**/*.ts"
     ],
     "exclude": [
       "**/*.test.js"
@@ -56,7 +60,9 @@
     "zod": "^3.25"
   },
   "devDependencies": {
-    "c8": "^10.1.3"
+    "@types/node": "^26.1.0",
+    "c8": "^10.1.3",
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=20"
@@ -80,7 +86,6 @@
     "GEMINI.md",
     "QWEN.md",
     "agents",
-    "bin",
     "claude/.mcp.json",
     "claude/README.md",
     "claude/agents",
@@ -90,6 +95,35 @@
     "claude/scripts",
     "claude/skills",
     "commands",
+    "dist/src/bin/maestro-install-codex.js",
+    "dist/src/bin/maestro-mcp-server.js",
+    "dist/src/agents",
+    "dist/src/config",
+    "dist/src/core",
+    "dist/src/generated",
+    "dist/src/hooks",
+    "dist/src/lib/errors",
+    "dist/src/lib/framework-detection.js",
+    "dist/src/lib/frontmatter",
+    "dist/src/lib/io",
+    "dist/src/lib/naming",
+    "dist/src/lib/schema",
+    "dist/src/lib/validation",
+    "dist/src/mcp",
+    "dist/src/platforms/claude/runtime-config.js",
+    "dist/src/platforms/codex/runtime-config.js",
+    "dist/src/platforms/gemini/runtime-config.js",
+    "dist/src/platforms/qwen/runtime-config.js",
+    "dist/src/platforms/shared/adapters",
+    "dist/src/platforms/shared/gemini-family-config.js",
+    "dist/src/platforms/shared/hook-runner.js",
+    "dist/src/references",
+    "dist/src/skills",
+    "dist/src/state",
+    "dist/src/templates",
+    "!dist/src/**/*.d.ts",
+    "!dist/src/**/*.d.ts.map",
+    "!dist/src/**/*.map",
     "docs/architecture.md",
     "docs/cicd.md",
     "docs/flow.md",
@@ -111,30 +145,6 @@
     "plugins/maestro/skills",
     "policies",
     "qwen",
-    "qwen-extension.json",
-    "src/agents",
-    "src/config",
-    "src/core",
-    "src/generated",
-    "src/hooks",
-    "src/lib/errors",
-    "src/lib/framework-detection.js",
-    "src/lib/frontmatter",
-    "src/lib/io",
-    "src/lib/naming",
-    "src/lib/schema",
-    "src/lib/validation",
-    "src/mcp",
-    "src/platforms/claude/runtime-config.js",
-    "src/platforms/codex/runtime-config.js",
-    "src/platforms/gemini/runtime-config.js",
-    "src/platforms/qwen/runtime-config.js",
-    "src/platforms/shared/adapters",
-    "src/platforms/shared/gemini-family-config.js",
-    "src/platforms/shared/hook-runner.js",
-    "src/references",
-    "src/skills",
-    "src/state",
-    "src/templates"
+    "qwen-extension.json"
   ]
 }

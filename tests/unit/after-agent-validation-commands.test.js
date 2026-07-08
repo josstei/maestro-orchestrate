@@ -10,8 +10,8 @@ const moduleDirname = path.dirname(moduleFilename);
 const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-vc-'));
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
 
-const { default: hookState } = await import('../../src/hooks/logic/hook-state.js');
-const { handleAfterAgent, extractValidationCommands } = await import('../../src/hooks/logic/after-agent-logic.js');
+const { default: hookState } = await import('../../dist/src/hooks/logic/hook-state.js');
+const { handleAfterAgent, extractValidationCommands } = await import('../../dist/src/hooks/logic/after-agent-logic.js');
 const SESSION_ID = 'vc-session-xyz';
 
 describe('extractValidationCommands', () => {

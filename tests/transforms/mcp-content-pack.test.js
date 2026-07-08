@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
-import { getRuntimeConfig } from '../../src/mcp/runtime/runtime-config-map.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 import { buildMcpServer, createContentPack, makeTempWorkspace } from '../support/mcp.js';
 import { withExtensionRoot } from '../support/content.js';
 import { fileURLToPath } from 'node:url';

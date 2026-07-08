@@ -3,12 +3,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createMcpServer } from '../../src/mcp/server/create-mcp-server.js';
-import { createMaestroToolRegistry } from '../../src/mcp/tool-packs/contracts.js';
-import { registerWorkspacePack } from '../../src/mcp/tool-packs/workspace/index.js';
-import { registerSessionPack } from '../../src/mcp/tool-packs/session/index.js';
-import { registerContentPack } from '../../src/mcp/tool-packs/content/index.js';
-import { ensureWorkspace } from '../../src/state/session-state.js';
+import { importDist } from './dist.js';
+
+const { createMcpServer } = await importDist('src/mcp/server/create-mcp-server.js');
+const { createMaestroToolRegistry } = await importDist('src/mcp/tool-packs/contracts.js');
+const { registerWorkspacePack } = await importDist('src/mcp/tool-packs/workspace/index.js');
+const { registerSessionPack } = await importDist('src/mcp/tool-packs/session/index.js');
+const { registerContentPack } = await importDist('src/mcp/tool-packs/content/index.js');
+const { ensureWorkspace } = await importDist('src/state/session-state.js');
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
 function makeTempWorkspace(prefix = 'maestro-test-') {
@@ -61,7 +63,7 @@ function parseCallToolResult(response) {
  * Build a live SDK-backed test server: an `McpServer` wired with the given
  * tool packs (defineTool authoring), connected to a real `Client` over the
  * SDK's `InMemoryTransport` — so zod argument validation runs in the tested
- * path exactly as it does in production (see `../../src/mcp/maestro-server.js`).
+ * path exactly as it does in production (see `../../dist/src/mcp/maestro-server.js`).
  * `projectRoot` is threaded through the SAME injected-resolver seam as the
  * live server: `initialize_workspace`'s pipeline post-call sets it, and every
  * later call on this instance resolves it — never `process.cwd()`/ambient env.

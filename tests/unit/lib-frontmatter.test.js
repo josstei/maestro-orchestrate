@@ -9,7 +9,7 @@ import {
   splitAtBoundary,
   parseValue,
   parseDoubleQuotedValue,
-} from '../../src/lib/frontmatter/index.js';
+} from '../../dist/src/lib/frontmatter/index.js';
 
 describe('parseDoubleQuotedValue', () => {
   const cases = [

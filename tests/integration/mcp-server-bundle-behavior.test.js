@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, createTempRepoCopy, withPackagedClaudeRuntime } from './helpers.js';
 import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
-const CODEX_BIN = path.join(ROOT, 'bin', 'maestro-mcp-server.js');
+const CODEX_BIN = path.join(ROOT, 'dist', 'src', 'bin', 'maestro-mcp-server.js');
 import { spawnMcpServer } from './mcp-stdio-client.js';
 after(cleanupTempRoots);
 
@@ -78,7 +78,7 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
-  it('serves canonical src content from every runtime bundle', async () => {
+  it('serves canonical runtime content from every runtime bundle', async () => {
     const canonicalContentOverrides = [
       { expectSkill: '# Delegation Skill' },
       {
@@ -122,9 +122,9 @@ describe('mcp server bundle behavior', () => {
     }
 
     await withPackagedClaudeRuntime(async (packageRoot) => {
-      const packageSourceRoot = path.resolve(packageRoot, 'src');
-      const skillSentinel = 'packaged claude source skill sentinel';
-      const agentSentinel = 'Packaged Claude source agent sentinel.';
+      const packageSourceRoot = path.resolve(packageRoot, 'dist', 'src');
+      const skillSentinel = 'packaged claude runtime skill sentinel';
+      const agentSentinel = 'Packaged Claude runtime agent sentinel.';
 
       assert.equal(fs.existsSync(packageSourceRoot), true);
       fs.appendFileSync(
@@ -174,12 +174,12 @@ describe('mcp server bundle behavior', () => {
 
       fs.rmSync(detachedPayload, { recursive: true, force: true });
       fs.appendFileSync(
-        path.join(packageRoot, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
+        path.join(packageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
         `\n${skillSentinel}\n`,
         'utf8'
       );
       fs.appendFileSync(
-        path.join(packageRoot, 'src', 'agents', 'coder.md'),
+        path.join(packageRoot, 'dist', 'src', 'agents', 'coder.md'),
         `\n${agentSentinel}\n`,
         'utf8'
       );
@@ -214,7 +214,7 @@ describe('mcp server bundle behavior', () => {
     try {
       const bogusSentinel = 'bogus extension root sentinel';
       fs.appendFileSync(
-        path.join(bogusRoot, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
+        path.join(bogusRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
         `\n${bogusSentinel}\n`,
         'utf8'
       );
@@ -222,7 +222,7 @@ describe('mcp server bundle behavior', () => {
       await withPackagedClaudeRuntime(async (packageRoot) => {
         const packageSentinel = 'claude package root wins over ambient extension path';
         fs.appendFileSync(
-          path.join(packageRoot, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
+          path.join(packageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
           `\n${packageSentinel}\n`,
           'utf8'
         );
@@ -245,14 +245,14 @@ describe('mcp server bundle behavior', () => {
       try {
         const packageSentinel = 'codex package root wins over ambient extension path';
         fs.appendFileSync(
-          path.join(codexPackageRoot, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
+          path.join(codexPackageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
           `\n${packageSentinel}\n`,
           'utf8'
         );
 
         await withServer({
           cwd: codexPackageRoot,
-          relativePath: 'bin/maestro-mcp-server.js',
+          relativePath: 'dist/src/bin/maestro-mcp-server.js',
           env: { MAESTRO_EXTENSION_PATH: bogusRoot },
         }, async (client) => {
           const skillResult = await client.callTool('get_skill_content', {
@@ -279,12 +279,12 @@ describe('mcp server bundle behavior', () => {
       const agentSentinel = 'Package-root agent sentinel for Codex no-payload fixture.';
       fs.rmSync(retiredPayload, { recursive: true, force: true });
       fs.appendFileSync(
-        path.join(packageRoot, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
+        path.join(packageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
         `\n${skillSentinel}\n`,
         'utf8'
       );
       fs.appendFileSync(
-        path.join(packageRoot, 'src', 'agents', 'coder.md'),
+        path.join(packageRoot, 'dist', 'src', 'agents', 'coder.md'),
         `\n${agentSentinel}\n`,
         'utf8'
       );
@@ -292,7 +292,7 @@ describe('mcp server bundle behavior', () => {
 
       await withServer({
         cwd: packageRoot,
-        relativePath: 'bin/maestro-mcp-server.js',
+        relativePath: 'dist/src/bin/maestro-mcp-server.js',
         env: { MAESTRO_EXTENSION_PATH: '' },
       }, async (client) => {
         const tools = await client.listTools();

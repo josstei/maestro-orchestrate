@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { attempt } from '../../src/mcp/handlers/attempt.js';
+import { attempt } from '../../dist/src/mcp/handlers/attempt.js';
 
 describe('attempt', () => {
   it('returns the computation result on success', () => {

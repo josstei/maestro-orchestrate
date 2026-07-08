@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { RESOURCE_ALLOWLIST } from '../../src/mcp/content/runtime-content.js';
+import { importDist } from './dist.js';
+
+const { RESOURCE_ALLOWLIST } = await importDist('src/mcp/content/runtime-content.js');
 const createdRoots = [];
 
 function makeTempSrcRoot(prefix = 'maestro-content-') {

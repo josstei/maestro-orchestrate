@@ -77,6 +77,10 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Install dependencies
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm ci
+
       - name: Verify npm token
         if: steps.detect.outputs.is_release == 'true'
         run: |
@@ -186,7 +190,7 @@ jobs:
 
       - name: Publish to npm
         if: steps.detect.outputs.is_release == 'true'
-        run: node scripts/npm-publish-idempotent.js --access public
+        run: node dist/src/tooling/npm-publish-idempotent.js --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
@@ -194,9 +198,9 @@ jobs:
         if: steps.detect.outputs.is_release == 'true'
         id: dist
         run: |
-          DIST_SHA=$(node scripts/publish-dist-branch.js | tail -n 1)
+          DIST_SHA=$(node dist/src/tooling/publish-dist-branch.js | tail -n 1)
           if [[ ! "$DIST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::publish-dist-branch.js did not print a commit SHA; got '$DIST_SHA'"
+            echo "::error::dist/src/tooling/publish-dist-branch.js did not print a commit SHA; got '$DIST_SHA'"
             exit 1
           fi
 
@@ -225,7 +229,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          NOTES=$(node scripts/changelog-section.js "$VERSION")
+          NOTES=$(node dist/src/tooling/changelog-section.js "$VERSION")
           DELIMITER="CHANGELOG_NOTES_$(date +%s)"
           {
             echo "notes<<$DELIMITER"

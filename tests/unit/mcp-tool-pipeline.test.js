@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createToolPipeline } from '../../src/mcp/server/tool-pipeline.js';
-import { createMaestroToolRegistry } from '../../src/mcp/tool-packs/contracts.js';
-import { MaestroError } from '../../src/lib/errors/index.js';
+import { createToolPipeline } from '../../dist/src/mcp/server/tool-pipeline.js';
+import { createMaestroToolRegistry } from '../../dist/src/mcp/tool-packs/contracts.js';
+import { MaestroError } from '../../dist/src/lib/errors/index.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
 

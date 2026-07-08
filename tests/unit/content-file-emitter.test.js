@@ -1,11 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { buildContentFileOutputs } from '../../src/generator/content-file-emitter.js';
-import gemini from '../../src/platforms/gemini/runtime-config.js';
-import qwen from '../../src/platforms/qwen/runtime-config.js';
-import claude from '../../src/platforms/claude/runtime-config.js';
-import codex from '../../src/platforms/codex/runtime-config.js';
+import { buildContentFileOutputs } from '../../dist/src/generator/content-file-emitter.js';
+import gemini from '../../dist/src/platforms/gemini/runtime-config.js';
+import qwen from '../../dist/src/platforms/qwen/runtime-config.js';
+import claude from '../../dist/src/platforms/claude/runtime-config.js';
+import codex from '../../dist/src/platforms/codex/runtime-config.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);

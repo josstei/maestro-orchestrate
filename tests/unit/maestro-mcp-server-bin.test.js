@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnMcpServer } from '../integration/mcp-stdio-client.js';
-const BIN_RELATIVE_PATH = 'bin/maestro-mcp-server.js';
+const BIN_RELATIVE_PATH = 'dist/src/bin/maestro-mcp-server.js';
 
 async function resolveRuntime(env) {
   const client = spawnMcpServer({ relativePath: BIN_RELATIVE_PATH, env });
@@ -16,7 +16,7 @@ async function resolveRuntime(env) {
   }
 }
 
-describe('bin/maestro-mcp-server.js runtime resolution', () => {
+describe('dist/src/bin/maestro-mcp-server.js runtime resolution', () => {
   it('resolves as gemini when MAESTRO_RUNTIME=gemini', async () => {
     const runtime = await resolveRuntime({ MAESTRO_RUNTIME: 'gemini' });
 

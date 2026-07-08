@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { resolveDocumentInput } from '../../src/mcp/handlers/document-input.js';
-import { ValidationError } from '../../src/lib/errors/index.js';
+import { resolveDocumentInput } from '../../dist/src/mcp/handlers/document-input.js';
+import { ValidationError } from '../../dist/src/lib/errors/index.js';
 
 const opts = (over = {}) => ({
   pathKey: 'doc_path', contentKey: 'doc_content', filenameKey: 'doc_filename',

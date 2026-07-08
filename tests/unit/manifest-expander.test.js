@@ -10,7 +10,7 @@ import {
   buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
-} from '../../src/generator/manifest-expander.js';
+} from '../../dist/src/generator/manifest-expander.js';
 
 describe('manifest-expander', () => {
   let tmpDir;

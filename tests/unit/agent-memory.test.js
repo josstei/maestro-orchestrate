@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ValidationError } from '../../src/lib/errors/index.js';
-import { MemoryStore } from '../../src/mcp/memory/memory-store.js';
-import { handleAppendAgentMemory, handleGetAgentMemory } from '../../src/mcp/handlers/agent-memory.js';
+import { ValidationError } from '../../dist/src/lib/errors/index.js';
+import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { handleAppendAgentMemory, handleGetAgentMemory } from '../../dist/src/mcp/handlers/agent-memory.js';
 const tmpRoots = [];
 
 function makeWorkspace() {

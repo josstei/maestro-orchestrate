@@ -95,7 +95,7 @@ describe('workflow shell security', () => {
 
     assert.match(
       readWorkflow('release.yml'),
-      /node scripts\/npm-publish-idempotent\.js --access public/
+      /node dist\/src\/tooling\/npm-publish-idempotent\.js --access public/
     );
   });
 
@@ -116,8 +116,8 @@ describe('workflow shell security', () => {
 
   it('stable release publishes the generated dist branch and guards the release asset shape', () => {
     const content = readWorkflow('release.yml');
-    const npmPublishIndex = content.indexOf('node scripts/npm-publish-idempotent.js --access public');
-    const distBuildIndex = content.indexOf('node scripts/publish-dist-branch.js', npmPublishIndex);
+    const npmPublishIndex = content.indexOf('node dist/src/tooling/npm-publish-idempotent.js --access public');
+    const distBuildIndex = content.indexOf('node dist/src/tooling/publish-dist-branch.js', npmPublishIndex);
     const distBranchPushIndex = content.indexOf(
       'git push --force origin "${DIST_SHA}:refs/heads/dist"',
       distBuildIndex
@@ -133,7 +133,7 @@ describe('workflow shell security', () => {
     const releaseCreationIndex = content.indexOf('name: Create GitHub Release', assetGuardIndex);
 
     assert.notEqual(npmPublishIndex, -1, 'release.yml should publish to npm before building the dist snapshot');
-    assert.notEqual(distBuildIndex, -1, 'release.yml should build the dist snapshot via scripts/publish-dist-branch.js');
+    assert.notEqual(distBuildIndex, -1, 'release.yml should build the dist snapshot via dist/src/tooling/publish-dist-branch.js');
     assert.notEqual(distBranchPushIndex, -1, 'release.yml should force-push the snapshot SHA to refs/heads/dist');
     assert.notEqual(distTagPushIndex, -1, 'release.yml should push the snapshot SHA to a dist/v<version> tag');
     assert.notEqual(assetGuardIndex, -1, 'release.yml should assert gemini-extension.json sits at the release asset root');
@@ -151,7 +151,7 @@ describe('workflow shell security', () => {
     const generateIndex = content.indexOf('run: npm run generate', versionIndex);
     const verifyIndex = content.indexOf('run: npm run pack:verify', generateIndex);
     const publishIndex = content.indexOf(
-      'node scripts/npm-publish-idempotent.js --tag "$DIST_TAG" --access public',
+      'node dist/src/tooling/npm-publish-idempotent.js --tag "$DIST_TAG" --access public',
       verifyIndex
     );
 

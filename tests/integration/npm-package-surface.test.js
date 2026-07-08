@@ -8,17 +8,22 @@ import { createTempRepoCopy } from './helpers.js';
 import { spawnMcpServer } from './mcp-stdio-client.js';
 
 const BUILD_ONLY_SOURCE_PATHS = [
-  'src/generator/file-writer.js',
-  'src/transforms/index.js',
+  'src/generator/file-writer.ts',
+  'src/transforms/index.ts',
   'src/entry-points/registry.js',
-  'src/lib/discovery/index.js',
-  'src/lib/yaml-emit.js',
+  'src/lib/discovery/index.ts',
+  'src/lib/yaml-emit.ts',
   'src/manifest.js',
-  'src/platforms/metadata.js',
-  'src/platforms/metadata-shared.js',
-  'src/platforms/claude/metadata.js',
-  'src/platforms/runtime-payload-contract.js',
+  'src/platforms/metadata.ts',
+  'src/platforms/metadata-shared.ts',
+  'src/platforms/claude/metadata.ts',
+  'src/platforms/runtime-payload-contract.ts',
 ];
+
+const sourcePathToDistPath = (sourcePath) =>
+  `dist/${sourcePath.endsWith('.ts') ? sourcePath.slice(0, -3) + '.js' : sourcePath}`;
+
+const BUILD_ONLY_DIST_PATHS = BUILD_ONLY_SOURCE_PATHS.map(sourcePathToDistPath);
 
 function parsePackJson(stdout) {
   const start = stdout.indexOf('[');
@@ -83,14 +88,21 @@ describe('npm package surface', () => {
       const { packageInfo, tarballPath } = runNpmPack(repoRoot);
       const entries = packageInfo.files.map((file) => file.path);
 
+      assert.equal(entries.some((entry) => entry === 'src' || entry.startsWith('src/')), false);
       assert.equal(entries.some((entry) => entry.startsWith('scripts/')), false);
-      assert.ok(entries.includes('bin/maestro-install-codex.js'));
-      assert.ok(entries.includes('bin/maestro-mcp-server.js'));
-      assert.ok(entries.includes('src/mcp/maestro-server.js'));
-      assert.ok(entries.includes('src/platforms/codex/runtime-config.js'));
+      assert.equal(entries.some((entry) => entry.startsWith('bin/')), false);
+      assert.equal(entries.some((entry) => entry.endsWith('.d.ts')), false);
+      assert.equal(entries.some((entry) => entry.endsWith('.map')), false);
+      assert.ok(entries.includes('dist/src/bin/maestro-install-codex.js'));
+      assert.ok(entries.includes('dist/src/bin/maestro-mcp-server.js'));
+      assert.ok(entries.includes('dist/src/mcp/maestro-server.js'));
+      assert.ok(entries.includes('dist/src/platforms/codex/runtime-config.js'));
       assert.equal(entries.includes('claude/src/version.json'), false);
       assert.equal(entries.includes('plugins/maestro/src/version.json'), false);
       for (const buildOnlyPath of BUILD_ONLY_SOURCE_PATHS) {
+        assert.equal(entries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be packaged`);
+      }
+      for (const buildOnlyPath of BUILD_ONLY_DIST_PATHS) {
         assert.equal(entries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be packaged`);
       }
       assert.equal(
@@ -110,29 +122,70 @@ describe('npm package surface', () => {
         false
       );
       assert.equal(
-        entries.some((entry) => /^src\/platforms\/[^/]+\/metadata\.js$/.test(entry)),
+        entries.some((entry) => /^src\/platforms\/[^/]+\/metadata\.ts$/.test(entry)),
+        false
+      );
+      assert.equal(
+        entries.some((entry) => entry.startsWith('dist/src/generator/')),
+        false
+      );
+      assert.equal(
+        entries.some((entry) => entry.startsWith('dist/src/transforms/')),
+        false
+      );
+      assert.equal(
+        entries.some((entry) => entry.startsWith('dist/src/entry-points/')),
+        false
+      );
+      assert.equal(
+        entries.some((entry) => entry.startsWith('dist/src/lib/discovery/')),
+        false
+      );
+      assert.equal(
+        entries.some((entry) => /^dist\/src\/platforms\/[^/]+\/metadata\.js$/.test(entry)),
         false
       );
 
       installPackage(tarballPath, installRoot);
 
       const packageRoot = path.join(installRoot, 'node_modules', '@josstei', 'maestro');
+      const installedPackageJson = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+      assert.equal(installedPackageJson.bin['maestro-install-codex'], './dist/src/bin/maestro-install-codex.js');
+      assert.equal(installedPackageJson.bin['maestro-mcp-server'], './dist/src/bin/maestro-mcp-server.js');
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'scripts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'bin')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'scripts')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'claude', 'src')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'plugins', 'maestro', 'src')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'generator')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'transforms')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'entry-points')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'lib', 'discovery')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'lib', 'yaml-emit.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'manifest.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'platforms', 'metadata.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'platforms', 'metadata-shared.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'platforms', 'codex', 'metadata.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'platforms', 'runtime-payload-contract.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'bin', 'maestro-mcp-server.d.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'mcp', 'maestro-server.d.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'mcp', 'maestro-server.js')), true);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'lib', 'framework-detection.js')), true);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', 'platforms', 'codex', 'runtime-config.js')), true);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'generator')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'transforms')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'entry-points')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'lib', 'discovery')), false);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'lib', 'yaml-emit.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'lib', 'yaml-emit.ts')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'manifest.js')), false);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'metadata.js')), false);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'metadata-shared.js')), false);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'codex', 'metadata.js')), false);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'runtime-payload-contract.js')), false);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'mcp', 'maestro-server.js')), true);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'lib', 'framework-detection.js')), true);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'codex', 'runtime-config.js')), true);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'metadata.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'metadata-shared.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'codex', 'metadata.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'runtime-payload-contract.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'mcp', 'maestro-server.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'lib', 'framework-detection.ts')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'codex', 'runtime-config.ts')), false);
 
       const installerBin = path.join(installRoot, 'node_modules', '.bin', 'maestro-install-codex');
       const installOutput = execFileSync(installerBin, [], {

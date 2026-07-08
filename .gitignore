@@ -2,7 +2,13 @@
 node_modules/
 
 # Build output
-dist/
+# dist/src is the committed runtime output for the TypeScript/dist topology.
+# Type declarations are local build/typecheck byproducts, not runtime output.
+/dist/src/*.d.ts
+/dist/src/**/*.d.ts
+# Local release and development plugin bundles remain transient.
+/dist/release/
+/dist/claude-plugin/
 build/
 out/
 
@@ -51,7 +57,7 @@ docs/maestro/
 docs/superpowers/
 hooks/permissions.json
 
-# Generator-owned outputs (src/ is the source of truth — see `node scripts/generate.js --list-outputs`)
+# Generator-owned outputs (src/ is the source of truth — see `npm run generate -- --list-outputs`)
 /agents/
 /commands/maestro/
 /claude/agents/

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildPolicyTomlOutputs, renderPolicyToml } from '../../src/generator/policy-toml-emitter.js';
+import { buildPolicyTomlOutputs, renderPolicyToml } from '../../dist/src/generator/policy-toml-emitter.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);

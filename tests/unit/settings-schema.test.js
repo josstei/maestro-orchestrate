@@ -6,9 +6,9 @@ import {
   SETTING_NAMES,
   EXECUTION_MODES,
   VALIDATION_STRICTNESS_LEVELS,
-} from '../../src/config/settings-schema.js';
+} from '../../dist/src/config/settings-schema.js';
 
-import { assertValid, coerceScalar } from '../../src/lib/schema/index.js';
+import { assertValid, coerceScalar } from '../../dist/src/lib/schema/index.js';
 
 describe('settings-schema', () => {
   it('declares the ten MAESTRO_* settings', () => {

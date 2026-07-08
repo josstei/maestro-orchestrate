@@ -1,1 +1,1 @@
-import '../src/platforms/shared/hook-runner.js';
+import '../dist/src/platforms/shared/hook-runner.js';

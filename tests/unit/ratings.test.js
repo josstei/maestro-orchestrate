@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { RATING_VALUES, handleRate, aggregateRatings } from '../../src/mcp/handlers/ratings.js';
+import { RATING_VALUES, handleRate, aggregateRatings } from '../../dist/src/mcp/handlers/ratings.js';
 import { buildMcpServer, ensureMaestroWorkspace, makeTempWorkspace } from '../support/mcp.js';
-import { registerMemoryPack } from '../../src/mcp/tool-packs/memory/index.js';
+import { registerMemoryPack } from '../../dist/src/mcp/tool-packs/memory/index.js';
 
 function makeWorkspace() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ratings-'));

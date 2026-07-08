@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest/context files) contain host-facing manifests, entrypoints, discovery stubs, and public adapter files; they do not carry mirrored source payloads.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. Runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest/context files) contain host-facing manifests, entrypoints, discovery stubs, and public adapter files; they do not carry mirrored source payloads. Runtime execution and public package bins use compiled NodeNext ESM output under `dist/src/`.
 
 ```
                     ┌─────────────┐
@@ -12,7 +12,10 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
                     └──────┬──────┘
                            │
                     ┌──────┴──────┐
-                    │ generate.js │
+                    │ npm run     │
+                    │ generate    │
+                    │ (dist/src/  │
+                    │ tooling)    │
                     │  + manifest │
                     │  + transforms│
                     └──────┬──────┘
@@ -27,9 +30,9 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
 
 ## Generator Pipeline
 
-The generator (`scripts/generate.js`) is the build boundary between canonical source and runtime adapters. It:
+The generator (`src/tooling/generate.ts`, emitted to `dist/src/tooling/generate.js`) is the build boundary between canonical source and runtime adapters. `npm run generate` runs `npm run build` first, then invokes the compiled generator. It:
 
-1. Loads runtime configs from `src/platforms/*/runtime-config.js`
+1. Loads runtime configs from the compiled `dist/src/platforms/*/runtime-config.js`
 2. Expands manifest rules from `src/manifest.js` into concrete runtime outputs
 3. Copies or transforms the public runtime adapter assets
 4. Expands the entry-point registry into runtime-specific command or skill surfaces
@@ -72,7 +75,7 @@ The generator exposes 6 transforms (in `src/transforms/`, excluding the `index.j
 
 ### Runtime Definitions
 
-Each runtime (`src/platforms/*/runtime-config.js`) declares:
+Each runtime is authored as `src/platforms/*/runtime-config.ts` and loaded after build from `dist/src/platforms/*/runtime-config.js`. It declares:
 
 | Field | Gemini | Claude | Codex | Qwen |
 |-------|--------|--------|-------|------|
@@ -89,7 +92,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 - Gemini: TOML commands in `commands/maestro/`
 - Claude: Markdown skills in `claude/skills/`
 - Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
-- Qwen: reuses Gemini's repo-root `commands/maestro/` TOML commands at runtime — `src/generator/entry-point-expander.js` sets `qwen: null` for both entry-point and core-command expansion, so the Qwen generator emits no command files of its own
+- Qwen: reuses Gemini's repo-root `commands/maestro/` TOML commands at runtime — `src/platforms/qwen/runtime-config.ts` sets both `generation.entryPoint` and `generation.coreCommand` to `null`, so the Qwen generator emits no command files of its own
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
@@ -97,7 +100,7 @@ Plus 3 core commands (orchestrate, execute, resume) maintained separately in `sr
 
 ## MCP Server Architecture
 
-The MCP server is authored directly in modular source under `src/mcp/`. All four runtimes launch it via `npx -y -p @josstei/maestro@<version> maestro-mcp-server`, resolving to the `maestro-mcp-server` bin (`bin/maestro-mcp-server.js`) declared in `package.json`, which selects the runtime from `MAESTRO_RUNTIME` (each manifest sets it explicitly; the bin defaults to `codex` if absent) and requires `src/mcp/maestro-server.js` directly. Gemini and Qwen still ship the repo-root wrapper at `mcp/maestro-server.js`, and Claude still ships its own thin wrapper at `claude/mcp/maestro-server.js`, but none of these wrappers are the launch target anymore — they remain only as directly-requirable entrypoints for tooling that bypasses the manifest.
+The MCP server is authored directly in modular source under `src/mcp/` and executed from compiled output under `dist/src/mcp/`. All four runtimes launch it via `npx -y -p @josstei/maestro@<version> maestro-mcp-server`, resolving to the `maestro-mcp-server` package bin (`dist/src/bin/maestro-mcp-server.js`) declared in `package.json`, which selects the runtime from `MAESTRO_RUNTIME` (each manifest sets it explicitly; the bin defaults to `codex` if absent) and loads `dist/src/mcp/maestro-server.js`. Gemini and Qwen still ship the repo-root wrapper at `mcp/maestro-server.js`, and Claude still ships its own thin wrapper at `claude/mcp/maestro-server.js`, but none of these wrappers are the manifest launch target anymore — they remain direct source-checkout entrypoints and also require compiled `dist/src`.
 
 ### Module Structure
 
@@ -164,29 +167,29 @@ src/mcp/
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) use one filesystem provider rooted at package-root `src`:
+The content tools (`get_agent`, `get_skill_content`) use one filesystem provider rooted at package-root `dist/src`:
 
 - Gemini: `primary=filesystem`, `fallback=none`
 - Claude: `primary=filesystem`, `fallback=none`
 - Codex: `primary=filesystem`, `fallback=none`
 - Qwen: `primary=filesystem`, `fallback=none`
 
-All four runtimes spawn `bin/maestro-mcp-server.js` via a release-versioned `npx -y -p @josstei/maestro@<version> maestro-mcp-server` invocation declared in each runtime's manifest (`gemini-extension.json`, `qwen-extension.json`, `claude/.mcp.json`, `plugins/maestro/.mcp.json`). The bin honors an env-provided `MAESTRO_RUNTIME` (defaulting to `codex` if absent) — Gemini's and Qwen's manifests set `MAESTRO_RUNTIME=gemini`/`MAESTRO_RUNTIME=qwen`, Claude's sets `MAESTRO_RUNTIME=claude`, Codex's sets `MAESTRO_RUNTIME=codex` — overwrites `MAESTRO_EXTENSION_PATH` with the package root, then requires `../src/mcp/maestro-server` directly. The repo-root `mcp/maestro-server.js` (shared by Gemini/Qwen) and `claude/mcp/maestro-server.js` wrappers still ship but are no longer the launch target.
+All four runtimes spawn `dist/src/bin/maestro-mcp-server.js` via a release-versioned `npx -y -p @josstei/maestro@<version> maestro-mcp-server` invocation declared in each runtime's manifest (`gemini-extension.json`, `qwen-extension.json`, `claude/.mcp.json`, `plugins/maestro/.mcp.json`). The bin honors an env-provided `MAESTRO_RUNTIME` (defaulting to `codex` if absent) — Gemini's and Qwen's manifests set `MAESTRO_RUNTIME=gemini`/`MAESTRO_RUNTIME=qwen`, Claude's sets `MAESTRO_RUNTIME=claude`, Codex's sets `MAESTRO_RUNTIME=codex` — overwrites `MAESTRO_EXTENSION_PATH` with the package root, then imports `dist/src/mcp/maestro-server.js`. The repo-root `mcp/maestro-server.js` (shared by Gemini/Qwen) and `claude/mcp/maestro-server.js` wrappers still ship but are no longer the launch target.
 
 Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.js`, so a future registry or snapshot provider must feed the same materialization path instead of carrying pre-transformed copies.
 
 This makes one architectural rule explicit:
 
-- shared logic lives under `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`
+- shared logic lives under `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`, then executes from the corresponding `dist/src/**` output
 - root `src/` is the only human-authored source of truth
 - generator-owned runtime-local mirrors are retired; public runtime roots carry host-facing manifests, stubs, and entrypoints only
 - no hand-maintained runtime forks are allowed
 
 ### MCP Server Packaging
 
-All four runtimes invoke the server via `npx -y -p @josstei/maestro@<version> maestro-mcp-server`, which resolves to `bin/maestro-mcp-server.js`. Gemini and Qwen still ship the repo-root public entrypoint at `mcp/maestro-server.js`, and Claude still ships a runtime-local public entrypoint at `claude/mcp/maestro-server.js`, but neither is the launch target — both remain thin wrappers around `src/mcp/maestro-server.js` for direct-require use outside the manifest launch path:
+All four runtimes invoke the server via `npx -y -p @josstei/maestro@<version> maestro-mcp-server`, which resolves to `dist/src/bin/maestro-mcp-server.js`. Gemini and Qwen still ship the repo-root public entrypoint at `mcp/maestro-server.js`, and Claude still ships a runtime-local public entrypoint at `claude/mcp/maestro-server.js`, but neither is the launch target — both remain thin wrappers around compiled `dist/src/mcp/maestro-server.js` for direct source-checkout use outside the manifest launch path:
 
-- **Gemini** (`gemini-extension.json`): `npx` sets `MAESTRO_RUNTIME=gemini`; the bin overwrites `MAESTRO_EXTENSION_PATH` with the package root, requires `../src/mcp/maestro-server`, and calls `.main()`
+- **Gemini** (`gemini-extension.json`): `npx` sets `MAESTRO_RUNTIME=gemini`; the bin overwrites `MAESTRO_EXTENSION_PATH` with the package root, imports `dist/src/mcp/maestro-server.js`, and calls `.main()`
 - **Qwen** (`qwen-extension.json`): `npx` sets `MAESTRO_RUNTIME=qwen`; same bin path as Gemini
 - **Claude** (`claude/.mcp.json`): `npx` sets `MAESTRO_RUNTIME=claude`; same bin path
 - **Codex** (`plugins/maestro/.mcp.json`): `npx` sets `MAESTRO_RUNTIME=codex`; same bin path (also the bin's default if `MAESTRO_RUNTIME` is unset entirely)
@@ -365,11 +368,11 @@ For detailed documentation of all seven GitHub Actions workflows, the release pi
 
 ### Test Suite
 
-86 test files using Node.js built-in `node:test`:
+180 test files using Node.js built-in `node:test`:
 
-- 53 unit test files (`tests/unit/`)
-- 13 transform test files (`tests/transforms/`)
-- 20 integration test files (`tests/integration/`)
+- 135 unit test files (`tests/unit/`)
+- 14 transform test files (`tests/transforms/`)
+- 31 integration test files (`tests/integration/`)
 
 The justfile's `just test` target uses glob expansion
 (`tests/unit/*.test.js`, `tests/transforms/*.test.js`, `tests/integration/*.test.js`),
@@ -379,8 +382,8 @@ so every file under those directories is picked up automatically.
 
 CI regenerates runtime output and validates it against the repository:
 
-1. Run `node scripts/generate.js`
+1. Run `npm run generate`
 2. Check `git diff --exit-code`
 3. Fail if any tracked file differs from freshly generated output
 
-Only the three marketplace/plugin manifest exemptions (`.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.agents/plugins/marketplace.json`) and hand-committed wrapper scripts remain tracked and diff-checked this way. The rest of the generated surface (`agents/`, `claude/`, `qwen/`, `plugins/maestro/`, `docs/runtime-*.md`, and friends) is untracked and `.gitignore`-governed — see `node scripts/generate.js --list-outputs` for the full path list — so a clean, error-free regeneration is the correctness signal there, not `git diff`.
+Only the three marketplace/plugin manifest exemptions (`.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.agents/plugins/marketplace.json`) and hand-committed wrapper scripts remain tracked and diff-checked this way. The rest of the generated surface (`agents/`, `claude/`, `qwen/`, `plugins/maestro/`, `docs/runtime-*.md`, and friends) is untracked and `.gitignore`-governed — see `node dist/src/tooling/generate.js --list-outputs` after `npm run build` for the full path list — so a clean, error-free regeneration is the correctness signal there, not `git diff`.

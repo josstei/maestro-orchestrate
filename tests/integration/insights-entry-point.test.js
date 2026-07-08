@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { expandEntryPoints } from '../../scripts/generate.js';
+import { expandEntryPoints } from '../../dist/src/tooling/generate.js';
 
 describe('insights entry point', () => {
   it('is generated for gemini, claude, and codex and references get_cost_insights', async () => {

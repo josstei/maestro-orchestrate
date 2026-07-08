@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pruneStaleFiles } from '../../src/generator/stale-pruner.js';
+import { pruneStaleFiles } from '../../dist/src/generator/stale-pruner.js';
 
 function createTempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-stale-pruner-'));

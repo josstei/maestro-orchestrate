@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { CACHE_PATH_SEGMENTS, isExtensionCachePath } from '../../src/mcp/contracts/cache-path-rejector.js';
+import { CACHE_PATH_SEGMENTS, isExtensionCachePath } from '../../dist/src/mcp/contracts/cache-path-rejector.js';
 
 describe('cache-path-rejector', () => {
   it('exposes the canonical segment set', () => {

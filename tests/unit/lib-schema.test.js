@@ -13,7 +13,7 @@ import {
   validate,
   assertValid,
   coerceScalar,
-} from '../../src/lib/schema/index.js';
+} from '../../dist/src/lib/schema/index.js';
 
 describe('validate — scalars', () => {
   it('accepts a valid string', () => {

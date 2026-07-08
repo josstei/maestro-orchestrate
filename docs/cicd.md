@@ -28,7 +28,7 @@ graph LR
     end
 ```
 
-The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release publishes through npm Trusted Publishing with GitHub Actions OIDC. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
+The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, Release Candidate, and stable Release keep npm publishing gated on `NPM_TOKEN`. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
 
 ## Source Of Truth Check
 
@@ -67,7 +67,7 @@ graph TD
 |------|-------------|
 | Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) |
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
-| Generate runtime adapters | Runs `node scripts/generate.js` to rebuild all runtime outputs |
+| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
 | Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any tracked file (the marketplace/plugin manifest exemptions, or any hand-committed file) differs from freshly generated output. Most generated runtime output is untracked and `.gitignore`-governed, so this step does not diff-check it directly |
 | Run full test suite | Executes `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` |
 | Verify npm package contents | Runs `npm run pack:verify` to ensure npm dry-run packaging contains required runtime files and no test-only directories |
@@ -203,14 +203,14 @@ graph TD
 |------|-------------|
 | Checkout | Checks out `refs/heads/main` explicitly, pinned to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` |
 | Setup Node.js | Node.js 20 with `registry-url` set to `https://registry.npmjs.org` |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
 | Check adapter drift | Fails with `::error::Nightly drift detected on main` if generated files differ |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Sets `enabled=true` output if `NPM_TOKEN` secret is present |
 | Set nightly version | Computes version as `{base}-nightly.{YYYYMMDD}` using `npm version --no-git-tag-version` |
-| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the nightly version |
+| Regenerate runtime metadata | Runs `npm run generate` so runtime manifests and MCP package specs use the nightly version |
 | Verify npm package contents | Runs `npm run pack:verify` against the nightly package surface |
-| Publish nightly | Publishes through `node scripts/npm-publish-idempotent.js --tag nightly --access public`, skipping if the exact version already exists |
+| Publish nightly | Publishes through `node dist/src/tooling/npm-publish-idempotent.js --tag nightly --access public`, skipping if the exact version already exists |
 
 ### Environment and Secrets
 
@@ -275,14 +275,14 @@ graph TD
 |------|-------------|
 | Checkout | Checks out the PR head repository and SHA (supports fork PRs) |
 | Setup Node.js | Node.js 20 with npm registry URL |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
 | Check adapter drift | Fails with `::error::Preview drift detected` if drift exists |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Set preview version | Computes version as `{base}-preview.{7-char SHA}` |
-| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the preview version |
+| Regenerate runtime metadata | Runs `npm run generate` so runtime manifests and MCP package specs use the preview version |
 | Verify npm package contents | Runs `npm run pack:verify` against the preview package surface |
-| Publish preview | Publishes through `node scripts/npm-publish-idempotent.js --tag preview --access public`, skipping if the exact version already exists |
+| Publish preview | Publishes through `node dist/src/tooling/npm-publish-idempotent.js --tag preview --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a PR comment with the install command |
 
 ### Environment and Secrets
@@ -336,7 +336,7 @@ graph TD
     I --> J["Generate and check drift"]
     J --> K["Run full test suite"]
     K --> L["Create release/vX.Y.Z branch"]
-    L --> M["Update canonical release inputs<br/>via scripts/update-versions.js"]
+    L --> M["Update canonical release inputs<br/>via dist/src/tooling/update-versions.js"]
     M --> N["Regenerate with new version"]
     N --> O["Commit: 'release: vX.Y.Z'"]
     O --> P["Push release branch"]
@@ -360,7 +360,7 @@ graph TD
 | Generate and check drift | Runs generator and fails if `main` has uncommitted drift |
 | Run full test suite | Executes the full test suite |
 | Create release branch | Creates `release/vX.Y.Z` from current `main` |
-| Update canonical release inputs | Runs `node scripts/update-versions.js` with the target version to update `package.json`, README badges, and CHANGELOG |
+| Update canonical release inputs | Runs `node dist/src/tooling/update-versions.js` with the target version to update `package.json`, README badges, and CHANGELOG |
 | Regenerate with new version | Reruns generator to derive runtime metadata from `package.json`, then runs `npm install --package-lock-only` to update lockfile |
 | Commit release | Commits all changes as `release: vX.Y.Z` using the `github-actions[bot]` identity |
 | Push release branch | Pushes `release/vX.Y.Z` to origin |
@@ -432,14 +432,14 @@ graph TD
 |------|-------------|
 | Checkout | Checks out the PR head repository and SHA |
 | Setup Node.js | Node.js 20 with npm registry URL |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
 | Check adapter drift | Fails with `::error::RC drift detected` |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Determine RC version | Reads base version from `package.json`, queries npm registry for existing RC versions of this base, increments the RC number to avoid collisions |
-| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the RC version |
+| Regenerate runtime metadata | Runs `npm run generate` so runtime manifests and MCP package specs use the RC version |
 | Verify npm package contents | Runs `npm run pack:verify` against the RC package surface |
-| Publish RC | Publishes through `node scripts/npm-publish-idempotent.js --tag rc --access public`, skipping if the exact version already exists |
+| Publish RC | Publishes through `node dist/src/tooling/npm-publish-idempotent.js --tag rc --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a comment with install command and short SHA |
 
 ### Environment and Secrets
@@ -488,7 +488,7 @@ graph TD
     BB --> C
     C --> D{"Merged PR with<br/>'release' label found?"}
     D --> |"No"| E["Skip: not a release commit"]
-    D --> |"Yes"| F["Setup Node.js 24 with npm registry"]
+    D --> |"Yes"| F["Setup Node.js 20 with npm registry"]
     F --> G["Verify NPM_TOKEN"]
     G --> I["Extract and validate version,<br/>target SHA, and tag"]
     I --> J["Generate runtime adapters"]
@@ -512,17 +512,17 @@ graph TD
 |------|-------------|
 | Checkout | Full history (`fetch-depth: 0`) for tag operations. Push releases check out the pushed commit; manual recovery checks out `target_sha` or `refs/tags/v<version>`. |
 | Resolve release context | Push releases query the GitHub API for PRs associated with the current commit SHA and filter for merged PRs targeting `main` with the `release` label. Manual recovery sets the release context from the supplied version. If no push release is found, sets `is_release=false` and all subsequent steps are skipped. |
-| Setup Node.js | Conditional on `is_release=true`; Node.js 24 with npm registry URL |
+| Setup Node.js | Conditional on `is_release=true`; Node.js 20 with npm registry URL |
 | Verify npm token | Fails before tag or publish work unless `NPM_TOKEN` is configured |
 | Extract and validate version | Reads version from `package.json` and cross-validates: the version must be stable semver, the CHANGELOG must have a matching section (unconditional), any existing `vX.Y.Z` tag must point at the checked-out target SHA, and manual recovery must match both the requested `version` and `target_sha` when supplied. When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
 | Check adapter drift | Final drift check before release; fails with error annotation |
 | Run full test suite | Final test gate before release |
 | Verify npm package contents | Runs `npm run pack:verify` before any tag or publish operation |
 | Package release artifact | Runs `npm run release:artifacts` to create `dist/release/maestro-vX.Y.Z-extension.tar.gz` |
 | Verify release artifact | Runs `npm run release:verify-artifacts` against the generated archive |
 | Create and push tag | Creates Git tag `vX.Y.Z` at the checked-out target SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
-| Publish to npm | Publishes stable release through `node scripts/npm-publish-idempotent.js --access public` with `NODE_AUTH_TOKEN` derived from `NPM_TOKEN`, skipping if the exact version already exists |
+| Publish to npm | Publishes stable release through `node dist/src/tooling/npm-publish-idempotent.js --access public` with `NODE_AUTH_TOKEN` derived from `NPM_TOKEN`, skipping if the exact version already exists |
 | Extract changelog | Extracts the version-specific section from `CHANGELOG.md` using `awk` |
 | Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body and the generic extension archive attached |
 
@@ -581,7 +581,7 @@ The `justfile` provides local development commands that mirror CI behavior.
 The workflows replicate the following `just` commands:
 
 ```
-just generate  -->  node scripts/generate.js
+just generate  -->  npm run generate
 just check     -->  git diff --exit-code --name-only (after generate)
 source check   -->  npm run check:source / just source-check
 just test      -->  node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js

@@ -7,7 +7,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   createMaestroToolRegistry,
   defineTool,
-} from '../../src/mcp/tool-packs/contracts.js';
+} from '../../dist/src/mcp/tool-packs/contracts.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
 

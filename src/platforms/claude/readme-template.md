@@ -70,7 +70,7 @@ The MCP server is auto-registered via `claude/.mcp.json`. If MCP tools are not a
 }
 ```
 
-**Note:** Claude is filesystem-backed for shared MCP content. Published Claude runtimes require package-root `src/` beside `claude/`; shared skills, templates, references, and delegation protocols are loaded from that package-root source through `get_skill_content`. Runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
+**Note:** Claude is filesystem-backed for shared MCP content. Published Claude runtimes require package-root `dist/src/` beside `claude/`; shared skills, templates, references, and delegation protocols are loaded from that compiled runtime content root through `get_skill_content`. Runtime-local `SKILL.md` files remain only where Claude needs on-disk discovery stubs or public entry points.
 
 ## Quick Start
 

@@ -1,0 +1,70 @@
+import { requireNonEmptyString } from '../../lib/validation/index.js';
+import { KnowledgeStore } from '../memory/knowledge-store.js';
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeQuery(value: any) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  return value.trim();
+}
+
+/**
+ * @param {object} entry
+ * @returns {boolean}
+ */
+function isKnowledgeEntry(entry: any) {
+  return (
+    entry &&
+    typeof entry === 'object' &&
+    typeof entry.topic === 'string' &&
+    typeof entry.note === 'string'
+  );
+}
+
+/**
+ * Record a cross-project knowledge note. Notes may be shared across projects;
+ * callers should not store secrets.
+ *
+ * @param {{ topic?: string, note?: string }} params
+ * @param {string} projectRoot
+ * @returns {{ recorded: true }}
+ * @throws {ValidationError}
+ */
+function handleRecordKnowledge(params: any, projectRoot: any) {
+  const record = {
+    topic: requireNonEmptyString(params && params.topic, 'topic'),
+    note: requireNonEmptyString(params && params.note, 'note'),
+    at: new Date().toISOString(),
+  };
+  new KnowledgeStore(projectRoot).append(record);
+  return { recorded: true };
+}
+
+/**
+ * Query cross-project knowledge notes. Omit query to return all entries.
+ *
+ * @param {{ query?: string }} params
+ * @param {string} projectRoot
+ * @returns {{ query: string, entries: Array<{ topic: string, note: string, at?: string }> }}
+ * @throws {ValidationError}
+ */
+function handleQueryKnowledge(params: any, projectRoot: any) {
+  const query = normalizeQuery(params && params.query);
+  const needle = query.toLowerCase();
+  const entries = new KnowledgeStore(projectRoot)
+    .read()
+    .filter(isKnowledgeEntry)
+    .filter((entry: any) => {
+      if (needle.length === 0) {
+        return true;
+      }
+      return `${entry.topic}\n${entry.note}`.toLowerCase().includes(needle);
+    });
+  return { query, entries };
+}
+
+export { handleRecordKnowledge, handleQueryKnowledge };

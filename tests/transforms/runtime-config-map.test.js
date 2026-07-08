@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import * as runtimeConfigMap from '../../src/mcp/runtime/runtime-config-map.js';
+import * as runtimeConfigMap from '../../dist/src/mcp/runtime/runtime-config-map.js';
 
 describe('runtime-config-map', () => {
   it('discovers runtimes from platforms/ directory', () => {

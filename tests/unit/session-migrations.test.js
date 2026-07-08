@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SCHEMA_VERSION, migrateSessionState } from '../../src/mcp/handlers/session-migrations.js';
+import { SCHEMA_VERSION, migrateSessionState } from '../../dist/src/mcp/handlers/session-migrations.js';
 
 function legacyDocument() {
   return {

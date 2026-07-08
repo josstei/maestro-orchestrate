@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createMcpServer } from '../../src/mcp/server/create-mcp-server.js';
+import { createMcpServer } from '../../dist/src/mcp/server/create-mcp-server.js';
 
 test('createMcpServer returns an McpServer instance', () => {
   const server = createMcpServer();

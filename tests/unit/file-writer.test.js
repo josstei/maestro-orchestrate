@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createFileWriter, safeResolve } from '../../src/generator/file-writer.js';
+import { createFileWriter, safeResolve } from '../../dist/src/generator/file-writer.js';
 
 function createTempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-fw-'));

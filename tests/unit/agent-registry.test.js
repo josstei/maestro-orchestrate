@@ -8,7 +8,7 @@ import {
   detectAgentFromPrompt,
   getAgentCapability,
   canCreateFiles,
-} from '../../src/core/agent-registry.js';
+} from '../../dist/src/core/agent-registry.js';
 
 import { readFileSync } from 'node:fs';
 

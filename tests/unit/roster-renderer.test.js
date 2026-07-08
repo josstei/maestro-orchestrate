@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderRosterTable, CAPABILITY_TIER_LABELS } from '../../src/core/roster-renderer.js';
+import { renderRosterTable, CAPABILITY_TIER_LABELS } from '../../dist/src/core/roster-renderer.js';
 
 const FAKE_AGENTS = [
   { name: 'zebra-agent', capabilities: 'full', focus: 'Zebra work' },

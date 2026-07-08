@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseEnvFile } from '../../src/core/env-file-parser.js';
+import { parseEnvFile } from '../../dist/src/core/env-file-parser.js';
 
 describe('parseEnvFile', () => {
   let tmpDir;

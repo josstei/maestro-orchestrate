@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { extractChangelogSection } from '../../scripts/changelog-section.js';
+import { extractChangelogSection } from '../../dist/src/tooling/changelog-section.js';
 
 function writeChangelog(content) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-changelog-section-'));

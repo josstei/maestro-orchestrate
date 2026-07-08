@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { resolveVersion } from '../../src/core/version.js';
+import { resolveVersion } from '../../dist/src/core/version.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -58,8 +58,8 @@ describe('resolveVersion', () => {
       JSON.stringify({ version: '9.9.9' }, null, 2) + '\n',
       'utf8'
     );
-    fs.copyFileSync(path.join(ROOT, 'src', 'core', 'version.js'), copiedModulePath);
-    fs.copyFileSync(path.join(ROOT, 'src', 'lib', 'io', 'index.js'), path.join(libIoDir, 'index.js'));
+    fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'core', 'version.js'), copiedModulePath);
+    fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'lib', 'io', 'index.js'), path.join(libIoDir, 'index.js'));
 
     const { resolveVersion: resolveVersionFromTemp } = await import(pathToFileURL(copiedModulePath).href);
 

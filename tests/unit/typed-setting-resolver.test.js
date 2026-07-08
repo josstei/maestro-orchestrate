@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveTypedSetting } from '../../src/config/setting-resolver.js';
+import { resolveTypedSetting } from '../../dist/src/config/setting-resolver.js';
 
 function withEnv(overrides, fn) {
   const previous = {};

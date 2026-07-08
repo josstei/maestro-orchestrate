@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { serialize, parse } from '../../src/core/markdown-state.js';
+import { serialize, parse } from '../../dist/src/core/markdown-state.js';
 
 describe('markdown-state', () => {
   describe('serialize', () => {

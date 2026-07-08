@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { MaestroError, ValidationError, NotFoundError, StateError } from '../../src/lib/errors/index.js';
-import * as errorsModule from '../../src/lib/errors/index.js';
+import { MaestroError, ValidationError, NotFoundError, StateError } from '../../dist/src/lib/errors/index.js';
+import * as errorsModule from '../../dist/src/lib/errors/index.js';
 
 const SUBCLASS_SPECS = [
   { Class: ValidationError, code: 'VALIDATION_ERROR', name: 'ValidationError' },

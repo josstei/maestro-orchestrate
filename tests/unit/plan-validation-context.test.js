@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PlanValidationContext } from '../../src/mcp/validation/plan-validation-context.js';
-import { computeDepths } from '../../src/mcp/validation/dag-checker.js';
+import { PlanValidationContext } from '../../dist/src/mcp/validation/plan-validation-context.js';
+import { computeDepths } from '../../dist/src/mcp/validation/dag-checker.js';
 
 function phase(id, blocked_by = []) {
   return { id, name: `Phase ${id}`, agent: 'architect', parallel: false, blocked_by };

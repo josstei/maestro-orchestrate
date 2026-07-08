@@ -7,7 +7,7 @@ import {
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape,
-} from '../../src/mcp/contracts/downstream-context.js';
+} from '../../dist/src/mcp/contracts/downstream-context.js';
 
 describe('downstream-context contract', () => {
   it('declares exactly the five canonical fields in frozen order', () => {

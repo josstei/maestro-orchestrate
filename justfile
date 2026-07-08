@@ -6,6 +6,8 @@ help:
     @echo ""
     @echo "Generator:"
     @echo "  just generate         Generate all runtime files from src/"
+    @echo "  just build            Compile the transitional dist/ tree and copy runtime assets"
+    @echo "  just typecheck        Type-check the current JS/TS source graph"
     @echo "  just dry-run          Preview what would change without writing"
     @echo "  just diff             Show unified diff of what would change"
     @echo "  just clean            Delete all generated files and regenerate"
@@ -29,24 +31,35 @@ help:
 
 # Generate all runtime files from src/
 generate:
-    node scripts/generate.js
+    npm run generate
+
+# Compile the transitional dist/ tree and copy runtime assets
+build:
+    npm run build
+
+# Type-check the current JS/TS source graph
+typecheck:
+    npm run typecheck
 
 # Preview what the generator would change
 dry-run:
-    node scripts/generate.js --dry-run
+    npm run build
+    node dist/src/tooling/generate.js --dry-run
 
 # Show unified diff of what the generator would change
 diff:
-    node scripts/generate.js --diff
+    npm run build
+    node dist/src/tooling/generate.js --diff
 
 # Clean all generated files and regenerate from scratch
 clean:
-    node scripts/generate.js --clean
-    node scripts/generate.js
+    npm run build
+    node dist/src/tooling/generate.js --clean
+    npm run generate
 
 # Assemble a self-contained local Claude plugin and print the one-step load command
 dev-load-claude: generate
-    node scripts/assemble-claude-plugin.js
+    node dist/src/tooling/assemble-claude-plugin.js
 
 # Run all tests
 test:
@@ -56,6 +69,7 @@ test:
 test-unit:
     #!/usr/bin/env bash
     set -euo pipefail
+    npm run build
     shopt -s nullglob
     files=(tests/unit/*.test.js)
     if [ ${#files[@]} -eq 0 ]; then echo "No unit test files found"; exit 1; fi
@@ -65,6 +79,7 @@ test-unit:
 test-transforms:
     #!/usr/bin/env bash
     set -euo pipefail
+    npm run build
     shopt -s nullglob
     files=(tests/transforms/*.test.js)
     if [ ${#files[@]} -eq 0 ]; then echo "No transform test files found"; exit 1; fi
@@ -74,6 +89,7 @@ test-transforms:
 test-integration:
     #!/usr/bin/env bash
     set -euo pipefail
+    npm run build
     shopt -s nullglob
     files=(tests/integration/*.test.js)
     if [ ${#files[@]} -eq 0 ]; then echo "No integration test files found"; exit 1; fi
@@ -91,11 +107,13 @@ check: generate
 
 # Verify lib/ layer boundary (no imports outside lib/ or node:*)
 check-layers:
-    node scripts/check-layer-boundaries.js
+    npm run build
+    node dist/src/tooling/check-layer-boundaries.js
 
 # Verify explicit .js/.json specifiers and the SDK deep-import rule
 check-esm-imports:
-    node scripts/check-esm-imports.js
+    npm run build
+    node dist/src/tooling/check-esm-imports.js
 
 # Generate, drift-check, layer-check, ESM-import-check, and test source changes
 source-check:

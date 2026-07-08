@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ROOT } from './helpers.js';
-import { assembleClaudePlugin } from '../../scripts/assemble-claude-plugin.js';
+import { assembleClaudePlugin } from '../../dist/src/tooling/assemble-claude-plugin.js';
 
 function withTempOut(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-assemble-'));
@@ -16,12 +16,12 @@ function withTempOut(fn) {
 }
 
 describe('assemble claude plugin (integration)', () => {
-  it('produces a self-contained, validatable plugin dir with a sibling src bundle', () => {
+  it('produces a self-contained, validatable plugin dir with a sibling dist/src bundle', () => {
     withTempOut((outDir) => {
       const result = assembleClaudePlugin({ root: ROOT, outDir });
       const pluginDir = path.join(outDir, 'claude-plugin');
       assert.equal(result.pluginDir, pluginDir);
-      assert.equal(result.bundleDir, path.join(outDir, 'src'));
+      assert.equal(result.bundleDir, path.join(outDir, 'dist', 'src'));
 
       const manifestPath = path.join(pluginDir, '.claude-plugin', 'plugin.json');
       assert.equal(fs.existsSync(manifestPath), true);
@@ -42,9 +42,10 @@ describe('assemble claude plugin (integration)', () => {
       assert.ok(hooks.includes('${CLAUDE_PLUGIN_ROOT}/scripts/hook-runner.js'));
       assert.ok(!hooks.includes('/claude/scripts/'));
 
-      const wrapperResolvedSrc = path.resolve(pluginDir, 'mcp', '..', '..', 'src', 'mcp', 'maestro-server.js');
-      assert.equal(wrapperResolvedSrc, path.join(outDir, 'src', 'mcp', 'maestro-server.js'));
-      assert.equal(fs.existsSync(wrapperResolvedSrc), true);
+      const wrapperResolvedServer = path.resolve(pluginDir, 'mcp', '..', '..', 'dist', 'src', 'mcp', 'maestro-server.js');
+      assert.equal(wrapperResolvedServer, path.join(outDir, 'dist', 'src', 'mcp', 'maestro-server.js'));
+      assert.equal(fs.existsSync(wrapperResolvedServer), true);
+      assert.equal(fs.existsSync(path.join(outDir, 'dist', 'src', 'core', 'logger.js')), true);
 
       assert.equal(fs.existsSync(path.join(pluginDir, 'claude')), false);
       assert.equal(result.command, `claude --plugin-dir ${pluginDir}`);

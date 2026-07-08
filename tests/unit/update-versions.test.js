@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { updateVersions } from '../../scripts/update-versions.js';
+import { updateVersions } from '../../dist/src/tooling/update-versions.js';
 
 function createTempProject(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-update-versions-'));

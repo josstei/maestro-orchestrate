@@ -123,7 +123,7 @@ test('doc-drift: examples guide cites canonical in-repo sources', () => {
   const expectedSources = [
     'src/entry-points/core-command-registry.js',
     'src/entry-points/registry.js',
-    'src/generator/entry-point-expander.js',
+    'src/generator/entry-point-expander.ts',
     'src/references/orchestration-steps.md',
     'docs/flow.md',
     'README.md',
@@ -227,6 +227,42 @@ test('doc-drift: claude/README.md commands use runtime-remapped names', () => {
   const body = read('claude/README.md');
   for (const remapped of ['/review-code', '/debug-workflow', '/resume-session']) {
     assert.ok(body.includes(remapped), `claude/README.md: missing runtime-remapped command ${remapped}`);
+  }
+});
+
+test('doc-drift: package-facing runtime docs use dist source root', () => {
+  const surfaces = [
+    'claude/README.md',
+    'docs/runtime-claude.md',
+    'plugins/maestro/README.md',
+    'plugins/maestro/references/runtime-guide.md',
+  ];
+  for (const surface of surfaces) {
+    const body = read(surface);
+    assert.ok(body.includes('dist/src'), `${surface}: missing compiled dist/src runtime root`);
+    assert.ok(!body.includes('package-root `src/`'), `${surface}: still claims package-root src runtime root`);
+    assert.ok(!body.includes('package-root `src`'), `${surface}: still claims package-root src runtime root`);
+    assert.ok(!body.includes('package-root src'), `${surface}: still claims package-root src runtime root`);
+  }
+});
+
+test('doc-drift: runtime docs cite TypeScript source configs', () => {
+  const surfaces = [
+    'docs/runtime-claude.md',
+    'docs/runtime-codex.md',
+    'docs/runtime-gemini.md',
+    'docs/runtime-qwen.md',
+    'src/platforms/claude/runtime-doc.md',
+    'src/platforms/codex/runtime-doc.md',
+    'src/platforms/gemini/runtime-doc.md',
+    'src/platforms/qwen/runtime-doc.md',
+  ];
+  for (const surface of surfaces) {
+    const body = read(surface);
+    assert.ok(!body.includes('src/platforms/claude/runtime-config.js'), `${surface}: cites stale Claude JS source config`);
+    assert.ok(!body.includes('src/platforms/codex/runtime-config.js'), `${surface}: cites stale Codex JS source config`);
+    assert.ok(!body.includes('src/platforms/gemini/runtime-config.js'), `${surface}: cites stale Gemini JS source config`);
+    assert.ok(!body.includes('src/platforms/qwen/runtime-config.js'), `${surface}: cites stale Qwen JS source config`);
   }
 });
 

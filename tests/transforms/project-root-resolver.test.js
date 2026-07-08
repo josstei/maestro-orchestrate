@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { resolveProjectRoot, resolveProjectRootForRuntime, requireExplicitWorkspaceRoot, WorkspaceResolutionError } from '../../src/core/project-root-resolver.js';
-import { createProjectRootCache } from '../../src/mcp/server/project-root-cache.js';
+import { resolveProjectRoot, resolveProjectRootForRuntime, requireExplicitWorkspaceRoot, WorkspaceResolutionError } from '../../dist/src/core/project-root-resolver.js';
+import { createProjectRootCache } from '../../dist/src/mcp/server/project-root-cache.js';
 import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
 after(cleanupTempRoots);
 

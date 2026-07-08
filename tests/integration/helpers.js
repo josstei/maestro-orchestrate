@@ -3,6 +3,7 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertDistBuilt } from '../support/dist.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const ROOT = path.resolve(moduleDirname, '../..');
@@ -11,8 +12,9 @@ const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
 
 function runGenerator(args = [], options = {}) {
   const cwd = options.cwd || ROOT;
+  assertDistBuilt(['src/tooling/generate.js']);
 
-  return execFileSync('node', ['scripts/generate.js', ...args], {
+  return execFileSync('node', ['dist/src/tooling/generate.js', ...args], {
     cwd,
     encoding: 'utf8',
   });
@@ -58,6 +60,7 @@ function parseDryRunReport(output) {
 }
 
 async function withPackagedClaudeRuntime(fn) {
+  assertDistBuilt();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-runtime-'));
   const packageRoot = path.join(tempRoot, 'maestro');
 
@@ -66,6 +69,7 @@ async function withPackagedClaudeRuntime(fn) {
     recursive: true,
   });
   fs.cpSync(path.join(ROOT, 'claude'), path.join(packageRoot, 'claude'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'dist'), path.join(packageRoot, 'dist'), { recursive: true });
   fs.cpSync(path.join(ROOT, 'src'), path.join(packageRoot, 'src'), { recursive: true });
   fs.writeFileSync(
     path.join(packageRoot, 'package.json'),
