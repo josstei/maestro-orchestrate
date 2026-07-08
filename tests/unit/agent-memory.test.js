@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ValidationError } from '../../dist/src/lib/errors/index.js';
-import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { appendAgentMemory, readAgentMemory } from '../../dist/src/mcp/memory/agent-memory-store.js';
 import { handleAppendAgentMemory, handleGetAgentMemory } from '../../dist/src/mcp/handlers/agent-memory.js';
 const tmpRoots = [];
 
@@ -20,14 +20,14 @@ after(() => {
   }
 });
 
-describe('MemoryStore agent-memory ledger', () => {
+describe('agent-memory store', () => {
   it('appends agent notes and reads them in order', () => {
-    const store = new MemoryStore(makeWorkspace());
+    const workspace = makeWorkspace();
 
-    store.appendAgentMemory('coder', 'Prefer focused source-first changes.');
-    store.appendAgentMemory('coder', 'Run just ci before commit.');
+    appendAgentMemory(workspace, 'coder', 'Prefer focused source-first changes.');
+    appendAgentMemory(workspace, 'coder', 'Run just ci before commit.');
 
-    const memory = store.readAgentMemory('coder');
+    const memory = readAgentMemory(workspace, 'coder');
     assert.match(memory, /Prefer focused source-first changes\./);
     assert.match(memory, /Run just ci before commit\./);
     assert.ok(
@@ -37,20 +37,17 @@ describe('MemoryStore agent-memory ledger', () => {
   });
 
   it('returns an empty string for unseen agent memory', () => {
-    const store = new MemoryStore(makeWorkspace());
-
-    assert.equal(store.readAgentMemory('coder'), '');
+    assert.equal(readAgentMemory(makeWorkspace(), 'coder'), '');
   });
 
   it('rejects traversal and nested agent ids for reads and appends', () => {
     const workspace = makeWorkspace();
-    const store = new MemoryStore(workspace);
-    const invalidAgents = ['../evil', 'a/b'];
+    const invalidAgents = ['../evil', 'a/b', '.', '..'];
 
     for (const agent of invalidAgents) {
-      assert.throws(() => store.readAgentMemory(agent), ValidationError);
+      assert.throws(() => readAgentMemory(workspace, agent), ValidationError);
       assert.throws(
-        () => store.appendAgentMemory(agent, 'must not write'),
+        () => appendAgentMemory(workspace, agent, 'must not write'),
         ValidationError
       );
     }
@@ -68,14 +65,14 @@ describe('agent-memory handlers', () => {
 
     assert.deepEqual(
       handleAppendAgentMemory(
-        { agent: 'coder', note: 'Reuse MemoryStore for durable ledgers.' },
+        { agent: 'coder', note: 'Reuse focused stores for durable ledgers.' },
         workspace
       ),
       { agent: 'coder', appended: true }
     );
     assert.deepEqual(handleGetAgentMemory({ agent: 'coder' }, workspace), {
       agent: 'coder',
-      memory: 'Reuse MemoryStore for durable ledgers.\n',
+      memory: 'Reuse focused stores for durable ledgers.\n',
     });
   });
 

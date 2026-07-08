@@ -1,9 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import * as markdownState from '../../core/markdown-state.js';
-import { atomicWriteSync, readFileSafe, readJsonSafe } from '../../lib/io/index.js';
-import { ValidationError } from '../../lib/errors/index.js';
-import { assertRelativePath, normalizeUniqueStringList } from '../../lib/validation/index.js';
+import { atomicWriteSync, readJsonSafe } from '../../lib/io/index.js';
+import { normalizeUniqueStringList } from '../../lib/validation/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
 const PROFILE_SCHEMA_VERSION = 1;
 const AGENT_PERFORMANCE_SCHEMA_VERSION = 1;
@@ -42,28 +41,6 @@ function createSystemClock() {
  */
 function knowledgeFilePath(projectRoot, filename) {
     return path.join(resolveStateDirPath(projectRoot), 'knowledge', filename);
-}
-/**
- * Validate a value as one safe filesystem path segment for agent memory files.
- *
- * @param {unknown} agent
- * @returns {string}
- * @throws {ValidationError}
- */
-function assertAgentMemorySegment(agent) {
-    if (typeof agent !== 'string' || agent.length === 0) {
-        throw new ValidationError('agent must be a non-empty filesystem segment');
-    }
-    assertRelativePath(agent);
-    if (agent.includes('/') ||
-        agent.includes('\\') ||
-        agent === '.' ||
-        agent === '..') {
-        throw new ValidationError('agent must be a single filesystem segment', {
-            details: { value: agent },
-        });
-    }
-    return agent;
 }
 /**
  * Normalize any parsed ledger value into the current wrapped ledger shape.
@@ -190,8 +167,8 @@ function mergeValidationCommands(profile, incoming) {
 /**
  * Facade over the durable, out-of-session memory files that still need
  * structured read/modify/write behavior: project profiles, agent performance,
- * architecture memory, and per-agent notes. Append-only JSONL ledgers live in
- * `jsonl-ledgers.ts`.
+ * and architecture memory. Append-only JSONL ledgers live in `jsonl-ledgers.ts`;
+ * per-agent notes live in `agent-memory-store.ts`.
  */
 class MemoryStore {
     projectRoot;
@@ -231,15 +208,6 @@ class MemoryStore {
      */
     architectureMemoryPath() {
         return knowledgeFilePath(this.projectRoot, ARCHITECTURE_MEMORY_FILENAME);
-    }
-    /**
-     * @param {string} agent
-     * @returns {string}
-     * @throws {ValidationError}
-     */
-    agentMemoryPath(agent) {
-        const segment = assertAgentMemorySegment(agent);
-        return path.join(this.stateDir, 'knowledge', 'agent-memory', `${segment}.md`);
     }
     /**
      * Read the per-repo profile, returning a fresh empty profile when the file is
@@ -304,33 +272,6 @@ class MemoryStore {
         return normalizeArchitectureMemoryGraph(readJsonSafe(this.architectureMemoryPath()));
     }
     /**
-     * Read durable memory notes for one agent.
-     *
-     * @param {string} agent
-     * @returns {string}
-     * @throws {ValidationError}
-     */
-    readAgentMemory(agent) {
-        return readFileSafe(this.agentMemoryPath(agent), '');
-    }
-    /**
-     * Append one plain-text note to an agent's durable memory file.
-     *
-     * @param {string} agent
-     * @param {string} note
-     * @returns {string} the appended note line
-     * @throws {ValidationError}
-     */
-    appendAgentMemory(agent, note) {
-        if (typeof note !== 'string' || note.length === 0) {
-            throw new ValidationError('note must be a non-empty string');
-        }
-        const filePath = this.agentMemoryPath(agent);
-        const line = note.endsWith('\n') ? note : `${note}\n`;
-        atomicWriteSync(filePath, `${readFileSafe(filePath, '')}${line}`);
-        return line;
-    }
-    /**
      * Atomically persist the structured architecture-memory graph.
      *
      * @param {object} graph
@@ -359,4 +300,4 @@ class MemoryStore {
         return next;
     }
 }
-export { MemoryStore, PROFILE_SCHEMA_VERSION, ARCHITECTURE_MEMORY_CATEGORIES, ARCHITECTURE_MEMORY_SCHEMA_VERSION, PROFILE_ARRAY_FIELDS, assertAgentMemorySegment, createSystemClock, emptyArchitectureMemoryGraph, emptyProfile, mergeValidationCommands };
+export { MemoryStore, PROFILE_SCHEMA_VERSION, ARCHITECTURE_MEMORY_CATEGORIES, ARCHITECTURE_MEMORY_SCHEMA_VERSION, PROFILE_ARRAY_FIELDS, createSystemClock, emptyArchitectureMemoryGraph, emptyProfile, mergeValidationCommands };

@@ -1,5 +1,5 @@
 import { requireNonEmptyString } from '../../lib/validation/index.js';
-import { MemoryStore } from '../memory/memory-store.js';
+import { appendAgentMemory, readAgentMemory } from '../memory/agent-memory-store.js';
 
 /**
  * Return durable memory notes for one agent.
@@ -13,7 +13,7 @@ function handleGetAgentMemory(params: any, projectRoot: any) {
   const agent = requireNonEmptyString(params && params.agent, 'agent');
   return {
     agent,
-    memory: new MemoryStore(projectRoot).readAgentMemory(agent),
+    memory: readAgentMemory(projectRoot, agent),
   };
 }
 
@@ -28,7 +28,7 @@ function handleGetAgentMemory(params: any, projectRoot: any) {
 function handleAppendAgentMemory(params: any, projectRoot: any) {
   const agent = requireNonEmptyString(params && params.agent, 'agent');
   const note = requireNonEmptyString(params && params.note, 'note');
-  new MemoryStore(projectRoot).appendAgentMemory(agent, note);
+  appendAgentMemory(projectRoot, agent, note);
   return { agent, appended: true };
 }
 
