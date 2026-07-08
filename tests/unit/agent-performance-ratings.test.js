@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { readRatings } from '../../dist/src/mcp/memory/jsonl-ledgers.js';
 import { handleRate } from '../../dist/src/mcp/handlers/ratings.js';
 import { handleGetAgentPerformance } from '../../dist/src/mcp/handlers/agent-performance.js';
 
@@ -16,17 +16,17 @@ function makeWorkspace() {
   return root;
 }
 
-describe('MemoryStore.readRatings', () => {
+describe('ratings JSONL ledger', () => {
   it('returns [] when no ratings ledger exists', () => {
     const root = makeWorkspace();
-    assert.deepEqual(new MemoryStore(root).readRatings(), []);
+    assert.deepEqual(readRatings(root), []);
   });
 
   it('reads back every appended rating record', () => {
     const root = makeWorkspace();
     handleRate({ target: 'session', session_id: 's1', rating: 'up' }, root);
     handleRate({ target: 'session', session_id: 's2', rating: 'down', note: 'flaky' }, root);
-    const records = new MemoryStore(root).readRatings();
+    const records = readRatings(root);
     assert.equal(records.length, 2);
     assert.equal(records[0].session_id, 's1');
     assert.equal(records[1].rating, 'down');

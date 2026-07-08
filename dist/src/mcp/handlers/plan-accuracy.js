@@ -1,4 +1,4 @@
-import { MemoryStore } from '../memory/memory-store.js';
+import { appendPlanAccuracy, readPlanAccuracy } from '../memory/jsonl-ledgers.js';
 import { normalizeUniqueStringList as normalizeFileList } from '../../lib/validation/index.js';
 /**
  * @param {Set<string>} left
@@ -55,7 +55,7 @@ function recordPlanAccuracy(state, projectRoot) {
         total_retries: totalRetries,
         created: new Date().toISOString(),
     };
-    new MemoryStore(projectRoot).appendPlanAccuracy(record);
+    appendPlanAccuracy(projectRoot, record);
     return record;
 }
 /**
@@ -67,7 +67,7 @@ function recordPlanAccuracy(state, projectRoot) {
  * @returns {{ samples:number, avg_precision:number, avg_recall:number, avg_phase_count:number, records:object[] }}
  */
 function handleGetPlanAccuracy(_params, projectRoot) {
-    const records = new MemoryStore(projectRoot).readPlanAccuracy();
+    const records = readPlanAccuracy(projectRoot);
     const samples = records.length;
     if (samples === 0) {
         return {

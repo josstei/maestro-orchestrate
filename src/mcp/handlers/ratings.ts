@@ -1,6 +1,6 @@
 import { ValidationError } from '../../lib/errors/index.js';
 import { requireNonEmptyString } from '../../lib/validation/index.js';
-import { MemoryStore } from '../memory/memory-store.js';
+import { appendRating } from '../memory/jsonl-ledgers.js';
 const RATING_VALUES = Object.freeze(['up', 'down']);
 
 /**
@@ -56,7 +56,7 @@ function handleRate(params: any, projectRoot: any) {
           note: normalizeNote(params.note),
           at: new Date().toISOString(),
         };
-  new MemoryStore(projectRoot).appendRating(record);
+  appendRating(projectRoot, record);
   return { recorded: true, rating: record };
 }
 

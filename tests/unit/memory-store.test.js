@@ -84,13 +84,4 @@ describe('MemoryStore', () => {
     assert.deepEqual(store.readAgentPerformance(), { schema_version: 1, records: [] });
   });
 
-  it('appendRating accumulates JSONL rating records', () => {
-    const store = MemoryStore.forProjectRoot(tmpRoot);
-    store.appendRating({ scope: 'session', rating: 'up' });
-    store.appendRating({ scope: 'phase', rating: 'down', note: 'flaky' });
-    const ratings = store.readRatings();
-    assert.equal(ratings.length, 2);
-    assert.equal(ratings[0].rating, 'up');
-    assert.equal(ratings[1].note, 'flaky');
-  });
 });

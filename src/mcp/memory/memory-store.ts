@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import * as markdownState from '../../core/markdown-state.js';
-import { atomicWriteSync, readFileSafe, readJsonSafe, readJsonLines, appendJsonLine } from '../../lib/io/index.js';
+import { atomicWriteSync, readFileSafe, readJsonSafe } from '../../lib/io/index.js';
 import { ValidationError } from '../../lib/errors/index.js';
 import { assertRelativePath, normalizeUniqueStringList } from '../../lib/validation/index.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
@@ -208,11 +208,10 @@ function mergeValidationCommands(profile: any, incoming: any) {
 }
 
 /**
- * Single facade over the durable, out-of-session memory files a repo owns:
- * `memory/project-profile.md`, `knowledge/agent-performance.json`, and
- * `knowledge/ratings.jsonl`. Each concern is a distinct method group. Built on
- * `resolveStateDirPath` + `atomicWriteSync` + `markdown-state`; no handler
- * touches these files directly.
+ * Facade over the durable, out-of-session memory files that still need
+ * structured read/modify/write behavior: project profiles, agent performance,
+ * architecture memory, and per-agent notes. Append-only JSONL ledgers live in
+ * `jsonl-ledgers.ts`.
  */
 class MemoryStore {
   projectRoot: string;
@@ -267,20 +266,6 @@ class MemoryStore {
   agentMemoryPath(agent: any) {
     const segment = assertAgentMemorySegment(agent);
     return path.join(this.stateDir, 'knowledge', 'agent-memory', `${segment}.md`);
-  }
-
-  /**
-   * @returns {string}
-   */
-  ratingsPath() {
-    return path.join(this.stateDir, 'knowledge', 'ratings.jsonl');
-  }
-
-  /**
-   * @returns {string}
-   */
-  planAccuracyPath() {
-    return knowledgeFilePath(this.projectRoot, 'plan-accuracy.jsonl');
   }
 
   /**
@@ -413,37 +398,6 @@ class MemoryStore {
     return next;
   }
 
-  /**
-   * @returns {object[]} parsed rating records ([] when absent), skipping bad lines
-   */
-  readRatings() {
-    return readJsonLines(this.ratingsPath());
-  }
-
-  /**
-   * Append one rating record as a JSON line to the durable JSONL log.
-   * @param {object} record
-   * @returns {object} the appended record
-   */
-  appendRating(record: any) {
-    return appendJsonLine(this.ratingsPath(), record);
-  }
-
-  /**
-   * @returns {object[]} parsed plan-accuracy records ([] when absent), skipping bad lines
-   */
-  readPlanAccuracy() {
-    return readJsonLines(this.planAccuracyPath());
-  }
-
-  /**
-   * Append one plan-accuracy record as a JSON line to the durable JSONL log.
-   * @param {object} record
-   * @returns {object} the appended record
-   */
-  appendPlanAccuracy(record: any) {
-    return appendJsonLine(this.planAccuracyPath(), record);
-  }
 }
 
 export { MemoryStore, PROFILE_SCHEMA_VERSION, ARCHITECTURE_MEMORY_CATEGORIES, ARCHITECTURE_MEMORY_SCHEMA_VERSION, PROFILE_ARRAY_FIELDS, assertAgentMemorySegment, createSystemClock, emptyArchitectureMemoryGraph, emptyProfile, mergeValidationCommands };

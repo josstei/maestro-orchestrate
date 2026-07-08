@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { appendPlanAccuracy, readPlanAccuracy } from '../../dist/src/mcp/memory/jsonl-ledgers.js';
 import { recordPlanAccuracy, handleGetPlanAccuracy } from '../../dist/src/mcp/handlers/plan-accuracy.js';
 const tmpRoots = [];
 
@@ -29,19 +29,17 @@ after(() => {
   }
 });
 
-describe('MemoryStore plan-accuracy ledger', () => {
+describe('plan-accuracy JSONL ledger', () => {
   it('returns [] when the JSONL ledger is absent', () => {
-    const store = new MemoryStore(makeWorkspace());
-    assert.deepEqual(store.readPlanAccuracy(), []);
+    assert.deepEqual(readPlanAccuracy(makeWorkspace()), []);
   });
 
   it('appends bare JSONL plan-accuracy records across calls', () => {
     const workspace = makeWorkspace();
-    const store = new MemoryStore(workspace);
-    store.appendPlanAccuracy({ session_id: 's1', precision: 1 });
-    store.appendPlanAccuracy({ session_id: 's2', recall: 0.5 });
+    appendPlanAccuracy(workspace, { session_id: 's1', precision: 1 });
+    appendPlanAccuracy(workspace, { session_id: 's2', recall: 0.5 });
 
-    const records = store.readPlanAccuracy();
+    const records = readPlanAccuracy(workspace);
     assert.deepEqual(
       records.map((record) => record.session_id),
       ['s1', 's2']
@@ -82,7 +80,7 @@ describe('recordPlanAccuracy', () => {
     assert.equal(record.phase_count, 1);
     assert.equal(record.total_retries, 2);
     assert.equal(typeof record.created, 'string');
-    assert.deepEqual(new MemoryStore(workspace).readPlanAccuracy(), [record]);
+    assert.deepEqual(readPlanAccuracy(workspace), [record]);
   });
 });
 

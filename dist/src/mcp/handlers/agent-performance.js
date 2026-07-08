@@ -1,4 +1,5 @@
 import { MemoryStore } from '../memory/memory-store.js';
+import { readRatings } from '../memory/jsonl-ledgers.js';
 import { normalizeTokenUsage } from '../contracts/agent-cost-ledger.js';
 import { aggregateRatings } from './ratings.js';
 /**
@@ -104,7 +105,7 @@ function handleGetAgentPerformance(params, projectRoot) {
             token_usage: acc.token_usage,
         };
     }
-    const ratings = aggregateRatings(new MemoryStore(projectRoot).readRatings());
+    const ratings = aggregateRatings(readRatings(projectRoot));
     return {
         generated_at: new Date().toISOString(),
         agent_count: Object.keys(byAgent).length,

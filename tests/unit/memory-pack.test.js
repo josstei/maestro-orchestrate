@@ -7,6 +7,7 @@ import { handleExportMemoryPack, handleImportMemoryPack } from '../../dist/src/m
 import { handleGetProjectProfile } from '../../dist/src/mcp/handlers/project-profile.js';
 import { handleQueryArchitectureMemory } from '../../dist/src/mcp/handlers/architecture-memory.js';
 import { MemoryStore } from '../../dist/src/mcp/memory/memory-store.js';
+import { appendPlanAccuracy } from '../../dist/src/mcp/memory/jsonl-ledgers.js';
 import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
 
 function listFiles(root) {
@@ -37,7 +38,7 @@ function seedMemory(workspace) {
   store.appendAgentPerformance([
     { session_id: 'session-1', agent: 'coder', phase_id: 1, retry_count: 0 },
   ]);
-  store.appendPlanAccuracy({ session_id: 'session-1', precision: 1, recall: 1 });
+  appendPlanAccuracy(workspace, { session_id: 'session-1', precision: 1, recall: 1 });
   store.writeArchitectureMemory({
     schema_version: 1,
     interfaces: [{ value: 'MemoryStore.forProjectRoot', session_id: 'session-1' }],
