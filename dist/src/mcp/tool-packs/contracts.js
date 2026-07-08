@@ -24,22 +24,8 @@ function createMaestroToolRegistry() {
         },
     };
 }
-/**
- * Register a tool via the SDK's `server.registerTool`, composed with
- * maestro's reduced decorator pipeline (workspace gate -> handler -> error
- * normalization -> post-call). `requiresWorkspace` lives in maestro's own
- * `registry` (see `createMaestroToolRegistry`) — `registerTool` destructures
- * only `{title, description, inputSchema, outputSchema, annotations, _meta}`
- * from its config and silently drops any other field, so the SDK never sees
- * `requiresWorkspace`. The pipeline resolves the workspace gate from
- * `registry.requiresWorkspace(name)` at call time, making the registry the
- * single source of truth for tool metadata. Throws when `name` duplicates a
- * tool already present in `registry` (cross-pack duplicate detection).
- *
- * @param {{server: object, registry: object, name: string, description?: string, schema?: object, handler: Function, requiresWorkspace?: boolean, runtimeConfig?: object, onPostCall?: Function, env?: object, clientRoots?: Array, clock?: {now: () => Date}, services?: object}} options
- * @returns {*} the SDK's `RegisteredTool`
- */
-function defineTool({ server, registry, name, description, schema, handler, requiresWorkspace = false, onPostCall, ...contextOptions } = {}) {
+function defineTool(options = {}) {
+    const { server, registry, name, description, schema, handler, requiresWorkspace = false, onPostCall, ...contextOptions } = options;
     if (!server || typeof server.registerTool !== 'function') {
         throw new TypeError('defineTool requires an SDK server exposing registerTool.');
     }
@@ -52,8 +38,19 @@ function defineTool({ server, registry, name, description, schema, handler, requ
     if (typeof handler !== 'function') {
         throw new TypeError(`defineTool "${name}" requires a handler function.`);
     }
+    if (!('runtimeConfig' in contextOptions)) {
+        throw new TypeError(`defineTool "${name}" requires runtimeConfig.`);
+    }
     registry.register(name, { requiresWorkspace: requiresWorkspace === true });
-    const callback = createToolPipeline({ name, handler, onPostCall }, { server, registry, ...contextOptions });
+    const pipelineOptions = {
+        server,
+        registry,
+        runtimeConfig: contextOptions.runtimeConfig,
+        ...(contextOptions.getProjectRoot === undefined ? {} : { getProjectRoot: contextOptions.getProjectRoot }),
+        ...(contextOptions.clock === undefined ? {} : { clock: contextOptions.clock }),
+        ...(contextOptions.services === undefined ? {} : { services: contextOptions.services }),
+    };
+    const callback = createToolPipeline({ name, handler, onPostCall }, pipelineOptions);
     return server.registerTool(name, { description, inputSchema: schema }, callback);
 }
 export { createMaestroToolRegistry, defineTool };

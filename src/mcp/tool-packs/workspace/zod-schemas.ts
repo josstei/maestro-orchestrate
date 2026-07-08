@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ToolSchemaMap } from '../command-table.js';
 
 export const zodSchemas = {
   initialize_workspace: {
@@ -30,4 +31,4 @@ export const zodSchemas = {
       )
       .optional(),
   },
-};
+} satisfies ToolSchemaMap;

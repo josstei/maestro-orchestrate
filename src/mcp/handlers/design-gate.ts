@@ -7,9 +7,15 @@ import { atomicWriteSync } from '../../lib/io/index.js';
 import { resolveDocumentInputVariant } from './document-input.js';
 import { buildDesignApprovalConsentSchema } from '../server/elicitation-schemas.js';
 import { attempt } from './attempt.js';
+import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
+import { zodSchemas } from '../tool-packs/session/zod-schemas.js';
+import type { HandlerContext } from '../server/tool-types.js';
+import type { z } from 'zod';
 const GATE_FILENAME = '.design-gate.json';
 const MODEL_ATTESTED_CONSENT = 'model-attested';
 const FIRST_PARTY_CONSENT = 'first-party';
+
+type RecordDesignApprovalParams = z.infer<z.ZodObject<typeof zodSchemas.record_design_approval>>;
 
 /**
  * Resolves the filesystem path for the gate file for a given session.
@@ -271,9 +277,10 @@ async function resolveDesignApprovalConsent(elicit: any, sessionId: any) {
  * @param {{ session_id: string, design_document_path?: string, design_document_content?: string, design_document_filename?: string }} params
  * @param {{ projectRoot: string, elicit: (params: {message: string, requestedSchema: object}) => Promise<{action: string, content?: object}|null> }} ctx
  */
-async function handleRecordDesignApproval(params: any, ctx: any) {
+async function handleRecordDesignApproval(params: RecordDesignApprovalParams, ctx: HandlerContext) {
   assertSessionId(params.session_id);
-  const { projectRoot, elicit } = ctx;
+  const projectRoot = requireWorkspaceRoot(ctx.projectRoot, 'record_design_approval');
+  const { elicit } = ctx;
   const documentVariant = validateApprovedDesignDocumentShape(params);
 
   const consent = await resolveDesignApprovalConsent(elicit, params.session_id);

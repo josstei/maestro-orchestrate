@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ToolSchemaMap } from '../command-table.js';
 
 export const zodSchemas = {
   get_skill_content: {
@@ -18,4 +19,4 @@ export const zodSchemas = {
       ),
   },
   get_runtime_context: {},
-};
+} satisfies ToolSchemaMap;

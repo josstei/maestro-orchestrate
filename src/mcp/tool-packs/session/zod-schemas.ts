@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PHASE_ID, FILE_ARRAY, DOWNSTREAM_CONTEXT, PHASE_ITEM } from '../zod-fragments.js';
+import type { ToolSchemaMap } from '../command-table.js';
 
 export const zodSchemas = {
   create_session: {
@@ -123,4 +124,4 @@ export const zodSchemas = {
   get_cost_insights: {
     include_active: z.boolean().default(false),
   },
-};
+} satisfies ToolSchemaMap;

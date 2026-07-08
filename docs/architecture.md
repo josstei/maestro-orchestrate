@@ -153,7 +153,8 @@ src/mcp/
 │   └── knowledge-store.js      # Out-of-tree cross-project knowledge store
 ├── tool-packs/
 │   ├── index.js                # Tool pack aggregation
-│   ├── contracts.js            # Tool schema contracts
+│   ├── contracts.js            # Tool registry/pipeline contracts
+│   ├── command-table.js        # Name-keyed schema/handler declarations
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 12 tools
 │   ├── content/index.js        # 3 tools
@@ -177,6 +178,12 @@ The content tools (`get_agent`, `get_skill_content`) use one filesystem provider
 All four runtimes spawn `dist/src/bin/maestro-mcp-server.js` via a release-versioned `npx -y -p @josstei/maestro@<version> maestro-mcp-server` invocation declared in each runtime's manifest (`gemini-extension.json`, `qwen-extension.json`, `claude/.mcp.json`, `plugins/maestro/.mcp.json`). The bin honors an env-provided `MAESTRO_RUNTIME` (defaulting to `codex` if absent) — Gemini's and Qwen's manifests set `MAESTRO_RUNTIME=gemini`/`MAESTRO_RUNTIME=qwen`, Claude's sets `MAESTRO_RUNTIME=claude`, Codex's sets `MAESTRO_RUNTIME=codex` — overwrites `MAESTRO_EXTENSION_PATH` with the package root, then imports `dist/src/mcp/maestro-server.js`. The repo-root `mcp/maestro-server.js` (shared by Gemini/Qwen) and `claude/mcp/maestro-server.js` wrappers still ship but are no longer the launch target.
 
 Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.js`, so a future registry or snapshot provider must feed the same materialization path instead of carrying pre-transformed copies.
+
+MCP tool packs declare tools through homomorphic command tables keyed by each
+pack's `zodSchemas` object. Each command owns its description, workspace
+requirement, handler-context projection, optional post-call hook, and handler;
+`registerCommandTable` then routes every declaration through the shared
+`defineTool` pipeline.
 
 This makes one architectural rule explicit:
 

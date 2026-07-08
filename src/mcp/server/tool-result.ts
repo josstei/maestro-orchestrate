@@ -1,3 +1,5 @@
+import type { CallToolJsonTextResult, ToolOutcome } from './tool-types.js';
+
 /**
  * Serialize a maestro `ToolOutcome` (see `./tool-outcome.js`) into an SDK
  * `CallToolResult`. Preserves the structured recovery-hint envelope
@@ -7,7 +9,7 @@
  * @param {{ok: true, result: unknown} | {ok: false, error: string, recovery_hint: string|null, code?: string, details?: unknown}} outcome
  * @returns {{content: Array<{type: 'text', text: string}>, isError?: true}}
  */
-function toolOutcomeToCallToolResult(outcome: any) {
+function toolOutcomeToCallToolResult(outcome: ToolOutcome<unknown>): CallToolJsonTextResult {
   if (outcome && outcome.ok) {
     return {
       content: [
@@ -19,7 +21,7 @@ function toolOutcomeToCallToolResult(outcome: any) {
     };
   }
 
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     error: outcome.error,
     recovery_hint: outcome.recovery_hint ?? null,
   };

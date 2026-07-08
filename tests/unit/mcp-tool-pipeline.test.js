@@ -116,6 +116,23 @@ test('a throwing post-call effect is swallowed and does not mask the tool result
   assert.deepEqual(JSON.parse(result.content[0].text), { value: 1 });
 });
 
+test('a rejected async post-call effect is swallowed and does not mask the tool result', async () => {
+  const callback = createToolPipeline(
+    {
+      name: 'tracked_tool',
+      handler: async () => ({ value: 1 }),
+      onPostCall: async () => {
+        throw new Error('async post-call boom');
+      },
+    },
+    { server: fakeSdkServer(), registry: registryFor('tracked_tool', false), runtimeConfig: RUNTIME_CONFIG, env: {} }
+  );
+
+  const result = await callback({}, {});
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(JSON.parse(result.content[0].text), { value: 1 });
+});
+
 test('full order on a workspace-gated tool: gate then handler then post-call, no validate stage', async () => {
   const order = [];
   const callback = createToolPipeline(

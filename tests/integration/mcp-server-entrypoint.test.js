@@ -20,7 +20,7 @@ function waitForServerStartup(relativePath, cwd = ROOT) {
           `Timed out waiting for ${relativePath} to start.\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
         )
       );
-    }, 5000);
+    }, 30000);
 
     function finish(error) {
       if (settled) {

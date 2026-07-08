@@ -24,22 +24,22 @@ const JSON_SCHEMA_LITERAL_PATTERNS = [
   { name: 'additionalProperties shape literal', pattern: /\badditionalProperties\s*:/ },
 ];
 
-function collectJsFiles(absolutePath) {
+function collectSourceFiles(absolutePath) {
   const stats = fs.statSync(absolutePath, { throwIfNoEntry: false });
   if (!stats) {
     return [];
   }
 
   if (stats.isFile()) {
-    return absolutePath.endsWith('.js') ? [absolutePath] : [];
+    return /\.(?:js|ts)$/.test(absolutePath) ? [absolutePath] : [];
   }
 
   const results = [];
   for (const entry of fs.readdirSync(absolutePath, { withFileTypes: true })) {
     const entryPath = path.join(absolutePath, entry.name);
     if (entry.isDirectory()) {
-      results.push(...collectJsFiles(entryPath));
-    } else if (entry.isFile() && entry.name.endsWith('.js')) {
+      results.push(...collectSourceFiles(entryPath));
+    } else if (entry.isFile() && /\.(?:js|ts)$/.test(entry.name)) {
       results.push(entryPath);
     }
   }
@@ -51,7 +51,7 @@ describe('no-json-schema-literals guard', () => {
     const violations = [];
 
     for (const directory of SCOPED_DIRECTORIES) {
-      for (const filePath of collectJsFiles(directory)) {
+      for (const filePath of collectSourceFiles(directory)) {
         const source = fs.readFileSync(filePath, 'utf8');
         for (const { name, pattern } of JSON_SCHEMA_LITERAL_PATTERNS) {
           if (pattern.test(source)) {

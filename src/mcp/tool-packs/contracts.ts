@@ -1,4 +1,24 @@
 import { createToolPipeline } from '../server/tool-pipeline.js';
+import type { HandlerContextOptions, MaestroToolRegistry, ToolHandler, ToolPostCall, ToolRegistryMetadata } from '../server/tool-types.js';
+
+type RegisterableMcpServer = {
+  registerTool<TRegisteredArgs = unknown>(
+    name: string,
+    config: { description?: string | undefined; inputSchema?: unknown },
+    callback: (args: TRegisteredArgs, extra: { signal?: AbortSignal }) => Promise<unknown>,
+  ): unknown;
+};
+
+type DefineToolOptions<TArgs = unknown, TResult = unknown> = HandlerContextOptions & {
+  server: RegisterableMcpServer;
+  registry: MaestroToolRegistry;
+  name: string;
+  description?: string;
+  schema?: unknown;
+  handler: ToolHandler<TArgs, TResult>;
+  requiresWorkspace?: boolean;
+  onPostCall?: ToolPostCall<TArgs, TResult> | undefined;
+};
 
 /**
  * Create maestro's own cross-pack tool registry, tracking metadata
@@ -8,20 +28,20 @@ import { createToolPipeline } from '../server/tool-pipeline.js';
  *
  * @returns {{register: (name: string, metadata: {requiresWorkspace?: boolean}) => void, requiresWorkspace: (name: string) => boolean, has: (name: string) => boolean}}
  */
-function createMaestroToolRegistry() {
-  const requiresWorkspaceByName = new Map();
+function createMaestroToolRegistry(): MaestroToolRegistry {
+  const requiresWorkspaceByName = new Map<string, boolean>();
 
   return {
-    register(name: any, { requiresWorkspace = false }: any = {}) {
+    register(name: string, { requiresWorkspace = false }: ToolRegistryMetadata = {}) {
       if (requiresWorkspaceByName.has(name)) {
         throw new Error(`Duplicate tool name "${name}" is already registered.`);
       }
       requiresWorkspaceByName.set(name, requiresWorkspace === true);
     },
-    requiresWorkspace(name: any) {
+    requiresWorkspace(name: string) {
       return requiresWorkspaceByName.get(name) === true;
     },
-    has(name: any) {
+    has(name: string) {
       return requiresWorkspaceByName.has(name);
     },
   };
@@ -42,17 +62,22 @@ function createMaestroToolRegistry() {
  * @param {{server: object, registry: object, name: string, description?: string, schema?: object, handler: Function, requiresWorkspace?: boolean, runtimeConfig?: object, onPostCall?: Function, env?: object, clientRoots?: Array, clock?: {now: () => Date}, services?: object}} options
  * @returns {*} the SDK's `RegisteredTool`
  */
-function defineTool({
-  server,
-  registry,
-  name,
-  description,
-  schema,
-  handler,
-  requiresWorkspace = false,
-  onPostCall,
-  ...contextOptions
-}: any = {}) {
+function defineTool<TArgs = unknown, TResult = unknown>(options: DefineToolOptions<TArgs, TResult>): unknown;
+function defineTool<TArgs = unknown, TResult = unknown>(
+  options: Partial<DefineToolOptions<TArgs, TResult>> = {},
+) {
+  const {
+    server,
+    registry,
+    name,
+    description,
+    schema,
+    handler,
+    requiresWorkspace = false,
+    onPostCall,
+    ...contextOptions
+  } = options;
+
   if (!server || typeof server.registerTool !== 'function') {
     throw new TypeError('defineTool requires an SDK server exposing registerTool.');
   }
@@ -65,12 +90,23 @@ function defineTool({
   if (typeof handler !== 'function') {
     throw new TypeError(`defineTool "${name}" requires a handler function.`);
   }
+  if (!('runtimeConfig' in contextOptions)) {
+    throw new TypeError(`defineTool "${name}" requires runtimeConfig.`);
+  }
 
   registry.register(name, { requiresWorkspace: requiresWorkspace === true });
 
+  const pipelineOptions = {
+    server,
+    registry,
+    runtimeConfig: contextOptions.runtimeConfig,
+    ...(contextOptions.getProjectRoot === undefined ? {} : { getProjectRoot: contextOptions.getProjectRoot }),
+    ...(contextOptions.clock === undefined ? {} : { clock: contextOptions.clock }),
+    ...(contextOptions.services === undefined ? {} : { services: contextOptions.services }),
+  };
   const callback = createToolPipeline(
     { name, handler, onPostCall },
-    { server, registry, ...contextOptions }
+    pipelineOptions,
   );
 
   return server.registerTool(name, { description, inputSchema: schema }, callback);

@@ -12,9 +12,6 @@ import { toolOutcomeToCallToolResult } from './tool-result.js';
  * post-call effect (only after a non-throwing handler return; its own errors
  * are swallowed so they never mask the tool result).
  *
- * @param {{name: string, handler: (args: object, ctx: object) => Promise<unknown>, onPostCall?: (result: unknown, args: object) => void}} tool
- * @param {{server: object, registry: {requiresWorkspace: (name: string) => boolean}, runtimeConfig: object, env?: object, clientRoots?: Array, clock?: {now: () => Date}, services?: object}} contextOptions
- * @returns {(args: object, extra: object) => Promise<{content: Array<object>, isError?: true}>}
  */
 function createToolPipeline(tool, contextOptions) {
     const { name, handler, onPostCall } = tool;
@@ -30,7 +27,7 @@ function createToolPipeline(tool, contextOptions) {
             outcome = createToolSuccess(result);
             if (typeof onPostCall === 'function') {
                 try {
-                    onPostCall(result, args);
+                    await onPostCall(result, args);
                 }
                 catch {
                 }

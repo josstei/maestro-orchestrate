@@ -113,6 +113,10 @@ A bundled Model Context Protocol server providing 40 tools across 5 packs:
 - **Memory** (15): get_project_profile, update_project_profile, record_validation_commands, get_agent_performance, recall_similar_sessions, rate, get_plan_accuracy, query_architecture_memory, get_agent_memory, append_agent_memory, compact_archive, record_knowledge, query_knowledge, export_memory_pack, import_memory_pack
 - **History** (6): fork_session, list_lineage, list_checkpoints, restore_checkpoint, instantiate_session_blueprint, list_session_blueprints
 
+Each pack is registered from a name-keyed command table that pairs its zod input
+shape with the handler, workspace requirement, and context projection used by
+the shared MCP tool pipeline.
+
 ### Skills
 
 7 shared methodology modules loaded on-demand via MCP:

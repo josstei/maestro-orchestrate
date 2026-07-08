@@ -2,8 +2,23 @@ import * as io from '../../lib/io/index.js';
 import { MemoryStore, createSystemClock } from '../memory/memory-store.js';
 import { KnowledgeStore } from '../memory/knowledge-store.js';
 import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
+import type { ElicitParams, ElicitResult, HandlerContext, HandlerContextOptions, HandlerServices, SystemClock } from './tool-types.js';
 
 const ELICIT_TIMEOUT_MS = 10 * 60 * 1000;
+
+type BuildServicesOptions = {
+  projectRoot: string | null;
+  clock: SystemClock;
+  canonicalSrcRoot?: string | undefined;
+  workspaceSuggestion?: (() => string | null) | undefined;
+};
+
+type ElicitServer = {
+  server?: {
+    getClientCapabilities?: () => { elicitation?: unknown } | null;
+    elicitInput?: (params: ElicitParams, options: { timeout: number }) => Promise<Exclude<ElicitResult, null>>;
+  };
+};
 
 /**
  * Build the lazy, clock-injected `ctx.services` facade. Stateful services
@@ -11,9 +26,8 @@ const ELICIT_TIMEOUT_MS = 10 * 60 * 1000;
  * memoized; they refuse to build against a null `projectRoot` rather than
  * ever falling back to the process cwd.
  *
- * @param {{projectRoot: string|null, clock: {now: () => Date}, canonicalSrcRoot?: string, workspaceSuggestion?: Function}} options
  */
-function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggestion }: any) {
+function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggestion }: BuildServicesOptions): HandlerServices {
   let memoryStoreInstance: MemoryStore | null = null;
   let knowledgeStoreInstance: KnowledgeStore | null = null;
 
@@ -48,12 +62,11 @@ function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggesti
  * from requestedSchema validation) is caught here and treated as elicitation
  * being unavailable — it never leaks to generic error normalization.
  *
- * @param {{server: {server: {getClientCapabilities: Function, elicitInput: Function}}}} options
- * @returns {(params: {message: string, requestedSchema: object}) => Promise<{action: string, content?: object}|null>}
  */
-function buildElicit({ server }: any) {
-  return async function elicit(params: any) {
-    const lowLevelServer = server && server.server;
+function buildElicit({ server }: { server: unknown }) {
+  return async function elicit(params: ElicitParams): Promise<ElicitResult> {
+    const candidate = server as ElicitServer | null;
+    const lowLevelServer = candidate && candidate.server;
     if (!lowLevelServer || typeof lowLevelServer.getClientCapabilities !== 'function') {
       return null;
     }
@@ -64,6 +77,9 @@ function buildElicit({ server }: any) {
     }
 
     try {
+      if (typeof lowLevelServer.elicitInput !== 'function') {
+        return null;
+      }
       return await lowLevelServer.elicitInput(params, { timeout: ELICIT_TIMEOUT_MS });
     } catch {
       return null;
@@ -81,12 +97,12 @@ function buildElicit({ server }: any) {
  * the inbound cancellation `signal`, assembles lazy clock-injected
  * `services`, and exposes the single `ctx.elicit` consent seam.
  *
- * @param {object} args - the tool's parsed input arguments
- * @param {{signal?: AbortSignal}} extra - the SDK callback's second argument
- * @param {{server: object, runtimeConfig: object, getProjectRoot?: () => (string|null|Promise<string|null>), clock?: {now: () => Date}, services?: {canonicalSrcRoot?: string, workspaceSuggestion?: Function}}} options
- * @returns {Promise<{projectRoot: string|null, runtimeConfig: object, signal: AbortSignal|undefined, elicit: Function, services: object}>}
  */
-async function buildHandlerContext(args: any, extra: any, options: any = {}) {
+async function buildHandlerContext(
+  args: unknown,
+  extra: { signal?: AbortSignal } | null | undefined,
+  options: HandlerContextOptions,
+): Promise<HandlerContext> {
   const { server, runtimeConfig, clock = createSystemClock(), getProjectRoot } = options;
   const projectRoot =
     typeof getProjectRoot === 'function' ? (await getProjectRoot()) || null : null;
@@ -95,7 +111,7 @@ async function buildHandlerContext(args: any, extra: any, options: any = {}) {
   return {
     projectRoot,
     runtimeConfig,
-    signal: extra && extra.signal,
+    signal: extra?.signal,
     elicit: buildElicit({ server }),
     services: buildServices({
       projectRoot,

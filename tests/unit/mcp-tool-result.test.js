@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createToolFailure, createToolSuccess } from '../../dist/src/mcp/server/tool-outcome.js';
+import { createToolFailure, createToolSuccess, normalizeToolError } from '../../dist/src/mcp/server/tool-outcome.js';
 import { toolOutcomeToCallToolResult } from '../../dist/src/mcp/server/tool-result.js';
 
 test('serializes a success ToolOutcome to a non-error CallToolResult', () => {
@@ -40,4 +40,14 @@ test('failure without code/details omits those fields but keeps recovery_hint nu
   assert.equal(payload.recovery_hint, null);
   assert.equal('code' in payload, false);
   assert.equal('details' in payload, false);
+});
+
+test('normalizes a thrown non-Error object with a message without changing the envelope', () => {
+  const outcome = normalizeToolError('probe_tool', { message: '/tmp/private failed' });
+  const result = toolOutcomeToCallToolResult(outcome);
+
+  assert.equal(result.isError, true);
+  const payload = JSON.parse(result.content[0].text);
+  assert.equal(payload.error, '[path] failed');
+  assert.equal(payload.code, 'INTERNAL_TOOL_ERROR');
 });

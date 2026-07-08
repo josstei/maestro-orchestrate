@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -14,6 +14,17 @@ const goldenDir = path.join(moduleDirname, 'golden', 'tool-packs', 'workspace');
 function readGolden(toolName) {
   return JSON.parse(readFileSync(path.join(goldenDir, `${toolName}.json`), 'utf8'));
 }
+
+function goldenToolNames() {
+  return readdirSync(goldenDir)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => path.basename(name, '.json'))
+    .sort();
+}
+
+test('golden snapshots match workspace schema tool names', () => {
+  assert.deepEqual(goldenToolNames(), Object.keys(zodSchemas).sort());
+});
 
 async function emittedInputSchemaFor(toolName) {
   const server = createMcpServer();

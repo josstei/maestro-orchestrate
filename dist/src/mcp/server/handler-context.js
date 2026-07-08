@@ -9,7 +9,6 @@ const ELICIT_TIMEOUT_MS = 10 * 60 * 1000;
  * memoized; they refuse to build against a null `projectRoot` rather than
  * ever falling back to the process cwd.
  *
- * @param {{projectRoot: string|null, clock: {now: () => Date}, canonicalSrcRoot?: string, workspaceSuggestion?: Function}} options
  */
 function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggestion }) {
     let memoryStoreInstance = null;
@@ -44,12 +43,11 @@ function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggesti
  * from requestedSchema validation) is caught here and treated as elicitation
  * being unavailable — it never leaks to generic error normalization.
  *
- * @param {{server: {server: {getClientCapabilities: Function, elicitInput: Function}}}} options
- * @returns {(params: {message: string, requestedSchema: object}) => Promise<{action: string, content?: object}|null>}
  */
 function buildElicit({ server }) {
     return async function elicit(params) {
-        const lowLevelServer = server && server.server;
+        const candidate = server;
+        const lowLevelServer = candidate && candidate.server;
         if (!lowLevelServer || typeof lowLevelServer.getClientCapabilities !== 'function') {
             return null;
         }
@@ -58,6 +56,9 @@ function buildElicit({ server }) {
             return null;
         }
         try {
+            if (typeof lowLevelServer.elicitInput !== 'function') {
+                return null;
+            }
             return await lowLevelServer.elicitInput(params, { timeout: ELICIT_TIMEOUT_MS });
         }
         catch {
@@ -75,19 +76,15 @@ function buildElicit({ server }) {
  * the inbound cancellation `signal`, assembles lazy clock-injected
  * `services`, and exposes the single `ctx.elicit` consent seam.
  *
- * @param {object} args - the tool's parsed input arguments
- * @param {{signal?: AbortSignal}} extra - the SDK callback's second argument
- * @param {{server: object, runtimeConfig: object, getProjectRoot?: () => (string|null|Promise<string|null>), clock?: {now: () => Date}, services?: {canonicalSrcRoot?: string, workspaceSuggestion?: Function}}} options
- * @returns {Promise<{projectRoot: string|null, runtimeConfig: object, signal: AbortSignal|undefined, elicit: Function, services: object}>}
  */
-async function buildHandlerContext(args, extra, options = {}) {
+async function buildHandlerContext(args, extra, options) {
     const { server, runtimeConfig, clock = createSystemClock(), getProjectRoot } = options;
     const projectRoot = typeof getProjectRoot === 'function' ? (await getProjectRoot()) || null : null;
     const inboundServices = options.services || {};
     return {
         projectRoot,
         runtimeConfig,
-        signal: extra && extra.signal,
+        signal: extra?.signal,
         elicit: buildElicit({ server }),
         services: buildServices({
             projectRoot,

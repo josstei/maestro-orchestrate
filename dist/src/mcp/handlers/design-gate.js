@@ -7,6 +7,7 @@ import { atomicWriteSync } from '../../lib/io/index.js';
 import { resolveDocumentInputVariant } from './document-input.js';
 import { buildDesignApprovalConsentSchema } from '../server/elicitation-schemas.js';
 import { attempt } from './attempt.js';
+import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
 const GATE_FILENAME = '.design-gate.json';
 const MODEL_ATTESTED_CONSENT = 'model-attested';
 const FIRST_PARTY_CONSENT = 'first-party';
@@ -245,7 +246,8 @@ async function resolveDesignApprovalConsent(elicit, sessionId) {
  */
 async function handleRecordDesignApproval(params, ctx) {
     assertSessionId(params.session_id);
-    const { projectRoot, elicit } = ctx;
+    const projectRoot = requireWorkspaceRoot(ctx.projectRoot, 'record_design_approval');
+    const { elicit } = ctx;
     const documentVariant = validateApprovedDesignDocumentShape(params);
     const consent = await resolveDesignApprovalConsent(elicit, params.session_id);
     const absDesignPath = materializeApprovedDesignDocument(documentVariant, projectRoot);

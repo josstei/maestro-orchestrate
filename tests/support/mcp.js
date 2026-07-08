@@ -10,6 +10,8 @@ const { createMaestroToolRegistry } = await importDist('src/mcp/tool-packs/contr
 const { registerWorkspacePack } = await importDist('src/mcp/tool-packs/workspace/index.js');
 const { registerSessionPack } = await importDist('src/mcp/tool-packs/session/index.js');
 const { registerContentPack } = await importDist('src/mcp/tool-packs/content/index.js');
+const { registerMemoryPack } = await importDist('src/mcp/tool-packs/memory/index.js');
+const { registerHistoryPack } = await importDist('src/mcp/tool-packs/history/index.js');
 const { ensureWorkspace } = await importDist('src/state/session-state.js');
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
@@ -61,7 +63,7 @@ function parseCallToolResult(response) {
 
 /**
  * Build a live SDK-backed test server: an `McpServer` wired with the given
- * tool packs (defineTool authoring), connected to a real `Client` over the
+ * command-table-authored tool packs, connected to a real `Client` over the
  * SDK's `InMemoryTransport` — so zod argument validation runs in the tested
  * path exactly as it does in production (see `../../dist/src/mcp/maestro-server.js`).
  * `projectRoot` is threaded through the SAME injected-resolver seam as the
@@ -179,4 +181,4 @@ function phaseFixture(overrides = {}) {
   };
 }
 
-export { buildMcpServer, registerContentPack as createContentPack, createInitializedMcpWorkspace, registerSessionPack as createSessionPack, registerWorkspacePack as createWorkspacePack, ensureMaestroWorkspace, initializeWorkspace, makeTempWorkspace, phaseFixture, readJsonFrontmatter, readSessionFrontmatter, writeWorkspaceFile };
+export { buildMcpServer, registerContentPack as createContentPack, createInitializedMcpWorkspace, registerHistoryPack as createHistoryPack, registerMemoryPack as createMemoryPack, registerSessionPack as createSessionPack, registerWorkspacePack as createWorkspacePack, ensureMaestroWorkspace, initializeWorkspace, makeTempWorkspace, phaseFixture, readJsonFrontmatter, readSessionFrontmatter, writeWorkspaceFile };

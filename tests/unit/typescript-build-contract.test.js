@@ -61,6 +61,25 @@ describe('TypeScript build contract', () => {
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'bin', 'maestro-mcp-server.js')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'tooling', 'copy-runtime-assets.d.ts')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'tooling', 'copy-runtime-assets.d.ts.map')), false);
+      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'mcp', 'server', 'tool-types.d.ts')), true);
+      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'contracts.d.ts')), true);
+      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'command-table.d.ts')), true);
+
+      const contractsDeclaration = fs.readFileSync(
+        tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'contracts.d.ts'),
+        'utf8',
+      );
+      assert.match(contractsDeclaration, /MaestroToolRegistry/);
+      assert.match(contractsDeclaration, /ToolHandler<TArgs, TResult>/);
+      assert.doesNotMatch(contractsDeclaration, /declare function defineTool\([^)]*: any/);
+
+      const commandTableDeclaration = fs.readFileSync(
+        tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'command-table.d.ts'),
+        'utf8',
+      );
+      assert.match(commandTableDeclaration, /export type CommandTable<TSchemas extends ToolSchemaMap>/);
+      assert.match(commandTableDeclaration, /withRequiredProjectRoot/);
+      assert.match(commandTableDeclaration, /registerCommandTable<TSchemas extends ToolSchemaMap>/);
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'agents', 'coder.md')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md')), true);

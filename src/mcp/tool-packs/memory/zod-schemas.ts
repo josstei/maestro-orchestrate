@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PHASE_ID } from '../zod-fragments.js';
+import type { ToolSchemaMap } from '../command-table.js';
 
 export const zodSchemas = {
   get_project_profile: {},
@@ -83,4 +84,4 @@ export const zodSchemas = {
       )
       .optional(),
   },
-};
+} satisfies ToolSchemaMap;

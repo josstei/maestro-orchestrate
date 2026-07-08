@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   buildMcpServer,
   createContentPack,
+  createHistoryPack,
   createInitializedMcpWorkspace,
+  createMemoryPack,
   createSessionPack,
   createWorkspacePack,
   phaseFixture,
@@ -14,7 +16,7 @@ import {
 async function createFullServer() {
   return buildMcpServer({
     runtime: 'gemini',
-    toolPacks: [createWorkspacePack, createSessionPack, createContentPack],
+    toolPacks: [createWorkspacePack, createSessionPack, createContentPack, createMemoryPack, createHistoryPack],
   });
 }
 
@@ -33,6 +35,30 @@ describe('workspace requirement contract', () => {
       { name: 'scan_phase_changes', args: { session_id: 's1', phase_id: 1 } },
       { name: 'reconcile_phase', args: { session_id: 's1', phase_id: 1 } },
       { name: 'assess_task_complexity', args: {} },
+      { name: 'get_project_profile', args: {} },
+      { name: 'update_project_profile', args: {} },
+      { name: 'record_validation_commands', args: { commands: {} } },
+      { name: 'get_agent_performance', args: {} },
+      { name: 'recall_similar_sessions', args: { query: 'typed command tables' } },
+      { name: 'rate', args: { target: 'session', session_id: 's1', rating: 'up' } },
+      { name: 'get_plan_accuracy', args: {} },
+      { name: 'query_architecture_memory', args: {} },
+      { name: 'get_agent_memory', args: { agent: 'tester' } },
+      { name: 'append_agent_memory', args: { agent: 'tester', note: 'workspace gate proof' } },
+      { name: 'compact_archive', args: {} },
+      { name: 'record_knowledge', args: { topic: 'workspace gate', note: 'must reject first' } },
+      { name: 'query_knowledge', args: {} },
+      { name: 'export_memory_pack', args: {} },
+      { name: 'import_memory_pack', args: {} },
+      { name: 'fork_session', args: { source_session_id: 's1', new_session_id: 's2' } },
+      { name: 'list_lineage', args: { session_id: 's1' } },
+      { name: 'list_checkpoints', args: { session_id: 's1' } },
+      { name: 'restore_checkpoint', args: { session_id: 's1', phase_id: 1 } },
+      { name: 'list_session_blueprints', args: {} },
+      {
+        name: 'instantiate_session_blueprint',
+        args: { blueprint_id: 'default', task: 'prove workspace gate runs before blueprint handler' },
+      },
     ];
 
     for (const tool of workspaceDependentTools) {

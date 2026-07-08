@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -15,6 +15,19 @@ import {
 
 const moduleDirname = path.dirname(fileURLToPath(import.meta.url));
 const goldenDir = path.join(moduleDirname, 'golden');
+const EXPECTED_FRAGMENT_GOLDENS = [
+  'downstream-context.json',
+  'file-array.json',
+  'phase-id.json',
+  'phase-item.json',
+];
+
+test('golden snapshots match zod fragment names', () => {
+  const actual = readdirSync(goldenDir)
+    .filter((name) => name.endsWith('.json'))
+    .sort();
+  assert.deepEqual(actual, EXPECTED_FRAGMENT_GOLDENS);
+});
 
 function readGolden(name) {
   return JSON.parse(readFileSync(path.join(goldenDir, name), 'utf8'));

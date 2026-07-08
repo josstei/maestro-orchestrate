@@ -217,6 +217,12 @@ for safer deeper reductions.
 **Secondary win:** Modest source/test reduction
 **Breaking surface:** None required, but pairs well with breaking tool reshapes
 
+**Status:** Source migration in progress in the typed MCP command-table slice;
+final generated runtime output and release verification are still owned by that
+slice's Phase 7. The current source keeps the 40-tool public surface while each
+pack declares a `zodSchemas`-keyed command table with explicit context
+projection and workspace metadata.
+
 Convert every MCP tool pack into a name-keyed command table:
 
 ```text

@@ -32,6 +32,8 @@ Option 1 is the active terminal topology.
 - Public bins execute compiled `dist/src` output. Directly-runnable generated MCP
   wrappers remain public generated runtime surfaces and load compiled
   `dist/src` runtime modules.
+- MCP pack registration is authored in `src/mcp/tool-packs/**` as typed
+  command tables and emitted into `dist/src/mcp/tool-packs/**`.
 - npm and release artifacts ship runtime-only `dist/src` subtrees plus public
   generated runtime surfaces, not package-root raw implementation source.
 

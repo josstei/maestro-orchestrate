@@ -2,7 +2,11 @@ import { getRecoveryHint } from './recovery-hints.js';
 import { MaestroError } from '../../lib/errors/index.js';
 const INTERNAL_TOOL_ERROR_CODE = 'INTERNAL_TOOL_ERROR';
 function sanitizeErrorMessage(error) {
-    const message = error && error.message ? error.message : String(error);
+    const message = error instanceof Error
+        ? error.message
+        : error && typeof error === 'object' && 'message' in error
+            ? String(error.message)
+            : String(error);
     return message.replace(/\/[^\s'"]+/g, '[path]');
 }
 function createToolSuccess(result) {
