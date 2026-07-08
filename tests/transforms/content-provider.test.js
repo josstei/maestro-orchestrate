@@ -9,6 +9,7 @@ import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.
 import {
   makeTempSrcRoot,
   cleanupTempRoots,
+  writeFileUnder,
   writeAgent as writeFilesystemAgentAt,
   writeResource as writeFilesystemResourceAt,
   withExtensionRoot,
@@ -22,6 +23,14 @@ function writeFilesystemResource(root, id, content) {
 
 function writeFilesystemAgent(root, agentName, content) {
   return writeFilesystemAgentAt(path.join(root, 'src'), agentName, content);
+}
+
+function writeRuntimeContentRegistry(root, registry) {
+  return writeFileUnder(
+    path.join(root, 'src'),
+    'generated/runtime-content-registry.json',
+    `${JSON.stringify({ schemaVersion: 1, resources: {}, agents: {}, blueprints: {}, ...registry }, null, 2)}\n`
+  );
 }
 
 describe('content provider runtime policy', () => {
@@ -65,11 +74,40 @@ describe('content provider runtime policy', () => {
     assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');
   });
 
-  it('createContentProvider always returns the filesystem provider', () => {
+  it('createContentProvider returns the filesystem provider when no registry exists', () => {
     const srcRoot = makeTempSrcRoot('maestro-provider-filesystem-only-');
     const provider = createContentProvider({ name: 'gemini' }, srcRoot);
     assert.equal(provider.name, 'filesystem');
     assert.equal(provider.srcRoot, path.resolve(srcRoot));
+  });
+
+  it('createContentProvider returns the registry provider when a registry exists', () => {
+    const root = makeTempSrcRoot('maestro-provider-registry-');
+    const srcRoot = path.join(root, 'src');
+    writeRuntimeContentRegistry(root, {
+      resources: {
+        delegation: {
+          relativePath: 'skills/shared/delegation/SKILL.md',
+          content: 'Registry content.\n',
+        },
+      },
+      agents: {
+        coder: {
+          relativePath: 'agents/coder.md',
+          content: '---\nname: coder\ntools: [read_file]\n---\nRegistry agent body.\n',
+        },
+      },
+    });
+
+    const provider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
+    const resourceResult = provider.readResource('delegation');
+    const agentResult = provider.readAgent('coder');
+
+    assert.equal(provider.name, 'registry');
+    assert.equal(provider.srcRoot, path.resolve(srcRoot));
+    assert.equal(resourceResult.content, 'Registry content.\n');
+    assert.equal(agentResult.agent.body, 'Registry agent body.\n');
+    assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
   });
 
   it('provider module no longer exports content-policy plumbing', () => {

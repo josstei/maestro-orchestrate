@@ -48,16 +48,17 @@ The machine-readable source for this contract is `src/platforms/runtime-payload-
 
 | Runtime | Startup manifest | Startup entrypoint | Content root | Detached payload | Current release invariant |
 | --- | --- | --- | --- | --- | --- |
-| Gemini | `gemini-extension.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` | None | root generated runtime files plus dist runtime inventory |
-| Claude | `.claude-plugin/plugin.json` -> `claude/.mcp.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` | None | `.claude-plugin/plugin.json`, `claude/.mcp.json`, `claude/mcp/maestro-server.js`, and dist runtime inventory |
-| Codex | `plugins/maestro/.mcp.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` | None | `dist/src/bin/maestro-mcp-server.js`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, and dist runtime inventory |
-| Qwen | `qwen-extension.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` | None | root generated runtime files plus dist runtime inventory |
+| Gemini | `gemini-extension.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` registry | None | root generated runtime files plus dist runtime inventory and `dist/src/generated/runtime-content-registry.*` |
+| Claude | `.claude-plugin/plugin.json` -> `claude/.mcp.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` registry | None | `.claude-plugin/plugin.json`, `claude/.mcp.json`, `claude/mcp/maestro-server.js`, dist runtime inventory, and `dist/src/generated/runtime-content-registry.*` |
+| Codex | `plugins/maestro/.mcp.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` registry | None | `dist/src/bin/maestro-mcp-server.js`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, dist runtime inventory, and `dist/src/generated/runtime-content-registry.*` |
+| Qwen | `qwen-extension.json` | npm bin `maestro-mcp-server` -> `dist/src/bin/maestro-mcp-server.js` | package/root `dist/src` registry | None | root generated runtime files plus dist runtime inventory and `dist/src/generated/runtime-content-registry.*` |
 
 ## Package Invariants
 
 The npm package must keep these categories until the corresponding runtime contract changes:
 
 - public package bins: `dist/src/bin/maestro-mcp-server.js` and `dist/src/bin/maestro-install-codex.js`
+- generated runtime content registry: `dist/src/generated/runtime-content-registry.json` plus its raw content payload at `dist/src/generated/runtime-content-registry.txt`
 - compiled runtime output: the explicit `dist/src/bin` and `dist/src` runtime inventory in `src/tooling/lib/artifact-inventory.ts`, mirrored by `package.json` `files`
 - generated root runtime files: `agents/`, `commands/`, `hooks/`, `mcp/`, `policies/`, `gemini-extension.json`, `qwen-extension.json`
 - Claude plugin runtime: root `.claude-plugin/` metadata plus explicit public `claude/` surfaces only; it must not include `claude/src`

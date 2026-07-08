@@ -94,6 +94,7 @@ describe('runtime payload contract', () => {
   it('records Codex as dist-only package runtime content', () => {
     const codex = getRuntimePayloadContract('codex');
 
+    assert.equal(codex.content.provider, 'registry');
     assert.equal(codex.content.srcRoot, 'dist/src');
     assert.ok(codex.packageInvariants.includes('dist/src/bin/maestro-mcp-server.js'));
     assert.ok(codex.packageInvariants.includes('dist/src/mcp/maestro-server.js'));
@@ -110,6 +111,7 @@ describe('runtime payload contract', () => {
   it('records Claude as dist-only package runtime content', () => {
     const claude = getRuntimePayloadContract('claude');
 
+    assert.equal(claude.content.provider, 'registry');
     assert.equal(claude.content.srcRoot, 'dist/src');
     assert.ok(claude.packageInvariants.includes('dist/src/bin/maestro-mcp-server.js'));
     assert.ok(claude.packageInvariants.includes('dist/src/mcp/maestro-server.js'));
@@ -125,6 +127,19 @@ describe('runtime payload contract', () => {
         runtime.generatedSurfaces.includes('src/'),
         false,
         `${runtime.name} should not list canonical src/ as generated`
+      );
+    }
+  });
+
+  it('ships generated registry content instead of raw dist content directories', () => {
+    assert.ok(fs.existsSync(path.join(ROOT, 'dist/src/generated/runtime-content-registry.json')));
+    assert.ok(fs.existsSync(path.join(ROOT, 'dist/src/generated/runtime-content-registry.txt')));
+
+    for (const retiredRoot of ['agents', 'references', 'skills', 'templates']) {
+      assert.equal(
+        fs.existsSync(path.join(ROOT, 'dist/src', retiredRoot)),
+        false,
+        `dist/src/${retiredRoot} should not be shipped as raw runtime content`
       );
     }
   });

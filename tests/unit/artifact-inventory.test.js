@@ -61,6 +61,16 @@ describe('artifact inventory', () => {
     assert.ok(Object.isFrozen(RUNTIME_DIST_PATHS));
     assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/bin/maestro-mcp-server.js'));
     assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/mcp'));
+    assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/generated'));
+
+    for (const rawContentRoot of [
+      'dist/src/agents',
+      'dist/src/references',
+      'dist/src/skills',
+      'dist/src/templates',
+    ]) {
+      assert.equal(RUNTIME_DIST_PATHS.includes(rawContentRoot), false);
+    }
 
     for (const runtimeDistPath of RUNTIME_DIST_PATHS) {
       assert.ok(npmFiles().includes(runtimeDistPath));

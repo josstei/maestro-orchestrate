@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { NotFoundError } from '../../dist/src/lib/errors/index.js';
 import { handleInstantiateSessionBlueprint, handleListSessionBlueprints } from '../../dist/src/mcp/handlers/session-blueprints.js';
 const PROJECT_ROOT = process.cwd();
@@ -37,6 +40,35 @@ describe('session blueprints', () => {
       assert.equal(typeof phase.parallel, 'boolean');
       assert.equal(Array.isArray(phase.blocked_by), true);
     });
+  });
+
+  it('falls back to source checkout blueprints when compiled runtime registry is absent', () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-blueprint-fallback-'));
+
+    try {
+      const runtimeSrcRoot = path.join(tempRoot, 'dist', 'src');
+      const sourceBlueprintDir = path.join(tempRoot, 'src', 'templates', 'session-blueprints');
+      fs.mkdirSync(runtimeSrcRoot, { recursive: true });
+      fs.mkdirSync(sourceBlueprintDir, { recursive: true });
+      fs.copyFileSync(
+        path.join(PROJECT_ROOT, 'src', 'templates', 'session-blueprints', 'add-rest-endpoint.md'),
+        path.join(sourceBlueprintDir, 'add-rest-endpoint.md')
+      );
+
+      const listResult = handleListSessionBlueprints({ runtimeSrcRoot });
+      const blueprintResult = handleInstantiateSessionBlueprint(
+        { blueprint_id: 'add-rest-endpoint', task: 'add /users endpoint' },
+        { runtimeSrcRoot }
+      );
+
+      assert.deepEqual(listResult.blueprints, [
+        { id: 'add-rest-endpoint', title: 'Add REST Endpoint' },
+      ]);
+      assert.equal(blueprintResult.task, 'add /users endpoint');
+      assert.equal(blueprintResult.phases.length, 5);
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it('throws NotFoundError for an unknown blueprint id', () => {

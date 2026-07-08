@@ -142,7 +142,24 @@ describe('verify npm pack', () => {
     assert.deepEqual(classifyPackageEntry('dist/src/bin/maestro-mcp-server.js'), ['public-bin', 'runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/mcp/maestro-server.js'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/platforms/claude/runtime-config.js'), ['runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.json'), ['runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.txt'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generator/file-writer.js'), []);
+  });
+
+  it('does not classify raw dist content directories as package runtime content', () => {
+    for (const rawContentPath of [
+      'dist/src/agents/coder.md',
+      'dist/src/references/architecture.md',
+      'dist/src/skills/shared/delegation/SKILL.md',
+      'dist/src/templates/session-state.md',
+    ]) {
+      assert.deepEqual(classifyPackageEntry(rawContentPath), []);
+      assert.throws(
+        () => verifyPackageEntries(packageFiles([rawContentPath])),
+        new RegExp(`npm package contains unclassified paths: ${escaped(rawContentPath)}`)
+      );
+    }
   });
 
   it('keeps package.json free of private package roots', () => {

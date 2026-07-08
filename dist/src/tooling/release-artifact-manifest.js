@@ -272,6 +272,8 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     const requiredRuntimeFiles = [
         'dist/src/bin/maestro-install-codex.js',
         'dist/src/bin/maestro-mcp-server.js',
+        'dist/src/generated/runtime-content-registry.json',
+        'dist/src/generated/runtime-content-registry.txt',
         'dist/src/mcp/maestro-server.js',
     ];
     for (const relativePath of requiredRuntimeFiles) {

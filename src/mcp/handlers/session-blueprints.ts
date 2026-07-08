@@ -4,11 +4,32 @@ import * as markdownState from '../../core/markdown-state.js';
 import { NotFoundError, ValidationError } from '../../lib/errors/index.js';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import {
+  hasRuntimeContentRegistry,
+  listBlueprintsFromRegistry,
+  readBlueprintFromRegistry,
+} from '../content/runtime-content.js';
 import { PHASE_ID } from '../tool-packs/zod-fragments.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const BLUEPRINT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
-const BLUEPRINT_DIR = path.join(moduleDirname, '..', '..', 'templates', 'session-blueprints');
+const RUNTIME_SRC_ROOT = path.join(moduleDirname, '..', '..');
+
+function sourceCheckoutRoot(runtimeSrcRoot: any) {
+  return path.resolve(runtimeSrcRoot, '..', '..');
+}
+
+function blueprintDirs(runtimeSrcRoot: any): [string, string] {
+  return [
+    path.join(runtimeSrcRoot, 'templates', 'session-blueprints'),
+    path.join(sourceCheckoutRoot(runtimeSrcRoot), 'src', 'templates', 'session-blueprints'),
+  ];
+}
+
+function resolveBlueprintDir(runtimeSrcRoot: any) {
+  const [runtimeBlueprintDir, sourceBlueprintDir] = blueprintDirs(runtimeSrcRoot);
+  return [runtimeBlueprintDir, sourceBlueprintDir].find((dir) => fs.existsSync(dir)) || runtimeBlueprintDir;
+}
 
 /**
  * Shape contract for an authored session blueprint's frontmatter. Parsing
@@ -43,38 +64,51 @@ const BLUEPRINT_SCHEMA = z.object({
 });
 
 /**
- * Resolve an authored session blueprint file from the installed package payload.
+ * Resolve an authored session blueprint from the installed package payload.
  *
  * @param {string} blueprintId - Authored blueprint identifier.
- * @returns {string} Absolute blueprint markdown path.
+ * @returns {{ content: string, path: string }} Blueprint markdown content and source path.
  * @throws {NotFoundError} When the id is invalid or no blueprint exists.
  */
-function resolveBlueprintPath(blueprintId: any) {
+function resolveBlueprintSource(blueprintId: any, runtimeSrcRoot: any = RUNTIME_SRC_ROOT) {
   if (typeof blueprintId !== 'string' || !BLUEPRINT_ID_PATTERN.test(blueprintId)) {
     throw new NotFoundError(`Session blueprint '${blueprintId}' not found`);
   }
 
+  if (hasRuntimeContentRegistry(runtimeSrcRoot)) {
+    const blueprint = readBlueprintFromRegistry(blueprintId, runtimeSrcRoot);
+    if (!blueprint) {
+      throw new NotFoundError(`Session blueprint '${blueprintId}' not found`);
+    }
+
+    return blueprint;
+  }
+
+  const BLUEPRINT_DIR = resolveBlueprintDir(runtimeSrcRoot);
   const filePath = path.join(BLUEPRINT_DIR, `${blueprintId}.md`);
   if (!fs.existsSync(filePath)) {
     throw new NotFoundError(`Session blueprint '${blueprintId}' not found`);
   }
 
-  return filePath;
+  return {
+    content: fs.readFileSync(filePath, 'utf8'),
+    path: filePath,
+  };
 }
 
 /**
- * Parse a blueprint markdown file with structured JSON frontmatter.
+ * Parse a blueprint markdown source with structured JSON frontmatter.
  *
- * @param {string} filePath - Absolute markdown file path.
+ * @param {{ content: string, path: string }} source - Blueprint markdown content and source path.
  * @returns {object} Parsed blueprint frontmatter.
  * @throws {ValidationError} When the blueprint is malformed.
  */
-function parseBlueprint(filePath: any) {
+function parseBlueprint(source: any) {
   try {
-    return BLUEPRINT_SCHEMA.parse(markdownState.parse(fs.readFileSync(filePath, 'utf8')).data);
+    return BLUEPRINT_SCHEMA.parse(markdownState.parse(source.content).data);
   } catch (err: any) {
-    throw new ValidationError(`Invalid session blueprint: ${path.basename(filePath)}`, {
-      details: { file: filePath, message: err.message },
+    throw new ValidationError(`Invalid session blueprint: ${path.basename(source.path)}`, {
+      details: { file: source.path, message: err.message },
     });
   }
 }
@@ -84,11 +118,23 @@ function parseBlueprint(filePath: any) {
  *
  * @returns {object[]} Parsed blueprint frontmatter objects.
  */
-function readBlueprints() {
+function readBlueprints(runtimeSrcRoot: any = RUNTIME_SRC_ROOT) {
+  if (hasRuntimeContentRegistry(runtimeSrcRoot)) {
+    return listBlueprintsFromRegistry(runtimeSrcRoot)
+      .map((blueprint: any) => parseBlueprint(blueprint))
+      .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
+  }
+
+  const BLUEPRINT_DIR = resolveBlueprintDir(runtimeSrcRoot);
   return fs
     .readdirSync(BLUEPRINT_DIR, { withFileTypes: true })
     .filter((entry: any) => entry.isFile() && entry.name.endsWith('.md'))
-    .map((entry: any) => parseBlueprint(path.join(BLUEPRINT_DIR, entry.name)))
+    .map((entry: any) =>
+      parseBlueprint({
+        content: fs.readFileSync(path.join(BLUEPRINT_DIR, entry.name), 'utf8'),
+        path: path.join(BLUEPRINT_DIR, entry.name),
+      })
+    )
     .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
 }
 
@@ -97,9 +143,10 @@ function readBlueprints() {
  *
  * @returns {{ blueprints: Array<{ id: string, title: string }> }}
  */
-function handleListSessionBlueprints() {
+function handleListSessionBlueprints(options: any = {}) {
+  const runtimeSrcRoot = options.runtimeSrcRoot || RUNTIME_SRC_ROOT;
   return {
-    blueprints: readBlueprints().map((blueprint: any) => ({
+    blueprints: readBlueprints(runtimeSrcRoot).map((blueprint: any) => ({
       id: blueprint.id,
       title: blueprint.title,
     })),
@@ -114,8 +161,9 @@ function handleListSessionBlueprints() {
  * @throws {NotFoundError} When the blueprint id is unknown.
  * @throws {ValidationError} When the blueprint frontmatter fails the blueprint schema.
  */
-function handleInstantiateSessionBlueprint(params: any) {
-  const blueprint = parseBlueprint(resolveBlueprintPath(params.blueprint_id));
+function handleInstantiateSessionBlueprint(params: any, options: any = {}) {
+  const runtimeSrcRoot = options.runtimeSrcRoot || RUNTIME_SRC_ROOT;
+  const blueprint = parseBlueprint(resolveBlueprintSource(params.blueprint_id, runtimeSrcRoot));
 
   return {
     task: params.task,

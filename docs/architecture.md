@@ -172,16 +172,16 @@ src/mcp/
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) use one filesystem provider rooted at package-root `dist/src`:
+The content tools (`get_agent`, `get_skill_content`) use the same provider contract for Gemini, Claude, Codex, and Qwen, rooted at package-root `dist/src`. Packaged builds prefer the generated registry index at `dist/src/generated/runtime-content-registry.json` plus raw payload at `dist/src/generated/runtime-content-registry.txt`; source checkouts without that registry continue to read canonical content from the filesystem:
 
-- Gemini: `primary=filesystem`, `fallback=none`
-- Claude: `primary=filesystem`, `fallback=none`
-- Codex: `primary=filesystem`, `fallback=none`
-- Qwen: `primary=filesystem`, `fallback=none`
+- Gemini: `primary=registry`, `source-checkout fallback=filesystem`
+- Claude: `primary=registry`, `source-checkout fallback=filesystem`
+- Codex: `primary=registry`, `source-checkout fallback=filesystem`
+- Qwen: `primary=registry`, `source-checkout fallback=filesystem`
 
 All four runtimes spawn `dist/src/bin/maestro-mcp-server.js` via a release-versioned `npx -y -p @josstei/maestro@<version> maestro-mcp-server` invocation declared in each runtime's manifest (`gemini-extension.json`, `qwen-extension.json`, `claude/.mcp.json`, `plugins/maestro/.mcp.json`). The bin honors an env-provided `MAESTRO_RUNTIME` (defaulting to `codex` if absent) — Gemini's and Qwen's manifests set `MAESTRO_RUNTIME=gemini`/`MAESTRO_RUNTIME=qwen`, Claude's sets `MAESTRO_RUNTIME=claude`, Codex's sets `MAESTRO_RUNTIME=codex` — overwrites `MAESTRO_EXTENSION_PATH` with the package root, then imports `dist/src/mcp/maestro-server.js`. The repo-root `mcp/maestro-server.js` (shared by Gemini/Qwen) and `claude/mcp/maestro-server.js` wrappers still ship but are no longer the launch target.
 
-Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.js`, so a future registry or snapshot provider must feed the same materialization path instead of carrying pre-transformed copies.
+Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.js`, and the generated registry feeds that same materialization path instead of carrying pre-transformed copies.
 
 MCP tool packs declare tools through homomorphic command tables keyed by each
 pack's `zodSchemas` object. Each command owns its description, workspace
@@ -205,7 +205,7 @@ All four runtimes invoke the server via `npx -y -p @josstei/maestro@<version> ma
 - **Claude** (`claude/.mcp.json`): `npx` sets `MAESTRO_RUNTIME=claude`; same bin path
 - **Codex** (`plugins/maestro/.mcp.json`): `npx` sets `MAESTRO_RUNTIME=codex`; same bin path (also the bin's default if `MAESTRO_RUNTIME` is unset entirely)
 
-There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
+There is no tracked generated MCP core artifact and no tracked runtime-local `lib/` tree. The bundled runtime content registry is generated during `npm run build` from canonical `src/` agents, skills, references, templates, and session blueprints, so public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
 Project-root resolution is also runtime-aware. Gemini and Claude prefer their explicit workspace env vars first, while Codex prefers `MAESTRO_WORKSPACE_PATH` when present and otherwise falls back to the MCP client `roots/list` response before using inherited env or `cwd` heuristics. That keeps shared session state anchored to the workspace instead of the runtime bundle location.
 

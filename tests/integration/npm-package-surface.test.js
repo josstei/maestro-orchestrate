@@ -220,12 +220,28 @@ describe('npm package surface', () => {
           const agentResult = await client.callTool('get_agent', {
             agents: ['coder'],
           });
+          const workspaceResult = await client.callTool('initialize_workspace', {
+            workspace_path: installRoot,
+          });
+          const blueprintListResult = await client.callTool('list_session_blueprints', {});
+          const blueprintResult = await client.callTool('instantiate_session_blueprint', {
+            blueprint_id: 'add-rest-endpoint',
+            task: 'add /users endpoint',
+          });
 
           assert.equal(runtimeResult.parsed.runtime, 'codex');
           assert.ok(skillResult.parsed.contents.delegation.includes('# Delegation Skill'));
           assert.deepEqual(skillResult.parsed.errors, {});
           assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
           assert.deepEqual(agentResult.parsed.errors, {});
+          assert.equal(workspaceResult.parsed.success, true);
+          assert.deepEqual(blueprintListResult.parsed.blueprints, [
+            { id: 'add-db-migration', title: 'Add Database Migration' },
+            { id: 'add-rest-endpoint', title: 'Add REST Endpoint' },
+          ]);
+          assert.equal(blueprintResult.parsed.task, 'add /users endpoint');
+          assert.equal(blueprintResult.parsed.phases.length, 5);
+          assert.equal(typeof blueprintResult.parsed.design_outline, 'string');
         }
       );
     } finally {

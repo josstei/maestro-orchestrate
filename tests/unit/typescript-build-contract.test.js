@@ -81,10 +81,19 @@ describe('TypeScript build contract', () => {
       assert.match(commandTableDeclaration, /withRequiredProjectRoot/);
       assert.match(commandTableDeclaration, /registerCommandTable<TSchemas extends ToolSchemaMap>/);
 
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'agents', 'coder.md')), true);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md')), true);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'references', 'orchestration-steps.md')), true);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'templates', 'implementation-plan.md')), true);
+      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json')), true);
+      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.txt')), true);
+      const runtimeContentRegistry = JSON.parse(
+        fs.readFileSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json'), 'utf8')
+      );
+      assert.equal(runtimeContentRegistry.payload, 'runtime-content-registry.txt');
+      assert.equal(Object.keys(runtimeContentRegistry.resources).length, 15);
+      assert.equal(Object.keys(runtimeContentRegistry.agents).length, 39);
+      assert.equal(Object.keys(runtimeContentRegistry.blueprints).length, 2);
+      assert.equal(Array.isArray(runtimeContentRegistry.resources.delegation), true);
+      for (const retiredContentRoot of ['agents', 'references', 'skills', 'templates']) {
+        assert.equal(fs.existsSync(tempRepoPath('dist', 'src', retiredContentRoot)), false);
+      }
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'agents')), false);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'commands')), false);

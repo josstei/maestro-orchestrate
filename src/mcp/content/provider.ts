@@ -1,6 +1,12 @@
 import path from 'path';
 import { resolveRuntimeContentFromExtensionRoot } from '../utils/extension-root.js';
-import { readResourceFromFilesystem, readAgentFromFilesystem } from './runtime-content.js';
+import {
+  hasRuntimeContentRegistry,
+  readResourceFromFilesystem,
+  readResourceFromRegistry,
+  readAgentFromFilesystem,
+  readAgentFromRegistry,
+} from './runtime-content.js';
 
 function createFilesystemProvider(
   runtimeConfig: any,
@@ -22,8 +28,33 @@ function createFilesystemProvider(
   };
 }
 
-function createContentProvider(runtimeConfig: any, canonicalSrcRoot: any = resolveRuntimeContentFromExtensionRoot()) {
-  return createFilesystemProvider(runtimeConfig, canonicalSrcRoot);
+function createRegistryProvider(
+  runtimeConfig: any,
+  canonicalSrcRoot: any = resolveRuntimeContentFromExtensionRoot()
+) {
+  const srcRoot = path.resolve(canonicalSrcRoot);
+
+  return {
+    name: 'registry',
+    srcRoot,
+
+    readResource(id: any) {
+      return readResourceFromRegistry(id, runtimeConfig, srcRoot);
+    },
+
+    readAgent(agentName: any) {
+      return readAgentFromRegistry(agentName, runtimeConfig, srcRoot);
+    },
+  };
 }
 
-export { createContentProvider, createFilesystemProvider };
+function createContentProvider(runtimeConfig: any, canonicalSrcRoot: any = resolveRuntimeContentFromExtensionRoot()) {
+  const srcRoot = path.resolve(canonicalSrcRoot);
+  if (hasRuntimeContentRegistry(srcRoot)) {
+    return createRegistryProvider(runtimeConfig, srcRoot);
+  }
+
+  return createFilesystemProvider(runtimeConfig, srcRoot);
+}
+
+export { createContentProvider, createFilesystemProvider, createRegistryProvider };

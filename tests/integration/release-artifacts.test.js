@@ -63,9 +63,23 @@ describe('release artifact packaging', () => {
       assert.equal(archiveEntries.includes('./claude/scripts/policy-enforcer.test.js'), false);
       assert.ok(archiveEntries.includes('./dist/src/bin/maestro-install-codex.js'));
       assert.ok(archiveEntries.includes('./dist/src/bin/maestro-mcp-server.js'));
+      assert.ok(archiveEntries.includes('./dist/src/generated/runtime-content-registry.json'));
+      assert.ok(archiveEntries.includes('./dist/src/generated/runtime-content-registry.txt'));
       assert.ok(archiveEntries.includes('./dist/src/mcp/maestro-server.js'));
       assert.ok(archiveEntries.includes('./dist/src/lib/framework-detection.js'));
       assert.ok(archiveEntries.includes('./dist/src/platforms/codex/runtime-config.js'));
+      for (const retiredContentRoot of [
+        './dist/src/agents/',
+        './dist/src/references/',
+        './dist/src/skills/',
+        './dist/src/templates/',
+      ]) {
+        assert.equal(
+          archiveEntries.some((entry) => entry.startsWith(retiredContentRoot)),
+          false,
+          `${retiredContentRoot} must not be archived as raw runtime content`
+        );
+      }
       for (const buildOnlyPath of BUILD_ONLY_SOURCE_ARCHIVE_PATHS) {
         assert.equal(archiveEntries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be archived`);
       }

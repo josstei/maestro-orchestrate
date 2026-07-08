@@ -4,7 +4,7 @@ const TOPOLOGY_DECISION = Object.freeze({
     mode: 'typescript-dist-terminal',
     canonicalSource: 'src/**/*.ts plus canonical runtime Markdown/templates under src/',
     runtimeFormat: 'NodeNext ESM JavaScript emitted under dist/src/',
-    note: 'Runtime bins and public MCP wrappers execute compiled dist/src output; package and release artifacts ship dist/src runtime entries plus public generated surfaces, not package-root raw src.',
+    note: 'Runtime bins and public MCP wrappers execute compiled dist/src output; package and release artifacts ship dist/src runtime entries plus a generated runtime content registry, not package-root raw src.',
 });
 const PLANNED_TOPOLOGY_DECISION = Object.freeze({
     id: 'option-1-typescript-dist-terminal',
@@ -24,7 +24,7 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
             entrypoint: 'dist/src/bin/maestro-mcp-server.js',
         },
         content: {
-            provider: 'filesystem',
+            provider: 'registry',
             srcRoot: 'dist/src',
         },
         generatedSurfaces: [
@@ -38,6 +38,8 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
         ],
         packageInvariants: [
             'dist/src/bin/maestro-mcp-server.js',
+            'dist/src/generated/runtime-content-registry.json',
+            'dist/src/generated/runtime-content-registry.txt',
             'dist/src/mcp/maestro-server.js',
             'gemini-extension.json',
             'mcp/maestro-server.js',
@@ -53,7 +55,7 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
             entrypoint: 'dist/src/bin/maestro-mcp-server.js',
         },
         content: {
-            provider: 'filesystem',
+            provider: 'registry',
             srcRoot: 'dist/src',
         },
         generatedSurfaces: [
@@ -71,6 +73,8 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
             'claude/.mcp.json',
             'claude/mcp/maestro-server.js',
             'dist/src/bin/maestro-mcp-server.js',
+            'dist/src/generated/runtime-content-registry.json',
+            'dist/src/generated/runtime-content-registry.txt',
             'dist/src/mcp/maestro-server.js',
         ],
         docs: ['docs/runtime-claude.md', 'claude/README.md'],
@@ -84,7 +88,7 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
             entrypoint: 'dist/src/bin/maestro-mcp-server.js',
         },
         content: {
-            provider: 'filesystem',
+            provider: 'registry',
             srcRoot: 'dist/src',
         },
         generatedSurfaces: [
@@ -98,6 +102,8 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
         packageInvariants: [
             'dist/src/bin/maestro-install-codex.js',
             'dist/src/bin/maestro-mcp-server.js',
+            'dist/src/generated/runtime-content-registry.json',
+            'dist/src/generated/runtime-content-registry.txt',
             'dist/src/mcp/maestro-server.js',
             'plugins/maestro/.codex-plugin/plugin.json',
             'plugins/maestro/.mcp.json',
@@ -113,7 +119,7 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
             entrypoint: 'dist/src/bin/maestro-mcp-server.js',
         },
         content: {
-            provider: 'filesystem',
+            provider: 'registry',
             srcRoot: 'dist/src',
         },
         generatedSurfaces: [
@@ -125,6 +131,8 @@ const RUNTIME_PAYLOAD_CONTRACT = Object.freeze([
         ],
         packageInvariants: [
             'dist/src/bin/maestro-mcp-server.js',
+            'dist/src/generated/runtime-content-registry.json',
+            'dist/src/generated/runtime-content-registry.txt',
             'dist/src/mcp/maestro-server.js',
             'qwen-extension.json',
             'qwen/hooks.json',

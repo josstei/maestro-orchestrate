@@ -31,6 +31,60 @@ const RUNTIME_BUNDLES = [
   { cwd: ROOT, relativePath: CODEX_BIN, env: { MAESTRO_EXTENSION_PATH: '' } },
 ];
 
+function runtimeContentRegistryPath(packageRoot) {
+  return path.join(packageRoot, 'dist', 'src', 'generated', 'runtime-content-registry.json');
+}
+
+function runtimeContentPayloadPath(packageRoot, registry) {
+  return path.join(
+    packageRoot,
+    'dist',
+    'src',
+    'generated',
+    registry.payload || 'runtime-content-registry.txt'
+  );
+}
+
+function updateRuntimeContentRegistry(packageRoot, update) {
+  const registryPath = runtimeContentRegistryPath(packageRoot);
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  update(registry);
+  fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`, 'utf8');
+}
+
+function appendRegistryEntry(packageRoot, section, id, content) {
+  updateRuntimeContentRegistry(packageRoot, (registry) => {
+    const entry = registry[section][id];
+    assert.ok(entry, `Expected registry ${section} entry ${id}`);
+
+    if (Array.isArray(entry)) {
+      const payloadPath = runtimeContentPayloadPath(packageRoot, registry);
+      const payload = fs.readFileSync(payloadPath, 'utf8');
+      const updatedContent = payload.slice(entry[1], entry[1] + entry[2]) + content;
+      entry[1] = payload.length;
+      entry[2] = updatedContent.length;
+      fs.writeFileSync(payloadPath, payload + updatedContent, 'utf8');
+      return;
+    }
+
+    entry.content += content;
+  });
+}
+
+function appendRegistryResource(packageRoot, resourceId, content) {
+  appendRegistryEntry(packageRoot, 'resources', resourceId, content);
+}
+
+function appendRegistryAgent(packageRoot, agentName, content) {
+  appendRegistryEntry(packageRoot, 'agents', agentName, content);
+}
+
+function assertNoRawDistContentRoots(packageRoot) {
+  for (const contentRoot of ['agents', 'references', 'skills', 'templates']) {
+    assert.equal(fs.existsSync(path.join(packageRoot, 'dist', 'src', contentRoot)), false);
+  }
+}
+
 describe('mcp server bundle behavior', () => {
   it('rejects empty agent arrays at the SDK zod boundary', async () => {
     await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
@@ -127,16 +181,11 @@ describe('mcp server bundle behavior', () => {
       const agentSentinel = 'Packaged Claude runtime agent sentinel.';
 
       assert.equal(fs.existsSync(packageSourceRoot), true);
-      fs.appendFileSync(
-        path.join(packageSourceRoot, 'skills', 'shared', 'delegation', 'SKILL.md'),
-        `\n${skillSentinel}\n`,
-        'utf8'
-      );
-      fs.appendFileSync(
-        path.join(packageSourceRoot, 'agents', 'coder.md'),
-        `\n${agentSentinel}\n`,
-        'utf8'
-      );
+      assert.equal(fs.existsSync(runtimeContentRegistryPath(packageRoot)), true);
+      assert.equal(fs.existsSync(runtimeContentPayloadPath(packageRoot, JSON.parse(fs.readFileSync(runtimeContentRegistryPath(packageRoot), 'utf8')))), true);
+      assertNoRawDistContentRoots(packageRoot);
+      appendRegistryResource(packageRoot, 'delegation', `\n${skillSentinel}\n`);
+      appendRegistryAgent(packageRoot, 'coder', `\n${agentSentinel}\n`);
 
       await withServer(
         {
@@ -173,16 +222,10 @@ describe('mcp server bundle behavior', () => {
       const agentSentinel = 'Package-root agent sentinel for Claude no-payload fixture.';
 
       fs.rmSync(detachedPayload, { recursive: true, force: true });
-      fs.appendFileSync(
-        path.join(packageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
-        `\n${skillSentinel}\n`,
-        'utf8'
-      );
-      fs.appendFileSync(
-        path.join(packageRoot, 'dist', 'src', 'agents', 'coder.md'),
-        `\n${agentSentinel}\n`,
-        'utf8'
-      );
+      assert.equal(fs.existsSync(runtimeContentRegistryPath(packageRoot)), true);
+      assertNoRawDistContentRoots(packageRoot);
+      appendRegistryResource(packageRoot, 'delegation', `\n${skillSentinel}\n`);
+      appendRegistryAgent(packageRoot, 'coder', `\n${agentSentinel}\n`);
       assert.equal(fs.existsSync(detachedPayload), false);
 
       await withServer({
@@ -213,19 +256,11 @@ describe('mcp server bundle behavior', () => {
 
     try {
       const bogusSentinel = 'bogus extension root sentinel';
-      fs.appendFileSync(
-        path.join(bogusRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
-        `\n${bogusSentinel}\n`,
-        'utf8'
-      );
+      appendRegistryResource(bogusRoot, 'delegation', `\n${bogusSentinel}\n`);
 
       await withPackagedClaudeRuntime(async (packageRoot) => {
         const packageSentinel = 'claude package root wins over ambient extension path';
-        fs.appendFileSync(
-          path.join(packageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
-          `\n${packageSentinel}\n`,
-          'utf8'
-        );
+        appendRegistryResource(packageRoot, 'delegation', `\n${packageSentinel}\n`);
 
         await withServer({
           cwd: packageRoot,
@@ -244,11 +279,7 @@ describe('mcp server bundle behavior', () => {
       const codexPackageRoot = createTempRepoCopy('maestro-codex-ambient-root-');
       try {
         const packageSentinel = 'codex package root wins over ambient extension path';
-        fs.appendFileSync(
-          path.join(codexPackageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
-          `\n${packageSentinel}\n`,
-          'utf8'
-        );
+        appendRegistryResource(codexPackageRoot, 'delegation', `\n${packageSentinel}\n`);
 
         await withServer({
           cwd: codexPackageRoot,
@@ -278,16 +309,10 @@ describe('mcp server bundle behavior', () => {
       const skillSentinel = 'package-root skill sentinel for Codex no-payload fixture';
       const agentSentinel = 'Package-root agent sentinel for Codex no-payload fixture.';
       fs.rmSync(retiredPayload, { recursive: true, force: true });
-      fs.appendFileSync(
-        path.join(packageRoot, 'dist', 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
-        `\n${skillSentinel}\n`,
-        'utf8'
-      );
-      fs.appendFileSync(
-        path.join(packageRoot, 'dist', 'src', 'agents', 'coder.md'),
-        `\n${agentSentinel}\n`,
-        'utf8'
-      );
+      assert.equal(fs.existsSync(runtimeContentRegistryPath(packageRoot)), true);
+      assertNoRawDistContentRoots(packageRoot);
+      appendRegistryResource(packageRoot, 'delegation', `\n${skillSentinel}\n`);
+      appendRegistryAgent(packageRoot, 'coder', `\n${agentSentinel}\n`);
       assert.equal(fs.existsSync(retiredPayload), false);
 
       await withServer({

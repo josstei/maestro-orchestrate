@@ -13,7 +13,6 @@ type InventoryEntry = Readonly<{
 const RUNTIME_DIST_PATHS = Object.freeze([
   'dist/src/bin/maestro-install-codex.js',
   'dist/src/bin/maestro-mcp-server.js',
-  'dist/src/agents',
   'dist/src/config',
   'dist/src/core',
   'dist/src/generated',
@@ -33,10 +32,7 @@ const RUNTIME_DIST_PATHS = Object.freeze([
   'dist/src/platforms/shared/adapters',
   'dist/src/platforms/shared/gemini-family-config.js',
   'dist/src/platforms/shared/hook-runner.js',
-  'dist/src/references',
-  'dist/src/skills',
   'dist/src/state',
-  'dist/src/templates',
 ]);
 
 const RUNTIME_DIST_ENTRIES: readonly InventoryEntry[] = RUNTIME_DIST_PATHS.map((path) => ({ path, scope: SCOPE.BOTH }));
