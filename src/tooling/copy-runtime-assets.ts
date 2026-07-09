@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { listAgentSources } from '../core/agent-sources.js';
 
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -9,7 +10,7 @@ const ROOT = path.resolve(moduleDirname, '../../..');
 const SRC = path.join(ROOT, 'src');
 const DIST_SRC = path.join(ROOT, 'dist', 'src');
 const RUNTIME_CONTENT_REGISTRY = 'runtime-content-registry.json';
-const RUNTIME_CONTENT_PAYLOAD = 'runtime-content-registry.txt';
+const RUNTIME_CONTENT_PAYLOAD = 'runtime-content-registry.txt.gz';
 
 const ASSET_ROOTS = Object.freeze([
   'entry-points/templates',
@@ -31,6 +32,7 @@ type RegistryEntry = readonly [relativePath: string, start: number, length: numb
 type RuntimeContentRegistry = Readonly<{
   schemaVersion: 1;
   payload: string;
+  payloadEncoding: 'gzip';
   resources: Record<string, RegistryEntry>;
   agents: Record<string, RegistryEntry>;
   agentProfiles: Record<string, RegistryEntry>;
@@ -145,6 +147,7 @@ function createRuntimeContentRegistry(): RuntimeContentRegistry {
   return Object.freeze({
     schemaVersion: 1,
     payload: RUNTIME_CONTENT_PAYLOAD,
+    payloadEncoding: 'gzip',
     resources,
     agents,
     agentProfiles: readAgentProfileEntries(),
@@ -158,7 +161,7 @@ function writeRuntimeContentRegistry(): void {
   const registry = createRuntimeContentRegistry();
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, `${JSON.stringify(registry)}\n`);
-  fs.writeFileSync(payloadPath, registryPayload);
+  fs.writeFileSync(payloadPath, gzipSync(registryPayload, { level: 9 }));
 }
 
 function removeRetiredRuntimeContentRoots(): void {

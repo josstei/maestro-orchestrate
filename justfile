@@ -6,7 +6,7 @@ help:
     @echo ""
     @echo "Generator:"
     @echo "  just generate         Generate all runtime files from src/"
-    @echo "  just build            Compile the transitional dist/ tree and copy runtime assets"
+    @echo "  just build            Compile the generated dist/ tree and copy runtime assets"
     @echo "  just typecheck        Type-check the current JS/TS source graph"
     @echo "  just dry-run          Preview what would change without writing"
     @echo "  just diff             Show unified diff of what would change"
@@ -33,7 +33,7 @@ help:
 generate:
     npm run generate
 
-# Compile the transitional dist/ tree and copy runtime assets
+# Compile the generated dist/ tree and copy runtime assets
 build:
     npm run build
 

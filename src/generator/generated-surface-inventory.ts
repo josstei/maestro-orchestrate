@@ -89,16 +89,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     producer: 'src/platforms/*/metadata.ts',
     writeMode: 'generate and prepack',
     sourceInputs: ['package.json', 'src/platforms/*/metadata.ts'],
-    outputs: [
-      'gemini-extension.json',
-      'qwen-extension.json',
-      '.claude-plugin/marketplace.json',
-      '.agents/plugins/marketplace.json',
-      '.claude-plugin/plugin.json',
-      'claude/.mcp.json',
-      'plugins/maestro/.codex-plugin/plugin.json',
-      'plugins/maestro/.mcp.json',
-    ],
+    outputs: metadataOutputPaths(),
     tracked: true,
     packaged: true,
     notes: 'Version and install metadata are generated from package metadata. Only the 3 paths in TRACKED_OUTPUT_EXEMPTIONS stay tracked; the rest are gitignored.',
@@ -190,3 +181,4 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
 ]);
 
 export { GENERATED_SURFACE_INVENTORY, LIVE_OWNED_GENERATED_DIRS, OWNED_GENERATED_DIRS, RETIRED_GENERATED_CLEANUP_DIRS, TRACKED_OUTPUT_EXEMPTIONS };
+import { metadataOutputPaths } from '../platforms/runtime-declarations.js';

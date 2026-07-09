@@ -36,11 +36,25 @@ function cleanupTempRepo(repoRoot) {
 }
 
 describe('TypeScript build contract', () => {
-  it('emits transitional dist code and copied runtime assets for package-bin execution', async () => {
+  it('emits generated dist code and copied runtime assets for package-bin execution', async () => {
     const repoRoot = createTempRepoCopy('maestro-ts-build-contract-');
 
     try {
       const tempRepoPath = (...parts) => path.join(repoRoot, ...parts);
+
+      assert.equal(fs.existsSync(tempRepoPath('dist', 'src')), false);
+      execFileSync('git', ['init', '-b', 'main'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      assert.equal(
+        execFileSync('git', ['check-ignore', '--no-index', 'dist/src/bin/maestro-mcp-server.js'], {
+          cwd: repoRoot,
+          encoding: 'utf8',
+        }).trim(),
+        'dist/src/bin/maestro-mcp-server.js'
+      );
 
       fs.mkdirSync(tempRepoPath('dist', 'release'), { recursive: true });
       fs.writeFileSync(tempRepoPath('dist', 'release', 'stale.txt'), 'stale build output\n');
@@ -59,6 +73,13 @@ describe('TypeScript build contract', () => {
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'tooling', 'generate.js')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'bin', 'maestro-mcp-server.js')), false);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'bin', 'maestro-mcp-server.js')), true);
+      assert.equal(
+        execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all', '--', 'dist/src'], {
+          cwd: repoRoot,
+          encoding: 'utf8',
+        }).trim(),
+        ''
+      );
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'tooling', 'copy-runtime-assets.d.ts')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'tooling', 'copy-runtime-assets.d.ts.map')), false);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'mcp', 'server', 'tool-types.d.ts')), true);
@@ -82,11 +103,12 @@ describe('TypeScript build contract', () => {
       assert.match(commandTableDeclaration, /registerCommandTable<TSchemas extends ToolSchemaMap>/);
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json')), true);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.txt')), true);
+      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.txt.gz')), true);
       const runtimeContentRegistry = JSON.parse(
         fs.readFileSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json'), 'utf8')
       );
-      assert.equal(runtimeContentRegistry.payload, 'runtime-content-registry.txt');
+      assert.equal(runtimeContentRegistry.payload, 'runtime-content-registry.txt.gz');
+      assert.equal(runtimeContentRegistry.payloadEncoding, 'gzip');
       assert.equal(Object.keys(runtimeContentRegistry.resources).length, 15);
       assert.equal(Object.keys(runtimeContentRegistry.agents).length, 39);
       assert.equal(Object.keys(runtimeContentRegistry.blueprints).length, 2);

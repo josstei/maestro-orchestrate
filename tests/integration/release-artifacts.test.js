@@ -7,31 +7,10 @@ import { execFileSync } from 'node:child_process';
 import { createTempRepoCopy } from './helpers.js';
 import { packageReleaseArtifacts } from '../../dist/src/tooling/package-release-artifacts.js';
 import { verifyReleaseArtifact } from '../../dist/src/tooling/verify-release-artifacts.js';
-
-const BUILD_ONLY_SOURCE_ARCHIVE_PATHS = [
-  './src/generator/file-writer.ts',
-  './src/transforms/index.ts',
-  './src/entry-points/registry.js',
-  './src/lib/discovery/index.ts',
-  './src/lib/yaml-emit.ts',
-  './src/manifest.js',
-  './src/platforms/metadata.ts',
-  './src/platforms/metadata-shared.ts',
-  './src/platforms/claude/metadata.ts',
-  './src/platforms/runtime-payload-contract.ts',
-];
-
-const sourceArchivePathToDistArchivePath = (sourcePath) => {
-  const withoutPrefix = sourcePath.slice(2);
-  const emittedPath = withoutPrefix.endsWith('.ts')
-    ? withoutPrefix.slice(0, -3) + '.js'
-    : withoutPrefix;
-  return `./dist/${emittedPath}`;
-};
-
-const BUILD_ONLY_DIST_ARCHIVE_PATHS = BUILD_ONLY_SOURCE_ARCHIVE_PATHS.map((sourcePath) =>
-  sourceArchivePathToDistArchivePath(sourcePath)
-);
+import {
+  BUILD_ONLY_DIST_ARCHIVE_PATHS,
+  BUILD_ONLY_SOURCE_ARCHIVE_PATHS,
+} from '../support/contracts.js';
 
 function cleanupRepoCopy(repoRoot) {
   fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
@@ -64,7 +43,7 @@ describe('release artifact packaging', () => {
       assert.ok(archiveEntries.includes('./dist/src/bin/maestro-install-codex.js'));
       assert.ok(archiveEntries.includes('./dist/src/bin/maestro-mcp-server.js'));
       assert.ok(archiveEntries.includes('./dist/src/generated/runtime-content-registry.json'));
-      assert.ok(archiveEntries.includes('./dist/src/generated/runtime-content-registry.txt'));
+      assert.ok(archiveEntries.includes('./dist/src/generated/runtime-content-registry.txt.gz'));
       assert.ok(archiveEntries.includes('./dist/src/mcp/maestro-server.js'));
       assert.ok(archiveEntries.includes('./dist/src/lib/framework-detection.js'));
       assert.ok(archiveEntries.includes('./dist/src/platforms/codex/runtime-config.js'));

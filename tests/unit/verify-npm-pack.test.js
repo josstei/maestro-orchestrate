@@ -11,43 +11,20 @@ import {
   verifyPackageEntries,
 } from '../../dist/src/tooling/verify-npm-pack.js';
 
-const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 import { REQUIRED_PACKAGE_FILES, RUNTIME_DIST_PATHS } from '../../dist/src/tooling/release-artifact-manifest.js';
-import { readFileSync } from 'node:fs';
-const REQUIRED_FIXTURE_FILES = [...REQUIRED_PACKAGE_FILES];
-
-const BUILD_ONLY_SOURCE_PATHS = [
-  'src/generator/file-writer.ts',
-  'src/transforms/index.ts',
-  'src/entry-points/registry.js',
-  'src/lib/discovery/index.ts',
-  'src/lib/yaml-emit.ts',
-  'src/manifest.js',
-  'src/platforms/metadata.ts',
-  'src/platforms/metadata-shared.ts',
-  'src/platforms/claude/metadata.ts',
-  'src/platforms/runtime-payload-contract.ts',
-];
-
-const sourcePathToDistPath = (sourcePath) =>
-  `dist/${sourcePath.endsWith('.ts') ? sourcePath.slice(0, -3) + '.js' : sourcePath}`;
-
-const BUILD_ONLY_DIST_PATHS = BUILD_ONLY_SOURCE_PATHS.map(sourcePathToDistPath);
-const removedRuntimePath = (...parts) => parts.join('/');
-const escaped = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-function packageFiles(extraFiles = [], packageFields = {}) {
-  return [{
-    filename: 'pkg.tgz',
-    size: 1,
-    unpackedSize: 1,
-    files: [...new Set([
-      ...REQUIRED_FIXTURE_FILES,
-      ...extraFiles,
-    ])].map((filePath) => ({ path: filePath })),
-    ...packageFields,
-  }];
-}
+import {
+  BUILD_ONLY_DIST_PATHS,
+  BUILD_ONLY_SOURCE_PATHS,
+  FORBIDDEN_RUNTIME_TEST_PATHS,
+  RAW_DIST_CONTENT_PATHS,
+  RELEASE_ONLY_PACKAGE_DOCS,
+  REMOVED_SHARED_AGENT_NAMES_MODULE,
+  REMOVED_STATE_HELPER_SCRIPTS,
+  RETIRED_DETACHED_PAYLOAD_FILES,
+  escaped,
+  packageFiles,
+  packageJson,
+} from '../support/contracts.js';
 
 describe('verify npm pack', () => {
   it('parses npm pack JSON after lifecycle output', () => {
@@ -80,11 +57,7 @@ describe('verify npm pack', () => {
   });
 
   it('rejects nested test-only files inside runtime package roots', () => {
-    for (const forbiddenPath of [
-      'claude/scripts/policy-enforcer.test.js',
-      'plugins/maestro/skills/server.spec.js',
-      'claude/scripts/__tests__/fixture.js',
-    ]) {
+    for (const forbiddenPath of FORBIDDEN_RUNTIME_TEST_PATHS) {
       assert.throws(
         () => verifyPackageEntries(packageFiles([forbiddenPath])),
         new RegExp(`npm package contains forbidden path: ${forbiddenPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
@@ -100,12 +73,7 @@ describe('verify npm pack', () => {
   });
 
   it('rejects retired detached payload files', () => {
-    for (const payloadPath of [
-      'claude/src/mcp/maestro-server.js',
-      'claude/src/version.json',
-      'plugins/maestro/src/mcp/maestro-server.js',
-      'plugins/maestro/src/version.json',
-    ]) {
+    for (const payloadPath of RETIRED_DETACHED_PAYLOAD_FILES) {
       assert.throws(
         () => verifyPackageEntries(packageFiles([payloadPath])),
         new RegExp(`npm package contains forbidden path: ${payloadPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
@@ -143,17 +111,22 @@ describe('verify npm pack', () => {
     assert.deepEqual(classifyPackageEntry('dist/src/mcp/maestro-server.js'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/platforms/claude/runtime-config.js'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.json'), ['runtime-dist']);
-    assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.txt'), ['runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.txt.gz'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generator/file-writer.js'), []);
   });
 
+  it('rejects release-only docs if npm includes them', () => {
+    for (const docPath of RELEASE_ONLY_PACKAGE_DOCS) {
+      assert.deepEqual(classifyPackageEntry(docPath), []);
+      assert.throws(
+        () => verifyPackageEntries(packageFiles([docPath])),
+        new RegExp(`npm package contains unclassified paths: ${escaped(docPath)}`)
+      );
+    }
+  });
+
   it('does not classify raw dist content directories as package runtime content', () => {
-    for (const rawContentPath of [
-      'dist/src/agents/coder.md',
-      'dist/src/references/architecture.md',
-      'dist/src/skills/shared/delegation/SKILL.md',
-      'dist/src/templates/session-state.md',
-    ]) {
+    for (const rawContentPath of RAW_DIST_CONTENT_PATHS) {
       assert.deepEqual(classifyPackageEntry(rawContentPath), []);
       assert.throws(
         () => verifyPackageEntries(packageFiles([rawContentPath])),
@@ -191,13 +164,7 @@ describe('verify npm pack', () => {
   });
 
   it('does not classify removed state helper scripts as package runtime source', () => {
-    for (const removedScript of [
-      removedRuntimePath('src', 'scripts', ['ensure', 'workspace'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['read', 'active', 'session'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['read', 'state'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['write', 'state'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['read', 'setting'].join('-') + '.js'),
-    ]) {
+    for (const removedScript of REMOVED_STATE_HELPER_SCRIPTS) {
       assert.deepEqual(classifyPackageEntry(removedScript), []);
       assert.throws(
         () => verifyPackageEntries(packageFiles([removedScript])),
@@ -207,16 +174,10 @@ describe('verify npm pack', () => {
   });
 
   it('does not classify removed shared agent names module as package runtime source', () => {
-    const removedPath = removedRuntimePath(
-      'src',
-      'platforms',
-      'shared',
-      ['agent', 'names'].join('-') + '.js'
-    );
-    assert.deepEqual(classifyPackageEntry(removedPath), []);
+    assert.deepEqual(classifyPackageEntry(REMOVED_SHARED_AGENT_NAMES_MODULE), []);
     assert.throws(
-      () => verifyPackageEntries(packageFiles([removedPath])),
-      new RegExp(`npm package contains forbidden path: ${escaped(removedPath)}`)
+      () => verifyPackageEntries(packageFiles([REMOVED_SHARED_AGENT_NAMES_MODULE])),
+      new RegExp(`npm package contains forbidden path: ${escaped(REMOVED_SHARED_AGENT_NAMES_MODULE)}`)
     );
   });
 

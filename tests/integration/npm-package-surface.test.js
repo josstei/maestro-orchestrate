@@ -6,24 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createTempRepoCopy } from './helpers.js';
 import { spawnMcpServer } from './mcp-stdio-client.js';
-
-const BUILD_ONLY_SOURCE_PATHS = [
-  'src/generator/file-writer.ts',
-  'src/transforms/index.ts',
-  'src/entry-points/registry.js',
-  'src/lib/discovery/index.ts',
-  'src/lib/yaml-emit.ts',
-  'src/manifest.js',
-  'src/platforms/metadata.ts',
-  'src/platforms/metadata-shared.ts',
-  'src/platforms/claude/metadata.ts',
-  'src/platforms/runtime-payload-contract.ts',
-];
-
-const sourcePathToDistPath = (sourcePath) =>
-  `dist/${sourcePath.endsWith('.ts') ? sourcePath.slice(0, -3) + '.js' : sourcePath}`;
-
-const BUILD_ONLY_DIST_PATHS = BUILD_ONLY_SOURCE_PATHS.map(sourcePathToDistPath);
+import { BUILD_ONLY_DIST_PATHS, BUILD_ONLY_SOURCE_PATHS } from '../support/contracts.js';
 
 function parsePackJson(stdout) {
   const start = stdout.indexOf('[');

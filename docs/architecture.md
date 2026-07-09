@@ -172,7 +172,7 @@ src/mcp/
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) use the same provider contract for Gemini, Claude, Codex, and Qwen, rooted at package-root `dist/src`. Packaged builds prefer the generated registry index at `dist/src/generated/runtime-content-registry.json` plus raw payload at `dist/src/generated/runtime-content-registry.txt`; source checkouts without that registry continue to read canonical content from the filesystem:
+The content tools (`get_agent`, `get_skill_content`) use the same provider contract for Gemini, Claude, Codex, and Qwen, rooted at package-root `dist/src`. Packaged builds prefer the generated registry index at `dist/src/generated/runtime-content-registry.json` plus gzip-compressed payload at `dist/src/generated/runtime-content-registry.txt.gz`; source checkouts without that registry continue to read canonical content from the filesystem:
 
 - Gemini: `primary=registry`, `source-checkout fallback=filesystem`
 - Claude: `primary=registry`, `source-checkout fallback=filesystem`

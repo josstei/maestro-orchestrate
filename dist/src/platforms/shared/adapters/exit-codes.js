@@ -1,3 +1,0 @@
-const EXIT_SUCCESS = 0;
-const EXIT_BLOCK = 2;
-export { EXIT_SUCCESS, EXIT_BLOCK };

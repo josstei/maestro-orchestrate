@@ -15,30 +15,13 @@ import {
   isReleaseArtifactPathAllowed,
 } from '../../dist/src/tooling/release-artifact-manifest.js';
 
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../..');
-
-const BUILD_ONLY_SOURCE_PATHS = [
-  'src/generator/file-writer.ts',
-  'src/transforms/index.ts',
-  'src/entry-points/registry.js',
-  'src/lib/discovery/index.ts',
-  'src/lib/yaml-emit.ts',
-  'src/manifest.js',
-  'src/platforms/metadata.ts',
-  'src/platforms/metadata-shared.ts',
-  'src/platforms/claude/metadata.ts',
-  'src/platforms/runtime-payload-contract.ts',
-];
-
-const sourcePathToDistPath = (sourcePath) =>
-  `dist/${sourcePath.endsWith('.ts') ? sourcePath.slice(0, -3) + '.js' : sourcePath}`;
-
-const BUILD_ONLY_DIST_PATHS = BUILD_ONLY_SOURCE_PATHS.map(sourcePathToDistPath);
-
-const removedRuntimePath = (...parts) => parts.join('/');
+import {
+  BUILD_ONLY_DIST_PATHS,
+  BUILD_ONLY_SOURCE_PATHS,
+  REMOVED_SHARED_AGENT_NAMES_MODULE,
+  REMOVED_STATE_HELPER_SCRIPTS,
+  ROOT,
+} from '../support/contracts.js';
 
 describe('release artifact manifest', () => {
   it('uses an explicit allowlist for required release surfaces', () => {
@@ -127,13 +110,7 @@ describe('release artifact manifest', () => {
   });
 
   it('does not allow removed state helper scripts in release artifacts', () => {
-    for (const removedScript of [
-      removedRuntimePath('src', 'scripts', ['ensure', 'workspace'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['read', 'active', 'session'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['read', 'state'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['write', 'state'].join('-') + '.js'),
-      removedRuntimePath('src', 'scripts', ['read', 'setting'].join('-') + '.js'),
-    ]) {
+    for (const removedScript of REMOVED_STATE_HELPER_SCRIPTS) {
       assert.equal(
         isReleaseArtifactPathAllowed(removedScript),
         false,
@@ -143,17 +120,7 @@ describe('release artifact manifest', () => {
   });
 
   it('does not allow removed shared agent names module in release artifacts', () => {
-    assert.equal(
-      isReleaseArtifactPathAllowed(
-        removedRuntimePath(
-          'src',
-          'platforms',
-          'shared',
-          ['agent', 'names'].join('-') + '.js'
-        )
-      ),
-      false
-    );
+    assert.equal(isReleaseArtifactPathAllowed(REMOVED_SHARED_AGENT_NAMES_MODULE), false);
   });
 
   it('fails when extracted artifact contents contain package-root source checkout tooling', () => {

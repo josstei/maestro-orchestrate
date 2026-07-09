@@ -4,25 +4,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { REQUIRED_PACKAGE_FILES, isDeniedPath } from './release-artifact-manifest.js';
-import { RUNTIME_DIST_PATHS, releasePaths } from './lib/artifact-inventory.js';
+import {
+  FINAL_PACKAGE_BUDGETS,
+  PACKAGE_BUDGETS,
+  PACKAGE_SURFACE_RULES,
+  PRIVATE_SCRIPT_ROLES,
+  type PackageBudget,
+  type PackageSurfaceRule,
+} from './artifact-policy.js';
 import { resolvePackageRoot, runAsMain } from './lib/cli.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
-const INVENTORY_RELEASE_PATHS = releasePaths();
-
-type PackageBudget = {
-  id: string;
-  maxEntryCount: number;
-  maxPackedSize: number;
-  maxUnpackedSize: number;
-};
-
-type PackageSurfaceRule = Readonly<{
-  id: string;
-  exact?: readonly string[];
-  prefixes?: readonly string[];
-}>;
 
 type PackageInfo = {
   filename: string;
@@ -44,186 +37,7 @@ type VerifyPackageResult = {
   unpackedSize: number;
 };
 
-function pickInventoryPaths(...paths: string[]): readonly string[] {
-  for (const inventoryPath of paths) {
-    if (!INVENTORY_RELEASE_PATHS.includes(inventoryPath)) {
-      throw new Error(
-        `Package surface rule references a path missing from the artifact inventory: ${inventoryPath}`
-      );
-    }
-  }
-
-  return Object.freeze(paths);
-}
-
 const ROOT = resolvePackageRoot(moduleDirname);
-
-const FINAL_PACKAGE_BUDGETS: Readonly<PackageBudget> = Object.freeze({
-  id: 'final-dist-only',
-  maxEntryCount: 390,
-  maxPackedSize: 360000,
-  maxUnpackedSize: 1280000,
-});
-
-const PACKAGE_BUDGETS = Object.freeze({
-  ...FINAL_PACKAGE_BUDGETS,
-  final: FINAL_PACKAGE_BUDGETS,
-});
-
-const PRIVATE_SCRIPT_ROLES = Object.freeze({
-  'src/tooling/check-esm-imports.ts': {
-    role: 'dev-only',
-    note: 'Local and CI ESM import-specifier gate; private to source checkouts.',
-  },
-  'src/tooling/check-layer-boundaries.ts': {
-    role: 'dev-only',
-    note: 'Local and CI layer-boundary gate; private to source checkouts.',
-  },
-  'src/tooling/generate.ts': {
-    role: 'release-only',
-    note: 'Prepack generation entrypoint; private to source checkouts and release workflows.',
-  },
-  'src/tooling/install-git-hooks.ts': {
-    role: 'dev-only',
-    note: 'Source checkout setup helper; private to source checkouts.',
-  },
-  'src/tooling/npm-publish-idempotent.ts': {
-    role: 'release-only',
-    note: 'Release workflow support; private to source checkouts.',
-  },
-  'src/tooling/package-release-artifacts.ts': {
-    role: 'release-only',
-    note: 'Release artifact packaging support; private to source checkouts.',
-  },
-  'src/tooling/publish-dist-branch.ts': {
-    role: 'release-only',
-    note: 'Generated dist branch snapshot publisher; private to source checkouts and release workflows.',
-  },
-  'src/tooling/release-artifact-manifest.ts': {
-    role: 'release-only',
-    note: 'Release and package artifact contract shared by source-checkout verifiers.',
-  },
-  'src/tooling/release-version-metadata.ts': {
-    role: 'release-only',
-    note: 'Release version metadata support; private to source checkouts.',
-  },
-  'src/tooling/update-versions.ts': {
-    role: 'release-only',
-    note: 'Version stamping support; private to source checkouts.',
-  },
-  'src/tooling/verify-npm-pack.ts': {
-    role: 'release-only',
-    note: 'Package inventory verification support; private to source checkouts.',
-  },
-  'src/tooling/verify-release-artifacts.ts': {
-    role: 'release-only',
-    note: 'Release artifact verification support; private to source checkouts.',
-  },
-});
-
-function buildRuntimeDistPackageRule() {
-  const exact = [];
-  const prefixes = [];
-
-  for (const runtimeDistPath of RUNTIME_DIST_PATHS) {
-    if (path.posix.extname(runtimeDistPath)) {
-      exact.push(runtimeDistPath);
-    } else {
-      prefixes.push(`${runtimeDistPath}/`);
-    }
-  }
-
-  return Object.freeze({
-    id: 'runtime-dist',
-    exact: Object.freeze(exact),
-    prefixes: Object.freeze(prefixes),
-  });
-}
-
-const PACKAGE_SURFACE_RULES: readonly PackageSurfaceRule[] = Object.freeze([
-  {
-    id: 'package-metadata',
-    exact: pickInventoryPaths(
-      'package.json',
-      'README.md',
-      'CHANGELOG.md',
-      'LICENSE',
-      'EXAMPLES.md'
-    ),
-  },
-  {
-    id: 'runtime-docs',
-    exact: pickInventoryPaths(
-      'GEMINI.md',
-      'QWEN.md',
-      'docs/architecture.md',
-      'docs/cicd.md',
-      'docs/flow.md',
-      'docs/maestro-cheatsheet.md',
-      'docs/overview.md',
-      'docs/runtime-claude.md',
-      'docs/runtime-codex.md',
-      'docs/runtime-gemini.md',
-      'docs/runtime-qwen.md',
-      'docs/usage.md'
-    ),
-  },
-  {
-    id: 'public-bin',
-    exact: pickInventoryPaths(
-      'dist/src/bin/maestro-install-codex.js',
-      'dist/src/bin/maestro-mcp-server.js'
-    ),
-  },
-  {
-    id: 'root-runtime-metadata',
-    exact: pickInventoryPaths(
-      '.agents/plugins/marketplace.json',
-      '.claude-plugin/marketplace.json',
-      '.claude-plugin/plugin.json',
-      'gemini-extension.json',
-      'qwen-extension.json'
-    ),
-  },
-  {
-    id: 'root-generated-runtime',
-    prefixes: ['agents/', 'commands/', 'hooks/', 'mcp/', 'policies/'],
-  },
-  {
-    id: 'claude-runtime',
-    exact: [
-      'claude/.mcp.json',
-      'claude/README.md',
-      'claude/hooks/claude-hooks.json',
-      'claude/mcp-config.example.json',
-      'claude/mcp/maestro-server.js',
-    ],
-    prefixes: [
-      'claude/agents/',
-      'claude/scripts/',
-      'claude/skills/',
-    ],
-  },
-  {
-    id: 'codex-runtime',
-    exact: [
-      'plugins/maestro/.app.json',
-      'plugins/maestro/.codex-plugin/plugin.json',
-      'plugins/maestro/.mcp.json',
-      'plugins/maestro/README.md',
-    ],
-    prefixes: [
-      'plugins/maestro/references/',
-      'plugins/maestro/skills/',
-    ],
-  },
-  {
-    id: 'qwen-runtime',
-    exact: ['qwen/hooks.json'],
-    prefixes: ['qwen/agents/'],
-  },
-  buildRuntimeDistPackageRule(),
-]);
 
 function parsePackJson(stdout: string): PackageInfo[] {
   const start = stdout.indexOf('[');

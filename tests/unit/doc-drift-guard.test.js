@@ -86,7 +86,7 @@ test('doc-drift: Claude surfaces do not advertise host-reserved command names', 
   }
 });
 
-test('doc-drift: examples guide is linked and included in npm package files', () => {
+test('doc-drift: examples guide is linked and pruned from npm package files', () => {
   assert.equal(fs.existsSync(path.join(REPO, 'EXAMPLES.md')), true, 'EXAMPLES.md is missing');
 
   const readme = read('README.md');
@@ -96,7 +96,7 @@ test('doc-drift: examples guide is linked and included in npm package files', ()
   assert.ok(cheatsheet.includes('`EXAMPLES.md`'), 'docs/maestro-cheatsheet.md does not mention EXAMPLES.md');
 
   const pkg = JSON.parse(read('package.json'));
-  assert.ok(pkg.files.includes('EXAMPLES.md'), 'package.json files does not include EXAMPLES.md');
+  assert.equal(pkg.files.includes('EXAMPLES.md'), false, 'package.json files should not include EXAMPLES.md');
 });
 
 test('doc-drift: examples guide includes all runtime command forms', () => {

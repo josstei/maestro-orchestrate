@@ -8,20 +8,12 @@ import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.
 import { RUNTIME_PAYLOAD_CONTRACT, TOPOLOGY_DECISION, getRuntimePayloadContract } from '../../dist/src/platforms/runtime-payload-contract.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { runtimeConfigNames } from '../support/contracts.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const ROOT = path.resolve(moduleDirname, '../..');
-const SRC = path.join(ROOT, 'src');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 const PACKAGE_VERSION = packageJson.version;
-
-function runtimeConfigNames() {
-  return fs.readdirSync(path.join(SRC, 'platforms'), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name !== 'shared')
-    .filter((entry) => fs.existsSync(path.join(SRC, 'platforms', entry.name, 'runtime-config.ts')))
-    .map((entry) => entry.name)
-    .sort();
-}
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), 'utf8'));
@@ -40,10 +32,11 @@ function readManifestServer(runtime) {
 }
 
 describe('runtime payload contract', () => {
-  it('records the TypeScript dist terminal topology decision', () => {
-    assert.equal(TOPOLOGY_DECISION.mode, 'typescript-dist-terminal');
+  it('records the source-only generated dist topology decision', () => {
+    assert.equal(TOPOLOGY_DECISION.mode, 'source-only-generated-dist');
     assert.match(TOPOLOGY_DECISION.canonicalSource, /src\/\*\*\/\*\.ts/);
     assert.match(TOPOLOGY_DECISION.runtimeFormat, /dist\/src/);
+    assert.match(TOPOLOGY_DECISION.note, /does not track dist\/src/);
     assert.match(TOPOLOGY_DECISION.note, /dist\/src runtime entries/);
   });
 
@@ -133,7 +126,7 @@ describe('runtime payload contract', () => {
 
   it('ships generated registry content instead of raw dist content directories', () => {
     assert.ok(fs.existsSync(path.join(ROOT, 'dist/src/generated/runtime-content-registry.json')));
-    assert.ok(fs.existsSync(path.join(ROOT, 'dist/src/generated/runtime-content-registry.txt')));
+    assert.ok(fs.existsSync(path.join(ROOT, 'dist/src/generated/runtime-content-registry.txt.gz')));
 
     for (const retiredRoot of ['agents', 'references', 'skills', 'templates']) {
       assert.equal(

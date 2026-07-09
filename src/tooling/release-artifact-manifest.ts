@@ -1,61 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { RUNTIME_PAYLOAD_CONTRACT } from '../platforms/runtime-payload-contract.js';
-import { RUNTIME_DIST_PATHS, releasePaths } from './lib/artifact-inventory.js';
+import {
+  DENIED_ARTIFACT_PATHS,
+  DENIED_ARTIFACT_PATTERNS,
+  REQUIRED_PACKAGE_FILES,
+  RUNTIME_DIST_PATHS,
+  releasePaths,
+} from './artifact-policy.js';
 import { readJson as readJsonFile } from './lib/cli.js';
 const RELEASE_ARTIFACT_PATHS = releasePaths();
 
 type VersionEntry = [label: string, version: string];
-
-const DENIED_ARTIFACT_PATHS = [
-  '.git',
-  '.github',
-  '.gemini',
-  '.gemini_security',
-  '.claude',
-  '.worktrees',
-  '.serena',
-  '.superpowers',
-  'bin',
-  'coverage',
-  'dist/claude-plugin',
-  'dist/release',
-  'dist/src/entry-points',
-  'dist/src/generator',
-  'dist/src/lib/discovery',
-  'dist/src/lib/yaml-emit.js',
-  'dist/src/manifest.js',
-  'dist/src/platforms/metadata-shared.js',
-  'dist/src/platforms/metadata.js',
-  'dist/src/platforms/runtime-payload-contract.js',
-  'dist/src/tooling',
-  'dist/src/transforms',
-  'docs/maestro',
-  'docs/superpowers',
-  'node_modules',
-  'scripts',
-  'src',
-  'tests',
-  'tmp',
-  'temp',
-  'hooks/permissions.json',
-  'claude/src',
-  'plugins/maestro/src',
-];
-
-const DENIED_ARTIFACT_PATTERNS = [
-  /(^|\/)__tests__(\/|$)/,
-  /(^|\/)[^/]+\.d\.ts$/,
-  /(^|\/)[^/]+\.d\.ts\.map$/,
-  /(^|\/)[^/]+\.map$/,
-  /^dist\/src\/platforms\/[^/]+\/metadata\.js$/,
-  /\.spec\.[cm]?js$/,
-  /\.test\.[cm]?js$/,
-];
-
-const REQUIRED_PACKAGE_FILES = Object.freeze([
-  ...new Set(RUNTIME_PAYLOAD_CONTRACT.flatMap((runtime) => runtime.packageInvariants || [])),
-].sort());
 
 function toPosixPath(filePath: string): string {
   return filePath.split(path.sep).join('/');
@@ -354,7 +309,7 @@ function assertRuntimeManifestShape(root: string, expectedVersion: string | null
     'dist/src/bin/maestro-install-codex.js',
     'dist/src/bin/maestro-mcp-server.js',
     'dist/src/generated/runtime-content-registry.json',
-    'dist/src/generated/runtime-content-registry.txt',
+    'dist/src/generated/runtime-content-registry.txt.gz',
     'dist/src/mcp/maestro-server.js',
   ];
 

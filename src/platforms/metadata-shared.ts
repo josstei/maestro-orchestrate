@@ -134,6 +134,14 @@ function buildExtensionMcpServer(context: MetadataContext, runtime: RuntimeName)
   };
 }
 
+function buildPackageMcpConfig(context: MetadataContext, runtime: RuntimeName): Record<string, unknown> {
+  return {
+    mcpServers: {
+      maestro: buildExtensionMcpServer(context, runtime),
+    },
+  };
+}
+
 function buildExtensionManifest(context: MetadataContext, options: ExtensionManifestOptions): Record<string, unknown> {
   return {
     name: 'maestro',
@@ -141,9 +149,7 @@ function buildExtensionManifest(context: MetadataContext, options: ExtensionMani
     description: RUNTIME_DESCRIPTION,
     contextFileName: options.contextFileName,
     settings: buildSettings(),
-    mcpServers: {
-      maestro: buildExtensionMcpServer(context, options.runtime),
-    },
+    mcpServers: buildPackageMcpConfig(context, options.runtime).mcpServers,
   };
 }
 
@@ -155,4 +161,4 @@ function buildAuthor(context: MetadataContext): PackageAuthor {
   };
 }
 
-export { RUNTIME_DESCRIPTION, buildAuthor, buildExtensionManifest, buildMetadataContext, buildSettings, normalizeRepositoryUrl, renderJson };
+export { RUNTIME_DESCRIPTION, buildAuthor, buildExtensionManifest, buildMetadataContext, buildPackageMcpConfig, buildSettings, normalizeRepositoryUrl, renderJson };

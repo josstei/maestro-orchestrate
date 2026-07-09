@@ -2,7 +2,8 @@
 node_modules/
 
 # Build output
-# dist/src is the committed runtime output for the TypeScript/dist topology.
+# dist/src is generated from src/ for local commands, package, and release artifacts.
+/dist/src/
 # Type declarations are local build/typecheck byproducts, not runtime output.
 /dist/src/*.d.ts
 /dist/src/**/*.d.ts

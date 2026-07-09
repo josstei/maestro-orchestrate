@@ -1,75 +1,30 @@
-import fs from 'fs';
 import path from 'path';
 import { assertSessionId } from '../../lib/validation/index.js';
 import { ValidationError, StateError } from '../../lib/errors/index.js';
-import { resolveStateDirPath } from '../../state/session-state.js';
-import { atomicWriteSync } from '../../lib/io/index.js';
 import {
   assertPlansFilename,
   resolveDocumentInputVariant,
   writePlansDocumentContent,
 } from './document-input.js';
 import { buildDesignApprovalConsentSchema } from '../server/elicitation-schemas.js';
-import { attempt } from './attempt.js';
 import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
 import { zodSchemas } from '../tool-packs/session/zod-schemas.js';
 import type { HandlerContext } from '../server/tool-types.js';
 import type { z } from 'zod';
-const GATE_FILENAME = '.design-gate.json';
+import {
+  emptyGate,
+  findOrphanedApprovedGates,
+  hasDesignGate as repositoryHasDesignGate,
+  listApprovedGates,
+  readGate,
+  removeDesignGate,
+  writeGate,
+} from '../session/design-gate-repository.js';
+
 const MODEL_ATTESTED_CONSENT = 'model-attested';
 const FIRST_PARTY_CONSENT = 'first-party';
 
 type RecordDesignApprovalParams = z.infer<z.ZodObject<typeof zodSchemas.record_design_approval>>;
-
-/**
- * Resolves the filesystem path for the gate file for a given session.
- * @param {string} projectRoot
- * @param {string} sessionId
- * @returns {string}
- */
-function gatePath(projectRoot: any, sessionId: any) {
-  const stateDir = resolveStateDirPath(projectRoot);
-  return path.join(stateDir, 'state', `${sessionId}${GATE_FILENAME}`);
-}
-
-/**
- * Build a freshly-entered gate record: `entered_at` set to now, `approved_at`
- * and `design_document_path` unset. Shared by `handleEnterDesignGate` (new
- * gate) and `handleRecordDesignApproval` (fallback when no gate exists yet).
- *
- * @param {string} sessionId
- * @returns {{ session_id: string, entered_at: string, approved_at: null, design_document_path: null }}
- */
-function emptyGate(sessionId: any) {
-  return {
-    session_id: sessionId,
-    entered_at: new Date().toISOString(),
-    approved_at: null,
-    design_document_path: null,
-  };
-}
-
-/**
- * @param {string} projectRoot
- * @param {string} sessionId
- * @returns {{ session_id: string, entered_at: string | null, approved_at: string | null, design_document_path: string | null } | null}
- */
-function readGate(projectRoot: any, sessionId: any) {
-  const filePath = gatePath(projectRoot, sessionId);
-  if (!fs.existsSync(filePath)) return null;
-  return attempt(() => JSON.parse(fs.readFileSync(filePath, 'utf8')), null);
-}
-
-/**
- * @param {string} projectRoot
- * @param {string} sessionId
- * @param {object} data
- */
-function writeGate(projectRoot: any, sessionId: any, data: any) {
-  const filePath = gatePath(projectRoot, sessionId);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  atomicWriteSync(filePath, JSON.stringify(data, null, 2));
-}
 
 /**
  * @param {{ session_id: string }} params
@@ -259,7 +214,7 @@ function isDesignGateBlockingCreate(projectRoot: any, sessionId: any) {
  * @returns {boolean}
  */
 function hasDesignGate(projectRoot: any, sessionId: any) {
-  return readGate(projectRoot, sessionId) !== null;
+  return repositoryHasDesignGate(projectRoot, sessionId);
 }
 
 /**
@@ -274,73 +229,6 @@ function getApprovedDesignDocumentPath(projectRoot: any, sessionId: any) {
   const gate = readGate(projectRoot, sessionId);
   if (!gate || !gate.approved_at) return null;
   return gate.design_document_path || null;
-}
-
-/**
- * Enumerate every approved design gate currently persisted in the workspace.
- * Reads the `state/` directory once and parses each `<session_id>.design-gate.json`
- * artifact. Corrupt or unapproved gate files are skipped silently. Used by
- * create_session to detect session_id drift across the enter_design_gate →
- * record_design_approval → create_session sequence.
- *
- * @param {string} projectRoot
- * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
- */
-function listApprovedGates(projectRoot: any) {
-  const stateDir = path.join(resolveStateDirPath(projectRoot), 'state');
-  if (!fs.existsSync(stateDir)) return [];
-  const entries = attempt(() => fs.readdirSync(stateDir), null);
-  if (!entries) return [];
-  const gates = [];
-  for (const entry of entries) {
-    if (!entry.endsWith(GATE_FILENAME)) continue;
-    const sessionId = entry.slice(0, -GATE_FILENAME.length);
-    if (sessionId.length === 0) continue;
-    const filePath = path.join(stateDir, entry);
-    const gate = attempt(() => JSON.parse(fs.readFileSync(filePath, 'utf8')), null);
-    if (gate && typeof gate.approved_at === 'string' && gate.approved_at.length > 0) {
-      gates.push({
-        session_id: sessionId,
-        approved_at: gate.approved_at,
-        design_document_path: gate.design_document_path || null,
-      });
-    }
-  }
-  return gates;
-}
-
-/**
- * Find approved design gates whose session_id does not match the caller's.
- * The orchestrator must use a single session_id from enter_design_gate through
- * archive_session; a mismatched approved gate signals either (a) an in-flight
- * workflow the caller forgot to continue with the original id or (b) an
- * abandoned prior run. create_session uses this to fail fast rather than
- * silently discard the approved design document.
- *
- * @param {string} projectRoot
- * @param {string} currentSessionId
- * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
- */
-function findOrphanedApprovedGates(projectRoot: any, currentSessionId: any) {
-  return listApprovedGates(projectRoot).filter(
-    (gate: any) => gate.session_id !== currentSessionId
-  );
-}
-
-/**
- * Remove the design-gate artifact for a session. Called by archive_session so
- * the gate doesn't linger in state/ after the session is archived — otherwise
- * a future session reusing the same id would inherit a stale "already approved"
- * gate from the prior run.
- * @param {string} projectRoot
- * @param {string} sessionId
- * @returns {string | null} path of the removed gate file, or null if no gate existed
- */
-function removeDesignGate(projectRoot: any, sessionId: any) {
-  const filePath = gatePath(projectRoot, sessionId);
-  if (!fs.existsSync(filePath)) return null;
-  fs.unlinkSync(filePath);
-  return filePath;
 }
 
 export { handleEnterDesignGate, handleRecordDesignApproval, handleGetDesignGateStatus, isDesignGateBlockingCreate, hasDesignGate, getApprovedDesignDocumentPath, listApprovedGates, findOrphanedApprovedGates, removeDesignGate, writeGate };

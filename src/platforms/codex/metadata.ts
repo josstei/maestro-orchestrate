@@ -1,5 +1,8 @@
-import { buildAuthor, renderJson } from '../metadata-shared.js';
+import { buildAuthor, buildPackageMcpConfig, renderJson } from '../metadata-shared.js';
 import type { MetadataContext, MetadataOutput } from '../metadata-shared.js';
+import { requireRuntimeDeclaration } from '../runtime-declarations.js';
+
+const DECLARATION = requireRuntimeDeclaration('codex');
 
 function buildCodexMarketplace(context: MetadataContext): Record<string, unknown> {
   return {
@@ -67,31 +70,26 @@ function buildCodexPluginManifest(context: MetadataContext): Record<string, unkn
 }
 
 function buildCodexMcpConfig(context: MetadataContext): Record<string, unknown> {
-  return {
-    mcpServers: {
-      maestro: {
-        command: 'npx',
-        args: ['-y', '-p', `${context.packageName}@${context.version}`, 'maestro-mcp-server'],
-        env: {
-          MAESTRO_RUNTIME: 'codex',
-        },
-      },
-    },
-  };
+  return buildPackageMcpConfig(context, DECLARATION.name);
 }
 
 function buildMetadataOutputs(context: MetadataContext): MetadataOutput[] {
+  const { marketplacePath, pluginManifestPath, mcpConfigPath } = DECLARATION.metadata;
+  if (!marketplacePath || !pluginManifestPath || !mcpConfigPath) {
+    throw new Error('Codex runtime declaration is missing metadata output paths');
+  }
+
   return [
     {
-      outputPath: '.agents/plugins/marketplace.json',
+      outputPath: marketplacePath,
       content: renderJson(buildCodexMarketplace(context)),
     },
     {
-      outputPath: 'plugins/maestro/.codex-plugin/plugin.json',
+      outputPath: pluginManifestPath,
       content: renderJson(buildCodexPluginManifest(context)),
     },
     {
-      outputPath: 'plugins/maestro/.mcp.json',
+      outputPath: mcpConfigPath,
       content: renderJson(buildCodexMcpConfig(context)),
     },
   ];

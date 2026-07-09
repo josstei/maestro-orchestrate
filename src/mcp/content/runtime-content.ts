@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { gunzipSync } from 'node:zlib';
 import { parseFrontmatterOnly, splitAtBoundary } from '../../lib/frontmatter/index.js';
 import { replaceInContent } from '../../lib/naming/index.js';
 import { stripFeatureBlocks as stripFeatureBlocksCore } from '../../core/feature-blocks.js';
@@ -180,7 +181,17 @@ function readRuntimeContentRegistry(srcRoot: any) {
 
 function readRegistryPayload(srcRoot: any, registry: any) {
   const payloadPath = registry.payload || DEFAULT_RUNTIME_CONTENT_PAYLOAD;
-  return fs.readFileSync(path.join(srcRoot, 'generated', payloadPath), 'utf8');
+  const payload = fs.readFileSync(path.join(srcRoot, 'generated', payloadPath));
+
+  if (registry.payloadEncoding === 'gzip') {
+    return gunzipSync(payload).toString('utf8');
+  }
+
+  if (registry.payloadEncoding && registry.payloadEncoding !== 'utf8') {
+    throw new Error(`Unsupported runtime content payload encoding: ${registry.payloadEncoding}`);
+  }
+
+  return payload.toString('utf8');
 }
 
 function materializeRegistryEntry(entry: any, srcRoot: any, registry: any) {

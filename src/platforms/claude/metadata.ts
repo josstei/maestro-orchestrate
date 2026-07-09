@@ -1,5 +1,8 @@
-import { RUNTIME_DESCRIPTION, buildAuthor, renderJson } from '../metadata-shared.js';
+import { RUNTIME_DESCRIPTION, buildAuthor, buildPackageMcpConfig, renderJson } from '../metadata-shared.js';
 import type { MetadataContext, MetadataOutput } from '../metadata-shared.js';
+import { requireRuntimeDeclaration } from '../runtime-declarations.js';
+
+const DECLARATION = requireRuntimeDeclaration('claude');
 
 function buildClaudeMarketplace(context: MetadataContext): Record<string, unknown> {
   return {
@@ -59,17 +62,7 @@ function buildClaudePluginManifest(context: MetadataContext): Record<string, unk
 }
 
 function buildClaudeMcpConfig(context: MetadataContext): Record<string, unknown> {
-  return {
-    mcpServers: {
-      maestro: {
-        command: 'npx',
-        args: ['-y', '-p', `${context.packageName}@${context.version}`, 'maestro-mcp-server'],
-        env: {
-          MAESTRO_RUNTIME: 'claude',
-        },
-      },
-    },
-  };
+  return buildPackageMcpConfig(context, DECLARATION.name);
 }
 
 function buildClaudeLocalMcpConfig() {
@@ -105,17 +98,22 @@ function buildClaudeLocalPluginManifest(context: MetadataContext): Record<string
 }
 
 function buildMetadataOutputs(context: MetadataContext): MetadataOutput[] {
+  const { marketplacePath, pluginManifestPath, mcpConfigPath } = DECLARATION.metadata;
+  if (!marketplacePath || !pluginManifestPath || !mcpConfigPath) {
+    throw new Error('Claude runtime declaration is missing metadata output paths');
+  }
+
   return [
     {
-      outputPath: '.claude-plugin/marketplace.json',
+      outputPath: marketplacePath,
       content: renderJson(buildClaudeMarketplace(context)),
     },
     {
-      outputPath: '.claude-plugin/plugin.json',
+      outputPath: pluginManifestPath,
       content: renderJson(buildClaudePluginManifest(context)),
     },
     {
-      outputPath: 'claude/.mcp.json',
+      outputPath: mcpConfigPath,
       content: renderJson(buildClaudeMcpConfig(context)),
     },
   ];

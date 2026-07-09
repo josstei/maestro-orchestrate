@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import { ROOT, createTempRepoCopy, withPackagedClaudeRuntime } from './helpers.js';
 import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
 const CODEX_BIN = path.join(ROOT, 'dist', 'src', 'bin', 'maestro-mcp-server.js');
@@ -45,6 +46,24 @@ function runtimeContentPayloadPath(packageRoot, registry) {
   );
 }
 
+function readRegistryPayload(packageRoot, registry) {
+  const payloadPath = runtimeContentPayloadPath(packageRoot, registry);
+  const payload = fs.readFileSync(payloadPath);
+
+  return registry.payloadEncoding === 'gzip'
+    ? gunzipSync(payload).toString('utf8')
+    : payload.toString('utf8');
+}
+
+function writeRegistryPayload(packageRoot, registry, content) {
+  const payloadPath = runtimeContentPayloadPath(packageRoot, registry);
+  const payload = registry.payloadEncoding === 'gzip'
+    ? gzipSync(content, { level: 9 })
+    : content;
+
+  fs.writeFileSync(payloadPath, payload);
+}
+
 function updateRuntimeContentRegistry(packageRoot, update) {
   const registryPath = runtimeContentRegistryPath(packageRoot);
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
@@ -58,12 +77,11 @@ function appendRegistryEntry(packageRoot, section, id, content) {
     assert.ok(entry, `Expected registry ${section} entry ${id}`);
 
     if (Array.isArray(entry)) {
-      const payloadPath = runtimeContentPayloadPath(packageRoot, registry);
-      const payload = fs.readFileSync(payloadPath, 'utf8');
+      const payload = readRegistryPayload(packageRoot, registry);
       const updatedContent = payload.slice(entry[1], entry[1] + entry[2]) + content;
       entry[1] = payload.length;
       entry[2] = updatedContent.length;
-      fs.writeFileSync(payloadPath, payload + updatedContent, 'utf8');
+      writeRegistryPayload(packageRoot, registry, payload + updatedContent);
       return;
     }
 
@@ -82,8 +100,7 @@ function appendRegistryAgent(packageRoot, agentName, content) {
       return;
     }
 
-    const payloadPath = runtimeContentPayloadPath(packageRoot, registry);
-    const payload = fs.readFileSync(payloadPath, 'utf8');
+    const payload = readRegistryPayload(packageRoot, registry);
     for (const entry of Object.values(registry.agentProfiles)) {
       assert.ok(Array.isArray(entry), 'Expected packed agent profile registry entry');
       const profileContent = payload.slice(entry[1], entry[1] + entry[2]);
@@ -98,7 +115,7 @@ function appendRegistryAgent(packageRoot, agentName, content) {
       const updatedContent = profileContent.slice(0, bodyEnd) + content + profileContent.slice(bodyEnd);
       entry[1] = payload.length;
       entry[2] = updatedContent.length;
-      fs.writeFileSync(payloadPath, payload + updatedContent, 'utf8');
+      writeRegistryPayload(packageRoot, registry, payload + updatedContent);
       updatedProfile = true;
       return;
     }

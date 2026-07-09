@@ -1,9 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { INVENTORY, RUNTIME_DIST_PATHS, npmFiles, releasePaths } from '../../dist/src/tooling/lib/artifact-inventory.js';
-import { readFileSync } from 'node:fs';
-const VALID_SCOPES = new Set(['both', 'npm', 'release']);
-const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
+import {
+  RAW_DIST_CONTENT_ROOTS,
+  RELEASE_ONLY_PACKAGE_DOCS,
+  VALID_ARTIFACT_SCOPES,
+  packageJson,
+} from '../support/contracts.js';
 
 describe('artifact inventory', () => {
   it('package.json files exactly equals the npm projection', () => {
@@ -13,7 +16,7 @@ describe('artifact inventory', () => {
 
   it('every inventory path has a valid scope', () => {
     for (const entry of INVENTORY) {
-      assert.ok(VALID_SCOPES.has(entry.scope), `${entry.path} has invalid scope ${entry.scope}`);
+      assert.ok(VALID_ARTIFACT_SCOPES.has(entry.scope), `${entry.path} has invalid scope ${entry.scope}`);
     }
   });
 
@@ -32,20 +35,12 @@ describe('artifact inventory', () => {
     assert.deepEqual(release, [...new Set(release)]);
   });
 
-  it('the 5 previously npm-only docs are tagged both and ship in both projections', () => {
-    const formerlyNpmOnlyDocs = [
-      'docs/architecture.md',
-      'docs/cicd.md',
-      'docs/flow.md',
-      'docs/maestro-cheatsheet.md',
-      'docs/overview.md',
-    ];
-
-    for (const docPath of formerlyNpmOnlyDocs) {
+  it('keeps long-form package docs release-only and out of npm', () => {
+    for (const docPath of RELEASE_ONLY_PACKAGE_DOCS) {
       const entry = INVENTORY.find((candidate) => candidate.path === docPath);
       assert.ok(entry, `expected inventory entry for ${docPath}`);
-      assert.equal(entry.scope, 'both');
-      assert.ok(npmFiles().includes(docPath));
+      assert.equal(entry.scope, 'release');
+      assert.equal(npmFiles().includes(docPath), false);
       assert.ok(releasePaths().includes(docPath));
     }
   });
@@ -63,12 +58,7 @@ describe('artifact inventory', () => {
     assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/mcp'));
     assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/generated'));
 
-    for (const rawContentRoot of [
-      'dist/src/agents',
-      'dist/src/references',
-      'dist/src/skills',
-      'dist/src/templates',
-    ]) {
+    for (const rawContentRoot of RAW_DIST_CONTENT_ROOTS) {
       assert.equal(RUNTIME_DIST_PATHS.includes(rawContentRoot), false);
     }
 
