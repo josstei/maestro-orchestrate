@@ -32,6 +32,7 @@
     "test:coverage": "c8 npm test",
     "check:source": "npm run generate && npm run typecheck:type-tests && git diff --exit-code --name-only && node dist/src/tooling/check-layer-boundaries.js && node dist/src/tooling/check-esm-imports.js && npm test",
     "check:release": "npm run pack:verify && npm run release:artifacts && npm run release:verify-artifacts",
+    "retention:local": "npm run build && node dist/src/tooling/local-artifact-retention.js",
     "release:artifacts": "npm run build && node dist/src/tooling/package-release-artifacts.js --out-dir dist/release",
     "release:verify-artifacts": "npm run build && node dist/src/tooling/verify-release-artifacts.js",
     "pack:verify": "npm run build && node dist/src/tooling/verify-npm-pack.js",

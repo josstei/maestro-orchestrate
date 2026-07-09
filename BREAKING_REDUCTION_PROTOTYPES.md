@@ -28,16 +28,16 @@ Observed in this checkout after Phase 7:
 | `.superpowers` local state | 3.0 MB |
 | `docs/superpowers` local state | 1.5 MB |
 | `node_modules/@modelcontextprotocol` local install size | 5.8 MB |
-| Phase 7 npm package | 334 files, 299,140 packed bytes, 794,119 unpacked bytes |
+| Current npm package | 335 files, 299,317 packed bytes, 794,994 unpacked bytes |
 
 ## Decision Summary
 
 | Prototype | Decision | Reason |
 | --- | --- | --- |
 | MCP action registry | Prototype next, do not execute yet | High public-surface simplification, but model/tool-selection quality must be dogfooded before deleting 40 named tools. |
-| Runtime portfolio split | Defer until descriptor docs are generated | Per-consumer package size can improve, but package/release complexity will grow unless runtime descriptors own docs, manifests, and package projections. |
+| Runtime portfolio split | Wait until descriptor docs are generated | Per-consumer package size can improve, but package/release complexity will grow unless runtime descriptors own docs, manifests, and package projections. |
 | Structured state backend | Prototype event log first, not SQLite first | Current state layout is fragmented and local state is large; an append-only event log can be dependency-free and reversible. |
-| MCP SDK adapter/replacement | Isolate adapter only, do not replace SDK yet | SDK replacement has extreme compatibility risk; adapter isolation gives option value without protocol reimplementation. |
+| MCP SDK adapter/replacement | Adapter isolation implemented; do not replace SDK yet | SDK replacement has extreme compatibility risk; adapter isolation now gives option value without protocol reimplementation. |
 
 ## Prototype A: MCP Action Registry
 
@@ -190,20 +190,32 @@ by repositories instead of spread across handlers and file conventions.
 
 ## Prototype D: MCP SDK Adapter Or Replacement
 
+**Execution status:** Adapter isolation implemented; SDK replacement not executed.
+
 ### Proposed Shape
 
 First isolate `@modelcontextprotocol/sdk` behind a narrow first-party adapter.
 Do not replace the SDK until adapter parity proves the boundary.
 
+Implemented adapter shape:
+
+- `src/mcp/server/mcp-sdk-adapter.ts` owns runtime imports of `McpServer`,
+  `StdioServerTransport`, and `RootsListChangedNotificationSchema`.
+- `src/mcp/server/create-mcp-server.ts` delegates server construction and stdio
+  connection through the adapter.
+- `src/mcp/maestro-server.ts` gets the roots-list-changed schema from the
+  adapter.
+- A source import scan found SDK imports only in the adapter module.
+
 ### Migration Plan
 
-1. Define a `MaestroMcpTransport`/`MaestroMcpServer` adapter with only the
+1. [x] Define a `MaestroMcpTransport`/`MaestroMcpServer` adapter with only the
    operations this codebase uses: server creation, tool registration, stdio
    transport connection, and elicitation support.
-2. Move direct SDK imports into the adapter module.
-3. Add wire-level stdio fixture tests around initialize, listTools, callTool,
+2. [x] Move direct SDK imports into the adapter module.
+3. [ ] Add wire-level stdio fixture tests around initialize, listTools, callTool,
    tool errors, and elicitation.
-4. Run all runtime startup tests through the adapter.
+4. [x] Run targeted runtime startup tests through the adapter.
 5. Only after parity, prototype a minimal first-party stdio MCP implementation
    behind the same adapter.
 
@@ -241,7 +253,7 @@ The next breaking implementation should be selected explicitly:
 | A. MCP action registry prototype | Public tool-list simplification and generated schema/doc reduction |
 | B. Runtime portfolio split prototype | Smaller per-runtime packages and cleaner install surfaces |
 | C. Structured event-log prototype | Local state compaction, queryability, and transactional lifecycle operations |
-| D. MCP SDK adapter prototype | Protocol ownership and future SDK replacement optionality |
+| D. MCP SDK replacement prototype | Protocol ownership after adapter parity is proven |
 
 Default recommendation: C first if local state and architectural consistency are
 the priority; A first if public MCP surface size is the priority. B and D should

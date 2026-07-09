@@ -3,7 +3,7 @@ import { resolveVersion } from '../core/version.js';
 import { createMcpServer, startMcpServer } from './server/create-mcp-server.js';
 import { createMaestroToolRegistry } from './tool-packs/contracts.js';
 import { createProjectRootCache } from './server/project-root-cache.js';
-import { RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ROOTS_LIST_CHANGED_NOTIFICATION_SCHEMA } from './server/mcp-sdk-adapter.js';
 
 import { DEFAULT_TOOL_PACKS } from './tool-packs/index.js';
 import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from './runtime/runtime-config-map.js';
@@ -47,7 +47,7 @@ function runRuntimeServer(runtimeConfig: any, options: any = {}) {
     cache.refreshClientRoots().catch(() => {});
   };
 
-  server.server.setNotificationHandler(RootsListChangedNotificationSchema, () => {
+  server.server.setNotificationHandler(ROOTS_LIST_CHANGED_NOTIFICATION_SCHEMA, () => {
     cache.invalidateClientRoots();
   });
 

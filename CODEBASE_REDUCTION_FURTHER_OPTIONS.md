@@ -45,13 +45,13 @@ Observed after the 2026-07-09 execution pass:
   risky follow-up prototypes and go/no-go recommendations without executing
   public contract breaks.
 
-Current Phase 7 package result:
+Current package result after the SDK-adapter follow-up:
 
 | Metric | Before | After | Change |
 | --- | ---: | ---: | ---: |
-| npm entries | 346 | 334 | -12 |
-| packed bytes | 356,457 | 299,140 | -57,317 |
-| unpacked bytes | 1,267,664 | 794,119 | -473,545 |
+| npm entries | 346 | 335 | -11 |
+| packed bytes | 356,457 | 299,317 | -57,140 |
+| unpacked bytes | 1,267,664 | 794,994 | -472,670 |
 
 ## Evidence Model
 
@@ -111,13 +111,13 @@ Observed package gate:
 
 | Command | Result |
 | --- | --- |
-| `npm run pack:verify` | Passed: 334 files, 299,140 packed bytes, 794,119 unpacked bytes |
+| `npm run pack:verify` | Passed through `npm run check:release`: 335 files, 299,317 packed bytes, 794,994 unpacked bytes |
 
 Observed `npm pack --dry-run --json` top unpacked buckets:
 
 | Package bucket | Files | Bytes |
 | --- | ---: | ---: |
-| `dist` | 134 | 522,535 |
+| `dist` | 135 | 523,317 |
 | `claude` | 67 | 93,449 |
 | `qwen` | 40 | 32,986 |
 | `agents` | 39 | 31,481 |
@@ -158,11 +158,12 @@ have changed status.
 | State machine/workflow engine | Open | Session lifecycle is still distributed across handlers, tool packs, and prose protocols. |
 | Breaking MCP tool-surface consolidation | Decision documented | The public surface remains 40 MCP tools across packs; `BREAKING_REDUCTION_PROTOTYPES.md` defines the action-registry prototype and its parity gates. |
 | Test harness normalization | Scoped complete | `tests/support/contracts.js` centralizes repeated package/runtime assertions; tests still remain 25,238 tracked lines and broader harness generation is still available. |
-| Package and documentation surface pruning | Completed for npm | npm now omits `CHANGELOG.md`, `EXAMPLES.md`, and top-level `docs/*.md`; package output is 334 files, 299,140 packed bytes, and 794,119 unpacked bytes. |
-| Local artifact retention and compaction | Open | Ignored local Maestro/Superpowers state is still larger than tracked source by line count. |
-| Runtime portfolio externalization | Decision documented | One package still carries all four runtimes; `BREAKING_REDUCTION_PROTOTYPES.md` defers split execution until descriptor-generated docs and per-runtime package gates exist. |
+| Package and documentation surface pruning | Completed for npm | npm now omits `CHANGELOG.md`, `EXAMPLES.md`, and top-level `docs/*.md`; package output is 335 files, 299,317 packed bytes, and 794,994 unpacked bytes. |
+| Local artifact retention and compaction | Implemented for tooling | `src/tooling/local-artifact-retention.ts` inventories ignored Maestro/Superpowers/build-output artifacts, protects active session state, and requires `--apply` plus `--confirm-prune-local-artifacts` before deletion. |
+| Runtime portfolio externalization | Decision documented | One package still carries all four runtimes; `BREAKING_REDUCTION_PROTOTYPES.md` keeps split execution gated until descriptor-generated docs and per-runtime package gates exist. |
 | CLI and release tooling framework | Partially complete | `src/tooling/lib/cli.ts` exists and artifact policy now centralizes package/release rules; some release CLIs still own one-off argument parsing. |
 | SQLite or structured state backend | Decision documented | State remains Markdown, JSON, and JSONL files; the prototype recommends a dependency-free event log before SQLite. |
+| MCP SDK adapter isolation | Implemented | Runtime source imports MCP SDK server, stdio transport, and roots notification schema only through `src/mcp/server/mcp-sdk-adapter.ts`; SDK replacement remains unexecuted. |
 
 ## Ranking Rubric
 
@@ -461,7 +462,7 @@ rather than adding package-specific hard-coded manifests.
 
 ## Option 5: Runtime Content Payload Compression Or Partitioning
 
-**Execution status:** Compression completed; partitioning deferred
+**Execution status:** Compression completed; partitioning not executed
 **Rank:** 5
 **Risk:** Medium to high
 **Primary win:** Package unpacked size
@@ -573,7 +574,7 @@ Validation gates:
 
 Recommendation:
 
-The internal split is complete. Defer dependency adoption until the matrix shows
+The internal split is complete. Do not adopt a dependency until the matrix shows
 equivalent or stricter parser and write-jail decisions.
 
 ## Option 7: Breaking MCP Action Registry
@@ -712,7 +713,7 @@ Observed support:
   `CHANGELOG.md` contributed 61,170 unpacked package bytes.
 - After Phase 7, npm contains no `docs/`, no `CHANGELOG.md`, and no
   `EXAMPLES.md`.
-- The package now verifies at 334 files, 299,140 packed bytes, and 794,119
+- The package now verifies at 335 files, 299,317 packed bytes, and 794,994
   unpacked bytes.
 
 Architectural payoff:
@@ -849,7 +850,7 @@ so the storage backend can change behind interfaces.
 
 ## Option 12: Local Artifact Retention And Compaction
 
-**Execution status:** Open
+**Execution status:** Implemented for tooling
 **Rank:** 12 for product architecture, rank 1 for local cleanup
 **Risk:** Low to medium
 **Primary win:** Local workspace size and scan noise
@@ -863,15 +864,22 @@ Add a dry-run retention command for ignored local artifacts:
 - export small summaries before deleting verbose scratch
 - prune old `.superpowers`, `docs/superpowers`, and `docs/maestro` files
 
-Observed support:
+Implemented support:
 
-- Ignored local Maestro/Superpowers artifacts measured at final re-audit are
-  299 files, 116,297 lines, about 5.9 MB.
-- This is larger by line count than tracked source.
-- Local build byproducts are separate but related scan noise:
-  `dist/src/**/*.d.ts` and related source-map byproducts are 186 ignored files
-  and 4,466 lines, while
-  `src/generated/*.json` is three local generated registry files and 704 lines.
+- `src/tooling/local-artifact-retention.ts` creates a deterministic retention
+  plan over `docs/maestro`, `.superpowers`, `docs/superpowers`,
+  `src/generated`, and `dist/src` declaration/source-map byproducts.
+- `npm run retention:local` builds the current runtime and runs the retention
+  inventory in dry-run mode by default.
+- Active `docs/maestro/state/active-session.md` is classified as `protect`.
+- Recent session archives and plan archives are retained by configurable
+  counts.
+- Old archive files, Superpowers scratch files, generated registries, and
+  generated declaration/source-map byproducts are classified as `prune`.
+- Apply mode refuses deletion unless both `--apply` and
+  `--confirm-prune-local-artifacts` are supplied.
+- The validated dry run found 408 prunable files and 4,628,617 prunable bytes,
+  with zero files deleted.
 
 Architectural payoff:
 
@@ -890,21 +898,20 @@ Main risks:
 
 Validation gates:
 
-- dry-run report.
-- active-session detection.
-- retention exclusions.
-- build-output classification for ignored declarations and generated registry
-  files.
-- before/after file count and byte count.
+- `npm run build` passed.
+- `node --test tests/unit/local-artifact-retention.test.js` passed: 4 tests.
+- `npm run retention:local -- --json --max-session-archives 10 --max-plan-archives 10`
+  passed as a dry-run inventory.
 
 Recommendation:
 
-Do separately from product refactors. It has excellent local payoff but should
-not be confused with codebase architecture.
+Keep the command as source-checkout tooling. Destructive pruning is intentionally
+an explicit operator action because local audit artifacts may be useful for
+forensic review.
 
 ## Option 13: SDK Adapter Isolation Or MCP SDK Replacement
 
-**Execution status:** Decision prototype documented; code not executed
+**Execution status:** Adapter isolation implemented; SDK replacement not executed
 **Rank:** 13
 **Risk:** Extreme
 **Primary win:** Dependency and protocol control
@@ -914,12 +921,18 @@ not be confused with codebase architecture.
 Isolate the MCP SDK behind a narrow adapter, or replace SDK use with a minimal
 first-party stdio MCP implementation.
 
-Observed support:
+Implemented support:
 
-- The package depends on `@modelcontextprotocol/sdk`.
-- Local `node_modules/@modelcontextprotocol` is 5.8 MB in this checkout.
-- `create-mcp-server.ts`, `tool-pipeline.ts`, handler context, elicitation, and
-  tests depend on current SDK behavior.
+- `src/mcp/server/mcp-sdk-adapter.ts` is the runtime source boundary for
+  `McpServer`, `StdioServerTransport`, and
+  `RootsListChangedNotificationSchema`.
+- `src/mcp/server/create-mcp-server.ts` now creates and starts servers through
+  the adapter.
+- `src/mcp/maestro-server.ts` now imports the roots-list-changed notification
+  schema from the adapter instead of the SDK package.
+- A source import scan found MCP SDK imports only in
+  `src/mcp/server/mcp-sdk-adapter.ts`.
+- SDK replacement remains unexecuted.
 
 Architectural payoff:
 
@@ -940,14 +953,55 @@ Main risks:
 
 Validation gates:
 
-- full MCP stdio protocol compliance tests.
-- client smoke tests across all four runtimes.
-- SDK parity matrix before removal.
+- `npm run build` passed.
+- `node --test tests/unit/mcp-sdk-adapter.test.js tests/unit/mcp-create-server.test.js`
+  passed: 8 tests.
+- `node --test tests/integration/dist-runtime-startup.test.js tests/integration/local-plugin-mcp-boot.test.js`
+  passed: 3 tests.
+- `node --test tests/transforms/mcp-pack-composition.test.js tests/unit/mcp-tool-packs-zod-schemas.test.js`
+  passed: 70 tests.
 
 Recommendation:
 
-List it because anything is on the table, but do not prioritize it unless SDK
-friction becomes a concrete blocker.
+Keep adapter isolation as the end state for now. A first-party SDK replacement
+still requires wire-level protocol parity and external client smoke coverage
+before any dependency removal.
+
+## Phase 3 Completion Audit
+
+Observed after the local artifact retention tooling and SDK adapter isolation
+work:
+
+| Gate | Result |
+| --- | --- |
+| `npm run generate` | Passed: 0 written, 192 unchanged, 0 errors |
+| `git diff --check` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run typecheck:type-tests` | Passed |
+| `node dist/src/tooling/check-layer-boundaries.js` | Passed: 9 files scanned, 0 violations |
+| `node dist/src/tooling/check-esm-imports.js` | Passed |
+| `npm test` | Passed: 322 suites, 1,664 tests, 0 failures |
+| `npm run check:release` | Passed: npm pack 335 files, 299,317 packed bytes, 794,994 unpacked bytes; release artifact verified |
+
+The options still intentionally not executed are the options with public
+contract, storage migration, package topology, or product-scope consequences:
+
+- MCP action registry deletion: public surface remains 40 tools.
+- Runtime package split or per-runtime payload partitioning: one package still
+  carries all four runtime families.
+- Event-sourced or structured state backend: state remains Markdown, JSON, and
+  JSONL files.
+- State-machine/workflow engine: lifecycle rules remain split across services,
+  handlers, command tables, and protocols.
+- Descriptor-generated runtime docs and schema-generated MCP parity matrices:
+  still available as follow-on reductions.
+- MCP SDK replacement: adapter isolation is complete, but first-party protocol
+  replacement still lacks wire-level parity fixtures and external client smoke.
+- Runtime family deletion: this is a product-scope cut, not a safe unilateral
+  cleanup.
+- Destructive local artifact pruning: the retention command is implemented and
+  validated in dry-run mode, but actual deletion requires explicit
+  `--apply --confirm-prune-local-artifacts`.
 
 ## Lower-ROI Ideas
 

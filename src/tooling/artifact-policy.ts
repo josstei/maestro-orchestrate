@@ -244,6 +244,10 @@ const PRIVATE_SCRIPT_ROLES: Readonly<Record<string, PrivateScriptRole>> = Object
     role: 'dev-only',
     note: 'Source checkout setup helper; private to source checkouts.',
   },
+  'src/tooling/local-artifact-retention.ts': {
+    role: 'dev-only',
+    note: 'Ignored local state inventory and explicit-prune helper; private to source checkouts.',
+  },
   'src/tooling/npm-publish-idempotent.ts': {
     role: 'release-only',
     note: 'Release workflow support; private to source checkouts.',
