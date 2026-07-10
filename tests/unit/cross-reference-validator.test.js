@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { validateCrossReferences, assertCrossReferences } from '../../dist/src/generator/cross-reference-validator.js';
+import {
+  validateCrossReferences,
+  collectCrossReferenceInputs,
+  assertCrossReferences,
+} from '../../dist/src/generator/cross-reference-validator.js';
+import { buildRegistryModel } from '../../dist/src/generator/registry-scanner.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
@@ -45,7 +50,18 @@ describe('validateCrossReferences', () => {
 });
 
 describe('assertCrossReferences on the live tree', () => {
+  it('collects agent and resource identities from an injected model', async () => {
+    const inputs = await collectCrossReferenceInputs({
+      agents: [{ name: 'injected-agent', capabilities: 'read_only', tools: [], focus: 'fixture' }],
+      resources: { 'injected-resource': 'references/fixture.md' },
+      hooks: {},
+    });
+
+    assert.deepEqual(inputs.agentNames, ['injected-agent']);
+    assert.deepEqual(inputs.resourceIds, ['injected-resource']);
+  });
+
   it('resolves every reference in the real src/', async () => {
-    await assert.doesNotReject(() => assertCrossReferences(REPO_SRC));
+    await assert.doesNotReject(() => assertCrossReferences(buildRegistryModel(REPO_SRC)));
   });
 });

@@ -43,7 +43,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     ],
     tracked: false,
     packaged: true,
-    notes: 'Runtime content handlers consume these registries directly.',
+    notes: 'Final compatibility projections. Build and generation derive one in-memory RegistryModel from tracked source inputs before writing these files; no producer reads them as a prerequisite.',
   },
   {
     id: 'manifest-transform-outputs',
@@ -129,7 +129,8 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
       'src/platforms/claude/runtime-doc.md',
       'src/platforms/codex/runtime-doc.md',
       'src/platforms/qwen/runtime-doc.md',
-      'src/generated/agent-registry.json',
+      'src/agents/*.md',
+      'src/agent-profiles/*.profile',
       'package.json',
     ],
     outputs: [
@@ -143,7 +144,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     ],
     tracked: false,
     packaged: true,
-    notes: 'Runtime context files generated from the shared template and per-runtime contextFile metadata; claude/README.md is generated from its own template with the package version and agent roster; docs/runtime-<rt>.md is generated per runtime from src/platforms/<rt>/runtime-doc.md, expanding the <!-- @feature-flags --> marker from runtime.features (hand-written prose passes through unchanged).',
+    notes: 'Runtime context files receive agent data from the in-memory RegistryModel and combine it with the shared template and per-runtime metadata; source registry projections are not read during rendering.',
   },
   {
     id: 'owned-directory-pruning',

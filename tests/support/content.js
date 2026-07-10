@@ -1,13 +1,14 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { importDist } from './dist.js';
+import { withEnvSync } from './environment.js';
+import { makeTempDir, writeFixtureFile } from './filesystem.js';
 
 const { RESOURCE_ALLOWLIST } = await importDist('src/mcp/content/runtime-content.js');
 const createdRoots = [];
 
 function makeTempSrcRoot(prefix = 'maestro-content-') {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const root = makeTempDir(null, prefix);
   createdRoots.push(root);
   return root;
 }
@@ -19,10 +20,7 @@ function cleanupTempRoots() {
 }
 
 function writeFileUnder(root, relPath, content) {
-  const abs = path.join(root, relPath);
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, content, 'utf8');
-  return abs;
+  return writeFixtureFile(root, relPath, content);
 }
 
 function writeAgent(srcRoot, name, body) {
@@ -34,15 +32,9 @@ function writeResource(srcRoot, id, body) {
 }
 
 function withExtensionRoot(value, fn) {
-  const prev = process.env.MAESTRO_EXTENSION_PATH;
-  if (value === undefined) delete process.env.MAESTRO_EXTENSION_PATH;
-  else process.env.MAESTRO_EXTENSION_PATH = value;
-  try {
-    return fn();
-  } finally {
-    if (prev === undefined) delete process.env.MAESTRO_EXTENSION_PATH;
-    else process.env.MAESTRO_EXTENSION_PATH = prev;
-  }
+  return withEnvSync({
+    MAESTRO_EXTENSION_PATH: value === undefined ? undefined : String(value),
+  }, fn);
 }
 
 export { makeTempSrcRoot, cleanupTempRoots, writeFileUnder, writeAgent, writeResource, withExtensionRoot };

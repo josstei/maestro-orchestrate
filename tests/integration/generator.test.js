@@ -104,4 +104,50 @@ describe('generator integration', () => {
       fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
     }
   });
+
+  it('writes all final registry projections from tracked authored source', () => {
+    const repoRoot = createTempRepoCopy('maestro-generator-registry-write-');
+
+    try {
+      const generatedDir = path.join(repoRoot, 'src/generated');
+      fs.rmSync(generatedDir, { recursive: true, force: true });
+      fs.writeFileSync(
+        path.join(repoRoot, 'src/agents/registry-write-test.md'),
+        [
+          '---',
+          'name: registry-write-test',
+          'description: "Registry projection fixture"',
+          'color: blue',
+          'focus: "Registry projection fixture"',
+          'tools: []',
+          'tools.claude: []',
+          'max_turns: 1',
+          'temperature: 0',
+          'timeout_mins: 1',
+          'capabilities: read_only',
+          '---',
+          'Fixture body.',
+          '',
+        ].join('\n'),
+        'utf8'
+      );
+
+      runGenerator([], { cwd: repoRoot });
+
+      const agentRegistry = JSON.parse(
+        fs.readFileSync(path.join(generatedDir, 'agent-registry.json'), 'utf8')
+      );
+      const resourceRegistry = JSON.parse(
+        fs.readFileSync(path.join(generatedDir, 'resource-registry.json'), 'utf8')
+      );
+      const hookRegistry = JSON.parse(
+        fs.readFileSync(path.join(generatedDir, 'hook-registry.json'), 'utf8')
+      );
+      assert.equal(agentRegistry.some((agent) => agent.name === 'registry-write-test'), true);
+      assert.equal(resourceRegistry.delegation, 'skills/shared/delegation/SKILL.md');
+      assert.equal(hookRegistry['before-agent'].fn, 'handleBeforeAgent');
+    } finally {
+      fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
+    }
+  });
 });

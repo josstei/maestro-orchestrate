@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   KNOWN_AGENTS,
@@ -9,12 +11,12 @@ import {
   getAgentCapability,
   canCreateFiles,
 } from '../../dist/src/core/agent-registry.js';
+import { buildRegistryModel } from '../../dist/src/generator/registry-scanner.js';
 
-import { readFileSync } from 'node:fs';
-
-const agentRegistryData = JSON.parse(
-  readFileSync(new URL('../../src/generated/agent-registry.json', import.meta.url))
-);
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const SRC = path.resolve(moduleDirname, '..', '..', 'src');
+const agentRegistryData = buildRegistryModel(SRC).agents;
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
 const LEGACY_AGENT_ENV = ['MAESTRO', 'CURRENT', 'AGENT'].join('_');
@@ -32,6 +34,13 @@ describe('KNOWN_AGENTS', () => {
     for (const entry of KNOWN_AGENTS) {
       assert.equal(typeof entry, 'string');
     }
+  });
+
+  it('matches the registry model derived from tracked authored source', () => {
+    assert.deepEqual(
+      agentRegistryData.map((entry) => normalizeAgentName(entry.name)),
+      KNOWN_AGENTS
+    );
   });
 });
 

@@ -32,10 +32,6 @@ const TOOL_MAPPING_DISPLAY_ORDER = Object.freeze([
   'codebase_investigator',
 ]);
 
-function loadAgentRegistry(srcDir: string): AgentRegistryEntry[] {
-  return JSON.parse(fs.readFileSync(path.join(srcDir, 'generated', 'agent-registry.json'), 'utf8')) as AgentRegistryEntry[];
-}
-
 function renderToolMappingSection(runtime: { tools: Record<string, unknown> }): string {
   const rows = TOOL_MAPPING_DISPLAY_ORDER
     .map((source) => `| \`${source}\` | \`${String(runtime.tools[source] || '')}\` |`)
@@ -59,7 +55,7 @@ function finalizeContent(content: string): string {
 function renderTemplate(
   template: string,
   values: StringMap,
-  agents: AgentRegistryEntry[],
+  agents: readonly AgentRegistryEntry[],
   agentNaming: AgentNaming
 ): string {
   let content = template;
@@ -83,7 +79,7 @@ function renderFeatureFlagsTable(runtime: { features: Readonly<Record<string, un
 function renderRuntimeDoc(
   template: string,
   runtime: Pick<GeneratorRuntimeConfig, 'agentNaming'> & { features?: Readonly<Record<string, unknown>> },
-  agents: AgentRegistryEntry[]
+  agents: readonly AgentRegistryEntry[]
 ): string {
   let content = template.replace('<!-- @feature-flags -->', renderFeatureFlagsTable({ features: runtime.features || {} }));
   content = content.replace(
@@ -100,7 +96,7 @@ function renderContextFile(
     hooks: RuntimeHookConfig;
     tools: Record<string, unknown>;
   },
-  agents: AgentRegistryEntry[]
+  agents: readonly AgentRegistryEntry[]
 ): string {
   const cf = runtime.contextFile;
   const values = {
@@ -124,7 +120,7 @@ function renderContextFile(
 function renderClaudeReadme(
   template: string,
   packageMetadata: PackageMetadata,
-  agents: AgentRegistryEntry[],
+  agents: readonly AgentRegistryEntry[],
   agentNaming: AgentNaming
 ): string {
   return renderTemplate(template, { version: packageMetadata.version }, agents, agentNaming);
@@ -133,13 +129,13 @@ function renderClaudeReadme(
 function buildContentFileOutputs(
   runtimes: GeneratorRuntimeMap,
   srcDir: string,
-  packageMetadata: PackageMetadata
+  packageMetadata: PackageMetadata,
+  agents: readonly AgentRegistryEntry[]
 ): GeneratedOutput[] {
   const template = fs.readFileSync(
     path.join(srcDir, 'platforms', 'shared', 'runtime-context-template.md'),
     'utf8'
   );
-  const agents = loadAgentRegistry(srcDir);
   const outputs: GeneratedOutput[] = [];
   for (const runtime of Object.values(runtimes)) {
     if (!runtime.contextFile) continue;

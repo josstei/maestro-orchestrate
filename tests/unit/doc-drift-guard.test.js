@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildRegistryModel } from '../../dist/src/generator/registry-scanner.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const REPO = path.resolve(moduleDirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
-const canonicalAgentCount = () => JSON.parse(read('src/generated/agent-registry.json')).length;
+const canonicalAgentCount = () => buildRegistryModel(path.join(REPO, 'src')).agents.length;
 
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
   const canonicalCount = canonicalAgentCount();

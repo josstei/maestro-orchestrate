@@ -1,12 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
+import { REPO_ROOT, repoPath } from './paths.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../..');
-const DIST_ROOT = path.join(ROOT, 'dist');
+const ROOT = REPO_ROOT;
+const DIST_ROOT = repoPath('dist');
 
 const REQUIRED_DIST_FILES = Object.freeze([
   'src/bin/maestro-install-codex.js',

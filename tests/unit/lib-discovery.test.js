@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { discover, generateRegistry, patternToRegex, parsePattern, collectFiles } from '../../dist/src/lib/discovery/index.js';
 import { parse } from '../../dist/src/lib/frontmatter/index.js';
-import { listAgentSources } from '../../dist/src/core/agent-sources.js';
+import { buildRegistryModel } from '../../dist/src/generator/registry-scanner.js';
 import { makeTempSrcRoot, cleanupTempRoots, writeFileUnder } from '../support/content.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -439,127 +439,22 @@ describe('module exports', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Parity tests — verify discover() reproduces existing registries
+// Parity tests — verify the derived model reproduces final registry projections
 // ---------------------------------------------------------------------------
 
-describe('parity: agent registry', () => {
-  it('reproduces src/generated/agent-registry.json', () => {
-    const expected = JSON.parse(
-      fs.readFileSync(path.join(SRC_DIR, 'generated', 'agent-registry.json'), 'utf8')
-    );
+describe('registry model parity', () => {
+  const model = buildRegistryModel(SRC_DIR);
 
-    const actual = listAgentSources(SRC_DIR).map(({ name: fallbackName, content }) => {
-      const { frontmatter } = parse(content);
-      const name = frontmatter.name || fallbackName;
-      const capabilities = frontmatter.capabilities || 'read_only';
-      const rawTools = frontmatter.tools || [];
-      const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-      const focus = frontmatter.focus || '';
-      return {
-      name,
-      capabilities,
-      tools,
-      focus,
-      };
+  for (const [fileName, actual] of [
+    ['agent-registry.json', model.agents],
+    ['hook-registry.json', model.hooks],
+    ['resource-registry.json', model.resources],
+  ]) {
+    it(`reproduces src/generated/${fileName}`, () => {
+      const expected = JSON.parse(
+        fs.readFileSync(path.join(SRC_DIR, 'generated', fileName), 'utf8')
+      );
+      assert.deepEqual(actual, expected);
     });
-
-    assert.deepEqual(actual, expected);
-  });
-});
-
-describe('parity: hook registry', () => {
-  it('reproduces src/generated/hook-registry.json', () => {
-    const logicDir = path.join(SRC_DIR, 'hooks', 'logic');
-    const expected = JSON.parse(
-      fs.readFileSync(path.join(SRC_DIR, 'generated', 'hook-registry.json'), 'utf8')
-    );
-
-    function hookNameToFunctionName(hookName) {
-      const pascal = hookName
-        .split('-')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join('');
-      return `handle${pascal}`;
-    }
-
-    const entries = discover({
-      dir: logicDir,
-      pattern: '*-logic.ts',
-      identity: (fp) => path.basename(fp).replace(/-logic\.ts$/, ''),
-      metadata: (fp) => {
-        const file = path.basename(fp);
-        const hookName = file.replace(/-logic\.ts$/, '');
-        const runtimeFile = file.replace(/\.ts$/, '.js');
-        return {
-          module: `hooks/logic/${runtimeFile}`,
-          fn: hookNameToFunctionName(hookName),
-        };
-      },
-    });
-
-    const actual = {};
-    for (const entry of entries) {
-      actual[entry.id] = { module: entry.module, fn: entry.fn };
-    }
-
-    assert.deepEqual(actual, expected);
-  });
-});
-
-describe('parity: resource registry', () => {
-  it('reproduces src/generated/resource-registry.json', () => {
-    const expected = JSON.parse(
-      fs.readFileSync(path.join(SRC_DIR, 'generated', 'resource-registry.json'), 'utf8')
-    );
-
-    const skillsSharedDir = path.join(SRC_DIR, 'skills', 'shared');
-    const skillsParentDir = path.join(SRC_DIR, 'skills');
-
-    const skillEntries = discover({
-      dir: skillsSharedDir,
-      pattern: '**/*.md',
-      identity: (fp) => {
-        const filename = path.basename(fp);
-        if (filename === 'SKILL.md') {
-          return path.basename(path.dirname(fp));
-        }
-        return path.basename(fp, '.md');
-      },
-      metadata: (fp) => {
-        const relativePath = 'skills/' + path.relative(skillsParentDir, fp)
-          .split(path.sep)
-          .join('/');
-        return { relativePath };
-      },
-    });
-
-    const templatesDir = path.join(SRC_DIR, 'templates');
-    const templateEntries = discover({
-      dir: templatesDir,
-      pattern: '*.md',
-      identity: (fp) => path.basename(fp, '.md'),
-      metadata: (fp) => {
-        const file = path.basename(fp);
-        return { relativePath: `templates/${file}` };
-      },
-    });
-
-    const referencesDir = path.join(SRC_DIR, 'references');
-    const referenceEntries = discover({
-      dir: referencesDir,
-      pattern: '*.md',
-      identity: (fp) => path.basename(fp, '.md'),
-      metadata: (fp) => {
-        const file = path.basename(fp);
-        return { relativePath: `references/${file}` };
-      },
-    });
-
-    const actual = {};
-    for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
-      actual[entry.id] = entry.relativePath;
-    }
-
-    assert.deepEqual(actual, expected);
-  });
+  }
 });

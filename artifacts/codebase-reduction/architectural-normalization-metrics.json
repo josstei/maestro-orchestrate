@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "measurement_provenance": {
+    "baseline_source": "Audited pre-implementation inventory recorded in ARCHITECTURAL_NORMALIZATION_AND_CODEBASE_REDUCTION_ANALYSIS.md and the approved implementation plan",
+    "scope_note": "Tracked source, tests, local build output, declarations, generated projections, and package bytes are recorded as separate dimensions and must not be summed into one codebase-size value",
+    "final_measurement_phase": 16
+  },
+  "baseline": {
+    "tracked_repository": {
+      "files": 519,
+      "lines": 62128,
+      "bytes": 2436092
+    },
+    "tracked_src": {
+      "files": 219,
+      "lines": 25672,
+      "bytes": 1054242
+    },
+    "tracked_src_typescript": {
+      "files": 185,
+      "lines": 17731,
+      "bytes": 580026
+    },
+    "tracked_src_markdown": {
+      "files": 23,
+      "lines": 3705,
+      "bytes": 189613
+    },
+    "tracked_tests": {
+      "files": 235,
+      "lines": 25449,
+      "bytes": 895908
+    },
+    "handwritten_tests_excluding_44_goldens": {
+      "files": 191,
+      "lines": 24442,
+      "bytes": 874763
+    },
+    "tracked_markdown": {
+      "files": 50,
+      "lines": 10558,
+      "bytes": 529594
+    },
+    "local_dist_src": {
+      "files": 387,
+      "lines": 20069,
+      "bytes": 914774
+    },
+    "local_dist_src_declarations": {
+      "files": 188,
+      "lines": 4542,
+      "bytes": 187470
+    },
+    "ignored_src_generated": {
+      "files": 3,
+      "lines": 704,
+      "bytes": 15424
+    },
+    "tests": {
+      "count": 1664
+    },
+    "npm_pack_dry_run": {
+      "files": 335,
+      "packed_bytes": 299317,
+      "unpacked_bytes": 794994
+    }
+  },
+  "final": {
+    "status": "unpopulated",
+    "tracked_repository": null,
+    "tracked_src": null,
+    "tracked_src_typescript": null,
+    "tracked_src_markdown": null,
+    "tracked_tests": null,
+    "handwritten_tests_excluding_goldens": null,
+    "tracked_markdown": null,
+    "local_dist_src": null,
+    "local_dist_src_declarations": null,
+    "ignored_src_generated": null,
+    "tests": null,
+    "npm_pack_dry_run": null,
+    "gross_additions": null,
+    "gross_deletions": null,
+    "net_tracked_source_test_change": null
+  }
+}

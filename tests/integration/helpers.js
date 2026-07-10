@@ -2,11 +2,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { assertDistBuilt } from '../support/dist.js';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../..');
+import { REPO_ROOT, repoPath } from '../support/paths.js';
+
+const ROOT = REPO_ROOT;
 const DRY_RUN_MARKER = '(dry-run — no files written)';
 const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
 
@@ -65,18 +64,18 @@ async function withPackagedClaudeRuntime(fn) {
   const packageRoot = path.join(tempRoot, 'maestro');
 
   fs.mkdirSync(packageRoot, { recursive: true });
-  fs.cpSync(path.join(ROOT, '.claude-plugin'), path.join(packageRoot, '.claude-plugin'), {
+  fs.cpSync(repoPath('.claude-plugin'), path.join(packageRoot, '.claude-plugin'), {
     recursive: true,
   });
-  fs.cpSync(path.join(ROOT, 'claude'), path.join(packageRoot, 'claude'), { recursive: true });
-  fs.cpSync(path.join(ROOT, 'dist'), path.join(packageRoot, 'dist'), { recursive: true });
-  fs.cpSync(path.join(ROOT, 'src'), path.join(packageRoot, 'src'), { recursive: true });
+  fs.cpSync(repoPath('claude'), path.join(packageRoot, 'claude'), { recursive: true });
+  fs.cpSync(repoPath('dist'), path.join(packageRoot, 'dist'), { recursive: true });
+  fs.cpSync(repoPath('src'), path.join(packageRoot, 'src'), { recursive: true });
   fs.writeFileSync(
     path.join(packageRoot, 'package.json'),
     JSON.stringify({ name: '@josstei/maestro', type: 'module' }, null, 2) + '\n',
     'utf8'
   );
-  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(packageRoot, 'node_modules'), 'dir');
+  fs.symlinkSync(repoPath('node_modules'), path.join(packageRoot, 'node_modules'), 'dir');
 
   try {
     return await fn(packageRoot);

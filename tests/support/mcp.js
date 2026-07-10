@@ -1,9 +1,9 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { importDist } from './dist.js';
+import { makeTempDir, writeFixtureFile } from './filesystem.js';
 
 const { createMcpServer } = await importDist('src/mcp/server/create-mcp-server.js');
 const { createMaestroToolRegistry } = await importDist('src/mcp/tool-packs/contracts.js');
@@ -16,7 +16,32 @@ const { ensureWorkspace } = await importDist('src/state/session-state.js');
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
 function makeTempWorkspace(prefix = 'maestro-test-') {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  return makeTempDir(null, prefix);
+}
+
+async function connectInMemory(testContext, server, {
+  client,
+  clientInfo = { name: 'maestro-test-client', version: '0.0.0' },
+  capabilities = {},
+} = {}) {
+  const connectedClient = client || new Client(clientInfo, { capabilities });
+  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+
+  await Promise.all([
+    server.connect(serverTransport),
+    connectedClient.connect(clientTransport),
+  ]);
+
+  if (testContext) {
+    testContext.after(async () => {
+      await Promise.all([
+        connectedClient.close(),
+        server.close(),
+      ]);
+    });
+  }
+
+  return connectedClient;
 }
 
 function ensureMaestroWorkspace(workspace) {
@@ -99,9 +124,7 @@ async function buildMcpServer({
     registerPack(packOptions);
   }
 
-  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'maestro-test-client', version: '0.0.0' }, { capabilities: {} });
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const client = await connectInMemory(null, server);
 
   return {
     server,
@@ -147,10 +170,7 @@ async function createInitializedMcpWorkspace(options = {}) {
 }
 
 function writeWorkspaceFile(workspace, relativePath, content) {
-  const filePath = path.join(workspace, relativePath);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content);
-  return filePath;
+  return writeFixtureFile(workspace, relativePath, content);
 }
 
 function readJsonFrontmatter(filePath) {
@@ -181,4 +201,4 @@ function phaseFixture(overrides = {}) {
   };
 }
 
-export { buildMcpServer, registerContentPack as createContentPack, createInitializedMcpWorkspace, registerHistoryPack as createHistoryPack, registerMemoryPack as createMemoryPack, registerSessionPack as createSessionPack, registerWorkspacePack as createWorkspacePack, ensureMaestroWorkspace, initializeWorkspace, makeTempWorkspace, phaseFixture, readJsonFrontmatter, readSessionFrontmatter, writeWorkspaceFile };
+export { buildMcpServer, connectInMemory, registerContentPack as createContentPack, createInitializedMcpWorkspace, registerHistoryPack as createHistoryPack, registerMemoryPack as createMemoryPack, registerSessionPack as createSessionPack, registerWorkspacePack as createWorkspacePack, ensureMaestroWorkspace, initializeWorkspace, makeTempWorkspace, phaseFixture, readJsonFrontmatter, readSessionFrontmatter, writeWorkspaceFile };

@@ -1,11 +1,9 @@
 import fs, { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { REQUIRED_PACKAGE_FILES } from '../../dist/src/tooling/release-artifact-manifest.js';
+import { REPO_ROOT, repoPath } from './paths.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const ROOT = path.resolve(path.dirname(moduleFilename), '../..');
-const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
+const ROOT = REPO_ROOT;
+const packageJson = JSON.parse(readFileSync(repoPath('package.json')));
 
 const VALID_ARTIFACT_SCOPES = new Set(['both', 'npm', 'release']);
 
@@ -115,9 +113,9 @@ function packageFiles(extraFiles = [], packageFields = {}) {
 }
 
 function runtimeConfigNames() {
-  return fs.readdirSync(path.join(ROOT, 'src', 'platforms'), { withFileTypes: true })
+  return fs.readdirSync(repoPath('src', 'platforms'), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && entry.name !== 'shared')
-    .filter((entry) => fs.existsSync(path.join(ROOT, 'src', 'platforms', entry.name, 'runtime-config.ts')))
+    .filter((entry) => fs.existsSync(repoPath('src', 'platforms', entry.name, 'runtime-config.ts')))
     .map((entry) => entry.name)
     .sort();
 }

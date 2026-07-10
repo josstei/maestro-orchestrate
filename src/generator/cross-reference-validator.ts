@@ -1,8 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ValidationError } from '../lib/errors/index.js';
-import { buildRegistries } from './registry-scanner.js';
-import type { AgentRegistryEntry, EntryPointRegistryEntry } from './types.js';
+import type { EntryPointRegistryEntry, RegistryModel } from './types.js';
 
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
@@ -63,18 +62,10 @@ function validateCrossReferences({ agentNames, resourceIds, entryPoints, coreCom
 /**
  * Gather the agent names, resource ids, and entry-point registries the
  * cross-reference gate needs from the real source tree.
- * @param {string} srcDir - Absolute path to src/
+ * @param {RegistryModel} model - Registry data derived from the source tree
  * @returns {{ agentNames: string[], resourceIds: string[], entryPoints: object[], coreCommands: object[] }}
  */
-async function collectCrossReferenceInputs(srcDir: string, codeSrcDir = DEFAULT_CODE_SRC): Promise<CrossReferenceInputs> {
-  const registries = buildRegistries(srcDir);
-  const agentRegistry = registries.find((r) => r.fileName === 'agent-registry.json');
-  const resourceRegistry = registries.find((r) => r.fileName === 'resource-registry.json');
-  if (!agentRegistry || !resourceRegistry) {
-    throw new Error('Generated registry set is missing agent or resource registry data');
-  }
-  const agentData = agentRegistry.data as AgentRegistryEntry[];
-  const resourceData = resourceRegistry.data as Record<string, string>;
+async function collectCrossReferenceInputs(model: RegistryModel, codeSrcDir = DEFAULT_CODE_SRC): Promise<CrossReferenceInputs> {
   const { default: entryPoints } = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'registry.js')).href) as {
     default: EntryPointRegistryEntry[];
   };
@@ -83,8 +74,8 @@ async function collectCrossReferenceInputs(srcDir: string, codeSrcDir = DEFAULT_
   };
 
   return {
-    agentNames: agentData.map((agent) => agent.name),
-    resourceIds: Object.keys(resourceData),
+    agentNames: model.agents.map((agent) => agent.name),
+    resourceIds: Object.keys(model.resources),
     entryPoints,
     coreCommands,
   };
@@ -92,11 +83,11 @@ async function collectCrossReferenceInputs(srcDir: string, codeSrcDir = DEFAULT_
 
 /**
  * Build-time gate: fail generation on any unresolved cross-reference.
- * @param {string} srcDir - Absolute path to src/
+ * @param {RegistryModel} model - Registry data derived from the source tree
  * @throws {ValidationError}
  */
-async function assertCrossReferences(srcDir: string, codeSrcDir = DEFAULT_CODE_SRC): Promise<void> {
-  validateCrossReferences(await collectCrossReferenceInputs(srcDir, codeSrcDir));
+async function assertCrossReferences(model: RegistryModel, codeSrcDir = DEFAULT_CODE_SRC): Promise<void> {
+  validateCrossReferences(await collectCrossReferenceInputs(model, codeSrcDir));
 }
 
 export { validateCrossReferences, collectCrossReferenceInputs, assertCrossReferences };

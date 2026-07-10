@@ -7,7 +7,7 @@ import { toPascalCase } from '../lib/naming/index.js';
 import { listAgentSources } from '../core/agent-sources.js';
 import { validateRegistry } from './registry-schemas.js';
 import type { AgentCapability } from '../core/agent-registry.js';
-import type { AgentRegistryEntry, GeneratedOutput, HookRegistryEntry } from './types.js';
+import type { AgentRegistryEntry, GeneratedOutput, HookRegistryEntry, RegistryModel } from './types.js';
 
 type ResourceRegistry = Record<string, string>;
 type HookRegistry = Record<string, HookRegistryEntry>;
@@ -113,25 +113,34 @@ function buildHookRegistry(srcDir: string): HookRegistry {
   return hooks;
 }
 
-function buildRegistries(srcDir: string): GeneratedRegistry[] {
-  const registries: GeneratedRegistry[] = [
-    { fileName: 'agent-registry.json', data: buildAgentRegistry(srcDir) },
-    { fileName: 'resource-registry.json', data: buildResourceRegistry(srcDir) },
-    { fileName: 'hook-registry.json', data: buildHookRegistry(srcDir) },
+function registriesFromModel(model: RegistryModel): GeneratedRegistry[] {
+  return [
+    { fileName: 'agent-registry.json', data: [...model.agents] },
+    { fileName: 'resource-registry.json', data: { ...model.resources } },
+    { fileName: 'hook-registry.json', data: { ...model.hooks } },
   ];
-
-  for (const { fileName, data } of registries) {
-    validateRegistry(fileName, data);
-  }
-
-  return registries;
 }
 
-function collectRegistryOutputs(srcDir: string, rootDir = path.dirname(srcDir)): GeneratedOutput[] {
-  const generatedDir = path.join(srcDir, 'generated');
+function buildRegistryModel(srcDir: string): RegistryModel {
+  const model: RegistryModel = {
+    agents: buildAgentRegistry(srcDir),
+    resources: buildResourceRegistry(srcDir),
+    hooks: buildHookRegistry(srcDir),
+  };
 
-  return buildRegistries(srcDir).map(({ fileName, data }) => ({
-    outputPath: path.relative(rootDir, path.join(generatedDir, fileName)),
+  for (const { fileName, data } of registriesFromModel(model)) {
+    validateRegistry(fileName, data);
+  }
+  return model;
+}
+
+function buildRegistries(srcDir: string): GeneratedRegistry[] {
+  return registriesFromModel(buildRegistryModel(srcDir));
+}
+
+function collectRegistryOutputs(model: RegistryModel, outputRoot = 'src/generated'): GeneratedOutput[] {
+  return registriesFromModel(model).map(({ fileName, data }) => ({
+    outputPath: path.join(outputRoot, fileName),
     content: serializeRegistry(data),
   }));
 }
@@ -150,4 +159,4 @@ function generateRegistries(srcDir: string): void {
   }
 }
 
-export { buildRegistries, collectRegistryOutputs, generateRegistries };
+export { buildRegistryModel, buildRegistries, collectRegistryOutputs, generateRegistries };

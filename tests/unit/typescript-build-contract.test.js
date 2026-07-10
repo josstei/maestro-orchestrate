@@ -1,35 +1,42 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createTrackedCandidateRepoCopy } from '../support/filesystem.js';
 
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const ROOT = path.resolve(moduleDirname, '../..');
-
-function createTempRepoCopy(prefix) {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const repoRoot = path.join(tempRoot, 'repo');
-
-  fs.cpSync(ROOT, repoRoot, {
-    recursive: true,
-    filter: (source) => {
-      const relativePath = path.relative(ROOT, source);
-      if (!relativePath) {
-        return true;
-      }
-
-      const segments = relativePath.split(path.sep);
-      return !segments.includes('.git') && !segments.includes('node_modules') && segments[0] !== 'dist';
-    },
-  });
-  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(repoRoot, 'node_modules'), 'dir');
-
-  return repoRoot;
-}
+const APPROVED_ADDITIONAL_PATHS = Object.freeze([
+  'artifacts/codebase-reduction/architectural-normalization-metrics.json',
+  'src/core/module-path.ts',
+  'src/core/package-root.ts',
+  'src/core/workspace-path.ts',
+  'src/core/zod-validation.ts',
+  'src/entry-points/core-command-registry.ts',
+  'src/entry-points/registry.ts',
+  'src/manifest.ts',
+  'src/mcp/content/runtime-content-snapshot.ts',
+  'src/mcp/contracts/session-state-schema.ts',
+  'src/mcp/session/document-input.ts',
+  'src/mcp/session/session-migrations.ts',
+  'src/mcp/session/session-state-factory.ts',
+  'src/mcp/session/session-store.ts',
+  'src/mcp/tool-packs/tool-pack.ts',
+  'src/tooling/runtime-payload-contract.ts',
+  'tests/benchmarks/runtime-content-snapshot.js',
+  'tests/fixtures/mcp-tool-pack-type-contract.ts',
+  'tests/integration/plan-contract-roundtrip.test.js',
+  'tests/support/environment.js',
+  'tests/support/filesystem.js',
+  'tests/support/paths.js',
+  'tests/unit/mcp-tool-pack.test.js',
+  'tests/unit/package-root.test.js',
+  'tests/unit/package-script-lifecycle.test.js',
+  'tests/unit/test-support.test.js',
+]);
 
 function cleanupTempRepo(repoRoot) {
   fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
@@ -37,12 +44,26 @@ function cleanupTempRepo(repoRoot) {
 
 describe('TypeScript build contract', () => {
   it('emits generated dist code and copied runtime assets for package-bin execution', async () => {
-    const repoRoot = createTempRepoCopy('maestro-ts-build-contract-');
+    assert.throws(
+      () => createTrackedCandidateRepoCopy({
+        additionalPaths: ['src/generated/agent-registry.json'],
+        dependencyRoot: path.join(ROOT, 'node_modules'),
+      }),
+      /excluded build residue/
+    );
+    const repoRoot = createTrackedCandidateRepoCopy({
+      additionalPaths: APPROVED_ADDITIONAL_PATHS,
+      dependencyRoot: path.join(ROOT, 'node_modules'),
+    });
 
     try {
       const tempRepoPath = (...parts) => path.join(repoRoot, ...parts);
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src')), false);
+      assert.equal(fs.existsSync(tempRepoPath('src', 'generated')), false);
+      assert.equal(fs.existsSync(tempRepoPath('docs', 'maestro')), false);
+      assert.equal(fs.lstatSync(tempRepoPath('node_modules')).isSymbolicLink(), true);
+      assert.equal(path.relative(repoRoot, fs.realpathSync(tempRepoPath('node_modules'))).startsWith('..'), true);
       execFileSync('git', ['init', '-b', 'main'], {
         cwd: repoRoot,
         encoding: 'utf8',
@@ -104,6 +125,28 @@ describe('TypeScript build contract', () => {
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.txt.gz')), true);
+      for (const registryFile of [
+        'agent-registry.json',
+        'resource-registry.json',
+        'hook-registry.json',
+      ]) {
+        assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', registryFile)), true);
+      }
+      const agentRegistry = JSON.parse(
+        fs.readFileSync(tempRepoPath('dist', 'src', 'generated', 'agent-registry.json'), 'utf8')
+      );
+      const resourceRegistry = JSON.parse(
+        fs.readFileSync(tempRepoPath('dist', 'src', 'generated', 'resource-registry.json'), 'utf8')
+      );
+      const hookRegistry = JSON.parse(
+        fs.readFileSync(tempRepoPath('dist', 'src', 'generated', 'hook-registry.json'), 'utf8')
+      );
+      assert.equal(agentRegistry.length, 39);
+      assert.equal(resourceRegistry.delegation, 'skills/shared/delegation/SKILL.md');
+      assert.deepEqual(hookRegistry['before-agent'], {
+        module: 'hooks/logic/before-agent-logic.js',
+        fn: 'handleBeforeAgent',
+      });
       const runtimeContentRegistry = JSON.parse(
         fs.readFileSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json'), 'utf8')
       );

@@ -55,6 +55,12 @@ interface HookRegistryEntry {
   fn: string;
 }
 
+interface RegistryModel {
+  readonly agents: readonly AgentRegistryEntry[];
+  readonly resources: Readonly<Record<string, string>>;
+  readonly hooks: Readonly<Record<string, HookRegistryEntry>>;
+}
+
 interface RuntimeContextFileConfig {
   displayName: string;
   outputPath: string;
@@ -117,6 +123,7 @@ export type {
   ManifestEntry,
   ManifestRule,
   PackageMetadata,
+  RegistryModel,
   RuntimeContextFileConfig,
   RuntimeHookConfig,
   StringMap,

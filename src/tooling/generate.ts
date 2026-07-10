@@ -5,7 +5,7 @@ import { resolve as resolveTransform } from '../transforms/index.js';
 import { createGenerationSession } from '../generator/generation-session.js';
 import { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } from '../generator/manifest-expander.js';
 import { pruneStaleFiles } from '../generator/stale-pruner.js';
-import { collectRegistryOutputs } from '../generator/registry-scanner.js';
+import { buildRegistryModel, collectRegistryOutputs } from '../generator/registry-scanner.js';
 import { readAgentSourceContent } from '../core/agent-sources.js';
 import { expandEntryPoints, expandCoreCommands } from '../generator/entry-point-expander.js';
 import { collectManifestPaths } from '../generator/manifest-curator.js';
@@ -111,10 +111,11 @@ async function processEntryPoints(runtimes: Record<string, RuntimeConfig>, sessi
 async function main() {
   const runtimes = await loadRuntimes();
   const packageMetadata = readJson(path.join(ROOT, 'package.json'));
+  const registryModel = buildRegistryModel(SRC);
   const { default: manifestRules } = await import(pathToFileURL(path.join(SRC, 'manifest.js')).href);
   const manifest = expandManifest(manifestRules, runtimes, SRC) as ManifestEntry[];
   assertNoMirroredSharedOutputs(manifest);
-  await assertCrossReferences(SRC);
+  await assertCrossReferences(registryModel);
 
   const session = createGenerationSession({
     rootDir: ROOT,
@@ -122,7 +123,7 @@ async function main() {
     diffMode,
     quiet: listOutputs,
   });
-  session.writeAll(collectRegistryOutputs(SRC, ROOT));
+  session.writeAll(collectRegistryOutputs(registryModel));
 
   if (cleanMode) {
     session.clean(manifest.flatMap((entry) => Object.values(entry.outputs)));
@@ -140,7 +141,7 @@ async function main() {
   session.writeAll(await buildPlatformMetadataOutputs(runtimes, packageMetadata));
   session.writeAll(buildPolicyTomlOutputs());
   session.writeAll(buildHookConfigOutputs(runtimes));
-  session.writeAll(buildContentFileOutputs(runtimes, SRC, packageMetadata));
+  session.writeAll(buildContentFileOutputs(runtimes, SRC, packageMetadata, registryModel.agents));
 
   const stats = session.getStats();
 

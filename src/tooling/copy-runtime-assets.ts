@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { listAgentSources } from '../core/agent-sources.js';
+import { buildRegistryModel, collectRegistryOutputs } from '../generator/registry-scanner.js';
+import type { RegistryModel } from '../generator/types.js';
 
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
@@ -14,7 +16,6 @@ const RUNTIME_CONTENT_PAYLOAD = 'runtime-content-registry.txt.gz';
 
 const ASSET_ROOTS = Object.freeze([
   'entry-points/templates',
-  'generated',
 ]);
 
 const RUNTIME_CONTENT_ROOTS = Object.freeze([
@@ -80,10 +81,6 @@ function copyAssetsFrom(relativeRoot: string): number {
   return copied;
 }
 
-function readJsonAsset(relativePath: string): any {
-  return JSON.parse(fs.readFileSync(path.join(SRC, relativePath), 'utf8'));
-}
-
 function readRegistryEntry(relativePath: string, content = fs.readFileSync(path.join(SRC, relativePath), 'utf8')): RegistryEntry {
   const start = registryPayload.length;
   registryPayload += content;
@@ -128,20 +125,29 @@ function readAgentProfileEntries(): Record<string, RegistryEntry> {
   );
 }
 
-function createRuntimeContentRegistry(): RuntimeContentRegistry {
+function createRuntimeContentRegistry(model: RegistryModel): RuntimeContentRegistry {
   registryPayload = '';
-  const resourceRegistry = readJsonAsset('generated/resource-registry.json');
 
   const resources = Object.fromEntries(
-    Object.entries(resourceRegistry)
-      .map(([id, relativePath]) => [id, readRegistryEntry(String(relativePath))])
+    Object.entries(model.resources)
+      .map(([id, relativePath]) => [id, readRegistryEntry(relativePath)])
       .sort(([a], [b]) => String(a).localeCompare(String(b)))
   );
 
+  const agentSources = listAgentSources(SRC);
+  if (agentSources.length !== model.agents.length) {
+    throw new Error('Registry model agent count does not match tracked agent sources');
+  }
   const agents = Object.fromEntries(
-    listAgentSources(SRC)
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((source) => [source.name, Object.freeze([source.relativePath, 0, 0] as const)])
+    model.agents
+      .map((agent, index) => {
+        const source = agentSources[index];
+        if (!source) {
+          throw new Error(`Registry model agent "${agent.name}" is missing tracked source content`);
+        }
+        return [agent.name, Object.freeze([source.relativePath, 0, 0] as const)] as const;
+      })
+      .sort(([a], [b]) => a.localeCompare(b))
   );
 
   return Object.freeze({
@@ -155,13 +161,23 @@ function createRuntimeContentRegistry(): RuntimeContentRegistry {
   });
 }
 
-function writeRuntimeContentRegistry(): void {
+function writeRuntimeContentRegistry(model: RegistryModel): void {
   const targetPath = path.join(DIST_SRC, 'generated', RUNTIME_CONTENT_REGISTRY);
   const payloadPath = path.join(DIST_SRC, 'generated', RUNTIME_CONTENT_PAYLOAD);
-  const registry = createRuntimeContentRegistry();
+  const registry = createRuntimeContentRegistry(model);
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, `${JSON.stringify(registry)}\n`);
   fs.writeFileSync(payloadPath, gzipSync(registryPayload, { level: 9 }));
+}
+
+function writeRegistryOutputs(model: RegistryModel): number {
+  const outputs = collectRegistryOutputs(model, 'generated');
+  for (const output of outputs) {
+    const targetPath = path.join(DIST_SRC, output.outputPath);
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.writeFileSync(targetPath, output.content);
+  }
+  return outputs.length;
 }
 
 function removeRetiredRuntimeContentRoots(): void {
@@ -170,11 +186,12 @@ function removeRetiredRuntimeContentRoots(): void {
   }
 }
 
-function copyRuntimeAssets(): number {
+function copyRuntimeAssets(model = buildRegistryModel(SRC)): number {
   removeRetiredRuntimeContentRoots();
   const copied = ASSET_ROOTS.reduce((count, relativeRoot) => count + copyAssetsFrom(relativeRoot), 0);
-  writeRuntimeContentRegistry();
-  return copied + 2;
+  const registries = writeRegistryOutputs(model);
+  writeRuntimeContentRegistry(model);
+  return copied + registries + 2;
 }
 
 function isDirectInvocation(): boolean {
