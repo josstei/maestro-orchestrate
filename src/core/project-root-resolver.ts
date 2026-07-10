@@ -1,11 +1,14 @@
-import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { fileURLToPath } from 'node:url';
-import { isExtensionCachePath } from '../mcp/contracts/cache-path-rejector.js';
+import {
+  extractClientRootCandidates,
+  isExtensionCachePath,
+  isPlaceholderPath,
+  normalizeExistingWorkspaceCandidate,
+} from './workspace-path.js';
 import { MaestroError } from '../lib/errors/index.js';
-import type { RuntimeConfig } from '../platforms/runtime-descriptor.js';
 import type { MaestroErrorOptions } from '../lib/errors/index.js';
+import type { ClientRoot } from './workspace-path.js';
 
 class WorkspaceResolutionError extends MaestroError {
   constructor(message: string, { code = 'WORKSPACE_RESOLUTION_FAILED', details = null }: MaestroErrorOptions = {}) {
@@ -14,14 +17,16 @@ class WorkspaceResolutionError extends MaestroError {
   }
 }
 
-interface ClientRoot {
-  readonly uri?: unknown;
-}
-
 interface ProjectRootOptions {
   readonly env?: NodeJS.ProcessEnv;
   readonly cwd?: string;
   readonly clientRoots?: readonly (string | ClientRoot)[];
+}
+
+interface RuntimeWorkspaceConfig {
+  readonly env?: {
+    readonly workspacePath?: string | null;
+  };
 }
 
 function resolveGitRoot(baseDir: string): string {
@@ -33,12 +38,8 @@ function resolveGitRoot(baseDir: string): string {
 }
 
 function resolveExistingRoot(candidate: unknown): string | null {
-  if (typeof candidate !== 'string' || candidate.length === 0 || candidate.includes('${')) {
-    return null;
-  }
-
-  const resolvedCandidate = path.resolve(candidate);
-  if (!fs.existsSync(resolvedCandidate)) {
+  const resolvedCandidate = normalizeExistingWorkspaceCandidate(candidate);
+  if (!resolvedCandidate) {
     return null;
   }
 
@@ -60,42 +61,6 @@ function resolveProjectRootFromCandidates(candidates: readonly unknown[]): strin
   return null;
 }
 
-function extractClientRootCandidates(clientRoots: unknown): string[] {
-  if (!Array.isArray(clientRoots)) {
-    return [];
-  }
-
-  const candidates: string[] = [];
-  for (const clientRoot of clientRoots) {
-    const uri =
-      typeof clientRoot === 'string'
-        ? clientRoot
-        : typeof clientRoot === 'object' &&
-            clientRoot !== null &&
-            'uri' in clientRoot &&
-            typeof clientRoot.uri === 'string'
-          ? clientRoot.uri
-          : null;
-
-    if (!uri) {
-      continue;
-    }
-
-    try {
-      const parsed = new URL(uri);
-      if (parsed.protocol !== 'file:') {
-        continue;
-      }
-
-      candidates.push(fileURLToPath(parsed));
-    } catch {
-      continue;
-    }
-  }
-
-  return candidates;
-}
-
 function resolveProjectRootFromEnv(env: NodeJS.ProcessEnv, cwd: string): string {
   const candidates = [
     env.MAESTRO_WORKSPACE_PATH,
@@ -113,7 +78,7 @@ function resolveProjectRootFromEnv(env: NodeJS.ProcessEnv, cwd: string): string 
 }
 
 function resolveProjectRootForRuntime(
-  runtimeConfig: Pick<RuntimeConfig, 'env'> | Partial<Pick<RuntimeConfig, 'env'>> = {},
+  runtimeConfig: RuntimeWorkspaceConfig = {},
   options: ProjectRootOptions = {}
 ): string {
   const env = options.env || process.env;
@@ -164,17 +129,22 @@ function requireWorkspaceRoot(projectRoot: string | null | undefined, toolName: 
 }
 
 function requireExplicitWorkspaceRoot({ workspacePath }: { workspacePath?: string } = {}): string {
-  if (!workspacePath || typeof workspacePath !== 'string' || workspacePath.includes('${')) {
+  if (
+    typeof workspacePath !== 'string' ||
+    workspacePath.length === 0 ||
+    isPlaceholderPath(workspacePath)
+  ) {
     throw new WorkspaceResolutionError(
       'initialize_workspace requires an explicit workspace_path. No implicit cwd or env fallback is used.',
       { code: 'WORKSPACE_REQUIRED' }
     );
   }
-  const resolved = path.resolve(workspacePath);
-  if (!fs.existsSync(resolved)) {
+  const resolved = normalizeExistingWorkspaceCandidate(workspacePath);
+  if (!resolved) {
+    const missingPath = path.resolve(workspacePath);
     throw new WorkspaceResolutionError(
-      `workspace_path does not exist: ${resolved}`,
-      { code: 'WORKSPACE_NOT_FOUND', details: { workspace_path: resolved } }
+      `workspace_path does not exist: ${missingPath}`,
+      { code: 'WORKSPACE_NOT_FOUND', details: { workspace_path: missingPath } }
     );
   }
   if (isExtensionCachePath(resolved)) {

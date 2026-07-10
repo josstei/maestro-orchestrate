@@ -8,7 +8,7 @@ import {
   extractFileManifest,
 } from './session-state-core.js';
 
-import { isExtensionCachePath } from '../contracts/cache-path-rejector.js';
+import { isExtensionCachePath } from '../../core/workspace-path.js';
 import { isValidPhaseId } from '../contracts/plan-schema.js';
 import { normalizeDownstreamContext, isDownstreamContextPopulated } from '../contracts/downstream-context.js';
 import { attempt } from './attempt.js';

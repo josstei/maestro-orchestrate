@@ -1,7 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { isExtensionCachePath } from '../contracts/cache-path-rejector.js';
+import {
+  extractClientRootCandidates,
+  normalizeExistingWorkspaceCandidate,
+} from '../../core/workspace-path.js';
 
 /**
  * Project-root cache for the MCP session.
@@ -32,26 +32,18 @@ function createProjectRootCache(options: any) {
       runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
     if (!envVarName) return null;
     const value = env[envVarName];
-    if (!value || value.includes('${')) return null;
-    const resolved = path.resolve(value);
-    if (!fs.existsSync(resolved)) return null;
-    if (isExtensionCachePath(resolved)) return null;
-    return resolved;
+    return normalizeExistingWorkspaceCandidate(value, {
+      rejectExtensionCache: true,
+    });
   }
 
   function rootsSuggestion() {
-    for (const root of clientRoots) {
-      const uri = typeof root === 'string' ? root : root && root.uri;
-      if (typeof uri !== 'string') continue;
-      try {
-        const parsed = new URL(uri);
-        if (parsed.protocol !== 'file:') continue;
-        const resolved = fileURLToPath(parsed);
-        if (!fs.existsSync(resolved)) continue;
-        if (isExtensionCachePath(resolved)) continue;
-        return resolved;
-      } catch {
-        continue;
+    for (const candidate of extractClientRootCandidates(clientRoots)) {
+      const normalized = normalizeExistingWorkspaceCandidate(candidate, {
+        rejectExtensionCache: true,
+      });
+      if (normalized) {
+        return normalized;
       }
     }
     return null;
