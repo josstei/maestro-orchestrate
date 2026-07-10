@@ -3,11 +3,14 @@ import assert from 'node:assert/strict';
 import path from 'path';
 
 import {
+  SESSION_ID_PATTERN,
   assertNonEmptyArray,
   assertSessionId,
   assertAllowlisted,
   assertRelativePath,
   assertContainedIn,
+  isSessionId,
+  parseSessionId,
 } from '../../dist/src/lib/validation/index.js';
 
 import { ValidationError } from '../../dist/src/lib/errors/index.js';
@@ -137,6 +140,35 @@ describe('assertSessionId', () => {
     } catch (err) {
       assert.deepEqual(err.details, { value: 'bad!id' });
     }
+  });
+});
+
+describe('session ID primitives', () => {
+  it('exports the canonical pattern and predicate', () => {
+    assert.equal(SESSION_ID_PATTERN.source, '^[a-zA-Z0-9_-]+$');
+    assert.equal(isSessionId('valid-session_1'), true);
+    assert.equal(isSessionId('invalid session'), false);
+    assert.equal(isSessionId(1), false);
+  });
+
+  it('parseSessionId returns a valid ID unchanged', () => {
+    assert.equal(parseSessionId('valid-session_1'), 'valid-session_1');
+  });
+
+  it('parseSessionId preserves the exact ValidationError envelope', () => {
+    assert.throws(
+      () => parseSessionId('bad!id'),
+      (err) => {
+        assert.ok(err instanceof ValidationError);
+        assert.equal(err.code, 'VALIDATION_ERROR');
+        assert.equal(
+          err.message,
+          'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
+        );
+        assert.deepEqual(err.details, { value: 'bad!id' });
+        return true;
+      }
+    );
   });
 });
 

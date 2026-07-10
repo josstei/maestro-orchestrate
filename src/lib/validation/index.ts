@@ -3,6 +3,9 @@ import path from 'node:path';
 import { ValidationError } from '../errors/index.js';
 const SESSION_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
+export declare const sessionIdBrand: unique symbol;
+type SessionId = string & { readonly [sessionIdBrand]: true };
+
 /**
  * @throws {ValidationError}
  */
@@ -17,13 +20,28 @@ function assertNonEmptyArray(value: unknown, label: string): asserts value is re
 /**
  * @throws {ValidationError}
  */
-function assertSessionId(id: unknown): asserts id is string {
-  if (typeof id !== 'string' || !SESSION_ID_PATTERN.test(id)) {
+function isSessionId(id: unknown): id is SessionId {
+  return typeof id === 'string' && SESSION_ID_PATTERN.test(id);
+}
+
+/**
+ * @throws {ValidationError}
+ */
+function parseSessionId(id: unknown): SessionId {
+  if (!isSessionId(id)) {
     throw new ValidationError(
       'Invalid session_id: must match pattern [a-zA-Z0-9_-]+',
       { details: { value: id } }
     );
   }
+  return id;
+}
+
+/**
+ * @throws {ValidationError}
+ */
+function assertSessionId(id: unknown): asserts id is SessionId {
+  parseSessionId(id);
 }
 
 /**
@@ -136,4 +154,17 @@ function normalizeUniqueStringList(value: unknown): string[] {
   return out;
 }
 
-export { assertNonEmptyArray, assertSessionId, assertAllowlisted, assertRelativePath, assertContainedIn, coercePositiveInteger, requireNonEmptyString, normalizeUniqueStringList };
+export {
+  SESSION_ID_PATTERN,
+  assertNonEmptyArray,
+  assertSessionId,
+  assertAllowlisted,
+  assertRelativePath,
+  assertContainedIn,
+  coercePositiveInteger,
+  isSessionId,
+  parseSessionId,
+  requireNonEmptyString,
+  normalizeUniqueStringList,
+};
+export type { SessionId };

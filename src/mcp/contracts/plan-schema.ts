@@ -1,35 +1,66 @@
-const PHASE_REQUIRED_FIELDS = ['id', 'name', 'agent', 'parallel', 'blocked_by'];
+import { z } from 'zod';
 
-function isNonEmptyString(value: any) {
-  return typeof value === 'string' && value.length > 0;
-}
+const PHASE_REQUIRED_FIELDS = [
+  'id',
+  'name',
+  'agent',
+  'parallel',
+  'blocked_by',
+] as const;
 
-function isValidPhaseId(value: any) {
+function isValidPhaseId(value: unknown): value is number | string {
   if (typeof value === 'string') return value.length > 0;
-  return Number.isInteger(value) && value >= 1;
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1;
 }
 
-function isValidBlockerId(value: any) {
-  if (typeof value === 'string') return value.length > 0;
-  return Number.isInteger(value) && value >= 1;
-}
+const WirePhaseIdSchema = z.union([z.number().int(), z.string()]);
+const PlanPhaseIdSchema = WirePhaseIdSchema.refine(isValidPhaseId);
+const FileArraySchema = z.array(z.string());
+const NonEmptyFileArraySchema = z.array(z.string().min(1));
+
+const WirePlanPhaseSchema = z.object({
+  id: WirePhaseIdSchema,
+  name: z.string().min(1),
+  agent: z.string().min(1),
+  parallel: z.boolean(),
+  blocked_by: z.array(WirePhaseIdSchema),
+  files: NonEmptyFileArraySchema.optional(),
+}).passthrough();
+
+const PlanPhaseSchema = z.object({
+  id: PlanPhaseIdSchema,
+  name: z.string().min(1),
+  agent: z.string().min(1),
+  parallel: z.boolean(),
+  blocked_by: z.array(PlanPhaseIdSchema),
+  files: NonEmptyFileArraySchema.optional(),
+}).passthrough();
+
+const PlanSchema = z.object({
+  phases: z.array(PlanPhaseSchema),
+}).passthrough();
 
 const PHASE_FIELD_VALIDATORS = Object.freeze([
-  { field: 'id', predicate: isValidPhaseId, rule: 'invalid_field_type' },
-  { field: 'name', predicate: isNonEmptyString, rule: 'invalid_field_type' },
-  { field: 'agent', predicate: isNonEmptyString, rule: 'invalid_field_type' },
-  { field: 'parallel', predicate: (value: any) => typeof value === 'boolean', rule: 'invalid_field_type' },
+  { field: 'id', schema: PlanPhaseSchema.shape.id, rule: 'invalid_field_type' },
+  { field: 'name', schema: PlanPhaseSchema.shape.name, rule: 'invalid_field_type' },
+  { field: 'agent', schema: PlanPhaseSchema.shape.agent, rule: 'invalid_field_type' },
+  { field: 'parallel', schema: PlanPhaseSchema.shape.parallel, rule: 'invalid_field_type' },
   {
     field: 'blocked_by',
-    predicate: (value: any) => Array.isArray(value) && value.every(isValidBlockerId),
+    schema: PlanPhaseSchema.shape.blocked_by,
     rule: 'invalid_field_type',
   },
   {
     field: 'files',
-    predicate: (value: any) => Array.isArray(value) && value.every(isNonEmptyString),
+    schema: PlanPhaseSchema.shape.files.unwrap(),
     rule: 'invalid_field_value',
   },
 ]);
+
+type PhaseId = z.infer<typeof PlanPhaseIdSchema>;
+type WirePlanPhase = z.infer<typeof WirePlanPhaseSchema>;
+type PlanPhase = z.infer<typeof PlanPhaseSchema>;
+type Plan = z.infer<typeof PlanSchema>;
 
 /**
  * Validate an array of plan-phase objects against the shared phase schema.
@@ -74,8 +105,8 @@ function validatePhases(phases: any) {
 
     if (!phase) continue;
 
-    for (const { field, predicate, rule } of PHASE_FIELD_VALIDATORS) {
-      if (field in phase && !predicate(phase[field])) {
+    for (const { field, schema, rule } of PHASE_FIELD_VALIDATORS) {
+      if (field in phase && !schema.safeParse(phase[field]).success) {
         violations.push({
           rule,
           phase_id: phaseId ?? null,
@@ -89,4 +120,15 @@ function validatePhases(phases: any) {
   return { valid: violations.length === 0, violations };
 }
 
-export { PHASE_REQUIRED_FIELDS, isValidPhaseId, validatePhases };
+export {
+  FileArraySchema,
+  PHASE_REQUIRED_FIELDS,
+  PlanPhaseIdSchema,
+  PlanPhaseSchema,
+  PlanSchema,
+  WirePhaseIdSchema,
+  WirePlanPhaseSchema,
+  isValidPhaseId,
+  validatePhases,
+};
+export type { PhaseId, Plan, PlanPhase, WirePlanPhase };

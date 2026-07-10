@@ -1,6 +1,7 @@
 import { assertSessionId } from '../../lib/validation/index.js';
 import { validatePhases } from '../contracts/plan-schema.js';
-import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
+import type { PlanPhase } from '../contracts/plan-schema.js';
+import type { SessionPhaseState, SessionState } from '../contracts/session-state-schema.js';
 import { ValidationError, StateError } from '../../lib/errors/index.js';
 import {
   isDesignGateBlockingCreate,
@@ -29,6 +30,10 @@ import {
   writeActiveSession,
   writeNewActiveSession,
 } from './session-repository.js';
+import {
+  createEmptySessionTokenUsage,
+  createPendingPhaseState,
+} from './session-state-factory.js';
 
 function assertNoOrphanedApprovedGate(projectRoot: any, currentSessionId: any) {
   const orphans = findOrphanedApprovedGates(projectRoot, currentSessionId);
@@ -53,31 +58,21 @@ function assertNoOrphanedApprovedGate(projectRoot: any, currentSessionId: any) {
   );
 }
 
-function initialPhaseState(phase: any) {
-  return {
+function initialPhaseState(phase: PlanPhase): SessionPhaseState {
+  return createPendingPhaseState({
     id: phase.id,
     name: phase.name,
-    status: 'pending',
-    agents: phase.agent ? [phase.agent] : [],
-    parallel: phase.parallel || false,
-    started: null,
-    completed: null,
-    blocked_by: phase.blocked_by || [],
-    files_created: [],
-    files_modified: [],
-    files_deleted: [],
-    planned_files: phase.files || [],
-    downstream_context: createEmptyDownstreamContext(),
-    errors: [],
-    retry_count: 0,
-    blocker_count: 0,
-    review_finding_count: 0,
-  };
+    agents: [phase.agent],
+    parallel: phase.parallel,
+    blockedBy: phase.blocked_by,
+    plannedFiles: phase.files || [],
+  });
 }
 
-function buildInitialSessionState(params: any, documents: any) {
+function buildInitialSessionState(params: any, documents: any): SessionState {
   const now = new Date().toISOString();
-  const state = {
+  const phases = (params.phases as PlanPhase[]).map(initialPhaseState);
+  const state: SessionState = {
     schema_version: SCHEMA_VERSION,
     session_id: params.session_id,
     parent_session_id: params.parent_session_id || null,
@@ -89,25 +84,20 @@ function buildInitialSessionState(params: any, documents: any) {
     workflow_mode: params.workflow_mode || 'standard',
     design_document: documents.designDocument || null,
     implementation_plan: documents.implementationPlan,
-    current_phase:
-      params.phases && params.phases.length > 0 ? params.phases[0].id : null,
-    total_phases: params.phases.length,
+    current_phase: phases[0]?.id ?? null,
+    total_phases: phases.length,
     execution_mode: params.execution_mode || null,
     execution_backend: 'native',
     current_batch: null,
     task_complexity: params.task_complexity || null,
-    token_usage: {
-      total_input: 0,
-      total_output: 0,
-      total_cached: 0,
-      by_agent: {},
-    },
-    phases: params.phases.map(initialPhaseState),
+    token_usage: createEmptySessionTokenUsage(),
+    phases,
   };
 
-  if (state.phases.length > 0) {
-    state.phases[0].status = 'in_progress';
-    state.phases[0].started = now;
+  const firstPhase = state.phases[0];
+  if (firstPhase) {
+    firstPhase.status = 'in_progress';
+    firstPhase.started = now;
   }
 
   return state;

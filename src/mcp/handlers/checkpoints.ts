@@ -3,7 +3,6 @@ import path from 'node:path';
 
 import {
   assertActiveSessionMatches,
-  createPendingPhaseProgress,
   extractBody,
   parseSessionState,
   readActiveSession,
@@ -16,6 +15,8 @@ import {
 import { NotFoundError, StateError, ValidationError } from '../../lib/errors/index.js';
 import { assertSessionId } from '../../lib/validation/index.js';
 import { readState, writeState } from '../../state/session-state.js';
+import type { ReadableSessionState } from '../contracts/session-state-schema.js';
+import { resetPhaseToPending } from '../session/session-state-factory.js';
 
 function assertPositiveIntegerPhaseId(value: any) {
   const phaseId = typeof value === 'string' ? Number(value) : value;
@@ -102,19 +103,7 @@ function readCheckpoint(basePath: any, sessionId: any, phaseId: any) {
   };
 }
 
-function resetFuturePhase(phase: any) {
-  const next = {
-    ...phase,
-    status: 'pending',
-    ...createPendingPhaseProgress(),
-    requires_reconciliation: false,
-  };
-  delete next.duration_ms;
-  delete next.token_usage;
-  return next;
-}
-
-function restoreSnapshotState(snapshotState: any, phaseId: any) {
+function restoreSnapshotState(snapshotState: ReadableSessionState, phaseId: any) {
   const phaseIds = (snapshotState.phases || []).map((phase: any) => phaseNumber(phase.id));
   if (!phaseIds.includes(phaseId)) {
     throw new NotFoundError(`Phase ${phaseId} not found in checkpoint state`);
@@ -131,7 +120,7 @@ function restoreSnapshotState(snapshotState: any, phaseId: any) {
     phases: (snapshotState.phases || []).map((phase: any) => {
       const id = phaseNumber(phase.id);
       if (id !== null && id > phaseId) {
-        return resetFuturePhase(phase);
+        return resetPhaseToPending(phase);
       }
       return phase;
     }),

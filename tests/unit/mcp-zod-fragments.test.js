@@ -12,6 +12,13 @@ import {
   DOWNSTREAM_CONTEXT,
   PHASE_ITEM,
 } from '../../dist/src/mcp/tool-packs/zod-fragments.js';
+import { DownstreamContextSchema } from '../../dist/src/mcp/contracts/downstream-context.js';
+import {
+  FileArraySchema,
+  PlanPhaseSchema,
+  WirePhaseIdSchema,
+  WirePlanPhaseSchema,
+} from '../../dist/src/mcp/contracts/plan-schema.js';
 
 const moduleDirname = path.dirname(fileURLToPath(import.meta.url));
 const goldenDir = path.join(moduleDirname, 'golden');
@@ -69,6 +76,25 @@ test('DOWNSTREAM_CONTEXT emitted JSON Schema matches golden snapshot', async () 
 test('PHASE_ITEM emitted JSON Schema matches golden snapshot', async () => {
   const emitted = await emittedInputSchemaFor(PHASE_ITEM, 'probe_phase_item');
   assert.deepEqual(emitted, readGolden('phase-item.json'));
+});
+
+test('compatibility fragments re-export canonical wire schema identities', () => {
+  assert.equal(PHASE_ID, WirePhaseIdSchema);
+  assert.equal(FILE_ARRAY, FileArraySchema);
+  assert.equal(DOWNSTREAM_CONTEXT, DownstreamContextSchema);
+  assert.equal(PHASE_ITEM, WirePlanPhaseSchema);
+});
+
+test('PHASE_ITEM remains wire-tolerant while plan parsing refines IDs', () => {
+  const wirePhase = {
+    id: 0,
+    name: 'Phase Zero',
+    agent: 'coder',
+    parallel: false,
+    blocked_by: [''],
+  };
+  assert.deepEqual(PHASE_ITEM.parse(wirePhase), wirePhase);
+  assert.throws(() => PlanPhaseSchema.parse(wirePhase));
 });
 
 test('PHASE_ID accepts an integer', () => {

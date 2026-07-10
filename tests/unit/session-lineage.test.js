@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as markdownState from '../../dist/src/core/markdown-state.js';
 import { createEmptyDownstreamContext } from '../../dist/src/mcp/contracts/downstream-context.js';
+import { SessionStateSchema } from '../../dist/src/mcp/contracts/session-state-schema.js';
 import { handleGetDesignGateStatus } from '../../dist/src/mcp/handlers/design-gate.js';
 import { handleForkSession, handleListLineage } from '../../dist/src/mcp/handlers/session-lineage.js';
 import { ensureMaestroWorkspace, makeTempWorkspace, readSessionFrontmatter } from '../support/mcp.js';
@@ -113,6 +114,7 @@ describe('session lineage handlers', () => {
 
     assert.equal(result.success, true);
     const active = readSessionFrontmatter(workspace);
+    assert.deepEqual(SessionStateSchema.parse(active), active);
     assert.equal(active.schema_version, 2);
     assert.equal(active.session_id, 'fork-session');
     assert.equal(active.parent_session_id, 'source-session');

@@ -2,9 +2,14 @@ import path from 'path';
 import { NotFoundError } from '../../lib/errors/index.js';
 import { assertSessionId } from '../../lib/validation/index.js';
 import { readState } from '../../state/session-state.js';
+import type { PhaseId } from '../contracts/plan-schema.js';
+import type {
+  ReadableSessionPhaseState,
+  SessionPhaseState,
+  SessionState,
+} from '../contracts/session-state-schema.js';
 import { parseArchivedSessionState, readArchivedSessionSummaries } from './archive-index.js';
 import {
-  createPendingPhaseProgress,
   resolveBasePath,
   readActiveSessionOrNull,
   writeActiveSession,
@@ -12,29 +17,41 @@ import {
 import { SCHEMA_VERSION } from './session-migrations.js';
 import { writeGate } from './design-gate.js';
 import { attempt } from './attempt.js';
+import {
+  createEmptySessionTokenUsage,
+  createPendingPhaseState,
+} from '../session/session-state-factory.js';
+
+type ForkSessionResult = {
+  success: boolean;
+  session_id: string;
+  parent_session_id: string;
+  path: string;
+};
 
 function normalizeBranch(value: any) {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-function cloneStringArray(value: any) {
+function cloneArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? [...value] : [];
 }
 
-function cloneForkPhase(phase: any) {
-  const next: Record<string, any> = {
+function cloneForkPhase(phase: ReadableSessionPhaseState): SessionPhaseState {
+  const seed = {
     id: phase.id,
     name: phase.name,
-    status: 'pending',
-    agents: cloneStringArray(phase.agents),
+    agents: cloneArray<string>(phase.agents),
     parallel: phase.parallel === true,
-    blocked_by: cloneStringArray(phase.blocked_by),
-    ...createPendingPhaseProgress(),
+    blockedBy: cloneArray<PhaseId>(phase.blocked_by),
   };
   if (Array.isArray(phase.planned_files)) {
-    next.planned_files = [...phase.planned_files];
+    return createPendingPhaseState({
+      ...seed,
+      plannedFiles: phase.planned_files,
+    });
   }
-  return next;
+  return createPendingPhaseState(seed);
 }
 
 function readArchivedSession(basePath: any, sessionId: any) {
@@ -87,16 +104,16 @@ function readLineageSources(projectRoot: any) {
  * @param {string} projectRoot
  * @returns {{ success: boolean, session_id: string, parent_session_id: string, path: string }}
  */
-function handleForkSession(params: any, projectRoot: any) {
+function handleForkSession(params: any, projectRoot: any): ForkSessionResult {
   assertSessionId(params.source_session_id);
   assertSessionId(params.new_session_id);
   const basePath = resolveBasePath(projectRoot);
   const source = readArchivedSession(basePath, params.source_session_id);
   const now = new Date().toISOString();
-  const phases = Array.isArray(source.phases)
-    ? source.phases.map(cloneForkPhase)
+  const phases: SessionPhaseState[] = Array.isArray(source.phases)
+    ? source.phases.map((phase: any) => cloneForkPhase(phase))
     : [];
-  const state = {
+  const state: SessionState = {
     schema_version: SCHEMA_VERSION,
     session_id: params.new_session_id,
     parent_session_id: params.source_session_id,
@@ -108,18 +125,13 @@ function handleForkSession(params: any, projectRoot: any) {
     workflow_mode: source.workflow_mode || 'standard',
     design_document: source.design_document || null,
     implementation_plan: source.implementation_plan || null,
-    current_phase: phases.length > 0 ? phases[0].id : null,
+    current_phase: phases[0]?.id ?? null,
     total_phases: phases.length,
     execution_mode: null,
     execution_backend: 'native',
     current_batch: null,
     task_complexity: source.task_complexity || null,
-    token_usage: {
-      total_input: 0,
-      total_output: 0,
-      total_cached: 0,
-      by_agent: {},
-    },
+    token_usage: createEmptySessionTokenUsage(),
     phases,
   };
 
@@ -133,8 +145,8 @@ function handleForkSession(params: any, projectRoot: any) {
 
   return {
     success: true,
-    session_id: state.session_id,
-    parent_session_id: state.parent_session_id,
+    session_id: params.new_session_id,
+    parent_session_id: params.source_session_id,
     path: path.join(basePath, 'state', 'active-session.md'),
   };
 }
@@ -168,3 +180,4 @@ function handleListLineage(params: any, projectRoot: any) {
 }
 
 export { handleForkSession, handleListLineage };
+export type { ForkSessionResult };

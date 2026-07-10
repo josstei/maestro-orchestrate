@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Canonical downstream-context contract.
  *
@@ -18,9 +20,36 @@ const CANONICAL_FIELDS = Object.freeze([
   'integration_points',
   'assumptions',
   'warnings',
-]);
+] as const);
 
 const EMPTY_VALUE_TOKENS = new Set(['', 'none', 'n/a', 'not applicable']);
+
+const DownstreamContextFieldSchema = z.union([
+  z.string(),
+  z.array(z.string()),
+]).optional();
+
+const DownstreamContextSchema = z.object({
+  key_interfaces_introduced: DownstreamContextFieldSchema,
+  patterns_established: DownstreamContextFieldSchema,
+  integration_points: DownstreamContextFieldSchema,
+  assumptions: DownstreamContextFieldSchema,
+  warnings: DownstreamContextFieldSchema,
+}).passthrough();
+
+const CanonicalDownstreamContextSchema = z.object({
+  key_interfaces_introduced: z.array(z.string()),
+  patterns_established: z.array(z.string()),
+  integration_points: z.array(z.string()),
+  assumptions: z.array(z.string()),
+  warnings: z.array(z.string()),
+}).strict();
+
+type DownstreamContextInput = z.infer<typeof DownstreamContextSchema>;
+type CanonicalDownstreamField = (typeof CANONICAL_FIELDS)[number];
+type CanonicalDownstreamContext =
+  z.infer<typeof CanonicalDownstreamContextSchema> &
+  Partial<Record<string, string[]>>;
 
 function isEmptyValueToken(value: any) {
   return EMPTY_VALUE_TOKENS.has(String(value).trim().toLowerCase());
@@ -45,12 +74,14 @@ function normalizeFieldValue(value: any) {
 /**
  * @returns {Object<string, string[]>} a fresh empty canonical context.
  */
-function createEmptyDownstreamContext() {
-  const empty: Record<string, any> = {};
-  for (const field of CANONICAL_FIELDS) {
-    empty[field] = [];
-  }
-  return empty;
+function createEmptyDownstreamContext(): CanonicalDownstreamContext {
+  return {
+    key_interfaces_introduced: [],
+    patterns_established: [],
+    integration_points: [],
+    assumptions: [],
+    warnings: [],
+  };
 }
 
 /**
@@ -60,13 +91,14 @@ function createEmptyDownstreamContext() {
  * @param {unknown} input
  * @returns {Object<string, string[]>}
  */
-function normalizeDownstreamContext(input: any) {
+function normalizeDownstreamContext(input: any): CanonicalDownstreamContext {
   const normalized = createEmptyDownstreamContext();
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return normalized;
   }
+  const source = input as Partial<Record<CanonicalDownstreamField, unknown>>;
   for (const field of CANONICAL_FIELDS) {
-    normalized[field] = normalizeFieldValue(input[field]);
+    normalized[field] = normalizeFieldValue(source[field]);
   }
   return normalized;
 }
@@ -78,7 +110,7 @@ function normalizeDownstreamContext(input: any) {
  */
 function isDownstreamContextPopulated(input: any) {
   const normalized = normalizeDownstreamContext(input);
-  return CANONICAL_FIELDS.some((field: any) => normalized[field].length > 0);
+  return CANONICAL_FIELDS.some((field) => normalized[field].length > 0);
 }
 
 /**
@@ -95,4 +127,17 @@ function describeShape() {
   );
 }
 
-export { CANONICAL_FIELDS, createEmptyDownstreamContext, normalizeDownstreamContext, isDownstreamContextPopulated, describeShape };
+export {
+  CANONICAL_FIELDS,
+  CanonicalDownstreamContextSchema,
+  DownstreamContextSchema,
+  createEmptyDownstreamContext,
+  normalizeDownstreamContext,
+  isDownstreamContextPopulated,
+  describeShape,
+};
+export type {
+  CanonicalDownstreamContext,
+  CanonicalDownstreamField,
+  DownstreamContextInput,
+};
