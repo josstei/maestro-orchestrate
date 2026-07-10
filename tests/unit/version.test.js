@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { moduleDirname } from '../../dist/src/core/module-path.js';
 import { resolveVersion } from '../../dist/src/core/version.js';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '..', '..');
+import { pathToFileURL } from 'node:url';
+const TEST_DIR = moduleDirname(import.meta.url);
+const ROOT = path.resolve(TEST_DIR, '..', '..');
 
 function cleanupTempDir(dirPath) {
   if (dirPath) {
@@ -29,7 +29,7 @@ describe('resolveVersion', () => {
 
   it('resolves version from package.json when called from the repo', () => {
     const pkg = packageJson;
-    assert.equal(resolveVersion(moduleDirname), pkg.version);
+    assert.equal(resolveVersion(TEST_DIR), pkg.version);
   });
 
   it('resolves version from src/mcp directory', () => {
@@ -39,6 +39,40 @@ describe('resolveVersion', () => {
 
   it('returns unknown when no package.json or version.json is found', () => {
     assert.equal(resolveVersion('/'), 'unknown');
+  });
+
+  it('continues above a same-name package without a string version', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-version-ancestor-'));
+    const innerRoot = path.join(tempDir, 'workspace');
+    const startDir = path.join(innerRoot, 'src', 'nested');
+    fs.mkdirSync(startDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      `${JSON.stringify({ name: '@josstei/maestro', version: '7.8.9' })}\n`,
+      'utf8'
+    );
+    fs.writeFileSync(
+      path.join(innerRoot, 'package.json'),
+      `${JSON.stringify({ name: '@josstei/maestro' })}\n`,
+      'utf8'
+    );
+
+    assert.equal(resolveVersion(startDir), '7.8.9');
+  });
+
+  it('skips a malformed package.json while searching safe ancestors', () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-version-malformed-'));
+    const malformedRoot = path.join(tempDir, 'workspace');
+    const startDir = path.join(malformedRoot, 'src', 'nested');
+    fs.mkdirSync(startDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      `${JSON.stringify({ name: '@josstei/maestro', version: '6.5.4' })}\n`,
+      'utf8'
+    );
+    fs.writeFileSync(path.join(malformedRoot, 'package.json'), '{not json', 'utf8');
+
+    assert.equal(resolveVersion(startDir), '6.5.4');
   });
 
   it('reads version.json when package.json lookup fails', async () => {
@@ -59,6 +93,8 @@ describe('resolveVersion', () => {
       'utf8'
     );
     fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'core', 'version.js'), copiedModulePath);
+    fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'core', 'module-path.js'), path.join(coreDir, 'module-path.js'));
+    fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'core', 'package-root.js'), path.join(coreDir, 'package-root.js'));
     fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'lib', 'io', 'index.js'), path.join(libIoDir, 'index.js'));
 
     const { resolveVersion: resolveVersionFromTemp } = await import(pathToFileURL(copiedModulePath).href);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { moduleDirname } from '../../dist/src/core/module-path.js';
 
 import {
   highestStableVersion,
@@ -12,9 +13,7 @@ import {
   publishIfNeeded,
 } from '../../dist/src/tooling/npm-publish-idempotent.js';
 
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+const TEST_DIR = moduleDirname(import.meta.url);
 
 function createPackageRoot(version = '1.2.3') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-publish-'));
@@ -303,6 +302,28 @@ describe('idempotent npm publish', () => {
     });
   });
 
+  it('preserves defaults and last-value-wins for repeated options', () => {
+    assert.deepEqual(parseArgs([]), { access: 'public', tag: null });
+    assert.deepEqual(
+      parseArgs(['--access', 'restricted', '--tag', 'rc', '--access', 'public', '--tag', 'nightly']),
+      { access: 'public', tag: 'nightly' }
+    );
+  });
+
+  it('preserves exact argument and missing-value errors', () => {
+    assert.throws(() => parseArgs(['archive']), new Error('Unknown argument: archive'));
+    assert.throws(() => parseArgs(['--tag=nightly']), new Error('Unknown argument: --tag=nightly'));
+    assert.throws(() => parseArgs(['--tag']), new Error('Missing value for --tag'));
+    assert.throws(() => parseArgs(['--access', '']), new Error('Missing value for --access'));
+  });
+
+  it('continues to consume option-looking strings as values', () => {
+    assert.deepEqual(parseArgs(['--tag', '--help']), {
+      access: 'public',
+      tag: '--help',
+    });
+  });
+
   it('detects npm not-found errors', () => {
     assert.equal(isNpmNotFoundError(npmError('npm ERR! code E404')), true);
     assert.equal(isNpmNotFoundError(npmError('npm ERR! code E401')), false);
@@ -318,7 +339,7 @@ describe('idempotent npm publish', () => {
 
   it('does not remove latest through npm dist-tag policy', () => {
     const source = fs.readFileSync(
-      path.resolve(moduleDirname, '..', '..', 'src', 'tooling', 'npm-publish-idempotent.ts'),
+      path.resolve(TEST_DIR, '..', '..', 'src', 'tooling', 'npm-publish-idempotent.ts'),
       'utf8'
     );
 

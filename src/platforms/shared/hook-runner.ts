@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../../core/module-path.js';
 import { isAdapterFile, extractRuntime } from './adapters/conventions.js';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { HookContext, HookResult, RuntimeAdapter } from './adapters/factory.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ADAPTERS_DIR = path.join(moduleDirname, 'adapters');
+const MODULE_DIR = moduleDirname(import.meta.url);
+const ADAPTERS_DIR = path.join(MODULE_DIR, 'adapters');
 
 const VALID_RUNTIMES = new Set(
   fs.readdirSync(ADAPTERS_DIR)
@@ -41,7 +41,7 @@ if (!hookEntry) {
 }
 
 const { default: adapter } = await import(pathToFileURL(path.join(ADAPTERS_DIR, runtime + '-adapter.js')).href) as { default: RuntimeAdapter };
-const logicModule = await import(pathToFileURL(path.resolve(moduleDirname, '../../', hookEntry.module)).href) as Record<string, unknown>;
+const logicModule = await import(pathToFileURL(path.resolve(MODULE_DIR, '../../', hookEntry.module)).href) as Record<string, unknown>;
 const handler = logicModule[hookEntry.fn] as ((ctx: HookContext) => HookResult | Promise<HookResult>) | undefined;
 
 if (typeof handler !== 'function') {

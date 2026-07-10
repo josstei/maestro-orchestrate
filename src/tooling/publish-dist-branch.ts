@@ -3,11 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
-import { readJson, resolvePackageRoot, runAsMain } from './lib/cli.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { readJson, runAsMain } from './lib/cli.js';
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 const CURRENT_DIST_ROOT = path.join(ROOT, 'dist');
 
 const COMMIT_IDENTITY = Object.freeze({

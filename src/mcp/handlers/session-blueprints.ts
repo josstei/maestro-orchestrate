@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import * as markdownState from '../../core/markdown-state.js';
+import { moduleDirname } from '../../core/module-path.js';
 import { NotFoundError, ValidationError } from '../../lib/errors/index.js';
-import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   hasRuntimeContentRegistry,
@@ -10,10 +10,8 @@ import {
   readBlueprintFromRegistry,
 } from '../content/runtime-content.js';
 import { PHASE_ID } from '../tool-packs/zod-fragments.js';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
 const BLUEPRINT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
-const RUNTIME_SRC_ROOT = path.join(moduleDirname, '..', '..');
+const RUNTIME_SRC_ROOT = path.join(moduleDirname(import.meta.url), '..', '..');
 
 function sourceCheckoutRoot(runtimeSrcRoot: any) {
   return path.resolve(runtimeSrcRoot, '..', '..');

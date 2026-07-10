@@ -2,9 +2,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+import { parseArgs as parseNodeArgs } from 'node:util';
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
 
 type MarketplacePlugin = {
   name?: string;
@@ -21,32 +21,7 @@ type Marketplace = {
   [key: string]: unknown;
 };
 
-function readJson(filePath: string): any {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function resolvePackageRoot(startDir: string): string {
-  let currentDir = path.resolve(startDir);
-
-  while (true) {
-    const packageJsonPath = path.join(currentDir, 'package.json');
-    if (fs.existsSync(packageJsonPath)) {
-      const pkg = readJson(packageJsonPath);
-      if (pkg && pkg.name === '@josstei/maestro') {
-        return currentDir;
-      }
-    }
-
-    const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) {
-      throw new Error(`Unable to locate @josstei/maestro package root from ${startDir}`);
-    }
-
-    currentDir = parentDir;
-  }
-}
-
-const ROOT = resolvePackageRoot(moduleDirname);
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 const SOURCE_PLUGIN_DIR = path.join(ROOT, 'plugins', 'maestro');
 const TARGET_PLUGIN_DIR = path.join(os.homedir(), '.codex', 'plugins', 'maestro');
 const MARKETPLACE_FILE = path.join(os.homedir(), '.agents', 'plugins', 'marketplace.json');
@@ -85,21 +60,30 @@ Options:
 }
 
 function parseArgs(argv: string[]): { dryRun: boolean } {
-  const args = new Set(argv);
+  const knownArgs = new Set(['--dry-run', '--help', '-h']);
 
-  if (args.has('--help') || args.has('-h')) {
+  if (argv.includes('--help') || argv.includes('-h')) {
     printHelp();
     process.exit(0);
   }
 
-  for (const arg of args) {
-    if (!['--dry-run', '--help', '-h'].includes(arg)) {
-      throw new Error(`Unknown argument: ${arg}`);
-    }
+  const unknownArg = argv.find((arg) => !knownArgs.has(arg));
+  if (unknownArg) {
+    throw new Error(`Unknown argument: ${unknownArg}`);
   }
 
+  const { values } = parseNodeArgs({
+    args: argv,
+    allowPositionals: false,
+    options: {
+      'dry-run': { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    },
+    strict: true,
+  });
+
   return {
-    dryRun: args.has('--dry-run'),
+    dryRun: values['dry-run'] ?? false,
   };
 }
 

@@ -1,10 +1,8 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
 import type { GeneratedOutput, GeneratorRuntimeMap, ManifestEntry } from './types.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const DEFAULT_CODE_SRC = path.resolve(moduleDirname, '..');
+const DEFAULT_CODE_SRC = path.resolve(moduleDirname(import.meta.url), '..');
 
 /**
  * Collect every output path a generation run is expected to produce.

@@ -1,6 +1,7 @@
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
 import { discover } from '../lib/discovery/index.js';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { RuntimeConfig } from '../platforms/runtime-descriptor.js';
 
 export interface TransformContext<State extends object = Record<string, unknown>> {
@@ -17,9 +18,7 @@ export type TransformFn<State extends object = Record<string, unknown>> = (
   context: Omit<TransformContext<State>, 'runtime'>
 ) => string;
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const TRANSFORMS_DIR = path.resolve(moduleDirname);
+const TRANSFORMS_DIR = path.resolve(moduleDirname(import.meta.url));
 
 const entries = discover({
   dir: TRANSFORMS_DIR,

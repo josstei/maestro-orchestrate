@@ -11,11 +11,10 @@ import {
   readJson,
 } from './release-artifact-manifest.js';
 
-import { resolvePackageRoot, runAsMain } from './lib/cli.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { runAsMain } from './lib/cli.js';
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 
 type VerifyReleaseOptions = {
   root?: string;

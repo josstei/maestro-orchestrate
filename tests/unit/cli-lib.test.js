@@ -4,12 +4,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { readJson, runAsMain } from '../../dist/src/tooling/lib/cli.js';
+import { moduleDirname } from '../../dist/src/core/module-path.js';
+import { resolvePackageRoot as resolveCorePackageRoot } from '../../dist/src/core/package-root.js';
+import { readJson, resolvePackageRoot, runAsMain } from '../../dist/src/tooling/lib/cli.js';
 import { STABLE_SEMVER_RE, isStable } from '../../dist/src/tooling/lib/semver.js';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const CLI_LIB_PATH = path.resolve(moduleDirname, '../../dist/src/tooling/lib/cli.js');
+import { pathToFileURL } from 'node:url';
+const TEST_DIR = moduleDirname(import.meta.url);
+const CLI_LIB_PATH = path.resolve(TEST_DIR, '../../dist/src/tooling/lib/cli.js');
 const CLI_LIB_URL = pathToFileURL(CLI_LIB_PATH).href;
 
 function writeTempFile(content) {
@@ -32,6 +33,10 @@ function runFixtureScript(script) {
 }
 
 describe('src/tooling/lib/cli readJson', () => {
+  it('re-exports the core package-root resolver for tooling compatibility', () => {
+    assert.equal(resolvePackageRoot, resolveCorePackageRoot);
+  });
+
   it('parses a well-formed JSON file', () => {
     const { dir, filePath } = writeTempFile('{"name":"maestro","version":"1.2.3"}\n');
 

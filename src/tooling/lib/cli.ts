@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 function readJson(filePath: string): any {
@@ -14,27 +13,6 @@ function resolveMainModuleUrl(): string {
   return pathToFileURL(realPath).href;
 }
 
-function resolvePackageRoot(startDir: string): string {
-  let currentDir = path.resolve(startDir);
-
-  while (true) {
-    const packageJsonPath = path.join(currentDir, 'package.json');
-    if (fs.existsSync(packageJsonPath)) {
-      const pkg = readJson(packageJsonPath);
-      if (pkg && pkg.name === '@josstei/maestro') {
-        return currentDir;
-      }
-    }
-
-    const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) {
-      throw new Error(`Unable to locate @josstei/maestro package root from ${startDir}`);
-    }
-
-    currentDir = parentDir;
-  }
-}
-
 function runAsMain(moduleUrl: string, label: string, fn: () => unknown | Promise<unknown>): void {
   if (moduleUrl !== resolveMainModuleUrl()) return;
   Promise.resolve()
@@ -46,4 +24,5 @@ function runAsMain(moduleUrl: string, label: string, fn: () => unknown | Promise
     });
 }
 
-export { readJson, resolvePackageRoot, runAsMain };
+export { readJson, runAsMain };
+export { resolvePackageRoot } from '../../core/package-root.js';

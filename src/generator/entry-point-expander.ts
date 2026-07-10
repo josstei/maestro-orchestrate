@@ -1,14 +1,13 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
 import { toTitleCase } from '../lib/naming/index.js';
 import { emitInlineQuotedList } from '../lib/yaml-emit.js';
 import { getRuntimeConfig, getRuntimeGeneration } from '../platforms/runtime-descriptor.js';
 import type { RuntimeName } from '../platforms/runtime-descriptor.js';
 import type { EntryPointRegistryEntry, GeneratedOutput, StringMap } from './types.js';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const DEFAULT_SRC = path.resolve(moduleDirname, '..');
+const DEFAULT_SRC = path.resolve(moduleDirname(import.meta.url), '..');
 
 // Host platform names that must never appear as public skill names.
 // Confirmed: Claude /review shadows the built-in PR review command.

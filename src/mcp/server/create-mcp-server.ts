@@ -1,16 +1,12 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { moduleDirname } from '../../core/module-path.js';
 import { resolveVersion } from '../../core/version.js';
 import {
   connectMaestroMcpServer,
   createMaestroMcpServer,
 } from './mcp-sdk-adapter.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-
 export function createMcpServer() {
-  return createMaestroMcpServer({ name: 'maestro', version: resolveVersion(moduleDirname) });
+  return createMaestroMcpServer({ name: 'maestro', version: resolveVersion(moduleDirname(import.meta.url)) });
 }
 
 export async function startMcpServer(server: any) {

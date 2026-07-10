@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { readJson, resolvePackageRoot } from './lib/cli.js';
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { readJson } from './lib/cli.js';
 import { STABLE_SEMVER_RE } from './lib/semver.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 const PACKAGE_JSON_PATH = 'package.json';
 
 const BADGE_FILES = [

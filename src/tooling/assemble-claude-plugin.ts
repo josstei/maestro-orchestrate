@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { readJson, resolvePackageRoot, runAsMain } from './lib/cli.js';
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { readJson, runAsMain } from './lib/cli.js';
 import { buildMetadataContext } from '../platforms/metadata-shared.js';
 
 import {
@@ -11,10 +13,7 @@ import {
   buildPromotedPluginManifestFiles,
 } from '../platforms/claude/local-plugin-layout.js';
 
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 
 type AssembleOptions = {
   root?: string;

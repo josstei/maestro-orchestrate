@@ -1,36 +1,29 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { readJsonSafe } from '../lib/io/index.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const PACKAGE_NAME = '@josstei/maestro';
+import { moduleDirname } from './module-path.js';
+import { PACKAGE_NAME, findPackageRoot } from './package-root.js';
 const VERSION_JSON_FILENAME = 'version.json';
 
 function findPackageJsonVersion(startDir: string): string | null {
   let currentDir = path.resolve(startDir);
 
   while (true) {
-    const candidate = path.join(currentDir, 'package.json');
+    const packageRoot = findPackageRoot(currentDir, { malformedJson: 'skip' });
+    if (!packageRoot) return null;
 
-    if (fs.existsSync(candidate)) {
-      const pkg = readJsonSafe<{ name?: unknown; version?: unknown }>(candidate);
-      if (pkg && pkg.name === PACKAGE_NAME && typeof pkg.version === 'string') {
-        return pkg.version;
-      }
+    const pkg = readJsonSafe<{ version?: unknown }>(path.join(packageRoot, 'package.json'));
+    if (pkg && typeof pkg.version === 'string') {
+      return pkg.version;
     }
 
-    const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) {
-      return null;
-    }
-
+    const parentDir = path.dirname(packageRoot);
+    if (parentDir === packageRoot) return null;
     currentDir = parentDir;
   }
 }
 
 function findVersionJsonFallback(): string | null {
-  const versionJsonPath = path.join(moduleDirname, '..', VERSION_JSON_FILENAME);
+  const versionJsonPath = path.join(moduleDirname(import.meta.url), '..', VERSION_JSON_FILENAME);
   const versionData = readJsonSafe<{ version?: unknown }>(versionJsonPath);
 
   if (versionData && typeof versionData.version === 'string') {

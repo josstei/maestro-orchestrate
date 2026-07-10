@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { resolvePackageRoot } from './lib/cli.js';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
 
-const ROOT = resolvePackageRoot(moduleDirname);
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 const LIB_DIR = path.join(ROOT, 'src', 'lib');
 
 type LayerViolation = {

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { resolvePackageRoot, runAsMain } from './lib/cli.js';
+import { parseArgs as parseNodeArgs } from 'node:util';
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { runAsMain } from './lib/cli.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 
 const DEFAULT_SESSION_ARCHIVE_RETENTION = 10;
 const DEFAULT_PLAN_ARCHIVE_RETENTION = 10;
@@ -326,15 +326,7 @@ Options:
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
-  const options: {
-    apply?: boolean;
-    confirm?: boolean;
-    format: 'human' | 'json';
-    includeBuildOutputs?: boolean;
-    includeSuperpowers?: boolean;
-    maxPlanArchives?: number;
-    maxSessionArchives?: number;
-  } = { format: 'human' };
+  const normalizedArgs: string[] = [];
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -342,34 +334,75 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
-    } else if (arg === '--apply') {
-      options.apply = true;
-    } else if (arg === '--dry-run') {
-      options.apply = false;
-    } else if (arg === CONFIRM_FLAG) {
-      options.confirm = true;
-    } else if (arg === '--json') {
-      options.format = 'json';
-    } else if (arg === '--no-build-outputs') {
-      options.includeBuildOutputs = false;
-    } else if (arg === '--no-superpowers') {
-      options.includeSuperpowers = false;
-    } else if (arg === '--max-session-archives') {
+    }
+
+    if (arg === '--max-session-archives' || arg === '--max-plan-archives') {
       const value = argv[index + 1];
-      if (!value) throw new Error('Missing value for --max-session-archives');
-      options.maxSessionArchives = parsePositiveInteger(value, '--max-session-archives');
+      if (!value) {
+        throw new Error(`Missing value for ${arg}`);
+      }
+      parsePositiveInteger(value, arg);
+      normalizedArgs.push(`${arg}=${value}`);
       index += 1;
-    } else if (arg === '--max-plan-archives') {
-      const value = argv[index + 1];
-      if (!value) throw new Error('Missing value for --max-plan-archives');
-      options.maxPlanArchives = parsePositiveInteger(value, '--max-plan-archives');
-      index += 1;
-    } else {
-      throw new Error(`Unknown argument: ${arg}`);
+      continue;
+    }
+
+    if ([
+      '--apply',
+      '--dry-run',
+      CONFIRM_FLAG,
+      '--json',
+      '--no-build-outputs',
+      '--no-superpowers',
+    ].includes(arg || '')) {
+      normalizedArgs.push(arg as string);
+      continue;
+    }
+
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  const { tokens, values } = parseNodeArgs({
+    args: normalizedArgs,
+    allowPositionals: false,
+    options: {
+      apply: { type: 'boolean' },
+      'confirm-prune-local-artifacts': { type: 'boolean' },
+      'dry-run': { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+      json: { type: 'boolean' },
+      'max-plan-archives': { type: 'string' },
+      'max-session-archives': { type: 'string' },
+      'no-build-outputs': { type: 'boolean' },
+      'no-superpowers': { type: 'boolean' },
+    },
+    strict: true,
+    tokens: true,
+  });
+
+  let apply: boolean | undefined;
+
+  for (const token of tokens) {
+    if (token.kind === 'option' && token.name === 'apply') {
+      apply = true;
+    } else if (token.kind === 'option' && token.name === 'dry-run') {
+      apply = false;
     }
   }
 
-  return Object.freeze(options);
+  return Object.freeze({
+    ...(apply === undefined ? {} : { apply }),
+    ...(values['confirm-prune-local-artifacts'] ? { confirm: true } : {}),
+    format: values.json ? 'json' : 'human',
+    ...(values['no-build-outputs'] ? { includeBuildOutputs: false } : {}),
+    ...(values['no-superpowers'] ? { includeSuperpowers: false } : {}),
+    ...(values['max-plan-archives'] === undefined
+      ? {}
+      : { maxPlanArchives: parsePositiveInteger(values['max-plan-archives'], '--max-plan-archives') }),
+    ...(values['max-session-archives'] === undefined
+      ? {}
+      : { maxSessionArchives: parsePositiveInteger(values['max-session-archives'], '--max-session-archives') }),
+  } satisfies ParsedArgs);
 }
 
 function printHumanReport(plan: RetentionPlan, result: ApplyRetentionResult): void {

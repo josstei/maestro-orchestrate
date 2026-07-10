@@ -1,14 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { listAgentSources } from '../core/agent-sources.js';
+import { moduleDirname, moduleFilename } from '../core/module-path.js';
 import { buildRegistryModel, collectRegistryOutputs } from '../generator/registry-scanner.js';
 import type { RegistryModel } from '../generator/types.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../../..');
+const MODULE_FILENAME = moduleFilename(import.meta.url);
+const ROOT = path.resolve(moduleDirname(import.meta.url), '../../..');
 const SRC = path.join(ROOT, 'src');
 const DIST_SRC = path.join(ROOT, 'dist', 'src');
 const RUNTIME_CONTENT_REGISTRY = 'runtime-content-registry.json';
@@ -196,7 +195,7 @@ function copyRuntimeAssets(model = buildRegistryModel(SRC)): number {
 
 function isDirectInvocation(): boolean {
   const entrypoint = process.argv[1];
-  return Boolean(entrypoint && path.resolve(entrypoint) === moduleFilename);
+  return Boolean(entrypoint && path.resolve(entrypoint) === MODULE_FILENAME);
 }
 
 if (isDirectInvocation()) {

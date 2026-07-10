@@ -1,9 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const PLATFORMS_DIR = path.resolve(moduleDirname, '..', '..', 'platforms');
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../../core/module-path.js';
+const PLATFORMS_DIR = path.resolve(moduleDirname(import.meta.url), '..', '..', 'platforms');
 
 const RUNTIME_NAMES = fs.readdirSync(PLATFORMS_DIR, { withFileTypes: true })
   .filter((entry: any) => entry.isDirectory() && entry.name !== 'shared')

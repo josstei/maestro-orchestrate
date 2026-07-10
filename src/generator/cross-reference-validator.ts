@@ -1,11 +1,10 @@
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
 import { ValidationError } from '../lib/errors/index.js';
 import type { EntryPointRegistryEntry, RegistryModel } from './types.js';
 
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const DEFAULT_CODE_SRC = path.resolve(moduleDirname, '..');
+const DEFAULT_CODE_SRC = path.resolve(moduleDirname(import.meta.url), '..');
 
 interface CrossReferenceInputs {
   agentNames: string[];

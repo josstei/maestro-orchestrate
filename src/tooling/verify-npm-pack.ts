@@ -12,10 +12,9 @@ import {
   type PackageBudget,
   type PackageSurfaceRule,
 } from './artifact-policy.js';
-import { resolvePackageRoot, runAsMain } from './lib/cli.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { runAsMain } from './lib/cli.js';
 
 type PackageInfo = {
   filename: string;
@@ -37,7 +36,7 @@ type VerifyPackageResult = {
   unpackedSize: number;
 };
 
-const ROOT = resolvePackageRoot(moduleDirname);
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 
 function parsePackJson(stdout: string): PackageInfo[] {
   const start = stdout.indexOf('[');

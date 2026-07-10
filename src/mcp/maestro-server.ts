@@ -9,14 +9,12 @@ import { DEFAULT_TOOL_PACKS } from './tool-packs/index.js';
 import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from './runtime/runtime-config-map.js';
 import { resolveCanonicalSrcFromExtensionRoot } from './utils/extension-root.js';
 import { realpathSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-import { dirname } from 'node:path';
-const moduleDirname = dirname(moduleFilename);
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
-  version: resolveVersion(moduleDirname),
+  version: resolveVersion(moduleDirname(import.meta.url)),
 });
 
 function runRuntimeServer(runtimeConfig: any, options: any = {}) {

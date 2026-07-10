@@ -139,4 +139,35 @@ describe('local artifact retention', () => {
       }
     );
   });
+
+  it('preserves dry-run defaults and ordered apply flag precedence', () => {
+    assert.deepEqual(parseArgs([]), { format: 'human' });
+    assert.deepEqual(parseArgs(['--apply', '--dry-run']), { apply: false, format: 'human' });
+    assert.deepEqual(parseArgs(['--dry-run', '--apply']), { apply: true, format: 'human' });
+    assert.deepEqual(parseArgs(['--apply', '--apply']), { apply: true, format: 'human' });
+  });
+
+  it('preserves exact retention argument and missing-value errors', () => {
+    assert.throws(() => parseArgs(['archive']), new Error('Unknown argument: archive'));
+    assert.throws(() => parseArgs(['--json=true']), new Error('Unknown argument: --json=true'));
+    assert.throws(
+      () => parseArgs(['--max-session-archives']),
+      new Error('Missing value for --max-session-archives')
+    );
+  });
+
+  it('preserves non-negative integer coercion and exact validation errors', () => {
+    assert.deepEqual(parseArgs(['--max-session-archives', '1e2']), {
+      format: 'human',
+      maxSessionArchives: 100,
+    });
+    assert.deepEqual(parseArgs(['--max-plan-archives', '0x10']), {
+      format: 'human',
+      maxPlanArchives: 16,
+    });
+    assert.throws(
+      () => parseArgs(['--max-session-archives', '-1']),
+      new Error('--max-session-archives must be a non-negative integer')
+    );
+  });
 });

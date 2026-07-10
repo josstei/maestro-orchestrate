@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { resolve as resolveTransform } from '../transforms/index.js';
 import { createGenerationSession } from '../generator/generation-session.js';
 import { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } from '../generator/manifest-expander.js';
@@ -15,14 +16,14 @@ import { buildPlatformMetadataOutputs } from '../platforms/metadata.js';
 import { buildPolicyTomlOutputs } from '../generator/policy-toml-emitter.js';
 import { buildHookConfigOutputs } from '../generator/hook-config-emitter.js';
 import { buildContentFileOutputs } from '../generator/content-file-emitter.js';
-import { readJson, resolvePackageRoot, runAsMain } from './lib/cli.js';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { readJson, runAsMain } from './lib/cli.js';
 import type { RuntimeConfig } from '../platforms/runtime-descriptor.js';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+const MODULE_DIR = moduleDirname(import.meta.url);
+const ROOT = resolvePackageRoot(MODULE_DIR, { malformedJson: 'throw' });
 const SRC = path.join(ROOT, 'src');
-const moduleRelativePath = path.relative(ROOT, moduleDirname).split(path.sep).join('/');
+const moduleRelativePath = path.relative(ROOT, MODULE_DIR).split(path.sep).join('/');
 const RUNTIME_CODE_SRC = moduleRelativePath.startsWith('dist/')
   ? path.join(ROOT, 'dist', 'src')
   : SRC;

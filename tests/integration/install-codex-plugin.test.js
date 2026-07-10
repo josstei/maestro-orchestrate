@@ -116,4 +116,49 @@ describe('codex installer integration', () => {
       fs.rmSync(homeDir, { recursive: true, force: true });
     }
   });
+
+  it('accepts repeated dry-run flags without writing files', () => {
+    const homeDir = makeTempHome();
+
+    try {
+      const output = runInstaller(homeDir, ['--dry-run', '--dry-run']);
+
+      assert.match(output, /Dry run complete\./);
+      assert.equal(fs.existsSync(path.join(homeDir, '.codex')), false);
+      assert.equal(fs.existsSync(path.join(homeDir, '.agents')), false);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects positional and unknown options with the exact argument message', () => {
+    const homeDir = makeTempHome();
+
+    try {
+      for (const argument of ['plugin-path', '--unknown']) {
+        assert.throws(
+          () => runInstaller(homeDir, [argument]),
+          (error) => {
+            assert.equal(error.status, 1);
+            assert.match(error.stderr.toString('utf8'), new RegExp(`Unknown argument: ${argument}`));
+            return true;
+          }
+        );
+      }
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves help aliases and global help precedence', () => {
+    const homeDir = makeTempHome();
+
+    try {
+      assert.match(runInstaller(homeDir, ['--help']), /Usage:\n  maestro-install-codex/);
+      assert.match(runInstaller(homeDir, ['-h']), /Usage:\n  maestro-install-codex/);
+      assert.match(runInstaller(homeDir, ['plugin-path', '--help']), /Usage:\n  maestro-install-codex/);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
 });

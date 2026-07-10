@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { readJson, resolvePackageRoot, runAsMain } from './lib/cli.js';
+import { parseArgs as parseNodeArgs } from 'node:util';
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { readJson, runAsMain } from './lib/cli.js';
 import { isStable } from './lib/semver.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
 
 type Runner = (command: string, args: string[], options?: any) => Buffer | string;
@@ -42,10 +42,7 @@ Usage:
 }
 
 function parseArgs(argv: string[]): ParsedPublishOptions {
-  const options: ParsedPublishOptions = {
-    access: 'public',
-    tag: null,
-  };
+  const normalizedArgs: string[] = [];
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -55,22 +52,12 @@ function parseArgs(argv: string[]): ParsedPublishOptions {
       process.exit(0);
     }
 
-    if (arg === '--access') {
+    if (arg === '--access' || arg === '--tag') {
       const value = argv[index + 1];
       if (!value) {
-        throw new Error('Missing value for --access');
+        throw new Error(`Missing value for ${arg}`);
       }
-      options.access = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg === '--tag') {
-      const value = argv[index + 1];
-      if (!value) {
-        throw new Error('Missing value for --tag');
-      }
-      options.tag = value;
+      normalizedArgs.push(`${arg}=${value}`);
       index += 1;
       continue;
     }
@@ -78,15 +65,21 @@ function parseArgs(argv: string[]): ParsedPublishOptions {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
-  if (!options.access) {
-    throw new Error('Missing value for --access');
-  }
+  const { values } = parseNodeArgs({
+    args: normalizedArgs,
+    allowPositionals: false,
+    options: {
+      access: { type: 'string', default: 'public' },
+      help: { type: 'boolean', short: 'h' },
+      tag: { type: 'string' },
+    },
+    strict: true,
+  });
 
-  if (options.tag === undefined) {
-    throw new Error('Missing value for --tag');
-  }
-
-  return options;
+  return {
+    access: values.access,
+    tag: values.tag ?? null,
+  };
 }
 
 function readPackage(root: string): PackageMetadata {

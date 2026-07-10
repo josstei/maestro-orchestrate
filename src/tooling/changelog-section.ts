@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolvePackageRoot, runAsMain } from './lib/cli.js';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = resolvePackageRoot(moduleDirname);
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
+import { resolvePackageRoot } from '../core/package-root.js';
+import { runAsMain } from './lib/cli.js';
+const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 const CHANGELOG_PATH = path.join(ROOT, 'CHANGELOG.md');
 
 function extractChangelogSection(changelogPath: string, version: string): string {

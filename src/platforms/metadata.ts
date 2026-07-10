@@ -1,16 +1,16 @@
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { moduleDirname } from '../core/module-path.js';
 import { buildMetadataContext } from './metadata-shared.js';
 import type { MetadataContext, MetadataOutput, PackageJsonLike } from './metadata-shared.js';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+const MODULE_DIR = moduleDirname(import.meta.url);
 
 interface MetadataBuilderModule {
   readonly buildMetadataOutputs?: (context: MetadataContext) => MetadataOutput[];
 }
 
 async function loadMetadataBuilder(runtimeName: string): Promise<MetadataBuilderModule> {
-  return import(pathToFileURL(path.join(moduleDirname, runtimeName, 'metadata.js')).href) as Promise<MetadataBuilderModule>;
+  return import(pathToFileURL(path.join(MODULE_DIR, runtimeName, 'metadata.js')).href) as Promise<MetadataBuilderModule>;
 }
 
 async function buildPlatformMetadataOutputs(
