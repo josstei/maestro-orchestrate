@@ -22,9 +22,9 @@ Before running orchestration commands:
    - {{subagentPrerequisite}}
    - If missing, ask permission before proposing a manual settings update. Do not claim automatic settings mutation by Maestro scripts.
 2. Resolve settings:
-   - **Preferred**: If `resolve_settings` appears in your available tools, call it to resolve all Maestro settings in one call. It returns resolved values and a parsed `disabled_agents` array.
+   - **Preferred**: If `resolve_settings` appears in your available tools, call it to resolve all Maestro settings in one call. It preserves raw string/null provenance in `settings`, returns typed/defaulted values in `effective_settings`, and includes a parsed `disabled_agents` array.
    - **Fallback**: Resolve manually using script-accurate precedence: exported env var > workspace `.env` (`$PWD/.env`) > extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.{{runtimeName}}/extensions/maestro}/.env`) > undefined (callers apply defaults).
-3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning. (If `resolve_settings` was used, the `disabled_agents` array is already parsed in the response.)
+3. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning. (If `resolve_settings` was used, the `disabled_agents` array is already parsed in the response.) Use `effective_settings` for default-sensitive behavior; `settings` intentionally remains the raw provenance view.
 4. Run workspace preparation:
    - If `initialize_workspace` appears in your available tools, call it with an explicit `workspace_path` and the resolved `state_dir`.
    - Use `MAESTRO_WORKSPACE_PATH` when the host exposes it; otherwise use a workspace suggestion from `get_runtime_context` or ask the user for the path.
@@ -49,15 +49,7 @@ Before running orchestration commands:
 
 ## Settings Reference
 
-| Setting | envVar | Default | Usage |
-| --- | --- | --- | --- |
-| Disabled Agents | `MAESTRO_DISABLED_AGENTS` | none | Exclude agents from assignment |
-| Max Retries | `MAESTRO_MAX_RETRIES` | `2` | Phase retry limit |
-| Auto Archive | `MAESTRO_AUTO_ARCHIVE` | `true` | Auto archive on success |
-| Validation | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Validation gating mode |
-| State Directory | `MAESTRO_STATE_DIR` | `docs/maestro` | Session and plan state root |
-| Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Native parallel batch chunk size (`0` means dispatch the entire ready batch) |
-| Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
+<!-- @settings -->
 
 **Note:** `MAESTRO_STATE_DIR` is resolved through `resolve_settings` with exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. Native agent model, temperature, turn, and timeout tuning come from agent frontmatter and {{displayName}} `agents.overrides`, not Maestro process flags.
 

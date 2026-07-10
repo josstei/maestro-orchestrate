@@ -200,11 +200,11 @@ Status indicators:
 
 ### When to Archive
 Archive session state when:
-- All phases are completed successfully AND `MAESTRO_AUTO_ARCHIVE` is `true` (default)
+- All phases are completed successfully AND `MAESTRO_AUTO_ARCHIVE` is explicitly `true`
 - User explicitly requests archival (regardless of `MAESTRO_AUTO_ARCHIVE` setting)
 - User starts a new orchestration (previous session must be archived first, regardless of setting)
 
-When `MAESTRO_AUTO_ARCHIVE` is `false`, prompt the user after successful completion: "Session complete. Auto-archive is disabled. Would you like to archive this session?"
+`MAESTRO_AUTO_ARCHIVE` defaults to `false`. When it is false or unset, prompt the user after successful completion: "Session complete. Auto-archive is disabled. Would you like to archive this session?"
 
 ### Archive Steps
 Use `archive_session` for archival. It atomically:

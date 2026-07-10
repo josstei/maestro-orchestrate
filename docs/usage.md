@@ -63,15 +63,19 @@ just cleanup-branches
 
 All settings are resolved with precedence: environment variable > workspace `.env` > extension `.env` > default.
 
-| Setting | Default | Values | Purpose |
-|---------|---------|--------|---------|
-| `MAESTRO_STATE_DIR` | `docs/maestro` | path | Session state directory |
-| `MAESTRO_DISABLED_AGENTS` | (none) | comma-separated names | Exclude agents from assignment |
-| `MAESTRO_EXECUTION_MODE` | `ask` | parallel, sequential, ask | Execution strategy |
-| `MAESTRO_VALIDATION_STRICTNESS` | `normal` | strict, normal, lenient | Validation mode |
-| `MAESTRO_AUTO_ARCHIVE` | `true` | true, false | Auto-archive on completion |
-| `MAESTRO_MAX_RETRIES` | `2` | integer | Max retries per phase |
-| `MAESTRO_MAX_CONCURRENT` | `0` | integer | Max parallel agents (0 = unlimited) |
+<!-- BEGIN GENERATED SETTINGS -->
+
+| Setting | Environment variable | Default | Values | Usage |
+| --- | --- | --- | --- | --- |
+| Disabled Agents | `MAESTRO_DISABLED_AGENTS` | (none) | comma-separated agent names | Exclude named agents from planning and delegation. |
+| Max Retries | `MAESTRO_MAX_RETRIES` | `2` | non-negative integer | Limit automatic phase retries before escalation. |
+| Auto Archive | `MAESTRO_AUTO_ARCHIVE` | `false` | true, false | Archive completed sessions automatically when true; prompt when false. |
+| Validation | `MAESTRO_VALIDATION_STRICTNESS` | `normal` | strict, normal, lenient | Select strict, normal, or lenient validation gating. |
+| State Directory | `MAESTRO_STATE_DIR` | `docs/maestro` | path | Choose the workspace-relative session and plan state root. |
+| Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | non-negative integer (0 = entire ready batch) | Bound the native parallel dispatch chunk size. |
+| Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | ask, parallel, sequential | Choose parallel or sequential execution, or ask at the execution gate. |
+
+<!-- END GENERATED SETTINGS -->
 
 ### Runtime-Specific Environment Variables
 

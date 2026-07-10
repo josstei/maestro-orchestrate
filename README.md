@@ -147,7 +147,7 @@ Defaults work; these settings tune behavior:
 |---------|---------|---------|
 | `MAESTRO_STATE_DIR` | `docs/maestro` | Session, plan, and archive output path |
 | `MAESTRO_EXECUTION_MODE` | `ask` | Choose `parallel`, `sequential`, or prompt |
-| `MAESTRO_AUTO_ARCHIVE` | `true` | Archive successful sessions automatically |
+| `MAESTRO_AUTO_ARCHIVE` | `false` | Prompt to archive after successful completion; set `true` to archive automatically |
 | `MAESTRO_MAX_RETRIES` | `2` | Retry limit for failed phases |
 | `MAESTRO_MAX_CONCURRENT` | `0` | Parallel-agent cap, where `0` means no Maestro cap |
 | `MAESTRO_DISABLED_AGENTS` | unset | Specialists to exclude from assignment |

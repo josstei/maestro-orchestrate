@@ -17,6 +17,15 @@ describe('validateRegistry — agent-registry.json', () => {
     assert.doesNotThrow(() => validateRegistry('agent-registry.json', good));
   });
 
+  it('preserves the custom DSL extra-key tolerance', () => {
+    assert.doesNotThrow(() => validateRegistry('agent-registry.json', [
+      { ...good[0], futureField: { nested: true } },
+    ]));
+    assert.doesNotThrow(() => validateRegistry('hook-registry.json', {
+      'session-start': { module: 'm.js', fn: 'handleSessionStart', futureField: true },
+    }));
+  });
+
   it('rejects an unknown capability tier', () => {
     const bad = [{ name: 'coder', capabilities: 'reed_only', tools: [], focus: '' }];
     assert.throws(() => validateRegistry('agent-registry.json', bad), /capabilities/);
@@ -25,6 +34,26 @@ describe('validateRegistry — agent-registry.json', () => {
   it('rejects a non-array tools field', () => {
     const bad = [{ name: 'coder', capabilities: 'full', tools: 'read_file', focus: '' }];
     assert.throws(() => validateRegistry('agent-registry.json', bad), /tools/);
+  });
+
+  it('reports multiple issues in schema-field order through the existing envelope', () => {
+    const bad = [{ name: 1, capabilities: 'reed_only', tools: 'read_file', focus: false }];
+    assert.throws(
+      () => validateRegistry('agent-registry.json', bad),
+      (err) => {
+        assert.equal(err.name, 'ValidationError');
+        assert.deepEqual(err.details, {
+          label: 'agent-registry.json',
+          errors: [
+            'agent-registry.json[0].name: expected string, got 1',
+            'agent-registry.json[0].capabilities: expected one of [read_only, read_shell, read_write, full], got "reed_only"',
+            'agent-registry.json[0].tools: expected array, got "read_file"',
+            'agent-registry.json[0].focus: expected string, got false',
+          ],
+        });
+        return true;
+      },
+    );
   });
 
   it('exposes the four capability tiers', () => {
@@ -40,7 +69,12 @@ describe('validateRegistry — resource + hook registries', () => {
   it('rejects a hook entry missing fn', () => {
     assert.throws(
       () => validateRegistry('hook-registry.json', { 'session-start': { module: 'm.js' } }),
-      /fn/
+      (err) => {
+        assert.deepEqual(err.details.errors, [
+          'hook-registry.json.session-start.fn: missing required field',
+        ]);
+        return true;
+      },
     );
   });
 

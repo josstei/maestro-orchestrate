@@ -1,4 +1,5 @@
 import type { RuntimeName } from './runtime-descriptor.js';
+import { SETTINGS_SCHEMA, SETTING_NAMES } from '../config/settings-schema.js';
 
 const RUNTIME_DESCRIPTION = 'Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands';
 
@@ -79,43 +80,15 @@ function buildMetadataContext(pkg: PackageJsonLike): MetadataContext {
 }
 
 function buildSettings(): Array<{ name: string; description: string; envVar: string }> {
-  return [
-    {
-      name: 'Disabled Agents',
-      description: 'Comma-separated list of agent names to exclude from implementation planning.',
-      envVar: 'MAESTRO_DISABLED_AGENTS',
-    },
-    {
-      name: 'Max Retries',
-      description: 'Maximum retry attempts per phase before escalating to user.',
-      envVar: 'MAESTRO_MAX_RETRIES',
-    },
-    {
-      name: 'Auto Archive',
-      description: 'Automatically archive session state on successful completion (true/false).',
-      envVar: 'MAESTRO_AUTO_ARCHIVE',
-    },
-    {
-      name: 'Validation',
-      description: 'Post-phase validation strictness level (strict/normal/lenient).',
-      envVar: 'MAESTRO_VALIDATION_STRICTNESS',
-    },
-    {
-      name: 'State Directory',
-      description: 'Base directory for session state and plans (default: docs/maestro).',
-      envVar: 'MAESTRO_STATE_DIR',
-    },
-    {
-      name: 'Max Concurrent',
-      description: 'Maximum subagents emitted in one native parallel batch turn (0 = dispatch the entire ready batch).',
-      envVar: 'MAESTRO_MAX_CONCURRENT',
-    },
-    {
-      name: 'Execution Mode',
-      description: "Phase 3 execution mode: 'parallel' (native concurrent subagents), 'sequential' (one at a time), or 'ask' (prompt each time). Default: ask.",
-      envVar: 'MAESTRO_EXECUTION_MODE',
-    },
-  ];
+  return SETTING_NAMES.flatMap((envVar) => {
+    const { presentation } = SETTINGS_SCHEMA[envVar];
+    if (!presentation.extensionVisible) return [];
+    return [{
+      name: presentation.label,
+      description: presentation.description,
+      envVar,
+    }];
+  });
 }
 
 function buildExtensionMcpServer(context: MetadataContext, runtime: RuntimeName): { command: string; args: string[]; env: Record<string, string> } {

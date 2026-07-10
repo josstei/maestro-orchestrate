@@ -4,11 +4,68 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildRegistryModel } from '../../dist/src/generator/registry-scanner.js';
+import { renderSettingsSection } from '../../dist/src/generator/content-file-emitter.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const REPO = path.resolve(moduleDirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
 const canonicalAgentCount = () => buildRegistryModel(path.join(REPO, 'src')).agents.length;
+
+test('doc-drift: factual setting sections project the canonical descriptors', () => {
+  const expected = renderSettingsSection();
+  for (const surface of [
+    'docs/architecture.md',
+    'docs/usage.md',
+    'GEMINI.md',
+    'QWEN.md',
+    'claude/README.md',
+  ]) {
+    assert.ok(read(surface).includes(expected), `${surface}: generated settings section drifted`);
+  }
+
+  for (const template of [
+    'src/platforms/shared/runtime-context-template.md',
+    'src/platforms/claude/readme-template.md',
+  ]) {
+    assert.ok(read(template).includes('<!-- @settings -->'), `${template}: settings marker missing`);
+  }
+});
+
+test('doc-drift: auto-archive defaults to false on canonical and generated guidance surfaces', () => {
+  for (const surface of [
+    'docs/architecture.md',
+    'docs/usage.md',
+    'GEMINI.md',
+    'QWEN.md',
+    'claude/README.md',
+  ]) {
+    const settingsSection = read(surface).match(
+      /<!-- BEGIN GENERATED SETTINGS -->[\s\S]*?<!-- END GENERATED SETTINGS -->/,
+    );
+    assert.ok(settingsSection, `${surface}: generated settings bounds missing`);
+    assert.match(
+      settingsSection[0],
+      /MAESTRO_AUTO_ARCHIVE` \| `false`/,
+      `${surface}: auto-archive default is not false`,
+    );
+  }
+
+  const canonicalSkill = read('src/skills/shared/session-management/SKILL.md');
+  assert.match(canonicalSkill, /MAESTRO_AUTO_ARCHIVE` defaults to `false`/);
+  assert.ok(!canonicalSkill.includes('MAESTRO_AUTO_ARCHIVE` is `true` (default)'));
+
+  const readme = read('README.md');
+  assert.match(readme, /MAESTRO_AUTO_ARCHIVE` \| `false` \| Prompt to archive/);
+  assert.ok(!readme.includes('MAESTRO_AUTO_ARCHIVE` | `true`'));
+});
+
+test('doc-drift: retired schema DSL is absent from the package surface', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.files.includes('dist/src/lib/schema'), false);
+  assert.equal(fs.existsSync(path.join(REPO, 'src/lib/schema/index.ts')), false);
+  assert.ok(!read('src/tooling/artifact-policy.ts').includes("'dist/src/lib/schema'"));
+  assert.match(read('CHANGELOG.md'), /removed the undocumented `dist\/src\/lib\/schema` deep import/);
+});
 
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
   const canonicalCount = canonicalAgentCount();

@@ -161,7 +161,7 @@ COMPLETION (Phase 4)
     `rate` accepts only 'up' or 'down' as the rating value.
     Pass the session_id verbatim (the same id used for every prior MCP call).
     </HARD-GATE>
-29. If MAESTRO_AUTO_ARCHIVE is true (or unset), call archive_session. If false, inform user session is complete but not archived.
+29. Read the typed/defaulted value from `effective_settings.MAESTRO_AUTO_ARCHIVE`. If it is true, call archive_session. Its unset default is false; when false, inform the user the session is complete but not archived and ask whether to archive.
 30. Present final summary with files changed, phase outcomes, and next steps.
 
 RECOVERY (referenced from any step on user request)

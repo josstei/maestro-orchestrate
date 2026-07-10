@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { renderRosterTable } from '../core/roster-renderer.js';
+import { SETTINGS_SCHEMA, SETTING_NAMES } from '../config/settings-schema.js';
 import type {
   AgentNaming,
   AgentRegistryEntry,
@@ -31,6 +32,39 @@ const TOOL_MAPPING_DISPLAY_ORDER = Object.freeze([
   'exit_plan_mode',
   'codebase_investigator',
 ]);
+
+const SETTINGS_SECTION_START = '<!-- BEGIN GENERATED SETTINGS -->';
+const SETTINGS_SECTION_END = '<!-- END GENERATED SETTINGS -->';
+
+function renderSettingDefault(value: unknown): string {
+  if (Array.isArray(value) && value.length === 0) return '(none)';
+  if (Array.isArray(value)) return `\`${value.join(', ')}\``;
+  return `\`${String(value)}\``;
+}
+
+function escapeMarkdownCell(value: string): string {
+  return value.replace(/\|/g, '\\|');
+}
+
+function renderSettingsSection(): string {
+  const rows = SETTING_NAMES.flatMap((name) => {
+    const spec = SETTINGS_SCHEMA[name];
+    if (!spec.presentation.documented) return [];
+    return [
+      `| ${escapeMarkdownCell(spec.presentation.label)} | \`${name}\` | ${renderSettingDefault(spec.default)} | ${escapeMarkdownCell(spec.presentation.valueHint)} | ${escapeMarkdownCell(spec.presentation.usage)} |`,
+    ];
+  });
+
+  return [
+    SETTINGS_SECTION_START,
+    '',
+    '| Setting | Environment variable | Default | Values | Usage |',
+    '| --- | --- | --- | --- | --- |',
+    ...rows,
+    '',
+    SETTINGS_SECTION_END,
+  ].join('\n');
+}
 
 function renderToolMappingSection(runtime: { tools: Record<string, unknown> }): string {
   const rows = TOOL_MAPPING_DISPLAY_ORDER
@@ -66,6 +100,7 @@ function renderTemplate(
     '<!-- @roster -->',
     renderRosterTable(agents, { agentNaming })
   );
+  content = content.replace('<!-- @settings -->', renderSettingsSection());
   return finalizeContent(content);
 }
 
@@ -174,4 +209,12 @@ function buildContentFileOutputs(
   return outputs;
 }
 
-export { buildContentFileOutputs, renderContextFile, renderClaudeReadme, renderRuntimeDoc };
+export {
+  SETTINGS_SECTION_END,
+  SETTINGS_SECTION_START,
+  buildContentFileOutputs,
+  renderClaudeReadme,
+  renderContextFile,
+  renderRuntimeDoc,
+  renderSettingsSection,
+};

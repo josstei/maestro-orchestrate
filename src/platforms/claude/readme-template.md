@@ -140,7 +140,11 @@ Claude Code hooks are registered in `hooks/claude-hooks.json`:
 
 ## Configuration
 
-Supported settings include `MAESTRO_STATE_DIR`, `MAESTRO_DISABLED_AGENTS`, `MAESTRO_EXECUTION_MODE`, `MAESTRO_VALIDATION_STRICTNESS`, `MAESTRO_AUTO_ARCHIVE`, `MAESTRO_MAX_RETRIES`, and `MAESTRO_MAX_CONCURRENT`. Claude-specific runtime paths come from `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PROJECT_DIR`.
+Settings resolve with precedence: exported environment variable, workspace `.env`, extension `.env`, then the declared default.
+
+<!-- @settings -->
+
+Claude-specific runtime paths come from `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PROJECT_DIR`.
 
 ## License
 

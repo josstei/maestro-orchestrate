@@ -88,11 +88,15 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     id: 'platform-metadata-outputs',
     producer: 'src/platforms/*/metadata.ts',
     writeMode: 'generate and prepack',
-    sourceInputs: ['package.json', 'src/platforms/*/metadata.ts'],
+    sourceInputs: [
+      'package.json',
+      'src/config/settings-schema.ts',
+      'src/platforms/*/metadata.ts',
+    ],
     outputs: metadataOutputPaths(),
     tracked: true,
     packaged: true,
-    notes: 'Version and install metadata are generated from package metadata. Only the 3 paths in TRACKED_OUTPUT_EXEMPTIONS stay tracked; the rest are gitignored.',
+    notes: 'Version and install metadata are generated from package metadata; extension-visible setting metadata is projected from the canonical SettingSpec catalog. Only the 3 paths in TRACKED_OUTPUT_EXEMPTIONS stay tracked; the rest are gitignored.',
   },
   {
     id: 'policy-outputs',
@@ -121,6 +125,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     sourceInputs: [
       'src/platforms/shared/runtime-context-template.md',
       'src/platforms/claude/readme-template.md',
+      'src/config/settings-schema.ts',
       'src/platforms/gemini/runtime-config.ts',
       'src/platforms/claude/runtime-config.ts',
       'src/platforms/codex/runtime-config.ts',
@@ -144,7 +149,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     ],
     tracked: false,
     packaged: true,
-    notes: 'Runtime context files receive agent data from the in-memory RegistryModel and combine it with the shared template and per-runtime metadata; source registry projections are not read during rendering.',
+    notes: 'Runtime context files receive agent data from the in-memory RegistryModel and factual setting sections from the canonical SettingSpec catalog, then combine them with the shared template and per-runtime metadata; source registry projections are not read during rendering.',
   },
   {
     id: 'owned-directory-pruning',

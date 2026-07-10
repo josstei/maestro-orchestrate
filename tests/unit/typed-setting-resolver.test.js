@@ -28,6 +28,14 @@ describe('resolveTypedSetting', () => {
     assert.equal(result, 2);
   });
 
+  it('returns the auto-archive default (false) when unset', () => {
+    const result = withEnv(
+      { MAESTRO_AUTO_ARCHIVE: null, MAESTRO_EXTENSION_PATH: null },
+      () => resolveTypedSetting('MAESTRO_AUTO_ARCHIVE', undefined)
+    );
+    assert.equal(result, false);
+  });
+
   it('coerces and validates a set integer', () => {
     const result = withEnv(
       { MAESTRO_MAX_CONCURRENT: '4', MAESTRO_EXTENSION_PATH: null },
@@ -91,6 +99,12 @@ describe('resolveTypedSetting', () => {
         ),
       (err) => {
         assert.equal(err.name, 'ValidationError');
+        assert.deepEqual(err.details, {
+          label: 'MAESTRO_EXECUTION_MODE',
+          errors: [
+            'MAESTRO_EXECUTION_MODE: expected one of [ask, parallel, sequential], got "parralel"',
+          ],
+        });
         return true;
       }
     );
@@ -103,7 +117,14 @@ describe('resolveTypedSetting', () => {
           { MAESTRO_MAX_RETRIES: 'abc', MAESTRO_EXTENSION_PATH: null },
           () => resolveTypedSetting('MAESTRO_MAX_RETRIES', undefined)
         ),
-      /ValidationError/
+      (err) => {
+        assert.equal(err.name, 'ValidationError');
+        assert.deepEqual(err.details, {
+          label: 'MAESTRO_MAX_RETRIES',
+          errors: ['MAESTRO_MAX_RETRIES: expected integer, got "abc"'],
+        });
+        return true;
+      }
     );
   });
 

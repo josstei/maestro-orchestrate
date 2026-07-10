@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Package and release verification**: npm package required files are derived from the runtime payload contract, pack verification prints entry and byte metrics, release artifacts allow only the two public bin files, and the packed-package smoke test runs both installed public bins.
 
+### Removed
+
+- **Breaking package surface**: removed the undocumented `dist/src/lib/schema` deep import and its bespoke schema DSL. Settings and registry validation now use the package's existing Zod dependency; all named MCP tools, public bins, and other shipped compatibility modules remain unchanged.
+
 ## [1.6.4] - 2026-04-30
 
 ### Added

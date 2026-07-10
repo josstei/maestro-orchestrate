@@ -58,6 +58,55 @@ function ensureCompiledRuntime(worktreePath: string): void {
   fs.cpSync(CURRENT_DIST_ROOT, targetDist, { recursive: true });
 }
 
+function linkGeneratorDependency(root: string, worktreePath: string): void {
+  const dependencyRoot = path.join(root, 'node_modules', 'zod');
+  if (!fs.existsSync(dependencyRoot)) {
+    throw new Error(`Installed generator dependency is missing: ${dependencyRoot}`);
+  }
+
+  const dependencyRealPath = fs.realpathSync(dependencyRoot);
+  if (!fs.statSync(dependencyRealPath).isDirectory()) {
+    throw new Error(`Installed generator dependency must be a directory: ${dependencyRoot}`);
+  }
+
+  const worktreeRealPath = fs.realpathSync(worktreePath);
+  const dependencyRelativePath = path.relative(worktreeRealPath, dependencyRealPath);
+  if (
+    dependencyRelativePath === ''
+    || (!dependencyRelativePath.startsWith(`..${path.sep}`) && dependencyRelativePath !== '..')
+  ) {
+    throw new Error('Installed generator dependency must be outside the temporary worktree');
+  }
+
+  if (git(worktreePath, ['ls-files', '--', 'node_modules']) !== '') {
+    throw new Error('Temporary worktree node_modules path must be untracked');
+  }
+
+  const nodeModulesPath = path.join(worktreePath, 'node_modules');
+  if (fs.lstatSync(nodeModulesPath, { throwIfNoEntry: false })) {
+    throw new Error(`Temporary worktree dependency directory already exists: ${nodeModulesPath}`);
+  }
+  fs.mkdirSync(nodeModulesPath);
+  if (gitQuiet(worktreePath, ['check-ignore', '--no-index', '--quiet', '--', 'node_modules/']) === null) {
+    throw new Error('Temporary worktree node_modules directory must be ignored');
+  }
+
+  const linkedDependencyPath = path.join(nodeModulesPath, 'zod');
+  fs.symlinkSync(dependencyRealPath, linkedDependencyPath, 'dir');
+  if (
+    !fs.lstatSync(linkedDependencyPath).isSymbolicLink()
+    || fs.realpathSync(linkedDependencyPath) !== dependencyRealPath
+  ) {
+    throw new Error('Temporary worktree Zod symlink resolved to an unexpected target');
+  }
+  if (gitQuiet(worktreePath, ['check-ignore', '--no-index', '--quiet', '--', 'node_modules/zod']) === null) {
+    throw new Error('Temporary worktree Zod symlink must be ignored');
+  }
+  if (git(worktreePath, ['status', '--porcelain=v1', '--untracked-files=all', '--', 'node_modules']) !== '') {
+    throw new Error('Temporary worktree generator dependencies must remain ignored');
+  }
+}
+
 function listGeneratorOutputs(worktreePath: string): string[] {
   const output = execFileSync(
     process.execPath,
@@ -95,8 +144,9 @@ function removeTemporaryWorktree(root: string, worktreePath: string, parentDir: 
   gitQuiet(root, ['worktree', 'prune']);
 }
 
-function buildOrphanSnapshotCommit(worktreePath: string, version: string): string {
+function buildOrphanSnapshotCommit(root: string, worktreePath: string, version: string): string {
   ensureCompiledRuntime(worktreePath);
+  linkGeneratorDependency(root, worktreePath);
   runGeneratorWriteMode(worktreePath);
   const outputs = listGeneratorOutputs(worktreePath);
 
@@ -104,6 +154,10 @@ function buildOrphanSnapshotCommit(worktreePath: string, version: string): strin
 
   for (const outputPath of outputs) {
     git(worktreePath, ['add', '-f', '--', outputPath]);
+  }
+
+  if (git(worktreePath, ['ls-files', '--cached', '--', 'node_modules']) !== '') {
+    throw new Error('Temporary worktree dependencies must not enter the dist snapshot index');
   }
 
   const treeSha = git(worktreePath, ['write-tree']);
@@ -124,7 +178,7 @@ function publishDistBranch(options: PublishOptions = {}): { sha: string; version
 
   try {
     const version = readJson(path.join(worktreePath, 'package.json')).version;
-    const sha = buildOrphanSnapshotCommit(worktreePath, version);
+    const sha = buildOrphanSnapshotCommit(root, worktreePath, version);
 
     return { sha, version };
   } finally {

@@ -41,7 +41,6 @@ const RUNTIME_DIST_PATHS = Object.freeze([
   'dist/src/lib/frontmatter',
   'dist/src/lib/io',
   'dist/src/lib/naming',
-  'dist/src/lib/schema',
   'dist/src/lib/validation',
   'dist/src/mcp',
   'dist/src/platforms/claude/runtime-config.js',

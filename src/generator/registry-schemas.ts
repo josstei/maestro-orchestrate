@@ -1,24 +1,24 @@
-import { shape, recordOf, arrayOf, string, enumOf, assertValid } from '../lib/schema/index.js';
-import type { Schema } from '../lib/schema/index.js';
+import { z } from 'zod';
+import { parseOrThrow } from '../core/zod-validation.js';
 
-const CAPABILITY_TIERS = ['read_only', 'read_shell', 'read_write', 'full'];
+const CAPABILITY_TIERS = ['read_only', 'read_shell', 'read_write', 'full'] as const;
 
-const agentEntrySchema = shape({
-  name: string(),
-  capabilities: enumOf(CAPABILITY_TIERS),
-  tools: arrayOf(string()),
-  focus: string(),
-});
+const agentEntrySchema = z.object({
+  name: z.string(),
+  capabilities: z.enum(CAPABILITY_TIERS),
+  tools: z.array(z.string()),
+  focus: z.string(),
+}).passthrough();
 
-const hookEntrySchema = shape({
-  module: string(),
-  fn: string(),
-});
+const hookEntrySchema = z.object({
+  module: z.string(),
+  fn: z.string(),
+}).passthrough();
 
-const REGISTRY_SCHEMAS: Record<string, Schema> = {
-  'agent-registry.json': arrayOf(agentEntrySchema),
-  'resource-registry.json': recordOf(string()),
-  'hook-registry.json': recordOf(hookEntrySchema),
+const REGISTRY_SCHEMAS = {
+  'agent-registry.json': z.array(agentEntrySchema),
+  'resource-registry.json': z.record(z.string()),
+  'hook-registry.json': z.record(hookEntrySchema),
 };
 
 /**
@@ -29,11 +29,11 @@ const REGISTRY_SCHEMAS: Record<string, Schema> = {
  * @throws {import('../lib/errors').ValidationError} On a shape violation
  */
 function validateRegistry(fileName: string, data: unknown): void {
-  const schema = REGISTRY_SCHEMAS[fileName];
+  const schema = (REGISTRY_SCHEMAS as Record<string, z.ZodTypeAny>)[fileName];
   if (!schema) {
     throw new Error(`No schema registered for "${fileName}"`);
   }
-  assertValid(schema, data, fileName);
+  parseOrThrow(schema, data, fileName);
 }
 
 export { REGISTRY_SCHEMAS, CAPABILITY_TIERS, validateRegistry };

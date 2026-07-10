@@ -10,6 +10,7 @@ import { handleInitializeWorkspace } from '../../handlers/initialize-workspace.j
 import { handleAssessTaskComplexity } from '../../handlers/assess-task-complexity.js';
 import { handleValidatePlan } from '../../handlers/validate-plan.js';
 import { handleResolveSettings } from '../../handlers/resolve-settings.js';
+import type { ResolveSettingsResult } from '../../handlers/resolve-settings.js';
 
 const workspaceCommands = defineCommandTable(zodSchemas, {
   initialize_workspace: {
@@ -30,8 +31,8 @@ const workspaceCommands = defineCommandTable(zodSchemas, {
   },
   resolve_settings: {
     description:
-      'Resolve Maestro settings using script-accurate precedence (env var > workspace .env > extension .env). Returns resolved values for requested or all known settings.',
-    handler: withOptionalProjectRoot((args, projectRoot) => handleResolveSettings(args, projectRoot)),
+      'Resolve Maestro settings using script-accurate precedence (env var > workspace .env > extension .env). Returns raw provenance values and additive typed/defaulted effective values for requested or all known settings.',
+    handler: withOptionalProjectRoot((args, projectRoot): ResolveSettingsResult => handleResolveSettings(args, projectRoot)),
   },
 });
 

@@ -65,6 +65,11 @@ describe('publish dist branch (integration)', () => {
         'expected a generated registry in the snapshot tree'
       );
       assert.ok(treeEntries.includes('agents/coder.md'), 'expected a generated agent stub in the snapshot tree');
+      assert.equal(
+        treeEntries.some((entry) => entry === 'node_modules' || entry.startsWith('node_modules/')),
+        false,
+        'installed dependencies must not enter the snapshot tree'
+      );
 
       assert.equal(git(repoRoot, ['rev-parse', 'HEAD']), beforeHead, 'fixture HEAD must be unchanged');
       assert.equal(

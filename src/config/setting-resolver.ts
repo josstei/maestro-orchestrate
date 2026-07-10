@@ -1,8 +1,9 @@
 import path from 'path';
+import type { z } from 'zod';
 import { parseEnvFile } from '../core/env-file-parser.js';
+import { parseOrThrow } from '../core/zod-validation.js';
 import { SETTINGS_SCHEMA } from './settings-schema.js';
-import type { SettingName } from './settings-schema.js';
-import { coerceScalar, assertValid } from '../lib/schema/index.js';
+import type { SettingName, SettingValue } from './settings-schema.js';
 import { ValidationError } from '../lib/errors/index.js';
 
 function isSettingName(varName: string): varName is SettingName {
@@ -31,12 +32,17 @@ function resolveSetting(varName: string, projectRoot?: string): string | undefin
   return undefined;
 }
 
+function parseSettingValue<N extends SettingName>(varName: N, value: unknown): SettingValue<N> {
+  const schema = SETTINGS_SCHEMA[varName].schema as z.ZodType<SettingValue<N>, z.ZodTypeDef, unknown>;
+  return parseOrThrow(schema, value, varName);
+}
+
 /**
  * Resolve a MAESTRO_* setting to its declared type, applying the schema
  * default when unset and validating any present value.
  * @throws {ValidationError} On an unknown setting name or an invalid value
  */
-function resolveTypedSetting(varName: string, projectRoot?: string): unknown {
+function resolveTypedSetting<N extends SettingName>(varName: N, projectRoot?: string): SettingValue<N> {
   if (!isSettingName(varName)) {
     throw new ValidationError(`Unknown setting "${varName}"`, { details: { varName } });
   }
@@ -45,12 +51,10 @@ function resolveTypedSetting(varName: string, projectRoot?: string): unknown {
 
   const raw = resolveSetting(varName, projectRoot);
   if (raw === undefined) {
-    return spec.default;
+    return spec.default as SettingValue<N>;
   }
 
-  const value = coerceScalar(spec.schema, raw);
-  assertValid(spec.schema, value, varName);
-  return value;
+  return parseSettingValue(varName, raw);
 }
 
-export { resolveSetting, resolveTypedSetting };
+export { parseSettingValue, resolveSetting, resolveTypedSetting };

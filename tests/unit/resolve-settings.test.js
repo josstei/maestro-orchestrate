@@ -25,12 +25,17 @@ describe('handleResolveSettings', () => {
     assert.deepEqual([...KNOWN_SETTINGS].sort(), [...SETTING_NAMES].sort());
   });
 
-  it('returns the raw value and splits disabled_agents', () => {
+  it('preserves the raw value while adding the typed effective value', () => {
     const result = withEnv(
       { MAESTRO_DISABLED_AGENTS: 'architect, tester', MAESTRO_EXTENSION_PATH: null },
       () => handleResolveSettings({ settings: ['MAESTRO_DISABLED_AGENTS'] }, undefined)
     );
-    assert.equal(result.settings.MAESTRO_DISABLED_AGENTS, 'architect, tester');
+    assert.deepEqual(result.settings, {
+      MAESTRO_DISABLED_AGENTS: 'architect, tester',
+    });
+    assert.deepEqual(result.effective_settings, {
+      MAESTRO_DISABLED_AGENTS: ['architect', 'tester'],
+    });
     assert.deepEqual(result.disabled_agents, ['architect', 'tester']);
   });
 
@@ -53,6 +58,25 @@ describe('handleResolveSettings', () => {
       { MAESTRO_MAX_RETRIES: null, MAESTRO_EXTENSION_PATH: null },
       () => handleResolveSettings({ settings: ['MAESTRO_MAX_RETRIES'] }, undefined)
     );
-    assert.equal(result.settings.MAESTRO_MAX_RETRIES, null);
+    assert.deepEqual(result.settings, { MAESTRO_MAX_RETRIES: null });
+    assert.deepEqual(result.effective_settings, { MAESTRO_MAX_RETRIES: 2 });
+  });
+
+  it('uses the canonical false auto-archive default without changing the raw view', () => {
+    const result = withEnv(
+      { MAESTRO_AUTO_ARCHIVE: null, MAESTRO_EXTENSION_PATH: null },
+      () => handleResolveSettings({ settings: ['MAESTRO_AUTO_ARCHIVE'] }, undefined)
+    );
+    assert.deepEqual(result.settings, { MAESTRO_AUTO_ARCHIVE: null });
+    assert.deepEqual(result.effective_settings, { MAESTRO_AUTO_ARCHIVE: false });
+  });
+
+  it('filters unknown requested names from both raw and effective views', () => {
+    const result = withEnv(
+      { MAESTRO_MAX_RETRIES: '4', MAESTRO_EXTENSION_PATH: null },
+      () => handleResolveSettings({ settings: ['MAESTRO_NOPE', 'MAESTRO_MAX_RETRIES'] }, undefined)
+    );
+    assert.deepEqual(result.settings, { MAESTRO_MAX_RETRIES: '4' });
+    assert.deepEqual(result.effective_settings, { MAESTRO_MAX_RETRIES: 4 });
   });
 });
