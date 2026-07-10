@@ -18,7 +18,8 @@ import {
   releasePaths,
 } from '../../dist/src/tooling/artifact-policy.js';
 
-import { RUNTIME_PAYLOAD_CONTRACT } from '../../dist/src/platforms/runtime-payload-contract.js';
+import { RUNTIME_PAYLOAD_CONTRACT } from '../../dist/src/tooling/runtime-payload-contract.js';
+import { EXPECTED_REQUIRED_PACKAGE_FILES } from '../support/contracts.js';
 
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 
@@ -60,6 +61,7 @@ describe('artifact policy', () => {
     const policyInvariants = [...new Set(Object.values(RUNTIME_PACKAGE_INVARIANTS).flat())].sort();
 
     assert.deepEqual(REQUIRED_PACKAGE_FILES, policyInvariants);
+    assert.deepEqual(REQUIRED_PACKAGE_FILES, EXPECTED_REQUIRED_PACKAGE_FILES);
 
     for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {
       assert.deepEqual(runtime.packageInvariants, RUNTIME_PACKAGE_INVARIANTS[runtime.name]);
@@ -96,6 +98,7 @@ describe('artifact policy', () => {
   });
 
   it('keeps runtime dist paths in both projections', () => {
+    assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/platforms/runtime-declarations.js'));
     for (const runtimeDistPath of RUNTIME_DIST_PATHS) {
       assert.ok(npmFiles().includes(runtimeDistPath));
       assert.ok(releasePaths().includes(runtimeDistPath));

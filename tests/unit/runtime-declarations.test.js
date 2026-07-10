@@ -1,21 +1,43 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   PACKAGE_MCP_SERVER,
   RUNTIME_CONTENT_ROOT,
-  getRuntimeDeclaration,
-  listRuntimeDeclarations,
+  RUNTIME_DEFINITIONS,
+  getRuntimeConfig,
+  getRuntimeDefinition,
+  listRuntimeDefinitions,
   metadataOutputPaths,
+  requireRuntimeDefinition,
 } from '../../dist/src/platforms/runtime-declarations.js';
-import { RUNTIME_PAYLOAD_CONTRACT } from '../../dist/src/platforms/runtime-payload-contract.js';
-import { runtimeConfigNames } from '../support/contracts.js';
+import { EXPECTED_RUNTIME_NAMES } from '../support/contracts.js';
 
-describe('runtime declarations', () => {
-  it('covers every runtime config exactly once', () => {
+describe('runtime definitions', () => {
+  it('covers the literal supported runtime matrix exactly once', () => {
     assert.deepEqual(
-      listRuntimeDeclarations().map((runtime) => runtime.name).sort(),
-      runtimeConfigNames()
+      listRuntimeDefinitions().map((runtime) => runtime.name).sort(),
+      EXPECTED_RUNTIME_NAMES
     );
+    assert.deepEqual(Object.keys(RUNTIME_DEFINITIONS).sort(), EXPECTED_RUNTIME_NAMES);
+    assert.ok(Object.isFrozen(listRuntimeDefinitions()));
+  });
+
+  it('joins each runtime name, typed config, metadata, and positive payload facts', () => {
+    for (const definition of listRuntimeDefinitions()) {
+      assert.equal(definition.config.name, definition.name);
+      assert.equal(getRuntimeDefinition(definition.name), definition);
+      assert.equal(requireRuntimeDefinition(definition.name), definition);
+      assert.equal(getRuntimeConfig(definition.name), definition.config);
+      assert.equal('packageInvariants' in definition.payload, false);
+      assert.equal('deniedPaths' in definition.payload, false);
+      assert.equal('budget' in definition.payload, false);
+    }
+  });
+
+  it('returns null or exact lookup errors for unknown runtimes', () => {
+    assert.equal(getRuntimeDefinition('unknown'), null);
+    assert.throws(() => getRuntimeConfig('unknown'), /Unknown runtime config: unknown/);
   });
 
   it('centralizes package MCP startup and content root constants', () => {
@@ -37,14 +59,22 @@ describe('runtime declarations', () => {
     ]);
   });
 
-  it('drives runtime payload rows', () => {
-    for (const row of RUNTIME_PAYLOAD_CONTRACT) {
-      const declaration = getRuntimeDeclaration(row.name);
-      assert.ok(declaration, `declaration exists for ${row.name}`);
-      assert.equal(row.startup.manifest, declaration.payload.startupManifest);
-      assert.deepEqual(row.generatedSurfaces, declaration.payload.generatedSurfaces);
-      assert.deepEqual(row.packageInvariants, declaration.payload.packageInvariants);
-      assert.deepEqual(row.docs, declaration.payload.docs);
+  it('has no runtime dependency on tooling policy', () => {
+    const source = fs.readFileSync(new URL('../../src/platforms/runtime-declarations.ts', import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /tooling\//);
+    assert.doesNotMatch(source, /artifact-policy/);
+  });
+
+  it('removes filesystem and dynamic runtime discovery', () => {
+    for (const relativePath of [
+      'mcp/runtime/runtime-config-map.ts',
+      'platforms/metadata.ts',
+      'platforms/runtime-descriptor.ts',
+      'tooling/generate.ts',
+    ]) {
+      const source = fs.readFileSync(new URL(`../../src/${relativePath}`, import.meta.url), 'utf8');
+      assert.doesNotMatch(source, /readdirSync\([^)]*platforms/);
+      assert.doesNotMatch(source, /import\(pathToFileURL\([^)]*runtime-config/);
     }
   });
 });

@@ -1,6 +1,6 @@
 import { buildGeminiFamilyConfig } from '../shared/gemini-family-config.js';
 
-export default buildGeminiFamilyConfig({
+const GEMINI_RUNTIME_CONFIG = buildGeminiFamilyConfig({
   name: 'gemini',
   outputDir: './',
   mcpPrefix: 'mcp_maestro_',
@@ -43,3 +43,6 @@ export default buildGeminiFamilyConfig({
     toolNames: { askUser: 'ask_user', writeTodos: 'write_todos', replace: 'replace' },
   },
 });
+
+export { GEMINI_RUNTIME_CONFIG };
+export default GEMINI_RUNTIME_CONFIG;

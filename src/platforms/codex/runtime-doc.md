@@ -2,6 +2,11 @@
 
 The Codex plugin lives in `plugins/maestro/`.
 
+## Runtime Surface Facts
+
+<!-- BEGIN GENERATED RUNTIME FACTS -->
+<!-- END GENERATED RUNTIME FACTS -->
+
 ## Configuration
 
 **Manifest**: `plugins/maestro/.codex-plugin/plugin.json`

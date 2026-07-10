@@ -1,7 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-
 export type RuntimeName = 'gemini' | 'claude' | 'codex' | 'qwen';
 export type AgentNaming = 'snake_case' | 'kebab-case';
 export type ToolMapping = string | readonly string[];
@@ -142,40 +138,4 @@ function getAgentToolDialect(runtime: { agentToolDialect?: ToolDialect }): ToolD
     : null;
 }
 
-/**
- * Resolve one already-enumerated runtime config by name (no directory scan). The
- * generator's enumeration entry point (src/tooling/generate.ts:loadRuntimes) remains the
- * single discovery pass; this accessor resolves a runtime the generator already knows.
- *
- */
-function resolveRuntimeConfigPath(name: string, srcDir: string): string | null {
-  const sourceConfigPath = path.join(srcDir, 'platforms', name, 'runtime-config.js');
-  if (fs.existsSync(sourceConfigPath)) {
-    return sourceConfigPath;
-  }
-
-  const compiledConfigPath = path.join(
-    path.dirname(srcDir),
-    'dist',
-    'src',
-    'platforms',
-    name,
-    'runtime-config.js'
-  );
-  if (fs.existsSync(compiledConfigPath)) {
-    return compiledConfigPath;
-  }
-
-  return null;
-}
-
-async function getRuntimeConfig<T extends RuntimeConfig = RuntimeConfig>(name: string, srcDir: string): Promise<T> {
-  const configPath = resolveRuntimeConfigPath(name, srcDir);
-  if (!configPath) {
-    throw new Error(`Unknown runtime "${name}": no config under ${srcDir}`);
-  }
-  const { default: config } = await import(pathToFileURL(configPath).href) as { default: T };
-  return config;
-}
-
-export { assertValidRuntimeGeneration, getRuntimeGeneration, getAgentToolDialect, getRuntimeConfig };
+export { assertValidRuntimeGeneration, getRuntimeGeneration, getAgentToolDialect };

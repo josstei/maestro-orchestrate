@@ -1,12 +1,23 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getRuntimeGeneration, getAgentToolDialect } from '../../dist/src/platforms/runtime-descriptor.js';
-import gemini from '../../dist/src/platforms/gemini/runtime-config.js';
-import claude from '../../dist/src/platforms/claude/runtime-config.js';
-import codex from '../../dist/src/platforms/codex/runtime-config.js';
-import qwen from '../../dist/src/platforms/qwen/runtime-config.js';
+import gemini, { GEMINI_RUNTIME_CONFIG } from '../../dist/src/platforms/gemini/runtime-config.js';
+import claude, { CLAUDE_RUNTIME_CONFIG } from '../../dist/src/platforms/claude/runtime-config.js';
+import codex, { CODEX_RUNTIME_CONFIG } from '../../dist/src/platforms/codex/runtime-config.js';
+import qwen, { QWEN_RUNTIME_CONFIG } from '../../dist/src/platforms/qwen/runtime-config.js';
+import { getRuntimeConfig } from '../../dist/src/platforms/runtime-declarations.js';
 
 describe('runtime generation descriptors mirror the historical hardcoded maps', () => {
+  it('exports named typed configs consumed by the static catalog', () => {
+    assert.equal(gemini, GEMINI_RUNTIME_CONFIG);
+    assert.equal(claude, CLAUDE_RUNTIME_CONFIG);
+    assert.equal(codex, CODEX_RUNTIME_CONFIG);
+    assert.equal(qwen, QWEN_RUNTIME_CONFIG);
+    for (const config of [gemini, claude, codex, qwen]) {
+      assert.equal(getRuntimeConfig(config.name), config);
+    }
+  });
+
   it('gemini entry-point + core-command + hooks', () => {
     const g = getRuntimeGeneration(gemini);
     assert.equal(g.entryPoint.templateFile, 'gemini-command.toml.tmpl');

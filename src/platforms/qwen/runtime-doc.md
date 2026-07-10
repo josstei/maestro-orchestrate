@@ -2,6 +2,11 @@
 
 The Qwen Code extension lives in `qwen/` (the output directory declared in `src/platforms/qwen/runtime-config.ts`). The manifest (`qwen-extension.json`) and context file (`QWEN.md`) remain at the repo root so Qwen Code can discover the extension; generated artifacts (`qwen/agents/`, `qwen/hooks.json`) live in the subdirectory. It mirrors the Gemini CLI extension structure with Qwen-specific manifest, context, and tool mappings.
 
+## Runtime Surface Facts
+
+<!-- BEGIN GENERATED RUNTIME FACTS -->
+<!-- END GENERATED RUNTIME FACTS -->
+
 ## Configuration
 
 **Manifest**: `qwen-extension.json`

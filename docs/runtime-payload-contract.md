@@ -41,11 +41,11 @@ Source-only generated dist is the active terminal topology.
   generated runtime surfaces, not package-root raw implementation source.
 
 The machine-readable source-only topology is `TOPOLOGY_DECISION` in
-`src/platforms/runtime-payload-contract.ts`.
+`src/tooling/runtime-payload-contract.ts`.
 
-No package or release payload may be removed until the runtime row below is changed in the code contract and verified by tests. No runtime now requires a detached `src` payload mirror.
+No package or release payload may be removed until both the positive runtime catalog and the independently authored artifact policy and literal package tests are changed. No runtime now requires a detached `src` payload mirror.
 
-The machine-readable source for this contract is `src/platforms/runtime-payload-contract.ts`.
+The tooling-owned cross-check for this contract is `src/tooling/runtime-payload-contract.ts`; positive runtime facts remain pure in `src/platforms/runtime-declarations.ts`.
 
 ## Runtime Matrix
 
@@ -62,14 +62,14 @@ The npm package must keep these categories until the corresponding runtime contr
 
 - public package bins: `dist/src/bin/maestro-mcp-server.js` and `dist/src/bin/maestro-install-codex.js`
 - generated runtime content registry: `dist/src/generated/runtime-content-registry.json` plus its gzip-compressed content payload at `dist/src/generated/runtime-content-registry.txt.gz`
-- compiled runtime output: the explicit `dist/src/bin` and `dist/src` runtime inventory in `src/tooling/artifact-policy.ts`, mirrored by `package.json` `files`
+- compiled runtime output: the explicit `dist/src/bin` and `dist/src` runtime inventory in `src/tooling/artifact-policy.ts`, including `dist/src/platforms/runtime-declarations.js`, mirrored independently by `package.json` `files`
 - generated root runtime files: `agents/`, `commands/`, `hooks/`, `mcp/`, `policies/`, `gemini-extension.json`, `qwen-extension.json`
 - Claude plugin runtime: root `.claude-plugin/` metadata plus explicit public `claude/` surfaces only; it must not include `claude/src`
 - Codex plugin runtime: `plugins/maestro/` public metadata, runtime guide, and skills; it must not include `plugins/maestro/src`
 - Qwen runtime: `qwen/`
 - selected public docs listed in `package.json files`
 - root `bin/`, root `scripts/`, and root `src/` are source-checkout only and must not be packaged
-- build-only dist tooling is source-checkout only and must not be packaged: `dist/src/tooling/`, `dist/src/generator/`, `dist/src/transforms/`, `dist/src/entry-points/`, `dist/src/lib/discovery/`, `dist/src/lib/yaml-emit.js`, `dist/src/manifest.js`, platform metadata builders, and `dist/src/platforms/runtime-payload-contract.js`
+- build-only dist tooling is source-checkout only and must not be packaged: `dist/src/tooling/`, `dist/src/generator/`, `dist/src/transforms/`, `dist/src/entry-points/`, `dist/src/lib/discovery/`, `dist/src/lib/yaml-emit.js`, `dist/src/manifest.js`, and platform metadata builders
 - declaration files and source maps are not public runtime artifacts
 
 `npm run pack:verify` enforces the package inventory and size budgets.
@@ -82,6 +82,7 @@ The payload contract is covered by these checks:
 - `get_skill_content` reads runtime-correct content for Gemini, Claude, Codex, and Qwen.
 - Claude content lookup uses package-root `dist/src` with no fallback chain.
 - Every runtime contract has existing startup manifests, entrypoints, package invariants, and docs.
+- The tooling cross-check reports disagreement between catalog facts and independently authored package/release projections.
 - The release artifact manifest rejects retired Claude and Codex detached payloads.
 - The release artifact manifest rejects package-root `src`, root `scripts`, root `bin`, private dist tooling, declaration files, and source maps.
 - The npm package gate rejects unclassified package entries, root `scripts` leakage, package-root `src`, root `bin`, private dist tooling, declaration files, and source maps.

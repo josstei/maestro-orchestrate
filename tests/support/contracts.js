@@ -1,11 +1,30 @@
-import fs, { readFileSync } from 'node:fs';
-import { REQUIRED_PACKAGE_FILES } from '../../dist/src/tooling/release-artifact-manifest.js';
+import { readFileSync } from 'node:fs';
 import { REPO_ROOT, repoPath } from './paths.js';
 
 const ROOT = REPO_ROOT;
 const packageJson = JSON.parse(readFileSync(repoPath('package.json')));
 
 const VALID_ARTIFACT_SCOPES = new Set(['both', 'npm', 'release']);
+
+const EXPECTED_RUNTIME_NAMES = Object.freeze(['claude', 'codex', 'gemini', 'qwen']);
+
+const EXPECTED_REQUIRED_PACKAGE_FILES = Object.freeze([
+  '.claude-plugin/plugin.json',
+  'claude/.mcp.json',
+  'claude/mcp/maestro-server.js',
+  'dist/src/bin/maestro-install-codex.js',
+  'dist/src/bin/maestro-mcp-server.js',
+  'dist/src/generated/runtime-content-registry.json',
+  'dist/src/generated/runtime-content-registry.txt.gz',
+  'dist/src/mcp/maestro-server.js',
+  'dist/src/platforms/runtime-declarations.js',
+  'gemini-extension.json',
+  'mcp/maestro-server.js',
+  'plugins/maestro/.codex-plugin/plugin.json',
+  'plugins/maestro/.mcp.json',
+  'qwen-extension.json',
+  'qwen/hooks.json',
+]);
 
 const RELEASE_ONLY_PACKAGE_DOCS = [
   'CHANGELOG.md',
@@ -46,7 +65,7 @@ const BUILD_ONLY_SOURCE_PATHS = [
   'src/platforms/metadata.ts',
   'src/platforms/metadata-shared.ts',
   'src/platforms/claude/metadata.ts',
-  'src/platforms/runtime-payload-contract.ts',
+  'src/tooling/runtime-payload-contract.ts',
 ];
 
 const FORBIDDEN_RUNTIME_TEST_PATHS = [
@@ -105,7 +124,7 @@ function packageFiles(extraFiles = [], packageFields = {}) {
     size: 1,
     unpackedSize: 1,
     files: [...new Set([
-      ...REQUIRED_PACKAGE_FILES,
+      ...EXPECTED_REQUIRED_PACKAGE_FILES,
       ...extraFiles,
     ])].map((filePath) => ({ path: filePath })),
     ...packageFields,
@@ -113,11 +132,7 @@ function packageFiles(extraFiles = [], packageFields = {}) {
 }
 
 function runtimeConfigNames() {
-  return fs.readdirSync(repoPath('src', 'platforms'), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name !== 'shared')
-    .filter((entry) => fs.existsSync(repoPath('src', 'platforms', entry.name, 'runtime-config.ts')))
-    .map((entry) => entry.name)
-    .sort();
+  return [...EXPECTED_RUNTIME_NAMES];
 }
 
 export {
@@ -125,13 +140,14 @@ export {
   BUILD_ONLY_DIST_PATHS,
   BUILD_ONLY_SOURCE_ARCHIVE_PATHS,
   BUILD_ONLY_SOURCE_PATHS,
+  EXPECTED_REQUIRED_PACKAGE_FILES,
+  EXPECTED_RUNTIME_NAMES,
   FORBIDDEN_RUNTIME_TEST_PATHS,
   RAW_DIST_CONTENT_PATHS,
   RAW_DIST_CONTENT_ROOTS,
   RELEASE_ONLY_PACKAGE_DOCS,
   REMOVED_SHARED_AGENT_NAMES_MODULE,
   REMOVED_STATE_HELPER_SCRIPTS,
-  REQUIRED_PACKAGE_FILES,
   RETIRED_DETACHED_PAYLOAD_FILES,
   ROOT,
   VALID_ARTIFACT_SCOPES,

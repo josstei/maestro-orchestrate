@@ -1,6 +1,6 @@
 import { buildGeminiFamilyConfig } from '../shared/gemini-family-config.js';
 
-export default buildGeminiFamilyConfig({
+const QWEN_RUNTIME_CONFIG = buildGeminiFamilyConfig({
   name: 'qwen',
   outputDir: 'qwen/',
   mcpPrefix: 'mcp_maestro_',
@@ -43,3 +43,6 @@ export default buildGeminiFamilyConfig({
     toolNames: { askUser: 'ask_user_question', writeTodos: 'todo_write', replace: 'edit' },
   },
 });
+
+export { QWEN_RUNTIME_CONFIG };
+export default QWEN_RUNTIME_CONFIG;

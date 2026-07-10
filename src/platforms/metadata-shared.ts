@@ -1,7 +1,10 @@
 import type { RuntimeName } from './runtime-descriptor.js';
+import type { RuntimeDefinition } from './runtime-declarations.js';
 import { SETTINGS_SCHEMA, SETTING_NAMES } from '../config/settings-schema.js';
 
 const RUNTIME_DESCRIPTION = 'Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands';
+const RUNTIME_FACTS_SECTION_START = '<!-- BEGIN GENERATED RUNTIME FACTS -->';
+const RUNTIME_FACTS_SECTION_END = '<!-- END GENERATED RUNTIME FACTS -->';
 
 export interface PackageAuthor {
   readonly name?: string;
@@ -134,4 +137,33 @@ function buildAuthor(context: MetadataContext): PackageAuthor {
   };
 }
 
-export { RUNTIME_DESCRIPTION, buildAuthor, buildExtensionManifest, buildMetadataContext, buildPackageMcpConfig, buildSettings, normalizeRepositoryUrl, renderJson };
+function renderRuntimeFactsSection(definition: RuntimeDefinition): string {
+  return [
+    RUNTIME_FACTS_SECTION_START,
+    '',
+    `- **Runtime name**: \`${definition.name}\``,
+    `- **Output directory**: \`${definition.config.outputDir}\``,
+    `- **Agent naming**: \`${definition.config.agentNaming}\``,
+    `- **Startup manifest**: \`${definition.payload.startupManifest}\``,
+    '- **Generated surfaces**:',
+    ...definition.payload.generatedSurfaces.map((surface) => `  - \`${surface}\``),
+    '- **Runtime documentation**:',
+    ...definition.payload.docs.map((docPath) => `  - \`${docPath}\``),
+    '',
+    RUNTIME_FACTS_SECTION_END,
+  ].join('\n');
+}
+
+export {
+  RUNTIME_DESCRIPTION,
+  RUNTIME_FACTS_SECTION_END,
+  RUNTIME_FACTS_SECTION_START,
+  buildAuthor,
+  buildExtensionManifest,
+  buildMetadataContext,
+  buildPackageMcpConfig,
+  buildSettings,
+  normalizeRepositoryUrl,
+  renderJson,
+  renderRuntimeFactsSection,
+};

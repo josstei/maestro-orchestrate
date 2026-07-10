@@ -5,7 +5,14 @@ import path from 'node:path';
 import { handleGetAgent } from '../../dist/src/mcp/handlers/get-agent.js';
 import { handleGetSkillContent } from '../../dist/src/mcp/handlers/get-skill-content.js';
 import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
-import { RUNTIME_PAYLOAD_CONTRACT, TOPOLOGY_DECISION, getRuntimePayloadContract } from '../../dist/src/platforms/runtime-payload-contract.js';
+import {
+  RUNTIME_PAYLOAD_CONTRACT,
+  TOPOLOGY_DECISION,
+  assertRuntimePayloadContract,
+  getRuntimePayloadContract,
+  runtimePayloadContractIssues,
+} from '../../dist/src/tooling/runtime-payload-contract.js';
+import { RUNTIME_PACKAGE_INVARIANTS } from '../../dist/src/tooling/artifact-policy.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { runtimeConfigNames } from '../support/contracts.js';
@@ -32,6 +39,20 @@ function readManifestServer(runtime) {
 }
 
 describe('runtime payload contract', () => {
+  it('cross-checks catalog facts against independently authored policy', () => {
+    assert.deepEqual(runtimePayloadContractIssues(), []);
+    assert.doesNotThrow(() => assertRuntimePayloadContract());
+
+    const { gemini: _gemini, ...withoutGemini } = RUNTIME_PACKAGE_INVARIANTS;
+    assert.deepEqual(runtimePayloadContractIssues({ invariants: withoutGemini }), [
+      'gemini: missing independently authored package invariants',
+    ]);
+    assert.throws(
+      () => assertRuntimePayloadContract({ npmProjection: [] }),
+      /package invariant is absent from npm projection/
+    );
+  });
+
   it('records the source-only generated dist topology decision', () => {
     assert.equal(TOPOLOGY_DECISION.mode, 'source-only-generated-dist');
     assert.match(TOPOLOGY_DECISION.canonicalSource, /src\/\*\*\/\*\.ts/);

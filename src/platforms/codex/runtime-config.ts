@@ -1,6 +1,6 @@
 import type { RuntimeConfig } from '../runtime-descriptor.js';
 
-export default {
+const CODEX_RUNTIME_CONFIG = {
   name: 'codex',
   outputDir: 'plugins/maestro/',
 
@@ -67,3 +67,6 @@ export default {
     hooks: null,
   },
 } satisfies RuntimeConfig;
+
+export { CODEX_RUNTIME_CONFIG };
+export default CODEX_RUNTIME_CONFIG;

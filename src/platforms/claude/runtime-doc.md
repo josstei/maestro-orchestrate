@@ -2,6 +2,11 @@
 
 The Claude Code plugin is rooted at the package root and exposes Claude-specific runtime files under `claude/`.
 
+## Runtime Surface Facts
+
+<!-- BEGIN GENERATED RUNTIME FACTS -->
+<!-- END GENERATED RUNTIME FACTS -->
+
 ## Configuration
 
 **Manifest**: `.claude-plugin/plugin.json`

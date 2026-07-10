@@ -1,8 +1,8 @@
 import { buildAuthor, buildPackageMcpConfig, renderJson } from '../metadata-shared.js';
 import type { MetadataContext, MetadataOutput } from '../metadata-shared.js';
-import { requireRuntimeDeclaration } from '../runtime-declarations.js';
+import { requireRuntimeDefinition } from '../runtime-declarations.js';
 
-const DECLARATION = requireRuntimeDeclaration('codex');
+const DEFINITION = requireRuntimeDefinition('codex');
 
 function buildCodexMarketplace(context: MetadataContext): Record<string, unknown> {
   return {
@@ -70,11 +70,11 @@ function buildCodexPluginManifest(context: MetadataContext): Record<string, unkn
 }
 
 function buildCodexMcpConfig(context: MetadataContext): Record<string, unknown> {
-  return buildPackageMcpConfig(context, DECLARATION.name);
+  return buildPackageMcpConfig(context, DEFINITION.name);
 }
 
 function buildMetadataOutputs(context: MetadataContext): MetadataOutput[] {
-  const { marketplacePath, pluginManifestPath, mcpConfigPath } = DECLARATION.metadata;
+  const { marketplacePath, pluginManifestPath, mcpConfigPath } = DEFINITION.metadata;
   if (!marketplacePath || !pluginManifestPath || !mcpConfigPath) {
     throw new Error('Codex runtime declaration is missing metadata output paths');
   }

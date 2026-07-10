@@ -2,7 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPlatformMetadataOutputs } from '../../dist/src/platforms/metadata.js';
 import { buildSettings } from '../../dist/src/platforms/metadata-shared.js';
+import { listRuntimeDefinitions } from '../../dist/src/platforms/runtime-declarations.js';
 import { SETTINGS_SCHEMA, SETTING_NAMES } from '../../dist/src/config/settings-schema.js';
+import { readFileSync } from 'node:fs';
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',
@@ -46,12 +48,10 @@ describe('platform metadata generation', () => {
   });
 
   it('generates all runtime metadata from package identity', async () => {
-    const outputs = outputsByPath(await buildPlatformMetadataOutputs({
-      claude: {},
-      codex: {},
-      gemini: {},
-      qwen: {},
-    }, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(await buildPlatformMetadataOutputs(
+      listRuntimeDefinitions(),
+      PACKAGE_FIXTURE
+    ));
 
     const expectedPaths = [
       '.agents/plugins/marketplace.json',
@@ -107,7 +107,10 @@ describe('platform metadata generation', () => {
   });
 
   it('generates only metadata for enabled runtimes', async () => {
-    const outputs = await buildPlatformMetadataOutputs({ codex: {} }, PACKAGE_FIXTURE);
+    const outputs = await buildPlatformMetadataOutputs(
+      listRuntimeDefinitions().filter((definition) => definition.name === 'codex'),
+      PACKAGE_FIXTURE
+    );
 
     assert.deepEqual(
       outputs.map((output) => output.outputPath).sort(),
@@ -117,5 +120,13 @@ describe('platform metadata generation', () => {
         'plugins/maestro/.mcp.json',
       ]
     );
+  });
+
+  it('uses a static renderer dispatcher with no dynamic metadata imports', () => {
+    const source = readFileSync(new URL('../../src/platforms/metadata.ts', import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /import\(pathToFileURL/);
+    for (const runtime of ['claude', 'codex', 'gemini', 'qwen']) {
+      assert.match(source, new RegExp(`./${runtime}/metadata\\.js`));
+    }
   });
 });

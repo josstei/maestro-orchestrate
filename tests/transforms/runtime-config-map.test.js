@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import * as runtimeConfigMap from '../../dist/src/mcp/runtime/runtime-config-map.js';
 
 describe('runtime-config-map', () => {
-  it('discovers runtimes from platforms/ directory', () => {
+  it('resolves every supported runtime from the static catalog', () => {
     const { getRuntimeConfig } = runtimeConfigMap;
 
     const expected = ['claude', 'codex', 'gemini', 'qwen'];
@@ -28,12 +28,12 @@ describe('runtime-config-map', () => {
     }
   });
 
-  it('getDefaultRuntimeConfig falls back to first discovered runtime without env var', () => {
+  it('getDefaultRuntimeConfig explicitly falls back to Claude without an env var', () => {
     const original = process.env.MAESTRO_RUNTIME;
     try {
       delete process.env.MAESTRO_RUNTIME;
       const config = runtimeConfigMap.getDefaultRuntimeConfig();
-      assert.equal(config.name, 'claude', 'Expected fallback to first alphabetical runtime');
+      assert.equal(config.name, 'claude', 'Expected explicit Claude fallback');
     } finally {
       if (original !== undefined) {
         process.env.MAESTRO_RUNTIME = original;

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import path from 'node:path';
-import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { resolve as resolveTransform } from '../transforms/index.js';
 import { createGenerationSession } from '../generator/generation-session.js';
@@ -18,6 +17,8 @@ import { buildHookConfigOutputs } from '../generator/hook-config-emitter.js';
 import { buildContentFileOutputs } from '../generator/content-file-emitter.js';
 import { moduleDirname } from '../core/module-path.js';
 import { resolvePackageRoot } from '../core/package-root.js';
+import { listRuntimeDefinitions } from '../platforms/runtime-declarations.js';
+import type { RuntimeDefinition } from '../platforms/runtime-declarations.js';
 import { readJson, runAsMain } from './lib/cli.js';
 import type { RuntimeConfig } from '../platforms/runtime-descriptor.js';
 const MODULE_DIR = moduleDirname(import.meta.url);
@@ -50,17 +51,8 @@ type GenerationSession = {
   getPlannedPaths: () => string[];
 };
 
-async function loadRuntimes(): Promise<Record<string, RuntimeConfig>> {
-  const runtimes: Record<string, RuntimeConfig> = {};
-  const configs = fs.readdirSync(path.join(RUNTIME_CODE_SRC, 'platforms'), { withFileTypes: true })
-    .filter((e) => e.isDirectory() && e.name !== 'shared')
-    .map((e) => path.join(e.name, 'runtime-config.js'))
-    .filter((rel) => fs.existsSync(path.join(RUNTIME_CODE_SRC, 'platforms', rel)));
-  for (const file of configs) {
-    const { default: config } = await import(pathToFileURL(path.join(RUNTIME_CODE_SRC, 'platforms', file)).href) as { default: RuntimeConfig };
-    runtimes[config.name] = config;
-  }
-  return runtimes;
+function runtimeConfigMap(definitions: readonly RuntimeDefinition[]): Record<string, RuntimeConfig> {
+  return Object.fromEntries(definitions.map((definition) => [definition.name, definition.config]));
 }
 
 function processManifestEntry(entry: ManifestEntry, runtimes: Record<string, RuntimeConfig>, session: GenerationSession): void {
@@ -99,10 +91,10 @@ function processManifestEntry(entry: ManifestEntry, runtimes: Record<string, Run
   }
 }
 
-async function processEntryPoints(runtimes: Record<string, RuntimeConfig>, session: GenerationSession): Promise<void> {
+async function processEntryPoints(definitions: readonly RuntimeDefinition[], session: GenerationSession): Promise<void> {
   for (const fn of ENTRY_POINT_EXPANDERS) {
-    for (const runtimeName of Object.keys(runtimes)) {
-      for (const { outputPath, content } of await fn(runtimeName, SRC, RUNTIME_CODE_SRC)) {
+    for (const definition of definitions) {
+      for (const { outputPath, content } of await fn(definition, SRC, RUNTIME_CODE_SRC)) {
         session.write(outputPath, content);
       }
     }
@@ -110,7 +102,8 @@ async function processEntryPoints(runtimes: Record<string, RuntimeConfig>, sessi
 }
 
 async function main() {
-  const runtimes = await loadRuntimes();
+  const definitions = listRuntimeDefinitions();
+  const runtimes = runtimeConfigMap(definitions);
   const packageMetadata = readJson(path.join(ROOT, 'package.json'));
   const registryModel = buildRegistryModel(SRC);
   const { default: manifestRules } = await import(pathToFileURL(path.join(SRC, 'manifest.js')).href);
@@ -138,11 +131,11 @@ async function main() {
     processManifestEntry(entry, runtimes, session);
   }
 
-  await processEntryPoints(runtimes, session);
-  session.writeAll(await buildPlatformMetadataOutputs(runtimes, packageMetadata));
+  await processEntryPoints(definitions, session);
+  session.writeAll(await buildPlatformMetadataOutputs(definitions, packageMetadata));
   session.writeAll(buildPolicyTomlOutputs());
   session.writeAll(buildHookConfigOutputs(runtimes));
-  session.writeAll(buildContentFileOutputs(runtimes, SRC, packageMetadata, registryModel.agents));
+  session.writeAll(buildContentFileOutputs(definitions, SRC, packageMetadata, registryModel.agents));
 
   const stats = session.getStats();
 

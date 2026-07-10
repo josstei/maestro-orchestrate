@@ -1,18 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import path from 'node:path';
 
 import {
   assertValidRuntimeGeneration,
   getRuntimeGeneration,
   getAgentToolDialect,
-  getRuntimeConfig,
 } from '../../dist/src/platforms/runtime-descriptor.js';
-
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const SRC = path.resolve(moduleDirname, '../../src');
 
 function validGeneration() {
   return {
@@ -82,15 +75,5 @@ describe('getAgentToolDialect', () => {
 
   it('returns null when no dialect is declared', () => {
     assert.equal(getAgentToolDialect({ name: 'demo' }), null);
-  });
-});
-
-describe('getRuntimeConfig', () => {
-  it('loads a real runtime config by name', async () => {
-    assert.equal((await getRuntimeConfig('gemini', SRC)).name, 'gemini');
-  });
-
-  it('throws for an unknown runtime', async () => {
-    await assert.rejects(() => getRuntimeConfig('definitely-not-a-runtime', SRC), /Unknown runtime "definitely-not-a-runtime"/);
   });
 });

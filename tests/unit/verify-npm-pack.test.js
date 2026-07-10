@@ -15,6 +15,7 @@ import { REQUIRED_PACKAGE_FILES, RUNTIME_DIST_PATHS } from '../../dist/src/tooli
 import {
   BUILD_ONLY_DIST_PATHS,
   BUILD_ONLY_SOURCE_PATHS,
+  EXPECTED_REQUIRED_PACKAGE_FILES,
   FORBIDDEN_RUNTIME_TEST_PATHS,
   RAW_DIST_CONTENT_PATHS,
   RELEASE_ONLY_PACKAGE_DOCS,
@@ -34,11 +35,12 @@ describe('verify npm pack', () => {
   });
 
   it('requires release-critical files in the package', () => {
+    assert.deepEqual(REQUIRED_PACKAGE_FILES, EXPECTED_REQUIRED_PACKAGE_FILES);
     assert.doesNotThrow(() => verifyPackageEntries(packageFiles()));
   });
 
-  it('requires every runtime package invariant in the package', () => {
-    for (const requiredPath of REQUIRED_PACKAGE_FILES) {
+  it('requires every literal test-owned runtime package invariant in the package', () => {
+    for (const requiredPath of EXPECTED_REQUIRED_PACKAGE_FILES) {
       const [packageInfo] = packageFiles();
       packageInfo.files = packageInfo.files.filter((file) => file.path !== requiredPath);
 
@@ -110,9 +112,11 @@ describe('verify npm pack', () => {
     assert.deepEqual(classifyPackageEntry('dist/src/bin/maestro-mcp-server.js'), ['public-bin', 'runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/mcp/maestro-server.js'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/platforms/claude/runtime-config.js'), ['runtime-dist']);
+    assert.deepEqual(classifyPackageEntry('dist/src/platforms/runtime-declarations.js'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.json'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.txt.gz'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generator/file-writer.js'), []);
+    assert.deepEqual(classifyPackageEntry('dist/src/lib/schema/index.js'), []);
   });
 
   it('rejects release-only docs if npm includes them', () => {

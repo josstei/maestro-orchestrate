@@ -1,6 +1,6 @@
 import type { RuntimeConfig } from '../runtime-descriptor.js';
 
-export default {
+const CLAUDE_RUNTIME_CONFIG = {
   name: 'claude',
   outputDir: 'claude/',
 
@@ -72,3 +72,6 @@ export default {
     },
   },
 } satisfies RuntimeConfig;
+
+export { CLAUDE_RUNTIME_CONFIG };
+export default CLAUDE_RUNTIME_CONFIG;

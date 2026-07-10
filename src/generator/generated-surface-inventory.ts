@@ -1,3 +1,16 @@
+import { listRuntimeDefinitions, metadataOutputPaths } from '../platforms/runtime-declarations.js';
+
+const RUNTIME_DEFINITIONS = listRuntimeDefinitions();
+const RUNTIME_CONTEXT_OUTPUTS = Object.freeze(
+  RUNTIME_DEFINITIONS.flatMap((definition) => [
+    definition.config.contextFile && typeof definition.config.contextFile.outputPath === 'string'
+      ? definition.config.contextFile.outputPath
+      : null,
+    ...definition.payload.docs.filter((docPath) => docPath.startsWith('docs/runtime-')),
+    definition.name === 'claude' ? 'claude/README.md' : null,
+  ]).filter((outputPath): outputPath is string => outputPath !== null)
+);
+
 const LIVE_OWNED_GENERATED_DIRS = Object.freeze([
   'agents',
   'claude/agents',
@@ -91,6 +104,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     sourceInputs: [
       'package.json',
       'src/config/settings-schema.ts',
+      'src/platforms/runtime-declarations.ts',
       'src/platforms/*/metadata.ts',
     ],
     outputs: metadataOutputPaths(),
@@ -126,27 +140,14 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
       'src/platforms/shared/runtime-context-template.md',
       'src/platforms/claude/readme-template.md',
       'src/config/settings-schema.ts',
-      'src/platforms/gemini/runtime-config.ts',
-      'src/platforms/claude/runtime-config.ts',
-      'src/platforms/codex/runtime-config.ts',
-      'src/platforms/qwen/runtime-config.ts',
-      'src/platforms/gemini/runtime-doc.md',
-      'src/platforms/claude/runtime-doc.md',
-      'src/platforms/codex/runtime-doc.md',
-      'src/platforms/qwen/runtime-doc.md',
+      'src/platforms/runtime-declarations.ts',
+      ...RUNTIME_DEFINITIONS.map((definition) => `src/platforms/${definition.name}/runtime-config.ts`),
+      ...RUNTIME_DEFINITIONS.map((definition) => `src/platforms/${definition.name}/runtime-doc.md`),
       'src/agents/*.md',
       'src/agent-profiles/*.profile',
       'package.json',
     ],
-    outputs: [
-      'GEMINI.md',
-      'QWEN.md',
-      'claude/README.md',
-      'docs/runtime-gemini.md',
-      'docs/runtime-claude.md',
-      'docs/runtime-codex.md',
-      'docs/runtime-qwen.md',
-    ],
+    outputs: RUNTIME_CONTEXT_OUTPUTS,
     tracked: false,
     packaged: true,
     notes: 'Runtime context files receive agent data from the in-memory RegistryModel and factual setting sections from the canonical SettingSpec catalog, then combine them with the shared template and per-runtime metadata; source registry projections are not read during rendering.',
@@ -186,5 +187,4 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
   },
 ]);
 
-export { GENERATED_SURFACE_INVENTORY, LIVE_OWNED_GENERATED_DIRS, OWNED_GENERATED_DIRS, RETIRED_GENERATED_CLEANUP_DIRS, TRACKED_OUTPUT_EXEMPTIONS };
-import { metadataOutputPaths } from '../platforms/runtime-declarations.js';
+export { GENERATED_SURFACE_INVENTORY, LIVE_OWNED_GENERATED_DIRS, OWNED_GENERATED_DIRS, RETIRED_GENERATED_CLEANUP_DIRS, RUNTIME_CONTEXT_OUTPUTS, TRACKED_OUTPUT_EXEMPTIONS };

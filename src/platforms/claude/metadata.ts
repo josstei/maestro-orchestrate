@@ -1,8 +1,8 @@
 import { RUNTIME_DESCRIPTION, buildAuthor, buildPackageMcpConfig, renderJson } from '../metadata-shared.js';
 import type { MetadataContext, MetadataOutput } from '../metadata-shared.js';
-import { requireRuntimeDeclaration } from '../runtime-declarations.js';
+import { requireRuntimeDefinition } from '../runtime-declarations.js';
 
-const DECLARATION = requireRuntimeDeclaration('claude');
+const DEFINITION = requireRuntimeDefinition('claude');
 
 function buildClaudeMarketplace(context: MetadataContext): Record<string, unknown> {
   return {
@@ -62,7 +62,7 @@ function buildClaudePluginManifest(context: MetadataContext): Record<string, unk
 }
 
 function buildClaudeMcpConfig(context: MetadataContext): Record<string, unknown> {
-  return buildPackageMcpConfig(context, DECLARATION.name);
+  return buildPackageMcpConfig(context, DEFINITION.name);
 }
 
 function buildClaudeLocalMcpConfig() {
@@ -98,7 +98,7 @@ function buildClaudeLocalPluginManifest(context: MetadataContext): Record<string
 }
 
 function buildMetadataOutputs(context: MetadataContext): MetadataOutput[] {
-  const { marketplacePath, pluginManifestPath, mcpConfigPath } = DECLARATION.metadata;
+  const { marketplacePath, pluginManifestPath, mcpConfigPath } = DEFINITION.metadata;
   if (!marketplacePath || !pluginManifestPath || !mcpConfigPath) {
     throw new Error('Claude runtime declaration is missing metadata output paths');
   }

@@ -1,5 +1,8 @@
-import { runtimePackageInvariants } from '../tooling/artifact-policy.js';
-import type { RuntimeName } from './runtime-descriptor.js';
+import { CLAUDE_RUNTIME_CONFIG } from './claude/runtime-config.js';
+import { CODEX_RUNTIME_CONFIG } from './codex/runtime-config.js';
+import { GEMINI_RUNTIME_CONFIG } from './gemini/runtime-config.js';
+import { QWEN_RUNTIME_CONFIG } from './qwen/runtime-config.js';
+import type { RuntimeConfig, RuntimeName } from './runtime-descriptor.js';
 
 const PACKAGE_MCP_SERVER = Object.freeze({
   command: 'npx',
@@ -22,31 +25,32 @@ export interface RuntimeMetadataDeclaration {
   readonly mcpConfigPath?: string;
 }
 
-export interface RuntimePayloadDeclaration {
+export interface RuntimeSurfaceFacts {
   readonly startupManifest: string;
   readonly generatedSurfaces: readonly string[];
-  readonly packageInvariants: readonly string[];
   readonly docs: readonly string[];
 }
 
-export interface RuntimeDeclaration {
+export interface RuntimeDefinition {
   readonly name: RuntimeName;
+  readonly config: RuntimeConfig;
   readonly metadata: RuntimeMetadataDeclaration;
-  readonly payload: RuntimePayloadDeclaration;
+  readonly payload: RuntimeSurfaceFacts;
 }
 
-const RUNTIME_DECLARATIONS = Object.freeze({
-  gemini: {
+const RUNTIME_DEFINITIONS: Readonly<Record<RuntimeName, RuntimeDefinition>> = Object.freeze({
+  gemini: Object.freeze({
     name: 'gemini',
-    metadata: {
-      extensionManifest: {
+    config: GEMINI_RUNTIME_CONFIG,
+    metadata: Object.freeze({
+      extensionManifest: Object.freeze({
         outputPath: 'gemini-extension.json',
         contextFileName: 'GEMINI.md',
-      },
-    },
-    payload: {
+      }),
+    }),
+    payload: Object.freeze({
       startupManifest: 'gemini-extension.json',
-      generatedSurfaces: [
+      generatedSurfaces: Object.freeze([
         'agents/',
         'commands/',
         'hooks/',
@@ -54,21 +58,21 @@ const RUNTIME_DECLARATIONS = Object.freeze({
         'policies/',
         'GEMINI.md',
         'gemini-extension.json',
-      ],
-      packageInvariants: runtimePackageInvariants('gemini'),
-      docs: ['docs/runtime-gemini.md', 'GEMINI.md'],
-    },
-  },
-  claude: {
+      ]),
+      docs: Object.freeze(['docs/runtime-gemini.md', 'GEMINI.md']),
+    }),
+  }),
+  claude: Object.freeze({
     name: 'claude',
-    metadata: {
+    config: CLAUDE_RUNTIME_CONFIG,
+    metadata: Object.freeze({
       marketplacePath: '.claude-plugin/marketplace.json',
       pluginManifestPath: '.claude-plugin/plugin.json',
       mcpConfigPath: 'claude/.mcp.json',
-    },
-    payload: {
+    }),
+    payload: Object.freeze({
       startupManifest: 'claude/.mcp.json',
-      generatedSurfaces: [
+      generatedSurfaces: Object.freeze([
         '.claude-plugin/marketplace.json',
         '.claude-plugin/plugin.json',
         'claude/.mcp.json',
@@ -77,91 +81,102 @@ const RUNTIME_DECLARATIONS = Object.freeze({
         'claude/mcp/',
         'claude/scripts/',
         'claude/skills/',
-      ],
-      packageInvariants: runtimePackageInvariants('claude'),
-      docs: ['docs/runtime-claude.md', 'claude/README.md'],
-    },
-  },
-  codex: {
+      ]),
+      docs: Object.freeze(['docs/runtime-claude.md', 'claude/README.md']),
+    }),
+  }),
+  codex: Object.freeze({
     name: 'codex',
-    metadata: {
+    config: CODEX_RUNTIME_CONFIG,
+    metadata: Object.freeze({
       marketplacePath: '.agents/plugins/marketplace.json',
       pluginManifestPath: 'plugins/maestro/.codex-plugin/plugin.json',
       mcpConfigPath: 'plugins/maestro/.mcp.json',
-    },
-    payload: {
+    }),
+    payload: Object.freeze({
       startupManifest: 'plugins/maestro/.mcp.json',
-      generatedSurfaces: [
+      generatedSurfaces: Object.freeze([
         '.agents/plugins/marketplace.json',
         'plugins/maestro/.app.json',
         'plugins/maestro/.codex-plugin/plugin.json',
         'plugins/maestro/.mcp.json',
         'plugins/maestro/references/',
         'plugins/maestro/skills/',
-      ],
-      packageInvariants: runtimePackageInvariants('codex'),
-      docs: ['docs/runtime-codex.md', 'plugins/maestro/references/runtime-guide.md'],
-    },
-  },
-  qwen: {
+      ]),
+      docs: Object.freeze([
+        'docs/runtime-codex.md',
+        'plugins/maestro/references/runtime-guide.md',
+      ]),
+    }),
+  }),
+  qwen: Object.freeze({
     name: 'qwen',
-    metadata: {
-      extensionManifest: {
+    config: QWEN_RUNTIME_CONFIG,
+    metadata: Object.freeze({
+      extensionManifest: Object.freeze({
         outputPath: 'qwen-extension.json',
         contextFileName: 'QWEN.md',
-      },
-    },
-    payload: {
+      }),
+    }),
+    payload: Object.freeze({
       startupManifest: 'qwen-extension.json',
-      generatedSurfaces: [
+      generatedSurfaces: Object.freeze([
         'qwen/agents/',
         'qwen/hooks.json',
         'QWEN.md',
         'qwen-extension.json',
         'mcp/',
-      ],
-      packageInvariants: runtimePackageInvariants('qwen'),
-      docs: ['docs/runtime-qwen.md', 'QWEN.md'],
-    },
-  },
-} satisfies Record<RuntimeName, RuntimeDeclaration>);
+      ]),
+      docs: Object.freeze(['docs/runtime-qwen.md', 'QWEN.md']),
+    }),
+  }),
+});
+const RUNTIME_DEFINITION_LIST = Object.freeze(Object.values(RUNTIME_DEFINITIONS));
 
-function listRuntimeDeclarations(): RuntimeDeclaration[] {
-  return Object.values(RUNTIME_DECLARATIONS);
+function listRuntimeDefinitions(): readonly RuntimeDefinition[] {
+  return RUNTIME_DEFINITION_LIST;
 }
 
-function getRuntimeDeclaration(runtimeName: RuntimeName | string): RuntimeDeclaration | null {
-  return RUNTIME_DECLARATIONS[runtimeName as RuntimeName] || null;
+function getRuntimeDefinition(name: string): RuntimeDefinition | null {
+  return Object.prototype.hasOwnProperty.call(RUNTIME_DEFINITIONS, name)
+    ? RUNTIME_DEFINITIONS[name as RuntimeName]
+    : null;
 }
 
-function requireRuntimeDeclaration(runtimeName: RuntimeName): RuntimeDeclaration {
-  const declaration = getRuntimeDeclaration(runtimeName);
-  if (!declaration) {
-    throw new Error(`Unknown runtime declaration: ${runtimeName}`);
+function requireRuntimeDefinition(name: RuntimeName): RuntimeDefinition {
+  const definition = getRuntimeDefinition(name);
+  if (!definition) {
+    throw new Error(`Unknown runtime definition: ${name}`);
   }
-  return declaration;
+  return definition;
+}
+
+function getRuntimeConfig(name: RuntimeName | string): RuntimeConfig {
+  const definition = getRuntimeDefinition(name);
+  if (!definition) {
+    throw new Error(`Unknown runtime config: ${name}`);
+  }
+  return definition.config;
 }
 
 function metadataOutputPaths(): string[] {
-  return listRuntimeDeclarations()
-    .flatMap((runtime) => {
-      const metadata = runtime.metadata;
-      return [
-        metadata.extensionManifest?.outputPath,
-        metadata.marketplacePath,
-        metadata.pluginManifestPath,
-        metadata.mcpConfigPath,
-      ].filter(Boolean) as string[];
-    })
+  return listRuntimeDefinitions()
+    .flatMap(({ metadata }) => [
+      metadata.extensionManifest?.outputPath,
+      metadata.marketplacePath,
+      metadata.pluginManifestPath,
+      metadata.mcpConfigPath,
+    ].filter(Boolean) as string[])
     .sort();
 }
 
 export {
   PACKAGE_MCP_SERVER,
   RUNTIME_CONTENT_ROOT,
-  RUNTIME_DECLARATIONS,
-  getRuntimeDeclaration,
-  listRuntimeDeclarations,
+  RUNTIME_DEFINITIONS,
+  getRuntimeConfig,
+  getRuntimeDefinition,
+  listRuntimeDefinitions,
   metadataOutputPaths,
-  requireRuntimeDeclaration,
+  requireRuntimeDefinition,
 };

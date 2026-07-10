@@ -2,12 +2,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { renderRosterTable } from '../core/roster-renderer.js';
 import { SETTINGS_SCHEMA, SETTING_NAMES } from '../config/settings-schema.js';
+import {
+  RUNTIME_FACTS_SECTION_END,
+  RUNTIME_FACTS_SECTION_START,
+  renderRuntimeFactsSection,
+} from '../platforms/metadata-shared.js';
+import type { RuntimeDefinition } from '../platforms/runtime-declarations.js';
 import type {
   AgentNaming,
   AgentRegistryEntry,
   GeneratedOutput,
   GeneratorRuntimeConfig,
-  GeneratorRuntimeMap,
   PackageMetadata,
   RuntimeContextFileConfig,
   RuntimeHookConfig,
@@ -113,10 +118,16 @@ function renderFeatureFlagsTable(runtime: { features: Readonly<Record<string, un
 
 function renderRuntimeDoc(
   template: string,
-  runtime: Pick<GeneratorRuntimeConfig, 'agentNaming'> & { features?: Readonly<Record<string, unknown>> },
+  definition: RuntimeDefinition,
   agents: readonly AgentRegistryEntry[]
 ): string {
+  const runtime = definition.config;
   let content = template.replace('<!-- @feature-flags -->', renderFeatureFlagsTable({ features: runtime.features || {} }));
+  const factsPattern = new RegExp(`${RUNTIME_FACTS_SECTION_START}[\\s\\S]*?${RUNTIME_FACTS_SECTION_END}`);
+  if (!factsPattern.test(content)) {
+    throw new Error(`Runtime doc for "${definition.name}" is missing its generated facts section`);
+  }
+  content = content.replace(factsPattern, renderRuntimeFactsSection(definition));
   content = content.replace(
     '<!-- @roster -->',
     renderRosterTable(agents, { agentNaming: runtime.agentNaming })
@@ -162,7 +173,7 @@ function renderClaudeReadme(
 }
 
 function buildContentFileOutputs(
-  runtimes: GeneratorRuntimeMap,
+  definitions: readonly RuntimeDefinition[],
   srcDir: string,
   packageMetadata: PackageMetadata,
   agents: readonly AgentRegistryEntry[]
@@ -172,7 +183,7 @@ function buildContentFileOutputs(
     'utf8'
   );
   const outputs: GeneratedOutput[] = [];
-  for (const runtime of Object.values(runtimes)) {
+  for (const { config: runtime } of definitions) {
     if (!runtime.contextFile) continue;
     const contextRuntime = runtime as GeneratorRuntimeConfig & {
       contextFile: RuntimeContextFileConfig;
@@ -185,24 +196,29 @@ function buildContentFileOutputs(
     });
   }
 
-  if (runtimes.claude) {
+  const claude = definitions.find((definition) => definition.name === 'claude');
+  if (claude) {
     const readmeTemplate = fs.readFileSync(
       path.join(srcDir, 'platforms', 'claude', 'readme-template.md'),
       'utf8'
     );
     outputs.push({
       outputPath: 'claude/README.md',
-      content: renderClaudeReadme(readmeTemplate, packageMetadata, agents, runtimes.claude.agentNaming),
+      content: renderClaudeReadme(readmeTemplate, packageMetadata, agents, claude.config.agentNaming),
     });
   }
 
-  for (const runtime of Object.values(runtimes)) {
-    const runtimeDocPath = path.join(srcDir, 'platforms', runtime.name, 'runtime-doc.md');
+  for (const definition of definitions) {
+    const runtimeDocPath = path.join(srcDir, 'platforms', definition.name, 'runtime-doc.md');
     if (!fs.existsSync(runtimeDocPath)) continue;
     const runtimeDocTemplate = fs.readFileSync(runtimeDocPath, 'utf8');
+    const outputPath = definition.payload.docs.find((docPath) => docPath.startsWith('docs/runtime-'));
+    if (!outputPath) {
+      throw new Error(`Runtime definition "${definition.name}" is missing its generated runtime doc path`);
+    }
     outputs.push({
-      outputPath: `docs/runtime-${runtime.name}.md`,
-      content: renderRuntimeDoc(runtimeDocTemplate, runtime, agents),
+      outputPath,
+      content: renderRuntimeDoc(runtimeDocTemplate, definition, agents),
     });
   }
 

@@ -47,6 +47,7 @@ const RUNTIME_DIST_PATHS = Object.freeze([
   'dist/src/platforms/codex/runtime-config.js',
   'dist/src/platforms/gemini/runtime-config.js',
   'dist/src/platforms/qwen/runtime-config.js',
+  'dist/src/platforms/runtime-declarations.js',
   'dist/src/platforms/shared/adapters',
   'dist/src/platforms/shared/gemini-family-config.js',
   'dist/src/platforms/shared/hook-runner.js',
@@ -178,6 +179,7 @@ const RUNTIME_PACKAGE_INVARIANTS = Object.freeze({
     'dist/src/generated/runtime-content-registry.json',
     'dist/src/generated/runtime-content-registry.txt.gz',
     'dist/src/mcp/maestro-server.js',
+    'dist/src/platforms/runtime-declarations.js',
     'gemini-extension.json',
     'mcp/maestro-server.js',
   ]),
@@ -189,6 +191,7 @@ const RUNTIME_PACKAGE_INVARIANTS = Object.freeze({
     'dist/src/generated/runtime-content-registry.json',
     'dist/src/generated/runtime-content-registry.txt.gz',
     'dist/src/mcp/maestro-server.js',
+    'dist/src/platforms/runtime-declarations.js',
   ]),
   codex: Object.freeze([
     'dist/src/bin/maestro-install-codex.js',
@@ -196,6 +199,7 @@ const RUNTIME_PACKAGE_INVARIANTS = Object.freeze({
     'dist/src/generated/runtime-content-registry.json',
     'dist/src/generated/runtime-content-registry.txt.gz',
     'dist/src/mcp/maestro-server.js',
+    'dist/src/platforms/runtime-declarations.js',
     'plugins/maestro/.codex-plugin/plugin.json',
     'plugins/maestro/.mcp.json',
   ]),
@@ -204,6 +208,7 @@ const RUNTIME_PACKAGE_INVARIANTS = Object.freeze({
     'dist/src/generated/runtime-content-registry.json',
     'dist/src/generated/runtime-content-registry.txt.gz',
     'dist/src/mcp/maestro-server.js',
+    'dist/src/platforms/runtime-declarations.js',
     'qwen-extension.json',
     'qwen/hooks.json',
     'mcp/maestro-server.js',
@@ -266,6 +271,10 @@ const PRIVATE_SCRIPT_ROLES: Readonly<Record<string, PrivateScriptRole>> = Object
   'src/tooling/release-version-metadata.ts': {
     role: 'release-only',
     note: 'Release version metadata support; private to source checkouts.',
+  },
+  'src/tooling/runtime-payload-contract.ts': {
+    role: 'release-only',
+    note: 'Cross-checks runtime catalog facts against independently authored artifact policy.',
   },
   'src/tooling/update-versions.ts': {
     role: 'release-only',
@@ -407,10 +416,6 @@ const PACKAGE_SURFACE_RULES: readonly PackageSurfaceRule[] = Object.freeze([
   buildRuntimeDistPackageRule(),
 ]);
 
-function runtimePackageInvariants(runtimeName: keyof typeof RUNTIME_PACKAGE_INVARIANTS): readonly string[] {
-  return RUNTIME_PACKAGE_INVARIANTS[runtimeName];
-}
-
 export {
   ARTIFACT_SCOPE,
   ARTIFACT_INVENTORY,
@@ -425,7 +430,6 @@ export {
   RUNTIME_PACKAGE_INVARIANTS,
   npmFiles,
   releasePaths,
-  runtimePackageInvariants,
 };
 
 export type { ArtifactInventoryEntry, ArtifactScope, PackageBudget, PackageSurfaceRule };

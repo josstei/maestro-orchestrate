@@ -4,7 +4,9 @@ import { pathToFileURL } from 'node:url';
 import { moduleDirname } from '../core/module-path.js';
 import { toTitleCase } from '../lib/naming/index.js';
 import { emitInlineQuotedList } from '../lib/yaml-emit.js';
-import { getRuntimeConfig, getRuntimeGeneration } from '../platforms/runtime-descriptor.js';
+import { getRuntimeDefinition } from '../platforms/runtime-declarations.js';
+import type { RuntimeDefinition } from '../platforms/runtime-declarations.js';
+import { getRuntimeGeneration } from '../platforms/runtime-descriptor.js';
 import type { RuntimeName } from '../platforms/runtime-descriptor.js';
 import type { EntryPointRegistryEntry, GeneratedOutput, StringMap } from './types.js';
 const DEFAULT_SRC = path.resolve(moduleDirname(import.meta.url), '..');
@@ -51,6 +53,16 @@ function applySubstitutions(template: string, substitutions: StringMap): string 
   return content;
 }
 
+function resolveRuntimeDefinition(runtime: RuntimeDefinition | string): RuntimeDefinition {
+  if (typeof runtime !== 'string') return runtime;
+
+  const definition = getRuntimeDefinition(runtime);
+  if (!definition) {
+    throw new Error(`Unknown runtime "${runtime}"`);
+  }
+  return definition;
+}
+
 function runTemplateExpansion({
   runtimeName,
   registry,
@@ -79,17 +91,19 @@ function runTemplateExpansion({
 }
 
 /**
- * @param {string} runtimeName
+ * @param {RuntimeDefinition | string} runtime
  * @param {string} [srcDir] Content root for registries and templates.
- * @param {string} [codeSrcDir] Executable module root for compiled helpers and runtime configs.
+ * @param {string} [codeSrcDir] Executable module root for compiled helpers.
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 async function expandEntryPoints(
-  runtimeName: string,
+  runtime: RuntimeDefinition | string,
   srcDir = DEFAULT_SRC,
   codeSrcDir = DEFAULT_SRC
 ): Promise<GeneratedOutput[]> {
-  const config = getRuntimeGeneration(await getRuntimeConfig(runtimeName, codeSrcDir)).entryPoint;
+  const definition = resolveRuntimeDefinition(runtime);
+  const runtimeName = definition.name;
+  const config = getRuntimeGeneration(definition.config).entryPoint;
   if (!config) return [];
 
   const { default: registry } = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'registry.js')).href) as {
@@ -116,17 +130,19 @@ async function expandEntryPoints(
 }
 
 /**
- * @param {string} runtimeName
+ * @param {RuntimeDefinition | string} runtime
  * @param {string} [srcDir] Content root for registries and templates.
- * @param {string} [codeSrcDir] Executable module root for compiled helpers and runtime configs.
+ * @param {string} [codeSrcDir] Executable module root for compiled helpers.
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 async function expandCoreCommands(
-  runtimeName: string,
+  runtime: RuntimeDefinition | string,
   srcDir = DEFAULT_SRC,
   codeSrcDir = DEFAULT_SRC
 ): Promise<GeneratedOutput[]> {
-  const config = getRuntimeGeneration(await getRuntimeConfig(runtimeName, codeSrcDir)).coreCommand;
+  const definition = resolveRuntimeDefinition(runtime);
+  const runtimeName = definition.name;
+  const config = getRuntimeGeneration(definition.config).coreCommand;
   if (!config) return [];
 
   const { default: registry } = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'core-command-registry.js')).href) as {

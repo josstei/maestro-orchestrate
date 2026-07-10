@@ -8,11 +8,12 @@ import {
   LIVE_OWNED_GENERATED_DIRS,
   OWNED_GENERATED_DIRS,
   RETIRED_GENERATED_CLEANUP_DIRS,
+  RUNTIME_CONTEXT_OUTPUTS,
   TRACKED_OUTPUT_EXEMPTIONS,
 } from '../../dist/src/generator/generated-surface-inventory.js';
 
 import { OWNED_GENERATED_DIRS as GENERATE_OWNED_GENERATED_DIRS } from '../../dist/src/tooling/generate.js';
-import { RUNTIME_PAYLOAD_CONTRACT } from '../../dist/src/platforms/runtime-payload-contract.js';
+import { RUNTIME_PAYLOAD_CONTRACT } from '../../dist/src/tooling/runtime-payload-contract.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
@@ -37,6 +38,18 @@ describe('generated surface inventory', () => {
       'registry-outputs',
       'retired-generated-cleanup-roots',
       'runtime-context-outputs',
+    ]);
+  });
+
+  it('projects runtime context outputs from positive catalog facts', () => {
+    assert.deepEqual([...RUNTIME_CONTEXT_OUTPUTS].sort(), [
+      'GEMINI.md',
+      'QWEN.md',
+      'claude/README.md',
+      'docs/runtime-claude.md',
+      'docs/runtime-codex.md',
+      'docs/runtime-gemini.md',
+      'docs/runtime-qwen.md',
     ]);
   });
 

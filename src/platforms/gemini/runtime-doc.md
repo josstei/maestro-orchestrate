@@ -2,6 +2,11 @@
 
 The Gemini CLI extension lives at the repository root. It is the primary runtime target.
 
+## Runtime Surface Facts
+
+<!-- BEGIN GENERATED RUNTIME FACTS -->
+<!-- END GENERATED RUNTIME FACTS -->
+
 ## Configuration
 
 **Manifest**: `gemini-extension.json`

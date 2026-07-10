@@ -1,31 +1,14 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { moduleDirname } from '../../core/module-path.js';
-const PLATFORMS_DIR = path.resolve(moduleDirname(import.meta.url), '..', '..', 'platforms');
+import {
+  getRuntimeConfig as getCatalogRuntimeConfig,
+  getRuntimeDefinition,
+} from '../../platforms/runtime-declarations.js';
 
-const RUNTIME_NAMES = fs.readdirSync(PLATFORMS_DIR, { withFileTypes: true })
-  .filter((entry: any) => entry.isDirectory() && entry.name !== 'shared')
-  .filter((entry: any) =>
-    fs.existsSync(path.join(PLATFORMS_DIR, entry.name, 'runtime-config.js'))
-  )
-  .map((entry: any) => entry.name)
-  .sort();
-
-const configCache = Object.create(null);
-
-for (const name of RUNTIME_NAMES) {
-  const configPath = path.join(PLATFORMS_DIR, name, 'runtime-config.js');
-  const { default: config } = await import(pathToFileURL(configPath).href);
-  configCache[name] = config;
-}
-
-function loadRuntimeConfig(name: any) {
-  return configCache[name];
+function loadRuntimeConfig(name: string) {
+  return getCatalogRuntimeConfig(name);
 }
 
 function getRuntimeConfig(name: any) {
-  if (!RUNTIME_NAMES.includes(name)) {
+  if (typeof name !== 'string' || !getRuntimeDefinition(name)) {
     throw new Error(`Unknown runtime config: ${name}`);
   }
 
@@ -34,15 +17,11 @@ function getRuntimeConfig(name: any) {
 
 function getDefaultRuntimeConfig() {
   const runtime = process.env.MAESTRO_RUNTIME;
-  if (runtime && RUNTIME_NAMES.includes(runtime)) {
+  if (runtime && getRuntimeDefinition(runtime)) {
     return loadRuntimeConfig(runtime);
   }
 
-  if (RUNTIME_NAMES.length === 0) {
-    throw new Error('No runtime configs found in platforms/');
-  }
-
-  return loadRuntimeConfig(RUNTIME_NAMES[0]);
+  return loadRuntimeConfig('claude');
 }
 
 function isPlainObject(value: any) {
@@ -71,7 +50,7 @@ function normalizeRuntimeConfig(runtimeConfig: any) {
   }
 
   if (typeof runtimeConfig === 'object' && runtimeConfig.name) {
-    if (RUNTIME_NAMES.includes(runtimeConfig.name)) {
+    if (getRuntimeDefinition(runtimeConfig.name)) {
       return mergeRuntimeConfig(getRuntimeConfig(runtimeConfig.name), runtimeConfig);
     }
 

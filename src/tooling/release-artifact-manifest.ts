@@ -8,6 +8,7 @@ import {
   releasePaths,
 } from './artifact-policy.js';
 import { readJson as readJsonFile } from './lib/cli.js';
+import { assertRuntimePayloadContract } from './runtime-payload-contract.js';
 const RELEASE_ARTIFACT_PATHS = releasePaths();
 
 type VersionEntry = [label: string, version: string];
@@ -204,6 +205,7 @@ function assertVersionConsistency(root: string, expectedVersion: string | null =
 }
 
 function assertRuntimeManifestShape(root: string, expectedVersion: string | null = null): string {
+  assertRuntimePayloadContract();
   const version = assertVersionConsistency(root, expectedVersion);
   const pkg = readJson(root, 'package.json');
   const gemini = readJson(root, 'gemini-extension.json');
@@ -311,6 +313,7 @@ function assertRuntimeManifestShape(root: string, expectedVersion: string | null
     'dist/src/generated/runtime-content-registry.json',
     'dist/src/generated/runtime-content-registry.txt.gz',
     'dist/src/mcp/maestro-server.js',
+    'dist/src/platforms/runtime-declarations.js',
   ];
 
   for (const relativePath of requiredRuntimeFiles) {

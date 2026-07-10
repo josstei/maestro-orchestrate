@@ -112,6 +112,7 @@
     "dist/src/platforms/codex/runtime-config.js",
     "dist/src/platforms/gemini/runtime-config.js",
     "dist/src/platforms/qwen/runtime-config.js",
+    "dist/src/platforms/runtime-declarations.js",
     "dist/src/platforms/shared/adapters",
     "dist/src/platforms/shared/gemini-family-config.js",
     "dist/src/platforms/shared/hook-runner.js",
