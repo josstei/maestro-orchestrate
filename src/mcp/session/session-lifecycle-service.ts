@@ -12,7 +12,7 @@ import {
 import { recordAgentPerformance } from '../handlers/agent-performance.js';
 import { recordPlanAccuracy } from '../handlers/plan-accuracy.js';
 import { recordArchitectureMemory } from '../handlers/architecture-memory.js';
-import { SCHEMA_VERSION } from '../handlers/session-migrations.js';
+import { SCHEMA_VERSION } from './session-migrations.js';
 import { attempt } from '../handlers/attempt.js';
 import { findOrphanedApprovedGates } from './design-gate-repository.js';
 import {
@@ -21,15 +21,10 @@ import {
   resolveImplementationPlan,
 } from './document-repository.js';
 import {
-  archiveActiveSessionFile,
   assertNoInProgressSession,
   assertValidActiveSession,
-  extractBody,
-  readCurrentSessionOrNull,
-  withValidatedSession,
-  writeActiveSession,
-  writeNewActiveSession,
-} from './session-repository.js';
+  sessionStore,
+} from './session-store.js';
 import {
   createEmptySessionTokenUsage,
   createPendingPhaseState,
@@ -134,7 +129,7 @@ function createSession(params: any, projectRoot: any) {
   const implementationPlan = resolveImplementationPlan(params, projectRoot);
 
   const state = buildInitialSessionState(params, { designDocument, implementationPlan });
-  const sessionPath = writeNewActiveSession(
+  const sessionPath = sessionStore.create(
     projectRoot,
     state,
     `# ${params.task} Orchestration Log\n`
@@ -147,7 +142,7 @@ function createSession(params: any, projectRoot: any) {
 }
 
 function getSessionStatus(_params: any, projectRoot: any) {
-  const session = readCurrentSessionOrNull(projectRoot);
+  const session = sessionStore.readOrNull(projectRoot);
   if (!session) {
     return {
       exists: false,
@@ -158,7 +153,7 @@ function getSessionStatus(_params: any, projectRoot: any) {
   const { state } = session;
   return {
     exists: true,
-    session_id: state.session_id,
+    session_id: state.session_id as string,
     status: state.status,
     workflow_mode: state.workflow_mode || 'standard',
     current_phase: state.current_phase,
@@ -177,10 +172,11 @@ function getSessionStatus(_params: any, projectRoot: any) {
 }
 
 function archiveSession(params: any, projectRoot: any) {
-  const { state, basePath, sessionPath, content } = assertValidActiveSession(
+  const document = assertValidActiveSession(
     projectRoot,
     params.session_id
   );
+  const { state, basePath } = document;
 
   const pendingRec = (state.phases || []).find(
     (phase: any) => phase.requires_reconciliation === true
@@ -198,9 +194,9 @@ function archiveSession(params: any, projectRoot: any) {
 
   state.status = 'completed';
   state.updated = new Date().toISOString();
-  writeActiveSession(basePath, state, extractBody(content));
+  sessionStore.write(document, state);
 
-  const archivePath = archiveActiveSessionFile(basePath, sessionPath, params.session_id);
+  const archivePath = sessionStore.archive(document, params.session_id);
   const archivedFiles = [
     archivePath,
     ...archivePlansDocuments(basePath, projectRoot, [state.design_document, state.implementation_plan]),
@@ -216,7 +212,7 @@ function archiveSession(params: any, projectRoot: any) {
 }
 
 function updateSession(params: any, projectRoot: any) {
-  return withValidatedSession(projectRoot, params.session_id, ({ state }: any) => {
+  return sessionStore.update(projectRoot, params.session_id, ({ state }: any) => {
     const updatableFields = [
       'execution_mode',
       'execution_backend',

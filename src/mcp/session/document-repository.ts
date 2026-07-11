@@ -5,7 +5,7 @@ import {
   ensurePlansDocumentInPlans,
   resolveDocumentInput,
   writePlansDocumentContent,
-} from '../handlers/document-input.js';
+} from './document-input.js';
 
 function materializeSessionDocument(projectRoot: any, documentPath: any, documentKind: any) {
   if (typeof documentPath !== 'string' || documentPath.length === 0) {

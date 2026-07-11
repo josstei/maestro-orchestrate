@@ -9,7 +9,7 @@ import { handleRecallSimilarSessions } from '../../dist/src/mcp/handlers/recall.
 function writeArchive(projectRoot, sessionId, data) {
   const dir = path.join(resolveStateDirPath(projectRoot), 'state', 'archive');
   fs.mkdirSync(dir, { recursive: true });
-  const content = `---\n${JSON.stringify(data, null, 2)}\n---\n`;
+  const content = `---\n${JSON.stringify({ status: 'completed', ...data }, null, 2)}\n---\n`;
   fs.writeFileSync(path.join(dir, `${sessionId}.md`), content);
 }
 

@@ -5,7 +5,7 @@ import {
   assertPlansFilename,
   resolveDocumentInputVariant,
   writePlansDocumentContent,
-} from './document-input.js';
+} from '../session/document-input.js';
 import { buildDesignApprovalConsentSchema } from '../server/elicitation-schemas.js';
 import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
 import { zodSchemas } from '../tool-packs/session/zod-schemas.js';

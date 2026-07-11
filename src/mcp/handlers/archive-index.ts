@@ -1,6 +1,6 @@
 import path from 'path';
-import { readActiveSessionOrNull } from './session-state-core.js';
 import { mergeAgentLedgers, summarizeLedger } from '../contracts/agent-cost-ledger.js';
+import { sessionStore } from '../session/session-store.js';
 import {
   parseArchivedSessionState,
   collectAgents,
@@ -136,7 +136,7 @@ function handleGetCostInsights(params: any, projectRoot: any) {
   const sources = readArchivedSessionSummaries(projectRoot);
   let activeIncluded = false;
   if (params && params.include_active === true) {
-    const active = readActiveSessionOrNull(projectRoot);
+    const active = sessionStore.readOrNull(projectRoot);
     if (active && active.state) {
       sources.push(toSummary(active.state, null));
       activeIncluded = true;

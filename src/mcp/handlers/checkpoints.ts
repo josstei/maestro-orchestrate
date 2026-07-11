@@ -5,12 +5,10 @@ import {
   assertActiveSessionMatches,
   extractBody,
   parseSessionState,
-  readActiveSession,
-  readActiveSessionOrNull,
   resolveBasePath,
   serializeSessionState,
-  writeActiveSession,
-} from './session-state-core.js';
+  sessionStore,
+} from '../session/session-store.js';
 
 import { NotFoundError, StateError, ValidationError } from '../../lib/errors/index.js';
 import { assertSessionId } from '../../lib/validation/index.js';
@@ -57,7 +55,7 @@ function latestCompletedPhaseId(state: any) {
 }
 
 function checkpointBody(projectRoot: any) {
-  const active = readActiveSessionOrNull(projectRoot);
+  const active = sessionStore.readOrNull(projectRoot);
   return active ? extractBody(active.content) : '';
 }
 
@@ -170,7 +168,7 @@ function handleRestoreCheckpoint(params: any, projectRoot: any) {
   assertSessionId(params.session_id);
   const phaseId = assertPositiveIntegerPhaseId(params.phase_id);
 
-  const active = readActiveSession(projectRoot);
+  const active = sessionStore.read(projectRoot);
   assertActiveSessionMatches(active.state, params.session_id);
 
   const checkpoint = readCheckpoint(active.basePath, params.session_id, phaseId);
@@ -183,7 +181,7 @@ function handleRestoreCheckpoint(params: any, projectRoot: any) {
   }
 
   const restored = restoreSnapshotState(snapshotState, phaseId);
-  writeActiveSession(active.basePath, restored, extractBody(checkpoint.content));
+  sessionStore.write(active, restored, extractBody(checkpoint.content));
 
   return {
     session_id: params.session_id,

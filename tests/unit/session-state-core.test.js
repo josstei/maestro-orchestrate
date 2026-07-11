@@ -1,9 +1,19 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { StateError, ValidationError } from '../../dist/src/lib/errors/index.js';
-import { assertActiveSessionMatches, extractFileManifest } from '../../dist/src/mcp/handlers/session-state-core.js';
-import { buildMcpServer, ensureMaestroWorkspace, makeTempWorkspace } from '../support/mcp.js';
+import * as compatibility from '../../dist/src/mcp/handlers/session-state-core.js';
+import * as canonical from '../../dist/src/mcp/session/session-store.js';
+import * as repository from '../../dist/src/mcp/session/session-repository.js';
+import { createSession } from '../../dist/src/mcp/session/session-lifecycle-service.js';
+import {
+  buildMcpServer,
+  ensureMaestroWorkspace,
+  makeTempWorkspace,
+  phaseFixture,
+} from '../support/mcp.js';
 import { registerSessionPack } from '../../dist/src/mcp/tool-packs/session/index.js';
+
+const { assertActiveSessionMatches, extractFileManifest } = compatibility;
 
 describe('assertActiveSessionMatches', () => {
   it('does not throw when the session_id matches', () => {
@@ -84,5 +94,94 @@ describe('extractFileManifest', () => {
     const result = extractFileManifest({ files_created: null, files_modified: null });
     assert.deepEqual(result.filesCreated, []);
     assert.equal(result.hasFiles, false);
+  });
+});
+
+describe('session-state-core compatibility surface', () => {
+  it('re-exports every core helper from the canonical store module', () => {
+    const names = [
+      'resolveBasePath',
+      'resolveActiveSessionPath',
+      'parseSessionState',
+      'serializeSessionState',
+      'extractBody',
+      'readActiveSession',
+      'readActiveSessionOrNull',
+      'writeActiveSession',
+      'withSessionState',
+      'assertActiveSessionMatches',
+      'extractFileManifest',
+      'createPendingPhaseProgress',
+      'assertValidActiveSession',
+      'withValidatedSession',
+    ];
+    assert.deepEqual(Object.keys(compatibility).sort(), names.sort());
+    for (const name of names) {
+      assert.equal(compatibility[name], canonical[name]);
+    }
+  });
+
+  it('retains the session-repository export surface over the canonical store', () => {
+    const names = [
+      'archiveActiveSessionFile',
+      'assertNoInProgressSession',
+      'assertValidActiveSession',
+      'extractBody',
+      'parseSessionState',
+      'readCurrentSession',
+      'readCurrentSessionOrNull',
+      'withSessionState',
+      'withValidatedSession',
+      'writeActiveSession',
+      'writeNewActiveSession',
+    ];
+    assert.deepEqual(Object.keys(repository).sort(), names.sort());
+    for (const name of names) {
+      assert.equal(repository[name], canonical[name]);
+    }
+  });
+
+  it('retains permissive legacy mutation outcomes without silently writing state', () => {
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-core-compat-'));
+    createSession(
+      {
+        session_id: 'compat-session',
+        task: 'compatibility',
+        phases: [phaseFixture()],
+      },
+      workspace
+    );
+
+    const missingOutcome = compatibility.withSessionState(workspace, ({ state }) => {
+      state.current_batch = 'discarded';
+    });
+    assert.equal(missingOutcome, undefined);
+    assert.equal(canonical.sessionStore.read(workspace).state.current_batch, null);
+
+    const responseOnly = compatibility.withSessionState(workspace, ({ state }) => {
+      state.current_batch = 'also-discarded';
+      return { response: 'legacy-response' };
+    });
+    assert.equal(responseOnly, 'legacy-response');
+    assert.equal(canonical.sessionStore.read(workspace).state.current_batch, null);
+
+    compatibility.withSessionState(workspace, () => ({
+      response: null,
+      writeBack: true,
+      body: undefined,
+    }));
+    assert.equal(canonical.sessionStore.read(workspace).body, '');
+
+    compatibility.withSessionState(workspace, (session) => {
+      session.content = compatibility.serializeSessionState(
+        session.state,
+        '# body from replacement content\n'
+      );
+      return { response: null, writeBack: true };
+    });
+    assert.equal(
+      canonical.sessionStore.read(workspace).body,
+      '# body from replacement content\n'
+    );
   });
 });

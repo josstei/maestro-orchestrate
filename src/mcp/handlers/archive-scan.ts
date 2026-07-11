@@ -1,8 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import * as markdownState from '../../core/markdown-state.js';
 import { resolveStateDirPath } from '../../state/session-state.js';
-import { migrateSessionState } from './session-migrations.js';
+import { parseSessionState } from '../session/session-store.js';
 import { attempt } from './attempt.js';
 
 /**
@@ -16,13 +15,13 @@ function archiveDirectoryPath(projectRoot: any) {
 /**
  * Parse an archived session document and bring it up to the current schema
  * version. Shared by every archive parse site so each is migration-routed
- * identically to the active read path in `session-state-core.js`.
+ * identically to the active read path in `session-store.js`.
  *
  * @param {string} raw - raw archived session-state file content
  * @returns {object} migrated session-state frontmatter data
  */
 function parseArchivedSessionState(raw: any) {
-  return migrateSessionState(markdownState.parse(raw).data);
+  return parseSessionState(raw);
 }
 
 /**

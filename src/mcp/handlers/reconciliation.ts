@@ -4,9 +4,9 @@ import { ValidationError, NotFoundError, StateError } from '../../lib/errors/ind
 
 import {
   assertValidActiveSession,
-  withValidatedSession,
   extractFileManifest,
-} from './session-state-core.js';
+  sessionStore,
+} from '../session/session-store.js';
 
 import { isExtensionCachePath } from '../../core/workspace-path.js';
 import { isValidPhaseId } from '../contracts/plan-schema.js';
@@ -163,7 +163,7 @@ function handleReconcilePhase(params: any, projectRoot: any) {
     );
   }
 
-  return withValidatedSession(projectRoot, params.session_id, ({ state }: any) => {
+  return sessionStore.update(projectRoot, params.session_id, ({ state }: any) => {
     const phase = (state.phases || []).find((p: any) => p.id === params.phase_id);
     if (!phase) {
       throw new NotFoundError(`Phase ${params.phase_id} not found`);

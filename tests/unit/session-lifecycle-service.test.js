@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import * as markdownState from '../../dist/src/core/markdown-state.js';
 import {
   archiveSession,
   createSession,
@@ -18,6 +19,7 @@ import {
   createEmptySessionTokenUsage,
   createPendingPhaseState,
 } from '../../dist/src/mcp/session/session-state-factory.js';
+import { sessionStore } from '../../dist/src/mcp/session/session-store.js';
 import {
   ensureMaestroWorkspace,
   makeTempWorkspace,
@@ -166,5 +168,115 @@ describe('current session contracts and factories', () => {
     );
     const state = readSessionFrontmatter(workspace);
     assert.throws(() => SessionStateSchema.parse({ ...state, future_field: true }));
+  });
+});
+
+describe('session store boundary', () => {
+  it('validates new state strictly before writing and reads migrated unknown fields tolerantly', () => {
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-store-'));
+    const created = createSession(
+      {
+        session_id: 'store-session',
+        task: 'store boundary',
+        phases: [phaseFixture()],
+      },
+      workspace
+    );
+    const originalContent = fs.readFileSync(created.path, 'utf8');
+    const state = readSessionFrontmatter(workspace);
+
+    assert.throws(() => {
+      sessionStore.create(
+        workspace,
+        { ...state, future_current_field: true },
+        '# replacement\n'
+      );
+    });
+    assert.equal(fs.readFileSync(created.path, 'utf8'), originalContent);
+
+    const futureState = {
+      ...state,
+      future_session_field: { retained: true },
+      phases: state.phases.map((phase) => ({
+        ...phase,
+        future_phase_field: ['retained'],
+      })),
+    };
+    fs.writeFileSync(
+      created.path,
+      markdownState.serialize(futureState, '# retained body\n')
+    );
+
+    const document = sessionStore.read(workspace);
+    assert.deepEqual(document.state.future_session_field, { retained: true });
+    assert.deepEqual(document.state.phases[0].future_phase_field, ['retained']);
+    assert.equal(document.body, '# retained body\n');
+
+    updateSession(
+      { session_id: 'store-session', execution_mode: 'sequential' },
+      workspace
+    );
+    const updated = sessionStore.read(workspace);
+    assert.deepEqual(updated.state.future_session_field, { retained: true });
+    assert.deepEqual(updated.state.phases[0].future_phase_field, ['retained']);
+  });
+
+  it('requires explicit mutation outcomes and preserves or overrides the body deliberately', () => {
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-mutation-'));
+    createSession(
+      {
+        session_id: 'mutation-session',
+        task: 'mutation boundary',
+        phases: [phaseFixture()],
+      },
+      workspace
+    );
+
+    assert.throws(
+      () => sessionStore.update(
+        workspace,
+        'mutation-session',
+        ({ state }) => {
+          state.current_batch = 'silently-dropped';
+        }
+      ),
+      (error) => error.code === 'INVALID_SESSION_MUTATION'
+    );
+    assert.equal(sessionStore.read(workspace).state.current_batch, null);
+
+    const readOnly = sessionStore.update(
+      workspace,
+      'mutation-session',
+      ({ state }) => {
+        state.current_batch = 'read-only';
+        return { response: 'not-written', writeBack: false };
+      }
+    );
+    assert.equal(readOnly, 'not-written');
+    assert.equal(sessionStore.read(workspace).state.current_batch, null);
+
+    sessionStore.update(
+      workspace,
+      'mutation-session',
+      ({ state }) => {
+        state.current_batch = 'written';
+        return { response: null, writeBack: true };
+      }
+    );
+    assert.equal(sessionStore.read(workspace).body, '# mutation boundary Orchestration Log\n');
+
+    sessionStore.update(
+      workspace,
+      'mutation-session',
+      () => ({ response: null, writeBack: true, body: '# overridden\n' })
+    );
+    assert.equal(sessionStore.read(workspace).body, '# overridden\n');
+
+    sessionStore.update(
+      workspace,
+      'mutation-session',
+      () => ({ response: null, writeBack: true, body: undefined })
+    );
+    assert.equal(sessionStore.read(workspace).body, '');
   });
 });

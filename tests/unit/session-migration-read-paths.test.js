@@ -19,6 +19,17 @@ function legacyDocument(sessionId) {
 }
 
 describe('session-state migration on both read paths', () => {
+  it('preserves exact Markdown and JSON parse failures before migration/validation', () => {
+    assert.throws(
+      () => parseSessionState('# no frontmatter\n'),
+      { message: 'No YAML frontmatter found in session state' }
+    );
+    assert.throws(
+      () => parseSessionState('---\n{not json}\n---\n'),
+      SyntaxError
+    );
+  });
+
   it('parseSessionState backfills schema_version and phase counters', () => {
     const migrated = parseSessionState(legacyDocument('legacy-active'));
     assert.equal(migrated.schema_version, 2);
@@ -56,5 +67,34 @@ describe('session-state migration on both read paths', () => {
     assert.equal(summaries.length, 1);
     assert.equal(summaries[0].session_id, 'legacy-1');
     assert.equal(summaries[0].total_phases, 1);
+  });
+
+  it('returns an empty archive and skips corrupt, unreadable-shape, and id-less documents', () => {
+    const workspace = makeTempWorkspace('maestro-archive-corrupt-');
+    assert.deepEqual(readArchivedSessionSummaries(workspace), []);
+
+    const archiveDir = path.join(
+      workspace,
+      'docs',
+      'maestro',
+      'state',
+      'archive'
+    );
+    fs.mkdirSync(archiveDir, { recursive: true });
+    fs.writeFileSync(path.join(archiveDir, 'valid.md'), legacyDocument('valid'));
+    fs.writeFileSync(path.join(archiveDir, 'invalid-json.md'), '---\n{bad}\n---\n');
+    fs.writeFileSync(
+      path.join(archiveDir, 'invalid-shape.md'),
+      '---\n{"session_id":"invalid-shape","phases":[]}\n---\n'
+    );
+    fs.writeFileSync(
+      path.join(archiveDir, 'missing-id.md'),
+      '---\n{"status":"completed","phases":[]}\n---\n'
+    );
+
+    assert.deepEqual(
+      readArchivedSessionSummaries(workspace).map((summary) => summary.session_id),
+      ['valid']
+    );
   });
 });

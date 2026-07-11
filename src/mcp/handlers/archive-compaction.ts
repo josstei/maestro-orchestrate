@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { resolveTypedSetting } from '../../config/setting-resolver.js';
 import { assertContainedIn } from '../../lib/validation/index.js';
+import { resolveBasePath } from '../session/session-store.js';
 import { readArchivedSessionSummaries } from './archive-index.js';
-import { resolveBasePath } from './session-state-core.js';
 
 /**
  * Resolve and validate the concrete archive document path for a summary.

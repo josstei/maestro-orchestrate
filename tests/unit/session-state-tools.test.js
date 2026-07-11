@@ -1,6 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { coercePositiveInteger } from '../../dist/src/lib/validation/index.js';
+import * as handlers from '../../dist/src/mcp/handlers/session-state-tools.js';
+import {
+  archiveSession,
+  createSession,
+  getSessionStatus,
+  updateSession,
+} from '../../dist/src/mcp/session/session-lifecycle-service.js';
+import { transitionPhase } from '../../dist/src/mcp/session/phase-transition-service.js';
 
 describe('coercePositiveInteger', () => {
   it('passes through null', () => {
@@ -67,5 +75,22 @@ describe('coercePositiveInteger', () => {
     assert.strictEqual(coercePositiveInteger(coercePositiveInteger('42')), 42);
     assert.strictEqual(coercePositiveInteger(coercePositiveInteger('foo')), 'foo');
     assert.strictEqual(coercePositiveInteger(coercePositiveInteger(42)), 42);
+  });
+});
+
+describe('session-state-tools compatibility surface', () => {
+  it('preserves the five handler aliases exactly', () => {
+    assert.deepEqual(Object.keys(handlers).sort(), [
+      'handleArchiveSession',
+      'handleCreateSession',
+      'handleGetSessionStatus',
+      'handleTransitionPhase',
+      'handleUpdateSession',
+    ]);
+    assert.equal(handlers.handleCreateSession, createSession);
+    assert.equal(handlers.handleGetSessionStatus, getSessionStatus);
+    assert.equal(handlers.handleTransitionPhase, transitionPhase);
+    assert.equal(handlers.handleArchiveSession, archiveSession);
+    assert.equal(handlers.handleUpdateSession, updateSession);
   });
 });

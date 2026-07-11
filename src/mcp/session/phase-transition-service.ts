@@ -9,8 +9,11 @@ import {
 import { attributePhaseCost, phaseDurationMs, normalizeTokenUsage } from '../contracts/agent-cost-ledger.js';
 import { captureCheckpoint } from '../handlers/checkpoints.js';
 import { parseBlockers } from '../handlers/blocker-parser.js';
-import { extractFileManifest } from '../handlers/session-state-core.js';
-import { withSessionState, withValidatedSession } from './session-repository.js';
+import {
+  extractFileManifest,
+  sessionStore,
+  updateCurrentSession,
+} from './session-store.js';
 
 function assertTransitionShape(params: any) {
   const hasNextPhaseId = params.next_phase_id != null;
@@ -204,8 +207,8 @@ function transitionPhase(params: any, projectRoot: any) {
   };
 
   return params.session_id
-    ? withValidatedSession(projectRoot, params.session_id, mutator)
-    : withSessionState(projectRoot, mutator);
+    ? sessionStore.update(projectRoot, params.session_id, mutator)
+    : updateCurrentSession(projectRoot, mutator);
 }
 
 export { transitionPhase };

@@ -11,10 +11,9 @@ import type {
 import { parseArchivedSessionState, readArchivedSessionSummaries } from './archive-index.js';
 import {
   resolveBasePath,
-  readActiveSessionOrNull,
-  writeActiveSession,
-} from './session-state-core.js';
-import { SCHEMA_VERSION } from './session-migrations.js';
+  sessionStore,
+} from '../session/session-store.js';
+import { SCHEMA_VERSION } from '../session/session-migrations.js';
 import { writeGate } from './design-gate.js';
 import { attempt } from './attempt.js';
 import {
@@ -81,7 +80,7 @@ function toLineageNode(state: any, archivePath: any) {
 function readLineageSources(projectRoot: any) {
   const basePath = resolveBasePath(projectRoot);
   const sources = [];
-  const active = readActiveSessionOrNull(projectRoot);
+  const active = sessionStore.readOrNull(projectRoot);
   if (active && active.state && typeof active.state.session_id === 'string') {
     sources.push({ state: active.state, archivePath: null });
   }
@@ -135,7 +134,11 @@ function handleForkSession(params: any, projectRoot: any): ForkSessionResult {
     phases,
   };
 
-  writeActiveSession(basePath, state, `# ${state.task || state.session_id} Orchestration Log\n`);
+  const sessionPath = sessionStore.create(
+    projectRoot,
+    state,
+    `# ${state.task || state.session_id} Orchestration Log\n`
+  );
   writeGate(projectRoot, state.session_id, {
     session_id: state.session_id,
     entered_at: now,
@@ -147,7 +150,7 @@ function handleForkSession(params: any, projectRoot: any): ForkSessionResult {
     success: true,
     session_id: params.new_session_id,
     parent_session_id: params.source_session_id,
-    path: path.join(basePath, 'state', 'active-session.md'),
+    path: sessionPath,
   };
 }
 
