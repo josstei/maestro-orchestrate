@@ -149,8 +149,6 @@ async function main() {
       console.log('\nPruning stale files (not in manifest):');
       for (const f of pruned) console.log(`  PRUNED: ${f}`);
     }
-
-    console.log('\nDetached payloads: none');
   }
 
   if (stats.errors > 0) process.exit(1);

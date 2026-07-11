@@ -69,18 +69,6 @@ describe('expandManifest', () => {
     assert.equal(crEntry.outputs.gemini, 'agents/code_reviewer.md');
   });
 
-  it('rejects legacy explicit output entries', () => {
-    const entry = {
-      src: 'mcp/maestro-server.js',
-      transforms: ['strip-feature'],
-      outputs: { gemini: 'mcp/maestro-server.js', claude: 'claude/mcp/maestro-server.js' },
-    };
-    assert.throws(
-      () => expandManifest([entry], {}, '/unused'),
-      /Manifest legacy outputs rules are not supported/
-    );
-  });
-
   it('throws on malformed rule missing glob and src', () => {
     assert.throws(
       () => expandManifest([{ transforms: ['copy'], runtimes: ['gemini'] }], {}, '/unused'),
@@ -109,22 +97,4 @@ describe('expandManifest', () => {
     assert.equal(entries[0].outputs.gemini, 'hooks/hooks.json');
   });
 
-  it('rejects retired preserveSourcePath mirror rules', () => {
-    const rule = {
-      glob: 'mcp/**/*.js',
-      transforms: ['copy'],
-      runtimes: ['claude'],
-      preserveSourcePath: true,
-      outputBase: 'src',
-    };
-    const runtimes = {
-      claude: { name: 'claude', outputDir: 'claude/' },
-    };
-    const srcDir = path.resolve(moduleDirname, '../../src');
-
-    assert.throws(
-      () => expandManifest([rule], runtimes, srcDir),
-      /retired mirrored-output option/
-    );
-  });
 });

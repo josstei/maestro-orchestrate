@@ -64,6 +64,13 @@ All hand-maintained code lives in `src/`. Everything outside `src/` at the runti
 
 The generator pipeline reads `src/manifest.ts` and applies transforms from `src/transforms/` to produce runtime-specific output.
 
+When adding or retiring a generated surface, update its machine-readable entry in
+`src/generator/generated-surface-inventory.ts`, the owning generator, and the
+tests that prove the surface is generated or intentionally absent. If the public
+package or release surface changes, update `src/tooling/artifact-policy.ts`,
+`src/tooling/release-artifact-manifest.ts`, `src/tooling/verify-npm-pack.ts`,
+`package.json` `files`, and the runtime payload contract in the same change.
+
 ## Making Changes
 
 1. **Branch from `main`**:

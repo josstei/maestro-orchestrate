@@ -32,20 +32,18 @@ describe('collectManifestPaths', () => {
 
   it('invokes each expander once per runtime and collects outputPath', async () => {
     const calls = [];
-    const expander = (runtime, srcDir, codeSrcDir) => {
-      calls.push({ runtime, srcDir, codeSrcDir });
+    const expander = (runtime, srcDir) => {
+      calls.push({ runtime, srcDir });
       return [{ outputPath: `out/${runtime}/ep.md` }];
     };
     const paths = await collectManifestPaths(
       [],
       { gemini: {}, claude: {} },
       '/src',
-      [expander],
-      '/dist/src'
+      [expander]
     );
     assert.deepEqual(calls.map((c) => c.runtime).sort(), ['claude', 'gemini']);
     assert.ok(calls.every((c) => c.srcDir === '/src'));
-    assert.ok(calls.every((c) => c.codeSrcDir === '/dist/src'));
     assert.deepEqual(
       [...paths].sort(),
       ['out/claude/ep.md', 'out/gemini/ep.md']

@@ -10,14 +10,12 @@ import {
   releasePaths,
 } from './artifact-policy.js';
 
-const TOPOLOGY_DECISION = Object.freeze({
-  id: 'option-2-source-only-generated-dist',
-  date: '2026-07-09',
+const RUNTIME_TOPOLOGY = Object.freeze({
   mode: 'source-only-generated-dist',
   canonicalSource: 'src/**/*.ts plus canonical runtime Markdown/templates under src/',
   runtimeFormat: 'NodeNext ESM JavaScript generated under dist/src/ by npm run build',
   note:
-    'The development branch does not track dist/src. Runtime bins, public MCP wrappers, package, and release artifacts execute generated dist/src output; package and release artifacts ship dist/src runtime entries plus a generated runtime content registry, not package-root raw src.',
+    'The repository does not track dist/src. Runtime bins, public MCP wrappers, package, and release artifacts execute generated dist/src output; package and release artifacts ship dist/src runtime entries plus a generated runtime content registry, not package-root raw src.',
 });
 
 type RuntimeInvariantMap = Readonly<Record<string, readonly string[]>>;
@@ -115,7 +113,7 @@ function assertRuntimePayloadContract(inputs: RuntimePayloadContractInputs = {})
 
 export {
   RUNTIME_PAYLOAD_CONTRACT,
-  TOPOLOGY_DECISION,
+  RUNTIME_TOPOLOGY,
   assertRuntimePayloadContract,
   getRuntimePayloadContract,
   runtimePayloadContractIssues,

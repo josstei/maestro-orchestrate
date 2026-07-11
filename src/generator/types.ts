@@ -15,9 +15,6 @@ interface ManifestRule {
   transforms: string[];
   outputName?: string;
   exclude?: string[];
-  outputs?: Record<string, string>;
-  preserveSourcePath?: boolean;
-  outputBase?: string;
 }
 
 interface ManifestEntry {

@@ -4,13 +4,23 @@ import path from 'node:path';
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { repoPath } from '../support/paths.js';
+import { withEnv } from '../support/environment.js';
 
 const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-vc-'));
-process.env.MAESTRO_HOOKS_DIR = hooksDir;
-
-const { default: hookState } = await import('../../dist/src/hooks/logic/hook-state.js');
-const { handleAfterAgent, extractValidationCommands } = await import('../../dist/src/hooks/logic/after-agent-logic.js');
+const [hookStateModule, afterAgentModule] = await withEnv(
+  { MAESTRO_HOOKS_DIR: hooksDir },
+  () => Promise.all([
+    import('../../dist/src/hooks/logic/hook-state.js'),
+    import('../../dist/src/hooks/logic/after-agent-logic.js'),
+  ])
+);
+const hookState = hookStateModule.default;
+const { handleAfterAgent, extractValidationCommands } = afterAgentModule;
 const SESSION_ID = 'vc-session-xyz';
+
+after(() => {
+  fs.rmSync(hooksDir, { recursive: true, force: true });
+});
 
 describe('extractValidationCommands', () => {
   it('parses categorized commands from a Validation Commands section', () => {

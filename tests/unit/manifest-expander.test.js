@@ -196,16 +196,17 @@ describe('manifest-expander', () => {
       codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
     };
 
-    it('rejects legacy output rules', () => {
-      const legacy = {
+    it('rejects unsupported fields instead of silently ignoring them', () => {
+      const rule = {
         src: 'some/file.md',
         transforms: ['copy'],
-        outputs: { gemini: 'out/file.md' },
+        runtimes: ['gemini'],
+        customOutput: 'out/file.md',
       };
 
       assert.throws(
-        () => expandManifest([legacy], runtimes, tmpDir),
-        /Manifest legacy outputs rules are not supported/
+        () => expandManifest([rule], runtimes, tmpDir),
+        /unsupported field "customOutput"/
       );
     });
 
@@ -269,34 +270,6 @@ describe('manifest-expander', () => {
       const result = expandManifest([rule], runtimes, tmpDir);
 
       assert.equal(result[0].outputs.claude, 'claude/custom-output.md');
-    });
-
-    it('rejects retired preserveSourcePath rules', () => {
-      const rule = {
-        src: 'agents/foo-bar.md',
-        transforms: ['copy'],
-        runtimes: ['gemini'],
-        preserveSourcePath: true,
-      };
-
-      assert.throws(
-        () => expandManifest([rule], runtimes, tmpDir),
-        /retired mirrored-output option/
-      );
-    });
-
-    it('rejects retired outputBase rules', () => {
-      const rule = {
-        src: 'agents/baz.md',
-        transforms: ['copy'],
-        runtimes: ['gemini', 'claude'],
-        outputBase: { gemini: 'custom', claude: 'other' },
-      };
-
-      assert.throws(
-        () => expandManifest([rule], runtimes, tmpDir),
-        /retired mirrored-output option/
-      );
     });
 
     it('throws when rule is missing runtimes', () => {

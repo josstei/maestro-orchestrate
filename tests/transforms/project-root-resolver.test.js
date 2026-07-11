@@ -263,13 +263,8 @@ describe('project root resolver', () => {
   });
 
   it('requireExplicitWorkspaceRoot throws when the path is inside an extension cache', (t) => {
-    const cachePath = makeTempDir(t, '.codex-plugins-cache-');
-    const nested = path.join(
-      path.dirname(cachePath),
-      '.codex',
-      'plugins',
-      'maestro'
-    );
+    const root = makeTempDir(t, 'maestro-cache-root-');
+    const nested = path.join(root, '.codex', 'plugins', 'maestro');
     fs.mkdirSync(nested, { recursive: true });
     assert.throws(
       () => requireExplicitWorkspaceRoot({ workspacePath: nested }),

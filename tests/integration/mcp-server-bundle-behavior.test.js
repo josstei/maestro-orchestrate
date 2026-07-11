@@ -343,15 +343,15 @@ describe('mcp server bundle behavior', () => {
     const packageRoot = createTempRepoCopy('maestro-codex-no-payload-');
 
     try {
-      const retiredPayload = path.join(packageRoot, 'plugins', 'maestro', 'src');
+      const duplicatePayload = path.join(packageRoot, 'plugins', 'maestro', 'src');
       const skillSentinel = 'package-root skill sentinel for Codex no-payload fixture';
       const agentSentinel = 'Package-root agent sentinel for Codex no-payload fixture.';
-      fs.rmSync(retiredPayload, { recursive: true, force: true });
+      fs.rmSync(duplicatePayload, { recursive: true, force: true });
       assert.equal(fs.existsSync(runtimeContentRegistryPath(packageRoot)), true);
       assertNoRawDistContentRoots(packageRoot);
       appendRegistryResource(packageRoot, 'delegation', `\n${skillSentinel}\n`);
       appendRegistryAgent(packageRoot, 'coder', `\n${agentSentinel}\n`);
-      assert.equal(fs.existsSync(retiredPayload), false);
+      assert.equal(fs.existsSync(duplicatePayload), false);
 
       await withServer({
         cwd: packageRoot,

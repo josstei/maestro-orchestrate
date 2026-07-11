@@ -5,6 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildRegistryModel } from '../../dist/src/generator/registry-scanner.js';
 import { renderSettingsSection } from '../../dist/src/generator/content-file-emitter.js';
+import { zodSchemas as sessionSchemas } from '../../dist/src/mcp/tool-packs/session/zod-schemas.js';
+import entryPoints from '../../dist/src/entry-points/registry.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const REPO = path.resolve(moduleDirname, '../..');
@@ -104,14 +106,6 @@ test('doc-drift: startup initializes the workspace before resolving workspace se
   );
 });
 
-test('doc-drift: retired schema DSL is absent from the package surface', () => {
-  const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.files.includes('dist/src/lib/schema'), false);
-  assert.equal(fs.existsSync(path.join(REPO, 'src/lib/schema/index.ts')), false);
-  assert.ok(!read('src/tooling/artifact-policy.ts').includes("'dist/src/lib/schema'"));
-  assert.match(read('CHANGELOG.md'), /removed the undocumented `dist\/src\/lib\/schema` deep import/);
-});
-
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
   const canonicalCount = canonicalAgentCount();
   const surfaces = [
@@ -140,10 +134,15 @@ test('doc-drift: no stale inject-frontmatter transform in docs', () => {
   assert.ok(!body.includes('inject-frontmatter'), 'docs/architecture.md still references removed inject-frontmatter transform');
 });
 
-test('doc-drift: root pointer docs include Qwen runtime docs', () => {
-  for (const surface of ['OVERVIEW.md', 'USAGE.md', 'ARCHITECTURE.md']) {
+test('doc-drift: root pointer docs target their tracked canonical guides', () => {
+  for (const [surface, target] of [
+    ['OVERVIEW.md', 'docs/overview.md'],
+    ['USAGE.md', 'docs/usage.md'],
+    ['ARCHITECTURE.md', 'docs/architecture.md'],
+  ]) {
     const body = read(surface);
-    assert.ok(body.includes('docs/runtime-qwen.md'), `${surface}: missing Qwen runtime documentation link`);
+    assert.ok(body.includes(target), `${surface}: missing canonical guide link`);
+    assert.ok(!body.includes('docs/runtime-'), `${surface}: links untracked generated runtime docs`);
   }
 });
 
@@ -303,18 +302,43 @@ test('doc-drift: runtime docs use generated-version markers', () => {
 
 test('doc-drift: docs/architecture.md module tree shows correct handler + session tool counts', () => {
   const body = read('docs/architecture.md');
-  assert.ok(!body.includes('# 8 handler implementations'), 'docs/architecture.md: still says 8 handler implementations');
-  assert.ok(!body.includes('# 17 handler implementations'), 'docs/architecture.md: still says 17 handler implementations');
-  assert.ok(!body.includes('# 21 handler implementations'), 'docs/architecture.md: still says 21 handler implementations');
-  assert.ok(!body.includes('# 22 handler implementations'), 'docs/architecture.md: still says 22 handler implementations');
-  assert.ok(!body.includes('# 23 handler implementations'), 'docs/architecture.md: still says 23 handler implementations');
-  assert.ok(!body.includes('# 24 handler implementations'), 'docs/architecture.md: still says 24 handler implementations');
-  assert.ok(!body.includes('# 25 handler implementations'), 'docs/architecture.md: still says 25 handler implementations');
-  assert.ok(!body.includes('# 26 handler implementations'), 'docs/architecture.md: still says 26 handler implementations');
-  assert.ok(body.includes('# 27 handler implementations'), 'docs/architecture.md: does not report 27 handlers');
-  assert.ok(!body.includes('session/index.js        # 5 tools'), 'docs/architecture.md: still says session pack has 5 tools');
-  assert.ok(!body.includes('session/index.js        # 13 tools'), 'docs/architecture.md: still says 13 session tools');
-  assert.ok(body.includes('session/index.js        # 12 tools'), 'docs/architecture.md: does not report 12 session tools');
+  const handlerCount = fs.readdirSync(path.join(REPO, 'src/mcp/handlers'))
+    .filter((name) => name.endsWith('.ts')).length;
+  const sessionToolCount = Object.keys(sessionSchemas).length;
+  const moduleTree = body.match(/### Module Structure\n\n```\n([\s\S]*?)\n```/);
+
+  assert.ok(moduleTree, 'docs/architecture.md: module tree is missing');
+  assert.ok(
+    body.includes(`# ${handlerCount} handler modules`),
+    `docs/architecture.md: does not report ${handlerCount} handler modules`
+  );
+  assert.ok(
+    body.includes(`session/index.ts        # ${sessionToolCount} tools`),
+    `docs/architecture.md: does not report ${sessionToolCount} session tools`
+  );
+  assert.doesNotMatch(moduleTree[1], /\.js\b/, 'docs/architecture.md: source tree uses compiled extensions');
+});
+
+test('doc-drift: documentation reports the current test-file counts', () => {
+  const counts = Object.fromEntries(
+    ['unit', 'transforms', 'integration'].map((directory) => [
+      directory,
+      fs.readdirSync(path.join(REPO, 'tests', directory))
+        .filter((name) => name.endsWith('.test.js')).length,
+    ])
+  );
+  const total = counts.unit + counts.transforms + counts.integration;
+  const architecture = read('docs/architecture.md');
+  const overview = read('docs/overview.md');
+
+  assert.ok(architecture.includes(`${total} test files using`));
+  assert.ok(architecture.includes(`${counts.unit} unit test files`));
+  assert.ok(architecture.includes(`${counts.transforms} transform test files`));
+  assert.ok(architecture.includes(`${counts.integration} integration test files`));
+  assert.ok(overview.includes(`Test files | ${total} files`));
+  assert.ok(overview.includes(`# ${total} test files across`));
+  assert.ok(overview.includes(`Entry-point commands | ${entryPoints.length} (+ 3 core)`));
+  assert.ok(architecture.includes(`${entryPoints.length} entry-points defined`));
 });
 
 test('doc-drift: docs/architecture.md content-tools list includes Qwen', () => {

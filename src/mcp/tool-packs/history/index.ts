@@ -50,4 +50,4 @@ function registerHistoryPack({ server, registry, ...contextOptions }: any = {}) 
   });
 }
 
-export { registerHistoryPack, zodSchemas };
+export { registerHistoryPack };

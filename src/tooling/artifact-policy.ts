@@ -103,6 +103,7 @@ const RELEASE_DOC_ENTRIES: readonly ArtifactInventoryEntry[] = [
   { path: 'docs/flow.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/maestro-cheatsheet.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/overview.md', scope: ARTIFACT_SCOPE.RELEASE },
+  { path: 'docs/runtime-payload-contract.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/runtime-claude.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/runtime-codex.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/runtime-gemini.md', scope: ARTIFACT_SCOPE.RELEASE },
@@ -215,33 +216,25 @@ const RUNTIME_PACKAGE_INVARIANTS = Object.freeze({
   ]),
 });
 
-const PRESERVED_PACKAGE_FILES = Object.freeze([
-  'dist/src/mcp/handlers/document-input.js',
-  'dist/src/mcp/handlers/session-migrations.js',
+const COMPATIBILITY_PACKAGE_FILES = Object.freeze([
   'dist/src/mcp/handlers/session-state-core.js',
   'dist/src/mcp/handlers/session-state-tools.js',
-  'dist/src/mcp/session/session-repository.js',
 ]);
 
 const REQUIRED_PACKAGE_FILES = Object.freeze(
   [
     ...new Set([
       ...Object.values(RUNTIME_PACKAGE_INVARIANTS).flat(),
-      ...PRESERVED_PACKAGE_FILES,
+      ...COMPATIBILITY_PACKAGE_FILES,
     ]),
   ].sort()
 );
 
-const FINAL_PACKAGE_BUDGETS: PackageBudget = Object.freeze({
-  id: 'final-compressed-pruned',
-  maxEntryCount: 340,
+const PACKAGE_BUDGET: PackageBudget = Object.freeze({
+  id: 'runtime-package',
+  maxEntryCount: 337,
   maxPackedSize: 330000,
   maxUnpackedSize: 850000,
-});
-
-const PACKAGE_BUDGETS = Object.freeze({
-  ...FINAL_PACKAGE_BUDGETS,
-  final: FINAL_PACKAGE_BUDGETS,
 });
 
 const PRIVATE_SCRIPT_ROLES: Readonly<Record<string, PrivateScriptRole>> = Object.freeze({
@@ -434,11 +427,10 @@ export {
   ARTIFACT_INVENTORY,
   DENIED_ARTIFACT_PATHS,
   DENIED_ARTIFACT_PATTERNS,
-  FINAL_PACKAGE_BUDGETS,
-  PACKAGE_BUDGETS,
+  COMPATIBILITY_PACKAGE_FILES,
+  PACKAGE_BUDGET,
   PACKAGE_SURFACE_RULES,
   PRIVATE_SCRIPT_ROLES,
-  PRESERVED_PACKAGE_FILES,
   REQUIRED_PACKAGE_FILES,
   RUNTIME_DIST_PATHS,
   RUNTIME_PACKAGE_INVARIANTS,

@@ -6,9 +6,9 @@ import {
 /**
  * Project-root cache for the MCP session.
  *
- * After this refactor, the workspace path is authoritative only when the
- * orchestrator has passed it to `initialize_workspace`. Before that call,
- * stateful tools reject with a structured error.
+ * The workspace path becomes authoritative when the orchestrator passes it to
+ * `initialize_workspace`. Before that call, stateful tools reject with a
+ * structured error.
  *
  * The cache also computes a `workspace_suggestion` from the env var declared
  * by the runtime-config or any MCP roots supplied by the client. The
@@ -92,8 +92,8 @@ function createProjectRootCache(options: any) {
   }
 
   /**
-   * Non-throwing, synchronous projectRoot resolver for the SDK cutover path
-   * (injected into `buildHandlerContext` as `getProjectRoot`). Returns `null`
+   * Non-throwing, synchronous projectRoot resolver injected into
+   * `buildHandlerContext` as `getProjectRoot`. Returns `null`
    * absent an explicit `initialize_workspace` call so the gate is enforced
    * uniformly by `requireWorkspaceRoot` inside the tool pipeline, never here.
    *

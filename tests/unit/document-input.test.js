@@ -8,9 +8,7 @@ import {
   plansDirPath,
   resolveDocumentInput,
   writePlansDocumentContent,
-} from '../../dist/src/mcp/handlers/document-input.js';
-import * as compatibility from '../../dist/src/mcp/handlers/document-input.js';
-import * as canonical from '../../dist/src/mcp/session/document-repository.js';
+} from '../../dist/src/mcp/session/document-repository.js';
 import { ValidationError } from '../../dist/src/lib/errors/index.js';
 import { makeTempDir, writeFixtureFile } from '../support/filesystem.js';
 
@@ -23,20 +21,6 @@ const opts = (over = {}) => ({
 });
 
 describe('resolveDocumentInput', () => {
-  it('retains the shipped handler path as direct compatibility exports', () => {
-    assert.deepEqual(Object.keys(compatibility).sort(), [
-      'assertPlansFilename',
-      'ensurePlansDocumentInPlans',
-      'plansDirPath',
-      'resolveDocumentInput',
-      'resolveDocumentInputVariant',
-      'writePlansDocumentContent',
-    ]);
-    for (const name of Object.keys(compatibility)) {
-      assert.equal(compatibility[name], canonical[name]);
-    }
-  });
-
   it('rejects path combined with content variant', () => {
     assert.throws(() => resolveDocumentInput({ doc_path: 'a', doc_content: 'b' }, opts()), ValidationError);
   });

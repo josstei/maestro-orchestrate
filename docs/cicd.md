@@ -600,7 +600,7 @@ The workflows replicate the following `just` commands:
 just generate  -->  npm run generate
 just check     -->  git diff --exit-code --name-only (after generate)
 source check   -->  npm run check:source / just source-check
-just test      -->  npm run test (one build, then the test:run leaf)
+just test      -->  npm run test (one build-generation boundary, then test:run)
 release check  -->  npm run check:release / just release-check
 ```
 

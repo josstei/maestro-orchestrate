@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SCHEMA_VERSION, migrateSessionState } from '../../dist/src/mcp/handlers/session-migrations.js';
-import * as canonical from '../../dist/src/mcp/session/session-store.js';
+import { SCHEMA_VERSION, migrateSessionState } from '../../dist/src/mcp/session/session-store.js';
 
 function legacyDocument() {
   return {
@@ -16,11 +15,6 @@ function legacyDocument() {
 }
 
 describe('migrateSessionState', () => {
-  it('retains the shipped handler path as a direct compatibility re-export', () => {
-    assert.equal(SCHEMA_VERSION, canonical.SCHEMA_VERSION);
-    assert.equal(migrateSessionState, canonical.migrateSessionState);
-  });
-
   it('exposes the current schema version', () => {
     assert.equal(SCHEMA_VERSION, 2);
   });

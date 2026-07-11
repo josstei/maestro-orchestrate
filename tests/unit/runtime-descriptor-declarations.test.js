@@ -7,7 +7,7 @@ import codex, { CODEX_RUNTIME_CONFIG } from '../../dist/src/platforms/codex/runt
 import qwen, { QWEN_RUNTIME_CONFIG } from '../../dist/src/platforms/qwen/runtime-config.js';
 import { getRuntimeConfig } from '../../dist/src/platforms/runtime-declarations.js';
 
-describe('runtime generation descriptors mirror the historical hardcoded maps', () => {
+describe('runtime generation descriptors define each host projection', () => {
   it('exports named typed configs consumed by the static catalog', () => {
     assert.equal(gemini, GEMINI_RUNTIME_CONFIG);
     assert.equal(claude, CLAUDE_RUNTIME_CONFIG);

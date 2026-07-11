@@ -4,6 +4,15 @@ import { listAgentSourcePaths } from '../core/agent-sources.js';
 import { toSnakeCase } from '../lib/naming/index.js';
 import type { GeneratorRuntimeConfig, GeneratorRuntimeMap, ManifestEntry, ManifestRule } from './types.js';
 
+const SUPPORTED_MANIFEST_RULE_FIELDS = new Set([
+  'src',
+  'glob',
+  'runtimes',
+  'transforms',
+  'outputName',
+  'exclude',
+]);
+
 /**
  * Expand a glob pattern relative to srcDir.
  * Supports `*` (wildcard within a single directory) and `**` (recursive).
@@ -156,8 +165,11 @@ function expandManifest(rules: ManifestRule[], runtimes: GeneratorRuntimeMap, sr
   const entries: ManifestEntry[] = [];
 
   for (const rule of rules) {
-    if (rule.outputs) {
-      throw new Error(`Manifest legacy outputs rules are not supported: ${JSON.stringify(rule)}`);
+    const unsupportedField = Object.keys(rule).find(
+      (field) => !SUPPORTED_MANIFEST_RULE_FIELDS.has(field)
+    );
+    if (unsupportedField) {
+      throw new Error(`Manifest rule has unsupported field "${unsupportedField}": ${JSON.stringify(rule)}`);
     }
 
     if (!rule.runtimes || !Array.isArray(rule.runtimes)) {
@@ -166,12 +178,6 @@ function expandManifest(rules: ManifestRule[], runtimes: GeneratorRuntimeMap, sr
     if (!rule.glob && !rule.src) {
       throw new Error(`Manifest rule needs "glob" or "src": ${JSON.stringify(rule)}`);
     }
-    if (rule.preserveSourcePath || rule.outputBase) {
-      throw new Error(
-        `Manifest rule uses retired mirrored-output option: ${JSON.stringify(rule)}`
-      );
-    }
-
     let srcFiles: string[];
     if (rule.glob) {
       srcFiles = expandGlob(rule.glob, srcDir);

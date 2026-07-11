@@ -14,15 +14,8 @@ function cleanupTempRepo(repoRoot) {
   fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
 }
 
-describe('TypeScript build contract', () => {
-  it('emits generated dist code and copied runtime assets for package-bin execution', async () => {
-    assert.throws(
-      () => createTrackedCandidateRepoCopy({
-        additionalPaths: ['src/generated/agent-registry.json'],
-        dependencyRoot: path.join(ROOT, 'node_modules'),
-      }),
-      /excluded build residue/
-    );
+describe('TypeScript build and generation contract', () => {
+  it('bootstraps compiled and runtime outputs from a tracked-only checkout', async () => {
     const repoRoot = createTrackedCandidateRepoCopy({
       dependencyRoot: path.join(ROOT, 'node_modules'),
     });
@@ -32,6 +25,7 @@ describe('TypeScript build contract', () => {
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src')), false);
       assert.equal(fs.existsSync(tempRepoPath('src', 'generated')), false);
+      assert.equal(fs.existsSync(tempRepoPath('src', 'agents')), false);
       assert.equal(fs.existsSync(tempRepoPath('docs', 'maestro')), false);
       assert.equal(fs.lstatSync(tempRepoPath('node_modules')).isSymbolicLink(), true);
       assert.equal(path.relative(repoRoot, fs.realpathSync(tempRepoPath('node_modules'))).startsWith('..'), true);
@@ -109,8 +103,8 @@ describe('TypeScript build contract', () => {
       assert.equal(Object.keys(runtimeContentRegistry.agents).length, 39);
       assert.equal(Object.keys(runtimeContentRegistry.blueprints).length, 2);
       assert.equal(Array.isArray(runtimeContentRegistry.resources.delegation), true);
-      for (const retiredContentRoot of ['agents', 'references', 'skills', 'templates']) {
-        assert.equal(fs.existsSync(tempRepoPath('dist', 'src', retiredContentRoot)), false);
+      for (const rawContentRoot of ['agents', 'references', 'skills', 'templates']) {
+        assert.equal(fs.existsSync(tempRepoPath('dist', 'src', rawContentRoot)), false);
       }
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'agents')), false);
@@ -118,6 +112,15 @@ describe('TypeScript build contract', () => {
       assert.equal(fs.existsSync(tempRepoPath('dist', 'claude', 'agents')), false);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'release', 'stale.txt')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'claude-plugin', 'stale.txt')), true);
+
+      execFileSync('npm', ['run', 'generate:run'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      assert.equal(fs.existsSync(tempRepoPath('agents', 'architect.md')), true);
+      assert.equal(fs.existsSync(tempRepoPath('docs', 'runtime-codex.md')), true);
+      assert.equal(fs.existsSync(tempRepoPath('src', 'generated', 'agent-registry.json')), true);
 
       const packageJson = JSON.parse(fs.readFileSync(tempRepoPath('package.json'), 'utf8'));
       assert.equal(packageJson.files.includes('dist'), false);

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { StateError, ValidationError } from '../../dist/src/lib/errors/index.js';
 import * as compatibility from '../../dist/src/mcp/handlers/session-state-core.js';
 import * as canonical from '../../dist/src/mcp/session/session-store.js';
-import * as repository from '../../dist/src/mcp/session/session-repository.js';
 import { createSession } from '../../dist/src/mcp/session/session-lifecycle-service.js';
 import {
   buildMcpServer,
@@ -117,26 +116,6 @@ describe('session-state-core compatibility surface', () => {
     assert.deepEqual(Object.keys(compatibility).sort(), names.sort());
     for (const name of names) {
       assert.equal(compatibility[name], canonical[name]);
-    }
-  });
-
-  it('retains the session-repository export surface over the canonical store', () => {
-    const names = [
-      'archiveActiveSessionFile',
-      'assertNoInProgressSession',
-      'assertValidActiveSession',
-      'extractBody',
-      'parseSessionState',
-      'readCurrentSession',
-      'readCurrentSessionOrNull',
-      'withSessionState',
-      'withValidatedSession',
-      'writeActiveSession',
-      'writeNewActiveSession',
-    ];
-    assert.deepEqual(Object.keys(repository).sort(), names.sort());
-    for (const name of names) {
-      assert.equal(repository[name], canonical[name]);
     }
   });
 

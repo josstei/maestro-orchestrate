@@ -25,4 +25,3 @@ function runAsMain(moduleUrl: string, label: string, fn: () => unknown | Promise
 }
 
 export { readJson, runAsMain };
-export { resolvePackageRoot } from '../../core/package-root.js';

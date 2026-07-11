@@ -5,8 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { moduleDirname } from '../../dist/src/core/package-root.js';
-import { resolvePackageRoot as resolveCorePackageRoot } from '../../dist/src/core/package-root.js';
-import { readJson, resolvePackageRoot, runAsMain } from '../../dist/src/tooling/lib/cli.js';
+import { readJson, runAsMain } from '../../dist/src/tooling/lib/cli.js';
 import { STABLE_SEMVER_RE, isStable } from '../../dist/src/tooling/lib/semver.js';
 import { pathToFileURL } from 'node:url';
 const TEST_DIR = moduleDirname(import.meta.url);
@@ -33,10 +32,6 @@ function runFixtureScript(script) {
 }
 
 describe('src/tooling/lib/cli readJson', () => {
-  it('re-exports the core package-root resolver for tooling compatibility', () => {
-    assert.equal(resolvePackageRoot, resolveCorePackageRoot);
-  });
-
   it('parses a well-formed JSON file', () => {
     const { dir, filePath } = writeTempFile('{"name":"maestro","version":"1.2.3"}\n');
 

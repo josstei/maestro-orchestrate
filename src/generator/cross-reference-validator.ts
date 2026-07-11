@@ -59,10 +59,9 @@ function validateCrossReferences({ agentNames, resourceIds, entryPoints, coreCom
  * Gather the agent names, resource ids, and entry-point registries the
  * cross-reference gate needs from the real source tree.
  * @param {RegistryModel} model - Registry data derived from the source tree
- * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @returns {{ agentNames: string[], resourceIds: string[], entryPoints: object[], coreCommands: object[] }}
  */
-async function collectCrossReferenceInputs(model: RegistryModel, codeSrcDir = ''): Promise<CrossReferenceInputs> {
+async function collectCrossReferenceInputs(model: RegistryModel): Promise<CrossReferenceInputs> {
   return {
     agentNames: model.agents.map((agent) => agent.name),
     resourceIds: Object.keys(model.resources),
@@ -74,10 +73,9 @@ async function collectCrossReferenceInputs(model: RegistryModel, codeSrcDir = ''
 /**
  * Build-time gate: fail generation on any unresolved cross-reference.
  * @param {RegistryModel} model - Registry data derived from the source tree
- * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @throws {ValidationError}
  */
-async function assertCrossReferences(model: RegistryModel, codeSrcDir = ''): Promise<void> {
+async function assertCrossReferences(model: RegistryModel): Promise<void> {
   validateCrossReferences(await collectCrossReferenceInputs(model));
 }
 

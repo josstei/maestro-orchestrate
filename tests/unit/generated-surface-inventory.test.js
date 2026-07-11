@@ -5,9 +5,7 @@ import path from 'node:path';
 
 import {
   GENERATED_SURFACE_INVENTORY,
-  LIVE_OWNED_GENERATED_DIRS,
   OWNED_GENERATED_DIRS,
-  RETIRED_GENERATED_CLEANUP_DIRS,
   RUNTIME_CONTEXT_OUTPUTS,
   TRACKED_OUTPUT_EXEMPTIONS,
 } from '../../dist/src/generator/generated-surface-inventory.js';
@@ -36,7 +34,6 @@ describe('generated surface inventory', () => {
       'platform-metadata-outputs',
       'policy-outputs',
       'registry-outputs',
-      'retired-generated-cleanup-roots',
       'runtime-context-outputs',
     ]);
   });
@@ -53,28 +50,20 @@ describe('generated surface inventory', () => {
     ]);
   });
 
-  it('keeps detached payload keys retired in runtime payload contracts', () => {
+  it('does not attach duplicate source payloads to runtime contracts', () => {
     for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {
-      assert.equal(runtime.detachedPayload, undefined, `${runtime.name} detachedPayload retired`);
+      assert.equal(runtime.detachedPayload, undefined, `${runtime.name} duplicates its source payload`);
     }
   });
 
-  it('points to existing tracked generated roots and retired cleanup roots', () => {
+  it('points to current generated roots', () => {
     assert.ok(
-      LIVE_OWNED_GENERATED_DIRS.includes('qwen/agents'),
+      OWNED_GENERATED_DIRS.includes('qwen/agents'),
       'Qwen generated agent stubs must be stale-pruned'
     );
-    assert.ok(
-      RETIRED_GENERATED_CLEANUP_DIRS.includes('claude/src'),
-      'Claude detached payload must be stale-pruned'
-    );
 
-    for (const ownedDir of LIVE_OWNED_GENERATED_DIRS) {
+    for (const ownedDir of OWNED_GENERATED_DIRS) {
       assert.equal(fs.existsSync(path.join(ROOT, ownedDir)), true, `${ownedDir} exists`);
-    }
-
-    for (const ownedDir of RETIRED_GENERATED_CLEANUP_DIRS) {
-      assert.equal(fs.existsSync(path.join(ROOT, ownedDir)), false, `${ownedDir} remains retired`);
     }
   });
 

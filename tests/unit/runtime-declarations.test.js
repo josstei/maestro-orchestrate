@@ -29,9 +29,6 @@ describe('runtime definitions', () => {
       assert.equal(getRuntimeDefinition(definition.name), definition);
       assert.equal(requireRuntimeDefinition(definition.name), definition);
       assert.equal(getRuntimeConfig(definition.name), definition.config);
-      assert.equal('packageInvariants' in definition.payload, false);
-      assert.equal('deniedPaths' in definition.payload, false);
-      assert.equal('budget' in definition.payload, false);
     }
   });
 

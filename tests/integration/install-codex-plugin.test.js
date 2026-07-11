@@ -34,7 +34,7 @@ describe('codex installer integration', () => {
       assert.equal(
         fs.existsSync(pluginSrc),
         false,
-        'Expected installer not to copy the retired detached Codex src payload'
+        'Expected installer not to copy a duplicate Codex src payload'
       );
       assert.ok(fs.existsSync(marketplaceFile), 'Expected installer to create the personal marketplace file');
 

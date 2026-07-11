@@ -16,12 +16,9 @@ const EXPECTED_REQUIRED_PACKAGE_FILES = Object.freeze([
   'dist/src/bin/maestro-mcp-server.js',
   'dist/src/generated/runtime-content-registry.json',
   'dist/src/generated/runtime-content-registry.txt.gz',
-  'dist/src/mcp/handlers/document-input.js',
-  'dist/src/mcp/handlers/session-migrations.js',
   'dist/src/mcp/handlers/session-state-core.js',
   'dist/src/mcp/handlers/session-state-tools.js',
   'dist/src/mcp/maestro-server.js',
-  'dist/src/mcp/session/session-repository.js',
   'dist/src/platforms/runtime-declarations.js',
   'gemini-extension.json',
   'mcp/maestro-server.js',
@@ -35,10 +32,10 @@ const EXPECTED_PACKAGE_SCRIPT_LIFECYCLE = Object.freeze({
   'generate:run': 'node dist/src/tooling/generate.js',
   generate: 'npm run build && npm run generate:run',
   'test:run': 'node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js',
-  test: 'npm run build && npm run test:run',
+  test: 'npm run generate && npm run test:run',
   'check:source': 'npm run build && npm run generate:run && npm run typecheck:type-tests && git diff --exit-code --name-only && node dist/src/tooling/check-layer-boundaries.js && node dist/src/tooling/check-esm-imports.js && npm run test:run',
   'release:artifacts:run': 'node dist/src/tooling/package-release-artifacts.js --out-dir dist/release',
-  'release:artifacts': 'npm run build && npm run release:artifacts:run',
+  'release:artifacts': 'npm run generate && npm run release:artifacts:run',
   'release:verify-artifacts:run': 'node dist/src/tooling/verify-release-artifacts.js',
   'release:verify-artifacts': 'npm run build && npm run release:verify-artifacts:run',
   'pack:verify:run': 'node dist/src/tooling/verify-npm-pack.js',
@@ -55,6 +52,7 @@ const RELEASE_ONLY_PACKAGE_DOCS = [
   'docs/flow.md',
   'docs/maestro-cheatsheet.md',
   'docs/overview.md',
+  'docs/runtime-payload-contract.md',
   'docs/runtime-claude.md',
   'docs/runtime-codex.md',
   'docs/runtime-gemini.md',
@@ -95,31 +93,12 @@ const FORBIDDEN_RUNTIME_TEST_PATHS = [
   'claude/scripts/__tests__/fixture.js',
 ];
 
-const RETIRED_DETACHED_PAYLOAD_FILES = [
+const FORBIDDEN_DETACHED_PAYLOAD_FILES = [
   'claude/src/mcp/maestro-server.js',
   'claude/src/version.json',
   'plugins/maestro/src/mcp/maestro-server.js',
   'plugins/maestro/src/version.json',
 ];
-
-const REMOVED_STATE_HELPER_SCRIPTS = [
-  removedRuntimePath('src', 'scripts', ['ensure', 'workspace'].join('-') + '.js'),
-  removedRuntimePath('src', 'scripts', ['read', 'active', 'session'].join('-') + '.js'),
-  removedRuntimePath('src', 'scripts', ['read', 'state'].join('-') + '.js'),
-  removedRuntimePath('src', 'scripts', ['write', 'state'].join('-') + '.js'),
-  removedRuntimePath('src', 'scripts', ['read', 'setting'].join('-') + '.js'),
-];
-
-const REMOVED_SHARED_AGENT_NAMES_MODULE = removedRuntimePath(
-  'src',
-  'platforms',
-  'shared',
-  ['agent', 'names'].join('-') + '.js'
-);
-
-function removedRuntimePath(...parts) {
-  return parts.join('/');
-}
 
 function sourcePathToDistPath(sourcePath) {
   return `dist/${sourcePath.endsWith('.ts') ? sourcePath.slice(0, -3) + '.js' : sourcePath}`;
@@ -152,10 +131,6 @@ function packageFiles(extraFiles = [], packageFields = {}) {
   }];
 }
 
-function runtimeConfigNames() {
-  return [...EXPECTED_RUNTIME_NAMES];
-}
-
 export {
   BUILD_ONLY_DIST_ARCHIVE_PATHS,
   BUILD_ONLY_DIST_PATHS,
@@ -168,16 +143,10 @@ export {
   RAW_DIST_CONTENT_PATHS,
   RAW_DIST_CONTENT_ROOTS,
   RELEASE_ONLY_PACKAGE_DOCS,
-  REMOVED_SHARED_AGENT_NAMES_MODULE,
-  REMOVED_STATE_HELPER_SCRIPTS,
-  RETIRED_DETACHED_PAYLOAD_FILES,
+  FORBIDDEN_DETACHED_PAYLOAD_FILES,
   ROOT,
   VALID_ARTIFACT_SCOPES,
   escaped,
   packageFiles,
   packageJson,
-  removedRuntimePath,
-  runtimeConfigNames,
-  sourceArchivePathToDistArchivePath,
-  sourcePathToDistPath,
 };

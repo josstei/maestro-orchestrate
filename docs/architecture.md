@@ -38,6 +38,9 @@ The generator (`src/tooling/generate.ts`, emitted to `dist/src/tooling/generate.
 4. Expands the entry-point registry into runtime-specific command or skill surfaces
 5. Prunes stale generated adapter files from owned directories
 
+The [runtime payload contract](runtime-payload-contract.md) records the compiled
+startup paths and independently verified package and release projections.
+
 ### Manifest System
 
 `src/manifest.ts` declares how source files map to outputs. Each entry specifies:
@@ -62,7 +65,7 @@ Or with glob patterns:
 
 ### Transform Pipeline
 
-The generator exposes 6 transforms (in `src/transforms/`, excluding the `index.js` barrel). Current manifest entries use a subset depending on the target surface.
+The generator exposes 6 transforms (in `src/transforms/`, excluding the `index.ts` barrel). Current manifest entries use a subset depending on the target surface.
 
 | Transform | Purpose |
 |-----------|---------|
@@ -94,7 +97,7 @@ Each runtime is authored as `src/platforms/*/runtime-config.ts` and loaded after
 - Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
 - Qwen: reuses Gemini's repo-root `commands/maestro/` TOML commands at runtime — `src/platforms/qwen/runtime-config.ts` sets both `generation.entryPoint` and `generation.coreCommand` to `null`, so the Qwen generator emits no command files of its own
 
-Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
+Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check, insights.
 
 Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/entry-points/core-command-registry.ts`.
 
@@ -106,68 +109,37 @@ The MCP server is authored directly in modular source under `src/mcp/` and execu
 
 ```
 src/mcp/
-├── maestro-server.js           # Server entry-point (runRuntimeServer)
+├── maestro-server.ts           # Server entry-point (runRuntimeServer)
 ├── content/
-│   ├── provider.js             # Content provider abstraction
-│   └── runtime-content.js      # Runtime-specific content resolution
+│   ├── provider.ts             # Content provider abstraction
+│   ├── runtime-content.ts      # Runtime-specific content resolution
+│   └── runtime-content-snapshot.ts # Provider-lifetime registry snapshot
+├── contracts/                  # Shared plan, session, and workspace contracts
+├── handlers/                   # 28 handler modules
+├── memory/                     # Project and cross-session persistence stores
+├── retrieval/                  # Recall corpus and BM25 provider
+├── runtime/
+│   └── runtime-config-map.ts   # Runtime config registry
 ├── server/
-│   ├── create-mcp-server.js    # SDK McpServer factory + StdioServerTransport connect
-│   ├── tool-pipeline.js        # Reduced decorator pipeline bridging handlers to the SDK
-│   ├── handler-context.js      # Per-call handler context construction
-│   ├── tool-result.js          # Tool-outcome → CallToolResult mapping
-│   └── elicitation-schemas.js  # `requestedSchema` payloads for `ctx.elicit`
-├── core/
-│   ├── project-root-cache.js   # Client-roots resolution + workspace-path caching
-│   ├── tool-outcome.js         # Success/error tool-outcome normalization
-│   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 27 handler implementations
-│   ├── get-agent.js            # Agent methodology serving
-│   ├── get-skill-content.js    # Skill/template/reference serving
-│   ├── get-runtime-context.js  # Runtime config snapshot
-│   ├── initialize-workspace.js # Directory setup
-│   ├── assess-task-complexity.js # Repo analysis signals
-│   ├── validate-plan.js        # Plan validation + dependency DAG
-│   ├── resolve-settings.js     # Config resolution
-│   ├── session-state-core.js   # Session-state transaction helpers
-│   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
-│   ├── design-gate.js          # Design-gate lifecycle (3 tools)
-│   ├── reconciliation.js       # Phase reconciliation (2 tools)
-│   ├── archive-index.js        # Archive index/search + cost insights (3 tools)
-│   ├── archive-compaction.js   # Deterministic archive retention pruning
-│   ├── session-lineage.js      # Session fork + lineage handlers (2 tools)
-│   ├── checkpoints.js          # Session checkpoint capture + restore handlers (2 tools)
-│   ├── session-blueprints.js   # Declarative session blueprint listing/instantiation (2 tools)
-│   ├── blocker-parser.js       # Child-agent blocker surfacing
-│   ├── session-migrations.js   # Session-state schema versioning + migration
-│   ├── recall.js               # Semantic recall over archived corpus (1 tool)
-│   ├── project-profile.js      # Project-memory profile read/update
-│   ├── agent-performance.js    # Per-agent outcome ledger + priors
-│   ├── plan-accuracy.js        # Plan-vs-actual file accuracy ledger
-│   ├── architecture-memory.js  # Cross-session architecture-memory graph
-│   ├── memory-pack.js          # Committable project memory import/export
-│   ├── agent-memory.js         # Per-agent durable memory notes
-│   ├── org-knowledge.js        # Cross-project out-of-tree knowledge notes
-│   └── ratings.js              # Human-satisfaction ratings
-├── memory/
-│   ├── project-profile-store.js # Per-project profile persistence
-│   ├── architecture-memory-store.js # Architecture-memory graph persistence
-│   ├── agent-performance-store.js # Per-agent outcome ledger
-│   ├── agent-memory-store.js   # Per-agent durable memory notes
-│   ├── jsonl-ledgers.js        # Ratings and plan-accuracy ledgers
-│   └── knowledge-store.js      # Out-of-tree cross-project knowledge store
+│   ├── create-mcp-server.ts    # SDK server and transport connection
+│   ├── mcp-sdk-adapter.ts      # SDK registration adapter
+│   ├── project-root-cache.ts   # Workspace initialization and client roots
+│   ├── tool-pipeline.ts        # Shared validation and handler pipeline
+│   ├── tool-outcome.ts         # Success/error outcome normalization
+│   └── tool-result.ts          # Tool outcome to CallToolResult mapping
+├── session/                    # Session store, lifecycle, and repositories
 ├── tool-packs/
-│   ├── index.js                # Tool pack aggregation
-│   ├── contracts.js            # Tool registry/pipeline contracts
-│   ├── command-table.js        # Name-keyed schema/handler declarations
-│   ├── workspace/index.js      # 4 tools
-│   ├── session/index.js        # 12 tools
-│   ├── content/index.js        # 3 tools
-│   ├── memory/index.js         # 15 tools
-│   └── history/index.js        # 6 tools
+│   ├── index.ts                # Tool pack aggregation
+│   ├── contracts.ts            # Tool registry contracts
+│   ├── command-table.ts        # Name-keyed schema/handler declarations
+│   ├── workspace/index.ts      # 4 tools
+│   ├── session/index.ts        # 12 tools
+│   ├── content/index.ts        # 3 tools
+│   ├── memory/index.ts         # 15 tools
+│   └── history/index.ts        # 6 tools
 ├── utils/
-│   └── extension-root.js       # Path resolution
-└── runtime/
-    └── runtime-config-map.js   # Runtime config registry
+│   └── extension-root.ts       # Path resolution
+└── validation/                 # Plan validation rules and pipeline
 ```
 
 ### Content Serving and Path Resolution
@@ -181,7 +153,7 @@ The content tools (`get_agent`, `get_skill_content`) use the same provider contr
 
 All four runtimes spawn `dist/src/bin/maestro-mcp-server.js` via a release-versioned `npx -y -p @josstei/maestro@<version> maestro-mcp-server` invocation declared in each runtime's manifest (`gemini-extension.json`, `qwen-extension.json`, `claude/.mcp.json`, `plugins/maestro/.mcp.json`). The bin honors an env-provided `MAESTRO_RUNTIME` (defaulting to `codex` if absent) — Gemini's and Qwen's manifests set `MAESTRO_RUNTIME=gemini`/`MAESTRO_RUNTIME=qwen`, Claude's sets `MAESTRO_RUNTIME=claude`, Codex's sets `MAESTRO_RUNTIME=codex` — overwrites `MAESTRO_EXTENSION_PATH` with the package root, then imports `dist/src/mcp/maestro-server.js`. The repo-root `mcp/maestro-server.js` (shared by Gemini/Qwen) and `claude/mcp/maestro-server.js` wrappers still ship but are no longer the launch target.
 
-Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.js`, and the generated registry feeds that same materialization path instead of carrying pre-transformed copies.
+Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.ts`, and the generated registry feeds that same materialization path instead of carrying pre-transformed copies.
 
 MCP tool packs declare tools through homomorphic command tables keyed by each
 pack's `zodSchemas` object. Each command owns its description, workspace
@@ -193,7 +165,7 @@ This makes one architectural rule explicit:
 
 - shared logic lives under `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`, then executes from the corresponding `dist/src/**` output
 - root `src/` is the only human-authored source of truth
-- generator-owned runtime-local mirrors are retired; public runtime roots carry host-facing manifests, stubs, and entrypoints only
+- runtime-local source mirrors are absent; public runtime roots carry host-facing manifests, stubs, and entrypoints only
 - no hand-maintained runtime forks are allowed
 
 ### MCP Server Packaging
@@ -383,11 +355,11 @@ For detailed documentation of all seven GitHub Actions workflows, the release pi
 
 ### Test Suite
 
-180 test files using Node.js built-in `node:test`:
+185 test files using Node.js built-in `node:test`:
 
-- 135 unit test files (`tests/unit/`)
+- 139 unit test files (`tests/unit/`)
 - 14 transform test files (`tests/transforms/`)
-- 31 integration test files (`tests/integration/`)
+- 32 integration test files (`tests/integration/`)
 
 The justfile's `just test` target uses glob expansion
 (`tests/unit/*.test.js`, `tests/transforms/*.test.js`, `tests/integration/*.test.js`),

@@ -12,7 +12,7 @@ describe('src-first architecture invariants', () => {
     assert.equal(
       fs.existsSync(path.join(ROOT, 'claude/src')),
       false,
-      'Expected retired Claude src payload to be absent'
+      'Expected duplicate Claude src payload to be absent'
     );
   });
 
@@ -20,7 +20,7 @@ describe('src-first architecture invariants', () => {
     assert.equal(
       fs.existsSync(path.join(ROOT, 'plugins/maestro/src')),
       false,
-      'Expected retired Codex src payload to be absent'
+      'Expected duplicate Codex src payload to be absent'
     );
   });
 
@@ -53,7 +53,7 @@ describe('src-first architecture invariants', () => {
     }
   });
 
-  it('does not carry retired content-policy config on runtime configs', () => {
+  it('keeps content policy out of runtime configs', () => {
     for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen']) {
       const runtimeConfig = getRuntimeConfig(runtimeName);
       assert.equal(runtimeConfig.content, undefined);

@@ -18,8 +18,6 @@ import {
 import {
   BUILD_ONLY_DIST_PATHS,
   BUILD_ONLY_SOURCE_PATHS,
-  REMOVED_SHARED_AGENT_NAMES_MODULE,
-  REMOVED_STATE_HELPER_SCRIPTS,
   ROOT,
 } from '../support/contracts.js';
 
@@ -109,20 +107,6 @@ describe('release artifact manifest', () => {
     }
   });
 
-  it('does not allow removed state helper scripts in release artifacts', () => {
-    for (const removedScript of REMOVED_STATE_HELPER_SCRIPTS) {
-      assert.equal(
-        isReleaseArtifactPathAllowed(removedScript),
-        false,
-        `${removedScript} must not be release-allowlisted`
-      );
-    }
-  });
-
-  it('does not allow removed shared agent names module in release artifacts', () => {
-    assert.equal(isReleaseArtifactPathAllowed(REMOVED_SHARED_AGENT_NAMES_MODULE), false);
-  });
-
   it('fails when extracted artifact contents contain package-root source checkout tooling', () => {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-source-tooling-'));
 
@@ -200,7 +184,7 @@ describe('release artifact manifest', () => {
     }
   });
 
-  it('fails when extracted artifact contents contain retired detached payloads', () => {
+  it('fails when extracted artifact contents contain duplicate source payloads', () => {
     for (const [runtimeName, payloadPath, expectedPattern] of [
       ['claude', 'claude/src/version.json', /Release artifact contains denied paths: claude\/src/],
       ['codex', 'plugins/maestro/src/version.json', /Release artifact contains denied paths: plugins\/maestro\/src/],
@@ -208,9 +192,9 @@ describe('release artifact manifest', () => {
       const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `maestro-release-${runtimeName}-payload-`));
 
       try {
-        const retiredPayloadFile = path.join(tempRoot, payloadPath);
-        fs.mkdirSync(path.dirname(retiredPayloadFile), { recursive: true });
-        fs.writeFileSync(retiredPayloadFile, '{"version":"0.0.0"}\n');
+        const duplicatePayloadFile = path.join(tempRoot, payloadPath);
+        fs.mkdirSync(path.dirname(duplicatePayloadFile), { recursive: true });
+        fs.writeFileSync(duplicatePayloadFile, '{"version":"0.0.0"}\n');
 
         assert.throws(
           () => assertReleaseArtifactContents(tempRoot),

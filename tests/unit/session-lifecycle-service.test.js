@@ -14,7 +14,7 @@ import {
   SessionIdSchema,
   SessionStateSchema,
 } from '../../dist/src/mcp/contracts/session-state-schema.js';
-import { migrateSessionState } from '../../dist/src/mcp/handlers/session-migrations.js';
+import { migrateSessionState } from '../../dist/src/mcp/session/session-store.js';
 import {
   createEmptySessionTokenUsage,
   createPendingPhaseState,

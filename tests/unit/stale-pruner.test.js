@@ -99,28 +99,6 @@ describe('pruneStaleFiles', () => {
     }
   });
 
-  it('removes retired payload roots when all of their files are stale', () => {
-    for (const retiredRoot of ['claude/src', 'plugins/maestro/src']) {
-      const rootDir = createTempRoot();
-      try {
-        const staleFile = `${retiredRoot}/mcp/maestro-server.js`;
-        createFile(rootDir, staleFile, 'stale');
-
-        const result = pruneStaleFiles({
-          rootDir,
-          manifestPaths: new Set(),
-          ownedDirs: [retiredRoot],
-        });
-
-        assert.ok(result.pruned.includes(staleFile));
-        assert.ok(result.emptyDirsRemoved.includes(retiredRoot));
-        assert.equal(fs.existsSync(path.join(rootDir, ...retiredRoot.split('/'))), false);
-      } finally {
-        removeTempRoot(rootDir);
-      }
-    }
-  });
-
   it('handles non-existent owned directories gracefully', () => {
     const rootDir = createTempRoot();
     try {

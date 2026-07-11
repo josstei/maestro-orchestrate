@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 import {
-  PACKAGE_BUDGETS,
+  PACKAGE_BUDGET,
   PACKAGE_SURFACE_RULES,
   PRIVATE_SCRIPT_ROLES,
   assertNoPackagedRootScripts,
@@ -23,9 +23,7 @@ import {
   FORBIDDEN_RUNTIME_TEST_PATHS,
   RAW_DIST_CONTENT_PATHS,
   RELEASE_ONLY_PACKAGE_DOCS,
-  REMOVED_SHARED_AGENT_NAMES_MODULE,
-  REMOVED_STATE_HELPER_SCRIPTS,
-  RETIRED_DETACHED_PAYLOAD_FILES,
+  FORBIDDEN_DETACHED_PAYLOAD_FILES,
   escaped,
   packageFiles,
   packageJson,
@@ -157,8 +155,8 @@ process.stdout.write(process.env.MAESTRO_PACK_JSON);
     );
   });
 
-  it('rejects retired detached payload files', () => {
-    for (const payloadPath of RETIRED_DETACHED_PAYLOAD_FILES) {
+  it('rejects duplicate runtime-local source payloads', () => {
+    for (const payloadPath of FORBIDDEN_DETACHED_PAYLOAD_FILES) {
       assert.throws(
         () => verifyPackageEntries(packageFiles([payloadPath])),
         new RegExp(`npm package contains forbidden path: ${payloadPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
@@ -199,7 +197,6 @@ process.stdout.write(process.env.MAESTRO_PACK_JSON);
     assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.json'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generated/runtime-content-registry.txt.gz'), ['runtime-dist']);
     assert.deepEqual(classifyPackageEntry('dist/src/generator/file-writer.js'), []);
-    assert.deepEqual(classifyPackageEntry('dist/src/lib/schema/index.js'), []);
   });
 
   it('rejects release-only docs if npm includes them', () => {
@@ -248,24 +245,6 @@ process.stdout.write(process.env.MAESTRO_PACK_JSON);
 
     assert.equal(packageRuntimeDistPaths.includes('dist'), false);
     assert.deepEqual(packageRuntimeDistPaths, [...RUNTIME_DIST_PATHS].sort());
-  });
-
-  it('does not classify removed state helper scripts as package runtime source', () => {
-    for (const removedScript of REMOVED_STATE_HELPER_SCRIPTS) {
-      assert.deepEqual(classifyPackageEntry(removedScript), []);
-      assert.throws(
-        () => verifyPackageEntries(packageFiles([removedScript])),
-        new RegExp(`npm package contains forbidden path: ${escaped(removedScript)}`)
-      );
-    }
-  });
-
-  it('does not classify removed shared agent names module as package runtime source', () => {
-    assert.deepEqual(classifyPackageEntry(REMOVED_SHARED_AGENT_NAMES_MODULE), []);
-    assert.throws(
-      () => verifyPackageEntries(packageFiles([REMOVED_SHARED_AGENT_NAMES_MODULE])),
-      new RegExp(`npm package contains forbidden path: ${escaped(REMOVED_SHARED_AGENT_NAMES_MODULE)}`)
-    );
   });
 
   it('rejects package-root source checkout tooling as forbidden package content', () => {
@@ -335,8 +314,8 @@ process.stdout.write(process.env.MAESTRO_PACK_JSON);
   it('enforces package entry and size budgets', () => {
     assert.throws(
       () => verifyPackageEntries(packageFiles([], {
-        size: PACKAGE_BUDGETS.maxPackedSize + 1,
-        unpackedSize: PACKAGE_BUDGETS.maxUnpackedSize + 1,
+        size: PACKAGE_BUDGET.maxPackedSize + 1,
+        unpackedSize: PACKAGE_BUDGET.maxUnpackedSize + 1,
       })),
       /npm package exceeds budgets: packedSize/
     );

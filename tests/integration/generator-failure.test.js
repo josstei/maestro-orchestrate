@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTempRepoCopy, runGeneratorExpectFailure } from './helpers.js';
+import { writeFixtureFile } from '../support/filesystem.js';
 
 describe('generator failure handling', () => {
   it('fails the run when the manifest references a missing source file', () => {
@@ -28,8 +29,9 @@ describe('generator failure handling', () => {
     const repoRoot = createTempRepoCopy('maestro-generator-transform-error-');
 
     try {
-      fs.writeFileSync(
-        path.join(repoRoot, 'src/agents/broken-transform.md'),
+      writeFixtureFile(
+        repoRoot,
+        'src/agents/broken-transform.md',
         [
           '---',
           'name: broken-transform',
@@ -39,7 +41,6 @@ describe('generator failure handling', () => {
           'Missing closing example tag',
           '',
         ].join('\n'),
-        'utf8'
       );
 
       const result = runGeneratorExpectFailure([], { cwd: repoRoot });

@@ -11,23 +11,13 @@ const RUNTIME_CONTEXT_OUTPUTS = Object.freeze(
   ]).filter((outputPath): outputPath is string => outputPath !== null)
 );
 
-const LIVE_OWNED_GENERATED_DIRS = Object.freeze([
+const OWNED_GENERATED_DIRS = Object.freeze([
   'agents',
   'claude/agents',
   'qwen/agents',
   'claude/skills',
   'plugins/maestro/skills',
   'commands',
-]);
-
-const RETIRED_GENERATED_CLEANUP_DIRS = Object.freeze([
-  'claude/src',
-  'plugins/maestro/src',
-]);
-
-const OWNED_GENERATED_DIRS = Object.freeze([
-  ...LIVE_OWNED_GENERATED_DIRS,
-  ...RETIRED_GENERATED_CLEANUP_DIRS,
 ]);
 
 const TRACKED_OUTPUT_EXEMPTIONS = Object.freeze([
@@ -157,20 +147,10 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     producer: 'src/generator/stale-pruner.ts',
     writeMode: 'generate and prepack only, skipped in --dry-run and --diff',
     sourceInputs: ['expanded manifest paths', 'entry point expansion paths'],
-    outputs: LIVE_OWNED_GENERATED_DIRS,
+    outputs: OWNED_GENERATED_DIRS,
     tracked: false,
     packaged: true,
     notes: 'Only these live generated roots are stale-pruned after write-mode generation.',
-  },
-  {
-    id: 'retired-generated-cleanup-roots',
-    producer: 'src/generator/stale-pruner.ts',
-    writeMode: 'generate and prepack only, skipped in --dry-run and --diff',
-    sourceInputs: ['retired generated roots from previous package contracts'],
-    outputs: RETIRED_GENERATED_CLEANUP_DIRS,
-    tracked: false,
-    packaged: false,
-    notes: 'Cleanup-only roots that should remain absent after pruning. They stay in the prune list so old generated files do not survive locally.',
   },
   {
     id: 'package-and-release-allowlists',
@@ -187,4 +167,4 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
   },
 ]);
 
-export { GENERATED_SURFACE_INVENTORY, LIVE_OWNED_GENERATED_DIRS, OWNED_GENERATED_DIRS, RETIRED_GENERATED_CLEANUP_DIRS, RUNTIME_CONTEXT_OUTPUTS, TRACKED_OUTPUT_EXEMPTIONS };
+export { GENERATED_SURFACE_INVENTORY, OWNED_GENERATED_DIRS, RUNTIME_CONTEXT_OUTPUTS, TRACKED_OUTPUT_EXEMPTIONS };

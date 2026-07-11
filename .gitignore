@@ -4,9 +4,6 @@ node_modules/
 # Build output
 # dist/src is generated from src/ for local commands, package, and release artifacts.
 /dist/src/
-# Type declarations are local build/typecheck byproducts, not runtime output.
-/dist/src/*.d.ts
-/dist/src/**/*.d.ts
 # Local release and development plugin bundles remain transient.
 /dist/release/
 /dist/claude-plugin/
@@ -35,7 +32,6 @@ Thumbs.db
 .claude/
 .serena/
 .superpowers/
-docs/superpowers/
 CLAUDE.md
 AGENTS.md
 
@@ -84,7 +80,7 @@ hooks/permissions.json
 /plugins/maestro/.mcp.json
 /plugins/maestro/.codex-plugin/plugin.json
 
-# Tracked exemptions (see TRACKED_OUTPUT_EXEMPTIONS in src/generator/generated-surface-inventory.js) —
+# Tracked exemptions (see TRACKED_OUTPUT_EXEMPTIONS in src/generator/generated-surface-inventory.ts) —
 # no pattern above covers these, kept here as an explicit, drift-proof guard.
 !/.agents/plugins/marketplace.json
 !/.claude-plugin/marketplace.json

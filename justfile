@@ -68,7 +68,7 @@ test:
 test-unit:
     #!/usr/bin/env bash
     set -euo pipefail
-    npm run build
+    npm run generate
     shopt -s nullglob
     files=(tests/unit/*.test.js)
     if [ ${#files[@]} -eq 0 ]; then echo "No unit test files found"; exit 1; fi
@@ -78,7 +78,7 @@ test-unit:
 test-transforms:
     #!/usr/bin/env bash
     set -euo pipefail
-    npm run build
+    npm run generate
     shopt -s nullglob
     files=(tests/transforms/*.test.js)
     if [ ${#files[@]} -eq 0 ]; then echo "No transform test files found"; exit 1; fi
@@ -88,7 +88,7 @@ test-transforms:
 test-integration:
     #!/usr/bin/env bash
     set -euo pipefail
-    npm run build
+    npm run generate
     shopt -s nullglob
     files=(tests/integration/*.test.js)
     if [ ${#files[@]} -eq 0 ]; then echo "No integration test files found"; exit 1; fi

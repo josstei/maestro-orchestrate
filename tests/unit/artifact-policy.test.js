@@ -6,11 +6,10 @@ import {
   ARTIFACT_INVENTORY,
   DENIED_ARTIFACT_PATHS,
   DENIED_ARTIFACT_PATTERNS,
-  FINAL_PACKAGE_BUDGETS,
-  PACKAGE_BUDGETS,
+  COMPATIBILITY_PACKAGE_FILES,
+  PACKAGE_BUDGET,
   PACKAGE_SURFACE_RULES,
   PRIVATE_SCRIPT_ROLES,
-  PRESERVED_PACKAGE_FILES,
   REQUIRED_PACKAGE_FILES,
   RUNTIME_DIST_PATHS,
   RUNTIME_PACKAGE_INVARIANTS,
@@ -76,7 +75,7 @@ describe('artifact policy', () => {
 
     assert.deepEqual(
       REQUIRED_PACKAGE_FILES,
-      [...new Set([...policyInvariants, ...PRESERVED_PACKAGE_FILES])].sort()
+      [...new Set([...policyInvariants, ...COMPATIBILITY_PACKAGE_FILES])].sort()
     );
     assert.deepEqual(REQUIRED_PACKAGE_FILES, EXPECTED_REQUIRED_PACKAGE_FILES);
 
@@ -86,8 +85,8 @@ describe('artifact policy', () => {
   });
 
   it('owns package budgets and private script roles', () => {
-    assert.equal(PACKAGE_BUDGETS.final, FINAL_PACKAGE_BUDGETS);
-    assert.equal(FINAL_PACKAGE_BUDGETS.id, 'final-compressed-pruned');
+    assert.equal(PACKAGE_BUDGET.id, 'runtime-package');
+    assert.ok(PACKAGE_BUDGET.maxEntryCount > 0);
 
     const validRoles = new Set(['dev-only', 'release-only']);
     for (const [scriptPath, role] of Object.entries(PRIVATE_SCRIPT_ROLES)) {

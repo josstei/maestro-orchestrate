@@ -6,8 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { REQUIRED_PACKAGE_FILES, isDeniedPath } from './release-artifact-manifest.js';
 import {
-  FINAL_PACKAGE_BUDGETS,
-  PACKAGE_BUDGETS,
+  PACKAGE_BUDGET,
   PACKAGE_SURFACE_RULES,
   PRIVATE_SCRIPT_ROLES,
   type PackageBudget,
@@ -125,7 +124,7 @@ function assertNoPackagedRootScripts(entries: string[]): void {
   }
 }
 
-function assertPackageBudgets(packageInfo: PackageInfo, entries: string[], budgets: PackageBudget = PACKAGE_BUDGETS.final): void {
+function assertPackageBudgets(packageInfo: PackageInfo, entries: string[], budgets: PackageBudget = PACKAGE_BUDGET): void {
   const failures: string[] = [];
   if (entries.length > budgets.maxEntryCount) {
     failures.push(`entryCount ${entries.length} > ${budgets.maxEntryCount}`);
@@ -183,13 +182,13 @@ function verifyPackageEntries(packages: PackageInfo[], options: VerifyPackageOpt
   const entries = verifyPackageShape(packageInfo);
 
   if (options.enforceBudgets !== false) {
-    assertPackageBudgets(packageInfo, entries, options.budgets || PACKAGE_BUDGETS.final);
+    assertPackageBudgets(packageInfo, entries, options.budgets || PACKAGE_BUDGET);
   }
 
   return {
     budget: options.enforceBudgets === false
       ? 'not-enforced'
-      : (options.budgets || PACKAGE_BUDGETS.final).id,
+      : (options.budgets || PACKAGE_BUDGET).id,
     entryCount: entries.length,
     filename: packageInfo.filename,
     packedSize: packageInfo.size,
@@ -213,5 +212,5 @@ runAsMain(import.meta.url, 'npm pack verification', () => {
   );
 });
 
-export { FINAL_PACKAGE_BUDGETS, PACKAGE_BUDGETS, PACKAGE_SURFACE_RULES, PRIVATE_SCRIPT_ROLES, assertPackageBudgets, assertPositivePackageInventory, assertNoPackagedRootScripts, classifyPackageEntry, parsePackExecutionArgs, parsePackJson, runNpmPackDryRun, verifyNpmPack, verifyPackageEntries, verifyPackageShape };
+export { PACKAGE_BUDGET, PACKAGE_SURFACE_RULES, PRIVATE_SCRIPT_ROLES, assertPackageBudgets, assertPositivePackageInventory, assertNoPackagedRootScripts, classifyPackageEntry, parsePackExecutionArgs, parsePackJson, runNpmPackDryRun, verifyNpmPack, verifyPackageEntries, verifyPackageShape };
 export type { PackExecutionOptions, VerifyNpmPackOptions, VerifyPackageOptions };

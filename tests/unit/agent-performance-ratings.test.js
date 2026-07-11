@@ -1,14 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { readRatings } from '../../dist/src/mcp/memory/jsonl-ledgers.js';
 import { handleRate } from '../../dist/src/mcp/handlers/ratings.js';
 import { handleGetAgentPerformance } from '../../dist/src/mcp/handlers/agent-performance.js';
+import { makeTempDir } from '../support/filesystem.js';
 
-function makeWorkspace() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-perf-ratings-'));
+function makeWorkspace(testContext) {
+  const root = makeTempDir(testContext, 'maestro-perf-ratings-');
   fs.mkdirSync(path.join(root, 'docs', 'maestro', 'knowledge'), {
     recursive: true,
     mode: 0o700,
@@ -17,13 +17,13 @@ function makeWorkspace() {
 }
 
 describe('ratings JSONL ledger', () => {
-  it('returns [] when no ratings ledger exists', () => {
-    const root = makeWorkspace();
+  it('returns [] when no ratings ledger exists', (t) => {
+    const root = makeWorkspace(t);
     assert.deepEqual(readRatings(root), []);
   });
 
-  it('reads back every appended rating record', () => {
-    const root = makeWorkspace();
+  it('reads back every appended rating record', (t) => {
+    const root = makeWorkspace(t);
     handleRate({ target: 'session', session_id: 's1', rating: 'up' }, root);
     handleRate({ target: 'session', session_id: 's2', rating: 'down', note: 'flaky' }, root);
     const records = readRatings(root);
@@ -35,8 +35,8 @@ describe('ratings JSONL ledger', () => {
 });
 
 describe('get_agent_performance surfaces ratings', () => {
-  it('includes a deterministic ratings rollup drawn from ratings.jsonl', () => {
-    const root = makeWorkspace();
+  it('includes a deterministic ratings rollup drawn from ratings.jsonl', (t) => {
+    const root = makeWorkspace(t);
     handleRate({ target: 'session', session_id: 's1', rating: 'up' }, root);
     handleRate({ target: 'session', session_id: 's1', rating: 'down' }, root);
     handleRate({ target: 'session', session_id: 's2', rating: 'up' }, root);

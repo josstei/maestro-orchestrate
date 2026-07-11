@@ -152,7 +152,6 @@ async function buildMcpServer({
 
   return {
     server,
-    client,
     /**
      * @param {string} name
      * @param {object} [args]
@@ -173,10 +172,6 @@ async function buildMcpServer({
     async getToolSchemas() {
       const { tools } = await client.listTools();
       return tools;
-    },
-    async close() {
-      await client.close();
-      await server.close();
     },
   };
 }
@@ -227,4 +222,4 @@ function phaseFixture(overrides = {}) {
   };
 }
 
-export { buildMcpServer, connectInMemory, registerContentPack as createContentPack, createInitializedMcpWorkspace, registerHistoryPack as createHistoryPack, registerMemoryPack as createMemoryPack, registerSessionPack as createSessionPack, registerWorkspacePack as createWorkspacePack, ensureMaestroWorkspace, initializeWorkspace, makeTempWorkspace, phaseFixture, readJsonFrontmatter, readSessionFrontmatter, writeWorkspaceFile };
+export { buildMcpServer, connectInMemory, registerContentPack as createContentPack, createInitializedMcpWorkspace, registerHistoryPack as createHistoryPack, registerMemoryPack as createMemoryPack, registerSessionPack as createSessionPack, registerWorkspacePack as createWorkspacePack, ensureMaestroWorkspace, makeTempWorkspace, phaseFixture, readSessionFrontmatter, writeWorkspaceFile };

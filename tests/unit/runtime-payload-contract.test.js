@@ -6,13 +6,13 @@ import { handleGetSkillContent } from '../../dist/src/mcp/handlers/get-skill-con
 import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 import {
   RUNTIME_PAYLOAD_CONTRACT,
-  TOPOLOGY_DECISION,
+  RUNTIME_TOPOLOGY,
   assertRuntimePayloadContract,
   getRuntimePayloadContract,
   runtimePayloadContractIssues,
 } from '../../dist/src/tooling/runtime-payload-contract.js';
 import { RUNTIME_PACKAGE_INVARIANTS } from '../../dist/src/tooling/artifact-policy.js';
-import { runtimeConfigNames } from '../support/contracts.js';
+import { EXPECTED_RUNTIME_NAMES } from '../support/contracts.js';
 import { repoPath } from '../support/paths.js';
 
 const packageJson = JSON.parse(fs.readFileSync(repoPath('package.json'), 'utf8'));
@@ -49,18 +49,18 @@ describe('runtime payload contract', () => {
     );
   });
 
-  it('records the source-only generated dist topology decision', () => {
-    assert.equal(TOPOLOGY_DECISION.mode, 'source-only-generated-dist');
-    assert.match(TOPOLOGY_DECISION.canonicalSource, /src\/\*\*\/\*\.ts/);
-    assert.match(TOPOLOGY_DECISION.runtimeFormat, /dist\/src/);
-    assert.match(TOPOLOGY_DECISION.note, /does not track dist\/src/);
-    assert.match(TOPOLOGY_DECISION.note, /dist\/src runtime entries/);
+  it('records the source-only generated dist topology', () => {
+    assert.equal(RUNTIME_TOPOLOGY.mode, 'source-only-generated-dist');
+    assert.match(RUNTIME_TOPOLOGY.canonicalSource, /src\/\*\*\/\*\.ts/);
+    assert.match(RUNTIME_TOPOLOGY.runtimeFormat, /dist\/src/);
+    assert.match(RUNTIME_TOPOLOGY.note, /does not track dist\/src/);
+    assert.match(RUNTIME_TOPOLOGY.note, /dist\/src runtime entries/);
   });
 
   it('covers every runtime config exactly once', () => {
     const contractNames = RUNTIME_PAYLOAD_CONTRACT.map((runtime) => runtime.name).sort();
 
-    assert.deepEqual(contractNames, runtimeConfigNames());
+    assert.deepEqual(contractNames, EXPECTED_RUNTIME_NAMES);
     for (const runtimeName of contractNames) {
       assert.equal(getRuntimePayloadContract(runtimeName).name, runtimeName);
     }
@@ -85,7 +85,7 @@ describe('runtime payload contract', () => {
   });
 
   for (const entry of RUNTIME_PAYLOAD_CONTRACT) {
-    it(`${entry.name} carries no retired payload/fallback keys`, () => {
+    it(`${entry.name} carries no duplicate payload or fallback keys`, () => {
       assert.equal(entry.detachedPayload, undefined);
       assert.equal(entry.content && entry.content.fallback, undefined);
     });
@@ -145,11 +145,11 @@ describe('runtime payload contract', () => {
     assert.ok(fs.existsSync(repoPath('dist/src/generated/runtime-content-registry.json')));
     assert.ok(fs.existsSync(repoPath('dist/src/generated/runtime-content-registry.txt.gz')));
 
-    for (const retiredRoot of ['agents', 'references', 'skills', 'templates']) {
+    for (const rawContentRoot of ['agents', 'references', 'skills', 'templates']) {
       assert.equal(
-        fs.existsSync(repoPath('dist/src', retiredRoot)),
+        fs.existsSync(repoPath('dist/src', rawContentRoot)),
         false,
-        `dist/src/${retiredRoot} should not be shipped as raw runtime content`
+        `dist/src/${rawContentRoot} should not be shipped as raw runtime content`
       );
     }
   });

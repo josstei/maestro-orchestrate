@@ -1,8 +1,4 @@
-import path from 'node:path';
-import { moduleDirname } from '../core/package-root.js';
 import type { GeneratedOutput, GeneratorRuntimeMap, ManifestEntry } from './types.js';
-
-const DEFAULT_CODE_SRC = path.resolve(moduleDirname(import.meta.url), '..');
 
 /**
  * Collect every output path a generation run is expected to produce.
@@ -14,22 +10,19 @@ const DEFAULT_CODE_SRC = path.resolve(moduleDirname(import.meta.url), '..');
  * @param {Array<{ outputs: Record<string, string> }>} manifest - Expanded manifest entries
  * @param {Record<string, object>} runtimes - Runtime configs keyed by name
  * @param {string} srcDir - Absolute path to the source directory
- * @param {Array<Function>} entryPointExpanders - Expander fns, each (runtimeName, srcDir, codeSrcDir) => [{ outputPath }, ...]
- * @param {string} [codeSrcDir] Absolute path to executable source/compiled-source modules
+ * @param {Array<Function>} entryPointExpanders - Expander fns, each (runtimeName, srcDir) => [{ outputPath }, ...]
  * @returns {Set<string>} All output paths produced by this run
  */
 type EntryPointExpander = (
   runtimeName: string,
-  srcDir: string,
-  codeSrcDir: string
+  srcDir: string
 ) => Promise<GeneratedOutput[]> | GeneratedOutput[];
 
 async function collectManifestPaths(
   manifest: ManifestEntry[],
   runtimes: GeneratorRuntimeMap,
   srcDir: string,
-  entryPointExpanders: EntryPointExpander[],
-  codeSrcDir = DEFAULT_CODE_SRC
+  entryPointExpanders: EntryPointExpander[]
 ): Promise<Set<string>> {
   const paths = new Set<string>();
   for (const entry of manifest) {
@@ -37,7 +30,7 @@ async function collectManifestPaths(
   }
   for (const fn of entryPointExpanders) {
     for (const rt of Object.keys(runtimes)) {
-      for (const { outputPath } of await fn(rt, srcDir, codeSrcDir)) paths.add(outputPath);
+      for (const { outputPath } of await fn(rt, srcDir)) paths.add(outputPath);
     }
   }
   return paths;

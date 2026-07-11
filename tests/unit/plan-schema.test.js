@@ -8,6 +8,7 @@ import {
   WirePhaseIdSchema,
   validatePhases,
 } from '../../dist/src/mcp/contracts/plan-schema.js';
+import { checkPhaseFieldSchema } from '../../dist/src/mcp/validation/schema-checker.js';
 
 describe('plan-schema', () => {
   it('exposes the required field list in declaration order', () => {
@@ -170,5 +171,19 @@ describe('plan-schema', () => {
     assert.equal(result.valid, false);
     assert.equal(result.violations[0].rule, 'invalid_field_value');
     assert.equal(result.violations[0].field, 'files');
+  });
+
+  it('maps phase contract violations into schema-checker violations', () => {
+    const phases = [{ id: 1, name: 'P', parallel: false, blocked_by: [] }];
+    const result = validatePhases(phases);
+    const violations = checkPhaseFieldSchema(phases);
+
+    assert.equal(result.valid, false);
+    assert.equal(violations.length, result.violations.length);
+    assert.ok(
+      violations.some((violation) => (
+        violation.rule === 'missing_required_field' && violation.field === 'agent'
+      ))
+    );
   });
 });

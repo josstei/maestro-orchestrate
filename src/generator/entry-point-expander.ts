@@ -100,13 +100,11 @@ function runTemplateExpansion<TEntry extends RuntimeNamedRegistryEntry>({
 /**
  * @param {RuntimeDefinition | string} runtime
  * @param {string} [srcDir] Content root for registries and templates.
- * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 async function expandEntryPoints(
   runtime: RuntimeDefinition | string,
-  srcDir = DEFAULT_SRC,
-  codeSrcDir?: string
+  srcDir = DEFAULT_SRC
 ): Promise<GeneratedOutput[]> {
   const definition = resolveRuntimeDefinition(runtime);
   const runtimeName = definition.name;
@@ -135,13 +133,11 @@ async function expandEntryPoints(
 /**
  * @param {RuntimeDefinition | string} runtime
  * @param {string} [srcDir] Content root for registries and templates.
- * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 async function expandCoreCommands(
   runtime: RuntimeDefinition | string,
-  srcDir = DEFAULT_SRC,
-  codeSrcDir?: string
+  srcDir = DEFAULT_SRC
 ): Promise<GeneratedOutput[]> {
   const definition = resolveRuntimeDefinition(runtime);
   const runtimeName = definition.name;

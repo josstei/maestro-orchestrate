@@ -4,10 +4,10 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
-[![Codex](https://img.shields.io/badge/Codex-plugin-black)](docs/runtime-codex.md)
+[![Codex](https://img.shields.io/badge/Codex-plugin-black)](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/codex/runtime-doc.md)
 [![Qwen Code](https://img.shields.io/badge/Qwen_Code-extension-purple)](https://github.com/QwenLM/qwen-code)
 
-Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Gemini CLI**, **Claude Code**, **Codex**, and **Qwen Code**.
+Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance/insights entrypoints. It runs from one canonical `src/` tree across **Gemini CLI**, **Claude Code**, **Codex**, and **Qwen Code**.
 
 ## Runtime Targets
 
@@ -77,7 +77,7 @@ just dev-load-claude   # or: npm run dev-load-claude
 
 `just dev-load-claude` regenerates the runtime, assembles a self-contained plugin under `dist/claude-plugin/` (with a bundled `dist/src/`), and prints the exact `claude --plugin-dir …` command to load it. Re-run it after editing anything under `src/`.
 
-More Claude-specific setup and plugin management lives in [claude/README.md](claude/README.md).
+More Claude-specific setup and plugin management lives in the [Claude runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/claude/runtime-doc.md).
 
 #### Codex
 
@@ -99,7 +99,7 @@ codex plugin marketplace add /absolute/path/to/maestro-orchestrate
 # then: start Codex, run `/plugins`, select Maestro → Install
 ```
 
-More Codex-specific setup and runtime details live in [plugins/maestro/README.md](plugins/maestro/README.md) and [docs/runtime-codex.md](docs/runtime-codex.md).
+More Codex-specific setup and runtime details live in [plugins/maestro/README.md](plugins/maestro/README.md) and the [Codex runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/codex/runtime-doc.md).
 
 #### Qwen Code
 
@@ -196,10 +196,10 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
 - [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
-- [docs/runtime-gemini.md](docs/runtime-gemini.md) for Gemini runtime specifics
-- [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
-- [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
-- [docs/runtime-qwen.md](docs/runtime-qwen.md) for Qwen runtime specifics
+- [Gemini runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/gemini/runtime-doc.md)
+- [Claude runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/claude/runtime-doc.md)
+- [Codex runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/codex/runtime-doc.md)
+- [Qwen runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/qwen/runtime-doc.md)
 
 ## Development and Release Validation
 

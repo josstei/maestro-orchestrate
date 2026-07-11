@@ -45,7 +45,7 @@ architect(query: "Design the auth system...")
 
 ## Commands
 
-The Qwen runtime does not emit its own TOML command files. `src/platforms/qwen/runtime-config.ts` sets both `generation.entryPoint` and `generation.coreCommand` to `null`, so `expandEntryPoints('qwen')` and `expandCoreCommands('qwen')` return empty arrays. This is intentional: Qwen Code is Gemini-CLI-compatible and consumes the 12 TOML commands generated for Gemini at repo-root `commands/maestro/` when both extensions coexist. See `docs/runtime-gemini.md` for the full command list.
+The Qwen runtime does not emit its own TOML command files. `src/platforms/qwen/runtime-config.ts` sets both `generation.entryPoint` and `generation.coreCommand` to `null`, so `expandEntryPoints('qwen')` and `expandCoreCommands('qwen')` return empty arrays. This is intentional: Qwen Code is Gemini-CLI-compatible and consumes the 12 TOML commands generated for Gemini at repo-root `commands/maestro/` when both extensions coexist. The canonical Gemini guide is `src/platforms/gemini/runtime-doc.md`; release artifacts project it to `docs/runtime-gemini.md`.
 
 ## Hooks
 

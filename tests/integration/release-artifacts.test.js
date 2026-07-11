@@ -47,16 +47,16 @@ describe('release artifact packaging', () => {
       assert.ok(archiveEntries.includes('./dist/src/mcp/maestro-server.js'));
       assert.ok(archiveEntries.includes('./dist/src/lib/framework-detection.js'));
       assert.ok(archiveEntries.includes('./dist/src/platforms/codex/runtime-config.js'));
-      for (const retiredContentRoot of [
+      for (const rawContentRoot of [
         './dist/src/agents/',
         './dist/src/references/',
         './dist/src/skills/',
         './dist/src/templates/',
       ]) {
         assert.equal(
-          archiveEntries.some((entry) => entry.startsWith(retiredContentRoot)),
+          archiveEntries.some((entry) => entry.startsWith(rawContentRoot)),
           false,
-          `${retiredContentRoot} must not be archived as raw runtime content`
+          `${rawContentRoot} must not be archived as raw runtime content`
         );
       }
       for (const buildOnlyPath of BUILD_ONLY_SOURCE_ARCHIVE_PATHS) {

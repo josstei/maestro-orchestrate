@@ -30,10 +30,10 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Specialized agents | 39 |
 | MCP tools | 40 |
 | Shared skills | 7 |
-| Entry-point commands | 9 (+ 3 core) |
+| Entry-point commands | 10 (+ 3 core) |
 | Runtime targets | 4 |
 | Source transforms | 6 |
-| Test files | 180 files across unit, transforms, and integration |
+| Test files | 185 files across unit, transforms, and integration |
 
 ## Project Structure
 
@@ -60,7 +60,7 @@ maestro-orchestrate/
 │   ├── bin/                      # Public package bin entrypoints
 │   ├── mcp/                      # Compiled MCP runtime
 │   └── tooling/generate.js       # Built generator entrypoint
-├── tests/                        # 180 test files across unit, transforms, and integration
+├── tests/                        # 185 test files across unit, transforms, and integration
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands

@@ -1,14 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { RATING_VALUES, handleRate, aggregateRatings } from '../../dist/src/mcp/handlers/ratings.js';
 import { buildMcpServer, ensureMaestroWorkspace, makeTempWorkspace } from '../support/mcp.js';
+import { makeTempDir } from '../support/filesystem.js';
 import { registerMemoryPack } from '../../dist/src/mcp/tool-packs/memory/index.js';
 
-function makeWorkspace() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ratings-'));
+function makeWorkspace(testContext) {
+  const root = makeTempDir(testContext, 'maestro-ratings-');
   fs.mkdirSync(path.join(root, 'docs', 'maestro', 'knowledge'), {
     recursive: true,
     mode: 0o700,
@@ -33,8 +33,8 @@ describe('ratings handlers', () => {
     assert.deepEqual([...RATING_VALUES], ['up', 'down']);
   });
 
-  it('appends a session rating as one JSONL record without a phase_id', () => {
-    const root = makeWorkspace();
+  it('appends a session rating as one JSONL record without a phase_id', (t) => {
+    const root = makeWorkspace(t);
     const result = handleRate(
       { target: 'session', session_id: '2026-07-03-demo', rating: 'up', note: '  solid run  ' },
       root
@@ -54,8 +54,8 @@ describe('ratings handlers', () => {
     );
   });
 
-  it('appends a phase rating and preserves prior records (true append)', () => {
-    const root = makeWorkspace();
+  it('appends a phase rating and preserves prior records (true append)', (t) => {
+    const root = makeWorkspace(t);
     handleRate({ target: 'session', session_id: 's1', rating: 'up' }, root);
     const result = handleRate(
       { target: 'phase', session_id: 's1', phase_id: 2, rating: 'down' },
@@ -69,8 +69,8 @@ describe('ratings handlers', () => {
     assert.equal(records[1].rating, 'down');
   });
 
-  it('rejects a phase rating with no phase_id', () => {
-    const root = makeWorkspace();
+  it('rejects a phase rating with no phase_id', (t) => {
+    const root = makeWorkspace(t);
     assert.throws(
       () => handleRate({ target: 'phase', session_id: 's1', rating: 'up' }, root),
       /phase_id is required/
