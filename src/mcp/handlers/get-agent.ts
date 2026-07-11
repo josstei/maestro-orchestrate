@@ -3,6 +3,17 @@ import { AGENT_ALLOWLIST } from '../content/runtime-content.js';
 import { createContentProvider } from '../content/provider.js';
 import { toSnakeCase, toKebabCase } from '../../lib/naming/index.js';
 
+interface AgentHandlerResult {
+  body: string;
+  tools: readonly string[];
+  tool_name: string;
+}
+
+interface GetAgentResult {
+  agents: Record<string, AgentHandlerResult>;
+  errors: Record<string, string>;
+}
+
 /**
  * Read one or more Maestro agent methodology definitions through the
  * runtime-configured content provider, resolving each agent's
@@ -13,7 +24,7 @@ import { toSnakeCase, toKebabCase } from '../../lib/naming/index.js';
  * @param {{ runtimeConfig?: object, services?: { canonicalSrcRoot?: string } }} ctx
  * @returns {{ agents: Record<string, object>, errors: Record<string, string> }}
  */
-function handleGetAgent(params: any, ctx: any = {}) {
+function handleGetAgent(params: any, ctx: any = {}): GetAgentResult {
   const requestedAgents = params.agents;
 
   const runtimeConfig = normalizeRuntimeConfig(ctx.runtimeConfig || getDefaultRuntimeConfig());
@@ -23,23 +34,36 @@ function handleGetAgent(params: any, ctx: any = {}) {
       ? services.canonicalSrcRoot
       : undefined;
 
-  const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
-  const agents: Record<string, any> = {};
-  const errors: Record<string, any> = {};
+  const agents: Record<string, AgentHandlerResult> = {};
+  let errors: Record<string, string> = {};
+  const knownAgents: { readonly inputName: string; readonly canonicalName: string }[] = [];
 
   for (const rawName of requestedAgents) {
     const inputName = String(rawName || '').trim();
     const canonicalName = toKebabCase(inputName);
 
     if (!AGENT_ALLOWLIST.includes(canonicalName)) {
-      errors[inputName || '(empty)'] =
-        `Unknown agent identifier: "${inputName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`;
+      const errorKey = inputName || '(empty)';
+      errors = {
+        ...errors,
+        [errorKey]: `Unknown agent identifier: "${inputName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
+      };
       continue;
     }
 
+    knownAgents.push({ inputName, canonicalName });
+  }
+
+  if (knownAgents.length === 0) {
+    return { agents, errors };
+  }
+
+  const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
+
+  for (const { inputName, canonicalName } of knownAgents) {
     const result = provider.readAgent(canonicalName);
-    if (result.error) {
-      errors[inputName] = result.error;
+    if ('error' in result) {
+      errors = { ...errors, [inputName]: result.error };
       continue;
     }
 

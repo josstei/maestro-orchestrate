@@ -1,27 +1,22 @@
 import fs from 'fs';
 import path from 'path';
-import { gunzipSync } from 'node:zlib';
-import { parseFrontmatterOnly, splitAtBoundary } from '../../lib/frontmatter/index.js';
+import { parse, parseFrontmatterOnly, splitAtBoundary } from '../../lib/frontmatter/index.js';
 import { replaceInContent } from '../../lib/naming/index.js';
 import { stripFeatureBlocks as stripFeatureBlocksCore } from '../../core/feature-blocks.js';
-import { readAgentSourceContent, renderAgentProfileSources } from '../../core/agent-sources.js';
+import { readAgentSourceContent } from '../../core/agent-sources.js';
 import { renderRosterTable } from '../../core/roster-renderer.js';
-import { readFileSync } from 'node:fs';
-
-const agentRegistry = JSON.parse(
-  readFileSync(new URL('../../generated/agent-registry.json', import.meta.url), 'utf8')
-);
+import {
+  AGENT_ALLOWLIST,
+  RESOURCE_ALLOWLIST,
+  createRuntimeContentSnapshot,
+  hasRuntimeContentRegistry,
+  isKnownResource,
+  readRuntimeContentRegistry,
+  runtimeContentRegistryPath,
+} from './runtime-content-snapshot.js';
+import type { ContentReadError, RawContent } from './runtime-content-snapshot.js';
 
 const DEFAULT_RUNTIME_NAME = 'gemini';
-
-const resourceRegistryJson = JSON.parse(
-  readFileSync(new URL('../../generated/resource-registry.json', import.meta.url), 'utf8')
-);
-
-const RUNTIME_CONTENT_REGISTRY = 'runtime-content-registry.json';
-const DEFAULT_RUNTIME_CONTENT_PAYLOAD = 'runtime-content-registry.txt';
-const RESOURCE_ALLOWLIST = Object.freeze(resourceRegistryJson);
-const AGENT_ALLOWLIST = Object.freeze(agentRegistry.map((entry: any) => entry.name));
 
 function applyReplacePaths(content: any, runtimeConfig: any) {
   let result = content;
@@ -102,7 +97,11 @@ function stripFeatureBlocks(content: any, runtimeConfig: any) {
 }
 
 function parseInlineArray(raw: any) {
-  if (!raw || !raw.startsWith('[') || !raw.endsWith(']')) {
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof raw !== 'string' || !raw.startsWith('[') || !raw.endsWith(']')) {
     return [];
   }
 
@@ -134,7 +133,11 @@ function mapTools(frontmatter: any, runtimeConfig: any) {
 }
 
 /** Shared allowlist-lookup -> path.join -> read/catch envelope. */
-function readAllowlistedFile(id: any, srcRoot: any, { unknownLabel, resolveRelativePath, knownIdsForError }: any) {
+function readAllowlistedFile(
+  id: any,
+  srcRoot: any,
+  { unknownLabel, resolveRelativePath, knownIdsForError }: any
+): RawContent | ContentReadError {
   const relativePath = resolveRelativePath(id);
   if (!relativePath) {
     return {
@@ -159,101 +162,11 @@ function readAllowlistedFile(id: any, srcRoot: any, { unknownLabel, resolveRelat
   }
 }
 
-function readRawResourceFromFilesystem(id: any, srcRoot: any) {
+function readRawResourceFromFilesystem(id: any, srcRoot: any): RawContent | ContentReadError {
   return readAllowlistedFile(id, srcRoot, {
     unknownLabel: 'resource',
-    resolveRelativePath: (resourceId: any) => RESOURCE_ALLOWLIST[resourceId],
-    knownIdsForError: Object.keys(RESOURCE_ALLOWLIST).join(', '),
-  });
-}
-
-function runtimeContentRegistryPath(srcRoot: any) {
-  return path.join(srcRoot, 'generated', RUNTIME_CONTENT_REGISTRY);
-}
-
-function hasRuntimeContentRegistry(srcRoot: any) {
-  return fs.existsSync(runtimeContentRegistryPath(srcRoot));
-}
-
-function readRuntimeContentRegistry(srcRoot: any) {
-  return JSON.parse(fs.readFileSync(runtimeContentRegistryPath(srcRoot), 'utf8'));
-}
-
-function readRegistryPayload(srcRoot: any, registry: any) {
-  const payloadPath = registry.payload || DEFAULT_RUNTIME_CONTENT_PAYLOAD;
-  const payload = fs.readFileSync(path.join(srcRoot, 'generated', payloadPath));
-
-  if (registry.payloadEncoding === 'gzip') {
-    return gunzipSync(payload).toString('utf8');
-  }
-
-  if (registry.payloadEncoding && registry.payloadEncoding !== 'utf8') {
-    throw new Error(`Unsupported runtime content payload encoding: ${registry.payloadEncoding}`);
-  }
-
-  return payload.toString('utf8');
-}
-
-function materializeRegistryEntry(entry: any, srcRoot: any, registry: any) {
-  if (entry && typeof entry.content === 'string' && typeof entry.relativePath === 'string') {
-    return {
-      content: entry.content,
-      path: path.join(srcRoot, entry.relativePath),
-      relativePath: entry.relativePath,
-    };
-  }
-
-  if (
-    Array.isArray(entry) &&
-    typeof entry[0] === 'string' &&
-    typeof entry[1] === 'number' &&
-    typeof entry[2] === 'number'
-  ) {
-    const payload = readRegistryPayload(srcRoot, registry);
-    return {
-      content: payload.slice(entry[1], entry[1] + entry[2]),
-      path: path.join(srcRoot, entry[0]),
-      relativePath: entry[0],
-    };
-  }
-
-  return null;
-}
-
-function readRegistryEntry(id: any, srcRoot: any, { unknownLabel, entries, knownIdsForError }: any) {
-  if (!entries.includes(id)) {
-    return {
-      error: `Unknown ${unknownLabel} identifier: "${id}". Known identifiers: ${knownIdsForError}`,
-    };
-  }
-
-  const registryPath = runtimeContentRegistryPath(srcRoot);
-  try {
-    const registry = readRuntimeContentRegistry(srcRoot);
-    const entry = registry[`${unknownLabel}s`] && registry[`${unknownLabel}s`][id];
-    const materialized = materializeRegistryEntry(entry, srcRoot, registry);
-    if (!materialized) {
-      return {
-        error: `Failed to read ${unknownLabel} "${id}": ENOENT`,
-        code: 'ENOENT',
-        path: registryPath,
-      };
-    }
-
-    return materialized;
-  } catch (err: any) {
-    return {
-      error: `Failed to read ${unknownLabel} "${id}": ${err.code || 'UNKNOWN'}`,
-      code: err.code || 'UNKNOWN',
-      path: registryPath,
-    };
-  }
-}
-
-function readRawResourceFromRegistry(id: any, srcRoot: any) {
-  return readRegistryEntry(id, srcRoot, {
-    unknownLabel: 'resource',
-    entries: Object.keys(RESOURCE_ALLOWLIST),
+    resolveRelativePath: (resourceId: any) =>
+      isKnownResource(resourceId) ? RESOURCE_ALLOWLIST[resourceId] : undefined,
     knownIdsForError: Object.keys(RESOURCE_ALLOWLIST).join(', '),
   });
 }
@@ -278,7 +191,7 @@ function expandRosterMarker(content: any, runtimeConfig: any, srcRoot: any) {
   );
 }
 
-function materializeResource(rawResource: any, runtimeConfig: any, srcRoot: any) {
+function materializeResource(rawResource: RawContent, runtimeConfig: any, srcRoot: string) {
   const transformed = applyRuntimeTransforms(
     rawResource.content,
     runtimeConfig,
@@ -290,8 +203,11 @@ function materializeResource(rawResource: any, runtimeConfig: any, srcRoot: any)
   };
 }
 
-function readAndMaterialize(raw: any, materializer: any) {
-  return raw.error ? raw : materializer(raw);
+function readAndMaterialize<T>(
+  raw: RawContent | ContentReadError,
+  materializer: (content: RawContent) => T
+): T | ContentReadError {
+  return 'error' in raw ? raw : materializer(raw);
 }
 
 function readResourceFromFilesystem(id: any, runtimeConfig: any, srcRoot: any) {
@@ -301,14 +217,7 @@ function readResourceFromFilesystem(id: any, runtimeConfig: any, srcRoot: any) {
   );
 }
 
-function readResourceFromRegistry(id: any, runtimeConfig: any, srcRoot: any) {
-  const rawResource = readRawResourceFromRegistry(id, srcRoot);
-  return readAndMaterialize(rawResource, (raw: any) =>
-    materializeResource(raw, runtimeConfig, srcRoot)
-  );
-}
-
-function readRawAgentFromFilesystem(agentName: any, srcRoot: any) {
+function readRawAgentFromFilesystem(agentName: any, srcRoot: any): RawContent | ContentReadError {
   if (!AGENT_ALLOWLIST.includes(agentName)) {
     return {
       error: `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
@@ -332,53 +241,11 @@ function readRawAgentFromFilesystem(agentName: any, srcRoot: any) {
   }
 }
 
-function readRawAgentFromRegistry(agentName: any, srcRoot: any) {
-  if (!AGENT_ALLOWLIST.includes(agentName)) {
-    return {
-      error: `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
-    };
-  }
-
-  const registryPath = runtimeContentRegistryPath(srcRoot);
-  try {
-    const registry = readRuntimeContentRegistry(srcRoot);
-    if (registry.agentProfiles) {
-      const profiles = Object.entries(registry.agentProfiles)
-        .map(([id, entry]: any) => {
-          const materialized = materializeRegistryEntry(entry, srcRoot, registry);
-          return materialized ? { profilePath: materialized.relativePath || id, content: materialized.content } : null;
-        })
-        .filter(Boolean);
-      const source = renderAgentProfileSources(profiles as { profilePath: string; content: string }[])
-        .find((entry) => entry.name === agentName);
-      if (source) {
-        return {
-          content: source.content,
-          path: path.join(srcRoot, source.relativePath),
-          relativePath: source.relativePath,
-        };
-      }
-    }
-  } catch (err: any) {
-    return {
-      error: `Failed to read agent "${agentName}": ${err.code || 'UNKNOWN'}`,
-      code: err.code || 'UNKNOWN',
-      path: registryPath,
-    };
-  }
-
-  return readRegistryEntry(agentName, srcRoot, {
-    unknownLabel: 'agent',
-    entries: AGENT_ALLOWLIST,
-    knownIdsForError: AGENT_ALLOWLIST.join(', '),
-  });
-}
-
-function materializeAgent(rawAgent: any, runtimeConfig: any) {
-  const frontmatter = parseFrontmatter(rawAgent.content);
+function materializeAgent(rawAgent: RawContent, runtimeConfig: any) {
+  const { frontmatter, body } = parse(rawAgent.content);
   return {
     agent: {
-      body: stripFrontmatter(stripFeatureBlocks(rawAgent.content, runtimeConfig)),
+      body: stripFeatureBlocks(body, runtimeConfig),
       tools: mapTools(frontmatter, runtimeConfig),
     },
   };
@@ -389,26 +256,34 @@ function readAgentFromFilesystem(agentName: any, runtimeConfig: any, srcRoot: an
   return readAndMaterialize(rawAgent, (raw: any) => materializeAgent(raw, runtimeConfig));
 }
 
+function readRawResourceFromRegistry(id: any, srcRoot: any): RawContent | ContentReadError {
+  return { ...createRuntimeContentSnapshot(srcRoot).readResource(id) };
+}
+
+function readResourceFromRegistry(id: any, runtimeConfig: any, srcRoot: any) {
+  return readAndMaterialize(readRawResourceFromRegistry(id, srcRoot), (raw) =>
+    materializeResource(raw, runtimeConfig, srcRoot)
+  );
+}
+
+function readRawAgentFromRegistry(agentName: any, srcRoot: any): RawContent | ContentReadError {
+  return { ...createRuntimeContentSnapshot(srcRoot).readAgent(agentName) };
+}
+
 function readAgentFromRegistry(agentName: any, runtimeConfig: any, srcRoot: any) {
-  const rawAgent = readRawAgentFromRegistry(agentName, srcRoot);
-  return readAndMaterialize(rawAgent, (raw: any) => materializeAgent(raw, runtimeConfig));
+  return readAndMaterialize(readRawAgentFromRegistry(agentName, srcRoot), (raw) =>
+    materializeAgent(raw, runtimeConfig)
+  );
 }
 
 function listBlueprintsFromRegistry(srcRoot: any) {
-  const registry = readRuntimeContentRegistry(srcRoot);
-  return Object.entries(registry.blueprints || {})
-    .map(([id, entry]: any) => {
-      const blueprint = materializeRegistryEntry(entry, srcRoot, registry);
-      return blueprint ? { id, ...blueprint } : null;
-    })
-    .filter(Boolean)
-    .sort((a: any, b: any) => a.id.localeCompare(b.id));
+  return createRuntimeContentSnapshot(srcRoot).listBlueprints()
+    .map((blueprint) => ({ ...blueprint }));
 }
 
 function readBlueprintFromRegistry(blueprintId: any, srcRoot: any) {
-  const registry = readRuntimeContentRegistry(srcRoot);
-  const entry = registry.blueprints && registry.blueprints[blueprintId];
-  return materializeRegistryEntry(entry, srcRoot, registry);
+  const blueprint = createRuntimeContentSnapshot(srcRoot).readBlueprint(blueprintId);
+  return blueprint ? { ...blueprint } : null;
 }
 
-export { DEFAULT_RUNTIME_NAME, RESOURCE_ALLOWLIST, AGENT_ALLOWLIST, applyReplacePaths, applySkillMetadata, applyReplaceAgentNames, applyStripFeature, applyRuntimeTransforms, loadAgentRegistryFromSrcRoot, expandRosterMarker, stripFrontmatter, stripFeatureBlocks, parseInlineArray, parseFrontmatter, mapTools, runtimeContentRegistryPath, hasRuntimeContentRegistry, readRuntimeContentRegistry, readRawResourceFromFilesystem, readRawResourceFromRegistry, materializeResource, readResourceFromFilesystem, readResourceFromRegistry, readRawAgentFromFilesystem, readRawAgentFromRegistry, materializeAgent, readAgentFromFilesystem, readAgentFromRegistry, listBlueprintsFromRegistry, readBlueprintFromRegistry };
+export { DEFAULT_RUNTIME_NAME, RESOURCE_ALLOWLIST, AGENT_ALLOWLIST, isKnownResource, applyReplacePaths, applySkillMetadata, applyReplaceAgentNames, applyStripFeature, applyRuntimeTransforms, loadAgentRegistryFromSrcRoot, expandRosterMarker, stripFrontmatter, stripFeatureBlocks, parseInlineArray, parseFrontmatter, mapTools, runtimeContentRegistryPath, hasRuntimeContentRegistry, readRuntimeContentRegistry, readRawResourceFromFilesystem, readRawResourceFromRegistry, materializeResource, readResourceFromFilesystem, readResourceFromRegistry, readRawAgentFromFilesystem, readRawAgentFromRegistry, materializeAgent, readAgentFromFilesystem, readAgentFromRegistry, listBlueprintsFromRegistry, readBlueprintFromRegistry };

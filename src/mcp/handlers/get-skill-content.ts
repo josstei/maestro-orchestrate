@@ -1,6 +1,15 @@
 import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from '../runtime/runtime-config-map.js';
-import { RESOURCE_ALLOWLIST, applyRuntimeTransforms } from '../content/runtime-content.js';
+import {
+  RESOURCE_ALLOWLIST,
+  applyRuntimeTransforms,
+  isKnownResource,
+} from '../content/runtime-content.js';
 import { createContentProvider } from '../content/provider.js';
+
+interface GetSkillContentResult {
+  contents: Record<string, string>;
+  errors: Record<string, string>;
+}
 
 /**
  * Read one or more Maestro content resources through the runtime-configured
@@ -12,7 +21,7 @@ import { createContentProvider } from '../content/provider.js';
  * @param {{ runtimeConfig?: object, services?: { canonicalSrcRoot?: string } }} ctx
  * @returns {{ contents: Record<string, string>, errors: Record<string, string> }}
  */
-function handleGetSkillContent(params: any, ctx: any = {}) {
+function handleGetSkillContent(params: any, ctx: any = {}): GetSkillContentResult {
   const resources = params.resources;
 
   const runtimeConfig = normalizeRuntimeConfig(ctx.runtimeConfig || getDefaultRuntimeConfig());
@@ -22,19 +31,32 @@ function handleGetSkillContent(params: any, ctx: any = {}) {
       ? services.canonicalSrcRoot
       : undefined;
 
-  const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
-  const contents: Record<string, any> = {};
-  const errors: Record<string, any> = {};
+  const contents: Record<string, string> = {};
+  let errors: Record<string, string> = {};
+  const knownResources: string[] = [];
 
   for (const id of resources) {
-    if (!RESOURCE_ALLOWLIST[id]) {
-      errors[id] = `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCE_ALLOWLIST).join(', ')}`;
+    if (!isKnownResource(id)) {
+      errors = {
+        ...errors,
+        [id]: `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCE_ALLOWLIST).join(', ')}`,
+      };
       continue;
     }
 
+    knownResources.push(id);
+  }
+
+  if (knownResources.length === 0) {
+    return { contents, errors };
+  }
+
+  const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
+
+  for (const id of knownResources) {
     const result = provider.readResource(id);
-    if (result.error) {
-      errors[id] = result.error;
+    if ('error' in result) {
+      errors = { ...errors, [id]: result.error };
       continue;
     }
 

@@ -394,6 +394,52 @@ describe('mcp server bundle behavior', () => {
     }
   });
 
+  it('isolates an independently corrupted packed payload from inline content on a later call', async () => {
+    const packageRoot = createTempRepoCopy('maestro-codex-corrupt-payload-');
+
+    try {
+      let payloadPath;
+      updateRuntimeContentRegistry(packageRoot, (registry) => {
+        payloadPath = runtimeContentPayloadPath(packageRoot, registry);
+        registry.resources.architecture = {
+          relativePath: 'references/architecture.md',
+          content: 'Inline architecture survives packed corruption.\n',
+        };
+      });
+
+      await withServer({
+        cwd: packageRoot,
+        relativePath: 'dist/src/bin/maestro-mcp-server.js',
+        env: { MAESTRO_EXTENSION_PATH: '' },
+      }, async (client) => {
+        const healthy = await client.callTool('get_skill_content', {
+          resources: ['delegation'],
+        });
+        assert.deepEqual(healthy.parsed.errors, {});
+        assert.match(healthy.parsed.contents.delegation, /delegation/i);
+
+        fs.writeFileSync(
+          payloadPath,
+          Buffer.from([0x6e, 0x6f, 0x74, 0x2d, 0x67, 0x7a, 0x69, 0x70])
+        );
+
+        const corrupted = await client.callTool('get_skill_content', {
+          resources: ['delegation', 'architecture'],
+        });
+        assert.equal(
+          corrupted.parsed.errors.delegation,
+          'Failed to read resource "delegation": Z_DATA_ERROR'
+        );
+        assert.equal(
+          corrupted.parsed.contents.architecture,
+          'Inline architecture survives packed corruption.\n'
+        );
+      });
+    } finally {
+      fs.rmSync(path.dirname(packageRoot), { recursive: true, force: true });
+    }
+  });
+
   it('uses MCP client roots for Codex session state when launched from a cwd outside the workspace', async () => {
     const workspaceRoot = makeTempSrcRoot('maestro-codex-workspace-');
     const spawnCwd = makeTempSrcRoot('maestro-codex-spawn-');

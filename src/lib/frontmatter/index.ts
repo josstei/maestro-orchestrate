@@ -158,11 +158,13 @@ function parseLines<T>(lines: string[], valueFn: (value: string) => T): Record<s
 }
 
 /**
- * Parse frontmatter with full type coercion (rich parser).
+ * Parse frontmatter with full type coercion (canonical parser).
  *
  * Splits content on `---` delimiters and parses key-value pairs with type
  * coercion via {@link parseValue}. Arrays, numbers, and quoted strings are
- * converted to their native types.
+ * converted to their native types. Runtime metadata consumers use this
+ * parser directly, so dotted override keys and tool arrays share the same
+ * delimiter and escaping behavior as authored transforms.
  *
  * Returns empty frontmatter and the full content as body when no valid
  * frontmatter block is found (missing opening or closing `---`).

@@ -5,10 +5,9 @@ import { moduleDirname } from '../../core/module-path.js';
 import { NotFoundError, ValidationError } from '../../lib/errors/index.js';
 import { z } from 'zod';
 import {
+  createRuntimeContentSnapshot,
   hasRuntimeContentRegistry,
-  listBlueprintsFromRegistry,
-  readBlueprintFromRegistry,
-} from '../content/runtime-content.js';
+} from '../content/runtime-content-snapshot.js';
 import { PHASE_ID } from '../tool-packs/zod-fragments.js';
 const BLUEPRINT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const RUNTIME_SRC_ROOT = path.join(moduleDirname(import.meta.url), '..', '..');
@@ -74,7 +73,8 @@ function resolveBlueprintSource(blueprintId: any, runtimeSrcRoot: any = RUNTIME_
   }
 
   if (hasRuntimeContentRegistry(runtimeSrcRoot)) {
-    const blueprint = readBlueprintFromRegistry(blueprintId, runtimeSrcRoot);
+    const snapshot = createRuntimeContentSnapshot(runtimeSrcRoot);
+    const blueprint = snapshot.readBlueprint(blueprintId);
     if (!blueprint) {
       throw new NotFoundError(`Session blueprint '${blueprintId}' not found`);
     }
@@ -118,7 +118,8 @@ function parseBlueprint(source: any) {
  */
 function readBlueprints(runtimeSrcRoot: any = RUNTIME_SRC_ROOT) {
   if (hasRuntimeContentRegistry(runtimeSrcRoot)) {
-    return listBlueprintsFromRegistry(runtimeSrcRoot)
+    const snapshot = createRuntimeContentSnapshot(runtimeSrcRoot);
+    return snapshot.listBlueprints()
       .map((blueprint: any) => parseBlueprint(blueprint))
       .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
   }

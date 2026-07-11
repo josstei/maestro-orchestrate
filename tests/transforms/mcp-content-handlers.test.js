@@ -28,6 +28,96 @@ const REMOVED_SESSION_READER_PATH = [
 after(cleanupTempRoots);
 
 describe('get_skill_content handler', () => {
+  it('performs no provider lookup for an unknown-only batch', (t) => {
+    const root = makeTempSrcRoot('maestro-skill-unknown-only-');
+    const srcRoot = path.join(root, 'src');
+    const registryPath = path.join(srcRoot, 'generated', 'runtime-content-registry.json');
+    const originalExistsSync = fs.existsSync;
+    let registryChecks = 0;
+    t.mock.method(fs, 'existsSync', function (...args) {
+      if (String(args[0]) === registryPath) registryChecks += 1;
+      return originalExistsSync.apply(this, args);
+    });
+
+    const result = handleGetSkillContent(
+      {
+        resources: [
+          'unknown-one',
+          'constructor',
+          'toString',
+          '__proto__',
+          ' unknown-two ',
+        ],
+      },
+      {
+        runtimeConfig: getRuntimeConfig('codex'),
+        services: { canonicalSrcRoot: srcRoot },
+      }
+    );
+
+    assert.deepEqual(result.contents, {});
+    assert.deepEqual(Object.keys(result.errors), [
+      'unknown-one',
+      'constructor',
+      'toString',
+      '__proto__',
+      ' unknown-two ',
+    ]);
+    assert.match(result.errors['__proto__'], /^Unknown resource identifier/);
+    assert.equal(registryChecks, 0);
+  });
+
+  it('records unknown errors before known read failures in a mixed batch', () => {
+    const root = makeTempSrcRoot('maestro-skill-mixed-order-');
+    const srcRoot = path.join(root, 'src');
+    const generatedDir = path.join(srcRoot, 'generated');
+    fs.mkdirSync(generatedDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(generatedDir, 'runtime-content-registry.json'),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        resources: {
+          delegation: {
+            relativePath: 'skills/shared/delegation/SKILL.md',
+            content: 'Inline delegation.\n',
+          },
+          architecture: {
+            relativePath: 'references/architecture.md',
+            content: 'Inline architecture.\n',
+          },
+        },
+        agents: {},
+        blueprints: {},
+      })}\n`,
+      'utf8'
+    );
+
+    const result = handleGetSkillContent(
+      {
+        resources: [
+          'architecture',
+          'not-a-resource',
+          'delegation',
+          'validation',
+          'delegation',
+          'not-a-resource',
+          'validation',
+        ],
+      },
+      {
+        runtimeConfig: getRuntimeConfig('codex'),
+        services: { canonicalSrcRoot: srcRoot },
+      }
+    );
+
+    assert.deepEqual(Object.keys(result.errors), ['not-a-resource', 'validation']);
+    assert.match(result.errors['not-a-resource'], /^Unknown resource identifier/);
+    assert.equal(result.errors.validation, 'Failed to read resource "validation": ENOENT');
+    assert.deepEqual(Object.keys(result.contents), ['architecture', 'delegation']);
+    assert.equal(result.contents.architecture, 'Inline architecture.\n');
+    assert.equal(result.contents.delegation, 'Inline delegation.\n');
+  });
+
   it('reads canonical src content and applies skill transforms', () => {
     const root = makeTempSrcRoot('maestro-skill-content-');
     const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
@@ -207,6 +297,69 @@ describe('get_skill_content handler', () => {
 });
 
 describe('get_agent handler', () => {
+  it('performs no provider lookup for an unknown-only normalized batch', (t) => {
+    const root = makeTempSrcRoot('maestro-agent-unknown-only-');
+    const srcRoot = path.join(root, 'src');
+    const registryPath = path.join(srcRoot, 'generated', 'runtime-content-registry.json');
+    const originalExistsSync = fs.existsSync;
+    let registryChecks = 0;
+    t.mock.method(fs, 'existsSync', function (...args) {
+      if (String(args[0]) === registryPath) registryChecks += 1;
+      return originalExistsSync.apply(this, args);
+    });
+
+    const result = handleGetAgent(
+      { agents: [' not_a_real_agent ', '__proto__', ''] },
+      {
+        runtimeConfig: getRuntimeConfig('codex'),
+        services: { canonicalSrcRoot: srcRoot },
+      }
+    );
+
+    assert.deepEqual(result.agents, {});
+    assert.deepEqual(Object.keys(result.errors), [
+      'not_a_real_agent',
+      '__proto__',
+      '(empty)',
+    ]);
+    assert.match(result.errors.not_a_real_agent, /"not_a_real_agent"/);
+    assert.match(result.errors['__proto__'], /"__proto__"/);
+    assert.match(result.errors['(empty)'], /identifier: ""/);
+    assert.equal(registryChecks, 0);
+  });
+
+  it('records unknown errors before known read failures while preserving original keys', () => {
+    const root = makeTempSrcRoot('maestro-agent-mixed-order-');
+    const srcRoot = path.join(root, 'src');
+    writeAgent(
+      srcRoot,
+      'coder',
+      '---\nname: coder\ntools: [read_file]\n---\nCoder body.\n'
+    );
+
+    const result = handleGetAgent(
+      {
+        agents: [
+          ' coder ',
+          'not_a_real_agent',
+          'ux_designer',
+          'coder',
+          'ux_designer',
+        ],
+      },
+      {
+        runtimeConfig: getRuntimeConfig('gemini'),
+        services: { canonicalSrcRoot: srcRoot },
+      }
+    );
+
+    assert.deepEqual(Object.keys(result.errors), ['not_a_real_agent', 'ux_designer']);
+    assert.match(result.errors.not_a_real_agent, /^Unknown agent identifier/);
+    assert.equal(result.errors.ux_designer, 'Failed to read agent "ux-designer": ENOENT');
+    assert.deepEqual(Object.keys(result.agents), ['coder']);
+    assert.equal(result.agents.coder.tool_name, 'coder');
+  });
+
   it('returns stripped methodology bodies and runtime-mapped tools', () => {
     const root = makeTempSrcRoot('maestro-agent-content-');
     const agentDir = path.join(root, 'src', 'agents');

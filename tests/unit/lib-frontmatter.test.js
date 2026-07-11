@@ -242,6 +242,23 @@ describe('parse', () => {
     const result = parse(content);
     assert.strictEqual(result.frontmatter.name, 'agent-42');
   });
+
+  it('parses runtime tool arrays, dotted overrides, and escaped metadata together', () => {
+    const content = [
+      '---',
+      'description: "Use \\"quoted\\" tools from C:\\\\runtime"',
+      'tools: [read_file, write_file]',
+      'tools.claude: [Read, Write]',
+      '---',
+      'Runtime body.',
+    ].join('\n');
+    const result = parse(content);
+
+    assert.equal(result.frontmatter.description, 'Use "quoted" tools from C:\\runtime');
+    assert.deepEqual(result.frontmatter.tools, ['read_file', 'write_file']);
+    assert.deepEqual(result.frontmatter['tools.claude'], ['Read', 'Write']);
+    assert.equal(result.body, 'Runtime body.');
+  });
 });
 
 describe('parseFrontmatterOnly', () => {
@@ -381,4 +398,3 @@ describe('escapeYaml', () => {
     }
   });
 });
-
