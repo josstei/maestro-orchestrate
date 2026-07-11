@@ -10,6 +10,7 @@ import {
   withArgsOnly,
   withHandlerContext,
   withOptionalProjectRoot,
+  withPostCall,
   withRequiredProjectRoot,
 } from '../../dist/src/mcp/tool-packs/command-table.js';
 import { createMaestroToolRegistry } from '../../dist/src/mcp/tool-packs/contracts.js';
@@ -59,6 +60,51 @@ test('defineCommandTable rejects required project root projections without works
   );
 });
 
+test('defineCommandTable materializes pack defaults and explicit overrides', () => {
+  const schemas = { inherited: {}, explicit_optional: {} };
+  const commands = defineCommandTable(
+    schemas,
+    {
+      inherited: {
+        handler: withRequiredProjectRoot((_args, projectRoot) => ({ projectRoot })),
+      },
+      explicit_optional: {
+        requiresWorkspace: false,
+        handler: withArgsOnly(() => ({ ok: true })),
+      },
+    },
+    { requiresWorkspace: true },
+  );
+
+  assert.equal(commands.inherited.requiresWorkspace, true);
+  assert.equal(commands.explicit_optional.requiresWorkspace, false);
+});
+
+test('registerCommandTable validates every command before mutating the registry', () => {
+  const schemas = { valid: {}, invalid: {} };
+  const commands = {
+    valid: {
+      handler: withArgsOnly(() => ({ ok: true })),
+    },
+    invalid: {
+      handler: withRequiredProjectRoot((_args, projectRoot) => ({ projectRoot })),
+    },
+  };
+  const server = createRecordingServer();
+  const registry = createMaestroToolRegistry();
+
+  assert.throws(
+    () => registerCommandTable(schemas, commands, {
+      server,
+      registry,
+      runtimeConfig: RUNTIME_CONFIG,
+    }),
+    /must set requiresWorkspace: true/,
+  );
+  assert.equal(server.registered.length, 0);
+  assert.equal(registry.has('valid'), false);
+});
+
 test('registerCommandTable registers metadata, schemas, projections, and post-call hooks', async () => {
   const zodSchemas = {
     echo: {
@@ -71,10 +117,14 @@ test('registerCommandTable registers metadata, schemas, projections, and post-ca
     full_context: {},
   };
   const postCallResults = [];
+  const projectedPostCalls = [];
   const commands = defineCommandTable(zodSchemas, {
     echo: {
       description: 'Echo text',
-      handler: withArgsOnly((args) => ({ echoed: args.text })),
+      handler: withPostCall(
+        withArgsOnly((args) => ({ echoed: args.text })),
+        () => projectedPostCalls.push('projected'),
+      ),
       onPostCall: (result, args) => {
         postCallResults.push({ result, args });
       },
@@ -123,6 +173,7 @@ test('registerCommandTable registers metadata, schemas, projections, and post-ca
       args: { text: 'hello' },
     },
   ]);
+  assert.deepEqual(projectedPostCalls, []);
 
   const requiredRootResult = await server.registered[1].callback({ value: 3 }, {});
   assert.deepEqual(JSON.parse(requiredRootResult.content[0].text), {

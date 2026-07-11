@@ -24,15 +24,12 @@ const APPROVED_ADDITIONAL_PATHS = Object.freeze([
   'src/mcp/session/session-migrations.ts',
   'src/mcp/session/session-state-factory.ts',
   'src/mcp/session/session-store.ts',
-  'src/mcp/tool-packs/tool-pack.ts',
   'src/tooling/runtime-payload-contract.ts',
   'tests/benchmarks/runtime-content-snapshot.js',
-  'tests/fixtures/mcp-tool-pack-type-contract.ts',
   'tests/integration/plan-contract-roundtrip.test.js',
   'tests/support/environment.js',
   'tests/support/filesystem.js',
   'tests/support/paths.js',
-  'tests/unit/mcp-tool-pack.test.js',
   'tests/unit/package-root.test.js',
   'tests/unit/package-script-lifecycle.test.js',
   'tests/unit/test-support.test.js',
@@ -119,9 +116,15 @@ describe('TypeScript build contract', () => {
         tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'command-table.d.ts'),
         'utf8',
       );
-      assert.match(commandTableDeclaration, /export type CommandTable<TSchemas extends ToolSchemaMap>/);
+      assert.match(
+        commandTableDeclaration,
+        /export type CommandTable<TSchemas extends ToolSchemaMap, DefaultRequired extends boolean = false>/,
+      );
       assert.match(commandTableDeclaration, /withRequiredProjectRoot/);
-      assert.match(commandTableDeclaration, /registerCommandTable<TSchemas extends ToolSchemaMap>/);
+      assert.match(
+        commandTableDeclaration,
+        /registerCommandTable<TSchemas extends ToolSchemaMap>/,
+      );
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.txt.gz')), true);

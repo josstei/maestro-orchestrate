@@ -69,8 +69,8 @@ for (const { name, schemas } of packs) {
   }
 }
 
-test('history schema compatibility module re-exports the co-located schema projection', () => {
-  assert.equal(historySchemas, historySchemasFromPack);
+test('history pack and schema module expose the same schema map', () => {
+  assert.equal(historySchemasFromPack, historySchemas);
 });
 
 test('get_skill_content.resources is required', () => {

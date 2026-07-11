@@ -34,6 +34,8 @@ describe('workspace requirement contract', () => {
       { name: 'get_design_gate_status', args: { session_id: 's1' } },
       { name: 'scan_phase_changes', args: { session_id: 's1', phase_id: 1 } },
       { name: 'reconcile_phase', args: { session_id: 's1', phase_id: 1 } },
+      { name: 'search_archived_sessions', args: {} },
+      { name: 'get_cost_insights', args: {} },
       { name: 'assess_task_complexity', args: {} },
       { name: 'get_project_profile', args: {} },
       { name: 'update_project_profile', args: {} },
@@ -81,7 +83,7 @@ describe('workspace requirement contract', () => {
     }
   });
 
-  it('startup-phase tools succeed without a workspace (resolve_settings, get_runtime_context, get_skill_content, get_agent, initialize_workspace itself)', async () => {
+  it('startup-phase tools succeed without a workspace', async () => {
     const server = await createFullServer();
 
     const settings = await server.callTool('resolve_settings', {}, null);
@@ -96,6 +98,12 @@ describe('workspace requirement contract', () => {
 
     const agents = await server.callTool('get_agent', { agents: ['coder'] }, null);
     assert.equal(agents.ok, true, `get_agent must tolerate null projectRoot: ${agents.error || ''}`);
+
+    const plan = await server.callTool('validate_plan', {
+      plan: { phases: [] },
+      task_complexity: 'complex',
+    }, null);
+    assert.equal(plan.ok, true, `validate_plan must tolerate null projectRoot: ${plan.error || ''}`);
   });
 
   it('workspace-dependent tools succeed after initialize_workspace provides a workspace', async () => {

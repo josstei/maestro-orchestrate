@@ -6,6 +6,8 @@ export type ToolSchemaMap = Record<string, z.ZodRawShape>;
 
 export type ToolArgs<TShape extends z.ZodRawShape> = z.infer<z.ZodObject<TShape>>;
 
+declare const commandTableDefault: unique symbol;
+
 export type ProjectionKind =
   | 'handler-context'
   | 'required-project-root'
@@ -37,19 +39,29 @@ type BaseCommandDefinition<TName extends string, TShape extends z.ZodRawShape, T
   onPostCall?: ToolPostCall<ToolArgs<TShape>, TResult>;
 };
 
-export type CommandDefinition<TName extends string, TShape extends z.ZodRawShape, TResult = unknown> =
-  | (BaseCommandDefinition<TName, TShape, TResult> & {
+export type CommandDefinition<
+  TName extends string,
+  TShape extends z.ZodRawShape,
+  TResult = unknown,
+  DefaultRequired extends boolean = false,
+> = BaseCommandDefinition<TName, TShape, TResult> & (
+  | {
+      requiresWorkspace?: DefaultRequired;
+      handler: HandlerFor<DefaultRequired, ToolArgs<TShape>, TResult>;
+    }
+  | {
       requiresWorkspace: true;
       handler: HandlerFor<true, ToolArgs<TShape>, TResult>;
-    })
-  | (BaseCommandDefinition<TName, TShape, TResult> & {
-      requiresWorkspace?: false;
+    }
+  | {
+      requiresWorkspace: false;
       handler: HandlerFor<false, ToolArgs<TShape>, TResult>;
-    });
+    }
+);
 
-export type CommandTable<TSchemas extends ToolSchemaMap> = {
-  [TName in keyof TSchemas & string]: CommandDefinition<TName, TSchemas[TName], any>;
-};
+export type CommandTable<TSchemas extends ToolSchemaMap, DefaultRequired extends boolean = false> = {
+  [TName in keyof TSchemas & string]: CommandDefinition<TName, TSchemas[TName], any, DefaultRequired>;
+} & { readonly [commandTableDefault]?: DefaultRequired };
 
 export type RegisterCommandTableOptions = HandlerContextOptions & {
   server: RegisterableMcpServer;
@@ -97,9 +109,29 @@ function withPostCall<TArgs, TResult, TKind extends ProjectionKind>(
 function defineCommandTable<TSchemas extends ToolSchemaMap>(
   schemas: TSchemas,
   commands: CommandTable<TSchemas>,
+): CommandTable<TSchemas>;
+function defineCommandTable<TSchemas extends ToolSchemaMap, DefaultRequired extends boolean>(
+  schemas: TSchemas,
+  commands: CommandTable<TSchemas, DefaultRequired>,
+  defaults: { requiresWorkspace: DefaultRequired },
+): CommandTable<TSchemas>;
+function defineCommandTable<TSchemas extends ToolSchemaMap, DefaultRequired extends boolean>(
+  schemas: TSchemas,
+  commands: CommandTable<TSchemas, DefaultRequired>,
+  defaults = { requiresWorkspace: false as DefaultRequired },
 ): CommandTable<TSchemas> {
+  const normalized = Object.fromEntries(
+    Object.entries(commands).map(([name, command]) => [
+      name,
+      {
+        ...command,
+        requiresWorkspace: command.requiresWorkspace ?? defaults.requiresWorkspace,
+      },
+    ]),
+  ) as CommandTable<TSchemas>;
+
   const schemaKeys = Object.keys(schemas).sort();
-  const commandKeys = Object.keys(commands).sort();
+  const commandKeys = Object.keys(normalized).sort();
 
   if (schemaKeys.length !== commandKeys.length || schemaKeys.some((key, index) => key !== commandKeys[index])) {
     throw new Error(
@@ -108,13 +140,13 @@ function defineCommandTable<TSchemas extends ToolSchemaMap>(
   }
 
   for (const name of commandKeys) {
-    const command = commands[name as keyof typeof commands];
+    const command = normalized[name as keyof typeof normalized];
     if (command.handler.kind === 'required-project-root' && command.requiresWorkspace !== true) {
       throw new Error(`Command "${name}" uses required project root projection and must set requiresWorkspace: true.`);
     }
   }
 
-  return commands;
+  return normalized;
 }
 
 function registerCommandTable<TSchemas extends ToolSchemaMap>(

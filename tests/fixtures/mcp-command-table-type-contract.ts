@@ -2,11 +2,13 @@ import { z } from 'zod';
 import { defineTool } from '../../src/mcp/tool-packs/contracts.js';
 import {
   defineCommandTable,
+  registerCommandTable,
   withArgsOnly,
   withHandlerContext,
   withOptionalProjectRoot,
   withPostCall,
   withRequiredProjectRoot,
+  type CommandTable,
   type HandlerFor,
   type ToolArgs,
   type ToolSchemaMap,
@@ -84,6 +86,78 @@ const commandTable = defineCommandTable(zodSchemas, {
     })),
   },
 });
+
+const defaultedSchemas = {
+  inherited_required: { id: z.string() },
+  explicit_optional: {},
+};
+
+const materializedDefaultCommands = defineCommandTable(
+  defaultedSchemas,
+  {
+    inherited_required: {
+      handler: withRequiredProjectRoot((args, projectRoot) => ({
+        id: args.id,
+        projectRoot,
+      })),
+    },
+    explicit_optional: {
+      requiresWorkspace: false,
+      handler: withArgsOnly(() => ({ ok: true as const })),
+    },
+  },
+  { requiresWorkspace: true },
+);
+
+registerCommandTable(defaultedSchemas, materializedDefaultCommands, {
+  server,
+  registry,
+  runtimeConfig: {},
+});
+
+declare const rawTrueDefaultCommands: CommandTable<typeof defaultedSchemas, true>;
+// @ts-expect-error raw defaults must be materialized through defineCommandTable before registration.
+registerCommandTable(defaultedSchemas, rawTrueDefaultCommands, {
+  server,
+  registry,
+  runtimeConfig: {},
+});
+
+defineCommandTable(
+  defaultedSchemas,
+  {
+    // @ts-expect-error an explicit false override rejects a required-root projection.
+    inherited_required: {
+      requiresWorkspace: false,
+      handler: withRequiredProjectRoot((args, projectRoot) => ({
+        id: args.id,
+        projectRoot,
+      })),
+    },
+    explicit_optional: {
+      handler: withArgsOnly(() => ({ ok: true as const })),
+    },
+  },
+  { requiresWorkspace: true },
+);
+
+declare const widenedWorkspaceDefault: boolean;
+defineCommandTable(
+  defaultedSchemas,
+  {
+    // @ts-expect-error a widened default cannot authorize a required-root projection.
+    inherited_required: {
+      handler: withRequiredProjectRoot((args, projectRoot) => ({
+        id: args.id,
+        projectRoot,
+      })),
+    },
+    explicit_optional: {
+      handler: withArgsOnly(() => ({ ok: true as const })),
+    },
+  },
+  { requiresWorkspace: widenedWorkspaceDefault },
+);
 
 commandTable.greet.handler.toHandler({ name: 'ada' }, {
   projectRoot: null,
