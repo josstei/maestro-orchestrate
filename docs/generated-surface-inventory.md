@@ -47,7 +47,7 @@ These retired generated roots are cleanup-only prune targets and should remain a
 When adding or retiring a generated surface, update all of the following in the same change:
 
 - `src/generator/generated-surface-inventory.ts`
-- `src/tooling/lib/artifact-inventory.ts`, `src/tooling/release-artifact-manifest.ts`, `src/tooling/verify-npm-pack.ts`, and `package.json` `files`, when the package/release source surface changes
+- `src/tooling/artifact-policy.ts`, `src/tooling/release-artifact-manifest.ts`, `src/tooling/verify-npm-pack.ts`, and `package.json` `files`, when the package/release source surface changes
 - the generator producer or release/package verifier that owns the surface
 - the relevant runtime payload contract entry
 - tests that prove the surface is generated, packaged, or intentionally absent

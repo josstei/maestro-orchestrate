@@ -44,18 +44,17 @@ typecheck:
 # Preview what the generator would change
 dry-run:
     npm run build
-    node dist/src/tooling/generate.js --dry-run
+    npm run generate:run -- --dry-run
 
 # Show unified diff of what the generator would change
 diff:
     npm run build
-    node dist/src/tooling/generate.js --diff
+    npm run generate:run -- --diff
 
 # Clean all generated files and regenerate from scratch
 clean:
     npm run build
-    node dist/src/tooling/generate.js --clean
-    npm run generate
+    npm run generate:run -- --clean
 
 # Assemble a self-contained local Claude plugin and print the one-step load command
 dev-load-claude: generate

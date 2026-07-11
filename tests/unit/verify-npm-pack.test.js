@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 import {
   PACKAGE_BUDGETS,
@@ -7,6 +10,7 @@ import {
   PRIVATE_SCRIPT_ROLES,
   assertNoPackagedRootScripts,
   classifyPackageEntry,
+  parsePackExecutionArgs,
   parsePackJson,
   verifyPackageEntries,
 } from '../../dist/src/tooling/verify-npm-pack.js';
@@ -26,12 +30,91 @@ import {
   packageFiles,
   packageJson,
 } from '../support/contracts.js';
+import { makeTempDir, writeFixtureFile } from '../support/filesystem.js';
+import { REPO_ROOT } from '../support/paths.js';
 
 describe('verify npm pack', () => {
   it('parses npm pack JSON after lifecycle output', () => {
     const parsed = parsePackJson('> prepack\nGeneration complete\n[{"filename":"pkg.tgz","files":[]}]\n');
 
     assert.equal(parsed[0].filename, 'pkg.tgz');
+  });
+
+  it('keeps scripts enabled by default and strictly parses ignore-scripts', () => {
+    assert.deepEqual(parsePackExecutionArgs([]), {});
+    assert.deepEqual(parsePackExecutionArgs(['--ignore-scripts']), { ignoreScripts: true });
+    assert.throws(
+      () => parsePackExecutionArgs(['--unknown']),
+      /Unknown option '--unknown'/
+    );
+    assert.throws(
+      () => parsePackExecutionArgs(['archive.tgz']),
+      /Unexpected argument 'archive\.tgz'/
+    );
+  });
+
+  it('passes the compiled CLI ignore-scripts choice to the child npm process', (t) => {
+    const tempRoot = makeTempDir(t, 'maestro-pack-cli-');
+    const binRoot = path.join(tempRoot, 'bin');
+    const npmArgsPath = path.join(tempRoot, 'npm-args.json');
+    const fakeNpmPath = writeFixtureFile(
+      binRoot,
+      'npm',
+      `#!/usr/bin/env node
+const fs = require('node:fs');
+fs.writeFileSync(process.env.MAESTRO_NPM_ARGS_PATH, JSON.stringify(process.argv.slice(2)));
+process.stdout.write(process.env.MAESTRO_PACK_JSON);
+`,
+    );
+    fs.chmodSync(fakeNpmPath, 0o755);
+
+    const runCli = (args) => {
+      execFileSync(
+        process.execPath,
+        [path.join(REPO_ROOT, 'dist', 'src', 'tooling', 'verify-npm-pack.js'), ...args],
+        {
+          cwd: REPO_ROOT,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: `${binRoot}${path.delimiter}${process.env.PATH || ''}`,
+            MAESTRO_NPM_ARGS_PATH: npmArgsPath,
+            MAESTRO_PACK_JSON: JSON.stringify(packageFiles()),
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      );
+      return JSON.parse(fs.readFileSync(npmArgsPath, 'utf8'));
+    };
+
+    const scriptsEnabledArgs = runCli([]);
+    assert.deepEqual(scriptsEnabledArgs.slice(0, 3), ['pack', '--dry-run', '--json']);
+    assert.equal(scriptsEnabledArgs[3], '--cache');
+    assert.equal(scriptsEnabledArgs.includes('--ignore-scripts'), false);
+
+    const ignoreScriptsArgs = runCli(['--ignore-scripts']);
+    assert.deepEqual(ignoreScriptsArgs.slice(0, 3), ['pack', '--dry-run', '--json']);
+    assert.equal(ignoreScriptsArgs[3], '--cache');
+    assert.equal(ignoreScriptsArgs.at(-1), '--ignore-scripts');
+  });
+
+  it('rejects unknown options through the compiled CLI', () => {
+    assert.throws(
+      () => execFileSync(
+        process.execPath,
+        [path.join(REPO_ROOT, 'dist', 'src', 'tooling', 'verify-npm-pack.js'), '--unknown'],
+        {
+          cwd: REPO_ROOT,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      ),
+      (error) => {
+        assert.equal(error.status, 1);
+        assert.match(String(error.stderr), /Unknown option '--unknown'/);
+        return true;
+      },
+    );
   });
 
   it('requires release-critical files in the package', () => {

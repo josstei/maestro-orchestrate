@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { createTempRepoCopy } from './helpers.js';
 import { spawnMcpServer } from './mcp-stdio-client.js';
 import { BUILD_ONLY_DIST_PATHS, BUILD_ONLY_SOURCE_PATHS } from '../support/contracts.js';
+import { createTrackedCandidateRepoCopy } from '../support/filesystem.js';
+import { REPO_ROOT } from '../support/paths.js';
 
 function parsePackJson(stdout) {
   const start = stdout.indexOf('[');
@@ -63,13 +64,21 @@ async function withServer(options, fn) {
 
 describe('npm package surface', () => {
   it('installs only public package files and runs both package bins', async () => {
-    const repoRoot = createTempRepoCopy('maestro-npm-package-');
+    const repoRoot = createTrackedCandidateRepoCopy({
+      dependencyRoot: path.join(REPO_ROOT, 'node_modules'),
+    });
     const installRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-npm-install-'));
     const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-npm-home-'));
 
     try {
+      assert.equal(fs.existsSync(path.join(repoRoot, 'dist', 'src')), false);
+      assert.equal(fs.existsSync(path.join(repoRoot, 'src', 'generated')), false);
+      assert.equal(fs.lstatSync(path.join(repoRoot, 'node_modules')).isSymbolicLink(), true);
+
       const { packageInfo, tarballPath } = runNpmPack(repoRoot);
       const entries = packageInfo.files.map((file) => file.path);
+
+      assert.equal(fs.existsSync(path.join(repoRoot, 'dist', 'src')), true);
 
       assert.equal(entries.some((entry) => entry === 'src' || entry.startsWith('src/')), false);
       assert.equal(entries.some((entry) => entry.startsWith('scripts/')), false);

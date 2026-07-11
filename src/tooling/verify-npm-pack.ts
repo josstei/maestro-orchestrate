@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { REQUIRED_PACKAGE_FILES, isDeniedPath } from './release-artifact-manifest.js';
 import {
   FINAL_PACKAGE_BUDGETS,
@@ -28,6 +29,14 @@ type VerifyPackageOptions = {
   budgets?: PackageBudget;
 };
 
+type PackExecutionOptions = {
+  ignoreScripts?: boolean;
+};
+
+type VerifyNpmPackOptions = VerifyPackageOptions & {
+  pack?: PackExecutionOptions;
+};
+
 type VerifyPackageResult = {
   budget: string;
   entryCount: number;
@@ -49,11 +58,34 @@ function parsePackJson(stdout: string): PackageInfo[] {
   return JSON.parse(stdout.slice(start, end + 1));
 }
 
-function runNpmPackDryRun(root: string = ROOT): PackageInfo[] {
+function parsePackExecutionArgs(argv: readonly string[] = []): PackExecutionOptions {
+  const { values } = parseNodeArgs({
+    args: [...argv],
+    options: {
+      'ignore-scripts': { type: 'boolean' },
+    },
+    allowPositionals: false,
+    strict: true,
+  });
+
+  return values['ignore-scripts'] === true
+    ? { ignoreScripts: true }
+    : {};
+}
+
+function runNpmPackDryRun(
+  root: string = ROOT,
+  options: PackExecutionOptions = {},
+): PackageInfo[] {
   const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-npm-pack-cache-'));
 
   try {
-    const stdout = execFileSync('npm', ['pack', '--dry-run', '--json', '--cache', cacheDir], {
+    const args = ['pack', '--dry-run', '--json', '--cache', cacheDir];
+    if (options.ignoreScripts === true) {
+      args.push('--ignore-scripts');
+    }
+
+    const stdout = execFileSync('npm', args, {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -165,12 +197,15 @@ function verifyPackageEntries(packages: PackageInfo[], options: VerifyPackageOpt
   };
 }
 
-function verifyNpmPack(root: string = ROOT, options: VerifyPackageOptions = {}): VerifyPackageResult {
-  return verifyPackageEntries(runNpmPackDryRun(root), options);
+function verifyNpmPack(root: string = ROOT, options: VerifyNpmPackOptions = {}): VerifyPackageResult {
+  const { pack, ...packageOptions } = options;
+  return verifyPackageEntries(runNpmPackDryRun(root, pack), packageOptions);
 }
 
 runAsMain(import.meta.url, 'npm pack verification', () => {
-  const result = verifyNpmPack();
+  const result = verifyNpmPack(ROOT, {
+    pack: parsePackExecutionArgs(process.argv.slice(2)),
+  });
   console.log(
     `Verified npm pack contents: ${result.filename} ` +
     `(${result.entryCount} files, ${result.packedSize} packed bytes, ` +
@@ -178,4 +213,5 @@ runAsMain(import.meta.url, 'npm pack verification', () => {
   );
 });
 
-export { FINAL_PACKAGE_BUDGETS, PACKAGE_BUDGETS, PACKAGE_SURFACE_RULES, PRIVATE_SCRIPT_ROLES, assertPackageBudgets, assertPositivePackageInventory, assertNoPackagedRootScripts, classifyPackageEntry, parsePackJson, runNpmPackDryRun, verifyNpmPack, verifyPackageEntries, verifyPackageShape };
+export { FINAL_PACKAGE_BUDGETS, PACKAGE_BUDGETS, PACKAGE_SURFACE_RULES, PRIVATE_SCRIPT_ROLES, assertPackageBudgets, assertPositivePackageInventory, assertNoPackagedRootScripts, classifyPackageEntry, parsePackExecutionArgs, parsePackJson, runNpmPackDryRun, verifyNpmPack, verifyPackageEntries, verifyPackageShape };
+export type { PackExecutionOptions, VerifyNpmPackOptions, VerifyPackageOptions };

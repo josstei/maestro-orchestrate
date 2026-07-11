@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 
 import {
   ARTIFACT_INVENTORY,
-  ARTIFACT_SCOPE,
   DENIED_ARTIFACT_PATHS,
   DENIED_ARTIFACT_PATTERNS,
   FINAL_PACKAGE_BUDGETS,
@@ -19,7 +18,12 @@ import {
 } from '../../dist/src/tooling/artifact-policy.js';
 
 import { RUNTIME_PAYLOAD_CONTRACT } from '../../dist/src/tooling/runtime-payload-contract.js';
-import { EXPECTED_REQUIRED_PACKAGE_FILES } from '../support/contracts.js';
+import {
+  EXPECTED_REQUIRED_PACKAGE_FILES,
+  RAW_DIST_CONTENT_ROOTS,
+  RELEASE_ONLY_PACKAGE_DOCS,
+  VALID_ARTIFACT_SCOPES,
+} from '../support/contracts.js';
 
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
 
@@ -37,7 +41,6 @@ describe('artifact policy', () => {
   });
 
   it('exposes valid, frozen artifact inventory entries', () => {
-    const validScopes = new Set(Object.values(ARTIFACT_SCOPE));
     const paths = ARTIFACT_INVENTORY.map((entry) => entry.path);
 
     assert.ok(Object.isFrozen(ARTIFACT_INVENTORY));
@@ -45,7 +48,7 @@ describe('artifact policy', () => {
 
     for (const entry of ARTIFACT_INVENTORY) {
       assert.ok(Object.isFrozen(entry));
-      assert.ok(validScopes.has(entry.scope), `${entry.path} has invalid scope ${entry.scope}`);
+      assert.ok(VALID_ARTIFACT_SCOPES.has(entry.scope), `${entry.path} has invalid scope ${entry.scope}`);
     }
   });
 
@@ -54,6 +57,16 @@ describe('artifact policy', () => {
       assert.deepEqual(projection, [...projection].sort());
       assert.deepEqual(projection, [...new Set(projection)]);
       assert.equal(projection.some((entry) => entry === 'src' || entry.startsWith('src/')), false);
+    }
+  });
+
+  it('keeps long-form package docs release-only and out of npm', () => {
+    for (const docPath of RELEASE_ONLY_PACKAGE_DOCS) {
+      const entry = ARTIFACT_INVENTORY.find((candidate) => candidate.path === docPath);
+      assert.ok(entry, `expected inventory entry for ${docPath}`);
+      assert.equal(entry.scope, 'release');
+      assert.equal(npmFiles().includes(docPath), false);
+      assert.ok(releasePaths().includes(docPath));
     }
   });
 
@@ -98,7 +111,13 @@ describe('artifact policy', () => {
   });
 
   it('keeps runtime dist paths in both projections', () => {
+    assert.ok(Object.isFrozen(RUNTIME_DIST_PATHS));
     assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/platforms/runtime-declarations.js'));
+
+    for (const rawContentRoot of RAW_DIST_CONTENT_ROOTS) {
+      assert.equal(RUNTIME_DIST_PATHS.includes(rawContentRoot), false);
+    }
+
     for (const runtimeDistPath of RUNTIME_DIST_PATHS) {
       assert.ok(npmFiles().includes(runtimeDistPath));
       assert.ok(releasePaths().includes(runtimeDistPath));

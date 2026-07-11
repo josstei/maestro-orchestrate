@@ -32,6 +32,8 @@ Source-only generated dist is the active terminal topology.
 - Canonical implementation source is `src/**/*.ts`, with canonical
   Markdown/templates still authored under `src/`.
 - Runtime JavaScript is emitted by `tsc` under ignored local `dist/src/`.
+- Normal builds emit runtime JavaScript, not TypeScript declarations. Package and
+  release denial rules still reject declarations and maps as defense in depth.
 - Public bins execute compiled `dist/src` output. Directly-runnable generated MCP
   wrappers remain public generated runtime surfaces and load compiled
   `dist/src` runtime modules.
@@ -72,7 +74,12 @@ The npm package must keep these categories until the corresponding runtime contr
 - build-only dist tooling is source-checkout only and must not be packaged: `dist/src/tooling/`, `dist/src/generator/`, `dist/src/transforms/`, `dist/src/entry-points/`, `dist/src/lib/discovery/`, `dist/src/lib/yaml-emit.js`, `dist/src/manifest.js`, and platform metadata builders
 - declaration files and source maps are not public runtime artifacts
 
-`npm run pack:verify` enforces the package inventory and size budgets.
+`npm run pack:verify` enforces the package inventory and size budgets through a
+scripts-enabled `npm pack`, including the real `prepack` lifecycle. Composite
+release validation builds and generates once, then invokes the same compiled
+verifier with `--ignore-scripts` before running the build-free release artifact
+leaves. Public generator, test, package, and release wrappers remain build-owning;
+their `:run` leaves require an already-built `dist/src` tree.
 
 ## Acceptance Tests
 

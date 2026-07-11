@@ -30,6 +30,22 @@ graph LR
 
 The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, Release Candidate, and stable Release keep npm publishing gated on `NPM_TOKEN`. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
 
+### Script lifecycle boundaries
+
+Public lifecycle scripts own compilation; `:run` scripts consume an already-built
+`dist/src` tree. `check:source` performs one emitting build, then invokes the
+build-free generator and test leaves plus the separate type-test graph. Its build
+uses the same strict source graph as `npm run typecheck`, so the composite does not
+repeat a no-emit source check. `check:release` likewise performs one build, refreshes
+generated projections, and invokes build-free package and release leaves.
+
+The two package-verification paths are intentionally different. Standalone
+`npm run pack:verify` keeps npm lifecycle scripts enabled, so its inner `npm pack`
+executes the real `prepack` path from a clean publication candidate. Within
+`check:release`, the already-built verifier receives `--ignore-scripts` to avoid a
+second build. The release `:run` scripts are internal leaves; their public wrappers
+remain safe to invoke independently because those wrappers own a build.
+
 ## Source Of Truth Check
 
 ### Purpose
@@ -67,7 +83,7 @@ graph TD
 |------|-------------|
 | Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) |
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
-| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any tracked file (the marketplace/plugin manifest exemptions, or any hand-committed file) differs from freshly generated output. Most generated runtime output is untracked and `.gitignore`-governed, so this step does not diff-check it directly |
 | Run full test suite | Executes `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` |
 | Verify npm package contents | Runs `npm run pack:verify` to ensure npm dry-run packaging contains required runtime files and no test-only directories |
@@ -203,7 +219,7 @@ graph TD
 |------|-------------|
 | Checkout | Checks out `refs/heads/main` explicitly, pinned to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` |
 | Setup Node.js | Node.js 20 with `registry-url` set to `https://registry.npmjs.org` |
-| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Fails with `::error::Nightly drift detected on main` if generated files differ |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Sets `enabled=true` output if `NPM_TOKEN` secret is present |
@@ -275,7 +291,7 @@ graph TD
 |------|-------------|
 | Checkout | Checks out the PR head repository and SHA (supports fork PRs) |
 | Setup Node.js | Node.js 20 with npm registry URL |
-| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Fails with `::error::Preview drift detected` if drift exists |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
@@ -432,7 +448,7 @@ graph TD
 |------|-------------|
 | Checkout | Checks out the PR head repository and SHA |
 | Setup Node.js | Node.js 20 with npm registry URL |
-| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Fails with `::error::RC drift detected` |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
@@ -515,7 +531,7 @@ graph TD
 | Setup Node.js | Conditional on `is_release=true`; Node.js 20 with npm registry URL |
 | Verify npm token | Fails before tag or publish work unless `NPM_TOKEN` is configured |
 | Extract and validate version | Reads version from `package.json` and cross-validates: the version must be stable semver, the CHANGELOG must have a matching section (unconditional), any existing `vX.Y.Z` tag must point at the checked-out target SHA, and manual recovery must match both the requested `version` and `target_sha` when supplied. When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
-| Generate runtime adapters | Runs `npm run check:source`, whose first step is `npm run generate` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Final drift check before release; fails with error annotation |
 | Run full test suite | Final test gate before release |
 | Verify npm package contents | Runs `npm run pack:verify` before any tag or publish operation |
@@ -584,7 +600,7 @@ The workflows replicate the following `just` commands:
 just generate  -->  npm run generate
 just check     -->  git diff --exit-code --name-only (after generate)
 source check   -->  npm run check:source / just source-check
-just test      -->  node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+just test      -->  npm run test (one build, then the test:run leaf)
 release check  -->  npm run check:release / just release-check
 ```
 

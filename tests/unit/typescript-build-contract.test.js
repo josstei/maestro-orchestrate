@@ -98,33 +98,9 @@ describe('TypeScript build contract', () => {
         }).trim(),
         ''
       );
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'tooling', 'copy-runtime-assets.d.ts')), true);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'tooling', 'copy-runtime-assets.d.ts.map')), false);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'mcp', 'server', 'tool-types.d.ts')), true);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'contracts.d.ts')), true);
-      assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'command-table.d.ts')), true);
-
-      const contractsDeclaration = fs.readFileSync(
-        tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'contracts.d.ts'),
-        'utf8',
-      );
-      assert.match(contractsDeclaration, /MaestroToolRegistry/);
-      assert.match(contractsDeclaration, /ToolHandler<TArgs, TResult>/);
-      assert.doesNotMatch(contractsDeclaration, /declare function defineTool\([^)]*: any/);
-
-      const commandTableDeclaration = fs.readFileSync(
-        tempRepoPath('dist', 'src', 'mcp', 'tool-packs', 'command-table.d.ts'),
-        'utf8',
-      );
-      assert.match(
-        commandTableDeclaration,
-        /export type CommandTable<TSchemas extends ToolSchemaMap, DefaultRequired extends boolean = false>/,
-      );
-      assert.match(commandTableDeclaration, /withRequiredProjectRoot/);
-      assert.match(
-        commandTableDeclaration,
-        /registerCommandTable<TSchemas extends ToolSchemaMap>/,
-      );
+      const declarationFiles = fs.readdirSync(tempRepoPath('dist', 'src'), { recursive: true })
+        .filter((entry) => entry.endsWith('.d.ts') || entry.endsWith('.d.ts.map'));
+      assert.deepEqual(declarationFiles, []);
 
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json')), true);
       assert.equal(fs.existsSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.txt.gz')), true);

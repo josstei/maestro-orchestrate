@@ -26,6 +26,22 @@ const EXPECTED_REQUIRED_PACKAGE_FILES = Object.freeze([
   'qwen/hooks.json',
 ]);
 
+const EXPECTED_PACKAGE_SCRIPT_LIFECYCLE = Object.freeze({
+  'generate:run': 'node dist/src/tooling/generate.js',
+  generate: 'npm run build && npm run generate:run',
+  'test:run': 'node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js',
+  test: 'npm run build && npm run test:run',
+  'check:source': 'npm run build && npm run generate:run && npm run typecheck:type-tests && git diff --exit-code --name-only && node dist/src/tooling/check-layer-boundaries.js && node dist/src/tooling/check-esm-imports.js && npm run test:run',
+  'release:artifacts:run': 'node dist/src/tooling/package-release-artifacts.js --out-dir dist/release',
+  'release:artifacts': 'npm run build && npm run release:artifacts:run',
+  'release:verify-artifacts:run': 'node dist/src/tooling/verify-release-artifacts.js',
+  'release:verify-artifacts': 'npm run build && npm run release:verify-artifacts:run',
+  'pack:verify:run': 'node dist/src/tooling/verify-npm-pack.js',
+  'pack:verify': 'npm run build && npm run pack:verify:run',
+  'check:release': 'npm run build && npm run generate:run && npm run pack:verify:run -- --ignore-scripts && npm run release:artifacts:run && npm run release:verify-artifacts:run',
+  prepack: 'npm run generate',
+});
+
 const RELEASE_ONLY_PACKAGE_DOCS = [
   'CHANGELOG.md',
   'EXAMPLES.md',
@@ -141,6 +157,7 @@ export {
   BUILD_ONLY_SOURCE_ARCHIVE_PATHS,
   BUILD_ONLY_SOURCE_PATHS,
   EXPECTED_REQUIRED_PACKAGE_FILES,
+  EXPECTED_PACKAGE_SCRIPT_LIFECYCLE,
   EXPECTED_RUNTIME_NAMES,
   FORBIDDEN_RUNTIME_TEST_PATHS,
   RAW_DIST_CONTENT_PATHS,
