@@ -4,10 +4,10 @@ This guide is a scenario catalog for Maestro public entry points across Gemini C
 
 Canonical sources for this page:
 
-- Command names and runtime remapping: `src/entry-points/core-command-registry.js`, `src/entry-points/registry.js`, and `src/generator/entry-point-expander.ts`
+- Command names and runtime remapping: `src/entry-points/core-command-registry.ts`, `src/entry-points/registry.ts`, and `src/generator/entry-point-expander.ts`
 - Orchestration behavior: `src/references/orchestration-steps.md` and `docs/flow.md`
 - Quick-start task wording: `README.md`
-- Standalone entry-point behavior: `src/entry-points/registry.js`
+- Standalone entry-point behavior: `src/entry-points/registry.ts`
 - Contributor commands: `package.json`, `justfile`, and `docs/usage.md`
 
 ## Runtime Command Forms
@@ -42,7 +42,7 @@ Use this when the task needs design, planning, specialist execution, and final r
 
 Expected outcome: Maestro classifies the task, routes simple work to Express or medium/complex work to the Standard workflow, produces an approved implementation plan for Standard work, delegates execution to specialists, runs the completion review gate, and archives when `MAESTRO_AUTO_ARCHIVE` is true or unset.
 
-Source: `README.md`, `src/entry-points/core-command-registry.js`, `src/references/orchestration-steps.md`, `docs/flow.md`
+Source: `README.md`, `src/entry-points/core-command-registry.ts`, `src/references/orchestration-steps.md`, `docs/flow.md`
 
 ## Execute an Approved Plan
 
@@ -57,7 +57,7 @@ Use this when an approved implementation plan already exists and you want Maestr
 
 Expected outcome: Maestro reads the approved plan, resolves the execution mode gate, creates or resumes session state, then executes phases through child agents following the loaded methodology.
 
-Source: `src/entry-points/core-command-registry.js`, `src/skills/shared/execution/SKILL.md`, `docs/usage.md`
+Source: `src/entry-points/core-command-registry.ts`, `src/skills/shared/execution/SKILL.md`, `docs/usage.md`
 
 ## Check Session Status
 
@@ -72,7 +72,7 @@ Use this to inspect the active session without mutating state.
 
 Expected outcome: Maestro reports the session ID, creation timestamp, workflow mode, overall status, phase breakdown, file manifest, token usage by agent, and unresolved errors.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Resume an Interrupted Session
 
@@ -87,7 +87,7 @@ Use this after a prior orchestration was paused, interrupted, or left with pendi
 
 Expected outcome: Maestro reads the active session state, summarizes completed and pending phases, then resumes from the first pending or failed phase following the loaded methodology.
 
-Source: `src/entry-points/core-command-registry.js`, `docs/flow.md`
+Source: `src/entry-points/core-command-registry.ts`, `docs/flow.md`
 
 ## Archive a Session
 
@@ -102,7 +102,7 @@ Use this when the active session should be moved out of the active state directo
 
 Expected outcome: Maestro summarizes the active session, asks the user to confirm archival, moves the active session and associated plan files into archive directories, and verifies that no active session remains.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Standalone Code Review
 
@@ -117,7 +117,7 @@ Use this when you want findings ordered by severity without running the full orc
 
 Expected outcome: Maestro delegates to the code-reviewer agent, classifies findings by Critical, Major, Minor, and Suggestion, and presents findings first with concrete file and line references.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Standalone Debugging
 
@@ -132,7 +132,7 @@ Use this for investigation-heavy work where the root cause is not yet known.
 
 Expected outcome: Maestro establishes the failing behavior, forms hypotheses, gathers evidence from code, logs, tests, and runtime behavior, then returns root cause, affected files, confidence level, and the smallest defensible next action.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Security Audit
 
@@ -147,7 +147,7 @@ Use this for authentication, authorization, secret handling, dependency, and dat
 
 Expected outcome: Maestro reviews trust boundaries, auth flows, secret handling, and data exposure paths, then reports severity-classified findings with file references and exploitability assessment.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Performance Check
 
@@ -162,7 +162,7 @@ Use this when a feature or code path has latency, throughput, memory, or scaling
 
 Expected outcome: Maestro establishes the available baseline, identifies likely hotspots, prioritizes fixes by expected impact versus implementation cost, and reports measurement gaps when hard evidence is unavailable.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Accessibility Audit
 
@@ -177,7 +177,7 @@ Use this for WCAG, ARIA, keyboard navigation, focus management, and screen reade
 
 Expected outcome: Maestro audits WCAG compliance, ARIA usage, keyboard navigation, focus management, color contrast, and screen reader compatibility, then reports findings with WCAG criteria, severity, user impact, location, and remediation patterns.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## SEO Audit
 
@@ -192,7 +192,7 @@ Use this for crawlability, meta tags, canonical URLs, structured data, and Core 
 
 Expected outcome: Maestro audits meta tags, schema markup, crawlability, canonicalization, internal linking, and Core Web Vitals, then reports findings with severity, SEO impact, location, and remediation guidance.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Compliance Check
 
@@ -207,7 +207,7 @@ Use this for GDPR, CCPA, cookie consent, retention, licensing, and third-party d
 
 Expected outcome: Maestro reviews data handling, disclosures, consent flows, retention policies, and third-party integrations, then reports findings with regulatory reference, severity, compliance risk, and recommended actions.
 
-Source: `src/entry-points/registry.js`
+Source: `src/entry-points/registry.ts`
 
 ## Contributor Examples
 

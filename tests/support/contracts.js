@@ -58,10 +58,10 @@ const RAW_DIST_CONTENT_PATHS = [
 const BUILD_ONLY_SOURCE_PATHS = [
   'src/generator/file-writer.ts',
   'src/transforms/index.ts',
-  'src/entry-points/registry.js',
+  'src/entry-points/registry.ts',
   'src/lib/discovery/index.ts',
   'src/lib/yaml-emit.ts',
-  'src/manifest.js',
+  'src/manifest.ts',
   'src/platforms/metadata.ts',
   'src/platforms/metadata-shared.ts',
   'src/platforms/claude/metadata.ts',

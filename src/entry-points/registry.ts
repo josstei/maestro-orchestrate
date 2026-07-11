@@ -1,6 +1,7 @@
+import type { EntryPointRegistryEntry } from '../generator/types.js';
 import { defineAudit } from './archetypes/audit-archetype.js';
 
-export default [
+const entryPoints = [
   defineAudit({
     name: 'review',
     runtimeNames: { codex: 'review-code', claude: 'review-code' },
@@ -190,4 +191,6 @@ export default [
       'If no archived sessions exist, say so plainly rather than inventing a rollup',
     ],
   },
-];
+] satisfies EntryPointRegistryEntry[];
+
+export default entryPoints;

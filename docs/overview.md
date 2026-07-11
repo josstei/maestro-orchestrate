@@ -55,7 +55,7 @@ maestro-orchestrate/
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime adapters, manifests, and public shells
-│   └── manifest.js               # Declarative file mapping rules
+│   └── manifest.ts               # Declarative file mapping rules
 ├── dist/src/                     # Compiled NodeNext runtime and copied assets
 │   ├── bin/                      # Public package bin entrypoints
 │   ├── mcp/                      # Compiled MCP runtime

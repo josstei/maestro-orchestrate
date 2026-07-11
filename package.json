@@ -47,7 +47,6 @@
       "lcov"
     ],
     "include": [
-      "src/**/*.js",
       "src/**/*.ts"
     ],
     "exclude": [

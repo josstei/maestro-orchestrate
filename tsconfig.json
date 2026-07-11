@@ -4,8 +4,6 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
-    "allowJs": true,
-    "checkJs": false,
     "declaration": true,
     "declarationMap": false,
     "sourceMap": false,
@@ -20,10 +18,7 @@
     "types": ["node"]
   },
   "include": [
-    "src/**/*.ts",
-    "src/manifest.js",
-    "src/entry-points/registry.js",
-    "src/entry-points/core-command-registry.js"
+    "src/**/*.ts"
   ],
   "exclude": [
     "dist",

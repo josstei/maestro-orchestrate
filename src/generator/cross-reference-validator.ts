@@ -1,16 +1,13 @@
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { moduleDirname } from '../core/module-path.js';
+import coreCommands from '../entry-points/core-command-registry.js';
+import entryPoints from '../entry-points/registry.js';
 import { ValidationError } from '../lib/errors/index.js';
-import type { EntryPointRegistryEntry, RegistryModel } from './types.js';
-
-const DEFAULT_CODE_SRC = path.resolve(moduleDirname(import.meta.url), '..');
+import type { CoreCommandRegistryEntry, EntryPointRegistryEntry, RegistryModel } from './types.js';
 
 interface CrossReferenceInputs {
   agentNames: string[];
   resourceIds: string[];
   entryPoints: EntryPointRegistryEntry[];
-  coreCommands: EntryPointRegistryEntry[];
+  coreCommands: CoreCommandRegistryEntry[];
 }
 
 /**
@@ -62,16 +59,10 @@ function validateCrossReferences({ agentNames, resourceIds, entryPoints, coreCom
  * Gather the agent names, resource ids, and entry-point registries the
  * cross-reference gate needs from the real source tree.
  * @param {RegistryModel} model - Registry data derived from the source tree
+ * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @returns {{ agentNames: string[], resourceIds: string[], entryPoints: object[], coreCommands: object[] }}
  */
-async function collectCrossReferenceInputs(model: RegistryModel, codeSrcDir = DEFAULT_CODE_SRC): Promise<CrossReferenceInputs> {
-  const { default: entryPoints } = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'registry.js')).href) as {
-    default: EntryPointRegistryEntry[];
-  };
-  const { default: coreCommands } = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'core-command-registry.js')).href) as {
-    default: EntryPointRegistryEntry[];
-  };
-
+async function collectCrossReferenceInputs(model: RegistryModel, codeSrcDir = ''): Promise<CrossReferenceInputs> {
   return {
     agentNames: model.agents.map((agent) => agent.name),
     resourceIds: Object.keys(model.resources),
@@ -83,10 +74,11 @@ async function collectCrossReferenceInputs(model: RegistryModel, codeSrcDir = DE
 /**
  * Build-time gate: fail generation on any unresolved cross-reference.
  * @param {RegistryModel} model - Registry data derived from the source tree
+ * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @throws {ValidationError}
  */
-async function assertCrossReferences(model: RegistryModel, codeSrcDir = DEFAULT_CODE_SRC): Promise<void> {
-  validateCrossReferences(await collectCrossReferenceInputs(model, codeSrcDir));
+async function assertCrossReferences(model: RegistryModel, codeSrcDir = ''): Promise<void> {
+  validateCrossReferences(await collectCrossReferenceInputs(model));
 }
 
 export { validateCrossReferences, collectCrossReferenceInputs, assertCrossReferences };

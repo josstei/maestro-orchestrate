@@ -1,4 +1,6 @@
-export default [
+import type { ManifestRule } from './generator/types.js';
+
+const manifest = [
   // ── Agent discovery stubs — Gemini, Claude, and Qwen ───────────────
   { glob: 'agents/*.md',
     transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],
@@ -8,4 +10,6 @@ export default [
   { glob: 'skills/shared/**/SKILL.md',
     transforms: ['skill-discovery-stub'],
     runtimes: ['claude', 'codex'] },
-];
+] satisfies ManifestRule[];
+
+export default manifest;

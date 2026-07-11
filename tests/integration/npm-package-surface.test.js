@@ -161,7 +161,7 @@ describe('npm package surface', () => {
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'entry-points')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'lib', 'discovery')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'lib', 'yaml-emit.ts')), false);
-      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'manifest.js')), false);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'manifest.ts')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'metadata.ts')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'metadata-shared.ts')), false);
       assert.equal(fs.existsSync(path.join(packageRoot, 'src', 'platforms', 'codex', 'metadata.ts')), false);

@@ -60,7 +60,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
   },
   {
     id: 'manifest-transform-outputs',
-    producer: 'src/manifest.js via src/generator/manifest-expander.ts',
+    producer: 'src/manifest.ts via src/generator/manifest-expander.ts',
     writeMode: 'generate and prepack',
     sourceInputs: [
       'src/agents/*.md',
@@ -84,8 +84,8 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     producer: 'src/generator/entry-point-expander.ts',
     writeMode: 'generate and prepack',
     sourceInputs: [
-      'src/entry-points/registry.js',
-      'src/entry-points/core-command-registry.js',
+      'src/entry-points/registry.ts',
+      'src/entry-points/core-command-registry.ts',
       'src/entry-points/templates/*.tmpl',
     ],
     outputs: [

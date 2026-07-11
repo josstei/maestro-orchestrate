@@ -26,20 +26,26 @@ interface ManifestEntry {
   outputs: Record<string, string>;
 }
 
-interface EntryPointRegistryEntry {
+interface RegistryEntryBase {
   name: string;
-  title?: string;
   runtimeNames?: Record<string, string>;
   description: string;
+}
+
+interface EntryPointRegistryEntry extends RegistryEntryBase {
+  title?: string;
   agents?: string[];
   agent?: string;
   skills?: readonly string[];
   refs?: readonly string[];
   workflow: readonly string[];
   constraints?: readonly string[];
-  firstLine?: string;
-  requestType?: string;
-  executeInstructions?: string;
+}
+
+interface CoreCommandRegistryEntry extends RegistryEntryBase {
+  firstLine: string;
+  requestType: string;
+  executeInstructions: string;
   preload?: readonly string[];
 }
 
@@ -112,6 +118,7 @@ interface GenerationSessionOptions {
 export type {
   AgentNaming,
   AgentRegistryEntry,
+  CoreCommandRegistryEntry,
   EntryPointRegistryEntry,
   FileWriter,
   FileWriterStats,

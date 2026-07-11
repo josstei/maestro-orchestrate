@@ -1,15 +1,22 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { pathToFileURL } from 'node:url';
 import { moduleDirname } from '../core/module-path.js';
+import coreCommands from '../entry-points/core-command-registry.js';
+import * as preambleBuilders from '../entry-points/preamble-builders.js';
+import entryPoints from '../entry-points/registry.js';
 import { toTitleCase } from '../lib/naming/index.js';
 import { emitInlineQuotedList } from '../lib/yaml-emit.js';
 import { getRuntimeDefinition } from '../platforms/runtime-declarations.js';
 import type { RuntimeDefinition } from '../platforms/runtime-declarations.js';
 import { getRuntimeGeneration } from '../platforms/runtime-descriptor.js';
 import type { RuntimeName } from '../platforms/runtime-descriptor.js';
-import type { EntryPointRegistryEntry, GeneratedOutput, StringMap } from './types.js';
+import type { CoreCommandRegistryEntry, EntryPointRegistryEntry, GeneratedOutput, StringMap } from './types.js';
 const DEFAULT_SRC = path.resolve(moduleDirname(import.meta.url), '..');
+
+interface RuntimeNamedRegistryEntry {
+  name: string;
+  runtimeNames?: Record<string, string>;
+}
 
 // Host platform names that must never appear as public skill names.
 // Confirmed: Claude /review shadows the built-in PR review command.
@@ -25,7 +32,7 @@ const HOST_RESERVED_NAMES: Partial<Record<RuntimeName, Set<string>>> = {
  * @param {string} runtimeName
  * @returns {string}
  */
-function getEntryPointRuntimeName(entry: EntryPointRegistryEntry, runtimeName: string): string {
+function getEntryPointRuntimeName(entry: RuntimeNamedRegistryEntry, runtimeName: string): string {
   return entry.runtimeNames?.[runtimeName] || entry.name;
 }
 
@@ -63,7 +70,7 @@ function resolveRuntimeDefinition(runtime: RuntimeDefinition | string): RuntimeD
   return definition;
 }
 
-function runTemplateExpansion({
+function runTemplateExpansion<TEntry extends RuntimeNamedRegistryEntry>({
   runtimeName,
   registry,
   templatePath,
@@ -71,10 +78,10 @@ function runTemplateExpansion({
   buildSubstitutions,
 }: {
   runtimeName: string;
-  registry: EntryPointRegistryEntry[];
+  registry: readonly TEntry[];
   templatePath: string;
-  outputPathFn: (entry: EntryPointRegistryEntry) => string;
-  buildSubstitutions: (entry: EntryPointRegistryEntry) => StringMap;
+  outputPathFn: (entry: TEntry) => string;
+  buildSubstitutions: (entry: TEntry) => StringMap;
 }): GeneratedOutput[] {
   const template = fs.readFileSync(templatePath, 'utf8');
   return registry.map((entry) => {
@@ -93,29 +100,25 @@ function runTemplateExpansion({
 /**
  * @param {RuntimeDefinition | string} runtime
  * @param {string} [srcDir] Content root for registries and templates.
- * @param {string} [codeSrcDir] Executable module root for compiled helpers.
+ * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 async function expandEntryPoints(
   runtime: RuntimeDefinition | string,
   srcDir = DEFAULT_SRC,
-  codeSrcDir = DEFAULT_SRC
+  codeSrcDir?: string
 ): Promise<GeneratedOutput[]> {
   const definition = resolveRuntimeDefinition(runtime);
   const runtimeName = definition.name;
   const config = getRuntimeGeneration(definition.config).entryPoint;
   if (!config) return [];
 
-  const { default: registry } = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'registry.js')).href) as {
-    default: EntryPointRegistryEntry[];
-  };
-  const preambleBuilders = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'preamble-builders.js')).href);
   const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
-  const buildPreamble = preambleBuilders[runtimeName];
+  const buildPreamble = preambleBuilders[runtimeName as keyof typeof preambleBuilders];
 
-  return runTemplateExpansion({
+  return runTemplateExpansion<EntryPointRegistryEntry>({
     runtimeName,
-    registry,
+    registry: entryPoints,
     templatePath,
     outputPathFn: config.outputPath,
     buildSubstitutions: (runtimeEntry) => ({
@@ -132,27 +135,24 @@ async function expandEntryPoints(
 /**
  * @param {RuntimeDefinition | string} runtime
  * @param {string} [srcDir] Content root for registries and templates.
- * @param {string} [codeSrcDir] Executable module root for compiled helpers.
+ * @param {string} [codeSrcDir] Legacy executable root retained for call compatibility; ignored.
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 async function expandCoreCommands(
   runtime: RuntimeDefinition | string,
   srcDir = DEFAULT_SRC,
-  codeSrcDir = DEFAULT_SRC
+  codeSrcDir?: string
 ): Promise<GeneratedOutput[]> {
   const definition = resolveRuntimeDefinition(runtime);
   const runtimeName = definition.name;
   const config = getRuntimeGeneration(definition.config).coreCommand;
   if (!config) return [];
 
-  const { default: registry } = await import(pathToFileURL(path.join(codeSrcDir, 'entry-points', 'core-command-registry.js')).href) as {
-    default: EntryPointRegistryEntry[];
-  };
   const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
 
-  return runTemplateExpansion({
+  return runTemplateExpansion<CoreCommandRegistryEntry>({
     runtimeName,
-    registry,
+    registry: coreCommands,
     templatePath,
     outputPathFn: config.outputPath,
     buildSubstitutions: (runtimeEntry) => ({

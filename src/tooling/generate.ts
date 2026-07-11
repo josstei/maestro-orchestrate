@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import manifestRules from '../manifest.js';
 import { resolve as resolveTransform } from '../transforms/index.js';
 import { createGenerationSession } from '../generator/generation-session.js';
 import { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } from '../generator/manifest-expander.js';
@@ -24,10 +24,6 @@ import type { RuntimeConfig } from '../platforms/runtime-descriptor.js';
 const MODULE_DIR = moduleDirname(import.meta.url);
 const ROOT = resolvePackageRoot(MODULE_DIR, { malformedJson: 'throw' });
 const SRC = path.join(ROOT, 'src');
-const moduleRelativePath = path.relative(ROOT, MODULE_DIR).split(path.sep).join('/');
-const RUNTIME_CODE_SRC = moduleRelativePath.startsWith('dist/')
-  ? path.join(ROOT, 'dist', 'src')
-  : SRC;
 const ENTRY_POINT_EXPANDERS = [expandEntryPoints, expandCoreCommands];
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -94,7 +90,7 @@ function processManifestEntry(entry: ManifestEntry, runtimes: Record<string, Run
 async function processEntryPoints(definitions: readonly RuntimeDefinition[], session: GenerationSession): Promise<void> {
   for (const fn of ENTRY_POINT_EXPANDERS) {
     for (const definition of definitions) {
-      for (const { outputPath, content } of await fn(definition, SRC, RUNTIME_CODE_SRC)) {
+      for (const { outputPath, content } of await fn(definition, SRC)) {
         session.write(outputPath, content);
       }
     }
@@ -106,7 +102,6 @@ async function main() {
   const runtimes = runtimeConfigMap(definitions);
   const packageMetadata = readJson(path.join(ROOT, 'package.json'));
   const registryModel = buildRegistryModel(SRC);
-  const { default: manifestRules } = await import(pathToFileURL(path.join(SRC, 'manifest.js')).href);
   const manifest = expandManifest(manifestRules, runtimes, SRC) as ManifestEntry[];
   assertNoMirroredSharedOutputs(manifest);
   await assertCrossReferences(registryModel);
@@ -148,7 +143,7 @@ async function main() {
   }
 
   if (!session.isReadOnlyMode()) {
-    const manifestPaths = await collectManifestPaths(manifest, runtimes, SRC, ENTRY_POINT_EXPANDERS, RUNTIME_CODE_SRC);
+    const manifestPaths = await collectManifestPaths(manifest, runtimes, SRC, ENTRY_POINT_EXPANDERS);
     const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: [...OWNED_GENERATED_DIRS] });
     if (pruned.length > 0) {
       console.log('\nPruning stale files (not in manifest):');

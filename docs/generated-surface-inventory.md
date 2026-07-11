@@ -2,7 +2,7 @@
 
 Date: 2026-07-01
 
-This is the Phase 0 inventory of generated and package-controlled surfaces. It exists because `src/manifest.js` covers only transform outputs; the generator and release tooling also write registries, entrypoints, metadata, stale-pruned roots, and package/release allowlists.
+This is the Phase 0 inventory of generated and package-controlled surfaces. It exists because `src/manifest.ts` covers only transform outputs; the generator and release tooling also write registries, entrypoints, metadata, stale-pruned roots, and package/release allowlists.
 
 The machine-readable source for generator-owned directories and retired cleanup roots is `src/generator/generated-surface-inventory.ts`.
 
@@ -13,7 +13,7 @@ Agent registry and manifest generation read the canonical agent source set: phys
 | Surface | Producer | Write mode | Outputs | Public status |
 | --- | --- | --- | --- | --- |
 | Registry outputs | `src/generator/registry-scanner.ts` | `generate` / `prepack` | `src/generated/agent-registry.json`, `src/generated/resource-registry.json`, `src/generated/hook-registry.json` | outputs untracked (`.gitignore`-governed) and packaged; producer source is source-checkout only |
-| Manifest transform outputs | `src/manifest.js` through `src/generator/manifest-expander.ts` | `generate` / `prepack` | `agents/*.md`, `claude/agents/*.md`, `qwen/agents/*.md`, `claude/skills/*/SKILL.md`, `plugins/maestro/skills/*/SKILL.md` | outputs untracked (`.gitignore`-governed) and packaged; producer source is source-checkout only |
+| Manifest transform outputs | `src/manifest.ts` through `src/generator/manifest-expander.ts` | `generate` / `prepack` | `agents/*.md`, `claude/agents/*.md`, `qwen/agents/*.md`, `claude/skills/*/SKILL.md`, `plugins/maestro/skills/*/SKILL.md` | outputs untracked (`.gitignore`-governed) and packaged; producer source is source-checkout only |
 | Entry point outputs | `src/generator/entry-point-expander.ts` | `generate` / `prepack` | `commands/maestro/*.toml`, `claude/skills/*/SKILL.md`, `plugins/maestro/skills/*/SKILL.md` | outputs untracked (`.gitignore`-governed) and packaged; producer source is source-checkout only |
 | Platform metadata | `src/platforms/*/metadata.ts` | `generate` / `prepack` | extension manifests, marketplace files, plugin manifests, MCP configs | outputs mostly untracked (`.gitignore`-governed) except the 3 `TRACKED_OUTPUT_EXEMPTIONS` paths (`.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.agents/plugins/marketplace.json`), which stay tracked; packaged; metadata builder source is source-checkout only |
 | Stale pruning | `src/generator/stale-pruner.ts` | write-mode generation only | `agents`, `claude/agents`, `qwen/agents`, `claude/skills`, `plugins/maestro/skills`, `commands` | outputs untracked (`.gitignore`-governed) and packaged; stale-pruner source is source-checkout only |

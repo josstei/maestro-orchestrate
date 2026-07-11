@@ -10,7 +10,7 @@ describe('generator failure handling', () => {
 
     try {
       fs.writeFileSync(
-        path.join(repoRoot, 'src/manifest.js'),
+        path.join(repoRoot, 'dist/src/manifest.js'),
         "export default [{ src: 'missing-source.md', transforms: [], runtimes: ['gemini'] }];\n",
         'utf8'
       );

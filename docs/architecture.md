@@ -33,14 +33,14 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
 The generator (`src/tooling/generate.ts`, emitted to `dist/src/tooling/generate.js`) is the build boundary between canonical source and runtime adapters. `npm run generate` runs `npm run build` first, then invokes the compiled generator. It:
 
 1. Loads runtime configs from the compiled `dist/src/platforms/*/runtime-config.js`
-2. Expands manifest rules from `src/manifest.js` into concrete runtime outputs
+2. Expands manifest rules from `src/manifest.ts` into concrete runtime outputs
 3. Copies or transforms the public runtime adapter assets
 4. Expands the entry-point registry into runtime-specific command or skill surfaces
 5. Prunes stale generated adapter files from owned directories
 
 ### Manifest System
 
-`src/manifest.js` declares how source files map to outputs. Each entry specifies:
+`src/manifest.ts` declares how source files map to outputs. Each entry specifies:
 
 ```javascript
 {
@@ -87,7 +87,7 @@ Each runtime is authored as `src/platforms/*/runtime-config.ts` and loaded after
 
 ### Entry-Point Registry
 
-10 entry-points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
+10 entry-points defined in `src/entry-points/registry.ts`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
 
 - Gemini: TOML commands in `commands/maestro/`
 - Claude: Markdown skills in `claude/skills/`
@@ -96,7 +96,7 @@ Each runtime is authored as `src/platforms/*/runtime-config.ts` and loaded after
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
-Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/entry-points/core-command-registry.js`.
+Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/entry-points/core-command-registry.ts`.
 
 ## MCP Server Architecture
 

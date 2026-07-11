@@ -1,4 +1,6 @@
-export default [
+import type { CoreCommandRegistryEntry } from '../generator/types.js';
+
+const coreCommands = [
   {
     name: 'orchestrate',
     description:
@@ -31,4 +33,6 @@ export default [
     executeInstructions:
       'Call get_session_status to read the active session state, summarize completed and pending phases, then resume from the first pending or failed phase following the loaded methodology. Stop if the MCP state surface is unavailable.',
   },
-];
+] satisfies CoreCommandRegistryEntry[];
+
+export default coreCommands;

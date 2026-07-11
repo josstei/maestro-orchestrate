@@ -178,8 +178,8 @@ test('doc-drift: examples guide includes all runtime command forms', () => {
 test('doc-drift: examples guide cites canonical in-repo sources', () => {
   const body = read('EXAMPLES.md');
   const expectedSources = [
-    'src/entry-points/core-command-registry.js',
-    'src/entry-points/registry.js',
+    'src/entry-points/core-command-registry.ts',
+    'src/entry-points/registry.ts',
     'src/generator/entry-point-expander.ts',
     'src/references/orchestration-steps.md',
     'docs/flow.md',

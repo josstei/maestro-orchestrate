@@ -62,7 +62,7 @@ All hand-maintained code lives in `src/`. Everything outside `src/` at the runti
 | `plugins/maestro/` | Codex |
 | `qwen/` plus root `qwen-extension.json` and `QWEN.md` | Qwen Code |
 
-The generator pipeline reads `src/manifest.js` and applies transforms from `src/transforms/` to produce runtime-specific output.
+The generator pipeline reads `src/manifest.ts` and applies transforms from `src/transforms/` to produce runtime-specific output.
 
 ## Making Changes
 
