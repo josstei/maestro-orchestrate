@@ -65,6 +65,31 @@
       "unpacked_bytes": 794994
     }
   },
+  "phase14_duplication_inventory": {
+    "scope": "Repository-wide tests/**/*.js scan before and after the bounded Phase 14 migrations",
+    "before": {
+      "handwritten_environment_wrapper_files": 5,
+      "mkdtemp_calls": 89,
+      "recursive_rm_calls": 102,
+      "esm_import_meta_path_declaration_files": 37,
+      "local_stdio_wrapper_functions": 4,
+      "in_memory_transport_pairs": 10
+    },
+    "after": {
+      "handwritten_environment_wrapper_files": 0,
+      "mkdtemp_calls": 67,
+      "recursive_rm_calls": 96,
+      "esm_import_meta_path_declaration_files": 19,
+      "local_stdio_wrapper_functions": 1,
+      "centralized_stdio_wrapper_functions": 1,
+      "in_memory_transport_pairs": 2
+    },
+    "residual_notes": [
+      "The remaining local stdio wrapper binds fixed dist-runtime options and delegates lifecycle ownership to withMcpServer.",
+      "The two remaining in-memory pairs are the shared connectInMemory implementation and the explicit transport-construction test.",
+      "Remaining temp, recursive-cleanup, and ESM path mechanics are outside the approved Phase 14 tranche and remain visible for the final review."
+    ]
+  },
   "final": {
     "status": "unpopulated",
     "tracked_repository": null,

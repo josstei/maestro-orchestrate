@@ -1,13 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../../dist/src/mcp/server/create-mcp-server.js';
 import { createMaestroToolRegistry } from '../../dist/src/mcp/tool-packs/contracts.js';
 import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 import { DEFAULT_TOOL_PACKS } from '../../dist/src/mcp/tool-packs/index.js';
+import { connectInMemory } from '../support/mcp.js';
 
-async function mountDefaultToolPacks(runtimeConfig) {
+async function mountDefaultToolPacks(testContext, runtimeConfig) {
   const server = createMcpServer();
   const registry = createMaestroToolRegistry();
 
@@ -15,16 +14,17 @@ async function mountDefaultToolPacks(runtimeConfig) {
     registerPack({ server, registry, runtimeConfig, services: {}, getProjectRoot: () => null });
   }
 
-  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'mcp-pack-composition-test', version: '0.0.0' }, { capabilities: {} });
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const client = await connectInMemory(testContext, server, {
+    clientInfo: { name: 'mcp-pack-composition-test', version: '0.0.0' },
+    capabilities: {},
+  });
 
-  return { server, client };
+  return client;
 }
 
 describe('mcp pack composition', () => {
-  it('mounts the default tool packs in a stable order', async () => {
-    const { server, client } = await mountDefaultToolPacks(getRuntimeConfig('codex'));
+  it('mounts the default tool packs in a stable order', async (t) => {
+    const client = await mountDefaultToolPacks(t, getRuntimeConfig('codex'));
 
     const { tools } = await client.listTools();
     assert.deepEqual(
@@ -72,13 +72,10 @@ describe('mcp pack composition', () => {
         'list_session_blueprints',
       ]
     );
-
-    await client.close();
-    await server.close();
   });
 
-  it('propagates runtime config through the composed tool surface', async () => {
-    const { server, client } = await mountDefaultToolPacks(getRuntimeConfig('codex'));
+  it('propagates runtime config through the composed tool surface', async (t) => {
+    const client = await mountDefaultToolPacks(t, getRuntimeConfig('codex'));
 
     const response = await client.callTool({ name: 'get_runtime_context', arguments: {} });
     const result = JSON.parse(response.content[0].text);
@@ -86,8 +83,5 @@ describe('mcp pack composition', () => {
     assert.equal(response.isError, undefined);
     assert.equal(result.runtime, 'codex');
     assert.equal(result.mcp_prefix, 'mcp__maestro_maestro__');
-
-    await client.close();
-    await server.close();
   });
 });

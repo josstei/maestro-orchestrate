@@ -112,7 +112,14 @@ describe('artifact policy', () => {
 
   it('keeps runtime dist paths in both projections', () => {
     assert.ok(Object.isFrozen(RUNTIME_DIST_PATHS));
-    assert.ok(RUNTIME_DIST_PATHS.includes('dist/src/platforms/runtime-declarations.js'));
+    for (const requiredRuntimePath of [
+      'dist/src/bin/maestro-mcp-server.js',
+      'dist/src/generated',
+      'dist/src/mcp',
+      'dist/src/platforms/runtime-declarations.js',
+    ]) {
+      assert.ok(RUNTIME_DIST_PATHS.includes(requiredRuntimePath));
+    }
 
     for (const rawContentRoot of RAW_DIST_CONTENT_ROOTS) {
       assert.equal(RUNTIME_DIST_PATHS.includes(rawContentRoot), false);

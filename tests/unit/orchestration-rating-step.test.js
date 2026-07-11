@@ -1,14 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+import { repoPath } from '../support/paths.js';
 
 test('orchestration-steps.md solicits a Completion-phase satisfaction rating', () => {
   const body = fs.readFileSync(
-    path.join(moduleDirname, '../../src/references/orchestration-steps.md'),
+    repoPath('src/references/orchestration-steps.md'),
     'utf8'
   );
   assert.ok(body.includes('rate('), 'missing rate capture step');

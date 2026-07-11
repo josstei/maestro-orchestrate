@@ -5,22 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { assertDistBuilt, ROOT } from '../support/dist.js';
-import { spawnMcpServer } from './mcp-stdio-client.js';
+import { withMcpServer } from './mcp-stdio-client.js';
 
-async function withDistServer(fn) {
-  const client = spawnMcpServer({
+function withDistServer(fn) {
+  return withMcpServer({
     cwd: ROOT,
     relativePath: 'dist/src/bin/maestro-mcp-server.js',
     env: { MAESTRO_EXTENSION_PATH: '', MAESTRO_RUNTIME: 'codex' },
-  });
-
-  try {
-    await client.ready;
-    await client.initialize();
-    return await fn(client);
-  } finally {
-    await client.close();
-  }
+  }, fn);
 }
 
 describe('dist runtime startup', () => {

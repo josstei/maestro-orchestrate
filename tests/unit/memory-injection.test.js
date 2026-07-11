@@ -1,12 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const REPO = path.resolve(moduleDirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8');
+import { repoPath } from '../support/paths.js';
+
+const read = (rel) => fs.readFileSync(repoPath(rel), 'utf8');
 
 describe('orchestration-steps memory injection', () => {
   const steps = read('src/references/orchestration-steps.md');

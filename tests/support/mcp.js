@@ -15,8 +15,8 @@ const { registerHistoryPack } = await importDist('src/mcp/tool-packs/history/ind
 const { ensureWorkspace } = await importDist('src/state/session-state.js');
 const DEFAULT_STATE_DIR = 'docs/maestro';
 
-function makeTempWorkspace(prefix = 'maestro-test-') {
-  return makeTempDir(null, prefix);
+function makeTempWorkspace(prefix = 'maestro-test-', testContext = null) {
+  return makeTempDir(testContext, prefix);
 }
 
 async function connectInMemory(testContext, server, {
@@ -95,12 +95,13 @@ function parseCallToolResult(response) {
  * live server: `initialize_workspace`'s pipeline post-call sets it, and every
  * later call on this instance resolves it — never `process.cwd()`/ambient env.
  *
- * @param {{runtime?: string, runtimeConfig?: object, services?: object, toolPacks?: Array<Function>}} options
+ * @param {{runtime?: string, runtimeConfig?: object, services?: object, toolPacks?: Array<Function>, testContext?: import('node:test').TestContext}} options
  */
 async function buildMcpServer({
   runtime = 'codex',
   runtimeConfig,
   services = {},
+  testContext = null,
   toolPacks = [registerWorkspacePack, registerSessionPack],
 } = {}) {
   const server = createMcpServer();
@@ -124,7 +125,7 @@ async function buildMcpServer({
     registerPack(packOptions);
   }
 
-  const client = await connectInMemory(null, server);
+  const client = await connectInMemory(testContext, server);
 
   return {
     server,
@@ -161,9 +162,9 @@ async function initializeWorkspace(server, workspace) {
 }
 
 async function createInitializedMcpWorkspace(options = {}) {
-  const { prefix = 'maestro-test-', ...serverOptions } = options;
-  const workspace = makeTempWorkspace(prefix);
-  const server = await buildMcpServer(serverOptions);
+  const { prefix = 'maestro-test-', testContext = null, ...serverOptions } = options;
+  const workspace = makeTempWorkspace(prefix, testContext);
+  const server = await buildMcpServer({ ...serverOptions, testContext });
   const init = await initializeWorkspace(server, workspace);
 
   return { workspace, server, init };

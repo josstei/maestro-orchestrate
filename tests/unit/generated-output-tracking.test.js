@@ -1,14 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import path from 'node:path';
 import { TRACKED_OUTPUT_EXEMPTIONS } from '../../dist/src/generator/generated-surface-inventory.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../..');
+import { REPO_ROOT } from '../support/paths.js';
 
-const outputs = execFileSync('node', ['dist/src/tooling/generate.js', '--list-outputs'], { cwd: ROOT, encoding: 'utf8' })
+const outputs = execFileSync('node', ['dist/src/tooling/generate.js', '--list-outputs'], { cwd: REPO_ROOT, encoding: 'utf8' })
   .trim().split('\n');
 
 function checkIgnored(paths) {
@@ -18,7 +14,7 @@ function checkIgnored(paths) {
 
   try {
     const stdout = execFileSync('git', ['check-ignore', '--stdin', '--no-index'], {
-      cwd: ROOT,
+      cwd: REPO_ROOT,
       input: paths.join('\n'),
       encoding: 'utf8',
     });
@@ -34,7 +30,7 @@ function checkIgnored(paths) {
 const ignored = checkIgnored(outputs);
 
 const tracked = new Set(
-  execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
+  execFileSync('git', ['ls-files'], { cwd: REPO_ROOT, encoding: 'utf8' }).trim().split('\n')
 );
 
 describe('generated output tracking contract', () => {

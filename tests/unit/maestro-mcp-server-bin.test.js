@@ -1,19 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnMcpServer } from '../integration/mcp-stdio-client.js';
+import { withMcpServer } from '../integration/mcp-stdio-client.js';
 const BIN_RELATIVE_PATH = 'dist/src/bin/maestro-mcp-server.js';
 
-async function resolveRuntime(env) {
-  const client = spawnMcpServer({ relativePath: BIN_RELATIVE_PATH, env });
-
-  try {
-    await client.ready;
-    await client.initialize();
-    const result = await client.callTool('get_runtime_context', {});
-    return result.parsed.runtime;
-  } finally {
-    await client.close();
-  }
+function resolveRuntime(env) {
+  return withMcpServer(
+    { relativePath: BIN_RELATIVE_PATH, env },
+    async (client) => {
+      const result = await client.callTool('get_runtime_context', {});
+      return result.parsed.runtime;
+    }
+  );
 }
 
 describe('dist/src/bin/maestro-mcp-server.js runtime resolution', () => {

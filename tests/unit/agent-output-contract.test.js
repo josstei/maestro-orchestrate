@@ -1,18 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { listAgentSources } from '../../dist/src/core/agent-sources.js';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
+import { repoPath } from '../support/paths.js';
 
 describe('canonical agent output contract', () => {
   it('keeps the full handoff template in the shared agent base protocol', () => {
     const protocol = fs.readFileSync(
-      path.join(
-        REPO_ROOT,
+      repoPath(
         'src',
         'skills',
         'shared',
@@ -30,7 +25,7 @@ describe('canonical agent output contract', () => {
   });
 
   it('keeps canonical agents free of the redundant output-contract pointer and the full template', () => {
-    const sources = listAgentSources(path.join(REPO_ROOT, 'src'));
+    const sources = listAgentSources(repoPath('src'));
     assert.ok(sources.length > 30, 'expected canonical agent catalog');
 
     for (const source of sources) {

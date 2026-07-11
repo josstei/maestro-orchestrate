@@ -7,19 +7,8 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import { ROOT, createTempRepoCopy, withPackagedClaudeRuntime } from './helpers.js';
 import { makeTempSrcRoot, cleanupTempRoots } from '../support/content.js';
 const CODEX_BIN = path.join(ROOT, 'dist', 'src', 'bin', 'maestro-mcp-server.js');
-import { spawnMcpServer } from './mcp-stdio-client.js';
+import { withMcpServer as withServer } from './mcp-stdio-client.js';
 after(cleanupTempRoots);
-
-async function withServer(options, fn) {
-  const client = spawnMcpServer(options);
-  try {
-    await client.ready;
-    await client.initialize();
-    return await fn(client);
-  } finally {
-    await client.close();
-  }
-}
 
 const RUNTIME_BUNDLES = [
   { cwd: ROOT, relativePath: 'mcp/maestro-server.js', env: { MAESTRO_EXTENSION_PATH: '' } },

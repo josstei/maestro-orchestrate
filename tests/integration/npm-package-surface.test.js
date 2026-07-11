@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { spawnMcpServer } from './mcp-stdio-client.js';
+import { withMcpServer as withServer } from './mcp-stdio-client.js';
 import { BUILD_ONLY_DIST_PATHS, BUILD_ONLY_SOURCE_PATHS } from '../support/contracts.js';
 import { createTrackedCandidateRepoCopy } from '../support/filesystem.js';
 import { REPO_ROOT } from '../support/paths.js';
@@ -48,17 +48,6 @@ function installPackage(tarballPath, installRoot) {
     });
   } finally {
     fs.rmSync(cacheDir, { recursive: true, force: true });
-  }
-}
-
-async function withServer(options, fn) {
-  const client = spawnMcpServer(options);
-  try {
-    await client.ready;
-    await client.initialize();
-    return await fn(client);
-  } finally {
-    await client.close();
   }
 }
 

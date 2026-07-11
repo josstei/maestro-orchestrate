@@ -2,10 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const WORKFLOWS_DIR = path.resolve(moduleDirname, '..', '..', '.github', 'workflows');
+import { repoPath } from '../support/paths.js';
+
+const WORKFLOWS_DIR = repoPath('.github', 'workflows');
 
 const WORKFLOW_FILES = fs
   .readdirSync(WORKFLOWS_DIR)

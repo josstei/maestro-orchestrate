@@ -1,8 +1,9 @@
-import { describe, it, beforeEach, afterEach } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import { withEnvSync } from '../support/environment.js';
+import { makeTempDir } from '../support/filesystem.js';
 
 import {
   DEFAULT_STATE_DIR,
@@ -15,47 +16,11 @@ import {
   ensureWorkspace,
 } from '../../dist/src/state/session-state.js';
 
-function withEnv(overrides, fn) {
-  const previous = {};
-  for (const key of Object.keys(overrides)) {
-    previous[key] = process.env[key];
-  }
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value == null) {
-      delete process.env[key];
-    } else {
-      process.env[key] = value;
-    }
-  }
-  try {
-    return fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value == null) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
-}
-
 describe('session-state', () => {
   let tmpRoot;
-  let savedStateDirEnv;
 
-  beforeEach(() => {
-    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-test-'));
-    savedStateDirEnv = process.env.MAESTRO_STATE_DIR;
-  });
-
-  afterEach(() => {
-    if (savedStateDirEnv == null) {
-      delete process.env.MAESTRO_STATE_DIR;
-    } else {
-      process.env.MAESTRO_STATE_DIR = savedStateDirEnv;
-    }
-    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  beforeEach((t) => {
+    tmpRoot = makeTempDir(t, 'maestro-test-');
   });
 
   it('DEFAULT_STATE_DIR equals docs/maestro', () => {
@@ -69,16 +34,12 @@ describe('session-state', () => {
     assert.equal(result, fs.realpathSync(subDir));
   });
 
-  it('validateContainment throws when path is outside root', () => {
-    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-outside-'));
-    try {
-      assert.throws(
-        () => validateContainment(outsideDir, tmpRoot),
-        /state_dir must be within the project root/
-      );
-    } finally {
-      fs.rmSync(outsideDir, { recursive: true, force: true });
-    }
+  it('validateContainment throws when path is outside root', (t) => {
+    const outsideDir = makeTempDir(t, 'maestro-outside-');
+    assert.throws(
+      () => validateContainment(outsideDir, tmpRoot),
+      /state_dir must be within the project root/
+    );
   });
 
   it('validateContainment throws for path traversal', () => {
@@ -95,29 +56,25 @@ describe('session-state', () => {
   });
 
   it('resolveStateDirPath uses MAESTRO_STATE_DIR env when no override', () => {
-    const result = withEnv({ MAESTRO_STATE_DIR: 'env/state' }, () =>
+    const result = withEnvSync({ MAESTRO_STATE_DIR: 'env/state' }, () =>
       resolveStateDirPath(tmpRoot, undefined)
     );
     assert.equal(result, path.join(tmpRoot, 'env/state'));
   });
 
   it('resolveStateDirPath uses DEFAULT_STATE_DIR as final fallback', () => {
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () =>
+    const result = withEnvSync({ MAESTRO_STATE_DIR: null }, () =>
       resolveStateDirPath(tmpRoot, undefined)
     );
     assert.equal(result, path.join(tmpRoot, DEFAULT_STATE_DIR));
   });
 
-  it('resolveStateDirPath rejects absolute paths outside root via validateContainment', () => {
-    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-abs-outside-'));
-    try {
-      assert.throws(
-        () => resolveStateDirPath(tmpRoot, outsideDir),
-        /state_dir must be within the project root/
-      );
-    } finally {
-      fs.rmSync(outsideDir, { recursive: true, force: true });
-    }
+  it('resolveStateDirPath rejects absolute paths outside root via validateContainment', (t) => {
+    const outsideDir = makeTempDir(t, 'maestro-abs-outside-');
+    assert.throws(
+      () => resolveStateDirPath(tmpRoot, outsideDir),
+      /state_dir must be within the project root/
+    );
   });
 
   it('resolveActiveSessionPath returns correct path', () => {

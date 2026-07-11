@@ -3,9 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../../dist/src/mcp/server/create-mcp-server.js';
+import { connectInMemory } from '../support/mcp.js';
 import { zodSchemas as contentSchemas } from '../../dist/src/mcp/tool-packs/content/zod-schemas.js';
 import { zodSchemas as historySchemasFromPack } from '../../dist/src/mcp/tool-packs/history/index.js';
 import { zodSchemas as historySchemas } from '../../dist/src/mcp/tool-packs/history/zod-schemas.js';
@@ -38,21 +37,18 @@ function goldenToolNames(packName) {
     .sort();
 }
 
-async function emittedInputSchemaFor(packName, schemas, toolName) {
+async function emittedInputSchemaFor(testContext, packName, schemas, toolName) {
   const server = createMcpServer();
   server.registerTool(
     toolName,
     { inputSchema: schemas[toolName] },
     async () => ({ content: [] }),
   );
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await server.connect(serverTransport);
-  const client = new Client({ name: `${packName}-zod-schemas-test-client`, version: '0.0.0' });
-  await client.connect(clientTransport);
+  const client = await connectInMemory(testContext, server, {
+    clientInfo: { name: `${packName}-zod-schemas-test-client`, version: '0.0.0' },
+  });
   const { tools } = await client.listTools();
   const tool = tools.find((entry) => entry.name === toolName);
-  await client.close();
-  await server.close();
   return tool.inputSchema;
 }
 
@@ -62,8 +58,8 @@ for (const { name, schemas } of packs) {
   });
 
   for (const toolName of Object.keys(schemas)) {
-    test(`${name}/${toolName} emitted JSON Schema matches golden snapshot`, async () => {
-      const emitted = await emittedInputSchemaFor(name, schemas, toolName);
+    test(`${name}/${toolName} emitted JSON Schema matches golden snapshot`, async (t) => {
+      const emitted = await emittedInputSchemaFor(t, name, schemas, toolName);
       assert.deepEqual(emitted, readGolden(name, toolName));
     });
   }

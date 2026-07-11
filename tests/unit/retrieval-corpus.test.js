@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
 import { buildRetrievalCorpus } from '../../dist/src/mcp/retrieval/corpus.js';
+import { makeTempDir } from '../support/filesystem.js';
 
 function writeArchive(projectRoot, sessionId, data) {
   const dir = path.join(resolveStateDirPath(projectRoot), 'state', 'archive');
@@ -35,13 +35,13 @@ function phase(overrides) {
   );
 }
 
-test('buildRetrievalCorpus returns [] when no archive directory exists', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-corpus-empty-'));
+test('buildRetrievalCorpus returns [] when no archive directory exists', (t) => {
+  const root = makeTempDir(t, 'maestro-corpus-empty-');
   assert.deepEqual(buildRetrievalCorpus(root), []);
 });
 
-test('buildRetrievalCorpus projects task, agents, touched files, and warnings', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-corpus-'));
+test('buildRetrievalCorpus projects task, agents, touched files, and warnings', (t) => {
+  const root = makeTempDir(t, 'maestro-corpus-');
 
   writeArchive(root, 'sess-auth', {
     session_id: 'sess-auth',
@@ -85,8 +85,8 @@ test('buildRetrievalCorpus projects task, agents, touched files, and warnings', 
   assert.ok(auth.text.includes('token rotation not covered by tests'));
 });
 
-test('buildRetrievalCorpus skips documents without a session_id', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-corpus-skip-'));
+test('buildRetrievalCorpus skips documents without a session_id', (t) => {
+  const root = makeTempDir(t, 'maestro-corpus-skip-');
   writeArchive(root, 'no-id', { task: 'orphan', phases: [] });
   writeArchive(root, 'sess-ok', {
     session_id: 'sess-ok',

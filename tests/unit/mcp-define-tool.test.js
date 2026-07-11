@@ -2,16 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   createMaestroToolRegistry,
   defineTool,
 } from '../../dist/src/mcp/tool-packs/contracts.js';
+import { connectInMemory } from '../support/mcp.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
 
-test('defineTool registers a tool via server.registerTool with the given description/inputSchema', async () => {
+test('defineTool registers a tool via server.registerTool with the given description/inputSchema', async (t) => {
   const server = new McpServer({ name: 'test', version: '0.0.0' }, { capabilities: { tools: {} } });
   const registry = createMaestroToolRegistry();
 
@@ -25,9 +24,10 @@ test('defineTool registers a tool via server.registerTool with the given descrip
     handler: async (args) => ({ greeting: `hello ${args.name}` }),
   });
 
-  const client = new Client({ name: 'c', version: '0.0.0' }, { capabilities: {} });
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const client = await connectInMemory(t, server, {
+    clientInfo: { name: 'c', version: '0.0.0' },
+    capabilities: {},
+  });
 
   const tools = await client.listTools();
   const greet = tools.tools.find((t) => t.name === 'greet');
@@ -36,12 +36,9 @@ test('defineTool registers a tool via server.registerTool with the given descrip
 
   const result = await client.callTool({ name: 'greet', arguments: { name: 'ada' } });
   assert.deepEqual(JSON.parse(result.content[0].text), { greeting: 'hello ada' });
-
-  await client.close();
-  await server.close();
 });
 
-test('defineTool carries requiresWorkspace in maestro\'s own registry, not the SDK config (SDK silently drops unknown fields)', async () => {
+test('defineTool carries requiresWorkspace in maestro\'s own registry, not the SDK config (SDK silently drops unknown fields)', async (t) => {
   const server = new McpServer({ name: 'test', version: '0.0.0' }, { capabilities: { tools: {} } });
   const registry = createMaestroToolRegistry();
 
@@ -59,17 +56,15 @@ test('defineTool carries requiresWorkspace in maestro\'s own registry, not the S
 
   assert.equal(registry.requiresWorkspace('needs_workspace'), true);
 
-  const client = new Client({ name: 'c', version: '0.0.0' }, { capabilities: {} });
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const client = await connectInMemory(t, server, {
+    clientInfo: { name: 'c', version: '0.0.0' },
+    capabilities: {},
+  });
 
   const result = await client.callTool({ name: 'needs_workspace', arguments: {} });
   assert.equal(result.isError, true);
   const payload = JSON.parse(result.content[0].text);
   assert.equal(payload.code, 'WORKSPACE_NOT_INITIALIZED');
-
-  await client.close();
-  await server.close();
 });
 
 test('cross-pack duplicate tool name throws at registration', () => {

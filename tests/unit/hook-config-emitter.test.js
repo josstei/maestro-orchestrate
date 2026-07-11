@@ -1,15 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
 import { buildHookConfigOutputs } from '../../dist/src/generator/hook-config-emitter.js';
 import gemini from '../../dist/src/platforms/gemini/runtime-config.js';
 import qwen from '../../dist/src/platforms/qwen/runtime-config.js';
 import codex from '../../dist/src/platforms/codex/runtime-config.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../..');
+import { repoPath } from '../support/paths.js';
 
 function outputsByPath(outputs) {
   return new Map(outputs.map((output) => [output.outputPath, output.content]));
@@ -26,7 +22,7 @@ describe('hook-config-emitter', () => {
     ]);
 
     for (const outputPath of outputs.keys()) {
-      const committed = fs.readFileSync(path.join(ROOT, outputPath), 'utf8');
+      const committed = fs.readFileSync(repoPath(outputPath), 'utf8');
       assert.equal(outputs.get(outputPath), committed, outputPath);
     }
   });

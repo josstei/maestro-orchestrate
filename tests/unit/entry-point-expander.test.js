@@ -1,17 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
 import { expandEntryPoints, expandCoreCommands } from '../../dist/src/generator/entry-point-expander.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../..');
-const SRC = path.join(ROOT, 'src');
+import { repoPath } from '../support/paths.js';
+
+const SRC = repoPath('src');
 
 function assertByteIdentical(outputs) {
   for (const { outputPath, content } of outputs) {
-    const committed = fs.readFileSync(path.join(ROOT, outputPath), 'utf8');
+    const committed = fs.readFileSync(repoPath(outputPath), 'utf8');
     assert.equal(content, committed, outputPath);
   }
 }

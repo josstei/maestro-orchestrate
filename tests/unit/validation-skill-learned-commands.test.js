@@ -1,15 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+import { repoPath } from '../support/paths.js';
 
-const SKILL = path.resolve(
-  moduleDirname,
-  '../../src/skills/shared/validation/SKILL.md'
-);
+const SKILL = repoPath('src/skills/shared/validation/SKILL.md');
 
 test('validation skill consults get_project_profile before the heuristic tables', () => {
   const body = fs.readFileSync(SKILL, 'utf8');

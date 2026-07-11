@@ -6,11 +6,9 @@ import { discover, generateRegistry, patternToRegex, parsePattern, collectFiles 
 import { parse } from '../../dist/src/lib/frontmatter/index.js';
 import { buildRegistryModel } from '../../dist/src/generator/registry-scanner.js';
 import { makeTempSrcRoot, cleanupTempRoots, writeFileUnder } from '../support/content.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const WORKTREE_ROOT = path.resolve(moduleDirname, '..', '..');
-const SRC_DIR = path.join(WORKTREE_ROOT, 'src');
+import { repoPath } from '../support/paths.js';
+
+const SRC_DIR = repoPath('src');
 after(cleanupTempRoots);
 
 function createTempRoot() {

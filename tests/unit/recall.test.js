@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { resolveStateDirPath } from '../../dist/src/state/session-state.js';
 import { handleRecallSimilarSessions } from '../../dist/src/mcp/handlers/recall.js';
+import { makeTempDir } from '../support/filesystem.js';
 
 function writeArchive(projectRoot, sessionId, data) {
   const dir = path.join(resolveStateDirPath(projectRoot), 'state', 'archive');
@@ -69,8 +69,8 @@ function seedCorpus(root) {
   });
 }
 
-test('handleRecallSimilarSessions ranks the relevant precedent first with rationale', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recall-'));
+test('handleRecallSimilarSessions ranks the relevant precedent first with rationale', (t) => {
+  const root = makeTempDir(t, 'maestro-recall-');
   seedCorpus(root);
 
   const result = handleRecallSimilarSessions({ query: 'oauth token login' }, root);
@@ -88,8 +88,8 @@ test('handleRecallSimilarSessions ranks the relevant precedent first with ration
   assert.ok(top.rationale.includes('token rotation not covered by tests'));
 });
 
-test('handleRecallSimilarSessions honors limit and descending order', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recall-limit-'));
+test('handleRecallSimilarSessions honors limit and descending order', (t) => {
+  const root = makeTempDir(t, 'maestro-recall-limit-');
   seedCorpus(root);
 
   const result = handleRecallSimilarSessions({ query: 'src', limit: 2 }, root);
@@ -99,8 +99,8 @@ test('handleRecallSimilarSessions honors limit and descending order', () => {
   assert.ok(result.results[0].score >= result.results[1].score);
 });
 
-test('handleRecallSimilarSessions returns an empty ranking on an empty archive', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recall-empty-'));
+test('handleRecallSimilarSessions returns an empty ranking on an empty archive', (t) => {
+  const root = makeTempDir(t, 'maestro-recall-empty-');
 
   const result = handleRecallSimilarSessions({ query: 'anything' }, root);
 

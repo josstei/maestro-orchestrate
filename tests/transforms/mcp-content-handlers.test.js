@@ -13,17 +13,18 @@ import {
   writeResource,
   withExtensionRoot,
 } from '../support/content.js';
+import { REPO_ROOT, repoPath } from '../support/paths.js';
 
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
+const REPO_SRC = repoPath('src');
 
 const REMOVED_SESSION_READER_PATH = [
   'src',
   'scripts',
   ['read', 'active', 'session'].join('-') + '.js',
 ].join('/');
+
+const skillHandler = (runtimeConfig, canonicalSrcRoot) => (params) => handleGetSkillContent(params, { runtimeConfig, services: { canonicalSrcRoot } });
+const agentHandler = (runtimeConfig, canonicalSrcRoot) => (params) => handleGetAgent(params, { runtimeConfig, services: { canonicalSrcRoot } });
 
 after(cleanupTempRoots);
 
@@ -128,7 +129,7 @@ describe('get_skill_content handler', () => {
       'utf8'
     );
 
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () => handler({ resources: ['delegation'] }));
     const content = result.contents.delegation;
@@ -155,10 +156,10 @@ describe('get_skill_content handler', () => {
       'utf8'
     );
 
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: {
+    const handler = skillHandler({
       ...getRuntimeConfig('gemini'),
       env: { extensionPath: 'PLUGIN_ROOT' },
-    }, services: { canonicalSrcRoot: path.join(root, 'src') } });
+    }, path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () => handler({ resources: ['architecture'] }));
     const content = result.contents.architecture;
@@ -169,7 +170,7 @@ describe('get_skill_content handler', () => {
   });
 
   it('serves Claude architecture content with the MCP state contract', () => {
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: path.join(REPO_ROOT, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('claude'), REPO_SRC);
 
     const result = withExtensionRoot(REPO_ROOT, () =>
       handler({ resources: ['architecture'] })
@@ -192,7 +193,7 @@ describe('get_skill_content handler', () => {
       'utf8'
     );
 
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('gemini'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () =>
       handler({ resources: ['delegation'] })
@@ -216,7 +217,7 @@ describe('get_skill_content handler', () => {
       '---\nname: delegation\ndescription: Claude source skill\n---\nUse ${extensionPath} from package-root source.\n'
     );
 
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: sourceSrc } });
+    const handler = skillHandler(getRuntimeConfig('claude'), sourceSrc);
 
     const result = withExtensionRoot(claudeRoot, () =>
       handler({ resources: ['delegation'] })
@@ -230,7 +231,7 @@ describe('get_skill_content handler', () => {
   });
 
   it('expands the shared roster marker in the delegation skill for gemini (snake_case)', () => {
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('gemini'), services: { canonicalSrcRoot: path.join(REPO_ROOT, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('gemini'), REPO_SRC);
 
     const result = withExtensionRoot(REPO_ROOT, () =>
       handler({ resources: ['delegation'] })
@@ -243,7 +244,7 @@ describe('get_skill_content handler', () => {
   });
 
   it('expands the shared roster marker in the delegation skill for claude (kebab-case)', () => {
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: path.join(REPO_ROOT, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('claude'), REPO_SRC);
 
     const result = withExtensionRoot(REPO_ROOT, () =>
       handler({ resources: ['delegation'] })
@@ -256,7 +257,7 @@ describe('get_skill_content handler', () => {
   });
 
   it('expands the shared roster marker in the architecture reference for gemini (snake_case)', () => {
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('gemini'), services: { canonicalSrcRoot: path.join(REPO_ROOT, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('gemini'), REPO_SRC);
 
     const result = withExtensionRoot(REPO_ROOT, () =>
       handler({ resources: ['architecture'] })
@@ -269,7 +270,7 @@ describe('get_skill_content handler', () => {
   });
 
   it('expands the shared roster marker in the architecture reference for claude (kebab-case)', () => {
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: path.join(REPO_ROOT, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('claude'), REPO_SRC);
 
     const result = withExtensionRoot(REPO_ROOT, () =>
       handler({ resources: ['architecture'] })
@@ -284,7 +285,7 @@ describe('get_skill_content handler', () => {
   it('rejects unknown resources before filesystem lookup', () => {
     const root = makeTempSrcRoot('maestro-skill-unknown-');
     const claudeRoot = path.join(root, 'claude');
-    const handler = (params) => handleGetSkillContent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const handler = skillHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
 
     const result = withExtensionRoot(claudeRoot, () =>
       handler({ resources: ['not-a-resource'] })
@@ -381,13 +382,13 @@ describe('get_agent handler', () => {
       'utf8'
     );
 
-    const handler = (params) => handleGetAgent(params, { runtimeConfig: {
+    const handler = agentHandler({
       ...getRuntimeConfig('claude'),
       features: {
         ...getRuntimeConfig('claude').features,
         exampleBlocks: false,
       },
-    }, services: { canonicalSrcRoot: path.join(root, 'src') } });
+    }, path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () => handler({ agents: ['coder'] }));
 
@@ -415,7 +416,7 @@ describe('get_agent handler', () => {
       'utf8'
     );
 
-    const handler = (params) => handleGetAgent(params, { runtimeConfig: getRuntimeConfig('gemini'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const handler = agentHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () =>
       handler({ agents: ['ux_designer'] })
@@ -444,7 +445,7 @@ describe('get_agent handler', () => {
     );
 
     // Gemini runtime: agentNaming is 'snake_case'
-    const geminiHandler = (params) => handleGetAgent(params, { runtimeConfig: getRuntimeConfig('gemini'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const geminiHandler = agentHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
     const geminiResult = withExtensionRoot(root, () =>
       geminiHandler({ agents: ['code-reviewer'] })
     );
@@ -456,7 +457,7 @@ describe('get_agent handler', () => {
     );
 
     // Claude runtime: agentNaming is 'kebab-case'
-    const claudeHandler = (params) => handleGetAgent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const claudeHandler = agentHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
     const claudeResult = withExtensionRoot(root, () =>
       claudeHandler({ agents: ['code-reviewer'] })
     );
@@ -485,7 +486,7 @@ describe('get_agent handler', () => {
       'utf8'
     );
 
-    const handler = (params) => handleGetAgent(params, { runtimeConfig: getRuntimeConfig('gemini'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const handler = agentHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
 
     const result = withExtensionRoot(root, () =>
       handler({ agents: ['ux_designer'] })
@@ -517,7 +518,7 @@ describe('get_agent handler', () => {
       ].join('\n')
     );
 
-    const handler = (params) => handleGetAgent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: sourceSrc } });
+    const handler = agentHandler(getRuntimeConfig('claude'), sourceSrc);
 
     const result = withExtensionRoot(claudeRoot, () =>
       handler({ agents: ['code-reviewer'] })
@@ -533,7 +534,7 @@ describe('get_agent handler', () => {
   it('rejects unknown agents before filesystem lookup', () => {
     const root = makeTempSrcRoot('maestro-agent-unknown-');
     const claudeRoot = path.join(root, 'claude');
-    const handler = (params) => handleGetAgent(params, { runtimeConfig: getRuntimeConfig('claude'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const handler = agentHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
 
     const result = withExtensionRoot(claudeRoot, () =>
       handler({ agents: ['not-a-real-agent'] })
@@ -561,7 +562,7 @@ describe('get_agent handler', () => {
       'utf8'
     );
 
-    const handler = (params) => handleGetAgent(params, { runtimeConfig: getRuntimeConfig('gemini'), services: { canonicalSrcRoot: path.join(root, 'src') } });
+    const handler = agentHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
 
     // Simulate what the Gemini orchestrator did: called with snake_case from plan
     const result = withExtensionRoot(root, () =>

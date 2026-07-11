@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
 import { handleGetAgent } from '../../dist/src/mcp/handlers/get-agent.js';
 import { handleGetSkillContent } from '../../dist/src/mcp/handlers/get-skill-content.js';
 import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
@@ -13,17 +12,14 @@ import {
   runtimePayloadContractIssues,
 } from '../../dist/src/tooling/runtime-payload-contract.js';
 import { RUNTIME_PACKAGE_INVARIANTS } from '../../dist/src/tooling/artifact-policy.js';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { runtimeConfigNames } from '../support/contracts.js';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '../..');
-const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)));
+import { repoPath } from '../support/paths.js';
+
+const packageJson = JSON.parse(fs.readFileSync(repoPath('package.json'), 'utf8'));
 const PACKAGE_VERSION = packageJson.version;
 
 function readJson(relativePath) {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), 'utf8'));
+  return JSON.parse(fs.readFileSync(repoPath(relativePath), 'utf8'));
 }
 
 function expectedStartupArgs(runtime) {
@@ -72,18 +68,18 @@ describe('runtime payload contract', () => {
 
   it('points to existing startup files, docs, and package invariants', () => {
     for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {
-      assert.ok(fs.existsSync(path.join(ROOT, runtime.startup.manifest)), `${runtime.name} manifest exists`);
-      assert.ok(fs.existsSync(path.join(ROOT, runtime.startup.entrypoint)), `${runtime.name} entrypoint exists`);
+      assert.ok(fs.existsSync(repoPath(runtime.startup.manifest)), `${runtime.name} manifest exists`);
+      assert.ok(fs.existsSync(repoPath(runtime.startup.entrypoint)), `${runtime.name} entrypoint exists`);
 
       for (const invariantPath of runtime.packageInvariants) {
         assert.ok(
-          fs.existsSync(path.join(ROOT, invariantPath)),
+          fs.existsSync(repoPath(invariantPath)),
           `${runtime.name} package invariant exists: ${invariantPath}`
         );
       }
 
       for (const docPath of runtime.docs) {
-        assert.ok(fs.existsSync(path.join(ROOT, docPath)), `${runtime.name} doc exists: ${docPath}`);
+        assert.ok(fs.existsSync(repoPath(docPath)), `${runtime.name} doc exists: ${docPath}`);
       }
     }
   });
@@ -101,7 +97,7 @@ describe('runtime payload contract', () => {
 
       assert.equal(server.command, runtime.startup.command, `${runtime.name} startup command`);
       assert.deepEqual(server.args, expectedStartupArgs(runtime), `${runtime.name} startup args`);
-      assert.ok(fs.existsSync(path.join(ROOT, runtime.startup.entrypoint)), `${runtime.name} startup entrypoint`);
+      assert.ok(fs.existsSync(repoPath(runtime.startup.entrypoint)), `${runtime.name} startup entrypoint`);
     }
   });
 
@@ -146,12 +142,12 @@ describe('runtime payload contract', () => {
   });
 
   it('ships generated registry content instead of raw dist content directories', () => {
-    assert.ok(fs.existsSync(path.join(ROOT, 'dist/src/generated/runtime-content-registry.json')));
-    assert.ok(fs.existsSync(path.join(ROOT, 'dist/src/generated/runtime-content-registry.txt.gz')));
+    assert.ok(fs.existsSync(repoPath('dist/src/generated/runtime-content-registry.json')));
+    assert.ok(fs.existsSync(repoPath('dist/src/generated/runtime-content-registry.txt.gz')));
 
     for (const retiredRoot of ['agents', 'references', 'skills', 'templates']) {
       assert.equal(
-        fs.existsSync(path.join(ROOT, 'dist/src', retiredRoot)),
+        fs.existsSync(repoPath('dist/src', retiredRoot)),
         false,
         `dist/src/${retiredRoot} should not be shipped as raw runtime content`
       );
@@ -161,7 +157,7 @@ describe('runtime payload contract', () => {
   it('keeps runtime content lookup working for every runtime', () => {
     for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {
       const runtimeConfig = getRuntimeConfig(runtime.name);
-      const contentRoot = path.join(ROOT, runtime.content.srcRoot);
+      const contentRoot = repoPath(runtime.content.srcRoot);
       const skillHandler = (params) => handleGetSkillContent(params, { runtimeConfig, services: { canonicalSrcRoot: contentRoot } });
       const agentHandler = (params) => handleGetAgent(params, { runtimeConfig, services: { canonicalSrcRoot: contentRoot } });
 

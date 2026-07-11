@@ -1,14 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
-const ROOT = path.resolve(moduleDirname, '..', '..');
+import { repoPath } from '../support/paths.js';
 
 function read(relPath) {
-  return fs.readFileSync(path.join(ROOT, relPath), 'utf8');
+  return fs.readFileSync(repoPath(relPath), 'utf8');
 }
 
 describe('local Claude plugin dev-load docs', () => {

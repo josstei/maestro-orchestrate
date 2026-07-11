@@ -4,19 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ROOT } from './helpers.js';
-import { spawnMcpServer } from './mcp-stdio-client.js';
+import { withMcpServer as withServer } from './mcp-stdio-client.js';
 import { assembleClaudePlugin } from '../../dist/src/tooling/assemble-claude-plugin.js';
-
-async function withServer(options, fn) {
-  const client = spawnMcpServer(options);
-  try {
-    await client.ready;
-    await client.initialize();
-    return await fn(client);
-  } finally {
-    await client.close();
-  }
-}
 
 describe('assembled local claude plugin MCP boot (integration)', () => {
   it('boots the promoted server and serves runtime content from bundled dist', async () => {

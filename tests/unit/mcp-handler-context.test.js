@@ -5,10 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { buildHandlerContext } from '../../dist/src/mcp/server/handler-context.js';
 import { KnowledgeStore } from '../../dist/src/mcp/memory/knowledge-store.js';
+import { connectInMemory } from '../support/mcp.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
 
@@ -224,7 +224,7 @@ test('ctx.elicit catches an McpError thrown on requestedSchema validation failur
   assert.equal(result, null);
 });
 
-test('ctx.elicit end-to-end over a real SDK McpServer/Client pair without elicitation capability', async () => {
+test('ctx.elicit end-to-end over a real SDK McpServer/Client pair without elicitation capability', async (t) => {
   const mcpServer = new McpServer({ name: 'test', version: '0.0.0' }, { capabilities: { tools: {} } });
   let capturedCtx = null;
   mcpServer.registerTool(
@@ -240,20 +240,18 @@ test('ctx.elicit end-to-end over a real SDK McpServer/Client pair without elicit
     }
   );
 
-  const client = new Client({ name: 'test-client', version: '0.0.0' }, { capabilities: {} });
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await Promise.all([mcpServer.connect(serverTransport), client.connect(clientTransport)]);
+  const client = await connectInMemory(t, mcpServer, {
+    clientInfo: { name: 'test-client', version: '0.0.0' },
+    capabilities: {},
+  });
 
   const response = await client.callTool({ name: 'probe', arguments: {} });
   const payload = JSON.parse(response.content[0].text);
   assert.equal(payload.elicited, null);
   assert.equal(capturedCtx.signal instanceof AbortSignal, true);
-
-  await client.close();
-  await mcpServer.close();
 });
 
-test('ctx.elicit end-to-end accepts over a real SDK McpServer/Client pair with elicitation capability', async () => {
+test('ctx.elicit end-to-end accepts over a real SDK McpServer/Client pair with elicitation capability', async (t) => {
   const mcpServer = new McpServer({ name: 'test', version: '0.0.0' }, { capabilities: { tools: {} } });
   mcpServer.registerTool(
     'probe',
@@ -279,13 +277,9 @@ test('ctx.elicit end-to-end accepts over a real SDK McpServer/Client pair with e
     action: 'accept',
     content: { approved: true },
   }));
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await Promise.all([mcpServer.connect(serverTransport), client.connect(clientTransport)]);
+  await connectInMemory(t, mcpServer, { client });
 
   const response = await client.callTool({ name: 'probe', arguments: {} });
   const payload = JSON.parse(response.content[0].text);
   assert.deepEqual(payload.elicited, { action: 'accept', content: { approved: true } });
-
-  await client.close();
-  await mcpServer.close();
 });

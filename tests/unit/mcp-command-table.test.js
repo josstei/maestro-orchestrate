@@ -2,8 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   defineCommandTable,
   registerCommandTable,
@@ -14,6 +12,7 @@ import {
   withRequiredProjectRoot,
 } from '../../dist/src/mcp/tool-packs/command-table.js';
 import { createMaestroToolRegistry } from '../../dist/src/mcp/tool-packs/contracts.js';
+import { connectInMemory } from '../support/mcp.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
 
@@ -217,7 +216,7 @@ test('args-only projection does not skip the workspace gate', async () => {
   assert.equal(JSON.parse(result.content[0].text).code, 'WORKSPACE_NOT_INITIALIZED');
 });
 
-test('registerCommandTable works through the real MCP SDK path', async () => {
+test('registerCommandTable works through the real MCP SDK path', async (t) => {
   const zodSchemas = {
     sdk_echo: {
       text: z.string(),
@@ -238,9 +237,10 @@ test('registerCommandTable works through the real MCP SDK path', async () => {
     runtimeConfig: RUNTIME_CONFIG,
   });
 
-  const client = new Client({ name: 'c', version: '0.0.0' }, { capabilities: {} });
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  const client = await connectInMemory(t, server, {
+    clientInfo: { name: 'c', version: '0.0.0' },
+    capabilities: {},
+  });
 
   const tools = await client.listTools();
   const tool = tools.tools.find((entry) => entry.name === 'sdk_echo');
@@ -250,7 +250,4 @@ test('registerCommandTable works through the real MCP SDK path', async () => {
 
   const result = await client.callTool({ name: 'sdk_echo', arguments: { text: 'hello' } });
   assert.deepEqual(JSON.parse(result.content[0].text), { echoed: 'hello' });
-
-  await client.close();
-  await server.close();
 });

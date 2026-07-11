@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {
   assertPlansFilename,
@@ -13,6 +12,7 @@ import {
 import * as compatibility from '../../dist/src/mcp/handlers/document-input.js';
 import * as canonical from '../../dist/src/mcp/session/document-input.js';
 import { ValidationError } from '../../dist/src/lib/errors/index.js';
+import { makeTempDir, writeFixtureFile } from '../support/filesystem.js';
 
 const opts = (over = {}) => ({
   pathKey: 'doc_path', contentKey: 'doc_content', filenameKey: 'doc_filename',
@@ -69,18 +69,17 @@ describe('plans document helpers', () => {
     assert.throws(() => assertPlansFilename('bad\0name.md', 'plan_filename'), ValidationError);
   });
 
-  it('writes inline document content under the workspace plans directory', () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-doc-input-'));
+  it('writes inline document content under the workspace plans directory', (t) => {
+    const workspace = makeTempDir(t, 'maestro-doc-input-');
     const result = writePlansDocumentContent(workspace, 'plan.md', '# Plan\n', 'plan_filename');
     assert.equal(result, path.join(plansDirPath(workspace), 'plan.md'));
     assert.equal(fs.readFileSync(result, 'utf8'), '# Plan\n');
   });
 
-  it('copies external documents into plans and preserves in-plans paths', () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-doc-input-'));
-    const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-doc-external-'));
-    const externalPath = path.join(externalDir, 'design.md');
-    fs.writeFileSync(externalPath, '# Design\n');
+  it('copies external documents into plans and preserves in-plans paths', (t) => {
+    const workspace = makeTempDir(t, 'maestro-doc-input-');
+    const externalDir = makeTempDir(t, 'maestro-doc-external-');
+    const externalPath = writeFixtureFile(externalDir, 'design.md', '# Design\n');
 
     const copied = ensurePlansDocumentInPlans(workspace, externalPath);
     assert.equal(copied, path.join(plansDirPath(workspace), 'design.md'));

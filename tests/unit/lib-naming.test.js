@@ -2,10 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { toSnakeCase, toKebabCase, toPascalCase, toTitleCase, replaceInContent } from '../../dist/src/lib/naming/index.js';
 import { expandEntryPoints } from '../../dist/src/generator/entry-point-expander.js';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-import path, { dirname } from 'node:path';
-const moduleDirname = dirname(moduleFilename);
+import { repoPath } from '../support/paths.js';
 
 const AGENT_NAMES = [
   'accessibility-specialist',
@@ -241,7 +238,7 @@ describe('toTitleCase matches entry-point-expander toTitle', () => {
 });
 
 describe('entry-point title override', () => {
-  const SRC = path.resolve(moduleDirname, '..', '..', 'src');
+  const SRC = repoPath('src');
 
   it('renders the registry title for a11y-audit into the Claude skill', async () => {
     const outputs = await expandEntryPoints('claude', SRC);

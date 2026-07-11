@@ -3,9 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileURLToPath } from 'node:url';
-const moduleFilename = fileURLToPath(import.meta.url);
-const moduleDirname = path.dirname(moduleFilename);
+import { repoPath } from '../support/paths.js';
 
 const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-vc-'));
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
@@ -71,10 +69,9 @@ describe('handleAfterAgent surfaces validation_commands', () => {
 });
 
 describe('capture trigger is authored into the protocol and steps', () => {
-  const REPO = path.resolve(moduleDirname, '../..');
   it('agent-base-protocol documents the Validation Commands handoff section', () => {
     const body = fs.readFileSync(
-      path.join(REPO, 'src/skills/shared/delegation/protocols/agent-base-protocol.md'),
+      repoPath('src/skills/shared/delegation/protocols/agent-base-protocol.md'),
       'utf8'
     );
     assert.ok(body.includes('## Validation Commands'));
@@ -83,7 +80,7 @@ describe('capture trigger is authored into the protocol and steps', () => {
 
   it('orchestration-steps invokes record_validation_commands in the execution loop', () => {
     const body = fs.readFileSync(
-      path.join(REPO, 'src/references/orchestration-steps.md'),
+      repoPath('src/references/orchestration-steps.md'),
       'utf8'
     );
     assert.ok(body.includes('record_validation_commands'));

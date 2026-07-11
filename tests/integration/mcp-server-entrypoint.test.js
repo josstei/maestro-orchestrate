@@ -1,86 +1,37 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import { ROOT, withPackagedClaudeRuntime } from './helpers.js';
+import { makeTempDir, writeFixtureFile } from '../support/filesystem.js';
+import { spawnMcpServer, withMcpServer } from './mcp-stdio-client.js';
 
 function waitForServerStartup(relativePath, cwd = ROOT) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [relativePath], {
-      cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-
-    const timeout = setTimeout(() => {
-      finish(
-        new Error(
-          `Timed out waiting for ${relativePath} to start.\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
-        )
-      );
-    }, 30000);
-
-    function finish(error) {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-      clearTimeout(timeout);
-
-      if (!child.killed) {
-        child.kill('SIGTERM');
-        setTimeout(() => {
-          if (!child.killed) {
-            child.kill('SIGKILL');
-          }
-        }, 250).unref();
-      }
-
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve({ stdout, stderr });
-    }
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-
-      if (stderr.includes('[error] maestro: MCP server failed:')) {
-        finish(new Error(stderr.trim()));
-        return;
-      }
-
-      if (stderr.includes('[info] maestro: MCP server connected')) {
-        finish();
-      }
-    });
-
-    child.on('error', (error) => {
-      finish(error);
-    });
-
-    child.on('exit', (code, signal) => {
-      if (!settled) {
-        finish(
-          new Error(
-            `${relativePath} exited before startup completed (code=${code}, signal=${signal}).\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
-          )
-        );
-      }
-    });
-  });
+  return withMcpServer(
+    { cwd, relativePath },
+    (client) => ({ stderr: client.getStderr() }),
+    { initialize: false }
+  );
 }
 
 describe('mcp server entrypoint startup', () => {
+  it('escalates to SIGKILL when a child ignores SIGTERM', async (t) => {
+    const root = makeTempDir(t, 'maestro-stubborn-mcp-');
+    const entrypoint = writeFixtureFile(
+      root,
+      'stubborn-server.cjs',
+      `process.on('SIGTERM', () => {});
+console.error('[info] maestro: MCP server connected');
+setInterval(() => {}, 1000);
+`,
+    );
+    const client = spawnMcpServer({ cwd: root, relativePath: entrypoint });
+    t.after(() => client.close());
+
+    await client.ready;
+    await client.close();
+
+    assert.equal(client.child.signalCode, 'SIGKILL');
+  });
+
   it('starts the gemini runtime server without external SDK installation', async () => {
     const result = await waitForServerStartup('mcp/maestro-server.js');
 
