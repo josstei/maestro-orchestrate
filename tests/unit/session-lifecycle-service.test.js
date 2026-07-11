@@ -18,7 +18,7 @@ import { migrateSessionState } from '../../dist/src/mcp/handlers/session-migrati
 import {
   createEmptySessionTokenUsage,
   createPendingPhaseState,
-} from '../../dist/src/mcp/session/session-state-factory.js';
+} from '../../dist/src/mcp/contracts/session-state-schema.js';
 import { sessionStore } from '../../dist/src/mcp/session/session-store.js';
 import {
   ensureMaestroWorkspace,
@@ -28,8 +28,8 @@ import {
 } from '../support/mcp.js';
 
 describe('session lifecycle service', () => {
-  it('creates, reports, updates, and archives a session through the service boundary', () => {
-    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-lifecycle-'));
+  it('creates, reports, updates, and archives a session through the service boundary', (t) => {
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-lifecycle-', t));
 
     const created = createSession(
       {
@@ -154,10 +154,10 @@ describe('current session contracts and factories', () => {
     assert.equal(readable.total_phases, undefined);
   });
 
-  it('rejects structurally unreadable state and unknown fields on strict writes', () => {
+  it('rejects structurally unreadable state and unknown fields on strict writes', (t) => {
     assert.throws(() => ReadableSessionStateSchema.parse({}));
 
-    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-strict-'));
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-strict-', t));
     createSession(
       {
         session_id: 'strict-session',
@@ -172,8 +172,8 @@ describe('current session contracts and factories', () => {
 });
 
 describe('session store boundary', () => {
-  it('validates new state strictly before writing and reads migrated unknown fields tolerantly', () => {
-    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-store-'));
+  it('validates new state strictly before writing and reads migrated unknown fields tolerantly', (t) => {
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-store-', t));
     const created = createSession(
       {
         session_id: 'store-session',
@@ -221,8 +221,8 @@ describe('session store boundary', () => {
     assert.deepEqual(updated.state.phases[0].future_phase_field, ['retained']);
   });
 
-  it('requires explicit mutation outcomes and preserves or overrides the body deliberately', () => {
-    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-mutation-'));
+  it('requires explicit mutation outcomes and preserves or overrides the body deliberately', (t) => {
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-session-mutation-', t));
     createSession(
       {
         session_id: 'mutation-session',

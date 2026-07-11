@@ -10,7 +10,7 @@ import {
   writePlansDocumentContent,
 } from '../../dist/src/mcp/handlers/document-input.js';
 import * as compatibility from '../../dist/src/mcp/handlers/document-input.js';
-import * as canonical from '../../dist/src/mcp/session/document-input.js';
+import * as canonical from '../../dist/src/mcp/session/document-repository.js';
 import { ValidationError } from '../../dist/src/lib/errors/index.js';
 import { makeTempDir, writeFixtureFile } from '../support/filesystem.js';
 

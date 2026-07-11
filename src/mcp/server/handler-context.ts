@@ -97,13 +97,32 @@ async function buildHandlerContext(
   extra: { signal?: AbortSignal } | null | undefined,
   options: HandlerContextOptions,
 ): Promise<HandlerContext> {
-  const { server, runtimeConfig, clock = createSystemClock(), getProjectRoot } = options;
-  const projectRoot =
-    typeof getProjectRoot === 'function' ? (await getProjectRoot()) || null : null;
+  const {
+    server,
+    runtimeConfig,
+    clock = createSystemClock(),
+    getWorkspaceState,
+    getProjectRoot,
+    getStateDirPath,
+  } = options;
+  const workspaceState = typeof getWorkspaceState === 'function'
+    ? await getWorkspaceState()
+    : null;
+  const projectRoot = workspaceState
+    ? workspaceState.projectRoot || null
+    : typeof getProjectRoot === 'function'
+      ? (await getProjectRoot()) || null
+      : null;
+  const stateDirPath = workspaceState
+    ? workspaceState.stateDirPath || null
+    : typeof getStateDirPath === 'function'
+      ? (await getStateDirPath()) || null
+      : null;
   const inboundServices = options.services || {};
 
   return {
     projectRoot,
+    stateDirPath,
     runtimeConfig,
     signal: extra?.signal,
     elicit: buildElicit({ server }),

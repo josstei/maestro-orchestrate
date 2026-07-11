@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { withEnv } from '../support/environment.js';
+import { withEnv, withEnvSync } from '../support/environment.js';
 import { makeTempDir, writeFixtureFile } from '../support/filesystem.js';
 import { connectInMemory } from '../support/mcp.js';
 import { REPO_ROOT, repoPath, resolveFrom } from '../support/paths.js';
@@ -39,6 +39,22 @@ describe('test support', () => {
           throw new Error('sync failure');
         }),
         /sync failure/
+      );
+
+      assert.equal(process.env[key], 'before');
+      delete process.env[key];
+    });
+
+    it('withEnvSync restores supplied keys after a throw', () => {
+      const key = 'MAESTRO_TEST_SUPPORT_SYNC_WRAPPER_THROW';
+      process.env[key] = 'before';
+
+      assert.throws(
+        () => withEnvSync({ [key]: 'during' }, () => {
+          assert.equal(process.env[key], 'during');
+          throw new Error('sync wrapper failure');
+        }),
+        /sync wrapper failure/
       );
 
       assert.equal(process.env[key], 'before');
@@ -136,5 +152,48 @@ describe('test support', () => {
       'client-close',
       'server-close',
     ]);
+  });
+
+  it('immediately closes both sides when either in-memory connection rejects', async () => {
+    for (const failingSide of ['server', 'client']) {
+      const events = [];
+      const cleanupCallbacks = [];
+      const testContext = {
+        after(callback) {
+          cleanupCallbacks.push(callback);
+        },
+      };
+      const server = {
+        async connect() {
+          events.push('server-connect');
+          if (failingSide === 'server') throw new Error('server connect failure');
+          await new Promise((resolve) => setImmediate(resolve));
+          events.push('server-connected');
+        },
+        async close() {
+          events.push('server-close');
+        },
+      };
+      const client = {
+        async connect() {
+          events.push('client-connect');
+          if (failingSide === 'client') throw new Error('client connect failure');
+          await new Promise((resolve) => setImmediate(resolve));
+          events.push('client-connected');
+        },
+        async close() {
+          events.push('client-close');
+        },
+      };
+
+      await assert.rejects(
+        connectInMemory(testContext, server, { client }),
+        new RegExp(`${failingSide} connect failure`)
+      );
+      assert.equal(cleanupCallbacks.length, 0);
+      const siblingConnected = failingSide === 'server' ? 'client-connected' : 'server-connected';
+      assert.ok(events.indexOf(siblingConnected) < events.indexOf('client-close'));
+      assert.deepEqual(events.slice(-2), ['client-close', 'server-close']);
+    }
   });
 });

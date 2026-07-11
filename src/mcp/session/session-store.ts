@@ -8,15 +8,15 @@ import { readState, resolveStateDirPath, writeState } from '../../state/session-
 import {
   ReadableSessionStateSchema,
   SessionStateSchema,
+  createPendingPhaseProgress,
 } from '../contracts/session-state-schema.js';
 import type {
   ReadableSessionState,
   SessionState,
 } from '../contracts/session-state-schema.js';
-import { createEmptyDownstreamContext } from '../contracts/downstream-context.js';
-import { migrateSessionState } from './session-migrations.js';
 
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
+const SCHEMA_VERSION = 2;
 
 interface SessionDocument<T = ReadableSessionState> {
   readonly basePath: string;
@@ -48,6 +48,39 @@ interface SessionStore {
     body?: string,
   ): void;
   archive(document: SessionDocument, sessionId: SessionId): string;
+}
+
+function migrateToV1(data: any) {
+  const phases = Array.isArray(data.phases) ? data.phases : [];
+  for (const phase of phases) {
+    if (!phase || typeof phase !== 'object') continue;
+    if (typeof phase.blocker_count !== 'number') phase.blocker_count = 0;
+    if (typeof phase.review_finding_count !== 'number') {
+      phase.review_finding_count = 0;
+    }
+  }
+  return data;
+}
+
+function migrateToV2(data: any) {
+  if (typeof data.parent_session_id === 'undefined') data.parent_session_id = null;
+  if (typeof data.branch === 'undefined') data.branch = null;
+  return data;
+}
+
+const MIGRATIONS = [
+  { to: 1, migrate: migrateToV1 },
+  { to: 2, migrate: migrateToV2 },
+];
+
+function migrateSessionState(data: any) {
+  if (!data || typeof data !== 'object') return data;
+  const current = typeof data.schema_version === 'number' ? data.schema_version : 0;
+  for (const migration of MIGRATIONS) {
+    if (migration.to > current) migration.migrate(data);
+  }
+  data.schema_version = SCHEMA_VERSION;
+  return data;
 }
 
 function resolveBasePath(projectRoot: any) {
@@ -233,21 +266,6 @@ function withSessionState(projectRoot: any, mutator: any) {
   return outcome.response;
 }
 
-function createPendingPhaseProgress() {
-  return {
-    started: null,
-    completed: null,
-    files_created: [],
-    files_modified: [],
-    files_deleted: [],
-    downstream_context: createEmptyDownstreamContext(),
-    errors: [],
-    retry_count: 0,
-    blocker_count: 0,
-    review_finding_count: 0,
-  };
-}
-
 function assertValidActiveSession(
   projectRoot: any,
   sessionId: any,
@@ -280,6 +298,7 @@ function extractFileManifest(params: any) {
 }
 
 export {
+  SCHEMA_VERSION,
   archiveActiveSessionFile,
   assertActiveSessionMatches,
   assertNoInProgressSession,
@@ -287,6 +306,7 @@ export {
   createPendingPhaseProgress,
   extractBody,
   extractFileManifest,
+  migrateSessionState,
   parseSessionState,
   readActiveSession,
   readActiveSessionOrNull,

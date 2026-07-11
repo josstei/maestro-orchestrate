@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseSessionState } from '../../dist/src/mcp/handlers/session-state-core.js';
 import { handleListCheckpoints } from '../../dist/src/mcp/handlers/checkpoints.js';
-import { resetPhaseToPending } from '../../dist/src/mcp/session/session-state-factory.js';
+import { resetPhaseToPending } from '../../dist/src/mcp/contracts/session-state-schema.js';
 import { createInitializedMcpWorkspace, phaseFixture } from '../support/mcp.js';
 const SESSION_ID = 'checkpoint-session';
 
@@ -27,10 +27,11 @@ function populatedContext(label) {
   };
 }
 
-async function createThreePhaseSession() {
+async function createThreePhaseSession(testContext) {
   const { server, workspace } = await createInitializedMcpWorkspace({
     runtime: 'codex',
     prefix: 'maestro-checkpoints-',
+    testContext,
   });
 
   const created = await server.callTool(
@@ -53,8 +54,8 @@ async function createThreePhaseSession() {
 }
 
 describe('session checkpoints', () => {
-  it('captures append-only phase checkpoints and lists them sorted', async () => {
-    const { server, workspace } = await createThreePhaseSession();
+  it('captures append-only phase checkpoints and lists them sorted', async (t) => {
+    const { server, workspace } = await createThreePhaseSession(t);
 
     const firstTransition = await server.callTool(
       'transition_phase',

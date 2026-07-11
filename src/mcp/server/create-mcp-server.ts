@@ -1,4 +1,4 @@
-import { moduleDirname } from '../../core/module-path.js';
+import { moduleDirname } from '../../core/package-root.js';
 import { resolveVersion } from '../../core/version.js';
 import {
   connectMaestroMcpServer,

@@ -9,31 +9,6 @@ import { createTrackedCandidateRepoCopy } from '../support/filesystem.js';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
 const ROOT = path.resolve(moduleDirname, '../..');
-const APPROVED_ADDITIONAL_PATHS = Object.freeze([
-  'artifacts/codebase-reduction/architectural-normalization-metrics.json',
-  'src/core/module-path.ts',
-  'src/core/package-root.ts',
-  'src/core/workspace-path.ts',
-  'src/core/zod-validation.ts',
-  'src/entry-points/core-command-registry.ts',
-  'src/entry-points/registry.ts',
-  'src/manifest.ts',
-  'src/mcp/content/runtime-content-snapshot.ts',
-  'src/mcp/contracts/session-state-schema.ts',
-  'src/mcp/session/document-input.ts',
-  'src/mcp/session/session-migrations.ts',
-  'src/mcp/session/session-state-factory.ts',
-  'src/mcp/session/session-store.ts',
-  'src/tooling/runtime-payload-contract.ts',
-  'tests/benchmarks/runtime-content-snapshot.js',
-  'tests/integration/plan-contract-roundtrip.test.js',
-  'tests/support/environment.js',
-  'tests/support/filesystem.js',
-  'tests/support/paths.js',
-  'tests/unit/package-root.test.js',
-  'tests/unit/package-script-lifecycle.test.js',
-  'tests/unit/test-support.test.js',
-]);
 
 function cleanupTempRepo(repoRoot) {
   fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
@@ -49,7 +24,6 @@ describe('TypeScript build contract', () => {
       /excluded build residue/
     );
     const repoRoot = createTrackedCandidateRepoCopy({
-      additionalPaths: APPROVED_ADDITIONAL_PATHS,
       dependencyRoot: path.join(ROOT, 'node_modules'),
     });
 

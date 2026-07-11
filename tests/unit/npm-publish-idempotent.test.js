@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { moduleDirname } from '../../dist/src/core/module-path.js';
+import { moduleDirname } from '../../dist/src/core/package-root.js';
 
 import {
   highestStableVersion,

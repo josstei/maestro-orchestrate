@@ -1,17 +1,14 @@
-import { describe, it, after } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { handleCreateSession, handleTransitionPhase, handleArchiveSession } from '../../dist/src/mcp/handlers/session-state-tools.js';
 import { ensureMaestroWorkspace, makeTempWorkspace, readSessionFrontmatter } from '../support/mcp.js';
-const tmpRoots = [];
 
-function makeWorkspace() {
-  const workspace = ensureMaestroWorkspace(
-    makeTempWorkspace('maestro-agent-perf-capture-')
+function makeWorkspace(testContext) {
+  return ensureMaestroWorkspace(
+    makeTempWorkspace('maestro-agent-perf-capture-', testContext)
   );
-  tmpRoots.push(workspace);
-  return workspace;
 }
 
 const TASK_REPORT = `## Task Report
@@ -37,15 +34,9 @@ const POPULATED_CONTEXT = {
   warnings: [],
 };
 
-after(() => {
-  for (const root of tmpRoots) {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
 describe('transition_phase blocker/finding capture', () => {
-  it('derives blocker_count from task_report and stores review_finding_count', () => {
-    const workspace = makeWorkspace();
+  it('derives blocker_count from task_report and stores review_finding_count', (t) => {
+    const workspace = makeWorkspace(t);
     handleCreateSession(
       {
         session_id: 'perf-session',
@@ -75,8 +66,8 @@ describe('transition_phase blocker/finding capture', () => {
     assert.equal(frontmatter.phases[0].status, 'completed');
   });
 
-  it('appends per-agent records to the durable ledger on archive', () => {
-    const workspace = makeWorkspace();
+  it('appends per-agent records to the durable ledger on archive', (t) => {
+    const workspace = makeWorkspace(t);
     handleCreateSession(
       {
         session_id: 'perf-session',
@@ -113,8 +104,8 @@ describe('transition_phase blocker/finding capture', () => {
     assert.equal(ledger.records[0].review_finding_count, 3);
   });
 
-  it('leaves blocker_count untouched when task_report is absent', () => {
-    const workspace = makeWorkspace();
+  it('leaves blocker_count untouched when task_report is absent', (t) => {
+    const workspace = makeWorkspace(t);
     handleCreateSession(
       {
         session_id: 'perf-session',

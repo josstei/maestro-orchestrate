@@ -4,10 +4,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createInitializedMcpWorkspace, phaseFixture } from '../support/mcp.js';
 
-async function bootstrap() {
+async function bootstrap(testContext) {
   const { server, workspace } = await createInitializedMcpWorkspace({
     runtime: 'codex',
     prefix: 'maestro-recon-',
+    testContext,
   });
   await server.callTool(
     'create_session',
@@ -23,8 +24,8 @@ async function bootstrap() {
 }
 
 describe('scan_phase_changes', () => {
-  it('returns files created after the phase started', async () => {
-    const { server, workspace } = await bootstrap();
+  it('returns files created after the phase started', async (t) => {
+    const { server, workspace } = await bootstrap(t);
 
     await new Promise((r) => setTimeout(r, 50));
     fs.mkdirSync(path.join(workspace, 'src'), { recursive: true });
@@ -42,8 +43,8 @@ describe('scan_phase_changes', () => {
     assert.ok(created.includes('src/bar.js'));
   });
 
-  it('excludes docs/maestro and .git paths', async () => {
-    const { server, workspace } = await bootstrap();
+  it('excludes docs/maestro and .git paths', async (t) => {
+    const { server, workspace } = await bootstrap(t);
 
     await new Promise((r) => setTimeout(r, 50));
     fs.mkdirSync(path.join(workspace, '.git'), { recursive: true });
@@ -63,8 +64,8 @@ describe('scan_phase_changes', () => {
 });
 
 describe('reconcile_phase — empty payload', () => {
-  it('rejects a call with no files and no downstream_context', async () => {
-    const { server, workspace } = await bootstrap();
+  it('rejects a call with no files and no downstream_context', async (t) => {
+    const { server, workspace } = await bootstrap(t);
 
     await server.callTool(
       'transition_phase',
@@ -88,8 +89,8 @@ describe('reconcile_phase — empty payload', () => {
     assert.match(outcome.error || '', /reconcile_phase requires at least one/i);
   });
 
-  it('rejects a call with empty arrays and an unpopulated downstream_context', async () => {
-    const { server, workspace } = await bootstrap();
+  it('rejects a call with empty arrays and an unpopulated downstream_context', async (t) => {
+    const { server, workspace } = await bootstrap(t);
 
     await server.callTool(
       'transition_phase',
@@ -122,8 +123,8 @@ describe('reconcile_phase — empty payload', () => {
 });
 
 describe('reconcile_phase', () => {
-  it('clears requires_reconciliation and writes file manifests', async () => {
-    const { server, workspace } = await bootstrap();
+  it('clears requires_reconciliation and writes file manifests', async (t) => {
+    const { server, workspace } = await bootstrap(t);
 
     await server.callTool(
       'transition_phase',

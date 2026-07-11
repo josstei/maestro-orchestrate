@@ -2,10 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitializedMcpWorkspace, phaseFixture, readSessionFrontmatter } from '../support/mcp.js';
 
-async function prepareSession(phaseId = 1) {
+async function prepareSession(testContext, phaseId = 1) {
   const { server, workspace } = await createInitializedMcpWorkspace({
     runtime: 'codex',
     prefix: 'maestro-hv-',
+    testContext,
   });
   await server.callTool(
     'create_session',
@@ -21,8 +22,8 @@ async function prepareSession(phaseId = 1) {
 }
 
 describe('handoff validation', () => {
-  it('rejects files with empty downstream_context and accepts array payload on retry', async () => {
-    const { server, workspace } = await prepareSession();
+  it('rejects files with empty downstream_context and accepts array payload on retry', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const empty = await server.callTool(
       'transition_phase',
@@ -51,8 +52,8 @@ describe('handoff validation', () => {
     assert.equal(populated.ok, true);
   });
 
-  it('accepts string-valued downstream_context per the agent-base-protocol template', async () => {
-    const { server, workspace } = await prepareSession();
+  it('accepts string-valued downstream_context per the agent-base-protocol template', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const stringForm = await server.callTool(
       'transition_phase',
@@ -91,8 +92,8 @@ describe('handoff validation', () => {
     assert.deepEqual(phase.downstream_context.warnings, []);
   });
 
-  it('rejects downstream_context whose fields are all "none" even though the object is non-empty', async () => {
-    const { server, workspace } = await prepareSession();
+  it('rejects downstream_context whose fields are all "none" even though the object is non-empty', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const allNone = await server.callTool(
       'transition_phase',
@@ -119,8 +120,8 @@ describe('handoff validation', () => {
     );
   });
 
-  it('drops unknown (non-canonical) keys and normalizes case-mismatched inputs to empty', async () => {
-    const { server, workspace } = await prepareSession();
+  it('drops unknown (non-canonical) keys and normalizes case-mismatched inputs to empty', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const pascal = await server.callTool(
       'transition_phase',

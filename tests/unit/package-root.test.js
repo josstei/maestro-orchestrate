@@ -7,9 +7,10 @@ import { pathToFileURL } from 'node:url';
 import {
   PACKAGE_NAME,
   findPackageRoot,
+  moduleDirname,
+  moduleFilename,
   resolvePackageRoot,
 } from '../../dist/src/core/package-root.js';
-import { moduleDirname, moduleFilename } from '../../dist/src/core/module-path.js';
 
 function writePackageJson(dirPath, value) {
   fs.mkdirSync(dirPath, { recursive: true });

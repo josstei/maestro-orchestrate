@@ -1,36 +1,16 @@
-import { afterEach, describe, it } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import { buildMcpServer, createWorkspacePack, makeTempWorkspace } from '../support/mcp.js';
 
-const envKeysToRestore = [
-  'MAESTRO_DISABLED_AGENTS',
-  'MAESTRO_EXECUTION_MODE',
-  'MAESTRO_EXTENSION_PATH',
-];
-
-const originalEnv = Object.fromEntries(
-  envKeysToRestore.map((key) => [key, process.env[key]])
-);
-
-afterEach(() => {
-  for (const key of envKeysToRestore) {
-    if (originalEnv[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = originalEnv[key];
-    }
-  }
-});
-
-async function buildWorkspaceServer() {
-  return buildMcpServer({ toolPacks: [createWorkspacePack] });
+async function buildWorkspaceServer(testContext) {
+  return buildMcpServer({ testContext, toolPacks: [createWorkspacePack] });
 }
 
 describe('workspace tool pack', () => {
-  it('registers the workspace and planning tool surface through the kernel', async () => {
-    const server = await buildWorkspaceServer();
+  it('registers the workspace and planning tool surface through the kernel', async (t) => {
+    const server = await buildWorkspaceServer(t);
 
     const schemas = await server.getToolSchemas();
     assert.deepEqual(
@@ -44,14 +24,14 @@ describe('workspace tool pack', () => {
     );
   });
 
-  it('resolves settings from the workspace env file', async () => {
-    const projectRoot = makeTempWorkspace('maestro-settings-');
+  it('resolves settings from the workspace env file', async (t) => {
+    const projectRoot = makeTempWorkspace('maestro-settings-', t);
     fs.writeFileSync(
       path.join(projectRoot, '.env'),
       'MAESTRO_DISABLED_AGENTS=architect, tester\n'
     );
 
-    const server = await buildWorkspaceServer();
+    const server = await buildWorkspaceServer(t);
     const init = await server.callTool('initialize_workspace', { workspace_path: projectRoot });
     assert.equal(init.ok, true);
 
@@ -67,9 +47,9 @@ describe('workspace tool pack', () => {
     assert.deepEqual(result.result.disabled_agents, ['architect', 'tester']);
   });
 
-  it('initializes the workspace directories under the provided project root', async () => {
-    const projectRoot = makeTempWorkspace('maestro-workspace-');
-    const server = await buildWorkspaceServer();
+  it('initializes the workspace directories under the provided project root', async (t) => {
+    const projectRoot = makeTempWorkspace('maestro-workspace-', t);
+    const server = await buildWorkspaceServer(t);
 
     const result = await server.callTool('initialize_workspace', {
       workspace_path: projectRoot,
@@ -88,8 +68,8 @@ describe('workspace tool pack', () => {
     );
   });
 
-  it('reports overlapping files for parallel phases', async () => {
-    const server = await buildWorkspaceServer();
+  it('reports overlapping files for parallel phases', async (t) => {
+    const server = await buildWorkspaceServer(t);
 
     const result = await server.callTool('validate_plan', {
       task_complexity: 'complex',

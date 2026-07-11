@@ -28,9 +28,10 @@ async function createCompleteArchive(server, workspace, { session_id, agent, tok
 }
 
 describe('archive index, search, and cost insights', () => {
-  it('lists, searches, and rolls up archived sessions', async () => {
+  it('lists, searches, and rolls up archived sessions', async (t) => {
     const { server, workspace } = await createInitializedMcpWorkspace({
       prefix: 'maestro-archive-idx-',
+      testContext: t,
     });
 
     await createCompleteArchive(server, workspace, {
@@ -87,9 +88,10 @@ describe('archive index, search, and cost insights', () => {
     assert.equal(typeof insights.result.latency.avg_phase_duration_ms, 'number');
   });
 
-  it('returns an empty rollup on a workspace with no archives', async () => {
+  it('returns an empty rollup on a workspace with no archives', async (t) => {
     const { server, workspace } = await createInitializedMcpWorkspace({
       prefix: 'maestro-archive-empty-',
+      testContext: t,
     });
 
     const list = await server.callTool('search_archived_sessions', {}, workspace);

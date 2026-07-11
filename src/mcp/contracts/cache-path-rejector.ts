@@ -1,4 +1,4 @@
 export {
   CACHE_PATH_SEGMENTS,
   isExtensionCachePath,
-} from '../../core/workspace-path.js';
+} from '../../core/project-root-resolver.js';

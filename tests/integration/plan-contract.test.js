@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { createInitializedMcpWorkspace, phaseFixture, readSessionFrontmatter } from '../support/mcp.js';
 
 describe('plan contract round-trip', () => {
-  it('validate_plan output is accepted verbatim by create_session', async () => {
+  it('validate_plan output is accepted verbatim by create_session', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-plan-rt-',
+      testContext: t,
     });
 
     const plan = {

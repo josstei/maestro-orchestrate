@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { moduleDirname } from '../../dist/src/core/module-path.js';
+import { moduleDirname } from '../../dist/src/core/package-root.js';
 import { resolveVersion } from '../../dist/src/core/version.js';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -93,7 +93,6 @@ describe('resolveVersion', () => {
       'utf8'
     );
     fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'core', 'version.js'), copiedModulePath);
-    fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'core', 'module-path.js'), path.join(coreDir, 'module-path.js'));
     fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'core', 'package-root.js'), path.join(coreDir, 'package-root.js'));
     fs.copyFileSync(path.join(ROOT, 'dist', 'src', 'lib', 'io', 'index.js'), path.join(libIoDir, 'index.js'));
 

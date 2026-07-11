@@ -4,8 +4,8 @@ import { buildMcpServer } from '../support/mcp.js';
 import { registerMemoryPack as createMemoryPack } from '../../dist/src/mcp/tool-packs/memory/index.js';
 
 describe('memory tool pack', () => {
-  it('registers the memory profile tools through the kernel', async () => {
-    const server = await buildMcpServer({ toolPacks: [createMemoryPack] });
+  it('registers the memory profile tools through the kernel', async (t) => {
+    const server = await buildMcpServer({ testContext: t, toolPacks: [createMemoryPack] });
 
     const schemas = await server.getToolSchemas();
     assert.deepEqual(

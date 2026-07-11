@@ -13,7 +13,7 @@ import {
   type PackageBudget,
   type PackageSurfaceRule,
 } from './artifact-policy.js';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import { resolvePackageRoot } from '../core/package-root.js';
 import { runAsMain } from './lib/cli.js';
 

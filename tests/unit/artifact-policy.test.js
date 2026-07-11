@@ -10,6 +10,7 @@ import {
   PACKAGE_BUDGETS,
   PACKAGE_SURFACE_RULES,
   PRIVATE_SCRIPT_ROLES,
+  PRESERVED_PACKAGE_FILES,
   REQUIRED_PACKAGE_FILES,
   RUNTIME_DIST_PATHS,
   RUNTIME_PACKAGE_INVARIANTS,
@@ -73,7 +74,10 @@ describe('artifact policy', () => {
   it('owns runtime package invariants consumed by the payload contract', () => {
     const policyInvariants = [...new Set(Object.values(RUNTIME_PACKAGE_INVARIANTS).flat())].sort();
 
-    assert.deepEqual(REQUIRED_PACKAGE_FILES, policyInvariants);
+    assert.deepEqual(
+      REQUIRED_PACKAGE_FILES,
+      [...new Set([...policyInvariants, ...PRESERVED_PACKAGE_FILES])].sort()
+    );
     assert.deepEqual(REQUIRED_PACKAGE_FILES, EXPECTED_REQUIRED_PACKAGE_FILES);
 
     for (const runtime of RUNTIME_PAYLOAD_CONTRACT) {

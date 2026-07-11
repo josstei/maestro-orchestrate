@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import { resolvePackageRoot } from '../core/package-root.js';
 import { readJson, runAsMain } from './lib/cli.js';
 import { isStable } from './lib/semver.js';

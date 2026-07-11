@@ -12,8 +12,15 @@ const { registerSessionPack } = await importDist('src/mcp/tool-packs/session/ind
 const { registerContentPack } = await importDist('src/mcp/tool-packs/content/index.js');
 const { registerMemoryPack } = await importDist('src/mcp/tool-packs/memory/index.js');
 const { registerHistoryPack } = await importDist('src/mcp/tool-packs/history/index.js');
-const { ensureWorkspace } = await importDist('src/state/session-state.js');
+const { ensureWorkspace, resolveStateDirPath } = await importDist('src/state/session-state.js');
 const DEFAULT_STATE_DIR = 'docs/maestro';
+
+function requireTestContext(testContext, helperName) {
+  if (!testContext || typeof testContext.after !== 'function') {
+    throw new Error(`${helperName} requires a node:test TestContext`);
+  }
+  return testContext;
+}
 
 function makeTempWorkspace(prefix = 'maestro-test-', testContext = null) {
   return makeTempDir(testContext, prefix);
@@ -24,22 +31,32 @@ async function connectInMemory(testContext, server, {
   clientInfo = { name: 'maestro-test-client', version: '0.0.0' },
   capabilities = {},
 } = {}) {
+  const context = requireTestContext(testContext, 'connectInMemory');
   const connectedClient = client || new Client(clientInfo, { capabilities });
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+  const close = async () => {
+    await Promise.all([
+      connectedClient.close(),
+      server.close(),
+    ]);
+  };
+  const closeAfterFailure = async () => {
+    await Promise.allSettled([
+      connectedClient.close(),
+      server.close(),
+    ]);
+  };
 
-  await Promise.all([
+  const connectionResults = await Promise.allSettled([
     server.connect(serverTransport),
     connectedClient.connect(clientTransport),
   ]);
-
-  if (testContext) {
-    testContext.after(async () => {
-      await Promise.all([
-        connectedClient.close(),
-        server.close(),
-      ]);
-    });
+  const connectionFailure = connectionResults.find((result) => result.status === 'rejected');
+  if (connectionFailure) {
+    await closeAfterFailure();
+    throw connectionFailure.reason;
   }
+  context.after(close);
 
   return connectedClient;
 }
@@ -104,19 +121,25 @@ async function buildMcpServer({
   testContext = null,
   toolPacks = [registerWorkspacePack, registerSessionPack],
 } = {}) {
+  requireTestContext(testContext, 'buildMcpServer');
   const server = createMcpServer();
   const registry = createMaestroToolRegistry();
   let workspacePath = null;
+  let stateDirPath = null;
 
   const packOptions = {
     server,
     registry,
     runtimeConfig: runtimeConfig || { name: runtime },
     services,
-    getProjectRoot: () => workspacePath,
+    getWorkspaceState: () => ({
+      projectRoot: workspacePath,
+      stateDirPath,
+    }),
     onInitializeWorkspace(result) {
       if (result && result.success && result.workspace_path) {
         workspacePath = result.workspace_path;
+        stateDirPath = resolveStateDirPath(result.workspace_path, result.state_dir);
       }
     },
   };
@@ -142,6 +165,7 @@ async function buildMcpServer({
     async callTool(name, args = {}, projectRootOverride) {
       if (projectRootOverride) {
         workspacePath = projectRootOverride;
+        stateDirPath = null;
       }
       const response = await client.callTool({ name, arguments: args || {} });
       return parseCallToolResult(response);
@@ -163,6 +187,7 @@ async function initializeWorkspace(server, workspace) {
 
 async function createInitializedMcpWorkspace(options = {}) {
   const { prefix = 'maestro-test-', testContext = null, ...serverOptions } = options;
+  requireTestContext(testContext, 'createInitializedMcpWorkspace');
   const workspace = makeTempWorkspace(prefix, testContext);
   const server = await buildMcpServer({ ...serverOptions, testContext });
   const init = await initializeWorkspace(server, workspace);

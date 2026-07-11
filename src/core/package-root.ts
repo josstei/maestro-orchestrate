@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PACKAGE_NAME = '@josstei/maestro';
 
@@ -48,5 +49,19 @@ function resolvePackageRoot(startDir: string, options: PackageRootSearchOptions 
   throw new Error(`Unable to locate ${packageName} package root from ${startDir}`);
 }
 
-export { PACKAGE_NAME, findPackageRoot, resolvePackageRoot };
+function moduleFilename(moduleUrl: string): string {
+  return fileURLToPath(moduleUrl);
+}
+
+function moduleDirname(moduleUrl: string): string {
+  return path.dirname(moduleFilename(moduleUrl));
+}
+
+export {
+  PACKAGE_NAME,
+  findPackageRoot,
+  moduleDirname,
+  moduleFilename,
+  resolvePackageRoot,
+};
 export type { MalformedPackageJsonPolicy, PackageRootSearchOptions };

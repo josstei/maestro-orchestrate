@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import type { GeneratedOutput, GeneratorRuntimeMap, ManifestEntry } from './types.js';
 
 const DEFAULT_CODE_SRC = path.resolve(moduleDirname(import.meta.url), '..');

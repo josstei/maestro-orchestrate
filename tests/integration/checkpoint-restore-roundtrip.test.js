@@ -19,9 +19,10 @@ function context(label) {
   };
 }
 
-async function createRoundTripSession() {
+async function createRoundTripSession(testContext) {
   const { server, workspace } = await createInitializedMcpWorkspace({
     prefix: 'maestro-checkpoint-restore-',
+    testContext,
     toolPacks: [createWorkspacePack, createSessionPack, createHistoryPack],
   });
 
@@ -45,8 +46,8 @@ async function createRoundTripSession() {
 }
 
 describe('checkpoint restore round trip', () => {
-  it('restores a phase checkpoint as a post-load transform', async () => {
-    const { server, workspace } = await createRoundTripSession();
+  it('restores a phase checkpoint as a post-load transform', async (t) => {
+    const { server, workspace } = await createRoundTripSession(t);
 
     const phaseOne = await server.callTool(
       'transition_phase',

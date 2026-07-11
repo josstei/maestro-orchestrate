@@ -5,4 +5,4 @@ export {
   resolveDocumentInput,
   resolveDocumentInputVariant,
   writePlansDocumentContent,
-} from '../session/document-input.js';
+} from '../session/document-repository.js';

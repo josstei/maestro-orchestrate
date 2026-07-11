@@ -67,6 +67,14 @@
   },
   "phase14_duplication_inventory": {
     "scope": "Repository-wide tests/**/*.js scan before and after the bounded Phase 14 migrations",
+    "measurement_points": {
+      "before": "Pre-Phase 14 inventory",
+      "after": "Phase 14 checkpoint",
+      "phase16_remediation": "Final workspace after accepted review corrections"
+    },
+    "definitions": {
+      "handwritten_environment_wrapper_files": "Test files outside tests/support/environment.js that declare a reusable environment-mutation wrapper or file-level snapshot/restore lifecycle duplicating withEnv or withEnvSync; scenario-specific inline environment setup/restore blocks are not included"
+    },
     "before": {
       "handwritten_environment_wrapper_files": 5,
       "mkdtemp_calls": 89,
@@ -76,7 +84,7 @@
       "in_memory_transport_pairs": 10
     },
     "after": {
-      "handwritten_environment_wrapper_files": 0,
+      "handwritten_environment_wrapper_files": 1,
       "mkdtemp_calls": 67,
       "recursive_rm_calls": 96,
       "esm_import_meta_path_declaration_files": 19,
@@ -84,28 +92,91 @@
       "centralized_stdio_wrapper_functions": 1,
       "in_memory_transport_pairs": 2
     },
+    "phase16_remediation": {
+      "handwritten_environment_wrapper_files": 0
+    },
     "residual_notes": [
       "The remaining local stdio wrapper binds fixed dist-runtime options and delegates lifecycle ownership to withMcpServer.",
       "The two remaining in-memory pairs are the shared connectInMemory implementation and the explicit transport-construction test.",
+      "The final duplicate environment-wrapper file was removed during Phase 16 review remediation; the Phase 14 checkpoint remains recorded as one.",
+      "Scenario-specific inline environment setup/restore blocks remain outside the environment-wrapper metric and are not reported as eliminated.",
       "Remaining temp, recursive-cleanup, and ESM path mechanics are outside the approved Phase 14 tranche and remain visible for the final review."
     ]
   },
   "final": {
-    "status": "unpopulated",
-    "tracked_repository": null,
-    "tracked_src": null,
-    "tracked_src_typescript": null,
-    "tracked_src_markdown": null,
-    "tracked_tests": null,
-    "handwritten_tests_excluding_goldens": null,
-    "tracked_markdown": null,
-    "local_dist_src": null,
-    "local_dist_src_declarations": null,
-    "ignored_src_generated": null,
-    "tests": null,
-    "npm_pack_dry_run": null,
-    "gross_additions": null,
-    "gross_deletions": null,
-    "net_tracked_source_test_change": null
+    "status": "measured",
+    "tracked_repository": {
+      "files": 529,
+      "lines": 66663,
+      "bytes": 2590819
+    },
+    "tracked_src": {
+      "files": 222,
+      "lines": 26885,
+      "bytes": 1090136
+    },
+    "tracked_src_typescript": {
+      "files": 191,
+      "lines": 19166,
+      "bytes": 627085
+    },
+    "tracked_src_markdown": {
+      "files": 23,
+      "lines": 3721,
+      "bytes": 189949
+    },
+    "tracked_tests": {
+      "files": 241,
+      "lines": 28555,
+      "bytes": 1005846
+    },
+    "handwritten_tests_excluding_44_goldens": {
+      "files": 197,
+      "lines": 27548,
+      "bytes": 984701
+    },
+    "tracked_markdown": {
+      "files": 50,
+      "lines": 10611,
+      "bytes": 533401
+    },
+    "local_dist_src": {
+      "files": 202,
+      "lines": 16048,
+      "bytes": 751934
+    },
+    "local_dist_src_declarations": {
+      "files": 0,
+      "lines": 0,
+      "bytes": 0
+    },
+    "ignored_src_generated": {
+      "files": 3,
+      "lines": 704,
+      "bytes": 15424
+    },
+    "tests": {
+      "count": 1780
+    },
+    "npm_pack_dry_run": {
+      "files": 340,
+      "packed_bytes": 304481,
+      "unpacked_bytes": 818709
+    },
+    "gross_additions": 8173,
+    "gross_deletions": 3638,
+    "net_tracked_source_test_change": {
+      "tracked_src_lines": {
+        "baseline": 25672,
+        "final": 26885,
+        "delta": 1213
+      },
+      "tracked_test_lines": {
+        "baseline": 25449,
+        "final": 28555,
+        "delta": 3106
+      },
+      "combined_delta_lines": 4319
+    }
   }
 }

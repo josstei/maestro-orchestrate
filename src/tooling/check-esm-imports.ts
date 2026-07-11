@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import { resolvePackageRoot } from '../core/package-root.js';
 const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });
 

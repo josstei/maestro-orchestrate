@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { readJsonSafe } from '../lib/io/index.js';
-import { moduleDirname } from './module-path.js';
+import { moduleDirname } from './package-root.js';
 import { PACKAGE_NAME, findPackageRoot } from './package-root.js';
 const VERSION_JSON_FILENAME = 'version.json';
 

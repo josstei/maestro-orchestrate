@@ -40,7 +40,7 @@ Use this when the task needs design, planning, specialist execution, and final r
 | Codex | `$maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Qwen Code | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
 
-Expected outcome: Maestro classifies the task, routes simple work to Express or medium/complex work to the Standard workflow, produces an approved implementation plan for Standard work, delegates execution to specialists, runs the completion review gate, and archives when `MAESTRO_AUTO_ARCHIVE` is true or unset.
+Expected outcome: Maestro classifies the task, routes simple work to Express or medium/complex work to the Standard workflow, produces an approved implementation plan for Standard work, delegates execution to specialists, runs the completion review gate, and archives automatically only when `MAESTRO_AUTO_ARCHIVE` is explicitly true. When it is false or unset, Maestro asks whether to archive after completion.
 
 Source: `README.md`, `src/entry-points/core-command-registry.ts`, `src/references/orchestration-steps.md`, `docs/flow.md`
 

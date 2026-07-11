@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import { discover } from '../lib/discovery/index.js';
 import type { RuntimeConfig } from '../platforms/runtime-descriptor.js';
 

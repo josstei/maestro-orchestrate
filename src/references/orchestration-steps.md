@@ -1,7 +1,7 @@
 STARTUP (Turn 1 — tool calls only, no text output)
  0. If get_runtime_context appears in your available tools, call it. Carry the returned mappings (tool names, agent dispatch syntax, MCP prefix, paths) through the entire session. If unavailable, use the fallback mappings in the entry-point skill preamble.
- 1. Call resolve_settings.
- 2. Read `workspace_suggestion` from the `get_runtime_context` response (populated from MCP roots and/or runtime env var). Call `initialize_workspace(workspace_path=<workspace_suggestion or explicit user workspace>, state_dir=<resolved>)`. If no suggestion is available, ask the user via the runtime's user-prompt tool. `initialize_workspace` rejects paths inside extension caches.
+ 1. Read `workspace_suggestion` from the `get_runtime_context` response (populated from MCP roots and/or runtime env var). Call `initialize_workspace(workspace_path=<workspace_suggestion or explicit user workspace>)`. If no suggestion is available, ask the user via the runtime's user-prompt tool. `initialize_workspace` rejects paths inside extension caches, resolves `state_dir` from environment/workspace settings, and returns the authoritative state directory.
+ 2. Call resolve_settings after workspace initialization so workspace `.env` values participate in precedence.
  3. Call get_session_status — if active, present status and offer resume/archive.
  4. Call assess_task_complexity.
  5. Parse MAESTRO_DISABLED_AGENTS from resolved settings. Exclude listed agents from all planning.

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import * as markdownState from '../../core/markdown-state.js';
-import { moduleDirname } from '../../core/module-path.js';
+import { moduleDirname } from '../../core/package-root.js';
 import { NotFoundError, ValidationError } from '../../lib/errors/index.js';
 import { z } from 'zod';
 import {

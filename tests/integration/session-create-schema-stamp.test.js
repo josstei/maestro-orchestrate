@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { createInitializedMcpWorkspace, phaseFixture, readSessionFrontmatter } from '../support/mcp.js';
 
 describe('create_session schema stamping (write path)', () => {
-  it('stamps schema_version and per-phase counters at creation', async () => {
+  it('stamps schema_version and per-phase counters at creation', async (t) => {
     const { server, workspace } = await createInitializedMcpWorkspace({
       prefix: 'maestro-schema-stamp-',
+      testContext: t,
     });
 
     const created = await server.callTool(

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { importDist } from '../support/dist.js';
 
-const workspacePath = await importDist('src/core/workspace-path.js');
+const workspacePath = await importDist('src/core/project-root-resolver.js');
 const compatibilityModule = await importDist('src/mcp/contracts/cache-path-rejector.js');
 const {
   CACHE_PATH_SEGMENTS,

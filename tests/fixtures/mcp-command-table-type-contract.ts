@@ -161,6 +161,7 @@ defineCommandTable(
 
 commandTable.greet.handler.toHandler({ name: 'ada' }, {
   projectRoot: null,
+  stateDirPath: null,
   runtimeConfig: {},
   signal: undefined,
   elicit: async () => null,

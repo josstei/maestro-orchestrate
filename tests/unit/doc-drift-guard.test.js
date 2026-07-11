@@ -57,6 +57,51 @@ test('doc-drift: auto-archive defaults to false on canonical and generated guida
   const readme = read('README.md');
   assert.match(readme, /MAESTRO_AUTO_ARCHIVE` \| `false` \| Prompt to archive/);
   assert.ok(!readme.includes('MAESTRO_AUTO_ARCHIVE` | `true`'));
+
+  const examples = read('EXAMPLES.md');
+  assert.match(examples, /archives automatically only when `MAESTRO_AUTO_ARCHIVE` is explicitly true/);
+  assert.ok(!examples.includes('MAESTRO_AUTO_ARCHIVE` is true or unset'));
+});
+
+test('doc-drift: startup initializes the workspace before resolving workspace settings', () => {
+  const orchestrationSteps = read('src/references/orchestration-steps.md');
+  const initializeIndex = orchestrationSteps.indexOf('Call `initialize_workspace');
+  const settingsIndex = orchestrationSteps.indexOf(
+    'Call resolve_settings after workspace initialization'
+  );
+  assert.notEqual(initializeIndex, -1);
+  assert.notEqual(settingsIndex, -1);
+  assert.ok(
+    initializeIndex < settingsIndex
+  );
+
+  for (const surface of [
+    'src/platforms/shared/runtime-context-template.md',
+    'GEMINI.md',
+    'QWEN.md',
+  ]) {
+    const content = read(surface);
+    const preparationIndex = content.indexOf('Run workspace preparation:');
+    const resolutionIndex = content.indexOf(
+      'Resolve settings after workspace initialization:'
+    );
+    assert.notEqual(preparationIndex, -1, `${surface}: workspace preparation guidance is missing`);
+    assert.notEqual(resolutionIndex, -1, `${surface}: settings resolution guidance is missing`);
+    assert.ok(
+      preparationIndex < resolutionIndex,
+      `${surface}: settings are resolved before workspace initialization`
+    );
+  }
+
+  const flow = read('docs/flow.md');
+  const flowInitializeIndex = flow.indexOf('→ initialize_workspace');
+  const flowSettingsIndex = flow.indexOf('→ resolve_settings');
+  assert.notEqual(flowInitializeIndex, -1, 'docs/flow.md: workspace initialization is missing');
+  assert.notEqual(flowSettingsIndex, -1, 'docs/flow.md: settings resolution is missing');
+  assert.ok(
+    flowInitializeIndex < flowSettingsIndex,
+    'docs/flow.md: settings are resolved before workspace initialization'
+  );
 });
 
 test('doc-drift: retired schema DSL is absent from the package surface', () => {

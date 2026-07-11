@@ -2,6 +2,7 @@ import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
 import { createToolSuccess, normalizeToolError } from './tool-outcome.js';
 import { buildHandlerContext } from './handler-context.js';
 import { toolOutcomeToCallToolResult } from './tool-result.js';
+import { runWithStateDirContext } from '../../state/session-state.js';
 import type { CallToolJsonTextResult, ToolOutcome, ToolPipelineDefinition, ToolPipelineOptions } from './tool-types.js';
 
 /**
@@ -24,27 +25,29 @@ function createToolPipeline<TArgs = unknown, TResult = unknown>(
 
   return async function sdkCallback(args: TArgs, extra: { signal?: AbortSignal }) {
     const ctx = await buildHandlerContext(args, extra, handlerContextOptions);
-    let outcome: ToolOutcome<TResult>;
+    return runWithStateDirContext(ctx.projectRoot, ctx.stateDirPath, async () => {
+      let outcome: ToolOutcome<TResult>;
 
-    try {
-      if (registry.requiresWorkspace(name)) {
-        requireWorkspaceRoot(ctx.projectRoot, name);
-      }
-
-      const result = await handler(args, ctx);
-      outcome = createToolSuccess(result);
-
-      if (typeof onPostCall === 'function') {
-        try {
-          await onPostCall(result, args);
-        } catch {
+      try {
+        if (registry.requiresWorkspace(name)) {
+          requireWorkspaceRoot(ctx.projectRoot, name);
         }
-      }
-    } catch (error: unknown) {
-      outcome = normalizeToolError(name, error);
-    }
 
-    return toolOutcomeToCallToolResult(outcome);
+        const result = await handler(args, ctx);
+        outcome = createToolSuccess(result);
+
+        if (typeof onPostCall === 'function') {
+          try {
+            await onPostCall(result, args);
+          } catch {
+          }
+        }
+      } catch (error: unknown) {
+        outcome = normalizeToolError(name, error);
+      }
+
+      return toolOutcomeToCallToolResult(outcome);
+    });
   };
 }
 

@@ -7,9 +7,10 @@ import {
 } from '../support/mcp.js';
 
 describe('canonical plan contract roundtrip', () => {
-  it('passes a validated extensible plan directly into create_session', async () => {
+  it('passes a validated extensible plan directly into create_session', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-canonical-plan-rt-',
+      testContext: t,
     });
     const plan = PlanSchema.parse({
       planning_extension: { retained: true },

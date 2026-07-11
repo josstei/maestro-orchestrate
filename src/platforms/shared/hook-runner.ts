@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { moduleDirname } from '../../core/module-path.js';
+import { moduleDirname } from '../../core/package-root.js';
 import { isAdapterFile, extractRuntime } from './adapters/conventions.js';
 import { readFileSync } from 'node:fs';
 import type { HookContext, HookResult, RuntimeAdapter } from './adapters/factory.js';

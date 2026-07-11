@@ -8,7 +8,7 @@ import {
   sessionStore,
 } from '../session/session-store.js';
 
-import { isExtensionCachePath } from '../../core/workspace-path.js';
+import { isExtensionCachePath } from '../../core/project-root-resolver.js';
 import { isValidPhaseId } from '../contracts/plan-schema.js';
 import { normalizeDownstreamContext, isDownstreamContextPopulated } from '../contracts/downstream-context.js';
 import { attempt } from './attempt.js';

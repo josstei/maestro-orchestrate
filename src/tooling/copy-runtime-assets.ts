@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { listAgentSources } from '../core/agent-sources.js';
-import { moduleDirname, moduleFilename } from '../core/module-path.js';
+import { moduleDirname, moduleFilename } from '../core/package-root.js';
 import { buildRegistryModel, collectRegistryOutputs } from '../generator/registry-scanner.js';
 import type { RegistryModel } from '../generator/types.js';
 

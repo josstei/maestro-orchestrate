@@ -14,7 +14,7 @@ import {
   toPosixPath,
 } from './release-artifact-manifest.js';
 
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import { resolvePackageRoot } from '../core/package-root.js';
 import { runAsMain } from './lib/cli.js';
 const ROOT = resolvePackageRoot(moduleDirname(import.meta.url), { malformedJson: 'throw' });

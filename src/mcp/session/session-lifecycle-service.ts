@@ -1,6 +1,10 @@
 import { assertSessionId } from '../../lib/validation/index.js';
 import { validatePhases } from '../contracts/plan-schema.js';
 import type { PlanPhase } from '../contracts/plan-schema.js';
+import {
+  createEmptySessionTokenUsage,
+  createPendingPhaseState,
+} from '../contracts/session-state-schema.js';
 import type { SessionPhaseState, SessionState } from '../contracts/session-state-schema.js';
 import { ValidationError, StateError } from '../../lib/errors/index.js';
 import {
@@ -12,7 +16,6 @@ import {
 import { recordAgentPerformance } from '../handlers/agent-performance.js';
 import { recordPlanAccuracy } from '../handlers/plan-accuracy.js';
 import { recordArchitectureMemory } from '../handlers/architecture-memory.js';
-import { SCHEMA_VERSION } from './session-migrations.js';
 import { attempt } from '../handlers/attempt.js';
 import { findOrphanedApprovedGates } from './design-gate-repository.js';
 import {
@@ -21,15 +24,11 @@ import {
   resolveImplementationPlan,
 } from './document-repository.js';
 import {
+  SCHEMA_VERSION,
   assertNoInProgressSession,
   assertValidActiveSession,
   sessionStore,
 } from './session-store.js';
-import {
-  createEmptySessionTokenUsage,
-  createPendingPhaseState,
-} from './session-state-factory.js';
-
 function assertNoOrphanedApprovedGate(projectRoot: any, currentSessionId: any) {
   const orphans = findOrphanedApprovedGates(projectRoot, currentSessionId);
   if (orphans.length === 0) return;

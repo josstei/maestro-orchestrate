@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import coreCommands from '../entry-points/core-command-registry.js';
 import * as preambleBuilders from '../entry-points/preamble-builders.js';
 import entryPoints from '../entry-points/registry.js';

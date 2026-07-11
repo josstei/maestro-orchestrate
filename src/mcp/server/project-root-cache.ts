@@ -1,7 +1,7 @@
 import {
   extractClientRootCandidates,
   normalizeExistingWorkspaceCandidate,
-} from '../../core/workspace-path.js';
+} from '../../core/project-root-resolver.js';
 
 /**
  * Project-root cache for the MCP session.
@@ -24,6 +24,7 @@ function createProjectRootCache(options: any) {
   } = options;
 
   let explicitWorkspacePath: string | null = null;
+  let explicitStateDirPath: string | null = null;
   let clientRoots: any[] = [];
   let clientSupportsRoots = false;
 
@@ -69,6 +70,14 @@ function createProjectRootCache(options: any) {
 
   function setExplicitWorkspacePath(value: any) {
     explicitWorkspacePath = value || null;
+    if (!explicitWorkspacePath) {
+      explicitStateDirPath = null;
+    }
+  }
+
+  function setExplicitWorkspaceState(workspacePath: any, stateDirPath: any) {
+    explicitWorkspacePath = workspacePath || null;
+    explicitStateDirPath = explicitWorkspacePath && stateDirPath ? stateDirPath : null;
   }
 
   async function getProjectRoot() {
@@ -94,10 +103,24 @@ function createProjectRootCache(options: any) {
     return explicitWorkspacePath;
   }
 
+  function resolveStateDirPath() {
+    return explicitStateDirPath;
+  }
+
+  function resolveWorkspaceState() {
+    return {
+      projectRoot: explicitWorkspacePath,
+      stateDirPath: explicitStateDirPath,
+    };
+  }
+
   return {
     getProjectRoot,
     resolveProjectRoot,
+    resolveStateDirPath,
+    resolveWorkspaceState,
     setExplicitWorkspacePath,
+    setExplicitWorkspaceState,
     workspaceSuggestion,
     setClientSupportsRoots(supports: any) {
       clientSupportsRoots = Boolean(supports);
@@ -105,6 +128,7 @@ function createProjectRootCache(options: any) {
     refreshClientRoots,
     invalidateProjectRoot() {
       explicitWorkspacePath = null;
+      explicitStateDirPath = null;
     },
     invalidateClientRoots() {
       clientRoots = [];

@@ -46,8 +46,8 @@ const HISTORY_TOOL_ARGS = {
 };
 
 describe('history tool pack', () => {
-  it('preserves the history tool order and public descriptions', async () => {
-    const server = await buildMcpServer({ toolPacks: [createHistoryPack] });
+  it('preserves the history tool order and public descriptions', async (t) => {
+    const server = await buildMcpServer({ testContext: t, toolPacks: [createHistoryPack] });
 
     const schemas = await server.getToolSchemas();
     assert.deepEqual(
@@ -56,8 +56,8 @@ describe('history tool pack', () => {
     );
   });
 
-  it('workspace-gates all six tools, including args-only blueprint projections', async () => {
-    const server = await buildMcpServer({ toolPacks: [createHistoryPack] });
+  it('workspace-gates all six tools, including args-only blueprint projections', async (t) => {
+    const server = await buildMcpServer({ testContext: t, toolPacks: [createHistoryPack] });
 
     for (const { name } of EXPECTED_HISTORY_TOOLS) {
       const outcome = await server.callTool(name, HISTORY_TOOL_ARGS[name]);

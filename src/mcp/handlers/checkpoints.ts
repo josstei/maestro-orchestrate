@@ -13,8 +13,10 @@ import {
 import { NotFoundError, StateError, ValidationError } from '../../lib/errors/index.js';
 import { assertSessionId } from '../../lib/validation/index.js';
 import { readState, writeState } from '../../state/session-state.js';
+import {
+  resetPhaseToPending,
+} from '../contracts/session-state-schema.js';
 import type { ReadableSessionState } from '../contracts/session-state-schema.js';
-import { resetPhaseToPending } from '../session/session-state-factory.js';
 
 function assertPositiveIntegerPhaseId(value: any) {
   const phaseId = typeof value === 'string' ? Number(value) : value;

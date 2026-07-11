@@ -1,1 +1,1 @@
-export { SCHEMA_VERSION, migrateSessionState } from '../session/session-migrations.js';
+export { SCHEMA_VERSION, migrateSessionState } from '../session/session-store.js';

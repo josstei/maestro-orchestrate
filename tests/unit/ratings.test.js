@@ -109,12 +109,11 @@ describe('ratings handlers', () => {
 });
 
 describe('rating enforcement at the SDK boundary', () => {
-  it('the composed server rejects an invalid rating value before the handler runs', async () => {
-    const server = await buildMcpServer({ toolPacks: [registerMemoryPack] });
-    const workspace = ensureMaestroWorkspace(makeTempWorkspace());
+  it('the composed server rejects an invalid rating value before the handler runs', async (t) => {
+    const server = await buildMcpServer({ testContext: t, toolPacks: [registerMemoryPack] });
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-test-', t));
     const result = await server.callTool('rate', { target: 'session', session_id: 's1', rating: 'meh' }, workspace);
     assert.equal(result.ok, false);
     assert.equal(result.code, 'INVALID_PARAMS');
-    await server.close();
   });
 });

@@ -11,8 +11,9 @@ const moduleDirname = path.dirname(moduleFilename);
 const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
 
 describe('content tool pack', () => {
-  it('registers the content and runtime metadata tools', async () => {
+  it('registers the content and runtime metadata tools', async (t) => {
     const server = await buildMcpServer({
+      testContext: t,
       runtimeConfig: getRuntimeConfig('claude'),
       services: {
         canonicalSrcRoot: path.join(REPO_ROOT, 'src'),
@@ -27,8 +28,8 @@ describe('content tool pack', () => {
     );
   });
 
-  it('serves skill content, agent content, and runtime context through the pack', async () => {
-    const root = makeTempWorkspace('maestro-content-pack-');
+  it('serves skill content, agent content, and runtime context through the pack', async (t) => {
+    const root = makeTempWorkspace('maestro-content-pack-', t);
     fs.mkdirSync(path.join(root, 'src', 'skills', 'shared', 'delegation'), {
       recursive: true,
     });
@@ -52,6 +53,7 @@ describe('content tool pack', () => {
     );
 
     const server = await buildMcpServer({
+      testContext: t,
       runtimeConfig: getRuntimeConfig('claude'),
       services: {
         canonicalSrcRoot: path.join(root, 'src'),

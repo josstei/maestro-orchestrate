@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { moduleDirname } from '../../dist/src/core/module-path.js';
+import { moduleDirname } from '../../dist/src/core/package-root.js';
 import { resolvePackageRoot as resolveCorePackageRoot } from '../../dist/src/core/package-root.js';
 import { readJson, resolvePackageRoot, runAsMain } from '../../dist/src/tooling/lib/cli.js';
 import { STABLE_SEMVER_RE, isStable } from '../../dist/src/tooling/lib/semver.js';

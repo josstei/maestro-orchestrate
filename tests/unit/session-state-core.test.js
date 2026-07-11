@@ -77,9 +77,9 @@ describe('extractFileManifest', () => {
     assert.equal(extractFileManifest({}).hasFiles, false);
   });
 
-  it('the composed server rejects a non-array file manifest at the zod boundary', async () => {
-    const server = await buildMcpServer({ toolPacks: [registerSessionPack] });
-    const workspace = ensureMaestroWorkspace(makeTempWorkspace());
+  it('the composed server rejects a non-array file manifest at the zod boundary', async (t) => {
+    const server = await buildMcpServer({ testContext: t, toolPacks: [registerSessionPack] });
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-test-', t));
     const result = await server.callTool(
       'reconcile_phase',
       { session_id: 's1', phase_id: 1, files_created: 'not-an-array' },
@@ -87,7 +87,6 @@ describe('extractFileManifest', () => {
     );
     assert.equal(result.ok, false);
     assert.equal(result.code, 'INVALID_PARAMS');
-    await server.close();
   });
 
   it('treats null manifest fields as absent', () => {
@@ -141,8 +140,8 @@ describe('session-state-core compatibility surface', () => {
     }
   });
 
-  it('retains permissive legacy mutation outcomes without silently writing state', () => {
-    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-core-compat-'));
+  it('retains permissive legacy mutation outcomes without silently writing state', (t) => {
+    const workspace = ensureMaestroWorkspace(makeTempWorkspace('maestro-core-compat-', t));
     createSession(
       {
         session_id: 'compat-session',

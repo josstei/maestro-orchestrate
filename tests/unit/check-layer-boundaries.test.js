@@ -11,7 +11,6 @@ const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
 const SCRIPT_RELATIVE_PATH = path.join('dist', 'src', 'tooling', 'check-layer-boundaries.js');
 const SCRIPT = path.join(REPO_ROOT, SCRIPT_RELATIVE_PATH);
 const CORE_DEPENDENCIES = [
-  path.join('dist', 'src', 'core', 'module-path.js'),
   path.join('dist', 'src', 'core', 'package-root.js'),
 ];
 const tmpDirs = [];

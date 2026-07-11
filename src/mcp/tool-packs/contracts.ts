@@ -100,7 +100,9 @@ function defineTool<TArgs = unknown, TResult = unknown>(
     server,
     registry,
     runtimeConfig: contextOptions.runtimeConfig,
+    ...(contextOptions.getWorkspaceState === undefined ? {} : { getWorkspaceState: contextOptions.getWorkspaceState }),
     ...(contextOptions.getProjectRoot === undefined ? {} : { getProjectRoot: contextOptions.getProjectRoot }),
+    ...(contextOptions.getStateDirPath === undefined ? {} : { getStateDirPath: contextOptions.getStateDirPath }),
     ...(contextOptions.clock === undefined ? {} : { clock: contextOptions.clock }),
     ...(contextOptions.services === undefined ? {} : { services: contextOptions.services }),
   };

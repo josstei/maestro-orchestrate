@@ -13,9 +13,10 @@ function fakeCtx(projectRoot, elicit) {
 }
 
 describe('design gate — elicitation-backed consent', () => {
-  it('accept records first-party consent with approved_at and a consent-evidence marker', async () => {
+  it('accept records first-party consent with approved_at and a consent-evidence marker', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
     const designPath = writeWorkspaceFile(
@@ -51,9 +52,10 @@ describe('design gate — elicitation-backed consent', () => {
     assert.deepEqual(status.result.consent_content, elicitedContent);
   });
 
-  it('decline hard-fails: throws and does not set approved_at or write an approved gate', async () => {
+  it('decline hard-fails: throws and does not set approved_at or write an approved gate', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
     const designPath = writeWorkspaceFile(
@@ -77,9 +79,10 @@ describe('design gate — elicitation-backed consent', () => {
     assert.equal(status.result.approved_at, null);
   });
 
-  it('decline on the content variant writes nothing to plans/ (zero FS mutation before the hard-fail)', async () => {
+  it('decline on the content variant writes nothing to plans/ (zero FS mutation before the hard-fail)', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
@@ -107,9 +110,10 @@ describe('design gate — elicitation-backed consent', () => {
     assert.equal(status.result.approved_at, null);
   });
 
-  it('cancel falls back to model-attested consent', async () => {
+  it('cancel falls back to model-attested consent', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
     const designPath = writeWorkspaceFile(
@@ -130,9 +134,10 @@ describe('design gate — elicitation-backed consent', () => {
     assert.equal(result.consent_evidence, 'model-attested');
   });
 
-  it('timeout/error (elicit throws, caught upstream and surfaced as null per ctx.elicit contract) falls back to model-attested', async () => {
+  it('timeout/error (elicit throws, caught upstream and surfaced as null per ctx.elicit contract) falls back to model-attested', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
     const designPath = writeWorkspaceFile(
@@ -152,9 +157,10 @@ describe('design gate — elicitation-backed consent', () => {
     assert.equal(result.consent_evidence, 'model-attested');
   });
 
-  it('no-elicitation client (ctx.elicit -> null) is unchanged model-attested behavior', async () => {
+  it('no-elicitation client (ctx.elicit -> null) is unchanged model-attested behavior', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
     const designPath = writeWorkspaceFile(
@@ -174,9 +180,10 @@ describe('design gate — elicitation-backed consent', () => {
     assert.equal(outcome.result.consent_evidence, 'model-attested');
   });
 
-  it('a first-party -> model-attested downgrade on re-approval clears the stale consent_content', async () => {
+  it('a first-party -> model-attested downgrade on re-approval clears the stale consent_content', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
     const designPath = writeWorkspaceFile(
@@ -205,9 +212,10 @@ describe('design gate — elicitation-backed consent', () => {
     assert.equal('consent_content' in secondStatus.result, false);
   });
 
-  it('the record_design_approval tool is wired to reach ctx.elicit (the seam), not a raw elicitInput call', async () => {
+  it('the record_design_approval tool is wired to reach ctx.elicit (the seam), not a raw elicitInput call', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-gate-consent-',
+      testContext: t,
     });
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
     const designPath = writeWorkspaceFile(

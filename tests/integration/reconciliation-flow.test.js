@@ -5,9 +5,10 @@ import path from 'node:path';
 import { createInitializedMcpWorkspace, phaseFixture } from '../support/mcp.js';
 
 describe('reconciliation flow', () => {
-  it('covers the hung-worker postmortem scenario end to end', async () => {
+  it('covers the hung-worker postmortem scenario end to end', async (t) => {
     const { workspace, server } = await createInitializedMcpWorkspace({
       prefix: 'maestro-rec-flow-',
+      testContext: t,
     });
 
     await server.callTool(

@@ -77,6 +77,30 @@ test('projectRoot resolves from the injected getProjectRoot resolver (async)', a
   }
 });
 
+test('workspace and state directory resolve from one injected snapshot', async () => {
+  const ctx = await buildHandlerContext(
+    {},
+    {},
+    {
+      server: fakeSdkServer(),
+      runtimeConfig: RUNTIME_CONFIG,
+      getWorkspaceState: () => ({
+        projectRoot: '/workspace-a',
+        stateDirPath: '/workspace-a/custom-state',
+      }),
+      getProjectRoot: () => {
+        throw new Error('separate project-root resolver must not run');
+      },
+      getStateDirPath: () => {
+        throw new Error('separate state-dir resolver must not run');
+      },
+    }
+  );
+
+  assert.equal(ctx.projectRoot, '/workspace-a');
+  assert.equal(ctx.stateDirPath, '/workspace-a/custom-state');
+});
+
 test('signal is bridged verbatim from extra.signal', async () => {
   const signal = new AbortController().signal;
   const ctx = await buildHandlerContext(

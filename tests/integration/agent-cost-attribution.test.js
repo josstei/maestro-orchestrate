@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { createInitializedMcpWorkspace, phaseFixture, readSessionFrontmatter } from '../support/mcp.js';
 
 describe('per-agent cost attribution', () => {
-  it('populates by_agent and phase timing on transition_phase', async () => {
+  it('populates by_agent and phase timing on transition_phase', async (t) => {
     const { server, workspace } = await createInitializedMcpWorkspace({
       prefix: 'maestro-cost-attr-',
+      testContext: t,
     });
 
     await server.callTool(

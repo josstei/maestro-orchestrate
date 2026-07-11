@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { SCHEMA_VERSION, migrateSessionState } from '../../dist/src/mcp/handlers/session-migrations.js';
-import * as canonical from '../../dist/src/mcp/session/session-migrations.js';
+import * as canonical from '../../dist/src/mcp/session/session-store.js';
 
 function legacyDocument() {
   return {

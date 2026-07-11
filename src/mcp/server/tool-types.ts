@@ -47,6 +47,7 @@ export type HandlerServices = {
 
 export type HandlerContext = {
   projectRoot: string | null;
+  stateDirPath: string | null;
   runtimeConfig: unknown;
   signal: AbortSignal | undefined;
   elicit: (params: ElicitParams) => Promise<ElicitResult>;
@@ -82,7 +83,12 @@ export type ToolPipelineDefinition<TArgs = unknown, TResult = unknown> = {
 export type HandlerContextOptions = {
   server: unknown;
   runtimeConfig: unknown;
+  getWorkspaceState?: () => MaybePromise<{
+    projectRoot: string | null;
+    stateDirPath: string | null;
+  }>;
   getProjectRoot?: () => MaybePromise<string | null>;
+  getStateDirPath?: () => MaybePromise<string | null>;
   clock?: SystemClock;
   services?: {
     canonicalSrcRoot?: string | undefined;

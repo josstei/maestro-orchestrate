@@ -215,8 +215,21 @@ const RUNTIME_PACKAGE_INVARIANTS = Object.freeze({
   ]),
 });
 
+const PRESERVED_PACKAGE_FILES = Object.freeze([
+  'dist/src/mcp/handlers/document-input.js',
+  'dist/src/mcp/handlers/session-migrations.js',
+  'dist/src/mcp/handlers/session-state-core.js',
+  'dist/src/mcp/handlers/session-state-tools.js',
+  'dist/src/mcp/session/session-repository.js',
+]);
+
 const REQUIRED_PACKAGE_FILES = Object.freeze(
-  [...new Set(Object.values(RUNTIME_PACKAGE_INVARIANTS).flat())].sort()
+  [
+    ...new Set([
+      ...Object.values(RUNTIME_PACKAGE_INVARIANTS).flat(),
+      ...PRESERVED_PACKAGE_FILES,
+    ]),
+  ].sort()
 );
 
 const FINAL_PACKAGE_BUDGETS: PackageBudget = Object.freeze({
@@ -425,6 +438,7 @@ export {
   PACKAGE_BUDGETS,
   PACKAGE_SURFACE_RULES,
   PRIVATE_SCRIPT_ROLES,
+  PRESERVED_PACKAGE_FILES,
   REQUIRED_PACKAGE_FILES,
   RUNTIME_DIST_PATHS,
   RUNTIME_PACKAGE_INVARIANTS,

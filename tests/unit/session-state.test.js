@@ -8,6 +8,7 @@ import { makeTempDir } from '../support/filesystem.js';
 import {
   DEFAULT_STATE_DIR,
   validateContainment,
+  runWithStateDirContext,
   resolveStateDirPath,
   resolveActiveSessionPath,
   hasActiveSession,
@@ -75,6 +76,48 @@ describe('session-state', () => {
       () => resolveStateDirPath(tmpRoot, outsideDir),
       /state_dir must be within the project root/
     );
+  });
+
+  it('rejects a relative state directory beneath a symlinked ancestor', (t) => {
+    const outsideDir = makeTempDir(t, 'maestro-symlink-outside-');
+    fs.symlinkSync(outsideDir, path.join(tmpRoot, 'escape'), 'dir');
+
+    assert.throws(
+      () => ensureWorkspace('escape/custom', tmpRoot),
+      /state_dir must not contain symbolic links/
+    );
+    assert.equal(fs.existsSync(path.join(outsideDir, 'custom')), false);
+  });
+
+  it('rejects an initialized state directory replaced by a symlink', (t) => {
+    const outsideDir = makeTempDir(t, 'maestro-replaced-state-outside-');
+    const stateDir = path.join(tmpRoot, 'custom');
+    ensureWorkspace('custom', tmpRoot);
+    fs.rmSync(stateDir, { recursive: true, force: true });
+    fs.symlinkSync(outsideDir, stateDir, 'dir');
+
+    assert.throws(
+      () => runWithStateDirContext(
+        tmpRoot,
+        stateDir,
+        () => resolveStateDirPath(tmpRoot)
+      ),
+      /state_dir must not contain symbolic links/
+    );
+    assert.equal(fs.existsSync(path.join(outsideDir, 'state')), false);
+  });
+
+  it('rejects pre-existing symlinked workspace child directories', (t) => {
+    const outsideDir = makeTempDir(t, 'maestro-child-state-outside-');
+    const stateDir = path.join(tmpRoot, 'custom');
+    fs.mkdirSync(stateDir);
+    fs.symlinkSync(outsideDir, path.join(stateDir, 'state'), 'dir');
+
+    assert.throws(
+      () => ensureWorkspace('custom', tmpRoot),
+      /state_dir must not contain symbolic links/
+    );
+    assert.equal(fs.existsSync(path.join(outsideDir, 'archive')), false);
   });
 
   it('resolveActiveSessionPath returns correct path', () => {
@@ -148,6 +191,19 @@ describe('session-state', () => {
   it('ensureWorkspace is idempotent', () => {
     ensureWorkspace('workspace', tmpRoot);
     assert.doesNotThrow(() => ensureWorkspace('workspace', tmpRoot));
+  });
+
+  it('keeps the initialized state directory authoritative for later resolution', () => {
+    const stateDir = path.join(tmpRoot, 'custom/state');
+    ensureWorkspace('custom/state', tmpRoot);
+
+    const resolved = runWithStateDirContext(tmpRoot, stateDir, () =>
+      withEnvSync({ MAESTRO_STATE_DIR: 'env/state' }, () =>
+        resolveStateDirPath(tmpRoot)
+      )
+    );
+
+    assert.equal(resolved, path.join(tmpRoot, 'custom/state'));
   });
 
   it('ensureWorkspace creates .gitignore in state/ dir', () => {

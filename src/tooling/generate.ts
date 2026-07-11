@@ -15,7 +15,7 @@ import { buildPlatformMetadataOutputs } from '../platforms/metadata.js';
 import { buildPolicyTomlOutputs } from '../generator/policy-toml-emitter.js';
 import { buildHookConfigOutputs } from '../generator/hook-config-emitter.js';
 import { buildContentFileOutputs } from '../generator/content-file-emitter.js';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
 import { resolvePackageRoot } from '../core/package-root.js';
 import { listRuntimeDefinitions } from '../platforms/runtime-declarations.js';
 import type { RuntimeDefinition } from '../platforms/runtime-declarations.js';

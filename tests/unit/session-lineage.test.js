@@ -97,9 +97,9 @@ function writeArchivedSession(workspace, state) {
 }
 
 describe('session lineage handlers', () => {
-  it('fork_session clones an archived session into a V2 active child', () => {
+  it('fork_session clones an archived session into a V2 active child', (t) => {
     const workspace = ensureMaestroWorkspace(
-      makeTempWorkspace('maestro-lineage-fork-')
+      makeTempWorkspace('maestro-lineage-fork-', t)
     );
     writeArchivedSession(workspace, archivedState());
 
@@ -150,9 +150,9 @@ describe('session lineage handlers', () => {
     assert.equal(gate.design_document_path, '/tmp/source-design.md');
   });
 
-  it('list_lineage returns parent and children across active and archived sessions', () => {
+  it('list_lineage returns parent and children across active and archived sessions', (t) => {
     const workspace = ensureMaestroWorkspace(
-      makeTempWorkspace('maestro-lineage-list-')
+      makeTempWorkspace('maestro-lineage-list-', t)
     );
     writeArchivedSession(workspace, archivedState());
     writeArchivedSession(

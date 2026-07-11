@@ -10,7 +10,8 @@ import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from './runtime/runti
 import { resolveCanonicalSrcFromExtensionRoot } from './utils/extension-root.js';
 import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { moduleDirname } from '../core/module-path.js';
+import { moduleDirname } from '../core/package-root.js';
+import { resolveStateDirPath } from '../state/session-state.js';
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
@@ -51,7 +52,7 @@ function runRuntimeServer(runtimeConfig: any, options: any = {}) {
 
   const contextOptions = {
     runtimeConfig: resolvedRuntimeConfig,
-    getProjectRoot: () => cache.resolveProjectRoot(),
+    getWorkspaceState: () => cache.resolveWorkspaceState(),
     services: {
       canonicalSrcRoot,
       workspaceSuggestion: () => cache.workspaceSuggestion(),
@@ -64,7 +65,10 @@ function runRuntimeServer(runtimeConfig: any, options: any = {}) {
       registry,
       onInitializeWorkspace(result: any) {
         if (result && result.success && result.workspace_path) {
-          cache.setExplicitWorkspacePath(result.workspace_path);
+          cache.setExplicitWorkspaceState(
+            result.workspace_path,
+            resolveStateDirPath(result.workspace_path, result.state_dir),
+          );
         }
       },
       ...contextOptions,

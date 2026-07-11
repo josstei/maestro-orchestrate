@@ -48,8 +48,8 @@ describe('session-state migration on both read paths', () => {
     assert.equal(migrated.phases[0].review_finding_count, 0);
   });
 
-  it('the archive reader summarizes old-shape archived documents without regression', () => {
-    const workspace = makeTempWorkspace('maestro-archive-migrate-');
+  it('the archive reader summarizes old-shape archived documents without regression', (t) => {
+    const workspace = makeTempWorkspace('maestro-archive-migrate-', t);
     const archiveDir = path.join(
       workspace,
       'docs',
@@ -69,8 +69,8 @@ describe('session-state migration on both read paths', () => {
     assert.equal(summaries[0].total_phases, 1);
   });
 
-  it('returns an empty archive and skips corrupt, unreadable-shape, and id-less documents', () => {
-    const workspace = makeTempWorkspace('maestro-archive-corrupt-');
+  it('returns an empty archive and skips corrupt, unreadable-shape, and id-less documents', (t) => {
+    const workspace = makeTempWorkspace('maestro-archive-corrupt-', t);
     assert.deepEqual(readArchivedSessionSummaries(workspace), []);
 
     const archiveDir = path.join(
