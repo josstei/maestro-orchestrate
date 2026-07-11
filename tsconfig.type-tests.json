@@ -4,7 +4,8 @@
     "noEmit": true
   },
   "include": [
-    "tests/fixtures/mcp-command-table-type-contract.ts"
+    "tests/fixtures/mcp-command-table-type-contract.ts",
+    "tests/fixtures/mcp-tool-pack-type-contract.ts"
   ],
   "exclude": [
     "dist",

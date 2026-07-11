@@ -1,4 +1,4 @@
-import { defineTool } from './contracts.js';
+import { defineTool, type RegisterableMcpServer } from './contracts.js';
 import type { HandlerContext, HandlerContextOptions, MaybePromise, MaestroToolRegistry, ToolHandler, ToolPostCall } from '../server/tool-types.js';
 import type { z } from 'zod';
 
@@ -6,25 +6,30 @@ export type ToolSchemaMap = Record<string, z.ZodRawShape>;
 
 export type ToolArgs<TShape extends z.ZodRawShape> = z.infer<z.ZodObject<TShape>>;
 
-type ProjectionKind =
+export type ProjectionKind =
   | 'handler-context'
   | 'required-project-root'
   | 'optional-project-root'
   | 'args-only';
 
-type ProjectedHandler<TArgs, TResult, TKind extends ProjectionKind> = {
-  kind: TKind;
-  toHandler: ToolHandler<TArgs, TResult>;
-  onPostCall?: ToolPostCall<TArgs, TResult> | undefined;
+export type ProjectedHandler<TArgs, TResult, TKind extends ProjectionKind> = {
+  readonly kind: TKind;
+  readonly toHandler: ToolHandler<TArgs, TResult>;
+  readonly onPostCall?: ToolPostCall<TArgs, TResult>;
 };
 
-type HandlerProjection<TArgs, TResult> =
+export type NonRequiredProjection<TArgs, TResult> =
   | ProjectedHandler<TArgs, TResult, 'handler-context'>
   | ProjectedHandler<TArgs, TResult, 'optional-project-root'>
   | ProjectedHandler<TArgs, TResult, 'args-only'>;
 
 type RequiredProjectRootProjection<TArgs, TResult> =
   ProjectedHandler<TArgs, TResult, 'required-project-root'>;
+
+export type HandlerFor<Required extends boolean, TArgs, TResult> =
+  [Required] extends [true]
+    ? NonRequiredProjection<TArgs, TResult> | RequiredProjectRootProjection<TArgs, TResult>
+    : NonRequiredProjection<TArgs, TResult>;
 
 type BaseCommandDefinition<TName extends string, TShape extends z.ZodRawShape, TResult> = {
   name?: TName;
@@ -35,25 +40,19 @@ type BaseCommandDefinition<TName extends string, TShape extends z.ZodRawShape, T
 export type CommandDefinition<TName extends string, TShape extends z.ZodRawShape, TResult = unknown> =
   | (BaseCommandDefinition<TName, TShape, TResult> & {
       requiresWorkspace: true;
-      handler: HandlerProjection<ToolArgs<TShape>, TResult> | RequiredProjectRootProjection<ToolArgs<TShape>, TResult>;
+      handler: HandlerFor<true, ToolArgs<TShape>, TResult>;
     })
   | (BaseCommandDefinition<TName, TShape, TResult> & {
       requiresWorkspace?: false;
-      handler: HandlerProjection<ToolArgs<TShape>, TResult>;
+      handler: HandlerFor<false, ToolArgs<TShape>, TResult>;
     });
 
 export type CommandTable<TSchemas extends ToolSchemaMap> = {
   [TName in keyof TSchemas & string]: CommandDefinition<TName, TSchemas[TName], any>;
 };
 
-type RegisterCommandTableOptions = HandlerContextOptions & {
-  server: {
-    registerTool<TRegisteredArgs = unknown>(
-      name: string,
-      config: { description?: string | undefined; inputSchema?: unknown },
-      callback: (args: TRegisteredArgs, extra: { signal?: AbortSignal }) => Promise<unknown>,
-    ): unknown;
-  };
+export type RegisterCommandTableOptions = HandlerContextOptions & {
+  server: RegisterableMcpServer;
   registry: MaestroToolRegistry;
 };
 

@@ -7,6 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../../dist/src/mcp/server/create-mcp-server.js';
 import { zodSchemas as contentSchemas } from '../../dist/src/mcp/tool-packs/content/zod-schemas.js';
+import { zodSchemas as historySchemasFromPack } from '../../dist/src/mcp/tool-packs/history/index.js';
 import { zodSchemas as historySchemas } from '../../dist/src/mcp/tool-packs/history/zod-schemas.js';
 import { zodSchemas as memorySchemas } from '../../dist/src/mcp/tool-packs/memory/zod-schemas.js';
 import { zodSchemas as sessionSchemas } from '../../dist/src/mcp/tool-packs/session/zod-schemas.js';
@@ -67,6 +68,10 @@ for (const { name, schemas } of packs) {
     });
   }
 }
+
+test('history schema compatibility module re-exports the co-located schema projection', () => {
+  assert.equal(historySchemas, historySchemasFromPack);
+});
 
 test('get_skill_content.resources is required', () => {
   assert.throws(() => contentSchemas.get_skill_content.resources.parse(undefined));

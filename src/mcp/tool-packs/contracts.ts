@@ -1,7 +1,7 @@
 import { createToolPipeline } from '../server/tool-pipeline.js';
 import type { HandlerContextOptions, MaestroToolRegistry, ToolHandler, ToolPostCall, ToolRegistryMetadata } from '../server/tool-types.js';
 
-type RegisterableMcpServer = {
+export type RegisterableMcpServer = {
   registerTool<TRegisteredArgs = unknown>(
     name: string,
     config: { description?: string | undefined; inputSchema?: unknown },

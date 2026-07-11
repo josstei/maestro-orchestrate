@@ -7,6 +7,8 @@ import {
   withOptionalProjectRoot,
   withPostCall,
   withRequiredProjectRoot,
+  type HandlerFor,
+  type ToolArgs,
   type ToolSchemaMap,
 } from '../../src/mcp/tool-packs/command-table.js';
 import type { MaestroToolRegistry } from '../../src/mcp/server/tool-types.js';
@@ -33,6 +35,18 @@ const zodSchemas = {
     approved: z.boolean(),
   },
 } satisfies ToolSchemaMap;
+
+type NeedsWorkspaceArgs = ToolArgs<typeof zodSchemas.needs_workspace>;
+
+const requiredProjectRootHandler = withRequiredProjectRoot(
+  (args: NeedsWorkspaceArgs, projectRoot) => ({ id: args.id, projectRoot }),
+);
+const workspaceHandler: HandlerFor<true, NeedsWorkspaceArgs, { id: string; projectRoot: string }> =
+  requiredProjectRootHandler;
+
+// @ts-expect-error required-project-root projections are excluded when workspace policy is false.
+const nonWorkspaceHandler: HandlerFor<false, NeedsWorkspaceArgs, { id: string; projectRoot: string }> =
+  requiredProjectRootHandler;
 
 const commandTable = defineCommandTable(zodSchemas, {
   greet: {
