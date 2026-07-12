@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "settings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Setting names to resolve (e.g., [\"MAESTRO_DISABLED_AGENTS\"]). If empty or omitted, resolves all known settings."
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -1,8 +1,8 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const parseFrontmatter = require('../../src/transforms/parse-frontmatter');
-const extractExamples = require('../../src/transforms/extract-examples');
-const rebuildFrontmatter = require('../../src/transforms/rebuild-frontmatter');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import parseFrontmatter from '../../dist/src/transforms/parse-frontmatter.js';
+import extractExamples from '../../dist/src/transforms/extract-examples.js';
+import rebuildFrontmatter from '../../dist/src/transforms/rebuild-frontmatter.js';
 
 function injectFrontmatter(content, runtime, opts) {
   const state = {};
@@ -14,24 +14,13 @@ function injectFrontmatter(content, runtime, opts) {
   return result;
 }
 
-describe('inject-frontmatter transform', () => {
-  const canonicalAgent = [
-    '---',
-    'name: code-reviewer',
-    'description: "Code review specialist."',
-    'color: blue',
-    'tools: [read_file, glob, grep_search]',
-    'max_turns: 15',
-    'temperature: 0.2',
-    'timeout_mins: 5',
-    '---',
-    '',
-    '## Methodology',
-    'Review code carefully.',
-  ].join('\n');
+function agentDocument(frontmatter, body = 'Body.') {
+  return ['---', ...frontmatter, '---', '', body].join('\n');
+}
 
-  const geminiRuntime = {
-    name: 'gemini',
+function geminiFamilyRuntime(name) {
+  return {
+    name,
     agentNaming: 'snake_case',
     agentFrontmatter: {
       kind: 'local',
@@ -45,6 +34,21 @@ describe('inject-frontmatter transform', () => {
       grep_search: 'grep_search',
     },
   };
+}
+
+describe('inject-frontmatter transform', () => {
+  const canonicalAgent = agentDocument([
+    'name: code-reviewer',
+    'description: "Code review specialist."',
+    'color: blue',
+    'tools: [read_file, glob, grep_search]',
+    'max_turns: 15',
+    'temperature: 0.2',
+    'timeout_mins: 5',
+  ], '## Methodology\nReview code carefully.');
+
+  const geminiRuntime = geminiFamilyRuntime('gemini');
+  const qwenRuntime = geminiFamilyRuntime('qwen');
 
   const claudeRuntime = {
     name: 'claude',
@@ -59,6 +63,73 @@ describe('inject-frontmatter transform', () => {
       grep_search: 'Grep',
     },
   };
+
+  const agentWithOverride = agentDocument([
+    'name: architect',
+    'description: "Architect."',
+    'color: blue',
+    'tools: [read_file, glob]',
+    'tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]',
+    'max_turns: 15',
+    'temperature: 0.3',
+    'timeout_mins: 5',
+  ]);
+
+  const agentWithExamples = agentDocument([
+    'name: code-reviewer',
+    'description: "Code review specialist."',
+    'color: blue',
+    'tools: [read_file, glob, grep_search]',
+    'max_turns: 15',
+    'temperature: 0.2',
+    'timeout_mins: 5',
+  ], [
+    '<example>',
+    'Context: User wants a review.',
+    '</example>',
+    '',
+    '## Methodology',
+    'Review code carefully.',
+  ].join('\n'));
+
+  const agentWithArrayTools = agentDocument([
+    'name: coder',
+    'description: "Coder."',
+    'color: green',
+    'tools: [read_file, write_todos]',
+    'max_turns: 25',
+    'temperature: 0.2',
+    'timeout_mins: 10',
+  ]);
+
+  const noToolsAgent = agentDocument([
+    'name: product-manager',
+    'description: "Product manager."',
+    'color: purple',
+    'tools: []',
+    'max_turns: 10',
+    'temperature: 0.5',
+    'timeout_mins: 5',
+  ]);
+
+  const noColorAgent = agentDocument([
+    'name: tester',
+    'description: "Tester."',
+    'tools: [read_file]',
+    'max_turns: 10',
+    'temperature: 0.3',
+    'timeout_mins: 5',
+  ]);
+
+  const noDescAgent = agentDocument([
+    'name: tester',
+    'tools: [read_file]',
+    'max_turns: 10',
+  ]);
+
+  const noFrontmatter = 'Just body content.\nNo frontmatter here.';
+
+  const badFrontmatter = '---\nname: test\nno closing fence';
 
   function parseDocument(result) {
     const lines = result.split('\n');
@@ -99,6 +170,26 @@ describe('inject-frontmatter transform', () => {
     );
   });
 
+  it('produces qwen frontmatter with temperature/timeout mirroring gemini', () => {
+    const result = injectFrontmatter(canonicalAgent, qwenRuntime, {});
+    assertDocument(
+      result,
+      [
+        'name: code_reviewer',
+        'kind: local',
+        'description: "Code review specialist."',
+        'tools:',
+        '  - read_file',
+        '  - glob',
+        '  - grep_search',
+        'temperature: 0.2',
+        'max_turns: 15',
+        'timeout_mins: 5',
+      ],
+      '\n## Methodology\nReview code carefully.'
+    );
+  });
+
   it('produces claude frontmatter with model, color, maxTurns', () => {
     const result = injectFrontmatter(canonicalAgent, claudeRuntime, {});
     assertDocument(
@@ -119,20 +210,6 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('uses tools.<runtime> override when present', () => {
-    const agentWithOverride = [
-      '---',
-      'name: architect',
-      'description: "Architect."',
-      'color: blue',
-      'tools: [read_file, glob]',
-      'tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]',
-      'max_turns: 15',
-      'temperature: 0.3',
-      'timeout_mins: 5',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
     const result = injectFrontmatter(agentWithOverride, claudeRuntime, {});
     assert.ok(result.includes('- Read'));
     assert.ok(result.includes('- WebFetch'));
@@ -146,24 +223,6 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('embeds example blocks into claude description field', () => {
-    const agentWithExamples = [
-      '---',
-      'name: code-reviewer',
-      'description: "Code review specialist."',
-      'color: blue',
-      'tools: [read_file, glob, grep_search]',
-      'max_turns: 15',
-      'temperature: 0.2',
-      'timeout_mins: 5',
-      '---',
-      '',
-      '<example>',
-      'Context: User wants a review.',
-      '</example>',
-      '',
-      '## Methodology',
-      'Review code carefully.',
-    ].join('\n');
     const result = injectFrontmatter(agentWithExamples, claudeRuntime, {});
     assertDocument(
       result,
@@ -188,24 +247,6 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('keeps examples in body for gemini (no embedding)', () => {
-    const agentWithExamples = [
-      '---',
-      'name: code-reviewer',
-      'description: "Code review specialist."',
-      'color: blue',
-      'tools: [read_file, glob, grep_search]',
-      'max_turns: 15',
-      'temperature: 0.2',
-      'timeout_mins: 5',
-      '---',
-      '',
-      '<example>',
-      'Context: User wants a review.',
-      '</example>',
-      '',
-      '## Methodology',
-      'Review code carefully.',
-    ].join('\n');
     const result = injectFrontmatter(agentWithExamples, geminiRuntime, {});
     assertDocument(
       result,
@@ -226,19 +267,6 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('flattens array tool mappings when no per-runtime override', () => {
-    const agentWithArrayTools = [
-      '---',
-      'name: coder',
-      'description: "Coder."',
-      'color: green',
-      'tools: [read_file, write_todos]',
-      'max_turns: 25',
-      'temperature: 0.2',
-      'timeout_mins: 10',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
     const runtimeWithArrayMapping = {
       name: 'claude',
       agentNaming: 'kebab-case',
@@ -258,59 +286,24 @@ describe('inject-frontmatter transform', () => {
   // --- Missing tests ---
 
   it('should handle agent with no tools', () => {
-    const noToolsAgent = [
-      '---',
-      'name: product-manager',
-      'description: "Product manager."',
-      'color: purple',
-      'tools: []',
-      'max_turns: 10',
-      'temperature: 0.5',
-      'timeout_mins: 5',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
     const result = injectFrontmatter(noToolsAgent, claudeRuntime, {});
     assert.ok(!result.includes('tools:'));
     assert.ok(result.includes('name: product-manager'));
   });
 
   it('should handle agent with no color field', () => {
-    const noColorAgent = [
-      '---',
-      'name: tester',
-      'description: "Tester."',
-      'tools: [read_file]',
-      'max_turns: 10',
-      'temperature: 0.3',
-      'timeout_mins: 5',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
     const result = injectFrontmatter(noColorAgent, claudeRuntime, {});
     assert.ok(!result.includes('color:'));
     assert.ok(result.includes('name: tester'));
   });
 
   it('should handle agent with no description', () => {
-    const noDescAgent = [
-      '---',
-      'name: tester',
-      'tools: [read_file]',
-      'max_turns: 10',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
     const result = injectFrontmatter(noDescAgent, claudeRuntime, {});
     const { frontmatter } = parseDocument(result);
     assert.ok(frontmatter.includes('description: ""'));
   });
 
   it('should handle content with no frontmatter', () => {
-    const noFrontmatter = 'Just body content.\nNo frontmatter here.';
     const result = injectFrontmatter(noFrontmatter, claudeRuntime, {});
     assertDocument(
       result,
@@ -323,7 +316,6 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should handle content with unclosed frontmatter (no closing ---)', () => {
-    const badFrontmatter = '---\nname: test\nno closing fence';
     const result = injectFrontmatter(badFrontmatter, claudeRuntime, {});
     assertDocument(
       result,
@@ -372,15 +364,13 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should handle multiple example blocks in body for claude', () => {
-    const multiExamples = [
-      '---',
+    const multiExamples = agentDocument([
       'name: coder',
       'description: "A coder."',
       'color: green',
       'tools: [read_file]',
       'max_turns: 10',
-      '---',
-      '',
+    ], [
       '<example>',
       'First example.',
       '</example>',
@@ -390,7 +380,7 @@ describe('inject-frontmatter transform', () => {
       '</example>',
       '',
       '## Body content',
-    ].join('\n');
+    ].join('\n'));
     const result = injectFrontmatter(multiExamples, claudeRuntime, {});
     assert.ok(result.includes('description: |'));
     assert.ok(result.includes('  <example>'));
@@ -404,63 +394,47 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should handle agent with no max_turns', () => {
-    const noTurnsAgent = [
-      '---',
+    const noTurnsAgent = agentDocument([
       'name: tester',
       'description: "Tester."',
       'color: green',
       'tools: [read_file]',
       'temperature: 0.3',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
+    ]);
     const result = injectFrontmatter(noTurnsAgent, claudeRuntime, {});
     assert.ok(!result.includes('maxTurns:'));
   });
 
   it('should handle agent with no temperature (gemini)', () => {
-    const noTempAgent = [
-      '---',
+    const noTempAgent = agentDocument([
       'name: tester',
       'description: "Tester."',
       'tools: [read_file]',
       'max_turns: 10',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
+    ]);
     const result = injectFrontmatter(noTempAgent, geminiRuntime, {});
     assert.ok(!result.includes('temperature:'));
   });
 
   it('should handle agent with no timeout_mins (gemini)', () => {
-    const noTimeoutAgent = [
-      '---',
+    const noTimeoutAgent = agentDocument([
       'name: tester',
       'description: "Tester."',
       'tools: [read_file]',
       'max_turns: 10',
       'temperature: 0.3',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
+    ]);
     const result = injectFrontmatter(noTimeoutAgent, geminiRuntime, {});
     assert.ok(!result.includes('timeout_mins:'));
   });
 
   it('should handle tool that is not in runtime.tools mapping', () => {
-    const agentWithUnknownTool = [
-      '---',
+    const agentWithUnknownTool = agentDocument([
       'name: tester',
       'description: "Tester."',
       'tools: [read_file, unknown_tool]',
       'max_turns: 10',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
+    ]);
     const result = injectFrontmatter(agentWithUnknownTool, claudeRuntime, {});
     // unknown_tool should be kept as-is since runtime.tools[unknown_tool] is undefined
     assert.ok(result.includes('- unknown_tool'));
@@ -468,32 +442,24 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should handle description with quotes embedded', () => {
-    const quotedDesc = [
-      '---',
+    const quotedDesc = agentDocument([
       'name: tester',
       'description: "Tests things \\"carefully\\"."',
       'tools: [read_file]',
       'max_turns: 10',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
+    ]);
     const result = injectFrontmatter(quotedDesc, geminiRuntime, {});
     const { frontmatter } = parseDocument(result);
     assert.ok(frontmatter.includes('description: "Tests things \\"carefully\\"."'));
   });
 
   it('should round-trip escaped quotes and literal backslashes in quoted descriptions', () => {
-    const escapedDesc = [
-      '---',
+    const escapedDesc = agentDocument([
       'name: tester',
       'description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"',
       'tools: [read_file]',
       'max_turns: 10',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
+    ]);
     const result = injectFrontmatter(escapedDesc, geminiRuntime, {});
     assert.ok(result.includes('description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"'));
   });
@@ -515,8 +481,7 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should use gemini tools override when running for gemini', () => {
-    const agentWithGeminiOverride = [
-      '---',
+    const agentWithGeminiOverride = agentDocument([
       'name: architect',
       'description: "Architect."',
       'tools: [read_file]',
@@ -524,10 +489,7 @@ describe('inject-frontmatter transform', () => {
       'max_turns: 15',
       'temperature: 0.3',
       'timeout_mins: 5',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
+    ]);
     const result = injectFrontmatter(agentWithGeminiOverride, geminiRuntime, {});
     assert.ok(result.includes('- google_web_search'));
     // Should use the override, not the canonical tools

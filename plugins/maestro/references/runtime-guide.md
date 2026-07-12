@@ -5,9 +5,9 @@ This guide explains how the shared Maestro methodology maps onto Codex.
 ## Source of truth
 
 - Shared skills, references, templates, and agent bodies are authored in repository `src/`.
-- Published Codex bundles carry a generated local `src/` payload derived from that canonical source tree, so installs remain self-contained.
-- Codex content loading is filesystem-only and should resolve against the generated local `src/` in the plugin bundle.
-- Generated agent role references under `../agents/` are registration stubs only.
+- Published Codex bundles load MCP code and content from the versioned npm package root through `maestro-mcp-server`.
+- Codex content loading is filesystem-only and resolves against package-root `dist/src/`; the plugin bundle does not carry a detached `src/` payload.
+- Codex does not ship plugin-local agent stubs; call `get_agent` when a workflow needs a Maestro agent methodology.
 
 Public Codex skills should load shared assets through MCP instead of duplicating methodology. Codex adds the plugin namespace at invocation time, so these surface as `$maestro:<skill>`.
 
@@ -25,9 +25,9 @@ Resolve that workspace root in this order:
 
 1. `MAESTRO_WORKSPACE_PATH`, when the host exports it and it points to a real path
 2. the first valid local `file://` root returned by the MCP client `roots/list` request
-3. inherited env or `cwd` fallback heuristics from the shared resolver
+3. explicit user input when no env/client-root suggestion exists
 
-If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root.
+If required MCP state tools are unavailable, stop and report that Maestro state operations cannot proceed.
 
 ## Tool mapping
 
@@ -38,7 +38,7 @@ Translate bare tool references from shared skills as follows:
 | `activate_skill` | Read the referenced `SKILL.md` and follow it |
 | `ask_user` | `request_user_input`; use a direct question only when structured options do not fit |
 | `write_todos` | `update_plan` |
-| `enter_plan_mode` | `update_plan` plus direct document writing |
+| `enter_plan_mode` | not available — nudge the user to enter Plan mode manually before proceeding |
 | `exit_plan_mode` | explicit approval via `request_user_input` |
 | `run_shell_command` | `exec_command` |
 | `write_file` / `replace` | `apply_patch` |
@@ -60,7 +60,7 @@ If Maestro MCP tools are available, prefer them for stateful operations:
 - `archive_session`
 - `validate_plan`
 
-If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
+If the MCP server or required state tool is unavailable in the current Codex environment, stop and report that Maestro state operations cannot proceed.
 
 ## Delegation model
 

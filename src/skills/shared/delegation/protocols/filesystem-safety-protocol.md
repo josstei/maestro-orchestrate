@@ -29,3 +29,12 @@ This protocol applies to Maestro state directories, target project directories, 
 ## Rule 6 — Write Tool Only
 
 All file content must be written using `write_file` or `replace` tools. Never use `run_shell_command` with `cat`, `echo`, `printf`, heredocs, or shell redirection (`>`, `>>`) to create or modify file content. Shell interpretation corrupts structured content (YAML, Markdown, JSON, code with special characters). This reinforces the Agent Base Protocol's File Writing Rule.
+
+## Hard safety rules (all runtimes)
+
+- **Never write outside the workspace.** All file writes (Write/Edit/MultiEdit) must stay within the
+  initialized workspace root and the Maestro state dir. On Claude these are enforced by the policy hook;
+  on runtimes without a write hook (Codex), treat this as an absolute rule and rely on the host sandbox.
+- **Never run destructive shell commands** — recursive force-deletes, `find … -delete`, `dd of=/dev/…`,
+  `mkfs`, `shred`, `git reset --hard`, `git clean -fd`, `git push --force`, or a fork bomb. Use targeted,
+  reversible operations instead.

@@ -1,12 +1,9 @@
-'use strict';
-
-const { afterEach, beforeEach, describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { updateVersions } = require('../../scripts/update-versions');
+import { afterEach, beforeEach, describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { updateVersions } from '../../dist/src/tooling/update-versions.js';
 
 function createTempProject(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-update-versions-'));
@@ -14,7 +11,7 @@ function createTempProject(version) {
     'package.json': { name: '@josstei/maestro', version, license: 'Apache-2.0' },
     'gemini-extension.json': { name: 'maestro', version },
     'qwen-extension.json': { name: 'maestro', version },
-    'claude/.claude-plugin/plugin.json': { name: 'maestro', version },
+    '.claude-plugin/plugin.json': { name: 'maestro', version },
     'plugins/maestro/.codex-plugin/plugin.json': { name: 'maestro', version },
     'plugins/maestro/.mcp.json': {
       mcpServers: {
@@ -30,7 +27,6 @@ function createTempProject(version) {
       plugins: [{ name: 'maestro', version }],
     },
     'README.md': `# Maestro\n\n[![Version](https://img.shields.io/badge/version-${version}-blue)](link)\n`,
-    'claude/README.md': `# Claude\n\n[![Version](https://img.shields.io/badge/version-${version}-blue)](link)\n`,
     'CHANGELOG.md': [
       '# Changelog',
       '',
@@ -83,7 +79,7 @@ describe('updateVersions', () => {
     const pkg = readJson(tempRoot, 'package.json');
     const gemini = readJson(tempRoot, 'gemini-extension.json');
     const qwen = readJson(tempRoot, 'qwen-extension.json');
-    const claudePlugin = readJson(tempRoot, 'claude/.claude-plugin/plugin.json');
+    const claudePlugin = readJson(tempRoot, '.claude-plugin/plugin.json');
     const codexPlugin = readJson(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json');
     const codexMcp = readJson(tempRoot, 'plugins/maestro/.mcp.json');
     const marketplace = readJson(tempRoot, '.claude-plugin/marketplace.json');
@@ -98,16 +94,19 @@ describe('updateVersions', () => {
     assert.equal(marketplace.plugins[0].version, '1.6.1');
   });
 
-  it('updates version badges in both readmes', () => {
+  it('updates the version badge in the hand-authored root readme only', () => {
     updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' });
 
     const rootReadme = fs.readFileSync(path.join(tempRoot, 'README.md'), 'utf8');
-    const claudeReadme = fs.readFileSync(path.join(tempRoot, 'claude/README.md'), 'utf8');
 
     assert.match(rootReadme, /version-1\.7\.0-blue/);
     assert.doesNotMatch(rootReadme, /version-1\.6\.1-blue/);
-    assert.match(claudeReadme, /version-1\.7\.0-blue/);
-    assert.doesNotMatch(claudeReadme, /version-1\.6\.1-blue/);
+  });
+
+  it('succeeds without the generated claude/README.md present in the checkout', () => {
+    assert.equal(fs.existsSync(path.join(tempRoot, 'claude/README.md')), false);
+
+    assert.doesNotThrow(() => updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' }));
   });
 
   it('moves unreleased changelog content into the new version section', () => {

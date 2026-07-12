@@ -2,7 +2,11 @@
 node_modules/
 
 # Build output
-dist/
+# dist/src is generated from src/ for local commands, package, and release artifacts.
+/dist/src/
+# Local release and development plugin bundles remain transient.
+/dist/release/
+/dist/claude-plugin/
 build/
 out/
 
@@ -28,7 +32,6 @@ Thumbs.db
 .claude/
 .serena/
 .superpowers/
-docs/superpowers/
 CLAUDE.md
 AGENTS.md
 
@@ -50,3 +53,35 @@ temp/
 docs/maestro/
 docs/superpowers/
 hooks/permissions.json
+
+# Generator-owned outputs (src/ is the source of truth — see `npm run generate -- --list-outputs`)
+/agents/
+/commands/maestro/
+/claude/agents/
+/claude/skills/
+/qwen/agents/
+/plugins/maestro/skills/
+/src/generated/
+
+/GEMINI.md
+/QWEN.md
+/gemini-extension.json
+/qwen-extension.json
+/policies/maestro.toml
+/hooks/hooks.json
+/qwen/hooks.json
+/claude/hooks/claude-hooks.json
+/claude/README.md
+/claude/.mcp.json
+/docs/runtime-claude.md
+/docs/runtime-codex.md
+/docs/runtime-gemini.md
+/docs/runtime-qwen.md
+/plugins/maestro/.mcp.json
+/plugins/maestro/.codex-plugin/plugin.json
+
+# Tracked exemptions (see TRACKED_OUTPUT_EXEMPTIONS in src/generator/generated-surface-inventory.ts) —
+# no pattern above covers these, kept here as an explicit, drift-proof guard.
+!/.agents/plugins/marketplace.json
+!/.claude-plugin/marketplace.json
+!/.claude-plugin/plugin.json

@@ -1,14 +1,14 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  PHASE_ID_SCHEMA,
-  PHASE_ITEM_SCHEMA,
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import {
   PHASE_REQUIRED_FIELDS,
+  PlanPhaseIdSchema,
+  PlanPhaseSchema,
+  PlanSchema,
+  WirePhaseIdSchema,
   validatePhases,
-} = require('../../src/mcp/contracts/plan-schema');
+} from '../../dist/src/mcp/contracts/plan-schema.js';
+import { checkPhaseFieldSchema } from '../../dist/src/mcp/validation/schema-checker.js';
 
 describe('plan-schema', () => {
   it('exposes the required field list in declaration order', () => {
@@ -40,6 +40,31 @@ describe('plan-schema', () => {
       { id: 'p2', name: 'B', agent: 'coder', parallel: false, blocked_by: ['p1'] },
     ]);
     assert.deepEqual(result, { valid: true, violations: [] });
+  });
+
+  it('keeps wire IDs tolerant while refining IDs used by plans', () => {
+    assert.equal(WirePhaseIdSchema.parse(0), 0);
+    assert.equal(WirePhaseIdSchema.parse(''), '');
+    assert.throws(() => PlanPhaseIdSchema.parse(0));
+    assert.throws(() => PlanPhaseIdSchema.parse(''));
+  });
+
+  it('retains unknown plan and phase keys', () => {
+    const result = PlanSchema.parse({
+      plan_extension: { owner: 'planner' },
+      phases: [{
+        id: 'p1',
+        name: 'A',
+        agent: 'coder',
+        parallel: false,
+        blocked_by: [],
+        phase_extension: 'kept',
+      }],
+    });
+
+    assert.deepEqual(result.plan_extension, { owner: 'planner' });
+    assert.equal(result.phases[0].phase_extension, 'kept');
+    assert.equal(PlanPhaseSchema.parse(result.phases[0]).phase_extension, 'kept');
   });
 
   it('reports missing required fields with the offending phase id', () => {
@@ -108,5 +133,57 @@ describe('plan-schema', () => {
       { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [] },
     ]);
     assert.equal(withoutFiles.valid, true);
+  });
+
+  it('preserves missing-field-first violation ordering and identifiers', () => {
+    const result = validatePhases([{
+      id: 0,
+      name: '',
+      parallel: 'no',
+      blocked_by: [0],
+      files: [''],
+      future_extension: true,
+    }]);
+
+    assert.deepEqual(
+      result.violations.map(({ rule, field, phase_id }) => ({ rule, field, phase_id })),
+      [
+        { rule: 'missing_required_field', field: 'agent', phase_id: 0 },
+        { rule: 'invalid_field_type', field: 'id', phase_id: 0 },
+        { rule: 'invalid_field_type', field: 'name', phase_id: 0 },
+        { rule: 'invalid_field_type', field: 'parallel', phase_id: 0 },
+        { rule: 'invalid_field_type', field: 'blocked_by', phase_id: 0 },
+        { rule: 'invalid_field_value', field: 'files', phase_id: 0 },
+      ]
+    );
+  });
+
+  it('continues to reject an explicitly present undefined files field', () => {
+    const result = validatePhases([{
+      id: 1,
+      name: 'A',
+      agent: 'coder',
+      parallel: false,
+      blocked_by: [],
+      files: undefined,
+    }]);
+
+    assert.equal(result.valid, false);
+    assert.equal(result.violations[0].rule, 'invalid_field_value');
+    assert.equal(result.violations[0].field, 'files');
+  });
+
+  it('maps phase contract violations into schema-checker violations', () => {
+    const phases = [{ id: 1, name: 'P', parallel: false, blocked_by: [] }];
+    const result = validatePhases(phases);
+    const violations = checkPhaseFieldSchema(phases);
+
+    assert.equal(result.valid, false);
+    assert.equal(violations.length, result.violations.length);
+    assert.ok(
+      violations.some((violation) => (
+        violation.rule === 'missing_required_field' && violation.field === 'agent'
+      ))
+    );
   });
 });

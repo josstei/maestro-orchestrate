@@ -1,9 +1,10 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { buildPlatformMetadataOutputs } = require('../../src/platforms/metadata');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { buildPlatformMetadataOutputs } from '../../dist/src/platforms/metadata.js';
+import { buildSettings } from '../../dist/src/platforms/metadata-shared.js';
+import { listRuntimeDefinitions } from '../../dist/src/platforms/runtime-declarations.js';
+import { SETTINGS_SCHEMA, SETTING_NAMES } from '../../dist/src/config/settings-schema.js';
+import { readFileSync } from 'node:fs';
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',
@@ -26,18 +27,36 @@ function outputsByPath(outputs) {
 }
 
 describe('platform metadata generation', () => {
-  it('generates all runtime metadata from package identity', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({
-      claude: {},
-      codex: {},
-      gemini: {},
-      qwen: {},
-    }, PACKAGE_FIXTURE));
+  it('projects exactly the seven extension-visible setting descriptors', () => {
+    const expected = SETTING_NAMES
+      .filter((envVar) => SETTINGS_SCHEMA[envVar].presentation.extensionVisible)
+      .map((envVar) => ({
+        name: SETTINGS_SCHEMA[envVar].presentation.label,
+        description: SETTINGS_SCHEMA[envVar].presentation.description,
+        envVar,
+      }));
+
+    assert.equal(expected.length, 7);
+    assert.deepEqual(buildSettings(), expected);
+    for (const hidden of [
+      'MAESTRO_ARCHIVE_RETENTION',
+      'MAESTRO_KNOWLEDGE_DIR',
+      'MAESTRO_MEMORY_INJECTION',
+    ]) {
+      assert.equal(buildSettings().some((setting) => setting.envVar === hidden), false);
+    }
+  });
+
+  it('generates all runtime metadata from package identity', async () => {
+    const outputs = outputsByPath(await buildPlatformMetadataOutputs(
+      listRuntimeDefinitions(),
+      PACKAGE_FIXTURE
+    ));
 
     const expectedPaths = [
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
-      'claude/.claude-plugin/plugin.json',
+      '.claude-plugin/plugin.json',
       'claude/.mcp.json',
       'gemini-extension.json',
       'plugins/maestro/.codex-plugin/plugin.json',
@@ -48,6 +67,8 @@ describe('platform metadata generation', () => {
     assert.deepEqual([...outputs.keys()].sort(), expectedPaths);
     assert.equal(outputs.get('gemini-extension.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('qwen-extension.json').version, PACKAGE_FIXTURE.version);
+    assert.deepEqual(outputs.get('gemini-extension.json').settings, buildSettings());
+    assert.deepEqual(outputs.get('qwen-extension.json').settings, buildSettings());
     assert.equal(
       outputs.get('gemini-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
       'gemini'
@@ -56,16 +77,40 @@ describe('platform metadata generation', () => {
       outputs.get('qwen-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
       'qwen'
     );
-    assert.equal(outputs.get('claude/.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
+    assert.equal(
+      outputs.get('claude/.mcp.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
+      'claude'
+    );
+    assert.equal(outputs.get('.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(
       outputs.get('plugins/maestro/.mcp.json').mcpServers.maestro.args[2],
       `${PACKAGE_FIXTURE.name}@${PACKAGE_FIXTURE.version}`
     );
+    assert.deepEqual(
+      outputs.get('.claude-plugin/marketplace.json').plugins[0].source,
+      {
+        source: 'github',
+        repo: 'josstei/maestro-orchestrate',
+        ref: 'dist',
+      }
+    );
+    assert.deepEqual(
+      outputs.get('.agents/plugins/marketplace.json').plugins[0].source,
+      {
+        source: 'git-subdir',
+        url: 'https://github.com/example/maestro.git',
+        path: './plugins/maestro',
+        ref: 'dist',
+      }
+    );
   });
 
-  it('generates only metadata for enabled runtimes', () => {
-    const outputs = buildPlatformMetadataOutputs({ codex: {} }, PACKAGE_FIXTURE);
+  it('generates only metadata for enabled runtimes', async () => {
+    const outputs = await buildPlatformMetadataOutputs(
+      listRuntimeDefinitions().filter((definition) => definition.name === 'codex'),
+      PACKAGE_FIXTURE
+    );
 
     assert.deepEqual(
       outputs.map((output) => output.outputPath).sort(),
@@ -75,5 +120,13 @@ describe('platform metadata generation', () => {
         'plugins/maestro/.mcp.json',
       ]
     );
+  });
+
+  it('uses a static renderer dispatcher with no dynamic metadata imports', () => {
+    const source = readFileSync(new URL('../../src/platforms/metadata.ts', import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /import\(pathToFileURL/);
+    for (const runtime of ['claude', 'codex', 'gemini', 'qwen']) {
+      assert.match(source, new RegExp(`./${runtime}/metadata\\.js`));
+    }
   });
 });

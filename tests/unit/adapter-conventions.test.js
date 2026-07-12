@@ -1,13 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  ADAPTER_SUFFIX,
-  isAdapterFile,
-  extractRuntime,
-} = require('../../src/platforms/shared/adapters/conventions');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { ADAPTER_SUFFIX, isAdapterFile, extractRuntime } from '../../dist/src/platforms/shared/adapters/conventions.js';
 
 describe('ADAPTER_SUFFIX', () => {
   it('is the string "-adapter.js"', () => {

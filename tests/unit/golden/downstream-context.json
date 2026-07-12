@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "properties": {
+    "key_interfaces_introduced": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "patterns_established": {
+      "$ref": "#/properties/value/properties/key_interfaces_introduced"
+    },
+    "integration_points": {
+      "$ref": "#/properties/value/properties/key_interfaces_introduced"
+    },
+    "assumptions": {
+      "$ref": "#/properties/value/properties/key_interfaces_introduced"
+    },
+    "warnings": {
+      "$ref": "#/properties/value/properties/key_interfaces_introduced"
+    }
+  },
+  "additionalProperties": true
+}

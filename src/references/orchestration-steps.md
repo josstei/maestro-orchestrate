@@ -1,7 +1,7 @@
 STARTUP (Turn 1 — tool calls only, no text output)
  0. If get_runtime_context appears in your available tools, call it. Carry the returned mappings (tool names, agent dispatch syntax, MCP prefix, paths) through the entire session. If unavailable, use the fallback mappings in the entry-point skill preamble.
- 1. Call resolve_settings.
- 2. Read `workspace_suggestion` from the `get_runtime_context` response (populated from MCP roots and/or runtime env var). Call `initialize_workspace(workspace_path=<workspace_suggestion or explicit user workspace>, state_dir=<resolved>)`. If no suggestion is available, ask the user via the runtime's user-prompt tool. `initialize_workspace` rejects paths inside extension caches.
+ 1. Read `workspace_suggestion` from the `get_runtime_context` response (populated from MCP roots and/or runtime env var). Call `initialize_workspace(workspace_path=<workspace_suggestion or explicit user workspace>)`. If no suggestion is available, ask the user via the runtime's user-prompt tool. `initialize_workspace` rejects paths inside extension caches, resolves `state_dir` from environment/workspace settings, and returns the authoritative state directory.
+ 2. Call resolve_settings after workspace initialization so workspace `.env` values participate in precedence.
  3. Call get_session_status — if active, present status and offer resume/archive.
  4. Call assess_task_complexity.
  5. Parse MAESTRO_DISABLED_AGENTS from resolved settings. Exclude listed agents from all planning.
@@ -9,7 +9,7 @@ STARTUP (Turn 1 — tool calls only, no text output)
 
 CLASSIFICATION (Turn 2)
  7. Pre-load architecture plus every skill used before Phase 3 in a single batch:
-    `get_skill_content(["architecture", "design-dialogue", "design-document", "implementation-planning", "implementation-plan"])`.
+    `get_skill_content(["architecture", "codebase-grounding", "design-dialogue", "design-document", "implementation-planning", "implementation-plan"])`.
     <HARD-GATE>
     This batch MUST complete before any `enter_plan_mode` call. Some runtimes
     (notably Gemini CLI) deregister MCP tools once Plan Mode is active —
@@ -36,6 +36,29 @@ DESIGN GATE (Phase 1 pre-entry)
     `DESIGN_GATE_SESSION_MISMATCH` when it detects an approved gate for a
     different session_id than the one passed in.
     </HARD-GATE>
+
+MEMORY RECALL (Phase 1 pre-entry — before Plan Mode)
+ 9b. If MAESTRO_MEMORY_INJECTION is not false (unset/null means the default true)
+    and both `get_project_profile` and `recall_similar_sessions` appear in your
+    available tools, call them NOW, before entering Plan Mode (step 10):
+    `get_project_profile` for this repo's recorded build/test/lint commands,
+    conventions, do-not-touch paths, and preferred/blocked agents, and
+    `recall_similar_sessions` with the user-request task description for the
+    highest-ranked prior sessions (which agents handled similar work, contended
+    file areas, and recorded warnings).
+    <HARD-GATE>
+    These are MCP tools and MUST be called before step 10. Some runtimes (notably
+    Gemini CLI) deregister MCP tools once Plan Mode is active, so a recall
+    attempted from inside the design dialogue (step 11) or implementation planning
+    (step 15) fails with "tool not found". Carry the returned profile and
+    precedents forward as cached context for both skills — do NOT re-call these
+    tools from inside a Plan Mode skill.
+    </HARD-GATE>
+    Inject the recalled memory as OVERRIDABLE recommended defaults: surface prior
+    architectural decisions, established patterns, do-not-touch paths, and recorded
+    warnings as recommendations the user may accept or override — never as fixed
+    constraints. If MAESTRO_MEMORY_INJECTION is false, or either tool is
+    unavailable, skip this step and proceed without injected memory.
 
 DESIGN (Phase 1)
 10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
@@ -121,7 +144,8 @@ EXECUTION (Phase 3 — delegation loop)
     merge all agents' files into one call — the archive attributes files per
     phase, so empty payloads mean lost traceability.
     </HARD-GATE>
-26. Repeat steps 23-25 until all phases complete.
+25a. If the phase ran build/test/lint validation and it passed, extract the known-good commands from the agent's `## Validation Commands` handoff section and call `record_validation_commands(commands: { build: [...], test: [...], lint: [...] })`. This folds the verified commands into the per-project memory profile (de-duped, most-recent-first) so later runs consult them before heuristics. Skip when no validation ran or validation failed.
+26. Repeat steps 23-25a until all phases complete.
 
 COMPLETION (Phase 4)
 27. Call `get_skill_content` with resources: ["code-review"].
@@ -130,7 +154,14 @@ COMPLETION (Phase 4)
     If Critical/Major findings: re-delegate to the implementing agent to fix.
     The orchestrator MUST NOT write code directly.
     </HARD-GATE>
-29. If MAESTRO_AUTO_ARCHIVE is true (or unset), call archive_session. If false, inform user session is complete but not archived.
+28a. Solicit a human-satisfaction rating for the completed work. Using the runtime's user-prompt tool, ask the user for a thumbs up/down judgment plus an optional note, and record it with `rate(target: 'session', session_id, rating, note?)`. When the user calls out a specific phase, additionally record `rate(target: 'phase', session_id, phase_id, rating, note?)`. Ratings persist to `<state_dir>/knowledge/ratings.jsonl` (outside the archived session document) and feed the `get_agent_performance` priors that later sessions consult.
+    <HARD-GATE>
+    The rating MUST be solicited via the user-prompt tool as a distinct call —
+    do NOT infer satisfaction from conversational tone and do NOT skip the prompt.
+    `rate` accepts only 'up' or 'down' as the rating value.
+    Pass the session_id verbatim (the same id used for every prior MCP call).
+    </HARD-GATE>
+29. Read the typed/defaulted value from `effective_settings.MAESTRO_AUTO_ARCHIVE`. If it is true, call archive_session. Its unset default is false; when false, inform the user the session is complete but not archived and ask whether to archive.
 30. Present final summary with files changed, phase outcomes, and next steps.
 
 RECOVERY (referenced from any step on user request)
@@ -144,7 +175,7 @@ EXPRESS WORKFLOW (simple tasks only — jumped to from step 9)
 
 EXPRESS MODE GATE BYPASS: Express bypasses the execution-mode gate entirely. Express always dispatches sequentially. Do NOT prompt for parallel/sequential.
 
-EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, archive_session) are unavailable, fall back to direct file writes on <state_dir>/state/active-session.md.
+EXPRESS MCP STATE REQUIREMENT: If MCP state tools (`create_session`, `transition_phase`, `archive_session`) are unavailable, stop and report that Express execution requires the MCP state surface.
 
 31. Verify classification is simple. If task requires multiple phases or agents, override to medium → step 10.
     <HARD-GATE>

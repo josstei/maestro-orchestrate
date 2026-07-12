@@ -1,0 +1,138 @@
+import * as io from '../../lib/io/index.js';
+import { KnowledgeStore } from '../memory/knowledge-store.js';
+import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
+import type { ElicitParams, ElicitResult, HandlerContext, HandlerContextOptions, HandlerServices, SystemClock } from './tool-types.js';
+
+const ELICIT_TIMEOUT_MS = 10 * 60 * 1000;
+
+type BuildServicesOptions = {
+  projectRoot: string | null;
+  clock: SystemClock;
+  canonicalSrcRoot?: string | undefined;
+  workspaceSuggestion?: (() => string | null) | undefined;
+};
+
+type ElicitServer = {
+  server?: {
+    getClientCapabilities?: () => { elicitation?: unknown } | null;
+    elicitInput?: (params: ElicitParams, options: { timeout: number }) => Promise<Exclude<ElicitResult, null>>;
+  };
+};
+
+/**
+ * Build the lazy, clock-injected `ctx.services` facade. Stateful services
+ * are constructed on first access and memoized; they refuse to build against a
+ * null `projectRoot` rather than ever falling back to the process cwd.
+ *
+ */
+function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggestion }: BuildServicesOptions): HandlerServices {
+  let knowledgeStoreInstance: KnowledgeStore | null = null;
+
+  return {
+    get knowledgeStore() {
+      requireWorkspaceRoot(projectRoot, 'ctx.services.knowledgeStore');
+      if (!knowledgeStoreInstance) {
+        knowledgeStoreInstance = new KnowledgeStore(projectRoot);
+      }
+      return knowledgeStoreInstance;
+    },
+    io,
+    clock,
+    canonicalSrcRoot,
+    workspaceSuggestion,
+  };
+}
+
+function createSystemClock(): SystemClock {
+  return { now: () => new Date() };
+}
+
+/**
+ * Build `ctx.elicit` — the single elicitation seam. Prechecks the client's
+ * elicitation capability on the LOW-LEVEL `Server` (never `McpServer`); when
+ * absent, returns `null` without calling `elicitInput`. Passes an explicit
+ * long timeout so a human answering a form is never auto-failed by the SDK's
+ * short default. Any thrown error (missing form capability, or an `McpError`
+ * from requestedSchema validation) is caught here and treated as elicitation
+ * being unavailable — it never leaks to generic error normalization.
+ *
+ */
+function buildElicit({ server }: { server: unknown }) {
+  return async function elicit(params: ElicitParams): Promise<ElicitResult> {
+    const candidate = server as ElicitServer | null;
+    const lowLevelServer = candidate && candidate.server;
+    if (!lowLevelServer || typeof lowLevelServer.getClientCapabilities !== 'function') {
+      return null;
+    }
+
+    const capabilities = lowLevelServer.getClientCapabilities();
+    if (!capabilities || !capabilities.elicitation) {
+      return null;
+    }
+
+    try {
+      if (typeof lowLevelServer.elicitInput !== 'function') {
+        return null;
+      }
+      return await lowLevelServer.elicitInput(params, { timeout: ELICIT_TIMEOUT_MS });
+    } catch {
+      return null;
+    }
+  };
+}
+
+/**
+ * Bridge an SDK tool callback's `extra` into maestro's `ctx` DI surface.
+ * `projectRoot` is resolved by calling the INJECTED `options.getProjectRoot`
+ * resolver (sync or async; must return a workspace path string or `null` —
+ * it must never throw, and it must never fall back to `process.cwd()` or
+ * ambient environment variables). The server wires `cache.resolveProjectRoot`
+ * in; the test harness wires the test's workspace holder in. Also bridges
+ * the inbound cancellation `signal`, assembles lazy clock-injected
+ * `services`, and exposes the single `ctx.elicit` consent seam.
+ *
+ */
+async function buildHandlerContext(
+  args: unknown,
+  extra: { signal?: AbortSignal } | null | undefined,
+  options: HandlerContextOptions,
+): Promise<HandlerContext> {
+  const {
+    server,
+    runtimeConfig,
+    clock = createSystemClock(),
+    getWorkspaceState,
+    getProjectRoot,
+    getStateDirPath,
+  } = options;
+  const workspaceState = typeof getWorkspaceState === 'function'
+    ? await getWorkspaceState()
+    : null;
+  const projectRoot = workspaceState
+    ? workspaceState.projectRoot || null
+    : typeof getProjectRoot === 'function'
+      ? (await getProjectRoot()) || null
+      : null;
+  const stateDirPath = workspaceState
+    ? workspaceState.stateDirPath || null
+    : typeof getStateDirPath === 'function'
+      ? (await getStateDirPath()) || null
+      : null;
+  const inboundServices = options.services || {};
+
+  return {
+    projectRoot,
+    stateDirPath,
+    runtimeConfig,
+    signal: extra?.signal,
+    elicit: buildElicit({ server }),
+    services: buildServices({
+      projectRoot,
+      clock,
+      canonicalSrcRoot: inboundServices.canonicalSrcRoot,
+      workspaceSuggestion: inboundServices.workspaceSuggestion,
+    }),
+  };
+}
+
+export { buildHandlerContext };

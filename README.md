@@ -4,10 +4,10 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
-[![Codex](https://img.shields.io/badge/Codex-plugin-black)](docs/runtime-codex.md)
+[![Codex](https://img.shields.io/badge/Codex-plugin-black)](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/codex/runtime-doc.md)
 [![Qwen Code](https://img.shields.io/badge/Qwen_Code-extension-purple)](https://github.com/QwenLM/qwen-code)
 
-Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Gemini CLI**, **Claude Code**, **Codex**, and **Qwen Code**.
+Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance/insights entrypoints. It runs from one canonical `src/` tree across **Gemini CLI**, **Claude Code**, **Codex**, and **Qwen Code**.
 
 ## Runtime Targets
 
@@ -38,6 +38,8 @@ Maestro does not edit `~/.gemini/settings.json` or `~/.qwen/settings.json` for y
 
 ### Installation
 
+Runtime surfaces (`agents/`, `commands/`, `claude/`, `plugins/maestro/`, `qwen/`, and friends) are generated from `src/` and are not tracked in git. Stable releases publish the prebuilt extension archive (Gemini/Qwen installs, below) and a generated `dist` branch (Claude/Codex marketplace plugin content), so the standard install commands need nothing extra. A fresh clone used for local development must run `npm run generate` once before the runtime can see its files — every "Local development" block below includes that step.
+
 #### Gemini CLI
 
 ```bash
@@ -49,6 +51,7 @@ Local development:
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
 cd maestro-orchestrate
+npm ci && npm run generate
 gemini extensions link .
 ```
 
@@ -67,10 +70,14 @@ Development / temporary loading:
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
-claude --plugin-dir /path/to/maestro-orchestrate/claude
+cd maestro-orchestrate
+npm ci
+just dev-load-claude   # or: npm run dev-load-claude
 ```
 
-More Claude-specific setup and plugin management lives in [claude/README.md](claude/README.md).
+`just dev-load-claude` regenerates the runtime, assembles a self-contained plugin under `dist/claude-plugin/` (with a bundled `dist/src/`), and prints the exact `claude --plugin-dir …` command to load it. Re-run it after editing anything under `src/`.
+
+More Claude-specific setup and plugin management lives in the [Claude runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/claude/runtime-doc.md).
 
 #### Codex
 
@@ -86,11 +93,13 @@ Local development (path must start with `./`, `../`, `/`, or `~/` — Codex othe
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
+cd maestro-orchestrate
+npm ci && npm run generate
 codex plugin marketplace add /absolute/path/to/maestro-orchestrate
 # then: start Codex, run `/plugins`, select Maestro → Install
 ```
 
-More Codex-specific setup and runtime details live in [plugins/maestro/README.md](plugins/maestro/README.md) and [docs/runtime-codex.md](docs/runtime-codex.md).
+More Codex-specific setup and runtime details live in [plugins/maestro/README.md](plugins/maestro/README.md) and the [Codex runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/codex/runtime-doc.md).
 
 #### Qwen Code
 
@@ -103,6 +112,7 @@ Local development:
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
 cd maestro-orchestrate
+npm ci && npm run generate
 qwen extensions link .
 ```
 
@@ -137,7 +147,7 @@ Defaults work; these settings tune behavior:
 |---------|---------|---------|
 | `MAESTRO_STATE_DIR` | `docs/maestro` | Session, plan, and archive output path |
 | `MAESTRO_EXECUTION_MODE` | `ask` | Choose `parallel`, `sequential`, or prompt |
-| `MAESTRO_AUTO_ARCHIVE` | `true` | Archive successful sessions automatically |
+| `MAESTRO_AUTO_ARCHIVE` | `false` | Prompt to archive after successful completion; set `true` to archive automatically |
 | `MAESTRO_MAX_RETRIES` | `2` | Retry limit for failed phases |
 | `MAESTRO_MAX_CONCURRENT` | `0` | Parallel-agent cap, where `0` means no Maestro cap |
 | `MAESTRO_DISABLED_AGENTS` | unset | Specialists to exclude from assignment |
@@ -186,10 +196,10 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
 - [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
-- [docs/runtime-gemini.md](docs/runtime-gemini.md) for Gemini runtime specifics
-- [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
-- [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
-- [docs/runtime-qwen.md](docs/runtime-qwen.md) for Qwen runtime specifics
+- [Gemini runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/gemini/runtime-doc.md)
+- [Claude runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/claude/runtime-doc.md)
+- [Codex runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/codex/runtime-doc.md)
+- [Qwen runtime guide](https://github.com/josstei/maestro-orchestrate/blob/main/src/platforms/qwen/runtime-doc.md)
 
 ## Development and Release Validation
 
@@ -197,7 +207,7 @@ Canonical source lives under `src/`. Runtime files in `agents/`, `commands/`, `h
 
 ```bash
 npm ci
-node scripts/generate.js
+npm run generate
 git diff --exit-code --name-only
 node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
 npm run pack:verify
@@ -205,7 +215,7 @@ npm run release:artifacts
 npm run release:verify-artifacts
 ```
 
-Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `gemini-extension.json`, `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payload needed by Gemini CLI, Qwen Code, Claude Code, and Codex.
+`npm run generate` builds the NodeNext runtime first, then runs `dist/src/tooling/generate.js`. Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `gemini-extension.json`, `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the generated runtime surfaces and compiled `dist/src/` runtime needed by Gemini CLI, Qwen Code, Claude Code, and Codex. Package and release artifacts do not include package-root raw `src/`, root `scripts/`, or root `bin/`.
 
 Stable releases publish three aligned outputs:
 

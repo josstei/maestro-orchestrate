@@ -1,12 +1,9 @@
-'use strict';
-
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { parseEnvFile } = require('../../src/core/env-file-parser');
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { parseEnvFile } from '../../dist/src/core/env-file-parser.js';
 
 describe('parseEnvFile', () => {
   let tmpDir;

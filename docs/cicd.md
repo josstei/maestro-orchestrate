@@ -28,7 +28,23 @@ graph LR
     end
 ```
 
-The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release publishes through npm Trusted Publishing with GitHub Actions OIDC. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
+The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, Release Candidate, and stable Release keep npm publishing gated on `NPM_TOKEN`. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
+
+### Script lifecycle boundaries
+
+Public lifecycle scripts own compilation; `:run` scripts consume an already-built
+`dist/src` tree. `check:source` performs one emitting build, then invokes the
+build-free generator and test leaves plus the separate type-test graph. Its build
+uses the same strict source graph as `npm run typecheck`, so the composite does not
+repeat a no-emit source check. `check:release` likewise performs one build, refreshes
+generated projections, and invokes build-free package and release leaves.
+
+The two package-verification paths are intentionally different. Standalone
+`npm run pack:verify` keeps npm lifecycle scripts enabled, so its inner `npm pack`
+executes the real `prepack` path from a clean publication candidate. Within
+`check:release`, the already-built verifier receives `--ignore-scripts` to avoid a
+second build. The release `:run` scripts are internal leaves; their public wrappers
+remain safe to invoke independently because those wrappers own a build.
 
 ## Source Of Truth Check
 
@@ -67,8 +83,8 @@ graph TD
 |------|-------------|
 | Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) |
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
-| Generate runtime adapters | Runs `node scripts/generate.js` to rebuild all runtime outputs |
-| Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any generated file differs from what is committed |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
+| Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any tracked file (the marketplace/plugin manifest exemptions, or any hand-committed file) differs from freshly generated output. Most generated runtime output is untracked and `.gitignore`-governed, so this step does not diff-check it directly |
 | Run full test suite | Executes `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` |
 | Verify npm package contents | Runs `npm run pack:verify` to ensure npm dry-run packaging contains required runtime files and no test-only directories |
 | Package and verify release artifact | Runs `npm run release:artifacts` and `npm run release:verify-artifacts` to validate the generic GitHub Release archive |
@@ -203,14 +219,14 @@ graph TD
 |------|-------------|
 | Checkout | Checks out `refs/heads/main` explicitly, pinned to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` |
 | Setup Node.js | Node.js 20 with `registry-url` set to `https://registry.npmjs.org` |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Fails with `::error::Nightly drift detected on main` if generated files differ |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Sets `enabled=true` output if `NPM_TOKEN` secret is present |
 | Set nightly version | Computes version as `{base}-nightly.{YYYYMMDD}` using `npm version --no-git-tag-version` |
-| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the nightly version |
+| Regenerate runtime metadata | Runs `npm run generate` so runtime manifests and MCP package specs use the nightly version |
 | Verify npm package contents | Runs `npm run pack:verify` against the nightly package surface |
-| Publish nightly | Publishes through `node scripts/npm-publish-idempotent.js --tag nightly --access public`, skipping if the exact version already exists |
+| Publish nightly | Publishes through `node dist/src/tooling/npm-publish-idempotent.js --tag nightly --access public`, skipping if the exact version already exists |
 
 ### Environment and Secrets
 
@@ -275,14 +291,14 @@ graph TD
 |------|-------------|
 | Checkout | Checks out the PR head repository and SHA (supports fork PRs) |
 | Setup Node.js | Node.js 20 with npm registry URL |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Fails with `::error::Preview drift detected` if drift exists |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Set preview version | Computes version as `{base}-preview.{7-char SHA}` |
-| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the preview version |
+| Regenerate runtime metadata | Runs `npm run generate` so runtime manifests and MCP package specs use the preview version |
 | Verify npm package contents | Runs `npm run pack:verify` against the preview package surface |
-| Publish preview | Publishes through `node scripts/npm-publish-idempotent.js --tag preview --access public`, skipping if the exact version already exists |
+| Publish preview | Publishes through `node dist/src/tooling/npm-publish-idempotent.js --tag preview --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a PR comment with the install command |
 
 ### Environment and Secrets
@@ -336,7 +352,7 @@ graph TD
     I --> J["Generate and check drift"]
     J --> K["Run full test suite"]
     K --> L["Create release/vX.Y.Z branch"]
-    L --> M["Update canonical release inputs<br/>via scripts/update-versions.js"]
+    L --> M["Update canonical release inputs<br/>via dist/src/tooling/update-versions.js"]
     M --> N["Regenerate with new version"]
     N --> O["Commit: 'release: vX.Y.Z'"]
     O --> P["Push release branch"]
@@ -360,7 +376,7 @@ graph TD
 | Generate and check drift | Runs generator and fails if `main` has uncommitted drift |
 | Run full test suite | Executes the full test suite |
 | Create release branch | Creates `release/vX.Y.Z` from current `main` |
-| Update canonical release inputs | Runs `node scripts/update-versions.js` with the target version to update `package.json`, README badges, and CHANGELOG |
+| Update canonical release inputs | Runs `node dist/src/tooling/update-versions.js` with the target version to update `package.json`, README badges, and CHANGELOG |
 | Regenerate with new version | Reruns generator to derive runtime metadata from `package.json`, then runs `npm install --package-lock-only` to update lockfile |
 | Commit release | Commits all changes as `release: vX.Y.Z` using the `github-actions[bot]` identity |
 | Push release branch | Pushes `release/vX.Y.Z` to origin |
@@ -432,14 +448,14 @@ graph TD
 |------|-------------|
 | Checkout | Checks out the PR head repository and SHA |
 | Setup Node.js | Node.js 20 with npm registry URL |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Fails with `::error::RC drift detected` |
 | Run full test suite | Executes the full test suite |
 | Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Determine RC version | Reads base version from `package.json`, queries npm registry for existing RC versions of this base, increments the RC number to avoid collisions |
-| Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the RC version |
+| Regenerate runtime metadata | Runs `npm run generate` so runtime manifests and MCP package specs use the RC version |
 | Verify npm package contents | Runs `npm run pack:verify` against the RC package surface |
-| Publish RC | Publishes through `node scripts/npm-publish-idempotent.js --tag rc --access public`, skipping if the exact version already exists |
+| Publish RC | Publishes through `node dist/src/tooling/npm-publish-idempotent.js --tag rc --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a comment with install command and short SHA |
 
 ### Environment and Secrets
@@ -488,7 +504,7 @@ graph TD
     BB --> C
     C --> D{"Merged PR with<br/>'release' label found?"}
     D --> |"No"| E["Skip: not a release commit"]
-    D --> |"Yes"| F["Setup Node.js 24 with npm registry"]
+    D --> |"Yes"| F["Setup Node.js 20 with npm registry"]
     F --> G["Verify NPM_TOKEN"]
     G --> I["Extract and validate version,<br/>target SHA, and tag"]
     I --> J["Generate runtime adapters"]
@@ -512,17 +528,17 @@ graph TD
 |------|-------------|
 | Checkout | Full history (`fetch-depth: 0`) for tag operations. Push releases check out the pushed commit; manual recovery checks out `target_sha` or `refs/tags/v<version>`. |
 | Resolve release context | Push releases query the GitHub API for PRs associated with the current commit SHA and filter for merged PRs targeting `main` with the `release` label. Manual recovery sets the release context from the supplied version. If no push release is found, sets `is_release=false` and all subsequent steps are skipped. |
-| Setup Node.js | Conditional on `is_release=true`; Node.js 24 with npm registry URL |
+| Setup Node.js | Conditional on `is_release=true`; Node.js 20 with npm registry URL |
 | Verify npm token | Fails before tag or publish work unless `NPM_TOKEN` is configured |
 | Extract and validate version | Reads version from `package.json` and cross-validates: the version must be stable semver, the CHANGELOG must have a matching section (unconditional), any existing `vX.Y.Z` tag must point at the checked-out target SHA, and manual recovery must match both the requested `version` and `target_sha` when supplied. When the release branch name matches `release/vX.Y.Z` and the PR title matches `release: vX.Y.Z`, their embedded versions must agree with `package.json`. |
-| Generate runtime adapters | Runs `node scripts/generate.js` |
+| Generate runtime adapters | Runs `npm run check:source`, which builds once and then invokes the build-free generator leaf |
 | Check adapter drift | Final drift check before release; fails with error annotation |
 | Run full test suite | Final test gate before release |
 | Verify npm package contents | Runs `npm run pack:verify` before any tag or publish operation |
 | Package release artifact | Runs `npm run release:artifacts` to create `dist/release/maestro-vX.Y.Z-extension.tar.gz` |
 | Verify release artifact | Runs `npm run release:verify-artifacts` against the generated archive |
 | Create and push tag | Creates Git tag `vX.Y.Z` at the checked-out target SHA; handles idempotency (skips if tag exists at same SHA, fails if tag exists at different SHA) |
-| Publish to npm | Publishes stable release through `node scripts/npm-publish-idempotent.js --access public` with `NODE_AUTH_TOKEN` derived from `NPM_TOKEN`, skipping if the exact version already exists |
+| Publish to npm | Publishes stable release through `node dist/src/tooling/npm-publish-idempotent.js --access public` with `NODE_AUTH_TOKEN` derived from `NPM_TOKEN`, skipping if the exact version already exists |
 | Extract changelog | Extracts the version-specific section from `CHANGELOG.md` using `awk` |
 | Create GitHub Release | Uses `softprops/action-gh-release` (pinned to SHA `c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda`, v2.2.1) with CHANGELOG excerpt as body and the generic extension archive attached |
 
@@ -570,8 +586,10 @@ The `justfile` provides local development commands that mirror CI behavior.
 | `just test-transforms` | Run only transform unit tests | No CI equivalent |
 | `just test-integration` | Run only integration tests | No CI equivalent |
 | `just check` | Generate + verify zero drift | Replicated in all 6 generator workflows |
-| `just check-layers` | Verify `lib/` layer boundary imports | No CI workflow equivalent |
-| `just ci` | Full CI equivalent: `check` + `check-layers` + `test` | Superset of CI (includes `check-layers`) |
+| `just check-layers` | Verify `lib/` layer boundary imports | Covered by source-check workflows |
+| `just source-check` | Generate, drift-check, layer-check, and test | Source validation workflow equivalent |
+| `just release-check` | Verify npm package and release artifact surfaces | Release/package validation workflow equivalent |
+| `just ci` | Source CI equivalent: `source-check` | Source validation shortcut |
 | `just cleanup-branches` | Delete local branches whose remote is gone | No CI equivalent |
 
 ### CI Mapping
@@ -579,14 +597,16 @@ The `justfile` provides local development commands that mirror CI behavior.
 The workflows replicate the following `just` commands:
 
 ```
-just generate  -->  node scripts/generate.js
+just generate  -->  npm run generate
 just check     -->  git diff --exit-code --name-only (after generate)
-just test      -->  node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
-pack verify    -->  npm run pack:verify
-artifact check -->  npm run release:artifacts && npm run release:verify-artifacts
+source check   -->  npm run check:source / just source-check
+just test      -->  npm run test (one build-generation boundary, then test:run)
+release check  -->  npm run check:release / just release-check
 ```
 
-The local `just ci` recipe runs `check`, `check-layers`, and `test`. The GitHub source-of-truth workflow runs `generate`, drift check, `test`, npm pack verification, and release artifact verification, but does not run `check-layers` (`node scripts/check-layer-boundaries.js`). The layer boundary check is a local-only validation.
+The local `just ci` recipe is the source validation shortcut and expands to
+`just source-check`. Package and release artifact verification are intentionally
+separate through `just release-check` or `npm run check:release`.
 
 ---
 

@@ -1,16 +1,8 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  TITLE_SPECIAL_CASES,
-  toSnakeCase,
-  toKebabCase,
-  toPascalCase,
-  toTitleCase,
-  replaceInContent,
-} = require('../../src/lib/naming');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { toSnakeCase, toKebabCase, toPascalCase, toTitleCase, replaceInContent } from '../../dist/src/lib/naming/index.js';
+import { expandEntryPoints } from '../../dist/src/generator/entry-point-expander.js';
+import { repoPath } from '../support/paths.js';
 
 const AGENT_NAMES = [
   'accessibility-specialist',
@@ -78,8 +70,8 @@ const ENTRY_POINT_TITLE_EXPECTED = {
   'status': 'Status',
   'security-audit': 'Security Audit',
   'perf-check': 'Perf Check',
-  'seo-audit': 'SEO Audit',
-  'a11y-audit': 'Accessibility Audit',
+  'seo-audit': 'Seo Audit',
+  'a11y-audit': 'A11y Audit',
   'compliance-check': 'Compliance Check',
   'orchestrate': 'Orchestrate',
   'execute': 'Execute',
@@ -162,22 +154,16 @@ describe('toTitleCase', () => {
     assert.equal(toTitleCase('security-audit'), 'Security Audit');
   });
 
-  it('applies special-case mapping for a11y-audit', () => {
-    assert.equal(toTitleCase('a11y-audit'), 'Accessibility Audit');
+  it('title-cases a11y-audit purely (special titles now live in the registry)', () => {
+    assert.equal(toTitleCase('a11y-audit'), 'A11y Audit');
   });
 
-  it('applies special-case mapping for seo-audit', () => {
-    assert.equal(toTitleCase('seo-audit'), 'SEO Audit');
+  it('title-cases seo-audit purely (special titles now live in the registry)', () => {
+    assert.equal(toTitleCase('seo-audit'), 'Seo Audit');
   });
 
   it('returns empty string for empty input', () => {
     assert.equal(toTitleCase(''), '');
-  });
-
-  it('exposes TITLE_SPECIAL_CASES map', () => {
-    assert.equal(typeof TITLE_SPECIAL_CASES, 'object');
-    assert.equal(TITLE_SPECIAL_CASES['a11y-audit'], 'Accessibility Audit');
-    assert.equal(TITLE_SPECIAL_CASES['seo-audit'], 'SEO Audit');
   });
 });
 
@@ -249,4 +235,15 @@ describe('toTitleCase matches entry-point-expander toTitle', () => {
       assert.equal(toTitleCase(epName), ENTRY_POINT_TITLE_EXPECTED[epName]);
     });
   }
+});
+
+describe('entry-point title override', () => {
+  const SRC = repoPath('src');
+
+  it('renders the registry title for a11y-audit into the Claude skill', async () => {
+    const outputs = await expandEntryPoints('claude', SRC);
+    const a11y = outputs.find((o) => o.outputPath === 'claude/skills/a11y-audit/SKILL.md');
+    assert.ok(a11y, 'a11y-audit skill is generated');
+    assert.match(a11y.content, /# Maestro Accessibility Audit/);
+  });
 });

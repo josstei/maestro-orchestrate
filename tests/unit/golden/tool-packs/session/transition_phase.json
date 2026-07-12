@@ -1,0 +1,107 @@
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "completed_phase_id": {
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "downstream_context": {
+      "type": "object",
+      "properties": {
+        "key_interfaces_introduced": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "patterns_established": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        },
+        "integration_points": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        },
+        "assumptions": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        },
+        "warnings": {
+          "$ref": "#/properties/downstream_context/properties/key_interfaces_introduced"
+        }
+      },
+      "additionalProperties": true
+    },
+    "files_created": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files_modified": {
+      "$ref": "#/properties/files_created"
+    },
+    "files_deleted": {
+      "$ref": "#/properties/files_created"
+    },
+    "next_phase_id": {
+      "anyOf": [
+        {
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "next_phase_ids": {
+      "type": "array",
+      "items": {
+        "type": [
+          "number",
+          "string"
+        ]
+      },
+      "description": "Start multiple phases (parallel batch). Mutually exclusive with next_phase_id."
+    },
+    "batch_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Batch identifier for parallel dispatch. Sets current_batch in state."
+    },
+    "token_usage": {
+      "type": "object",
+      "additionalProperties": {}
+    },
+    "task_report": {
+      "type": "string",
+      "description": "Full agent Task Report text for the completed phase. The server derives blocker_count by parsing its Blockers section."
+    },
+    "review_finding_count": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Number of Completion-phase code-review findings recorded for the completed phase. Stored as review_finding_count."
+    }
+  },
+  "required": [
+    "session_id"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -31,6 +31,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Infer version from commits
         if: inputs.version == ''
         id: infer
@@ -83,17 +86,8 @@ jobs:
             exit 1
           fi
 
-      - name: Generate and check drift
-        run: |
-          node scripts/generate.js
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Generated files have drift on main. Fix before releasing."
-            git diff --stat
-            exit 1
-          fi
-
-      - name: Run full test suite
-        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+      - name: Run source check
+        run: npm run check:source
 
       - name: Create release branch
         env:
@@ -104,11 +98,11 @@ jobs:
       - name: Update canonical release inputs
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: node scripts/update-versions.js "$VERSION"
+        run: node dist/src/tooling/update-versions.js "$VERSION"
 
       - name: Regenerate with new version
         run: |
-          node scripts/generate.js
+          npm run generate
           npm install --package-lock-only
 
       - name: Commit release
@@ -132,11 +126,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          CHANGELOG_EXCERPT=$(awk -v version="$VERSION" '
-            index($0, "## [" version "]") == 1 { found=1; next }
-            /^## \[/ && found { exit }
-            found { print }
-          ' CHANGELOG.md)
+          CHANGELOG_EXCERPT=$(node dist/src/tooling/changelog-section.js "$VERSION")
           gh pr create \
             --repo "$REPOSITORY" \
             --base main \

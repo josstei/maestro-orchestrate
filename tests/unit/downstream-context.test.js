@@ -1,15 +1,13 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   CANONICAL_FIELDS,
   createEmptyDownstreamContext,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape,
-} = require('../../src/mcp/contracts/downstream-context');
+} from '../../dist/src/mcp/contracts/downstream-context.js';
 
 describe('downstream-context contract', () => {
   it('declares exactly the five canonical fields in frozen order', () => {

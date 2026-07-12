@@ -1,15 +1,17 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const {
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { writeFixtureFile } from '../support/filesystem.js';
+
+import {
   DRY_RUN_MARKER,
   createTempRepoCopy,
   getGitStatus,
   parseDryRunReport,
   ROOT,
   runGenerator,
-} = require('./helpers');
+} from './helpers.js';
 
 describe('generator integration', () => {
   it('--dry-run reports manifest status without mutating the worktree', () => {
@@ -67,10 +69,10 @@ describe('generator integration', () => {
       const registryPath = path.join(repoRoot, 'src/generated/agent-registry.json');
       const before = fs.readFileSync(registryPath, 'utf8');
 
-      fs.writeFileSync(
-        path.join(repoRoot, 'src/agents/registry-dry-run-test.md'),
+      writeFixtureFile(
+        repoRoot,
+        'src/agents/registry-dry-run-test.md',
         '---\nname: registry-dry-run-test\ncapabilities: read_only\n---\nBody\n',
-        'utf8'
       );
 
       runGenerator(['--dry-run'], { cwd: repoRoot });
@@ -89,16 +91,62 @@ describe('generator integration', () => {
       const registryPath = path.join(repoRoot, 'src/generated/agent-registry.json');
       const before = fs.readFileSync(registryPath, 'utf8');
 
-      fs.writeFileSync(
-        path.join(repoRoot, 'src/agents/registry-diff-test.md'),
+      writeFixtureFile(
+        repoRoot,
+        'src/agents/registry-diff-test.md',
         '---\nname: registry-diff-test\ncapabilities: read_only\n---\nBody\n',
-        'utf8'
       );
 
       runGenerator(['--diff'], { cwd: repoRoot });
 
       const after = fs.readFileSync(registryPath, 'utf8');
       assert.equal(after, before);
+    } finally {
+      fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
+    }
+  });
+
+  it('writes all final registry projections from tracked authored source', () => {
+    const repoRoot = createTempRepoCopy('maestro-generator-registry-write-');
+
+    try {
+      const generatedDir = path.join(repoRoot, 'src/generated');
+      fs.rmSync(generatedDir, { recursive: true, force: true });
+      writeFixtureFile(
+        repoRoot,
+        'src/agents/registry-write-test.md',
+        [
+          '---',
+          'name: registry-write-test',
+          'description: "Registry projection fixture"',
+          'color: blue',
+          'focus: "Registry projection fixture"',
+          'tools: []',
+          'tools.claude: []',
+          'max_turns: 1',
+          'temperature: 0',
+          'timeout_mins: 1',
+          'capabilities: read_only',
+          '---',
+          'Fixture body.',
+          '',
+        ].join('\n'),
+      );
+
+      runGenerator([], { cwd: repoRoot });
+
+      const agentRegistry = JSON.parse(
+        fs.readFileSync(path.join(generatedDir, 'agent-registry.json'), 'utf8')
+      );
+      const resourceRegistry = JSON.parse(
+        fs.readFileSync(path.join(generatedDir, 'resource-registry.json'), 'utf8')
+      );
+      const hookRegistry = JSON.parse(
+        fs.readFileSync(path.join(generatedDir, 'hook-registry.json'), 'utf8')
+      );
+      assert.equal(agentRegistry.some((agent) => agent.name === 'registry-write-test'), true);
+      assert.equal(resourceRegistry.delegation, 'skills/shared/delegation/SKILL.md');
+      assert.equal(hookRegistry['before-agent'].fn, 'handleBeforeAgent');
     } finally {
       fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
     }

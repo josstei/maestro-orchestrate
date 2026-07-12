@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { getRecoveryHint } = require('../../src/mcp/core/recovery-hints');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { getRecoveryHint } from '../../dist/src/mcp/server/recovery-hints.js';
 
 describe('getRecoveryHint', () => {
   it('returns hint for create_session "already exists" error', () => {

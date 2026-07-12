@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "properties": {
+    "blueprint_id": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "blueprint_id",
+    "task"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

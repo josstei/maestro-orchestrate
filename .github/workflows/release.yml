@@ -74,8 +74,12 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.detect.outputs.is_release == 'true'
         with:
-          node-version: '24'
+          node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm ci
 
       - name: Verify npm token
         if: steps.detect.outputs.is_release == 'true'
@@ -150,34 +154,13 @@ jobs:
             exit 1
           fi
 
-      - name: Generate runtime adapters
+      - name: Run source check
         if: steps.detect.outputs.is_release == 'true'
-        run: node scripts/generate.js
+        run: npm run check:source
 
-      - name: Check adapter drift
+      - name: Run release/package check
         if: steps.detect.outputs.is_release == 'true'
-        run: |
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Runtime adapters are out of sync with canonical src. Run 'node scripts/generate.js' and commit the changes."
-            git diff --stat
-            exit 1
-          fi
-
-      - name: Run full test suite
-        if: steps.detect.outputs.is_release == 'true'
-        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
-
-      - name: Verify npm package contents
-        if: steps.detect.outputs.is_release == 'true'
-        run: npm run pack:verify
-
-      - name: Package release artifact
-        if: steps.detect.outputs.is_release == 'true'
-        run: npm run release:artifacts
-
-      - name: Verify release artifact
-        if: steps.detect.outputs.is_release == 'true'
-        run: npm run release:verify-artifacts
+        run: npm run check:release
 
       - name: Create and push tag
         if: steps.detect.outputs.is_release == 'true'
@@ -207,9 +190,38 @@ jobs:
 
       - name: Publish to npm
         if: steps.detect.outputs.is_release == 'true'
-        run: node scripts/npm-publish-idempotent.js --access public
+        run: node dist/src/tooling/npm-publish-idempotent.js --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+
+      - name: Build dist snapshot commit
+        if: steps.detect.outputs.is_release == 'true'
+        id: dist
+        run: |
+          DIST_SHA=$(node dist/src/tooling/publish-dist-branch.js | tail -n 1)
+          if [[ ! "$DIST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::dist/src/tooling/publish-dist-branch.js did not print a commit SHA; got '$DIST_SHA'"
+            exit 1
+          fi
+
+          echo "dist_sha=$DIST_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Push dist branch and tag
+        if: steps.detect.outputs.is_release == 'true'
+        env:
+          DIST_SHA: ${{ steps.dist.outputs.dist_sha }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git push --force origin "${DIST_SHA}:refs/heads/dist"
+
+          DIST_TAG="dist/v${VERSION}"
+          EXISTING_SHA=$(git ls-remote origin "refs/tags/${DIST_TAG}" | cut -f1)
+          if [ -n "$EXISTING_SHA" ]; then
+            echo "Tag ${DIST_TAG} already exists at ${EXISTING_SHA}. Skipping."
+            exit 0
+          fi
+
+          git push origin "${DIST_SHA}:refs/tags/${DIST_TAG}"
 
       - name: Extract changelog for version
         if: steps.detect.outputs.is_release == 'true'
@@ -217,17 +229,29 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          NOTES=$(awk -v version="$VERSION" '
-            index($0, "## [" version "]") == 1 { found=1; next }
-            /^## \[/ && found { exit }
-            found { print }
-          ' CHANGELOG.md)
+          NOTES=$(node dist/src/tooling/changelog-section.js "$VERSION")
           DELIMITER="CHANGELOG_NOTES_$(date +%s)"
           {
             echo "notes<<$DELIMITER"
             echo "$NOTES"
             echo "$DELIMITER"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Verify release asset shape
+        if: steps.detect.outputs.is_release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ASSET="dist/release/maestro-v${VERSION}-extension.tar.gz"
+          if [ ! -f "$ASSET" ]; then
+            echo "::error::Release asset missing: $ASSET"
+            exit 1
+          fi
+
+          if ! tar -tzf "$ASSET" | grep -Fxq './gemini-extension.json'; then
+            echo "::error::Release asset is malformed: gemini-extension.json is not at the archive root of $ASSET"
+            exit 1
+          fi
 
       - name: Create GitHub Release
         if: steps.detect.outputs.is_release == 'true'

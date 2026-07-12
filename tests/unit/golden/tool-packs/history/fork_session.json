@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "source_session_id": {
+      "type": "string"
+    },
+    "new_session_id": {
+      "type": "string"
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "source_session_id",
+    "new_session_id"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

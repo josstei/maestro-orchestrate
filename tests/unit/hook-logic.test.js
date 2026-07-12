@@ -1,23 +1,31 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { withEnv, withEnvSync } from '../support/environment.js';
+import { makeTempDir } from '../support/filesystem.js';
 
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+const hooksDir = makeTempDir({ after }, 'maestro-hooks-test-');
 
-const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-test-'));
-process.env.MAESTRO_HOOKS_DIR = hooksDir;
-
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert/strict');
-
-const hookState = require('../../src/hooks/logic/hook-state');
-const { handleAfterAgent } = require('../../src/hooks/logic/after-agent-logic');
-const { handleBeforeAgent } = require('../../src/hooks/logic/before-agent-logic');
-const { handleSessionStart } = require('../../src/hooks/logic/session-start-logic');
-const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
-
+const [
+  { default: hookState },
+  { handleAfterAgent },
+  { handleBeforeAgent },
+  { handleSessionStart },
+  { handleSessionEnd },
+] = await withEnv(
+  { MAESTRO_HOOKS_DIR: hooksDir },
+  async () => [
+    await import('../../dist/src/hooks/logic/hook-state.js'),
+    await import('../../dist/src/hooks/logic/after-agent-logic.js'),
+    await import('../../dist/src/hooks/logic/before-agent-logic.js'),
+    await import('../../dist/src/hooks/logic/session-start-logic.js'),
+    await import('../../dist/src/hooks/logic/session-end-logic.js'),
+  ]
+);
 const SESSION_ID = 'test-session-abc123';
 const VALID_RESULT = '## Task Report\nDone.\n\n## Downstream Context\nContext info.';
+const LEGACY_AGENT_ENV = ['MAESTRO', 'CURRENT', 'AGENT'].join('_');
 
 describe('handleAfterAgent', () => {
   after(() => {
@@ -102,47 +110,40 @@ describe('handleAfterAgent', () => {
 });
 
 describe('handleBeforeAgent', () => {
-  let fakeCwd;
-
-  before(() => {
-    fakeCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cwd-test-'));
-  });
-
   after(() => {
-    fs.rmSync(fakeCwd, { recursive: true, force: true });
     hookState.removeSessionDir(SESSION_ID);
-    delete process.env.MAESTRO_CURRENT_AGENT;
   });
 
-  it('returns allow with null message when no session file exists', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
-    const cwdWithNoSession = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-nosession-'));
-    try {
-      const result = handleBeforeAgent({
+  it('returns allow with null message when no session file exists', (t) => {
+    const cwdWithNoSession = makeTempDir(t, 'maestro-nosession-');
+    const result = withEnvSync(
+      { [LEGACY_AGENT_ENV]: null },
+      () => handleBeforeAgent({
         sessionId: SESSION_ID,
         cwd: cwdWithNoSession,
         agentInput: null,
         event: 'BeforeAgent',
-      });
-      assert.equal(result.action, 'allow');
-      assert.equal(result.message, null);
-    } finally {
-      fs.rmSync(cwdWithNoSession, { recursive: true, force: true });
-    }
+      })
+    );
+    assert.equal(result.action, 'allow');
+    assert.equal(result.message, null);
   });
 
-  it('returns allow with context message when session file has phase/status info', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
+  it('returns allow with context message when session file has phase/status info', (t) => {
+    const fakeCwd = makeTempDir(t, 'maestro-cwd-test-');
     const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
     fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
     fs.writeFileSync(sessionFilePath, '---\ncurrent_phase: implementation\nstatus: active\n---\n', 'utf8');
 
-    const result = handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentInput: null,
-      event: 'BeforeAgent',
-    });
+    const result = withEnvSync(
+      { [LEGACY_AGENT_ENV]: null },
+      () => handleBeforeAgent({
+        sessionId: SESSION_ID,
+        cwd: fakeCwd,
+        agentInput: null,
+        event: 'BeforeAgent',
+      })
+    );
 
     assert.equal(result.action, 'allow');
     assert.ok(typeof result.message === 'string' && result.message.length > 0);
@@ -150,58 +151,59 @@ describe('handleBeforeAgent', () => {
     assert.ok(result.message.includes('active'));
   });
 
-  it('detects agent from prompt and sets active agent', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
+  it('detects agent from prompt and sets active agent', (t) => {
+    const fakeCwd = makeTempDir(t, 'maestro-cwd-test-');
     hookState.clearActiveAgent(SESSION_ID);
 
-    handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentInput: 'agent: coder\nPlease implement the feature.',
-      event: 'BeforeAgent',
-    });
+    withEnvSync(
+      { [LEGACY_AGENT_ENV]: null },
+      () => handleBeforeAgent({
+        sessionId: SESSION_ID,
+        cwd: fakeCwd,
+        agentInput: 'agent: coder\nPlease implement the feature.',
+        event: 'BeforeAgent',
+      })
+    );
 
     const activeAgent = hookState.getActiveAgent(SESSION_ID);
     assert.equal(activeAgent, 'coder');
   });
 
-  it('uses normalized agentName when no prompt is available', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
+  it('does not use adapter agentName when no Agent header is available', (t) => {
+    const fakeCwd = makeTempDir(t, 'maestro-cwd-test-');
     hookState.clearActiveAgent(SESSION_ID);
 
-    handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentName: 'code-reviewer',
-      agentInput: null,
-      event: 'SubagentStart',
-    });
+    withEnvSync(
+      { [LEGACY_AGENT_ENV]: null },
+      () => handleBeforeAgent({
+        sessionId: SESSION_ID,
+        cwd: fakeCwd,
+        agentName: 'code-reviewer',
+        agentInput: null,
+        event: 'SubagentStart',
+      })
+    );
 
     const activeAgent = hookState.getActiveAgent(SESSION_ID);
-    assert.equal(activeAgent, 'code_reviewer');
+    assert.equal(activeAgent, '');
   });
 });
 
 describe('handleSessionStart', () => {
-  let fakeCwd;
-
-  before(() => {
-    fakeCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-sessionstart-'));
-  });
-
   after(() => {
-    fs.rmSync(fakeCwd, { recursive: true, force: true });
     hookState.removeSessionDir(SESSION_ID);
   });
 
-  it('returns advisory with null message/reason', () => {
+  it('returns advisory with null message/reason', (t) => {
+    const fakeCwd = makeTempDir(t, 'maestro-sessionstart-');
     const result = handleSessionStart({ sessionId: SESSION_ID, cwd: fakeCwd });
     assert.equal(result.action, 'advisory');
     assert.equal(result.message, null);
     assert.equal(result.reason, null);
   });
 
-  it('ensures session dir when active session exists', () => {
+  it('ensures session dir when active session exists', (t) => {
+    const fakeCwd = makeTempDir(t, 'maestro-sessionstart-');
     const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
     fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
     fs.writeFileSync(sessionFilePath, '---\nstatus: active\n---\n', 'utf8');

@@ -15,10 +15,22 @@ Before constructing any delegation prompt, inject the shared agent base protocol
 1. Load `agent-base-protocol` via `get_skill_content`
 2. Load `filesystem-safety-protocol` via `get_skill_content`
 3. Prepend both protocols to the delegation prompt (base protocol first, then filesystem safety) — these appear before the task-specific content
-4. For each phase listed in the current phase's `blocked_by`, read `phases[].downstream_context` from session state and include it in the prompt
-5. If any required `downstream_context` is missing, include an explicit placeholder noting the missing dependency context (never omit silently)
+4. Call `get_agent_memory` for the target agent and include any returned memory in the delegation prompt context before task-specific instructions
+5. For each phase listed in the current phase's `blocked_by`, read `phases[].downstream_context` from session state and include it in the prompt
+6. If any required `downstream_context` is missing, include an explicit placeholder noting the missing dependency context (never omit silently)
 
 The injected protocol ensures every agent follows consistent pre-work procedures and output formatting regardless of their specialization.
+
+### Agent Memory Injection
+
+Before constructing the final delegation prompt, call `get_agent_memory` with the target agent name. If the tool returns a non-empty `memory` string, add an `Agent Memory` block inside the Context section:
+
+```
+Agent Memory for [target agent]:
+[memory returned by get_agent_memory]
+```
+
+Treat these notes as durable repo-specific context for the target agent: established conventions, prior pitfalls, preferred commands, and do-not-repeat guidance. They inform the agent's approach but do not override the current task scope, file ownership, user instructions, or tool restrictions. If no memory exists, omit the block rather than adding placeholder text.
 
 ### Context Chain Construction
 
@@ -127,47 +139,7 @@ Explicitly state what the agent must NOT do:
 
 ## Agent Selection Guide
 
-| Task Domain | Agent | Key Capability |
-|-------------|-------|---------------|
-| System architecture, component design | `architect` | Read-only analysis, architecture patterns |
-| Cloud architecture, multi-region topology | `cloud-architect` | Read-only cloud/IaC architecture |
-| Enterprise integration architecture | `solutions-architect` | Read-only cross-team architecture |
-| API contracts, endpoint design | `api-designer` | Read-only, REST/GraphQL expertise |
-| Feature implementation, coding | `coder` | Full read/write/shell access |
-| Code quality assessment | `code-reviewer` | Read-only, verified findings |
-| Database schema, queries, ETL | `data-engineer` | Full read/write/shell access |
-| RDBMS tuning, indexes, migration safety | `database-administrator` | Read + shell for database analysis |
-| DB2 operations and tuning | `db2-dba` | Read + shell for DB2-specific work |
-| Bug investigation, root cause | `debugger` | Read + shell for investigation |
-| CI/CD, infrastructure, deployment | `devops-engineer` | Full read/write/shell access |
-| Internal platforms, paved paths | `platform-engineer` | Full platform implementation access |
-| B2B APIs, ETL, message brokers | `integration-engineer` | Full integration implementation access |
-| SLOs, runbooks, reliability | `site-reliability-engineer` | Read + shell reliability analysis |
-| Metrics, logs, traces, dashboards | `observability-engineer` | Full observability implementation access |
-| Performance analysis, profiling | `performance-engineer` | Read + shell for profiling |
-| Code restructuring, modernization | `refactor` | Read/write/shell, skill activation |
-| Security assessment, vulnerability | `security-engineer` | Read + shell for scanning |
-| Test creation, TDD, coverage | `tester` | Full read/write/shell access |
-| Documentation, READMEs, guides | `technical-writer` | Read/write, no shell |
-| Release notes, changelogs, rollout | `release-manager` | Read/write for release artifacts |
-| Technical SEO auditing | `seo-specialist` | Read + shell + web search/fetch |
-| Marketing copy, content writing | `copywriter` | Read/write |
-| Content planning, strategy | `content-strategist` | Read + web search/fetch |
-| User experience design | `ux-designer` | Read/write + web search |
-| WCAG compliance auditing | `accessibility-specialist` | Read + shell + web search |
-| Requirements, product strategy | `product-manager` | Read/write + web search |
-| Tracking, measurement | `analytics-engineer` | Full read/write/shell access |
-| Internationalization | `i18n-specialist` | Full read/write/shell access |
-| Design tokens, theming | `design-system-engineer` | Full read/write/shell access |
-| Legal, regulatory compliance | `compliance-reviewer` | Read + web search/fetch |
-| Mobile platform work | `mobile-engineer` | Full mobile implementation access |
-| Model training and inference integration | `ml-engineer` | Full ML implementation access |
-| Model operations and model CI/CD | `mlops-engineer` | Full MLOps implementation access |
-| Prompt design, few-shot, RAG tuning | `prompt-engineer` | Read/write prompt and eval design |
-| Mainframe COBOL, JCL, CICS/IMS | `cobol-engineer` | Full mainframe implementation access |
-| IBM HLASM for z/OS | `hlasm-assembler-specialist` | Full assembly implementation access |
-| IBM i RPG/CL, DB2 for i | `ibm-i-specialist` | Full IBM i implementation access |
-| z/OS systems programming, JCL, RACF | `zos-sysprog` | Read + shell for z/OS system work |
+<!-- @roster -->
 
 ## Agent Tool Dispatch Contract
 
@@ -283,10 +255,13 @@ Maestro hooks fire at agent boundaries during delegation, providing context inje
 
 Before each agent dispatch, a hook tracks which agent is currently executing:
 
-- Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
-- Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
+- Required signal: the `Agent: <agent_name>` header in the delegation prompt
 
-The detected agent name is persisted to `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/active-agent` and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
+Runtime adapters may map a first-class subagent identity field into that header
+before invoking shared hook logic. Environment variables, `@agent` mentions, and
+natural-language phrases are not identity signals.
+
+The detected agent name is persisted to the hook-state `active-agent` file (see `session-management`'s Hook-Level Session State section for the directory layout) and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
 
 ### Session Context Injection
 

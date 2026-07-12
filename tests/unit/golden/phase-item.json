@@ -1,0 +1,47 @@
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parallel": {
+      "type": "boolean"
+    },
+    "blocked_by": {
+      "type": "array",
+      "items": {
+        "$ref": "#/properties/value/properties/id"
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "agent",
+    "parallel",
+    "blocked_by"
+  ],
+  "additionalProperties": true
+}

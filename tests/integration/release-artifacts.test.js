@@ -1,15 +1,16 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-
-const { createTempRepoCopy } = require('./helpers');
-const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
-const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifacts');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createTempRepoCopy } from './helpers.js';
+import { packageReleaseArtifacts } from '../../dist/src/tooling/package-release-artifacts.js';
+import { verifyReleaseArtifact } from '../../dist/src/tooling/verify-release-artifacts.js';
+import {
+  BUILD_ONLY_DIST_ARCHIVE_PATHS,
+  BUILD_ONLY_SOURCE_ARCHIVE_PATHS,
+} from '../support/contracts.js';
 
 function cleanupRepoCopy(repoRoot) {
   fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
@@ -33,7 +34,77 @@ describe('release artifact packaging', () => {
       const archiveEntries = execFileSync('tar', ['-tzf', archivePath], { encoding: 'utf8' })
         .trim()
         .split('\n');
+      assert.equal(archiveEntries.some((entry) => entry === './src/' || entry.startsWith('./src/')), false);
+      assert.equal(archiveEntries.some((entry) => entry === './scripts/' || entry.startsWith('./scripts/')), false);
+      assert.equal(archiveEntries.some((entry) => entry === './bin/' || entry.startsWith('./bin/')), false);
+      assert.equal(archiveEntries.some((entry) => entry.endsWith('.d.ts')), false);
+      assert.equal(archiveEntries.some((entry) => entry.endsWith('.map')), false);
       assert.equal(archiveEntries.includes('./claude/scripts/policy-enforcer.test.js'), false);
+      assert.ok(archiveEntries.includes('./dist/src/bin/maestro-install-codex.js'));
+      assert.ok(archiveEntries.includes('./dist/src/bin/maestro-mcp-server.js'));
+      assert.ok(archiveEntries.includes('./dist/src/generated/runtime-content-registry.json'));
+      assert.ok(archiveEntries.includes('./dist/src/generated/runtime-content-registry.txt.gz'));
+      assert.ok(archiveEntries.includes('./dist/src/mcp/maestro-server.js'));
+      assert.ok(archiveEntries.includes('./dist/src/lib/framework-detection.js'));
+      assert.ok(archiveEntries.includes('./dist/src/platforms/codex/runtime-config.js'));
+      for (const rawContentRoot of [
+        './dist/src/agents/',
+        './dist/src/references/',
+        './dist/src/skills/',
+        './dist/src/templates/',
+      ]) {
+        assert.equal(
+          archiveEntries.some((entry) => entry.startsWith(rawContentRoot)),
+          false,
+          `${rawContentRoot} must not be archived as raw runtime content`
+        );
+      }
+      for (const buildOnlyPath of BUILD_ONLY_SOURCE_ARCHIVE_PATHS) {
+        assert.equal(archiveEntries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be archived`);
+      }
+      for (const buildOnlyPath of BUILD_ONLY_DIST_ARCHIVE_PATHS) {
+        assert.equal(archiveEntries.includes(buildOnlyPath), false, `${buildOnlyPath} must not be archived`);
+      }
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/generator/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/transforms/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/entry-points/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./src/lib/discovery/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => /^\.\/src\/platforms\/[^/]+\/metadata\.ts$/.test(entry)),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/generator/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/transforms/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/entry-points/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => entry.startsWith('./dist/src/lib/discovery/')),
+        false
+      );
+      assert.equal(
+        archiveEntries.some((entry) => /^\.\/dist\/src\/platforms\/[^/]+\/metadata\.js$/.test(entry)),
+        false
+      );
     } finally {
       cleanupRepoCopy(repoRoot);
     }
@@ -86,6 +157,33 @@ describe('release artifact packaging', () => {
       assert.throws(
         () => verifyReleaseArtifact(extraArchivePath, { root: repoRoot }),
         /Release artifact contains unallowlisted paths: unexpected-local-file\.txt/
+      );
+    } finally {
+      fs.rmSync(extractRoot, { recursive: true, force: true });
+      cleanupRepoCopy(repoRoot);
+    }
+  });
+
+  it('rejects an archive with build-only source checkout tooling', () => {
+    const repoRoot = createTempRepoCopy('maestro-release-source-tooling-');
+    const extractRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-source-tooling-extract-'));
+
+    try {
+      const { archivePath } = packageReleaseArtifacts({
+        root: repoRoot,
+        outDir: 'dist/release',
+      });
+      execFileSync('tar', ['-xzf', archivePath, '-C', extractRoot]);
+      const buildOnlyPath = path.join(extractRoot, 'src', 'generator', 'private.js');
+      fs.mkdirSync(path.dirname(buildOnlyPath), { recursive: true });
+      fs.writeFileSync(buildOnlyPath, 'module.exports = {};\n');
+
+      const extraArchivePath = path.join(path.dirname(archivePath), 'maestro-source-tooling-extension.tar.gz');
+      execFileSync('tar', ['-czf', extraArchivePath, '-C', extractRoot, '.']);
+
+      assert.throws(
+        () => verifyReleaseArtifact(extraArchivePath, { root: repoRoot }),
+        /Release artifact contains denied paths: src, src\/generator, src\/generator\/private\.js/
       );
     } finally {
       fs.rmSync(extractRoot, { recursive: true, force: true });

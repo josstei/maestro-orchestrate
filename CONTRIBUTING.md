@@ -14,6 +14,7 @@ Thank you for your interest in contributing to Maestro. This guide covers everyt
 git clone https://github.com/josstei/maestro-orchestrate.git
 cd maestro-orchestrate
 npm install
+npm run generate
 ```
 
 `npm install` installs dependencies only. Local git hook activation is explicit so package, pack, and publish flows do not mutate hook configuration. To activate the repo-local `pre-commit`, `commit-msg`, and `pre-push` hooks for this checkout, run:
@@ -25,6 +26,8 @@ npm run install-hooks
 Equivalent manual command: `git config core.hooksPath .githooks`.
 
 The hooks are best-effort — CI re-validates everything on PR submission and on direct pushes to `main`.
+
+Generated runtime surfaces (`agents/`, `claude/`, `plugins/maestro/`, `qwen/`, `docs/runtime-*.md`, and friends) are untracked and governed by the `.gitignore` contract — `npm run generate` must run at least once after cloning before any runtime can see its files. Run `npm run generate -- --list-outputs` to print the exact list of generator-owned paths. `just ci` (and `just check`) regenerate automatically before verifying, so those gate commands never need a manual generate step first — only ad hoc local runtime usage does.
 
 ## Key Commands
 
@@ -38,7 +41,9 @@ All commands are available via `just` or `npm`:
 | `just test-transforms` | Run only transform unit tests |
 | `just test-integration` | Run only integration tests |
 | `just check` | Generate + verify zero drift (`git diff --exit-code`) |
-| `just ci` | Full CI equivalent: check + check-layers + test |
+| `just source-check` | Generate, drift-check, layer-check, and test |
+| `just release-check` | Verify npm package and release artifact surfaces |
+| `just ci` | Source CI equivalent (`source-check`) |
 | `just dry-run` | Preview changes without writing |
 | `just diff` | Show unified diff of pending changes |
 
@@ -57,7 +62,14 @@ All hand-maintained code lives in `src/`. Everything outside `src/` at the runti
 | `plugins/maestro/` | Codex |
 | `qwen/` plus root `qwen-extension.json` and `QWEN.md` | Qwen Code |
 
-The generator pipeline reads `src/manifest.js` and applies transforms from `src/transforms/` to produce runtime-specific output.
+The generator pipeline reads `src/manifest.ts` and applies transforms from `src/transforms/` to produce runtime-specific output.
+
+When adding or retiring a generated surface, update its machine-readable entry in
+`src/generator/generated-surface-inventory.ts`, the owning generator, and the
+tests that prove the surface is generated or intentionally absent. If the public
+package or release surface changes, update `src/tooling/artifact-policy.ts`,
+`src/tooling/release-artifact-manifest.ts`, `src/tooling/verify-npm-pack.ts`,
+`package.json` `files`, and the runtime payload contract in the same change.
 
 ## Making Changes
 
@@ -78,7 +90,7 @@ The generator pipeline reads `src/manifest.js` and applies transforms from `src/
    just test
    ```
 
-5. **Verify zero drift** — CI enforces that generated output matches what is committed:
+5. **Verify zero drift** — CI enforces that tracked files (the three marketplace/plugin manifest exemptions, plus any hand-committed file you touched) match freshly generated output. Most generated runtime output is untracked and `.gitignore`-governed, so this check no longer diff-checks it directly — a clean, error-free `just generate` run is the correctness signal there:
    ```bash
    just check
    ```

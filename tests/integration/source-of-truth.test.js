@@ -1,37 +1,26 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { ROOT } = require('./helpers');
-const { expandManifest, assertNoMirroredSharedOutputs } = require('../../scripts/generate');
-const manifestRules = require('../../src/manifest');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT } from './helpers.js';
+import { expandManifest, assertNoMirroredSharedOutputs } from '../../dist/src/tooling/generate.js';
+import manifestRules from '../../dist/src/manifest.js';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 
 describe('src-first architecture invariants', () => {
-  it('ships a detached src payload for Claude isolated installs', () => {
+  it('does not ship a detached src payload for Claude installs', () => {
     assert.equal(
-      fs.existsSync(path.join(ROOT, 'claude/src/mcp/maestro-server.js')),
-      true,
-      'Expected detached Claude src payload to exist'
-    );
-    assert.equal(
-      fs.existsSync(path.join(ROOT, 'claude/src/version.json')),
-      true,
-      'Expected detached Claude src payload version metadata to exist'
+      fs.existsSync(path.join(ROOT, 'claude/src')),
+      false,
+      'Expected duplicate Claude src payload to be absent'
     );
   });
 
-  it('ships a detached src payload for Codex isolated installs', () => {
+  it('does not ship a detached src payload for Codex installs', () => {
     assert.equal(
-      fs.existsSync(path.join(ROOT, 'plugins/maestro/src/mcp/maestro-server.js')),
-      true,
-      'Expected detached Codex src payload to exist'
-    );
-    assert.equal(
-      fs.existsSync(path.join(ROOT, 'plugins/maestro/src/version.json')),
-      true,
-      'Expected detached Codex src payload version metadata to exist'
+      fs.existsSync(path.join(ROOT, 'plugins/maestro/src')),
+      false,
+      'Expected duplicate Codex src payload to be absent'
     );
   });
 
@@ -64,11 +53,10 @@ describe('src-first architecture invariants', () => {
     }
   });
 
-  it('keeps all runtime content policies filesystem-first with no registry fallback', () => {
+  it('keeps content policy out of runtime configs', () => {
     for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen']) {
       const runtimeConfig = getRuntimeConfig(runtimeName);
-      assert.equal(runtimeConfig.content.primary, 'filesystem');
-      assert.equal(runtimeConfig.content.fallback, 'none');
+      assert.equal(runtimeConfig.content, undefined);
     }
   });
 

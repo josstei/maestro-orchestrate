@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "tests/fixtures/mcp-command-table-type-contract.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

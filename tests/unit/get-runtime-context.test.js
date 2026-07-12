@@ -1,14 +1,14 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const codex = require('../../src/platforms/codex/runtime-config');
-const claude = require('../../src/platforms/claude/runtime-config');
-const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import codex from '../../dist/src/platforms/codex/runtime-config.js';
+import claude from '../../dist/src/platforms/claude/runtime-config.js';
+import { handleGetRuntimeContext } from '../../dist/src/mcp/handlers/get-runtime-context.js';
 
 describe('get_runtime_context response shape', () => {
+  const legacyDispatchKey = ['agent', 'dispatch'].join('_');
+
   it('codex returns delegation.constraints and plan_mode_native=false', () => {
-    const handler = createHandler(codex, () => '/workspace/suggestion');
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: codex, services: { workspaceSuggestion: () => '/workspace/suggestion' } });
     const result = handler({});
     assert.equal(result.plan_mode_native, false);
     assert.deepEqual(
@@ -19,16 +19,28 @@ describe('get_runtime_context response shape', () => {
   });
 
   it('claude returns plan_mode_native=true', () => {
-    const handler = createHandler(claude, () => null);
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: claude, services: { workspaceSuggestion: () => null } });
     const result = handler({});
     assert.equal(result.plan_mode_native, true);
     assert.equal(result.delegation.constraints.result_surface, 'synchronous');
     assert.equal(result.workspace_suggestion, null);
   });
 
-  it('preserves the legacy agent_dispatch.pattern field', () => {
-    const handler = createHandler(codex, () => null);
+  it('does not expose legacy dispatch fields', () => {
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: codex, services: { workspaceSuggestion: () => null } });
     const result = handler({});
-    assert.equal(result.agent_dispatch.pattern, 'spawn_agent(...)');
+    assert.equal(Object.hasOwn(result, legacyDispatchKey), false);
+    assert.equal(result.delegation.pattern, 'spawn_agent(...)');
+    assert.equal(result.delegation.naming, 'kebab-case');
+  });
+
+  it('codex nudges the user to enter Plan mode instead of pointing at update_plan', () => {
+    const handler = (params = {}) => handleGetRuntimeContext(params, { runtimeConfig: codex, services: { workspaceSuggestion: () => null } });
+    const result = handler({});
+    assert.equal(
+      result.tools.enter_plan_mode,
+      'not available — nudge the user to enter Plan mode manually before proceeding'
+    );
+    assert.notEqual(result.tools.enter_plan_mode, 'update_plan');
   });
 });

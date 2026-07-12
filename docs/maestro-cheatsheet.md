@@ -202,6 +202,6 @@ If you want to go deeper:
 2. `EXAMPLES.md`
 3. `docs/flow.md`
 4. `docs/architecture.md`
-5. `docs/runtime-gemini.md`
-6. `docs/runtime-claude.md`
-7. `docs/runtime-codex.md`
+5. `docs/runtime-gemini.md` (generated from `src/platforms/gemini/runtime-doc.md`)
+6. `docs/runtime-claude.md` (generated from `src/platforms/claude/runtime-doc.md`)
+7. `docs/runtime-codex.md` (generated from `src/platforms/codex/runtime-doc.md`)

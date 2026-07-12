@@ -1,0 +1,196 @@
+import type { EntryPointRegistryEntry } from '../generator/types.js';
+import { defineAudit } from './archetypes/audit-archetype.js';
+
+const entryPoints = [
+  defineAudit({
+    name: 'review',
+    runtimeNames: { codex: 'review-code', claude: 'review-code' },
+    description:
+      'Perform a Maestro-style code review with findings ordered by severity and concrete file references',
+    agent: 'code-reviewer',
+    skills: ['code-review'],
+    workflow: [
+      'Determine review scope: explicit user-provided paths, staged changes, or last commit diff',
+      'Delegate to the code-reviewer agent with the diff content and file paths',
+      'Review for correctness, regressions, security, maintainability risk, and missing tests',
+      'Classify findings by severity (Critical, Major, Minor, Suggestion) with concrete file and line references',
+      'Present findings first, ordered by severity; keep the closing summary brief and only after findings',
+    ],
+    constraints: [
+      'Do not bury findings behind a long overview',
+      'Every finding must reference a specific file and line number -- no speculative issues',
+      'If no findings exist, say so explicitly and note residual testing gaps',
+    ],
+  }),
+
+  {
+    name: 'debug',
+    runtimeNames: { codex: 'debug-workflow', claude: 'debug-workflow' },
+    description:
+      'Run the Maestro debugging workflow for investigation-heavy tasks',
+    agents: ['debugger'],
+    skills: ['delegation'],
+    refs: ['architecture'],
+    workflow: [
+      'Establish the failing behavior, repro path, and expected behavior',
+      'Form concrete hypotheses (2-3 likely root causes)',
+      'Gather evidence from code, logs, tests, and runtime behavior before proposing fixes',
+      'Isolate the most likely root cause and trace the execution path from trigger to failure',
+      'Verify the conclusion explains all symptoms and present the recommended fix with specific code location',
+    ],
+    constraints: [
+      'Prefer evidence over speculation',
+      'Make uncertainty explicit when the issue cannot be reproduced',
+      'Return root cause, affected files, confidence level, and the smallest defensible next action',
+    ],
+  },
+
+  {
+    name: 'archive',
+    description:
+      'Archive the active Maestro session while preserving the shared state layout',
+    agents: [],
+    skills: ['session-management'],
+    refs: ['architecture'],
+    workflow: [
+      'Check for an active session; if none exists, inform the user there is nothing to archive',
+      'Present a brief summary of what will be archived (session ID, task, phase progress)',
+      'Ask the user to confirm archival (the session may have incomplete phases)',
+      'Move the active session file into the state archive directory',
+      'Move the associated design and implementation plan files into the plans archive directory',
+      'Verify that no active-session file remains and report the archived paths',
+    ],
+    constraints: [
+      'Do not delete plan or session history',
+      'Preserve the existing archive directory structure',
+    ],
+  },
+
+  {
+    name: 'status',
+    description:
+      'Summarize the active Maestro session without mutating state',
+    agents: [],
+    skills: ['session-management'],
+    refs: ['architecture'],
+    workflow: [
+      'Read the active session using MCP state tools; stop if the MCP state surface is unavailable',
+      'Report session ID, creation timestamp, workflow mode, and overall status',
+      'Show phase breakdown: completed phases with timestamps, current active phase, pending phases, and failed phases with error summaries',
+      'Report file manifest (files created, modified, deleted), token usage by agent, and unresolved errors',
+    ],
+    constraints: [
+      'This is read-only; do not mutate state, archive sessions, or continue execution',
+      'If no active session exists, say so plainly',
+    ],
+  },
+
+  defineAudit({
+    name: 'security-audit',
+    description:
+      'Run a Maestro-style security assessment for authentication, authorization, data exposure, secret handling, and exploitability risks',
+    agent: 'security-engineer',
+    workflow: [
+      'Define the audit scope from the user request and relevant code paths',
+      'Trace trust boundaries, auth flows, secret handling, and data exposure paths',
+      'Review for exploitable flaws, unsafe defaults, OWASP Top 10 vulnerabilities, and high-risk dependencies',
+      'Classify findings by severity (CVSS-aligned) with file references and exploitability assessment',
+      'Provide remediation guidance with the highest-risk issues first',
+    ],
+    constraints: [
+      'Prefer actionable findings over generic security advice',
+      'Present findings before proposing remediation',
+      'State clearly when the review is limited by unavailable runtime context',
+      'Do not modify code without explicit user approval',
+    ],
+  }),
+
+  defineAudit({
+    name: 'perf-check',
+    description:
+      'Run a Maestro-style performance assessment for hotspots, regressions, and optimization planning',
+    agent: 'performance-engineer',
+    workflow: [
+      'Define the performance target or pain point',
+      'Establish the current baseline from available code, metrics, or reproducible commands',
+      'Identify likely hotspots, structural bottlenecks, and hot loops through code analysis',
+      'Prioritize fixes by expected impact versus implementation cost',
+      'Report measurement gaps when hard evidence is unavailable and propose a validation plan',
+    ],
+    constraints: [
+      'Avoid optimization advice that is disconnected from the observed bottleneck',
+      'Distinguish measured issues from inferred ones',
+    ],
+  }),
+
+  {
+    ...defineAudit({
+      name: 'seo-audit',
+      description:
+        'Run a Maestro-style SEO assessment for meta tags, structured data, crawlability, and Core Web Vitals',
+      agent: 'seo-specialist',
+      workflow: [
+        'Define the SEO audit scope (page or site)',
+        'Identify web-facing output files (HTML, templates, routes)',
+        'Audit meta tags, schema markup, crawlability, canonicalization, internal linking, and Core Web Vitals',
+        'Present findings with severity, SEO impact, location, and remediation guidance',
+        'Note any checks that require live-site verification if the current environment cannot provide it',
+      ],
+    }),
+    title: 'SEO Audit',
+  },
+
+  {
+    ...defineAudit({
+      name: 'a11y-audit',
+      description:
+        'Run a Maestro-style accessibility audit for WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility',
+      agent: 'accessibility-specialist',
+      workflow: [
+        'Define the accessibility audit scope and target conformance level (A, AA, AAA)',
+        'Identify UI components, pages, and interactive elements',
+        'Audit WCAG compliance: ARIA usage, keyboard navigation, focus management, color contrast, screen reader compatibility',
+        'Present findings with WCAG criterion reference, severity, user impact, location, and remediation code patterns',
+        'Note any manual verification gaps if the environment cannot exercise the UI directly',
+      ],
+    }),
+    title: 'Accessibility Audit',
+  },
+
+  defineAudit({
+    name: 'compliance-check',
+    description:
+      'Run a Maestro-style regulatory compliance review for GDPR/CCPA, cookie consent, data handling, and licensing',
+    agent: 'compliance-reviewer',
+    workflow: [
+      'Identify applicable regulations and define audit scope',
+      'Review data handling patterns, user disclosures, consent flows, retention policies, and third-party integrations',
+      'Audit regulatory compliance: GDPR/CCPA, cookie consent, data residency, licensing, and open-source obligations',
+      'Present findings with regulatory reference, severity, compliance risk, and recommended actions',
+      'Distinguish legal-risk observations from code-level bugs',
+    ],
+  }),
+
+  {
+    name: 'insights',
+    description:
+      'Render a cross-session cost and latency rollup from archived Maestro sessions',
+    agents: [],
+    skills: ['session-management'],
+    refs: ['architecture'],
+    workflow: [
+      'Confirm an initialized Maestro workspace; if the MCP state surface is unavailable, stop and report that insights require an initialized workspace',
+      'Call get_cost_insights to compute the aggregated per-agent token and latency rollup across archived sessions',
+      'Optionally call search_archived_sessions to enumerate or filter the underlying sessions by date, agent, or outcome',
+      'Present the rollup: total input/output/cached tokens, per-agent token and phase counts, and average phase latency, highest-cost agent first',
+      'Note explicitly when the rollup is empty because no sessions have been archived yet',
+    ],
+    constraints: [
+      'This is read-only; do not mutate session state or archive files',
+      'Do not fabricate cost figures — report only what get_cost_insights returns',
+      'If no archived sessions exist, say so plainly rather than inventing a rollup',
+    ],
+  },
+] satisfies EntryPointRegistryEntry[];
+
+export default entryPoints;

@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "topic": {
+      "type": "string",
+      "description": "Short topic label for the knowledge note."
+    },
+    "note": {
+      "type": "string",
+      "description": "Non-empty note content. Do not store secrets."
+    }
+  },
+  "required": [
+    "topic",
+    "note"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

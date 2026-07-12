@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "workspace_path": {
+      "type": "string",
+      "description": "Absolute path to the user workspace. Required. Must not be inside an extension cache directory."
+    },
+    "state_dir": {
+      "type": "string",
+      "description": "State directory relative to workspace_path. Defaults to docs/maestro."
+    }
+  },
+  "required": [
+    "workspace_path"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

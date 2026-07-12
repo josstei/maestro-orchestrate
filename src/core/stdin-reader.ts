@@ -1,0 +1,76 @@
+import { log } from './logger.js';
+const MAX_STDIN_BYTES = 1024 * 1024;
+
+function readText(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (process.stdin.isTTY) {
+      resolve('');
+      return;
+    }
+    const chunks: string[] = [];
+    let totalBytes = 0;
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => {
+      const text = String(chunk);
+      totalBytes += Buffer.byteLength(text, 'utf8');
+      if (totalBytes > MAX_STDIN_BYTES) {
+        log('ERROR', 'Stdin payload exceeds maximum size');
+        process.stdin.destroy();
+        reject(new Error('Stdin payload too large'));
+        return;
+      }
+      chunks.push(text);
+    });
+    process.stdin.on('end', () => {
+      resolve(chunks.join(''));
+    });
+    process.stdin.resume();
+  });
+}
+
+function readJson(): Promise<unknown> {
+  return readText().then((raw) => {
+    if (!raw.trim()) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {
+      log('WARN', 'Failed to parse JSON from stdin');
+      return {};
+    }
+  });
+}
+
+/**
+ * Read stdin as a raw Buffer and parse as JSON. No TTY guard — intended for
+ * hook adapters that always receive piped input.
+ *
+ * Rejects with `Stdin payload too large` if the payload exceeds the cap, and
+ * with the underlying `SyntaxError` if the payload is not valid JSON. Callers
+ * (see `hook-runner.js`) translate the rejection into an `errorFallback()`
+ * response on stdout instead of crashing the host process.
+ */
+function readBoundedJson(): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    process.stdin.on('data', (chunk) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+      totalBytes += buffer.length;
+      if (totalBytes > MAX_STDIN_BYTES) {
+        process.stdin.destroy();
+        reject(new Error('Stdin payload too large'));
+        return;
+      }
+      chunks.push(buffer);
+    });
+    process.stdin.on('end', () => {
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString()));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+export { readText, readJson, readBoundedJson };

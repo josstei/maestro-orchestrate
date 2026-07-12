@@ -1,14 +1,10 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert');
-const path = require('node:path');
-
-const configMapPath = path.resolve(__dirname, '../../src/mcp/runtime/runtime-config-map.js');
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import * as runtimeConfigMap from '../../dist/src/mcp/runtime/runtime-config-map.js';
 
 describe('runtime-config-map', () => {
-  it('discovers runtimes from platforms/ directory', () => {
-    const { getRuntimeConfig } = require(configMapPath);
+  it('resolves every supported runtime from the static catalog', () => {
+    const { getRuntimeConfig } = runtimeConfigMap;
 
     const expected = ['claude', 'codex', 'gemini', 'qwen'];
     for (const name of expected) {
@@ -21,9 +17,7 @@ describe('runtime-config-map', () => {
     const original = process.env.MAESTRO_RUNTIME;
     try {
       process.env.MAESTRO_RUNTIME = 'codex';
-      delete require.cache[configMapPath];
-      const { getDefaultRuntimeConfig } = require(configMapPath);
-      const config = getDefaultRuntimeConfig();
+      const config = runtimeConfigMap.getDefaultRuntimeConfig();
       assert.equal(config.name, 'codex');
     } finally {
       if (original !== undefined) {
@@ -31,41 +25,34 @@ describe('runtime-config-map', () => {
       } else {
         delete process.env.MAESTRO_RUNTIME;
       }
-      delete require.cache[configMapPath];
-      require(configMapPath);
     }
   });
 
-  it('getDefaultRuntimeConfig falls back to first discovered runtime without env var', () => {
+  it('getDefaultRuntimeConfig explicitly falls back to Claude without an env var', () => {
     const original = process.env.MAESTRO_RUNTIME;
     try {
       delete process.env.MAESTRO_RUNTIME;
-      delete require.cache[configMapPath];
-      const { getDefaultRuntimeConfig } = require(configMapPath);
-      const config = getDefaultRuntimeConfig();
-      assert.equal(config.name, 'claude', 'Expected fallback to first alphabetical runtime');
+      const config = runtimeConfigMap.getDefaultRuntimeConfig();
+      assert.equal(config.name, 'claude', 'Expected explicit Claude fallback');
     } finally {
       if (original !== undefined) {
         process.env.MAESTRO_RUNTIME = original;
       } else {
         delete process.env.MAESTRO_RUNTIME;
       }
-      delete require.cache[configMapPath];
-      require(configMapPath);
     }
   });
 
   it('does not export listRuntimeConfigs', () => {
-    const exports = require(configMapPath);
     assert.equal(
-      exports.listRuntimeConfigs,
+      runtimeConfigMap.listRuntimeConfigs,
       undefined,
       'listRuntimeConfigs should not be exported'
     );
   });
 
   it('throws for unknown runtime names', () => {
-    const { getRuntimeConfig } = require(configMapPath);
+    const { getRuntimeConfig } = runtimeConfigMap;
     assert.throws(
       () => getRuntimeConfig('nonexistent'),
       /Unknown runtime config/
@@ -73,13 +60,22 @@ describe('runtime-config-map', () => {
   });
 
   it('normalizeRuntimeConfig handles string, object, and falsy inputs', () => {
-    const { normalizeRuntimeConfig } = require(configMapPath);
+    const { normalizeRuntimeConfig } = runtimeConfigMap;
 
     const fromString = normalizeRuntimeConfig('claude');
     assert.equal(fromString.name, 'claude');
 
     const fromObject = normalizeRuntimeConfig({ name: 'test-runtime', tools: {} });
     assert.equal(fromObject.name, 'test-runtime');
+
+    const fromKnownObject = normalizeRuntimeConfig({
+      name: 'gemini',
+      env: { extensionPath: 'TEST_EXTENSION_PATH' },
+    });
+    assert.equal(fromKnownObject.name, 'gemini');
+    assert.equal(fromKnownObject.env.extensionPath, 'TEST_EXTENSION_PATH');
+    assert.equal(fromKnownObject.features.mcpStateContract, true);
+    assert.equal(fromKnownObject.tools.read_file, 'read_file');
 
     const fromFalsy = normalizeRuntimeConfig(null);
     assert.ok(fromFalsy.name, 'Expected fallback to default runtime');

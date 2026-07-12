@@ -1,12 +1,9 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { pruneStaleFiles } = require('../../src/generator/stale-pruner');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pruneStaleFiles } from '../../dist/src/generator/stale-pruner.js';
 
 function createTempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-stale-pruner-'));
@@ -171,6 +168,26 @@ describe('pruneStaleFiles', () => {
       assert.equal(result.pruned.length, 2);
       assert.ok(result.pruned.includes('agents/stale-agent.md'));
       assert.ok(result.pruned.includes('commands/stale-cmd.toml'));
+    } finally {
+      removeTempRoot(rootDir);
+    }
+  });
+
+  it('prunes stale qwen agent stubs when they fall out of the manifest', () => {
+    const rootDir = createTempRoot();
+    try {
+      createFile(rootDir, 'qwen/agents/current.md', 'current');
+      createFile(rootDir, 'qwen/agents/stale.md', 'stale');
+
+      const result = pruneStaleFiles({
+        rootDir,
+        manifestPaths: new Set(['qwen/agents/current.md']),
+        ownedDirs: ['qwen/agents'],
+      });
+
+      assert.deepEqual(result.pruned, ['qwen/agents/stale.md']);
+      assert.ok(fs.existsSync(path.join(rootDir, 'qwen', 'agents', 'current.md')));
+      assert.equal(fs.existsSync(path.join(rootDir, 'qwen', 'agents', 'stale.md')), false);
     } finally {
       removeTempRoot(rootDir);
     }

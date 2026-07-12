@@ -1,13 +1,15 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const { describe, it } = require('node:test');
-const { ROOT } = require('./helpers');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { describe, it } from 'node:test';
+import { ROOT } from './helpers.js';
+import { assertDistBuilt } from '../support/dist.js';
 
 function runInstaller(homeDir, args = []) {
-  return execFileSync('node', ['scripts/install-codex-plugin.js', ...args], {
+  assertDistBuilt(['src/bin/maestro-install-codex.js']);
+  return execFileSync('node', ['dist/src/bin/maestro-install-codex.js', ...args], {
     cwd: ROOT,
     env: { ...process.env, HOME: homeDir },
     encoding: 'utf8',
@@ -25,21 +27,14 @@ describe('codex installer integration', () => {
     try {
       const output = runInstaller(homeDir);
       const pluginManifest = path.join(homeDir, '.codex', 'plugins', 'maestro', '.codex-plugin', 'plugin.json');
-      const pluginSrcEntry = path.join(
-        homeDir,
-        '.codex',
-        'plugins',
-        'maestro',
-        'src',
-        'mcp',
-        'maestro-server.js'
-      );
+      const pluginSrc = path.join(homeDir, '.codex', 'plugins', 'maestro', 'src');
       const marketplaceFile = path.join(homeDir, '.agents', 'plugins', 'marketplace.json');
 
       assert.ok(fs.existsSync(pluginManifest), 'Expected installer to copy the Codex plugin bundle');
-      assert.ok(
-        fs.existsSync(pluginSrcEntry),
-        'Expected installer to copy the detached Codex src payload'
+      assert.equal(
+        fs.existsSync(pluginSrc),
+        false,
+        'Expected installer not to copy a duplicate Codex src payload'
       );
       assert.ok(fs.existsSync(marketplaceFile), 'Expected installer to create the personal marketplace file');
 
@@ -117,6 +112,51 @@ describe('codex installer integration', () => {
       assert.match(output, /Dry run complete\./);
       assert.equal(fs.existsSync(path.join(homeDir, '.codex')), false);
       assert.equal(fs.existsSync(path.join(homeDir, '.agents')), false);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts repeated dry-run flags without writing files', () => {
+    const homeDir = makeTempHome();
+
+    try {
+      const output = runInstaller(homeDir, ['--dry-run', '--dry-run']);
+
+      assert.match(output, /Dry run complete\./);
+      assert.equal(fs.existsSync(path.join(homeDir, '.codex')), false);
+      assert.equal(fs.existsSync(path.join(homeDir, '.agents')), false);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects positional and unknown options with the exact argument message', () => {
+    const homeDir = makeTempHome();
+
+    try {
+      for (const argument of ['plugin-path', '--unknown']) {
+        assert.throws(
+          () => runInstaller(homeDir, [argument]),
+          (error) => {
+            assert.equal(error.status, 1);
+            assert.match(error.stderr.toString('utf8'), new RegExp(`Unknown argument: ${argument}`));
+            return true;
+          }
+        );
+      }
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves help aliases and global help precedence', () => {
+    const homeDir = makeTempHome();
+
+    try {
+      assert.match(runInstaller(homeDir, ['--help']), /Usage:\n  maestro-install-codex/);
+      assert.match(runInstaller(homeDir, ['-h']), /Usage:\n  maestro-install-codex/);
+      assert.match(runInstaller(homeDir, ['plugin-path', '--help']), /Usage:\n  maestro-install-codex/);
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
     }

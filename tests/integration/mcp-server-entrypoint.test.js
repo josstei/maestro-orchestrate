@@ -1,87 +1,37 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { spawn } = require('node:child_process');
-
-const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { ROOT, withPackagedClaudeRuntime } from './helpers.js';
+import { makeTempDir, writeFixtureFile } from '../support/filesystem.js';
+import { spawnMcpServer, withMcpServer } from './mcp-stdio-client.js';
 
 function waitForServerStartup(relativePath, cwd = ROOT) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [relativePath], {
-      cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-
-    const timeout = setTimeout(() => {
-      finish(
-        new Error(
-          `Timed out waiting for ${relativePath} to start.\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
-        )
-      );
-    }, 5000);
-
-    function finish(error) {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-      clearTimeout(timeout);
-
-      if (!child.killed) {
-        child.kill('SIGTERM');
-        setTimeout(() => {
-          if (!child.killed) {
-            child.kill('SIGKILL');
-          }
-        }, 250).unref();
-      }
-
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve({ stdout, stderr });
-    }
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-
-      if (stderr.includes('[error] maestro: MCP server failed:')) {
-        finish(new Error(stderr.trim()));
-        return;
-      }
-
-      if (stderr.includes('[info] maestro: MCP server connected')) {
-        finish();
-      }
-    });
-
-    child.on('error', (error) => {
-      finish(error);
-    });
-
-    child.on('exit', (code, signal) => {
-      if (!settled) {
-        finish(
-          new Error(
-            `${relativePath} exited before startup completed (code=${code}, signal=${signal}).\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
-          )
-        );
-      }
-    });
-  });
+  return withMcpServer(
+    { cwd, relativePath },
+    (client) => ({ stderr: client.getStderr() }),
+    { initialize: false }
+  );
 }
 
 describe('mcp server entrypoint startup', () => {
+  it('escalates to SIGKILL when a child ignores SIGTERM', async (t) => {
+    const root = makeTempDir(t, 'maestro-stubborn-mcp-');
+    const entrypoint = writeFixtureFile(
+      root,
+      'stubborn-server.cjs',
+      `process.on('SIGTERM', () => {});
+console.error('[info] maestro: MCP server connected');
+setInterval(() => {}, 1000);
+`,
+    );
+    const client = spawnMcpServer({ cwd: root, relativePath: entrypoint });
+    t.after(() => client.close());
+
+    await client.ready;
+    await client.close();
+
+    assert.equal(client.child.signalCode, 'SIGKILL');
+  });
+
   it('starts the gemini runtime server without external SDK installation', async () => {
     const result = await waitForServerStartup('mcp/maestro-server.js');
 
@@ -96,17 +46,17 @@ describe('mcp server entrypoint startup', () => {
     assert.match(result.stderr, /\[info\] maestro: MCP server connected/);
   });
 
-  it('starts the installed claude runtime server from an isolated plugin bundle', async () => {
-    const result = await withIsolatedClaudePlugin((pluginRoot) =>
-      waitForServerStartup('mcp/maestro-server.js', pluginRoot)
+  it('starts the installed claude runtime server from a package-root runtime bundle', async () => {
+    const result = await withPackagedClaudeRuntime((packageRoot) =>
+      waitForServerStartup('claude/mcp/maestro-server.js', packageRoot)
     );
 
     assert.match(result.stderr, /\[info\] maestro: MCP server starting/);
     assert.match(result.stderr, /\[info\] maestro: MCP server connected/);
   });
 
-  it('starts the codex runtime server via the maestro-mcp-server bin', async () => {
-    const result = await waitForServerStartup('bin/maestro-mcp-server.js');
+  it('starts the codex runtime server via the compiled maestro-mcp-server bin', async () => {
+    const result = await waitForServerStartup('dist/src/bin/maestro-mcp-server.js');
 
     assert.match(result.stderr, /\[info\] maestro: MCP server starting/);
     assert.match(result.stderr, /\[info\] maestro: MCP server connected/);

@@ -1,27 +1,21 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
-const path = require('node:path');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const STDIN_READER = path.join(REPO_ROOT, 'src', 'core', 'stdin-reader.js');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { distModuleUrl } from '../support/dist.js';
+const STDIN_READER_URL = distModuleUrl('src/core/stdin-reader.js');
 
 function runWithStdin(fnName, stdin, { buffer = false } = {}) {
   const script = `
-    const reader = require(${JSON.stringify(STDIN_READER)});
-    (async () => {
-      try {
-        const result = await reader.${fnName}();
-        process.stdout.write(JSON.stringify({ ok: true, result }));
-      } catch (e) {
-        process.stdout.write(JSON.stringify({ ok: false, error: e.message }));
-      }
-    })();
+    const reader = await import(${JSON.stringify(STDIN_READER_URL)});
+    try {
+      const result = await reader.${fnName}();
+      process.stdout.write(JSON.stringify({ ok: true, result }));
+    } catch (e) {
+      process.stdout.write(JSON.stringify({ ok: false, error: e.message }));
+    }
   `;
   const input = buffer ? stdin : Buffer.from(stdin, 'utf8');
-  const out = spawnSync(process.execPath, ['-e', script], {
+  const out = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     input,
     stdio: ['pipe', 'pipe', 'pipe'],
   });

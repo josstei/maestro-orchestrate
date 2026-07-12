@@ -1,9 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { stripFeatureBlocks } = require('../../src/core/feature-blocks');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { stripFeatureBlocks } from '../../dist/src/core/feature-blocks.js';
 
 describe('stripFeatureBlocks', () => {
   it('keeps body content when flag is truthy', () => {

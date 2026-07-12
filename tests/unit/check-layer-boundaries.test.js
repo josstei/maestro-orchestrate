@@ -1,28 +1,40 @@
-'use strict';
-
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const SCRIPT = path.join(REPO_ROOT, 'scripts', 'check-layer-boundaries.js');
-
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
+const SCRIPT_RELATIVE_PATH = path.join('dist', 'src', 'tooling', 'check-layer-boundaries.js');
+const SCRIPT = path.join(REPO_ROOT, SCRIPT_RELATIVE_PATH);
+const CORE_DEPENDENCIES = [
+  path.join('dist', 'src', 'core', 'package-root.js'),
+];
 const tmpDirs = [];
 
 /**
  * Build a scratch repo that mirrors the expected layout so the script's
- * hardcoded `path.resolve(__dirname, '..', 'src', 'lib')` resolves onto
- * a directory we control.
+ * package-root resolution from the compiled checker resolves onto a directory
+ * we control.
  */
 function makeFixtureRepo() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-lint-'));
   tmpDirs.push(root);
-  fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
+  fs.mkdirSync(path.dirname(path.join(root, SCRIPT_RELATIVE_PATH)), { recursive: true });
   fs.mkdirSync(path.join(root, 'src', 'lib'), { recursive: true });
-  fs.copyFileSync(SCRIPT, path.join(root, 'scripts', 'check-layer-boundaries.js'));
+  fs.copyFileSync(SCRIPT, path.join(root, SCRIPT_RELATIVE_PATH));
+  for (const relativePath of CORE_DEPENDENCIES) {
+    fs.mkdirSync(path.dirname(path.join(root, relativePath)), { recursive: true });
+    fs.copyFileSync(path.join(REPO_ROOT, relativePath), path.join(root, relativePath));
+  }
+  fs.writeFileSync(
+    path.join(root, 'package.json'),
+    JSON.stringify({ name: '@josstei/maestro', type: 'module' }, null, 2) + '\n',
+    'utf8'
+  );
   return root;
 }
 
@@ -33,7 +45,7 @@ function writeLibFile(root, relPath, contents) {
 }
 
 function runScript(root) {
-  return spawnSync(process.execPath, [path.join(root, 'scripts', 'check-layer-boundaries.js')], {
+  return spawnSync(process.execPath, [path.join(root, SCRIPT_RELATIVE_PATH)], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
   });

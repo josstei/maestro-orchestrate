@@ -7,8 +7,10 @@
     {
       "name": "maestro",
       "source": {
-        "source": "local",
-        "path": "./plugins/maestro"
+        "source": "git-subdir",
+        "url": "https://github.com/josstei/maestro-orchestrate.git",
+        "path": "./plugins/maestro",
+        "ref": "dist"
       },
       "policy": {
         "installation": "AVAILABLE",

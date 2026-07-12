@@ -1,8 +1,11 @@
-const { spawn } = require('node:child_process');
-const path = require('node:path');
-const { pathToFileURL } = require('node:url');
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { ROOT } from './helpers.js';
 
-const { ROOT } = require('./helpers');
+const STARTUP_TIMEOUT_MS = 30000;
+const SIGTERM_GRACE_MS = 1000;
+const SIGKILL_GRACE_MS = 1000;
 
 function spawnMcpServer(options) {
   const cwd = options.cwd || ROOT;
@@ -33,16 +36,37 @@ function spawnMcpServer(options) {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
+  let stdout = '';
   let stdoutBuffer = '';
   let stderr = '';
   let ready = false;
+  let exited = false;
   let nextId = 1;
   let settleReady;
   let rejectReady;
+  let settleExit;
+  let closePromise;
 
   const readyPromise = new Promise((resolve, reject) => {
-    settleReady = resolve;
-    rejectReady = reject;
+    const timeout = setTimeout(() => {
+      reject(
+        new Error(
+          `Timed out waiting for ${relativePath} to start.\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
+        )
+      );
+    }, STARTUP_TIMEOUT_MS);
+
+    settleReady = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    rejectReady = (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    };
+  });
+  const exitPromise = new Promise((resolve) => {
+    settleExit = resolve;
   });
 
   const pending = new Map();
@@ -91,7 +115,9 @@ function spawnMcpServer(options) {
   }
 
   child.stdout.on('data', (chunk) => {
-    stdoutBuffer += chunk.toString('utf8');
+    const text = chunk.toString('utf8');
+    stdout += text;
+    stdoutBuffer += text;
 
     while (true) {
       const newlineIndex = stdoutBuffer.indexOf('\n');
@@ -128,6 +154,10 @@ function spawnMcpServer(options) {
   });
 
   child.on('error', (error) => {
+    if (child.pid == null && !exited) {
+      exited = true;
+      settleExit({ code: null, signal: null });
+    }
     if (!ready) {
       rejectReady(error);
     }
@@ -135,8 +165,10 @@ function spawnMcpServer(options) {
   });
 
   child.on('exit', (code, signal) => {
+    exited = true;
+    settleExit({ code, signal });
     const error = new Error(
-      `${relativePath} exited (code=${code}, signal=${signal}).\nSTDERR:\n${stderr}`
+      `${relativePath} exited (code=${code}, signal=${signal}).\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
     );
 
     if (!ready) {
@@ -199,16 +231,49 @@ function spawnMcpServer(options) {
       arguments: args,
     });
     const text = result && result.content && result.content[0] ? result.content[0].text : '{}';
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = null;
+    }
     return {
       raw: result,
-      parsed: JSON.parse(text),
+      parsed,
     };
   }
 
-  async function close() {
-    if (!child.killed) {
-      child.kill('SIGTERM');
+  function waitForExit(timeoutMs) {
+    if (exited) {
+      return Promise.resolve(true);
     }
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(false), timeoutMs);
+      exitPromise.then(() => {
+        clearTimeout(timeout);
+        resolve(true);
+      });
+    });
+  }
+
+  async function terminate() {
+    if (exited) return;
+
+    child.kill('SIGTERM');
+    if (await waitForExit(SIGTERM_GRACE_MS)) return;
+
+    child.kill('SIGKILL');
+    if (await waitForExit(SIGKILL_GRACE_MS)) return;
+
+    throw new Error(
+      `Failed to stop ${relativePath} after SIGTERM and SIGKILL.\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
+    );
+  }
+
+  function close() {
+    closePromise ||= terminate();
+    return closePromise;
   }
 
   return {
@@ -217,12 +282,25 @@ function spawnMcpServer(options) {
     initialize,
     listTools,
     callTool,
+    getStderr: () => stderr,
     ready: readyPromise,
     sendNotification,
     sendRequest,
   };
 }
 
-module.exports = {
-  spawnMcpServer,
-};
+async function withMcpServer(options, fn, { initialize = true } = {}) {
+  const client = spawnMcpServer(options);
+
+  try {
+    await client.ready;
+    if (initialize) {
+      await client.initialize();
+    }
+    return await fn(client);
+  } finally {
+    await client.close();
+  }
+}
+
+export { spawnMcpServer, withMcpServer };

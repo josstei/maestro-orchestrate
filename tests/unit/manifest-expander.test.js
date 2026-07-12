@@ -1,20 +1,16 @@
-'use strict';
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 
-const { describe, it, before, after } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-const fs = require('node:fs');
-const os = require('node:os');
-
-const {
+import {
   expandGlob,
   computeOutputPath,
-  normalizeOutputBase,
-  joinRelativePath,
   buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
-} = require('../../src/generator/manifest-expander');
+} from '../../dist/src/generator/manifest-expander.js';
 
 describe('manifest-expander', () => {
   let tmpDir;
@@ -88,142 +84,78 @@ describe('manifest-expander', () => {
   });
 
   describe('computeOutputPath', () => {
-    it('rewrites skills/shared/ to skills/', () => {
-      const result = computeOutputPath('skills/shared/delegation/SKILL.md', {
-        outputDir: './',
+    const cases = [
+      [
+        'rewrites skills/shared/ to skills/',
+        'skills/shared/delegation/SKILL.md',
+        { outputDir: './' },
+        'skills/delegation/SKILL.md',
+      ],
+      [
+        'applies snake_case naming for agent files',
+        'agents/foo-bar.md',
+        { agentNaming: 'snake_case', outputDir: './' },
+        'agents/foo_bar.md',
+      ],
+      [
+        'preserves kebab-case naming when agentNaming is not snake_case',
+        'agents/foo-bar.md',
+        { agentNaming: 'kebab-case', outputDir: './' },
+        'agents/foo-bar.md',
+      ],
+      [
+        'prepends outputDir when present and not ./',
+        'agents/baz.md',
+        { outputDir: 'claude/' },
+        'claude/agents/baz.md',
+      ],
+      [
+        'skips outputDir prepending for ./',
+        'agents/baz.md',
+        { outputDir: './' },
+        'agents/baz.md',
+      ],
+      [
+        'skips outputDir prepending when outputDir is undefined',
+        'agents/baz.md',
+        {},
+        'agents/baz.md',
+      ],
+      [
+        'applies both snake_case and outputDir together',
+        'agents/code-reviewer.md',
+        { agentNaming: 'snake_case', outputDir: 'plugins/maestro/' },
+        'plugins/maestro/agents/code_reviewer.md',
+      ],
+      [
+        'does not apply snake_case to non-agent paths',
+        'skills/shared/my-skill/SKILL.md',
+        { agentNaming: 'snake_case', outputDir: './' },
+        'skills/my-skill/SKILL.md',
+      ],
+    ];
+
+    for (const [name, input, options, expected] of cases) {
+      it(name, () => {
+        const result = computeOutputPath(input, options);
+
+        assert.equal(result, expected);
       });
-
-      assert.equal(result, 'skills/delegation/SKILL.md');
-    });
-
-    it('applies snake_case naming for agent files', () => {
-      const result = computeOutputPath('agents/foo-bar.md', {
-        agentNaming: 'snake_case',
-        outputDir: './',
-      });
-
-      assert.equal(result, 'agents/foo_bar.md');
-    });
-
-    it('preserves kebab-case naming when agentNaming is not snake_case', () => {
-      const result = computeOutputPath('agents/foo-bar.md', {
-        agentNaming: 'kebab-case',
-        outputDir: './',
-      });
-
-      assert.equal(result, 'agents/foo-bar.md');
-    });
-
-    it('prepends outputDir when present and not ./', () => {
-      const result = computeOutputPath('agents/baz.md', {
-        outputDir: 'claude/',
-      });
-
-      assert.equal(result, 'claude/agents/baz.md');
-    });
-
-    it('skips outputDir prepending for ./', () => {
-      const result = computeOutputPath('agents/baz.md', {
-        outputDir: './',
-      });
-
-      assert.equal(result, 'agents/baz.md');
-    });
-
-    it('skips outputDir prepending when outputDir is undefined', () => {
-      const result = computeOutputPath('agents/baz.md', {});
-
-      assert.equal(result, 'agents/baz.md');
-    });
-
-    it('applies both snake_case and outputDir together', () => {
-      const result = computeOutputPath('agents/code-reviewer.md', {
-        agentNaming: 'snake_case',
-        outputDir: 'plugins/maestro/',
-      });
-
-      assert.equal(result, 'plugins/maestro/agents/code_reviewer.md');
-    });
-
-    it('does not apply snake_case to non-agent paths', () => {
-      const result = computeOutputPath('skills/shared/my-skill/SKILL.md', {
-        agentNaming: 'snake_case',
-        outputDir: './',
-      });
-
-      assert.equal(result, 'skills/my-skill/SKILL.md');
-    });
-  });
-
-  describe('normalizeOutputBase', () => {
-    it('returns empty string for null input', () => {
-      assert.equal(normalizeOutputBase(null, 'claude'), '');
-    });
-
-    it('returns empty string for undefined input', () => {
-      assert.equal(normalizeOutputBase(undefined, 'claude'), '');
-    });
-
-    it('returns the string directly for string input', () => {
-      assert.equal(normalizeOutputBase('custom/base', 'claude'), 'custom/base');
-    });
-
-    it('returns runtime-specific value from object input', () => {
-      const outputBase = { claude: 'claude-base', gemini: 'gemini-base' };
-
-      assert.equal(normalizeOutputBase(outputBase, 'claude'), 'claude-base');
-      assert.equal(normalizeOutputBase(outputBase, 'gemini'), 'gemini-base');
-    });
-
-    it('returns empty string for missing runtime key in object input', () => {
-      const outputBase = { claude: 'claude-base' };
-
-      assert.equal(normalizeOutputBase(outputBase, 'codex'), '');
-    });
-
-    it('throws for invalid outputBase types', () => {
-      assert.throws(
-        () => normalizeOutputBase(42, 'claude'),
-        /Invalid outputBase/
-      );
-    });
-  });
-
-  describe('joinRelativePath', () => {
-    it('returns relativePath unchanged when base is empty', () => {
-      assert.equal(joinRelativePath('', 'agents/foo.md'), 'agents/foo.md');
-    });
-
-    it('joins base and relativePath with posix separator', () => {
-      assert.equal(joinRelativePath('custom', 'agents/foo.md'), 'custom/agents/foo.md');
-    });
-
-    it('normalizes redundant separators', () => {
-      assert.equal(joinRelativePath('base/', 'sub/file.md'), 'base/sub/file.md');
-    });
+    }
   });
 
   describe('buildRuntimeOutputPath', () => {
-    it('prepends outputDir to relativePath', () => {
-      assert.equal(
-        buildRuntimeOutputPath({ outputDir: 'claude/' }, 'agents/foo.md'),
-        'claude/agents/foo.md'
-      );
-    });
+    const cases = [
+      ['prepends outputDir to relativePath', { outputDir: 'claude/' }, 'agents/foo.md', 'claude/agents/foo.md'],
+      ['returns relativePath unchanged when outputDir is ./', { outputDir: './' }, 'agents/foo.md', 'agents/foo.md'],
+      ['returns relativePath unchanged when outputDir is absent', {}, 'agents/foo.md', 'agents/foo.md'],
+    ];
 
-    it('returns relativePath unchanged when outputDir is ./', () => {
-      assert.equal(
-        buildRuntimeOutputPath({ outputDir: './' }, 'agents/foo.md'),
-        'agents/foo.md'
-      );
-    });
-
-    it('returns relativePath unchanged when outputDir is absent', () => {
-      assert.equal(
-        buildRuntimeOutputPath({}, 'agents/foo.md'),
-        'agents/foo.md'
-      );
-    });
+    for (const [name, config, relativePath, expected] of cases) {
+      it(name, () => {
+        assert.equal(buildRuntimeOutputPath(config, relativePath), expected);
+      });
+    }
   });
 
   describe('assertNoMirroredSharedOutputs', () => {
@@ -235,82 +167,26 @@ describe('manifest-expander', () => {
       assert.doesNotThrow(() => assertNoMirroredSharedOutputs(manifest));
     });
 
-    it('throws for mcp/maestro-server-core.js', () => {
-      const manifest = [
-        { outputs: { gemini: 'mcp/maestro-server-core.js' } },
-      ];
+    const FORBIDDEN_OUTPUT_CASES = [
+      ['throws for mcp/maestro-server-core.js', 'gemini', 'mcp/maestro-server-core.js'],
+      ['throws for claude/mcp/maestro-server-core.js', 'claude', 'claude/mcp/maestro-server-core.js'],
+      ['throws for paths starting with lib/', 'gemini', 'lib/something.js'],
+      ['throws for paths starting with claude/lib/', 'claude', 'claude/lib/registry.js'],
+      ['throws for paths starting with plugins/maestro/lib/', 'codex', 'plugins/maestro/lib/agent-registry.js'],
+      ['throws for plugins/maestro/mcp/maestro-server-core.js', 'codex', 'plugins/maestro/mcp/maestro-server-core.js'],
+      ['throws for lib/mcp/generated/resource-registry.js', 'gemini', 'lib/mcp/generated/resource-registry.js'],
+    ];
 
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
+    for (const [name, runtime, outputPath] of FORBIDDEN_OUTPUT_CASES) {
+      it(name, () => {
+        const manifest = [{ outputs: { [runtime]: outputPath } }];
 
-    it('throws for claude/mcp/maestro-server-core.js', () => {
-      const manifest = [
-        { outputs: { claude: 'claude/mcp/maestro-server-core.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for paths starting with lib/', () => {
-      const manifest = [
-        { outputs: { gemini: 'lib/something.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for paths starting with claude/lib/', () => {
-      const manifest = [
-        { outputs: { claude: 'claude/lib/registry.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for paths starting with plugins/maestro/lib/', () => {
-      const manifest = [
-        { outputs: { codex: 'plugins/maestro/lib/agent-registry.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for plugins/maestro/mcp/maestro-server-core.js', () => {
-      const manifest = [
-        { outputs: { codex: 'plugins/maestro/mcp/maestro-server-core.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for lib/mcp/generated/resource-registry.js', () => {
-      const manifest = [
-        { outputs: { gemini: 'lib/mcp/generated/resource-registry.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
+        assert.throws(
+          () => assertNoMirroredSharedOutputs(manifest),
+          /not allowed in src-first mode/
+        );
+      });
+    }
   });
 
   describe('expandManifest', () => {
@@ -320,17 +196,18 @@ describe('manifest-expander', () => {
       codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
     };
 
-    it('passes through legacy rules with outputs field', () => {
-      const legacy = {
+    it('rejects unsupported fields instead of silently ignoring them', () => {
+      const rule = {
         src: 'some/file.md',
         transforms: ['copy'],
-        outputs: { gemini: 'out/file.md' },
+        runtimes: ['gemini'],
+        customOutput: 'out/file.md',
       };
 
-      const result = expandManifest([legacy], runtimes, tmpDir);
-
-      assert.equal(result.length, 1);
-      assert.deepStrictEqual(result[0], legacy);
+      assert.throws(
+        () => expandManifest([rule], runtimes, tmpDir),
+        /unsupported field "customOutput"/
+      );
     });
 
     it('expands glob rules into per-file entries', () => {
@@ -393,34 +270,6 @@ describe('manifest-expander', () => {
       const result = expandManifest([rule], runtimes, tmpDir);
 
       assert.equal(result[0].outputs.claude, 'claude/custom-output.md');
-    });
-
-    it('preserves source path when preserveSourcePath is set', () => {
-      const rule = {
-        src: 'agents/foo-bar.md',
-        transforms: ['copy'],
-        runtimes: ['gemini'],
-        preserveSourcePath: true,
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result[0].outputs.gemini, 'agents/foo-bar.md');
-    });
-
-    it('applies outputBase from object per runtime', () => {
-      const rule = {
-        src: 'agents/baz.md',
-        transforms: ['copy'],
-        runtimes: ['gemini', 'claude'],
-        preserveSourcePath: true,
-        outputBase: { gemini: 'custom', claude: 'other' },
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result[0].outputs.gemini, 'custom/agents/baz.md');
-      assert.equal(result[0].outputs.claude, 'claude/other/agents/baz.md');
     });
 
     it('throws when rule is missing runtimes', () => {

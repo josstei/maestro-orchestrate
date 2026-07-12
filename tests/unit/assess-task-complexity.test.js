@@ -1,15 +1,9 @@
-'use strict';
-
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
-  handleAssessTaskComplexity,
-} = require('../../src/mcp/handlers/assess-task-complexity');
-
+import { describe, it, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { handleAssessTaskComplexity } from '../../dist/src/mcp/handlers/assess-task-complexity.js';
 const tmpRoots = [];
 
 function makeRepo() {

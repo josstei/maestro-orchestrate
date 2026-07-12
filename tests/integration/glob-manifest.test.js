@@ -1,8 +1,10 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-
-const { expandManifest } = require('../../scripts/generate');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { expandManifest } from '../../dist/src/tooling/generate.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
 describe('expandManifest', () => {
   it('expands a glob entry into explicit entries per runtime', () => {
@@ -15,7 +17,7 @@ describe('expandManifest', () => {
       gemini: { name: 'gemini', outputDir: './', agentNaming: 'snake_case' },
       claude: { name: 'claude', outputDir: 'claude/', agentNaming: 'kebab-case' },
     };
-    const srcDir = path.resolve(__dirname, '../../src');
+    const srcDir = path.resolve(moduleDirname, '../../src');
     const entries = expandManifest([rule], runtimes, srcDir);
 
     assert.ok(entries.length >= 22, `Expected >= 22 entries, got ${entries.length}`);
@@ -37,7 +39,7 @@ describe('expandManifest', () => {
       claude: { name: 'claude', outputDir: 'claude/', agentNaming: 'kebab-case' },
       codex: { name: 'codex', outputDir: 'plugins/maestro/', agentNaming: 'kebab-case' },
     };
-    const srcDir = path.resolve(__dirname, '../../src');
+    const srcDir = path.resolve(moduleDirname, '../../src');
     const entries = expandManifest(rules, runtimes, srcDir);
 
     const coderEntries = entries.filter((e) => e.src === 'agents/coder.md');
@@ -59,23 +61,12 @@ describe('expandManifest', () => {
     const runtimes = {
       gemini: { name: 'gemini', outputDir: './', agentNaming: 'snake_case' },
     };
-    const srcDir = path.resolve(__dirname, '../../src');
+    const srcDir = path.resolve(moduleDirname, '../../src');
     const entries = expandManifest([rule], runtimes, srcDir);
 
     const crEntry = entries.find((e) => e.src === 'agents/code-reviewer.md');
     assert.ok(crEntry, 'code-reviewer.md should be in entries');
     assert.equal(crEntry.outputs.gemini, 'agents/code_reviewer.md');
-  });
-
-  it('passes through explicit entries unchanged', () => {
-    const entry = {
-      src: 'mcp/maestro-server.js',
-      transforms: ['strip-feature'],
-      outputs: { gemini: 'mcp/maestro-server.js', claude: 'claude/mcp/maestro-server.js' },
-    };
-    const entries = expandManifest([entry], {}, '/unused');
-    assert.equal(entries.length, 1);
-    assert.deepEqual(entries[0], entry);
   });
 
   it('throws on malformed rule missing glob and src', () => {
@@ -106,22 +97,4 @@ describe('expandManifest', () => {
     assert.equal(entries[0].outputs.gemini, 'hooks/hooks.json');
   });
 
-  it('preserves source paths under an output base when requested', () => {
-    const rule = {
-      glob: 'mcp/**/*.js',
-      transforms: ['copy'],
-      runtimes: ['codex'],
-      preserveSourcePath: true,
-      outputBase: 'src',
-    };
-    const runtimes = {
-      codex: { name: 'codex', outputDir: 'plugins/maestro/' },
-    };
-    const srcDir = path.resolve(__dirname, '../../src');
-    const entries = expandManifest([rule], runtimes, srcDir);
-
-    const serverEntry = entries.find((e) => e.src === 'mcp/maestro-server.js');
-    assert.ok(serverEntry, 'mcp/maestro-server.js should be included');
-    assert.equal(serverEntry.outputs.codex, 'plugins/maestro/src/mcp/maestro-server.js');
-  });
 });

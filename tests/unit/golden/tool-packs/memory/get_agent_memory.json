@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "agent": {
+      "type": "string",
+      "description": "Agent identifier to read memory for."
+    }
+  },
+  "required": [
+    "agent"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

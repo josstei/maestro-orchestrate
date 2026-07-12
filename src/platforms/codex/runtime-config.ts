@@ -1,0 +1,72 @@
+import type { RuntimeConfig } from '../runtime-descriptor.js';
+
+const CODEX_RUNTIME_CONFIG = {
+  name: 'codex',
+  outputDir: 'plugins/maestro/',
+
+  agentNaming: 'kebab-case',
+
+  mcpPrefix: 'mcp__maestro_maestro__',
+  plan_mode_native: false,
+
+  env: {
+    extensionPath: '.',
+    workspacePath: 'MAESTRO_WORKSPACE_PATH',
+  },
+
+  relativeExtensionPath: true,
+
+  tools: {
+    read_file: 'direct file reads',
+    list_directory: 'exec_command (`rg --files` or `ls`)',
+    glob: 'exec_command (`rg --files` or `find`)',
+    grep_search: 'exec_command (`rg`)',
+    google_web_search: 'web search',
+    web_fetch: 'web fetch',
+    write_file: 'apply_patch',
+    replace: 'apply_patch',
+    run_shell_command: 'exec_command',
+    ask_user: 'request_user_input',
+    read_many_files: 'direct file reads',
+    write_todos: 'update_plan',
+    activate_skill: 'open the referenced skill and follow it',
+    enter_plan_mode: 'not available — nudge the user to enter Plan mode manually before proceeding',
+    exit_plan_mode: 'request_user_input approval',
+    codebase_investigator: 'local inspection or spawn_agent',
+  },
+
+  delegation: {
+    pattern: 'spawn_agent(...)',
+    constraints: {
+      fork_full_context_incompatible_with: ['agent_type', 'model', 'reasoning_effort'],
+      result_surface: 'deferred',
+      child_cannot_prompt_user: true,
+    },
+  },
+
+  features: {
+    exampleBlocks: false,
+    mcpStateContract: true,
+  },
+
+  paths: {
+    skills: './skills/',
+    hooks: './scripts/',
+  },
+
+  generation: {
+    entryPoint: {
+      templateFile: 'codex-skill.md.tmpl',
+      outputPath: (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`,
+      preamblePlaceholder: 'refs_list',
+    },
+    coreCommand: {
+      templateFile: 'codex-core-command.md.tmpl',
+      outputPath: (entry) => `plugins/maestro/skills/${entry.name}/SKILL.md`,
+    },
+    hooks: null,
+  },
+} satisfies RuntimeConfig;
+
+export { CODEX_RUNTIME_CONFIG };
+export default CODEX_RUNTIME_CONFIG;

@@ -7,8 +7,9 @@ The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `sr
 ```
 ┌─────────────────────────────────────────────────┐
 │                   STARTUP                       │
-│  Turn 1: get_runtime_context → resolve_settings │
-│          → initialize_workspace → check session │
+│  Turn 1: get_runtime_context                    │
+│          → initialize_workspace                 │
+│          → resolve_settings → check session     │
 │          → assess_task_complexity                │
 │          → parse MAESTRO_DISABLED_AGENTS         │
 │          → STOP (no output in Turn 1)           │

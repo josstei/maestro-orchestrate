@@ -28,12 +28,12 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Metric | Count |
 |--------|-------|
 | Specialized agents | 39 |
-| MCP tools | 17 |
+| MCP tools | 40 |
 | Shared skills | 7 |
-| Entry-point commands | 9 (+ 3 core) |
+| Entry-point commands | 10 (+ 3 core) |
 | Runtime targets | 4 |
 | Source transforms | 6 |
-| Test files | 86 files across unit, transforms, and integration |
+| Test files | 185 files across unit, transforms, and integration |
 
 ## Project Structure
 
@@ -44,8 +44,10 @@ maestro-orchestrate/
 │   ├── skills/shared/            # 7 shared methodology modules + protocols
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
+│   ├── bin/                      # TypeScript public bin sources
+│   ├── tooling/                  # TypeScript generator, package, and release tooling
 │   ├── transforms/               # Generator transform library
-│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 6 templates
+│   ├── entry-points/             # 10 entry-point + 3 core-command registries, preamble builders, 6 templates
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
 │   ├── state/                    # Session-state helpers
@@ -53,11 +55,12 @@ maestro-orchestrate/
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime adapters, manifests, and public shells
-│   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
-│   └── manifest.js               # Declarative file mapping rules
-├── scripts/
-│   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 86 test files across unit, transforms, and integration
+│   └── manifest.ts               # Declarative file mapping rules
+├── dist/src/                     # Compiled NodeNext runtime and copied assets
+│   ├── bin/                      # Public package bin entrypoints
+│   ├── mcp/                      # Compiled MCP runtime
+│   └── tooling/generate.js       # Built generator entrypoint
+├── tests/                        # 185 test files across unit, transforms, and integration
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
@@ -76,7 +79,6 @@ maestro-orchestrate/
 │
 ├── plugins/maestro/              # [generated] Codex plugin
 │   ├── skills/                   # Codex skills (19)
-│   ├── src/                      # generated detached runtime payload
 │   ├── references/               # Runtime guide
 │   ├── .codex-plugin/            # Plugin manifest
 │   ├── .mcp.json                 # MCP server config (spawns bin via npx)
@@ -103,11 +105,17 @@ maestro-orchestrate/
 
 ### MCP Server
 
-A bundled Model Context Protocol server providing 17 tools across 3 packs:
+A bundled Model Context Protocol server providing 40 tools across 5 packs:
 
 - **Workspace** (4): initialize_workspace, assess_task_complexity, validate_plan, resolve_settings
-- **Session** (10): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase
+- **Session** (12): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase, search_archived_sessions, get_cost_insights
 - **Content** (3): get_skill_content, get_agent, get_runtime_context
+- **Memory** (15): get_project_profile, update_project_profile, record_validation_commands, get_agent_performance, recall_similar_sessions, rate, get_plan_accuracy, query_architecture_memory, get_agent_memory, append_agent_memory, compact_archive, record_knowledge, query_knowledge, export_memory_pack, import_memory_pack
+- **History** (6): fork_session, list_lineage, list_checkpoints, restore_checkpoint, instantiate_session_blueprint, list_session_blueprints
+
+Each pack is registered from a name-keyed command table that pairs its zod input
+shape with the handler, workspace requirement, and context projection used by
+the shared MCP tool pipeline.
 
 ### Skills
 
@@ -123,7 +131,7 @@ A bundled Model Context Protocol server providing 17 tools across 3 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
+A manifest-driven code generator (`src/tooling/generate.ts`, run through `npm run generate` as `dist/src/tooling/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI. Public package bins execute compiled `dist/src/bin/*` entrypoints, not package-root raw `src/`.
 
 ### State Management
 

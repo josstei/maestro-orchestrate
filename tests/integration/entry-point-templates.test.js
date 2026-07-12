@@ -1,10 +1,10 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { expandCoreCommands, expandEntryPoints } = require('../../scripts/generate');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { expandCoreCommands, expandEntryPoints } from '../../dist/src/tooling/generate.js';
 
 describe('expandEntryPoints', () => {
-  it('produces gemini TOML for each registry entry', () => {
-    const results = expandEntryPoints('gemini');
+  it('produces gemini TOML for each registry entry', async () => {
+    const results = await expandEntryPoints('gemini');
     assert.ok(results.length >= 9, `Expected >= 9 entries, got ${results.length}`);
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review, 'Should produce review entry');
@@ -13,8 +13,8 @@ describe('expandEntryPoints', () => {
     assert.ok(review.content.includes('prompt = """'));
   });
 
-  it('produces claude SKILL.md with frontmatter', () => {
-    const results = expandEntryPoints('claude');
+  it('produces claude SKILL.md with frontmatter', async () => {
+    const results = await expandEntryPoints('claude');
     assert.ok(results.length >= 9);
     const debug = results.find((r) => r.outputPath === 'claude/skills/debug-workflow/SKILL.md');
     assert.ok(debug);
@@ -22,8 +22,8 @@ describe('expandEntryPoints', () => {
     assert.ok(debug.content.includes('get_skill_content'));
   });
 
-  it('produces codex SKILL.md with a non-conflicting review skill name', () => {
-    const results = expandEntryPoints('codex');
+  it('produces codex SKILL.md with a non-conflicting review skill name', async () => {
+    const results = await expandEntryPoints('codex');
     assert.ok(results.length >= 9);
     const review = results.find((r) => r.outputPath === 'plugins/maestro/skills/review-code/SKILL.md');
     assert.ok(review);
@@ -32,8 +32,8 @@ describe('expandEntryPoints', () => {
     assert.ok(review.content.includes('get_skill_content'));
   });
 
-  it('produces codex SKILL.md with a non-conflicting debug skill name', () => {
-    const results = expandEntryPoints('codex');
+  it('produces codex SKILL.md with a non-conflicting debug skill name', async () => {
+    const results = await expandEntryPoints('codex');
     assert.ok(results.length >= 9);
     const debug = results.find((r) => r.outputPath === 'plugins/maestro/skills/debug-workflow/SKILL.md');
     assert.ok(debug);
@@ -42,8 +42,8 @@ describe('expandEntryPoints', () => {
     assert.ok(debug.content.includes('get_agent'));
   });
 
-  it('produces codex core SKILL.md with a non-conflicting resume skill name', () => {
-    const results = expandCoreCommands('codex');
+  it('produces codex core SKILL.md with a non-conflicting resume skill name', async () => {
+    const results = await expandCoreCommands('codex');
     assert.ok(results.length >= 3);
     const resume = results.find((r) => r.outputPath === 'plugins/maestro/skills/resume-session/SKILL.md');
     assert.ok(resume);
@@ -52,51 +52,51 @@ describe('expandEntryPoints', () => {
     assert.ok(resume.content.includes('get_skill_content'));
   });
 
-  it('gemini skills_block activates correct skills', () => {
-    const results = expandEntryPoints('gemini');
+  it('gemini skills_block activates correct skills', async () => {
+    const results = await expandEntryPoints('gemini');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
     assert.ok(review.content.includes('code-review'));
   });
 
-  it('claude protocol_block references delegation for agent entries', () => {
-    const results = expandEntryPoints('claude');
+  it('claude protocol_block references delegation for agent entries', async () => {
+    const results = await expandEntryPoints('claude');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
   });
 
-  it('codex refs_list includes agent references for entries with agents', () => {
-    const results = expandEntryPoints('codex');
+  it('codex refs_list includes agent references for entries with agents', async () => {
+    const results = await expandEntryPoints('codex');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_agent'));
     assert.ok(review.content.includes('code-reviewer'));
   });
 
-  it('entries without agents omit delegation references', () => {
-    const claudeResults = expandEntryPoints('claude');
+  it('entries without agents omit delegation references', async () => {
+    const claudeResults = await expandEntryPoints('claude');
     const status = claudeResults.find((r) => r.outputPath.includes('status'));
     assert.ok(status);
     // Status has no agents, so no delegation protocol block
     assert.ok(!status.content.includes('delegation skill'));
   });
 
-  it('gemini constraints appear in the prompt', () => {
-    const results = expandEntryPoints('gemini');
+  it('gemini constraints appear in the prompt', async () => {
+    const results = await expandEntryPoints('gemini');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('Do not bury findings'));
   });
 
-  it('codex workflow steps are numbered', () => {
-    const results = expandEntryPoints('codex');
+  it('codex workflow steps are numbered', async () => {
+    const results = await expandEntryPoints('codex');
     const debug = results.find((r) => r.outputPath.includes('debug-workflow'));
     assert.ok(debug.content.includes('1. '));
     assert.ok(debug.content.includes('2. '));
   });
 
-  it('produces claude SKILL.md with a non-conflicting review skill name', () => {
-    const results = expandEntryPoints('claude');
+  it('produces claude SKILL.md with a non-conflicting review skill name', async () => {
+    const results = await expandEntryPoints('claude');
     assert.ok(results.length >= 9);
     const review = results.find((r) => r.outputPath === 'claude/skills/review-code/SKILL.md');
     assert.ok(review);
@@ -105,8 +105,8 @@ describe('expandEntryPoints', () => {
     assert.ok(review.content.includes('get_skill_content'));
   });
 
-  it('produces claude SKILL.md with a non-conflicting debug skill name', () => {
-    const results = expandEntryPoints('claude');
+  it('produces claude SKILL.md with a non-conflicting debug skill name', async () => {
+    const results = await expandEntryPoints('claude');
     assert.ok(results.length >= 9);
     const debug = results.find((r) => r.outputPath === 'claude/skills/debug-workflow/SKILL.md');
     assert.ok(debug);
@@ -115,8 +115,8 @@ describe('expandEntryPoints', () => {
     assert.ok(debug.content.includes('get_skill_content'));
   });
 
-  it('produces claude core SKILL.md with a non-conflicting resume skill name', () => {
-    const results = expandCoreCommands('claude');
+  it('produces claude core SKILL.md with a non-conflicting resume skill name', async () => {
+    const results = await expandCoreCommands('claude');
     assert.ok(results.length >= 3);
     const resume = results.find((r) => r.outputPath === 'claude/skills/resume-session/SKILL.md');
     assert.ok(resume);
@@ -125,10 +125,20 @@ describe('expandEntryPoints', () => {
     assert.ok(resume.content.includes('get_skill_content'));
   });
 
-  it('claude public skills avoid reserved host command names', () => {
+  it('does not inject state helper scripts into Gemini core commands', async () => {
+    const results = await expandCoreCommands('gemini');
+    const resume = results.find((r) => r.outputPath === 'commands/maestro/resume.toml');
+    const removedReader = ['read', 'active', 'session'].join('-') + '.js';
+    assert.ok(resume);
+    assert.ok(!resume.content.includes(removedReader));
+    assert.ok(!resume.content.includes('<session-state>'));
+    assert.ok(resume.content.includes('Call get_session_status'));
+  });
+
+  it('claude public skills avoid reserved host command names', async () => {
     const publicSkills = [
-      ...expandEntryPoints('claude'),
-      ...expandCoreCommands('claude'),
+      ...(await expandEntryPoints('claude')),
+      ...(await expandCoreCommands('claude')),
     ];
     const reserved = ['review', 'debug', 'resume'];
 
@@ -144,10 +154,10 @@ describe('expandEntryPoints', () => {
     }
   });
 
-  it('codex public skills avoid reserved host command names', () => {
+  it('codex public skills avoid reserved host command names', async () => {
     const publicSkills = [
-      ...expandEntryPoints('codex'),
-      ...expandCoreCommands('codex'),
+      ...(await expandEntryPoints('codex')),
+      ...(await expandCoreCommands('codex')),
     ];
     const reserved = ['review', 'debug', 'resume'];
 

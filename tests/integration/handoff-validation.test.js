@@ -1,47 +1,20 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { createInitializedMcpWorkspace, phaseFixture, readSessionFrontmatter } from '../support/mcp.js';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-
-function createServerForWorkspace() {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createWorkspacePack, createSessionPack],
+async function prepareSession(testContext, phaseId = 1) {
+  const { server, workspace } = await createInitializedMcpWorkspace({
+    runtime: 'codex',
+    prefix: 'maestro-hv-',
+    testContext,
   });
-}
-
-async function prepareSession(phaseId = 1) {
-  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hv-'));
-  const server = createServerForWorkspace();
-  await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
   await server.callTool(
     'create_session',
     {
       session_id: 'hv-1',
       task: 'handoff',
       task_complexity: 'simple',
-      phases: [
-        {
-          id: phaseId,
-          name: 'P1',
-          agent: 'coder',
-          parallel: false,
-          blocked_by: [],
-          files: ['x'],
-        },
-      ],
+      phases: [phaseFixture({ id: phaseId, name: 'P1', files: ['x'] })],
     },
     workspace
   );
@@ -49,8 +22,8 @@ async function prepareSession(phaseId = 1) {
 }
 
 describe('handoff validation', () => {
-  it('rejects files with empty downstream_context and accepts array payload on retry', async () => {
-    const { server, workspace } = await prepareSession();
+  it('rejects files with empty downstream_context and accepts array payload on retry', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const empty = await server.callTool(
       'transition_phase',
@@ -79,8 +52,8 @@ describe('handoff validation', () => {
     assert.equal(populated.ok, true);
   });
 
-  it('accepts string-valued downstream_context per the agent-base-protocol template', async () => {
-    const { server, workspace } = await prepareSession();
+  it('accepts string-valued downstream_context per the agent-base-protocol template', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const stringForm = await server.callTool(
       'transition_phase',
@@ -106,11 +79,7 @@ describe('handoff validation', () => {
       `string-valued downstream_context should be accepted: ${stringForm.error || ''}`
     );
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readSessionFrontmatter(workspace);
     const phase = state.phases.find((candidate) => candidate.id === 1);
 
     assert.deepEqual(phase.downstream_context.integration_points, [
@@ -123,8 +92,8 @@ describe('handoff validation', () => {
     assert.deepEqual(phase.downstream_context.warnings, []);
   });
 
-  it('rejects downstream_context whose fields are all "none" even though the object is non-empty', async () => {
-    const { server, workspace } = await prepareSession();
+  it('rejects downstream_context whose fields are all "none" even though the object is non-empty', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const allNone = await server.callTool(
       'transition_phase',
@@ -151,8 +120,8 @@ describe('handoff validation', () => {
     );
   });
 
-  it('drops unknown (non-canonical) keys and normalizes case-mismatched inputs to empty', async () => {
-    const { server, workspace } = await prepareSession();
+  it('drops unknown (non-canonical) keys and normalizes case-mismatched inputs to empty', async (t) => {
+    const { server, workspace } = await prepareSession(t);
 
     const pascal = await server.callTool(
       'transition_phase',

@@ -11,6 +11,9 @@ Activate this skill when validating phase outputs during orchestration execution
 
 Execute validation steps in this order. Stop on the first blocking failure unless the user explicitly requests continuing.
 
+### Step 0: Consult Learned Commands
+Before applying the project-type heuristics below, call `get_project_profile` and read its `build_commands`, `test_commands`, and `lint_commands`. When a category is populated, run the most-recent command (the array head) for that stage instead of the heuristic default — these are commands verified in prior sessions on this exact repository. Fall back to the heuristic tables only for categories the profile leaves empty. If a recorded command fails or is flaky, demote it (do not re-run it ahead of the heuristic on the next pass) and fall through to the heuristic for that stage.
+
 ### Step 1: Build / Compile
 Verify the project compiles without errors.
 

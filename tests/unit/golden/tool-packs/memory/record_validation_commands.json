@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "commands": {
+      "type": "object",
+      "properties": {
+        "build": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "test": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lint": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "commands"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

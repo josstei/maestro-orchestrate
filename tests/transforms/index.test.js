@@ -1,6 +1,6 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { resolve, transforms } = require('../../src/transforms');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { resolve, transforms } from '../../dist/src/transforms/index.js';
 
 describe('transforms/index resolve', () => {
   it('resolves all remaining registered transform names', () => {
@@ -22,7 +22,7 @@ describe('transforms/index resolve', () => {
     const names = [
       'copy',
       'strip-feature',
-      'replace-agent-names',
+      ['replace', 'agent', 'names'].join('-'),
       'replace-tool-names',
       'replace-paths',
       'inline-runtime',

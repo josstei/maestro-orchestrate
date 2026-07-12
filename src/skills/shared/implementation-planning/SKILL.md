@@ -13,24 +13,25 @@ Activate this skill during Phase 2 of Maestro orchestration, after the design do
 
 Do not generate an implementation plan from guesses about the repository.
 
-Use the built-in `codebase_investigator` before phase decomposition when:
-- The task modifies an existing codebase
-- File ownership, integration points, or validation commands are still unclear after reading the approved design
-- Parallelization decisions depend on understanding current module boundaries or likely file overlap
-
-Ask the investigator for:
-- The modules and files most likely to change
-- Existing architectural boundaries and conventions the plan must preserve
-- Integration seams, dependencies, and shared ownership hotspots
-- Validation commands and test entry points already used by the project
-- Parallelization or conflict risks that should prevent batching
-
-Skip the investigator only for greenfield tasks, documentation-only work, or plans where the current turn already established the relevant repo structure from direct reads.
+Load the `codebase-grounding` reference via `get_skill_content` before phase decomposition. It defines when to delegate to `codebase_investigator` and when to skip.
 
 Reuse investigator findings directly in the implementation plan:
 - File inventories should reflect real candidate paths, not placeholders
 - Validation criteria should prefer repo-native commands the investigator surfaced
 - Parallel batches should account for actual ownership overlap and conflict risk
+
+## Prior-Session Memory Injection
+
+When `MAESTRO_MEMORY_INJECTION` resolves true (default true), consume the project profile and similar-session precedents already recalled before Plan Mode (orchestration step 9b, via `get_project_profile` and `recall_similar_sessions`). Before finalizing the plan, consult `get_plan_accuracy` when MCP tools are available; if the runtime has already carried plan-accuracy context forward, use that cached result instead. Do NOT call `get_project_profile` or `recall_similar_sessions` from within this skill — some runtimes deregister MCP tools during Plan Mode, so rely on the results carried forward as cached context.
+
+Fold the recalled memory into phase decomposition as OVERRIDABLE recommended defaults, never as fixed constraints:
+- **Learned validation commands** — prefer the profile's recorded build/test/lint commands as each phase's Validation Criteria, and let the user override them.
+- **Preferred and blocked agents** — bias agent assignment toward the profile's preferred agents and away from its blocked agents, stated as a recommendation.
+- **Do-not-touch paths** — keep recorded do-not-touch areas out of phase file ownership unless the user explicitly approves.
+- **Recorded warnings** — carry warnings from similar prior sessions into per-phase Retry Risk notes.
+- **Plan-vs-actual calibration** — use `get_plan_accuracy` precision and recall averages to tune phase file manifests before finalizing the plan. Low precision means prior plans missed actual changed files, so broaden ownership scans and name likely integration files. Low recall means prior plans listed too many untouched files, so tighten file lists to concrete candidates and avoid speculative ownership.
+
+When `MAESTRO_MEMORY_INJECTION` resolves false or no memory was recalled, plan with no injected defaults.
 
 ## Plan Generation Methodology
 
@@ -265,24 +266,7 @@ Use the `implementation-plan` template loaded via `get_skill_content`.
 
 ### Required Sections
 
-1. **Plan Overview**: Summary of total phases, agents involved, estimated effort
-2. **Dependency Graph**: Visual representation showing phase dependencies and parallel opportunities
-3. **Execution Strategy Table**: Stage-by-stage breakdown with agent assignments and execution mode
-4. **Phase Details**: Full specification for each phase (objective, agent, files, details, validation, dependencies)
-5. **File Inventory**: Complete table mapping every file to its phase and purpose
-6. **Risk Classification**: Per-phase risk assessment (LOW/MEDIUM/HIGH) with rationale
-7. **Execution Profile**: Summary of parallel vs sequential characteristics to inform mode selection:
-   ```
-   Execution Profile:
-   - Total phases: [N]
-   - Parallelizable phases: [M] (in [B] batches)
-   - Sequential-only phases: [S]
-   - Estimated parallel wall time: [time estimate based on batch execution]
-   - Estimated sequential wall time: [time estimate based on serial execution]
-
-   Note: Native parallel execution currently runs agents in autonomous mode.
-   All tool calls are auto-approved without user confirmation.
-   ```
+The plan document must follow the `implementation-plan` template's sections exactly — no ad hoc reordering or omission.
 
 ### Completion Criteria
 The implementation plan is complete when:

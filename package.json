@@ -1,6 +1,7 @@
 {
   "name": "@josstei/maestro",
   "version": "1.6.4",
+  "type": "module",
   "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase workflows, 4 runtime targets (Gemini CLI, Claude Code, OpenAI Codex, Qwen Code)",
   "license": "Apache-2.0",
   "author": {
@@ -14,18 +15,33 @@
     "url": "https://github.com/josstei/maestro-orchestrate.git"
   },
   "bin": {
-    "maestro-install-codex": "./scripts/install-codex-plugin.js",
-    "maestro-mcp-server": "./bin/maestro-mcp-server.js"
+    "maestro-install-codex": "./dist/src/bin/maestro-install-codex.js",
+    "maestro-mcp-server": "./dist/src/bin/maestro-mcp-server.js"
   },
   "scripts": {
-    "generate": "node scripts/generate.js",
-    "build": "npm run generate",
-    "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
+    "generate:run": "node dist/src/tooling/generate.js",
+    "generate": "npm run build && npm run generate:run",
+    "dev-load-claude": "npm run generate && node dist/src/tooling/assemble-claude-plugin.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:type-tests": "tsc -p tsconfig.type-tests.json --noEmit",
+    "build:clean": "node -e \"require('node:fs').rmSync('dist/src', { recursive: true, force: true })\"",
+    "build:code": "tsc -p tsconfig.build.json",
+    "build:assets": "node dist/src/tooling/copy-runtime-assets.js",
+    "build:bin-mode": "node -e \"const fs=require('node:fs'); for (const f of ['dist/src/bin/maestro-install-codex.js','dist/src/bin/maestro-mcp-server.js']) fs.chmodSync(f, 0o755)\"",
+    "build": "npm run build:clean && npm run build:code && npm run build:assets && npm run build:bin-mode",
+    "test:run": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
+    "test": "npm run generate && npm run test:run",
     "test:coverage": "c8 npm test",
-    "release:artifacts": "node scripts/package-release-artifacts.js --out-dir dist/release",
-    "release:verify-artifacts": "node scripts/verify-release-artifacts.js",
-    "pack:verify": "node scripts/verify-npm-pack.js",
-    "install-hooks": "node scripts/install-git-hooks.js",
+    "check:source": "npm run build && npm run generate:run && npm run typecheck:type-tests && git diff --exit-code --name-only && node dist/src/tooling/check-layer-boundaries.js && node dist/src/tooling/check-esm-imports.js && npm run test:run",
+    "check:release": "npm run build && npm run generate:run && npm run pack:verify:run -- --ignore-scripts && npm run release:artifacts:run && npm run release:verify-artifacts:run",
+    "retention:local": "npm run build && node dist/src/tooling/local-artifact-retention.js",
+    "release:artifacts:run": "node dist/src/tooling/package-release-artifacts.js --out-dir dist/release",
+    "release:artifacts": "npm run generate && npm run release:artifacts:run",
+    "release:verify-artifacts:run": "node dist/src/tooling/verify-release-artifacts.js",
+    "release:verify-artifacts": "npm run build && npm run release:verify-artifacts:run",
+    "pack:verify:run": "node dist/src/tooling/verify-npm-pack.js",
+    "pack:verify": "npm run build && npm run pack:verify:run",
+    "install-hooks": "npm run build && node dist/src/tooling/install-git-hooks.js",
     "prepack": "npm run generate"
   },
   "c8": {
@@ -36,16 +52,23 @@
       "lcov"
     ],
     "include": [
-      "src/**/*.js",
-      "scripts/**/*.js",
-      "bin/**/*.js"
+      "src/**/*.ts"
     ],
     "exclude": [
       "**/*.test.js"
     ]
   },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "^3.25"
+  },
+  "peerDependencies": {
+    "zod": "^3.25"
+  },
   "devDependencies": {
-    "c8": "^10.1.3"
+    "@types/node": "^26.1.0",
+    "c8": "^10.1.3",
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=20"
@@ -61,33 +84,57 @@
     "mcp"
   ],
   "files": [
-    "EXAMPLES.md",
-    "src/",
-    "scripts/",
-    "bin/",
-    "agents/",
-    "claude/",
-    "plugins/",
-    "commands/",
-    "hooks/",
-    "mcp/",
-    "policies/",
-    "docs/architecture.md",
-    "docs/cicd.md",
-    "docs/flow.md",
-    "docs/maestro-cheatsheet.md",
-    "docs/overview.md",
-    "docs/runtime-claude.md",
-    "docs/runtime-codex.md",
-    "docs/runtime-gemini.md",
-    "docs/runtime-qwen.md",
-    "docs/usage.md",
-    ".agents/",
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
     "GEMINI.md",
-    "gemini-extension.json",
     "QWEN.md",
-    "qwen-extension.json",
-    "qwen/",
-    "CHANGELOG.md"
+    "agents",
+    "claude/.mcp.json",
+    "claude/README.md",
+    "claude/agents",
+    "claude/hooks",
+    "claude/mcp",
+    "claude/mcp-config.example.json",
+    "claude/scripts",
+    "claude/skills",
+    "commands",
+    "dist/src/bin/maestro-install-codex.js",
+    "dist/src/bin/maestro-mcp-server.js",
+    "dist/src/config",
+    "dist/src/core",
+    "dist/src/generated",
+    "dist/src/hooks",
+    "dist/src/lib/errors",
+    "dist/src/lib/framework-detection.js",
+    "dist/src/lib/frontmatter",
+    "dist/src/lib/io",
+    "dist/src/lib/naming",
+    "dist/src/lib/validation",
+    "dist/src/mcp",
+    "dist/src/platforms/claude/runtime-config.js",
+    "dist/src/platforms/codex/runtime-config.js",
+    "dist/src/platforms/gemini/runtime-config.js",
+    "dist/src/platforms/qwen/runtime-config.js",
+    "dist/src/platforms/runtime-declarations.js",
+    "dist/src/platforms/shared/adapters",
+    "dist/src/platforms/shared/gemini-family-config.js",
+    "dist/src/platforms/shared/hook-runner.js",
+    "dist/src/state",
+    "!dist/src/**/*.d.ts",
+    "!dist/src/**/*.d.ts.map",
+    "!dist/src/**/*.map",
+    "gemini-extension.json",
+    "hooks",
+    "mcp",
+    "plugins/maestro/.app.json",
+    "plugins/maestro/.codex-plugin",
+    "plugins/maestro/.mcp.json",
+    "plugins/maestro/README.md",
+    "plugins/maestro/references",
+    "plugins/maestro/skills",
+    "policies",
+    "qwen",
+    "qwen-extension.json"
   ]
 }

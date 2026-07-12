@@ -1,22 +1,19 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
-  MaestroError,
-  ValidationError,
-  NotFoundError,
-  ConfigError,
-  StateError,
-} = require('../../src/lib/errors');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { MaestroError, ValidationError, NotFoundError, StateError } from '../../dist/src/lib/errors/index.js';
+import * as errorsModule from '../../dist/src/lib/errors/index.js';
 
 const SUBCLASS_SPECS = [
   { Class: ValidationError, code: 'VALIDATION_ERROR', name: 'ValidationError' },
   { Class: NotFoundError, code: 'NOT_FOUND', name: 'NotFoundError' },
-  { Class: ConfigError, code: 'CONFIG_ERROR', name: 'ConfigError' },
   { Class: StateError, code: 'STATE_ERROR', name: 'StateError' },
 ];
+
+describe('Dropped ConfigError', () => {
+  it('is no longer exported', () => {
+    assert.equal(errorsModule.ConfigError, undefined);
+  });
+});
 
 describe('MaestroError', () => {
   it('extends Error', () => {

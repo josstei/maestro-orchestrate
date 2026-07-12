@@ -1,2 +1,1 @@
-'use strict';
-module.exports = require('../../src/platforms/shared/adapters/gemini-adapter');
+export { default } from '../../dist/src/platforms/shared/adapters/gemini-adapter.js';

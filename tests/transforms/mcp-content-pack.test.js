@@ -1,48 +1,35 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-
-const { createServer } = require('../../src/mcp/core/create-server');
-const { createToolPack } = require('../../src/mcp/tool-packs/content');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
-
-function withExtensionRoot(root, fn) {
-  const previous = process.env.MAESTRO_EXTENSION_PATH;
-  process.env.MAESTRO_EXTENSION_PATH = root;
-
-  try {
-    return fn();
-  } finally {
-    if (previous == null) {
-      delete process.env.MAESTRO_EXTENSION_PATH;
-    } else {
-      process.env.MAESTRO_EXTENSION_PATH = previous;
-    }
-  }
-}
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'fs';
+import path from 'path';
+import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
+import { buildMcpServer, createContentPack, makeTempWorkspace } from '../support/mcp.js';
+import { withExtensionRoot } from '../support/content.js';
+import { fileURLToPath } from 'node:url';
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
+const REPO_ROOT = path.resolve(moduleDirname, '..', '..');
 
 describe('content tool pack', () => {
-  it('registers the content and runtime metadata tools', () => {
-    const server = createServer({
+  it('registers the content and runtime metadata tools', async (t) => {
+    const server = await buildMcpServer({
+      testContext: t,
       runtimeConfig: getRuntimeConfig('claude'),
       services: {
         canonicalSrcRoot: path.join(REPO_ROOT, 'src'),
       },
-      toolPacks: [createToolPack],
+      toolPacks: [createContentPack],
     });
 
+    const schemas = await server.getToolSchemas();
     assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
+      schemas.map((schema) => schema.name),
       ['get_skill_content', 'get_agent', 'get_runtime_context']
     );
   });
 
-  it('serves skill content, agent content, and runtime context through the pack', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-content-pack-'));
+  it('serves skill content, agent content, and runtime context through the pack', async (t) => {
+    const root = makeTempWorkspace('maestro-content-pack-', t);
     fs.mkdirSync(path.join(root, 'src', 'skills', 'shared', 'delegation'), {
       recursive: true,
     });
@@ -65,12 +52,13 @@ describe('content tool pack', () => {
       'utf8'
     );
 
-    const server = createServer({
+    const server = await buildMcpServer({
+      testContext: t,
       runtimeConfig: getRuntimeConfig('claude'),
       services: {
         canonicalSrcRoot: path.join(root, 'src'),
       },
-      toolPacks: [createToolPack],
+      toolPacks: [createContentPack],
     });
 
     const skillResult = await withExtensionRoot(root, () =>

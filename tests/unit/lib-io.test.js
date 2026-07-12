@@ -1,18 +1,10 @@
-'use strict';
-
-const { describe, it, beforeEach, afterEach } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-
-const {
-  atomicWriteSync,
-  readFileSafe,
-  readJsonSafe,
-  writeIfChanged,
-  ensureDir,
-} = require('../../src/lib/io');
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { atomicWriteSync, readFileSafe, readJsonSafe, writeIfChanged, ensureDir, readJsonLines, appendJsonLine } from '../../dist/src/lib/io/index.js';
+import * as ioModule from '../../dist/src/lib/io/index.js';
 
 function createTempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-io-'));
@@ -381,17 +373,17 @@ describe('ensureDir', () => {
 });
 
 describe('module exports', () => {
-  it('exports all five documented functions', () => {
-    const io = require('../../src/lib/io');
-    assert.equal(typeof io.atomicWriteSync, 'function');
-    assert.equal(typeof io.readFileSafe, 'function');
-    assert.equal(typeof io.readJsonSafe, 'function');
-    assert.equal(typeof io.writeIfChanged, 'function');
-    assert.equal(typeof io.ensureDir, 'function');
+  it('exports all seven documented functions', () => {
+    assert.equal(typeof atomicWriteSync, 'function');
+    assert.equal(typeof readFileSafe, 'function');
+    assert.equal(typeof readJsonSafe, 'function');
+    assert.equal(typeof writeIfChanged, 'function');
+    assert.equal(typeof ensureDir, 'function');
+    assert.equal(typeof readJsonLines, 'function');
+    assert.equal(typeof appendJsonLine, 'function');
   });
 
-  it('exports exactly five members', () => {
-    const io = require('../../src/lib/io');
-    assert.equal(Object.keys(io).length, 5);
+  it('exports exactly seven members', () => {
+    assert.equal(Object.keys(ioModule).length, 7);
   });
 });

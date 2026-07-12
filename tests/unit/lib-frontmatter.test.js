@@ -1,9 +1,7 @@
-'use strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-
-const {
+import {
   parse,
   parseFrontmatterOnly,
   extractValue,
@@ -11,102 +9,51 @@ const {
   splitAtBoundary,
   parseValue,
   parseDoubleQuotedValue,
-} = require('../../src/lib/frontmatter');
+} from '../../dist/src/lib/frontmatter/index.js';
 
 describe('parseDoubleQuotedValue', () => {
-  it('handles \\n escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('line1\\nline2'), 'line1\nline2');
-  });
+  const cases = [
+    ['handles \\n escape sequence', 'line1\\nline2', 'line1\nline2'],
+    ['handles \\t escape sequence', 'col1\\tcol2', 'col1\tcol2'],
+    ['handles \\r escape sequence', 'line1\\rline2', 'line1\rline2'],
+    ['handles \\\\ escape sequence', 'path\\\\to', 'path\\to'],
+    ['handles \\" escape sequence', 'say \\"hello\\"', 'say "hello"'],
+    ['preserves unknown escape sequences as backslash + char', 'test\\x', 'test\\x'],
+    ['handles backslash at end of string', 'trailing\\', 'trailing\\'],
+    ['handles multiple escape sequences in one string', 'a\\nb\\tc\\\\d', 'a\nb\tc\\d'],
+    ['handles empty string', '', ''],
+    ['handles string with only a backslash', '\\', '\\'],
+    ['handles consecutive escape sequences', '\\n\\n\\n', '\n\n\n'],
+  ];
 
-  it('handles \\t escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('col1\\tcol2'), 'col1\tcol2');
-  });
-
-  it('handles \\r escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('line1\\rline2'), 'line1\rline2');
-  });
-
-  it('handles \\\\ escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('path\\\\to'), 'path\\to');
-  });
-
-  it('handles \\" escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('say \\"hello\\"'), 'say "hello"');
-  });
-
-  it('preserves unknown escape sequences as backslash + char', () => {
-    assert.equal(parseDoubleQuotedValue('test\\x'), 'test\\x');
-  });
-
-  it('handles backslash at end of string', () => {
-    assert.equal(parseDoubleQuotedValue('trailing\\'), 'trailing\\');
-  });
-
-  it('handles multiple escape sequences in one string', () => {
-    assert.equal(parseDoubleQuotedValue('a\\nb\\tc\\\\d'), 'a\nb\tc\\d');
-  });
-
-  it('handles empty string', () => {
-    assert.equal(parseDoubleQuotedValue(''), '');
-  });
-
-  it('handles string with only a backslash', () => {
-    assert.equal(parseDoubleQuotedValue('\\'), '\\');
-  });
-
-  it('handles consecutive escape sequences', () => {
-    assert.equal(parseDoubleQuotedValue('\\n\\n\\n'), '\n\n\n');
-  });
+  for (const [name, input, expected] of cases) {
+    it(name, () => {
+      assert.equal(parseDoubleQuotedValue(input), expected);
+    });
+  }
 });
 
 describe('parseValue', () => {
-  it('parses inline arrays', () => {
-    assert.deepEqual(parseValue('[a, b, c]'), ['a', 'b', 'c']);
-  });
+  const cases = [
+    ['parses inline arrays', '[a, b, c]', ['a', 'b', 'c'], 'deepEqual'],
+    ['parses empty inline arrays', '[]', [], 'deepEqual'],
+    ['parses inline arrays with whitespace-only content as empty', '[  ]', [], 'deepEqual'],
+    ['parses double-quoted strings with escapes', '"hello\\nworld"', 'hello\nworld', 'equal'],
+    ['parses single-quoted strings', "'hello world'", 'hello world', 'equal'],
+    ["handles escaped single quotes inside single-quoted values", "'it''s a test'", "it's a test", 'equal'],
+    ['parses integer values', '42', 42, 'strictEqual'],
+    ['parses float values', '3.14', 3.14, 'strictEqual'],
+    ['parses negative numbers', '-7', -7, 'strictEqual'],
+    ['returns bare strings as-is', 'hello-world', 'hello-world', 'equal'],
+    ['returns empty string as-is', '', '', 'equal'],
+    ['returns zero for "0"', '0', 0, 'strictEqual'],
+  ];
 
-  it('parses empty inline arrays', () => {
-    assert.deepEqual(parseValue('[]'), []);
-  });
-
-  it('parses inline arrays with whitespace-only content as empty', () => {
-    assert.deepEqual(parseValue('[  ]'), []);
-  });
-
-  it('parses double-quoted strings with escapes', () => {
-    assert.equal(parseValue('"hello\\nworld"'), 'hello\nworld');
-  });
-
-  it('parses single-quoted strings', () => {
-    assert.equal(parseValue("'hello world'"), 'hello world');
-  });
-
-  it('handles escaped single quotes inside single-quoted values', () => {
-    assert.equal(parseValue("'it''s a test'"), "it's a test");
-  });
-
-  it('parses integer values', () => {
-    assert.strictEqual(parseValue('42'), 42);
-  });
-
-  it('parses float values', () => {
-    assert.strictEqual(parseValue('3.14'), 3.14);
-  });
-
-  it('parses negative numbers', () => {
-    assert.strictEqual(parseValue('-7'), -7);
-  });
-
-  it('returns bare strings as-is', () => {
-    assert.equal(parseValue('hello-world'), 'hello-world');
-  });
-
-  it('returns empty string as-is', () => {
-    assert.equal(parseValue(''), '');
-  });
-
-  it('returns zero for "0"', () => {
-    assert.strictEqual(parseValue('0'), 0);
-  });
+  for (const [name, input, expected, kind] of cases) {
+    it(name, () => {
+      assert[kind](parseValue(input), expected);
+    });
+  }
 });
 
 describe('splitAtBoundary', () => {
@@ -295,6 +242,23 @@ describe('parse', () => {
     const result = parse(content);
     assert.strictEqual(result.frontmatter.name, 'agent-42');
   });
+
+  it('parses runtime tool arrays, dotted overrides, and escaped metadata together', () => {
+    const content = [
+      '---',
+      'description: "Use \\"quoted\\" tools from C:\\\\runtime"',
+      'tools: [read_file, write_file]',
+      'tools.claude: [Read, Write]',
+      '---',
+      'Runtime body.',
+    ].join('\n');
+    const result = parse(content);
+
+    assert.equal(result.frontmatter.description, 'Use "quoted" tools from C:\\runtime');
+    assert.deepEqual(result.frontmatter.tools, ['read_file', 'write_file']);
+    assert.deepEqual(result.frontmatter['tools.claude'], ['Read', 'Write']);
+    assert.equal(result.body, 'Runtime body.');
+  });
 });
 
 describe('parseFrontmatterOnly', () => {
@@ -398,25 +362,19 @@ describe('extractValue', () => {
 });
 
 describe('escapeYaml', () => {
-  it('escapes backslashes', () => {
-    assert.equal(escapeYaml('path\\to\\file'), 'path\\\\to\\\\file');
-  });
+  const cases = [
+    ['escapes backslashes', 'path\\to\\file', 'path\\\\to\\\\file'],
+    ['escapes double quotes', 'say "hello"', 'say \\"hello\\"'],
+    ['escapes both backslashes and quotes', 'a\\"b', 'a\\\\\\"b'],
+    ['returns unchanged string when no special characters', 'simple value', 'simple value'],
+    ['handles empty string', '', ''],
+  ];
 
-  it('escapes double quotes', () => {
-    assert.equal(escapeYaml('say "hello"'), 'say \\"hello\\"');
-  });
-
-  it('escapes both backslashes and quotes', () => {
-    assert.equal(escapeYaml('a\\"b'), 'a\\\\\\"b');
-  });
-
-  it('returns unchanged string when no special characters', () => {
-    assert.equal(escapeYaml('simple value'), 'simple value');
-  });
-
-  it('handles empty string', () => {
-    assert.equal(escapeYaml(''), '');
-  });
+  for (const [name, input, expected] of cases) {
+    it(name, () => {
+      assert.equal(escapeYaml(input), expected);
+    });
+  }
 
   it('coerces non-string input via String()', () => {
     assert.equal(escapeYaml(42), '42');
@@ -440,4 +398,3 @@ describe('escapeYaml', () => {
     }
   });
 });
-
