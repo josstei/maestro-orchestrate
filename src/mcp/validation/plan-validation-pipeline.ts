@@ -1,52 +1,67 @@
-import { PlanValidationContext } from './plan-validation-context.js';
-import { PLAN_VALIDATION_STAGES } from './rule-registry.js';
-import { buildParallelizationProfile } from './dag-checker.js';
+import {
+  checkPlanShape,
+  checkPhaseCount,
+  checkDuplicateIds,
+  checkDanglingDependencies,
+  checkPhaseFieldSchema,
+} from './schema-checker.js';
+import { checkUnknownAgents, checkAgentCapabilities } from './agent-checker.js';
+import {
+  buildParallelizationProfile,
+  checkCycles,
+  checkRedundantDependencies,
+  computeDepths,
+} from './dag-checker.js';
+import { checkFileOverlap } from './file-overlap-checker.js';
 
 /**
- * Execute a staged plan-validation registry against a plan and return the
- * canonical validation result. Reproduces the fail-fast gating of the original
- * monolithic handler: halt-on-error stages short-circuit with a null profile, a
- * stage guard may skip its stage, and the parallelization profile is built only
- * when the profile-producing stage actually ran.
- *
- * @param {unknown} plan - The plan under validation.
- * @param {string} taskComplexity - Complexity classification.
- * @param {ReadonlyArray<import('./rule-registry').PlanValidationStage>} [stages] - Registry to run; injectable for extension.
- * @returns {{ valid: boolean, violations: Array<object>, parallelization_profile: (object|null) }}
+ * Validate a plan with the canonical checker order. Structural and phase-schema
+ * errors stop validation before graph checkers; cyclic graphs skip depth-based
+ * checks and cannot produce a parallelization profile.
  */
-function runPlanValidation(plan: any, taskComplexity: any, stages: any = PLAN_VALIDATION_STAGES) {
-  const context = new PlanValidationContext(plan, taskComplexity);
-  const violations = [];
-  let profileStageRan = false;
-
-  for (const stage of stages) {
-    if (stage.guard && !stage.guard(context, violations)) {
-      continue;
-    }
-
-    const stageViolations = [];
-    for (const rule of stage.rules) {
-      stageViolations.push(...rule.evaluate(context));
-    }
-    violations.push(...stageViolations);
-
-    if (stage.haltOnError && stageViolations.some((violation: any) => violation.severity === 'error')) {
-      return { valid: false, violations, parallelization_profile: null };
-    }
-
-    if (stage.buildsProfile) {
-      profileStageRan = true;
-    }
+function runPlanValidation(
+  plan: unknown,
+  taskComplexity: 'simple' | 'medium' | 'complex'
+): {
+  valid: boolean;
+  violations: Array<Record<string, unknown>>;
+  parallelization_profile: Record<string, unknown> | null;
+} {
+  const planShapeViolations = checkPlanShape(plan);
+  if (planShapeViolations.some((violation: any) => violation.severity === 'error')) {
+    return { valid: false, violations: planShapeViolations, parallelization_profile: null };
   }
 
-  const parallelization_profile = profileStageRan
-    ? buildParallelizationProfile(context.phases, context.phaseById)
-    : null;
+  const phases = (plan as { phases: any[] }).phases;
+  const phaseSchemaViolations = checkPhaseFieldSchema(phases);
+  if (phaseSchemaViolations.some((violation: any) => violation.severity === 'error')) {
+    return { valid: false, violations: phaseSchemaViolations, parallelization_profile: null };
+  }
+
+  const phaseById = new Map(phases.map((phase: any) => [phase.id, phase]));
+  const violations: Array<Record<string, unknown>> = [
+    ...checkPhaseCount(phases, taskComplexity),
+    ...checkDuplicateIds(phases),
+    ...checkDanglingDependencies(phases),
+    ...checkUnknownAgents(phases),
+    ...checkAgentCapabilities(phases),
+    ...checkCycles(phases, phaseById),
+  ];
+
+  if (violations.some((violation) => violation.rule === 'cyclic_dependency')) {
+    return { valid: false, violations, parallelization_profile: null };
+  }
+
+  const depths = computeDepths(phases, phaseById);
+  violations.push(
+    ...checkFileOverlap(phases, depths),
+    ...checkRedundantDependencies(phases, phaseById)
+  );
 
   return {
-    valid: violations.every((violation: any) => violation.severity === 'warning'),
+    valid: violations.every((violation) => violation.severity === 'warning'),
     violations,
-    parallelization_profile,
+    parallelization_profile: buildParallelizationProfile(phases, phaseById),
   };
 }
 

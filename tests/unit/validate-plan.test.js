@@ -1,10 +1,89 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleValidatePlan } from '../../dist/src/mcp/handlers/validate-plan.js';
+import { runPlanValidation } from '../../dist/src/mcp/validation/plan-validation-pipeline.js';
 
 function makePhase(overrides = {}) {
   return { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [], ...overrides };
 }
+
+describe('runPlanValidation — explicit checker sequence', () => {
+  it('produces the same canonical result as the MCP handler', () => {
+    assert.equal(runPlanValidation.length, 2);
+    const plan = {
+      phases: [
+        makePhase({ id: 'p1' }),
+        makePhase({ id: 'p2', blocked_by: ['p1'] }),
+      ],
+    };
+    assert.deepEqual(
+      handleValidatePlan({ plan, task_complexity: 'medium' }),
+      runPlanValidation(plan, 'medium')
+    );
+  });
+
+  it('short-circuits malformed plans with the exact public result', () => {
+    assert.deepEqual(runPlanValidation(null, 'simple'), {
+      valid: false,
+      violations: [
+        {
+          rule: 'invalid_plan',
+          detail: 'plan must be an object with a phases array',
+          severity: 'error',
+        },
+      ],
+      parallelization_profile: null,
+    });
+  });
+
+  it('short-circuits phase-schema errors before graph checks', () => {
+    const result = runPlanValidation({
+      phases: [
+        { id: 'p1', name: 'First incomplete phase' },
+        { id: 'p1', name: 'Second incomplete phase' },
+      ],
+    }, 'simple');
+
+    assert.equal(result.valid, false);
+    assert.equal(result.parallelization_profile, null);
+    assert.ok(result.violations.every((violation) => violation.rule === 'missing_required_field'));
+    assert.equal(result.violations.some((violation) => violation.rule === 'duplicate_id'), false);
+  });
+
+  it('emits graph violations in canonical checker order', () => {
+    const result = runPlanValidation({
+      phases: [
+        makePhase({
+          id: 'p1',
+          agent: 'totally-fake-agent',
+          blocked_by: ['missing'],
+        }),
+        makePhase({ id: 'p1', name: 'Implement duplicate', agent: 'architect' }),
+      ],
+    }, 'simple');
+
+    assert.deepEqual(
+      result.violations.map((violation) => violation.rule),
+      ['duplicate_id', 'dangling_dependency', 'unknown_agent', 'agent_capability_mismatch']
+    );
+  });
+
+  it('preserves checker exception propagation', () => {
+    const phases = new Proxy([], {
+      get(target, property, receiver) {
+        if (property === Symbol.iterator) {
+          throw new Error('checker-probe');
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    assert.throws(
+      () => runPlanValidation({ phases }, 'simple'),
+      { name: 'Error', message: 'checker-probe' }
+    );
+  });
+});
 
 describe('handleValidatePlan — plan structure validation', () => {
   it('returns invalid for null plan', () => {
@@ -205,7 +284,17 @@ describe('handleValidatePlan — cyclic dependencies', () => {
       makePhase({ id: 'B', name: 'Phase B', blocked_by: ['A'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
-    assert.equal(result.parallelization_profile, null);
+    assert.deepEqual(result, {
+      valid: false,
+      violations: [
+        {
+          rule: 'cyclic_dependency',
+          detail: 'Cycle detected involving phase A',
+          severity: 'error',
+        },
+      ],
+      parallelization_profile: null,
+    });
   });
 });
 
@@ -297,7 +386,13 @@ describe('handleValidatePlan — redundant dependencies', () => {
       makePhase({ id: 'C', name: 'Phase C', blocked_by: ['A', 'B'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
-    assert.ok(result.violations.some((v) => v.rule === 'redundant_dependency'));
+    assert.deepEqual(result.violations, [
+      {
+        rule: 'redundant_dependency',
+        detail: 'Phase C: dependency on phase A is redundant (already reachable via phase B)',
+        severity: 'warning',
+      },
+    ]);
   });
 });
 
@@ -328,17 +423,17 @@ describe('handleValidatePlan — parallelization profile', () => {
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     const profile = result.parallelization_profile;
 
-    assert.ok(profile !== null);
-    assert.equal(profile.total_phases, 3);
-    assert.equal(profile.depth_map['p1'], 0);
-    assert.equal(profile.depth_map['p2'], 1);
-    assert.equal(profile.depth_map['p3'], 1);
-    assert.equal(profile.batches.length, 2);
-    assert.equal(profile.batches[0].depth, 0);
-    assert.deepEqual(profile.batches[0].phase_ids, ['p1']);
-    assert.equal(profile.batches[1].depth, 1);
-    assert.equal(profile.max_batch_size, 2);
-    assert.equal(profile.effective_batches, 2);
+    assert.deepEqual(profile, {
+      total_phases: 3,
+      depth_map: { p1: 0, p2: 1, p3: 1 },
+      batches: [
+        { depth: 0, phase_ids: ['p1'] },
+        { depth: 1, phase_ids: ['p2', 'p3'] },
+      ],
+      max_batch_size: 2,
+      parallel_eligible: 2,
+      effective_batches: 2,
+    });
   });
 
   it('parallelization profile includes correct parallel_eligible count', () => {
