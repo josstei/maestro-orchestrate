@@ -1,16 +1,6 @@
-import * as io from '../../lib/io/index.js';
-import { KnowledgeStore } from '../memory/knowledge-store.js';
-import { requireWorkspaceRoot } from '../../core/project-root-resolver.js';
-import type { ElicitParams, ElicitResult, HandlerContext, HandlerContextOptions, HandlerServices, SystemClock } from './tool-types.js';
+import type { ElicitParams, ElicitResult, HandlerContext, HandlerContextOptions } from './tool-types.js';
 
 const ELICIT_TIMEOUT_MS = 10 * 60 * 1000;
-
-type BuildServicesOptions = {
-  projectRoot: string | null;
-  clock: SystemClock;
-  canonicalSrcRoot?: string | undefined;
-  workspaceSuggestion?: (() => string | null) | undefined;
-};
 
 type ElicitServer = {
   server?: {
@@ -18,34 +8,6 @@ type ElicitServer = {
     elicitInput?: (params: ElicitParams, options: { timeout: number }) => Promise<Exclude<ElicitResult, null>>;
   };
 };
-
-/**
- * Build the lazy, clock-injected `ctx.services` facade. Stateful services
- * are constructed on first access and memoized; they refuse to build against a
- * null `projectRoot` rather than ever falling back to the process cwd.
- *
- */
-function buildServices({ projectRoot, clock, canonicalSrcRoot, workspaceSuggestion }: BuildServicesOptions): HandlerServices {
-  let knowledgeStoreInstance: KnowledgeStore | null = null;
-
-  return {
-    get knowledgeStore() {
-      requireWorkspaceRoot(projectRoot, 'ctx.services.knowledgeStore');
-      if (!knowledgeStoreInstance) {
-        knowledgeStoreInstance = new KnowledgeStore(projectRoot);
-      }
-      return knowledgeStoreInstance;
-    },
-    io,
-    clock,
-    canonicalSrcRoot,
-    workspaceSuggestion,
-  };
-}
-
-function createSystemClock(): SystemClock {
-  return { now: () => new Date() };
-}
 
 /**
  * Build `ctx.elicit` — the single elicitation seam. Prechecks the client's
@@ -88,8 +50,8 @@ function buildElicit({ server }: { server: unknown }) {
  * it must never throw, and it must never fall back to `process.cwd()` or
  * ambient environment variables). The server wires `cache.resolveProjectRoot`
  * in; the test harness wires the test's workspace holder in. Also bridges
- * the inbound cancellation `signal`, assembles lazy clock-injected
- * `services`, and exposes the single `ctx.elicit` consent seam.
+ * the inbound cancellation `signal`, carries the shared content-service
+ * configuration, and exposes the single `ctx.elicit` consent seam.
  *
  */
 async function buildHandlerContext(
@@ -100,7 +62,6 @@ async function buildHandlerContext(
   const {
     server,
     runtimeConfig,
-    clock = createSystemClock(),
     getWorkspaceState,
     getProjectRoot,
     getStateDirPath,
@@ -126,12 +87,10 @@ async function buildHandlerContext(
     runtimeConfig,
     signal: extra?.signal,
     elicit: buildElicit({ server }),
-    services: buildServices({
-      projectRoot,
-      clock,
+    services: {
       canonicalSrcRoot: inboundServices.canonicalSrcRoot,
       workspaceSuggestion: inboundServices.workspaceSuggestion,
-    }),
+    },
   };
 }
 

@@ -1,11 +1,4 @@
-import type * as io from '../../lib/io/index.js';
-import type { KnowledgeStore } from '../memory/knowledge-store.js';
-
 export type MaybePromise<T> = T | Promise<T>;
-
-export type SystemClock = {
-  now: () => Date;
-};
 
 export type ToolSuccess<TResult = unknown> = {
   ok: true;
@@ -38,9 +31,6 @@ export type ElicitResult = {
 } | null;
 
 export type HandlerServices = {
-  readonly knowledgeStore: KnowledgeStore;
-  io: typeof io;
-  clock: SystemClock;
   canonicalSrcRoot?: string | undefined;
   workspaceSuggestion?: (() => string | null) | undefined;
 };
@@ -89,11 +79,7 @@ export type HandlerContextOptions = {
   }>;
   getProjectRoot?: () => MaybePromise<string | null>;
   getStateDirPath?: () => MaybePromise<string | null>;
-  clock?: SystemClock;
-  services?: {
-    canonicalSrcRoot?: string | undefined;
-    workspaceSuggestion?: (() => string | null) | undefined;
-  };
+  services?: HandlerServices;
 };
 
 export type ToolPipelineOptions = HandlerContextOptions & {

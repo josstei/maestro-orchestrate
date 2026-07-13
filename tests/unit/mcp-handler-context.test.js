@@ -7,7 +7,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { buildHandlerContext } from '../../dist/src/mcp/server/handler-context.js';
-import { KnowledgeStore } from '../../dist/src/mcp/memory/knowledge-store.js';
 import { connectInMemory } from '../support/mcp.js';
 
 const RUNTIME_CONFIG = Object.freeze({ env: { workspacePath: 'MAESTRO_TEST_WORKSPACE_PATH' } });
@@ -120,43 +119,7 @@ test('runtimeConfig is passed through composition-stable', async () => {
   assert.equal(ctx.runtimeConfig, RUNTIME_CONFIG);
 });
 
-test('services.knowledgeStore throws WORKSPACE_NOT_INITIALIZED when projectRoot is null (no cwd fallback)', async () => {
-  const ctx = await buildHandlerContext(
-    {},
-    {},
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG }
-  );
-  assert.equal(ctx.projectRoot, null);
-  assert.throws(() => ctx.services.knowledgeStore, /WORKSPACE_NOT_INITIALIZED|initialized workspace/i);
-});
-
-test('knowledgeStore is lazily constructed and reused while carrying an injected clock', async () => {
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handler-ctx-'));
-  try {
-    const clock = { now: () => new Date('2021-06-01T00:00:00.000Z') };
-    const ctx = await buildHandlerContext(
-      {},
-      {},
-      {
-        server: fakeSdkServer(),
-        runtimeConfig: RUNTIME_CONFIG,
-        getProjectRoot: () => tmpRoot,
-        clock,
-      }
-    );
-
-    const first = ctx.services.knowledgeStore;
-    assert.ok(first instanceof KnowledgeStore);
-    const second = ctx.services.knowledgeStore;
-    assert.equal(first, second);
-
-    assert.equal(ctx.services.clock, clock);
-  } finally {
-    fs.rmSync(tmpRoot, { recursive: true, force: true });
-  }
-});
-
-test('services carries io, canonicalSrcRoot, workspaceSuggestion through from options', async () => {
+test('services carries canonicalSrcRoot and workspaceSuggestion through from options', async () => {
   const workspaceSuggestion = () => '/suggested/path';
   const ctx = await buildHandlerContext(
     {},
@@ -169,7 +132,6 @@ test('services carries io, canonicalSrcRoot, workspaceSuggestion through from op
   );
   assert.equal(ctx.services.canonicalSrcRoot, '/src/root');
   assert.equal(ctx.services.workspaceSuggestion, workspaceSuggestion);
-  assert.equal(typeof ctx.services.io.atomicWriteSync, 'function');
 });
 
 test('ctx.elicit returns null when the client capability precheck fails, without calling elicitInput', async () => {

@@ -59,7 +59,7 @@ function createMaestroToolRegistry(): MaestroToolRegistry {
  * single source of truth for tool metadata. Throws when `name` duplicates a
  * tool already present in `registry` (cross-pack duplicate detection).
  *
- * @param {{server: object, registry: object, name: string, description?: string, schema?: object, handler: Function, requiresWorkspace?: boolean, runtimeConfig?: object, onPostCall?: Function, env?: object, clientRoots?: Array, clock?: {now: () => Date}, services?: object}} options
+ * @param {{server: object, registry: object, name: string, description?: string, schema?: object, handler: Function, requiresWorkspace?: boolean, runtimeConfig?: object, onPostCall?: Function, env?: object, clientRoots?: Array, services?: object}} options
  * @returns {*} the SDK's `RegisteredTool`
  */
 function defineTool<TArgs = unknown, TResult = unknown>(options: DefineToolOptions<TArgs, TResult>): unknown;
@@ -103,7 +103,6 @@ function defineTool<TArgs = unknown, TResult = unknown>(
     ...(contextOptions.getWorkspaceState === undefined ? {} : { getWorkspaceState: contextOptions.getWorkspaceState }),
     ...(contextOptions.getProjectRoot === undefined ? {} : { getProjectRoot: contextOptions.getProjectRoot }),
     ...(contextOptions.getStateDirPath === undefined ? {} : { getStateDirPath: contextOptions.getStateDirPath }),
-    ...(contextOptions.clock === undefined ? {} : { clock: contextOptions.clock }),
     ...(contextOptions.services === undefined ? {} : { services: contextOptions.services }),
   };
   const callback = createToolPipeline(
