@@ -1,8 +1,10 @@
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { moduleDirname } from '../core/package-root.js';
-import { discover } from '../lib/discovery/index.js';
 import type { RuntimeConfig } from '../platforms/runtime-descriptor.js';
+import agentStub from './agent-stub.js';
+import extractExamples from './extract-examples.js';
+import parseFrontmatter from './parse-frontmatter.js';
+import rebuildFrontmatter from './rebuild-frontmatter.js';
+import skillDiscoveryStub from './skill-discovery-stub.js';
+import skillMetadata from './skill-metadata.js';
 
 export interface TransformContext<State extends object = Record<string, unknown>> {
   readonly src: string;
@@ -18,26 +20,15 @@ export type TransformFn<State extends object = Record<string, unknown>> = (
   context: Omit<TransformContext<State>, 'runtime'>
 ) => string;
 
-const TRANSFORMS_DIR = path.resolve(moduleDirname(import.meta.url));
-
-const entries = discover({
-  dir: TRANSFORMS_DIR,
-  pattern: '*.js',
-  identity: (filepath) => path.basename(filepath, '.js'),
-  validate: (entry) => entry.id !== 'index',
+const transforms: Record<string, TransformFn> = Object.assign(Object.create(null), {
+  'agent-stub': agentStub,
+  'extract-examples': extractExamples,
+  'parse-frontmatter': parseFrontmatter,
+  'rebuild-frontmatter': rebuildFrontmatter,
+  'skill-discovery-stub': skillDiscoveryStub,
+  'skill-metadata': skillMetadata,
 });
 
-const transforms: Record<string, TransformFn> = Object.create(null);
-
-for (const entry of entries) {
-  const { default: transform } = await import(pathToFileURL(path.join(TRANSFORMS_DIR, `${entry.id}.js`)).href) as { default: TransformFn };
-  transforms[entry.id] = transform;
-}
-
-/**
- * Resolve a transform name to its function.
- * Supports parameterized transforms like 'strip-feature:flagName'.
- */
 function resolve(name: string): { fn: TransformFn; param: string | null } {
   const [baseName, param] = name.split(':');
   const fn = baseName ? transforms[baseName] : null;

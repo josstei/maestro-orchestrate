@@ -1,25 +1,39 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve, transforms } from '../../dist/src/transforms/index.js';
+import agentStub from '../../dist/src/transforms/agent-stub.js';
+import extractExamples from '../../dist/src/transforms/extract-examples.js';
+import parseFrontmatter from '../../dist/src/transforms/parse-frontmatter.js';
+import rebuildFrontmatter from '../../dist/src/transforms/rebuild-frontmatter.js';
+import skillDiscoveryStub from '../../dist/src/transforms/skill-discovery-stub.js';
+import skillMetadata from '../../dist/src/transforms/skill-metadata.js';
+
+const registered = {
+  'agent-stub': agentStub,
+  'extract-examples': extractExamples,
+  'parse-frontmatter': parseFrontmatter,
+  'rebuild-frontmatter': rebuildFrontmatter,
+  'skill-discovery-stub': skillDiscoveryStub,
+  'skill-metadata': skillMetadata,
+};
+const assertUnknown = (name) =>
+  assert.throws(() => resolve(name), new Error(`Unknown transform: "${name.split(':')[0]}"`));
 
 describe('transforms/index resolve', () => {
-  it('resolves all remaining registered transform names', () => {
-    const names = [
-      'parse-frontmatter',
-      'extract-examples',
-      'rebuild-frontmatter',
-      'skill-metadata',
-      'agent-stub',
-      'skill-discovery-stub',
-    ];
-    for (const name of names) {
-      const { fn } = resolve(name);
-      assert.equal(typeof fn, 'function', `Expected ${name} to resolve to a function`);
+  it('exposes the exact eager registry', () => {
+    assert.equal(Object.getPrototypeOf(transforms), null);
+    assert.deepEqual(Object.keys(transforms), Object.keys(registered));
+  });
+
+  it('preserves function identities', () => {
+    for (const [name, fn] of Object.entries(registered)) {
+      assert.equal(transforms[name], fn);
+      assert.deepEqual(resolve(name), { fn, param: null });
     }
   });
 
-  it('throws on deleted and unknown transform names', () => {
-    const names = [
+  it('rejects deleted and unknown names', () => {
+    for (const name of [
       'copy',
       'strip-feature',
       ['replace', 'agent', 'names'].join('-'),
@@ -28,38 +42,22 @@ describe('transforms/index resolve', () => {
       'inline-runtime',
       'inject-frontmatter',
       'nonexistent',
-    ];
-
-    for (const name of names) {
-      assert.throws(() => resolve(name), new RegExp(`Unknown transform: "${name}"`));
+    ]) {
+      assertUnknown(name);
     }
   });
 
-  it('parses parameterized transform names for the remaining registry', () => {
-    const { fn, param } = resolve('skill-metadata:claude');
-    assert.equal(typeof fn, 'function');
-    assert.equal(param, 'claude');
+  it('rejects empty and prototype names', () => {
+    for (const name of ['', ':param', '__proto__', 'constructor']) assertUnknown(name);
   });
 
-  it('returns null param when no colon-parameter is present', () => {
-    const { param } = resolve('agent-stub');
-    assert.equal(param, null);
+  it('preserves parameter parsing', () => {
+    assert.deepEqual(resolve('skill-metadata:claude'), { fn: skillMetadata, param: 'claude' });
+    assert.deepEqual(resolve('skill-metadata:'), { fn: skillMetadata, param: null });
+    assert.deepEqual(resolve('skill-metadata:a:b'), { fn: skillMetadata, param: 'a' });
   });
 
-  it('exposes only the remaining transforms in the transforms object', () => {
-    assert.deepEqual(
-      Object.keys(transforms).sort(),
-      ['agent-stub', 'extract-examples', 'parse-frontmatter', 'rebuild-frontmatter', 'skill-discovery-stub', 'skill-metadata']
-    );
-    assert.equal(typeof transforms['parse-frontmatter'], 'function');
-    assert.equal(typeof transforms['extract-examples'], 'function');
-    assert.equal(typeof transforms['rebuild-frontmatter'], 'function');
-    assert.equal(typeof transforms['skill-metadata'], 'function');
-    assert.equal(typeof transforms['agent-stub'], 'function');
-    assert.equal(typeof transforms['skill-discovery-stub'], 'function');
-  });
-
-  it('throws for parameterized unknown transform', () => {
-    assert.throws(() => resolve('unknown:param'), /Unknown transform: "unknown"/);
+  it('rejects a parameterized unknown', () => {
+    assert.throws(() => resolve('unknown:param'), new Error('Unknown transform: "unknown"'));
   });
 });
