@@ -122,11 +122,29 @@ describe('platform metadata generation', () => {
     );
   });
 
+  it('keeps generated extension manifests byte-identical', async () => {
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+    const outputs = new Map((await buildPlatformMetadataOutputs(
+      listRuntimeDefinitions(),
+      pkg
+    )).map((output) => [output.outputPath, output.content]));
+
+    for (const outputPath of ['gemini-extension.json', 'qwen-extension.json']) {
+      assert.equal(
+        outputs.get(outputPath),
+        readFileSync(new URL(`../../${outputPath}`, import.meta.url), 'utf8')
+      );
+    }
+  });
+
   it('uses a static renderer dispatcher with no dynamic metadata imports', () => {
     const source = readFileSync(new URL('../../src/platforms/metadata.ts', import.meta.url), 'utf8');
     assert.doesNotMatch(source, /import\(pathToFileURL/);
-    for (const runtime of ['claude', 'codex', 'gemini', 'qwen']) {
+    for (const runtime of ['claude', 'codex']) {
       assert.match(source, new RegExp(`./${runtime}/metadata\\.js`));
+    }
+    for (const runtime of ['gemini', 'qwen']) {
+      assert.doesNotMatch(source, new RegExp(`./${runtime}/metadata\\.js`));
     }
   });
 });
