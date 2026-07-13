@@ -8,7 +8,6 @@ import { pruneStaleFiles } from '../generator/stale-pruner.js';
 import { buildRegistryModel, collectRegistryOutputs } from '../generator/registry-scanner.js';
 import { readAgentSourceContent } from '../core/agent-sources.js';
 import { expandEntryPoints, expandCoreCommands } from '../generator/entry-point-expander.js';
-import { collectManifestPaths } from '../generator/manifest-curator.js';
 import { OWNED_GENERATED_DIRS } from '../generator/generated-surface-inventory.js';
 import { assertCrossReferences } from '../generator/cross-reference-validator.js';
 import { buildPlatformMetadataOutputs } from '../platforms/metadata.js';
@@ -132,10 +131,11 @@ async function main() {
   session.writeAll(buildHookConfigOutputs(runtimes));
   session.writeAll(buildContentFileOutputs(definitions, SRC, packageMetadata, registryModel.agents));
 
+  const manifestPaths = new Set(session.getPlannedPaths());
   const stats = session.getStats();
 
   if (listOutputs) {
-    console.log(session.getPlannedPaths().sort().join('\n'));
+    console.log([...manifestPaths].sort().join('\n'));
   } else if (dryRun) {
     console.log('\n(dry-run — no files written)');
   } else if (!diffMode) {
@@ -143,7 +143,6 @@ async function main() {
   }
 
   if (!session.isReadOnlyMode()) {
-    const manifestPaths = await collectManifestPaths(manifest, runtimes, SRC, ENTRY_POINT_EXPANDERS);
     const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: [...OWNED_GENERATED_DIRS] });
     if (pruned.length > 0) {
       console.log('\nPruning stale files (not in manifest):');

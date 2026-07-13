@@ -146,11 +146,11 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     id: 'owned-directory-pruning',
     producer: 'src/generator/stale-pruner.ts',
     writeMode: 'generate and prepack only, skipped in --dry-run and --diff',
-    sourceInputs: ['expanded manifest paths', 'entry point expansion paths'],
+    sourceInputs: ['GenerationSession planned paths after every producer writes'],
     outputs: OWNED_GENERATED_DIRS,
     tracked: false,
     packaged: true,
-    notes: 'Only these live generated roots are stale-pruned after write-mode generation.',
+    notes: 'Only these live generated roots are stale-pruned from the complete session plan after write-mode generation.',
   },
   {
     id: 'package-and-release-allowlists',

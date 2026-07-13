@@ -30,17 +30,41 @@ describe('generation session', () => {
     assert.equal(stats.errors, 2);
     assert.equal(stats.write_errors, 1);
     assert.deepEqual(stats.processing_errors, ['Source not found: missing.md']);
+    assert.deepEqual(session.getPlannedPaths(), ['../../../etc/passwd']);
+  });
+
+  it('provides the complete deduplicated reconciliation plan from all writes', () => {
+    const session = createGenerationSession({ rootDir: tempRoot });
+
+    assert.deepEqual(session.getPlannedPaths(), []);
+    session.write('agents/a.md', 'a');
+    session.writeAll([
+      { outputPath: 'commands/b.toml', content: 'b' },
+      { outputPath: 'agents/a.md', content: 'a2' },
+    ]);
+    session.writeAll([]);
+
+    const returnedPaths = session.getPlannedPaths();
+    assert.deepEqual(returnedPaths, ['agents/a.md', 'commands/b.toml', 'agents/a.md']);
+    assert.deepEqual([...new Set(returnedPaths)], ['agents/a.md', 'commands/b.toml']);
+    returnedPaths.push('mutated.md');
+    assert.equal(session.getPlannedPaths().includes('mutated.md'), false);
+    assert.equal(fs.readFileSync(path.join(tempRoot, 'agents/a.md'), 'utf8'), 'a2');
   });
 
   it('marks dry-run and diff sessions as read-only', () => {
-    assert.equal(
-      createGenerationSession({ rootDir: tempRoot, dryRun: true }).isReadOnlyMode(),
-      true
-    );
-    assert.equal(
-      createGenerationSession({ rootDir: tempRoot, diffMode: true }).isReadOnlyMode(),
-      true
-    );
+    const dryRunSession = createGenerationSession({ rootDir: tempRoot, dryRun: true });
+    const diffSession = createGenerationSession({ rootDir: tempRoot, diffMode: true });
+
+    dryRunSession.write('dry-run.md', 'dry run');
+    diffSession.write('diff.md', 'diff');
+
+    assert.equal(dryRunSession.isReadOnlyMode(), true);
+    assert.equal(diffSession.isReadOnlyMode(), true);
+    assert.deepEqual(dryRunSession.getPlannedPaths(), ['dry-run.md']);
+    assert.deepEqual(diffSession.getPlannedPaths(), ['diff.md']);
+    assert.equal(fs.existsSync(path.join(tempRoot, 'dry-run.md')), false);
+    assert.equal(fs.existsSync(path.join(tempRoot, 'diff.md')), false);
     assert.equal(
       createGenerationSession({ rootDir: tempRoot }).isReadOnlyMode(),
       false
