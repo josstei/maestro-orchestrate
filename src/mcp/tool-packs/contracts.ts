@@ -101,8 +101,6 @@ function defineTool<TArgs = unknown, TResult = unknown>(
     registry,
     runtimeConfig: contextOptions.runtimeConfig,
     ...(contextOptions.getWorkspaceState === undefined ? {} : { getWorkspaceState: contextOptions.getWorkspaceState }),
-    ...(contextOptions.getProjectRoot === undefined ? {} : { getProjectRoot: contextOptions.getProjectRoot }),
-    ...(contextOptions.getStateDirPath === undefined ? {} : { getStateDirPath: contextOptions.getStateDirPath }),
     ...(contextOptions.services === undefined ? {} : { services: contextOptions.services }),
   };
   const callback = createToolPipeline(

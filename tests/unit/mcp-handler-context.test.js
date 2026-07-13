@@ -1,8 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -22,58 +19,28 @@ function fakeSdkServer({ capabilities = {}, elicitInput } = {}) {
   };
 }
 
-test('projectRoot is null when no getProjectRoot resolver is supplied', async () => {
+test('workspace fields are null when no workspace-state resolver is supplied', async () => {
   const ctx = await buildHandlerContext(
     {},
     { signal: new AbortController().signal },
     { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG }
   );
   assert.equal(ctx.projectRoot, null);
+  assert.equal(ctx.stateDirPath, null);
 });
 
-test('projectRoot is null when the injected resolver returns null, never falling back to cwd/env', async () => {
+test('workspace fields remain null when the atomic snapshot is empty, never falling back to cwd/env', async () => {
   const ctx = await buildHandlerContext(
     {},
     {},
-    { server: fakeSdkServer(), runtimeConfig: RUNTIME_CONFIG, getProjectRoot: () => null }
+    {
+      server: fakeSdkServer(),
+      runtimeConfig: RUNTIME_CONFIG,
+      getWorkspaceState: () => ({ projectRoot: null, stateDirPath: null }),
+    }
   );
   assert.equal(ctx.projectRoot, null);
-});
-
-test('projectRoot resolves from the injected getProjectRoot resolver (sync)', async () => {
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handler-ctx-'));
-  try {
-    const ctx = await buildHandlerContext(
-      {},
-      { signal: new AbortController().signal },
-      {
-        server: fakeSdkServer(),
-        runtimeConfig: RUNTIME_CONFIG,
-        getProjectRoot: () => tmpRoot,
-      }
-    );
-    assert.equal(ctx.projectRoot, tmpRoot);
-  } finally {
-    fs.rmSync(tmpRoot, { recursive: true, force: true });
-  }
-});
-
-test('projectRoot resolves from the injected getProjectRoot resolver (async)', async () => {
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handler-ctx-'));
-  try {
-    const ctx = await buildHandlerContext(
-      {},
-      {},
-      {
-        server: fakeSdkServer(),
-        runtimeConfig: RUNTIME_CONFIG,
-        getProjectRoot: async () => tmpRoot,
-      }
-    );
-    assert.equal(ctx.projectRoot, tmpRoot);
-  } finally {
-    fs.rmSync(tmpRoot, { recursive: true, force: true });
-  }
+  assert.equal(ctx.stateDirPath, null);
 });
 
 test('workspace and state directory resolve from one injected snapshot', async () => {
@@ -83,16 +50,10 @@ test('workspace and state directory resolve from one injected snapshot', async (
     {
       server: fakeSdkServer(),
       runtimeConfig: RUNTIME_CONFIG,
-      getWorkspaceState: () => ({
+      getWorkspaceState: async () => ({
         projectRoot: '/workspace-a',
         stateDirPath: '/workspace-a/custom-state',
       }),
-      getProjectRoot: () => {
-        throw new Error('separate project-root resolver must not run');
-      },
-      getStateDirPath: () => {
-        throw new Error('separate state-dir resolver must not run');
-      },
     }
   );
 

@@ -77,8 +77,6 @@ export type HandlerContextOptions = {
     projectRoot: string | null;
     stateDirPath: string | null;
   }>;
-  getProjectRoot?: () => MaybePromise<string | null>;
-  getStateDirPath?: () => MaybePromise<string | null>;
   services?: HandlerServices;
 };
 

@@ -150,7 +150,10 @@ test('full order on a workspace-gated tool: gate then handler then post-call, no
       server: fakeSdkServer(),
       registry: registryFor('gated_tracked_tool', true),
       runtimeConfig: RUNTIME_CONFIG,
-      getProjectRoot: () => process.cwd(),
+      getWorkspaceState: () => ({
+        projectRoot: process.cwd(),
+        stateDirPath: null,
+      }),
     }
   );
 

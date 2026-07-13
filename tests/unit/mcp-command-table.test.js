@@ -151,7 +151,10 @@ test('registerCommandTable registers metadata, schemas, projections, and post-ca
     server,
     registry,
     runtimeConfig: RUNTIME_CONFIG,
-    getProjectRoot: () => '/repo/root',
+    getWorkspaceState: () => ({
+      projectRoot: '/repo/root',
+      stateDirPath: '/repo/root/docs/maestro',
+    }),
   });
 
   assert.deepEqual(

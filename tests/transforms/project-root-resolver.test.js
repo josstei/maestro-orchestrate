@@ -305,7 +305,10 @@ describe('project root resolver', () => {
     });
 
     assert.equal(cache.workspaceSuggestion(), nested);
-    assert.equal(cache.resolveProjectRoot(), null);
+    assert.deepEqual(cache.resolveWorkspaceState(), {
+      projectRoot: null,
+      stateDirPath: null,
+    });
   });
 
   it('workspaceSuggestion skips cache roots and preserves client-root order', async (t) => {
@@ -334,8 +337,9 @@ describe('project root resolver', () => {
     assert.equal(cache.workspaceSuggestion(), firstWorkspace);
   });
 
-  it('workspace suggestions never become an implicit stateful-tool fallback', async (t) => {
+  it('workspace suggestions never become an implicit stateful-tool fallback', (t) => {
     const workspace = makeTempDir(t, 'maestro-suggestion-only-');
+    const stateDirPath = path.join(workspace, 'docs', 'maestro');
     const cache = createProjectRootCache({
       runtimeConfig: {
         env: {
@@ -346,14 +350,15 @@ describe('project root resolver', () => {
     });
 
     assert.equal(cache.workspaceSuggestion(), workspace);
-    assert.equal(cache.resolveProjectRoot(), null);
-    await assert.rejects(
-      () => cache.getProjectRoot(),
-      (err) => err.code === 'WORKSPACE_NOT_INITIALIZED'
-    );
+    assert.deepEqual(cache.resolveWorkspaceState(), {
+      projectRoot: null,
+      stateDirPath: null,
+    });
 
-    cache.setExplicitWorkspacePath(workspace);
-    assert.equal(cache.resolveProjectRoot(), workspace);
-    assert.equal(await cache.getProjectRoot(), workspace);
+    cache.setExplicitWorkspaceState(workspace, stateDirPath);
+    assert.deepEqual(cache.resolveWorkspaceState(), {
+      projectRoot: workspace,
+      stateDirPath,
+    });
   });
 });

@@ -45,13 +45,11 @@ function buildElicit({ server }: { server: unknown }) {
 
 /**
  * Bridge an SDK tool callback's `extra` into maestro's `ctx` DI surface.
- * `projectRoot` is resolved by calling the INJECTED `options.getProjectRoot`
- * resolver (sync or async; must return a workspace path string or `null` —
- * it must never throw, and it must never fall back to `process.cwd()` or
- * ambient environment variables). The server wires `cache.resolveProjectRoot`
- * in; the test harness wires the test's workspace holder in. Also bridges
- * the inbound cancellation `signal`, carries the shared content-service
- * configuration, and exposes the single `ctx.elicit` consent seam.
+ * `projectRoot` and `stateDirPath` are projected from the single injected
+ * workspace-state snapshot. The resolver must never fall back to
+ * `process.cwd()` or ambient environment variables. Also bridges the inbound
+ * cancellation `signal`, carries the shared content-service configuration,
+ * and exposes the single `ctx.elicit` consent seam.
  *
  */
 async function buildHandlerContext(
@@ -63,27 +61,15 @@ async function buildHandlerContext(
     server,
     runtimeConfig,
     getWorkspaceState,
-    getProjectRoot,
-    getStateDirPath,
   } = options;
   const workspaceState = typeof getWorkspaceState === 'function'
     ? await getWorkspaceState()
     : null;
-  const projectRoot = workspaceState
-    ? workspaceState.projectRoot || null
-    : typeof getProjectRoot === 'function'
-      ? (await getProjectRoot()) || null
-      : null;
-  const stateDirPath = workspaceState
-    ? workspaceState.stateDirPath || null
-    : typeof getStateDirPath === 'function'
-      ? (await getStateDirPath()) || null
-      : null;
   const inboundServices = options.services || {};
 
   return {
-    projectRoot,
-    stateDirPath,
+    projectRoot: workspaceState?.projectRoot || null,
+    stateDirPath: workspaceState?.stateDirPath || null,
     runtimeConfig,
     signal: extra?.signal,
     elicit: buildElicit({ server }),

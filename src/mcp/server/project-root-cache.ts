@@ -68,43 +68,9 @@ function createProjectRootCache(options: any) {
     return envSuggestion() || rootsSuggestion();
   }
 
-  function setExplicitWorkspacePath(value: any) {
-    explicitWorkspacePath = value || null;
-    if (!explicitWorkspacePath) {
-      explicitStateDirPath = null;
-    }
-  }
-
   function setExplicitWorkspaceState(workspacePath: any, stateDirPath: any) {
     explicitWorkspacePath = workspacePath || null;
     explicitStateDirPath = explicitWorkspacePath && stateDirPath ? stateDirPath : null;
-  }
-
-  async function getProjectRoot() {
-    if (!explicitWorkspacePath) {
-      const error = new Error(
-        'Workspace not initialized. Call initialize_workspace(workspace_path=...) before any stateful tool.'
-      ) as Error & { code?: string };
-      error.code = 'WORKSPACE_NOT_INITIALIZED';
-      throw error;
-    }
-    return explicitWorkspacePath;
-  }
-
-  /**
-   * Non-throwing, synchronous projectRoot resolver injected into
-   * `buildHandlerContext` as `getProjectRoot`. Returns `null`
-   * absent an explicit `initialize_workspace` call so the gate is enforced
-   * uniformly by `requireWorkspaceRoot` inside the tool pipeline, never here.
-   *
-   * @returns {string|null}
-   */
-  function resolveProjectRoot() {
-    return explicitWorkspacePath;
-  }
-
-  function resolveStateDirPath() {
-    return explicitStateDirPath;
   }
 
   function resolveWorkspaceState() {
@@ -115,21 +81,13 @@ function createProjectRootCache(options: any) {
   }
 
   return {
-    getProjectRoot,
-    resolveProjectRoot,
-    resolveStateDirPath,
     resolveWorkspaceState,
-    setExplicitWorkspacePath,
     setExplicitWorkspaceState,
     workspaceSuggestion,
     setClientSupportsRoots(supports: any) {
       clientSupportsRoots = Boolean(supports);
     },
     refreshClientRoots,
-    invalidateProjectRoot() {
-      explicitWorkspacePath = null;
-      explicitStateDirPath = null;
-    },
     invalidateClientRoots() {
       clientRoots = [];
     },

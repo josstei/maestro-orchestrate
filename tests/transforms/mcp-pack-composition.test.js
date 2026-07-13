@@ -11,7 +11,13 @@ async function mountDefaultToolPacks(testContext, runtimeConfig) {
   const registry = createMaestroToolRegistry();
 
   for (const registerPack of DEFAULT_TOOL_PACKS) {
-    registerPack({ server, registry, runtimeConfig, services: {}, getProjectRoot: () => null });
+    registerPack({
+      server,
+      registry,
+      runtimeConfig,
+      services: {},
+      getWorkspaceState: () => ({ projectRoot: null, stateDirPath: null }),
+    });
   }
 
   const client = await connectInMemory(testContext, server, {
