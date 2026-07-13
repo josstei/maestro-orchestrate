@@ -105,58 +105,40 @@ const ReadablePhaseTokenUsageSchema =
 const ReadableAgentTokenUsageSchema =
   AgentTokenUsageSchema.partial().passthrough();
 
-const ReadableSessionTokenUsageSchema = z.object({
-  total_input: z.number().optional(),
-  total_output: z.number().optional(),
-  total_cached: z.number().optional(),
-  by_agent: z.record(ReadableAgentTokenUsageSchema).optional(),
-}).passthrough();
+const ReadableSessionTokenUsageSchema = SessionTokenUsageSchema.partial()
+  .extend({
+    by_agent: z.record(ReadableAgentTokenUsageSchema).optional(),
+  })
+  .passthrough();
 
-const ReadableSessionPhaseStateSchema = z.object({
-  id: WirePhaseIdSchema,
-  name: z.string(),
-  status: z.string(),
-  agents: z.array(z.string()),
-  parallel: z.boolean().optional(),
-  started: z.string().nullable().optional(),
-  completed: z.string().nullable().optional(),
-  blocked_by: z.array(WirePhaseIdSchema).optional(),
-  files_created: z.array(z.string()).optional(),
-  files_modified: z.array(z.string()).optional(),
-  files_deleted: z.array(z.string()).optional(),
-  planned_files: z.array(z.string()).optional(),
-  downstream_context: ReadableCanonicalDownstreamContextSchema.optional(),
-  errors: z.array(z.unknown()).optional(),
-  retry_count: z.number().optional(),
-  blocker_count: z.number().optional(),
-  review_finding_count: z.number().optional(),
-  requires_reconciliation: z.boolean().optional(),
-  reconciliation_reason: z.string().optional(),
-  duration_ms: z.number().optional(),
-  token_usage: ReadablePhaseTokenUsageSchema.optional(),
-}).passthrough();
+const ReadableSessionPhaseStateSchema = SessionPhaseStateSchema.partial()
+  .extend({
+    id: WirePhaseIdSchema,
+    name: z.string(),
+    status: z.string(),
+    agents: SessionPhaseStateSchema.shape.agents,
+    blocked_by: z.array(WirePhaseIdSchema).optional(),
+    downstream_context: ReadableCanonicalDownstreamContextSchema.optional(),
+    token_usage: ReadablePhaseTokenUsageSchema.optional(),
+  })
+  .passthrough();
+
+const ReadableOptionalSessionFieldsSchema = SessionStateSchema.omit({
+  schema_version: true,
+  session_id: true,
+  status: true,
+  phases: true,
+}).partial().extend({
+  current_phase: WirePhaseIdSchema.nullable().optional(),
+  token_usage: ReadableSessionTokenUsageSchema.optional(),
+});
 
 const ReadableSessionStateSchema = z.object({
-  schema_version: z.number().int().nonnegative(),
-  session_id: SessionIdSchema,
+  schema_version: SessionStateSchema.shape.schema_version,
+  session_id: SessionStateSchema.shape.session_id,
   status: z.string(),
   phases: z.array(ReadableSessionPhaseStateSchema),
-  parent_session_id: SessionIdSchema.nullable().optional(),
-  branch: z.string().nullable().optional(),
-  task: z.string().nullable().optional(),
-  created: z.string().optional(),
-  updated: z.string().optional(),
-  workflow_mode: z.string().optional(),
-  design_document: z.string().nullable().optional(),
-  implementation_plan: z.string().nullable().optional(),
-  current_phase: WirePhaseIdSchema.nullable().optional(),
-  total_phases: z.number().int().nonnegative().optional(),
-  execution_mode: z.string().nullable().optional(),
-  execution_backend: z.string().optional(),
-  current_batch: z.string().nullable().optional(),
-  task_complexity: z.string().nullable().optional(),
-  token_usage: ReadableSessionTokenUsageSchema.optional(),
-}).passthrough();
+}).extend(ReadableOptionalSessionFieldsSchema.shape).passthrough();
 
 type SessionPhaseState = z.infer<typeof SessionPhaseStateSchema>;
 type ReadableSessionPhaseState = z.infer<typeof ReadableSessionPhaseStateSchema>;
