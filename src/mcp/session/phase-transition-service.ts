@@ -1,7 +1,6 @@
 import { assertSessionId } from '../../lib/validation/index.js';
 import { ValidationError, StateError, NotFoundError } from '../../lib/errors/index.js';
 import {
-  createEmptyDownstreamContext,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape as describeDownstreamContextShape,
@@ -16,23 +15,19 @@ import {
 } from './session-store.js';
 
 function assertTransitionShape(params: any) {
-  const hasNextPhaseId = params.next_phase_id != null;
   const hasNextPhaseIds =
     Array.isArray(params.next_phase_ids) && params.next_phase_ids.length > 0;
-  if (hasNextPhaseId && hasNextPhaseIds) {
+  if (params.next_phase_id != null && hasNextPhaseIds) {
     throw new ValidationError(
       'next_phase_id and next_phase_ids are mutually exclusive'
     );
   }
 
-  const hasCompletedPhase = params.completed_phase_id != null;
-  if (!hasCompletedPhase && !hasNextPhaseIds && !hasNextPhaseId) {
+  if (params.completed_phase_id == null && !hasNextPhaseIds && params.next_phase_id == null) {
     throw new ValidationError(
       'At least one of completed_phase_id, next_phase_id, or next_phase_ids is required'
     );
   }
-
-  return { hasCompletedPhase, hasNextPhaseId, hasNextPhaseIds };
 }
 
 function findPhase(state: any, id: any, label: any = 'Phase') {
@@ -62,7 +57,7 @@ function resolvePhasesToStart(state: any, phaseIds: any) {
   return phasesToStart;
 }
 
-function completePhase(phase: any, params: any, state: any) {
+function completePhase(phase: any, params: any, state: any, now: any) {
   const { filesCreated, filesModified, filesDeleted, hasFiles } =
     extractFileManifest(params);
   const normalizedContext = normalizeDownstreamContext(params.downstream_context);
@@ -85,20 +80,16 @@ function completePhase(phase: any, params: any, state: any) {
   }
 
   phase.status = 'completed';
-  phase.completed = new Date().toISOString();
+  phase.completed = now();
   phase.downstream_context = normalizedContext;
   phase.files_created = filesCreated;
   phase.files_modified = filesModified;
   phase.files_deleted = filesDeleted;
-  phase.requires_reconciliation =
-    !hasFiles && !contextProvided ? true : false;
+  phase.requires_reconciliation = !hasFiles && !contextProvided;
   if (typeof params.task_report === 'string') {
     phase.blocker_count = parseBlockers(params.task_report).length;
   }
-  if (
-    params.review_finding_count !== undefined &&
-    params.review_finding_count !== null
-  ) {
+  if (params.review_finding_count != null) {
     const findingCount = Number(params.review_finding_count);
     phase.review_finding_count =
       Number.isFinite(findingCount) && findingCount > 0 ? findingCount : 0;
@@ -119,13 +110,13 @@ function completePhase(phase: any, params: any, state: any) {
   });
 }
 
-function startPhases(state: any, params: any, nextPhase: any, phasesToStart: any) {
+function startPhases(state: any, params: any, nextPhase: any, phasesToStart: any, now: any) {
   if (phasesToStart) {
-    const now = new Date().toISOString();
+    const started = now();
     const startedPhaseIds = [];
     for (const phase of phasesToStart) {
       phase.status = 'in_progress';
-      phase.started = now;
+      phase.started = started;
       startedPhaseIds.push(phase.id);
     }
     state.current_phase = params.next_phase_ids[0];
@@ -135,7 +126,7 @@ function startPhases(state: any, params: any, nextPhase: any, phasesToStart: any
   if (nextPhase) {
     if (nextPhase.status === 'pending') {
       nextPhase.status = 'in_progress';
-      nextPhase.started = new Date().toISOString();
+      nextPhase.started = now();
     }
     state.current_phase = params.next_phase_id;
   }
@@ -157,11 +148,37 @@ function buildTransitionResponse(state: any, startedPhaseIds: any) {
     },
   };
 
-  if (startedPhaseIds) {
-    response.started_phase_ids = startedPhaseIds;
-  }
+  if (startedPhaseIds) response.started_phase_ids = startedPhaseIds;
 
   return response;
+}
+
+function deriveTransition(state: any, params: any, now: any) {
+  const next = structuredClone(state);
+  const completedPhase = params.completed_phase_id == null
+    ? null : findPhase(next, params.completed_phase_id);
+  const nextPhase = params.next_phase_id == null
+    ? null : findPhase(next, params.next_phase_id, 'next_phase_id');
+  const phasesToStart = Array.isArray(params.next_phase_ids) && params.next_phase_ids.length > 0
+    ? resolvePhasesToStart(next, params.next_phase_ids)
+    : null;
+
+  if (completedPhase) completePhase(completedPhase, params, next, now);
+  const startedPhaseIds = startPhases(next, params, nextPhase, phasesToStart, now);
+
+  if (params.batch_id !== undefined) next.current_batch = params.batch_id;
+
+  if (params.token_usage) {
+    next.token_usage.total_input += params.token_usage.input || 0;
+    next.token_usage.total_output += params.token_usage.output || 0;
+    next.token_usage.total_cached += params.token_usage.cached || 0;
+  }
+
+  next.updated = now();
+  return {
+    next,
+    startedPhaseIds,
+  };
 }
 
 function transitionPhase(params: any, projectRoot: any) {
@@ -169,39 +186,14 @@ function transitionPhase(params: any, projectRoot: any) {
     assertSessionId(params.session_id);
   }
 
-  const shape = assertTransitionShape(params);
+  assertTransitionShape(params);
   const mutator = ({ state }: any) => {
-    const completedPhase = shape.hasCompletedPhase
-      ? findPhase(state, params.completed_phase_id)
-      : null;
-    const nextPhase = shape.hasNextPhaseId
-      ? findPhase(state, params.next_phase_id, 'next_phase_id')
-      : null;
-    const phasesToStart = shape.hasNextPhaseIds
-      ? resolvePhasesToStart(state, params.next_phase_ids)
-      : null;
-
-    if (completedPhase) {
-      completePhase(completedPhase, params, state);
-    }
-
-    const startedPhaseIds = startPhases(state, params, nextPhase, phasesToStart);
-
-    if (params.batch_id !== undefined) {
-      state.current_batch = params.batch_id;
-    }
-
-    if (params.token_usage) {
-      state.token_usage.total_input += params.token_usage.input || 0;
-      state.token_usage.total_output += params.token_usage.output || 0;
-      state.token_usage.total_cached += params.token_usage.cached || 0;
-    }
-
-    state.updated = new Date().toISOString();
+    const transition = deriveTransition(state, params, () => new Date().toISOString());
+    Object.assign(state, transition.next);
     captureCheckpoint(state, projectRoot);
 
     return {
-      response: buildTransitionResponse(state, startedPhaseIds),
+      response: buildTransitionResponse(state, transition.startedPhaseIds),
       writeBack: true,
     };
   };
