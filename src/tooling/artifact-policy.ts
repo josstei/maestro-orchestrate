@@ -310,18 +310,11 @@ function releasePaths(): readonly string[] {
   return projectByScopes([ARTIFACT_SCOPE.BOTH, ARTIFACT_SCOPE.RELEASE]);
 }
 
-function pickInventoryPaths(...paths: string[]): readonly string[] {
-  const releaseInventory = releasePaths();
-
-  for (const inventoryPath of paths) {
-    if (!releaseInventory.includes(inventoryPath)) {
-      throw new Error(
-        `Package surface rule references a path missing from the artifact inventory: ${inventoryPath}`
-      );
-    }
-  }
-
-  return Object.freeze(paths);
+function projectEntryPaths(
+  entries: readonly ArtifactInventoryEntry[],
+  predicate: (path: string) => boolean,
+): readonly string[] {
+  return Object.freeze(entries.map((entry) => entry.path).filter(predicate).sort());
 }
 
 function isFilePath(artifactPath: string): boolean {
@@ -350,36 +343,23 @@ function buildRuntimeDistPackageRule(): PackageSurfaceRule {
 const PACKAGE_SURFACE_RULES: readonly PackageSurfaceRule[] = Object.freeze([
   {
     id: 'package-metadata',
-    exact: pickInventoryPaths(
-      'package.json',
-      'README.md',
-      'LICENSE'
+    exact: Object.freeze(
+      [...projectEntryPaths(RELEASE_ONLY_ENTRIES, (path) => path !== 'package-lock.json')].reverse()
     ),
   },
   {
     id: 'runtime-docs',
-    exact: pickInventoryPaths(
-      'GEMINI.md',
-      'QWEN.md',
-      'claude/README.md',
-      'plugins/maestro/README.md'
-    ),
+    exact: projectEntryPaths(PACKAGE_SURFACE_ENTRIES, (path) => path.endsWith('.md')),
   },
   {
     id: 'public-bin',
-    exact: pickInventoryPaths(
-      'dist/src/bin/maestro-install-codex.js',
-      'dist/src/bin/maestro-mcp-server.js'
-    ),
+    exact: Object.freeze(RUNTIME_DIST_PATHS.filter((path) => path.startsWith('dist/src/bin/'))),
   },
   {
     id: 'root-runtime-metadata',
-    exact: pickInventoryPaths(
-      '.agents/plugins/marketplace.json',
-      '.claude-plugin/marketplace.json',
-      '.claude-plugin/plugin.json',
-      'gemini-extension.json',
-      'qwen-extension.json'
+    exact: projectEntryPaths(
+      PACKAGE_SURFACE_ENTRIES,
+      (path) => path.startsWith('.') || path.endsWith('-extension.json'),
     ),
   },
   {
@@ -393,7 +373,7 @@ const PACKAGE_SURFACE_RULES: readonly PackageSurfaceRule[] = Object.freeze([
       'claude/README.md',
       'claude/hooks/claude-hooks.json',
       'claude/mcp-config.example.json',
-      'claude/mcp/maestro-server.js',
+      ...RUNTIME_PACKAGE_INVARIANTS.claude.filter((path) => path.startsWith('claude/mcp/')),
     ],
     prefixes: [
       'claude/agents/',

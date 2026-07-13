@@ -103,11 +103,11 @@ describe('artifact policy', () => {
     assert.ok(ruleIds.includes('runtime-dist'));
 
     for (const rule of PACKAGE_SURFACE_RULES) {
-      for (const exactPath of rule.exact || []) {
+      for (const rulePath of [...(rule.exact || []), ...(rule.prefixes || [])]) {
         assert.equal(
-          isCoveredByReleaseProjection(exactPath),
+          isCoveredByReleaseProjection(rulePath.replace(/\/$/, '')),
           true,
-          `${rule.id} exact path is missing from release projection: ${exactPath}`
+          `${rule.id} path is missing from release projection: ${rulePath}`
         );
       }
     }
