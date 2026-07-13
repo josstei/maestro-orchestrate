@@ -2,7 +2,6 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseArgs as parseNodeArgs } from 'node:util';
 import { moduleDirname } from '../core/package-root.js';
 import { resolvePackageRoot } from '../core/package-root.js';
 
@@ -72,18 +71,8 @@ function parseArgs(argv: string[]): { dryRun: boolean } {
     throw new Error(`Unknown argument: ${unknownArg}`);
   }
 
-  const { values } = parseNodeArgs({
-    args: argv,
-    allowPositionals: false,
-    options: {
-      'dry-run': { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
-    },
-    strict: true,
-  });
-
   return {
-    dryRun: values['dry-run'] ?? false,
+    dryRun: argv.includes('--dry-run'),
   };
 }
 
