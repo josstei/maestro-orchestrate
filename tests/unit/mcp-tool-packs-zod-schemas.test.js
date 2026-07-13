@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createMcpServer } from '../../dist/src/mcp/server/create-mcp-server.js';
 import { connectInMemory } from '../support/mcp.js';
-import { zodSchemas as contentSchemas } from '../../dist/src/mcp/tool-packs/content/zod-schemas.js';
+import { zodSchemas as contentSchemas } from '../../dist/src/mcp/tool-packs/content/index.js';
 import { zodSchemas as historySchemas } from '../../dist/src/mcp/tool-packs/history/zod-schemas.js';
 import { zodSchemas as memorySchemas } from '../../dist/src/mcp/tool-packs/memory/zod-schemas.js';
 import { zodSchemas as sessionSchemas } from '../../dist/src/mcp/tool-packs/session/zod-schemas.js';

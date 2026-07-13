@@ -1,8 +1,28 @@
-import { defineCommandTable, registerCommandTable, withHandlerContext } from '../command-table.js';
-import { zodSchemas } from './zod-schemas.js';
+import { defineCommandTable, registerCommandTable, withHandlerContext, type ToolSchemaMap } from '../command-table.js';
+import { z } from 'zod';
 import { handleGetSkillContent } from '../../handlers/get-skill-content.js';
 import { handleGetAgent } from '../../handlers/get-agent.js';
 import { handleGetRuntimeContext } from '../../handlers/get-runtime-context.js';
+
+const zodSchemas = {
+  get_skill_content: {
+    resources: z
+      .array(z.string())
+      .min(1)
+      .describe(
+        'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture", "orchestration-steps".',
+      ),
+  },
+  get_agent: {
+    agents: z
+      .array(z.string())
+      .min(1)
+      .describe(
+        'Agent identifiers (kebab-case or snake_case): "coder", "code-reviewer" / "code_reviewer", "ux-designer" / "ux_designer", etc.',
+      ),
+  },
+  get_runtime_context: {},
+} satisfies ToolSchemaMap;
 
 const contentCommands = defineCommandTable(zodSchemas, {
   get_skill_content: {
@@ -22,15 +42,6 @@ const contentCommands = defineCommandTable(zodSchemas, {
   },
 });
 
-/**
- * Register the `content` pack's 3 tools (`get_skill_content`, `get_agent`,
- * `get_runtime_context`) via the command-table helper, each consuming its
- * shape from `./zod-schemas.js` and reading runtime config plus content
- * services from the handler context. None of these tools require an
- * initialized workspace.
- *
- * @param {{server: object, registry: object, runtimeConfig?: object, services?: {canonicalSrcRoot?: string, workspaceSuggestion?: Function}}} options
- */
 function registerContentPack({ server, registry, ...contextOptions }: any = {}) {
   registerCommandTable(zodSchemas, contentCommands, {
     server,
@@ -39,4 +50,4 @@ function registerContentPack({ server, registry, ...contextOptions }: any = {}) 
   });
 }
 
-export { registerContentPack };
+export { registerContentPack, zodSchemas };
