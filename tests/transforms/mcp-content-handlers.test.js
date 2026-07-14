@@ -76,18 +76,22 @@ describe('get_skill_content handler', () => {
     fs.writeFileSync(
       path.join(generatedDir, 'runtime-content-registry.json'),
       `${JSON.stringify({
-        schemaVersion: 1,
+        schemaVersion: 2,
+        storage: 'inline',
         resources: {
           delegation: {
+            kind: 'inline',
             relativePath: 'skills/shared/delegation/SKILL.md',
             content: 'Inline delegation.\n',
           },
           architecture: {
+            kind: 'inline',
             relativePath: 'references/architecture.md',
             content: 'Inline architecture.\n',
           },
         },
         agents: {},
+        agentProfiles: {},
         blueprints: {},
       })}\n`,
       'utf8'
@@ -121,12 +125,10 @@ describe('get_skill_content handler', () => {
 
   it('reads canonical src content and applies skill transforms', () => {
     const root = makeTempSrcRoot('maestro-skill-content-');
-    const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(skillDir, 'SKILL.md'),
+    writeResource(
+      path.join(root, 'src'),
+      'delegation',
       '---\nname: delegation\ndescription: Demo skill\n---\nUse ${extensionPath} here.\n',
-      'utf8'
     );
 
     const handler = skillHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
@@ -141,10 +143,9 @@ describe('get_skill_content handler', () => {
 
   it('applies architecture feature stripping and agent-name replacement', () => {
     const root = makeTempSrcRoot('maestro-architecture-');
-    const refDir = path.join(root, 'src', 'references');
-    fs.mkdirSync(refDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(refDir, 'architecture.md'),
+    writeResource(
+      path.join(root, 'src'),
+      'architecture',
       [
         '<!-- @feature mcpStateContract -->',
         'Gemini uses ${extensionPath} and code-reviewer.',
@@ -152,8 +153,7 @@ describe('get_skill_content handler', () => {
         '<!-- @feature exampleBlocks -->',
         'Codex keeps code-reviewer.',
         '<!-- @end-feature -->',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = skillHandler({
@@ -185,12 +185,10 @@ describe('get_skill_content handler', () => {
 
   it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {
     const root = makeTempSrcRoot('maestro-delegation-names-');
-    const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(skillDir, 'SKILL.md'),
+    writeResource(
+      path.join(root, 'src'),
+      'delegation',
       '---\nname: delegation\ndescription: test\n---\nDelegate to `code-reviewer` and `ux-designer`.\n',
-      'utf8'
     );
 
     const handler = skillHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
@@ -363,10 +361,9 @@ describe('get_agent handler', () => {
 
   it('returns stripped methodology bodies and runtime-mapped tools', () => {
     const root = makeTempSrcRoot('maestro-agent-content-');
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(agentDir, 'coder.md'),
+    writeAgent(
+      path.join(root, 'src'),
+      'coder',
       [
         '---',
         'name: coder',
@@ -378,8 +375,7 @@ describe('get_agent handler', () => {
         '<!-- @end-feature -->',
         '',
         'Methodology body.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = agentHandler({
@@ -401,10 +397,9 @@ describe('get_agent handler', () => {
 
   it('accepts snake_case agent names and normalizes to kebab-case for lookup', () => {
     const root = makeTempSrcRoot('maestro-agent-snake-');
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(agentDir, 'ux-designer.md'),
+    writeAgent(
+      path.join(root, 'src'),
+      'ux-designer',
       [
         '---',
         'name: ux-designer',
@@ -412,8 +407,7 @@ describe('get_agent handler', () => {
         '---',
         '',
         'UX methodology body.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = agentHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
@@ -429,10 +423,9 @@ describe('get_agent handler', () => {
 
   it('returns tool_name matching runtime agentNaming convention', () => {
     const root = makeTempSrcRoot('maestro-agent-toolname-');
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(agentDir, 'code-reviewer.md'),
+    writeAgent(
+      path.join(root, 'src'),
+      'code-reviewer',
       [
         '---',
         'name: code-reviewer',
@@ -440,8 +433,7 @@ describe('get_agent handler', () => {
         '---',
         '',
         'Review methodology.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     // Gemini runtime: agentNaming is 'snake_case'
@@ -471,10 +463,9 @@ describe('get_agent handler', () => {
 
   it('returns correct tool_name when input is snake_case', () => {
     const root = makeTempSrcRoot('maestro-agent-snaketool-');
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(agentDir, 'ux-designer.md'),
+    writeAgent(
+      path.join(root, 'src'),
+      'ux-designer',
       [
         '---',
         'name: ux-designer',
@@ -482,8 +473,7 @@ describe('get_agent handler', () => {
         '---',
         '',
         'UX body.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = agentHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));
@@ -547,10 +537,9 @@ describe('get_agent handler', () => {
 
   it('replays Gemini ux_designer delegation scenario end-to-end', () => {
     const root = makeTempSrcRoot('maestro-replay-');
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(agentDir, 'ux-designer.md'),
+    writeAgent(
+      path.join(root, 'src'),
+      'ux-designer',
       [
         '---',
         'name: ux-designer',
@@ -558,8 +547,7 @@ describe('get_agent handler', () => {
         '---',
         '',
         'UX Designer methodology.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = agentHandler(getRuntimeConfig('gemini'), path.join(root, 'src'));

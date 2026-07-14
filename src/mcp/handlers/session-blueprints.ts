@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import * as markdownState from '../../core/markdown-state.js';
 import { moduleDirname } from '../../core/package-root.js';
@@ -6,27 +5,10 @@ import { NotFoundError, ValidationError } from '../../lib/errors/index.js';
 import { z } from 'zod';
 import {
   createRuntimeContentSnapshot,
-  hasRuntimeContentRegistry,
 } from '../content/runtime-content-snapshot.js';
 import { PHASE_ID } from '../tool-packs/zod-fragments.js';
 const BLUEPRINT_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const RUNTIME_SRC_ROOT = path.join(moduleDirname(import.meta.url), '..', '..');
-
-function sourceCheckoutRoot(runtimeSrcRoot: any) {
-  return path.resolve(runtimeSrcRoot, '..', '..');
-}
-
-function blueprintDirs(runtimeSrcRoot: any): [string, string] {
-  return [
-    path.join(runtimeSrcRoot, 'templates', 'session-blueprints'),
-    path.join(sourceCheckoutRoot(runtimeSrcRoot), 'src', 'templates', 'session-blueprints'),
-  ];
-}
-
-function resolveBlueprintDir(runtimeSrcRoot: any) {
-  const [runtimeBlueprintDir, sourceBlueprintDir] = blueprintDirs(runtimeSrcRoot);
-  return [runtimeBlueprintDir, sourceBlueprintDir].find((dir) => fs.existsSync(dir)) || runtimeBlueprintDir;
-}
 
 /**
  * Shape contract for an authored session blueprint's frontmatter. Parsing
@@ -72,26 +54,11 @@ function resolveBlueprintSource(blueprintId: any, runtimeSrcRoot: any = RUNTIME_
     throw new NotFoundError(`Session blueprint '${blueprintId}' not found`);
   }
 
-  if (hasRuntimeContentRegistry(runtimeSrcRoot)) {
-    const snapshot = createRuntimeContentSnapshot(runtimeSrcRoot);
-    const blueprint = snapshot.readBlueprint(blueprintId);
-    if (!blueprint) {
-      throw new NotFoundError(`Session blueprint '${blueprintId}' not found`);
-    }
-
-    return blueprint;
-  }
-
-  const BLUEPRINT_DIR = resolveBlueprintDir(runtimeSrcRoot);
-  const filePath = path.join(BLUEPRINT_DIR, `${blueprintId}.md`);
-  if (!fs.existsSync(filePath)) {
+  const blueprint = createRuntimeContentSnapshot(runtimeSrcRoot).readBlueprint(blueprintId);
+  if (!blueprint) {
     throw new NotFoundError(`Session blueprint '${blueprintId}' not found`);
   }
-
-  return {
-    content: fs.readFileSync(filePath, 'utf8'),
-    path: filePath,
-  };
+  return blueprint;
 }
 
 /**
@@ -117,23 +84,9 @@ function parseBlueprint(source: any) {
  * @returns {object[]} Parsed blueprint frontmatter objects.
  */
 function readBlueprints(runtimeSrcRoot: any = RUNTIME_SRC_ROOT) {
-  if (hasRuntimeContentRegistry(runtimeSrcRoot)) {
-    const snapshot = createRuntimeContentSnapshot(runtimeSrcRoot);
-    return snapshot.listBlueprints()
-      .map((blueprint: any) => parseBlueprint(blueprint))
-      .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
-  }
-
-  const BLUEPRINT_DIR = resolveBlueprintDir(runtimeSrcRoot);
-  return fs
-    .readdirSync(BLUEPRINT_DIR, { withFileTypes: true })
-    .filter((entry: any) => entry.isFile() && entry.name.endsWith('.md'))
-    .map((entry: any) =>
-      parseBlueprint({
-        content: fs.readFileSync(path.join(BLUEPRINT_DIR, entry.name), 'utf8'),
-        path: path.join(BLUEPRINT_DIR, entry.name),
-      })
-    )
+  return createRuntimeContentSnapshot(runtimeSrcRoot)
+    .listBlueprints()
+    .map((blueprint: any) => parseBlueprint(blueprint))
     .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
 }
 

@@ -34,6 +34,7 @@ describe('generated surface inventory', () => {
       'platform-metadata-outputs',
       'policy-outputs',
       'registry-outputs',
+      'runtime-content-manifest-outputs',
       'runtime-context-outputs',
     ]);
   });

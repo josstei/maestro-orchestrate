@@ -67,7 +67,9 @@ describe('generator integration', () => {
 
     try {
       const registryPath = path.join(repoRoot, 'src/generated/agent-registry.json');
+      const contentManifestPath = path.join(repoRoot, 'src/generated/runtime-content-registry.json');
       const before = fs.readFileSync(registryPath, 'utf8');
+      const beforeContentManifest = fs.readFileSync(contentManifestPath, 'utf8');
 
       writeFixtureFile(
         repoRoot,
@@ -79,6 +81,7 @@ describe('generator integration', () => {
 
       const after = fs.readFileSync(registryPath, 'utf8');
       assert.equal(after, before);
+      assert.equal(fs.readFileSync(contentManifestPath, 'utf8'), beforeContentManifest);
     } finally {
       fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
     }
@@ -89,7 +92,9 @@ describe('generator integration', () => {
 
     try {
       const registryPath = path.join(repoRoot, 'src/generated/agent-registry.json');
+      const contentManifestPath = path.join(repoRoot, 'src/generated/runtime-content-registry.json');
       const before = fs.readFileSync(registryPath, 'utf8');
+      const beforeContentManifest = fs.readFileSync(contentManifestPath, 'utf8');
 
       writeFixtureFile(
         repoRoot,
@@ -101,6 +106,7 @@ describe('generator integration', () => {
 
       const after = fs.readFileSync(registryPath, 'utf8');
       assert.equal(after, before);
+      assert.equal(fs.readFileSync(contentManifestPath, 'utf8'), beforeContentManifest);
     } finally {
       fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
     }
@@ -144,9 +150,14 @@ describe('generator integration', () => {
       const hookRegistry = JSON.parse(
         fs.readFileSync(path.join(generatedDir, 'hook-registry.json'), 'utf8')
       );
+      const runtimeContentRegistry = JSON.parse(
+        fs.readFileSync(path.join(generatedDir, 'runtime-content-registry.json'), 'utf8')
+      );
       assert.equal(agentRegistry.some((agent) => agent.name === 'registry-write-test'), true);
       assert.equal(resourceRegistry.delegation, 'skills/shared/delegation/SKILL.md');
       assert.equal(hookRegistry['before-agent'].fn, 'handleBeforeAgent');
+      assert.equal(runtimeContentRegistry.storage, 'file');
+      assert.equal(runtimeContentRegistry.agents['registry-write-test'], 'agents/registry-write-test.md');
     } finally {
       fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
     }

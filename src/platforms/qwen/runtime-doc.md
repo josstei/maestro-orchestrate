@@ -26,7 +26,7 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
 }
 ```
 
-The Qwen manifest launches the server via `npx` against the versioned `@josstei/maestro` npm package, with `MAESTRO_RUNTIME=qwen`. The public `maestro-mcp-server` bin resolves to compiled `dist/src/bin/maestro-mcp-server.js`, which loads the compiled server from `dist/src/mcp/maestro-server.js`. The repo-root `mcp/maestro-server.js` adapter still ships (shared with Gemini) for direct source-checkout use and also requires the compiled `dist/src` server. Qwen declares `primary: filesystem` and `fallback: none`.
+The Qwen manifest launches the server via `npx` against the versioned `@josstei/maestro` npm package, with `MAESTRO_RUNTIME=qwen`. The public `maestro-mcp-server` bin resolves to compiled `dist/src/bin/maestro-mcp-server.js`, which loads the compiled server from `dist/src/mcp/maestro-server.js`. The repo-root `mcp/maestro-server.js` adapter still ships (shared with Gemini) for direct source-checkout use and also requires the compiled `dist/src` server. Qwen uses the manifest-backed content provider with no fallback: installed `dist/src` storage is packed, while generated source-checkout storage is file-backed and reads stable paths live; source additions, removals, and renames require regeneration and provider/server recreation.
 
 ## Agent Naming
 

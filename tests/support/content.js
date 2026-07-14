@@ -23,12 +23,50 @@ function writeFileUnder(root, relPath, content) {
   return writeFixtureFile(root, relPath, content);
 }
 
+function writeRuntimeContentManifest(srcRoot, manifest = {}) {
+  return writeFileUnder(
+    srcRoot,
+    path.join('generated', 'runtime-content-registry.json'),
+    `${JSON.stringify({
+      schemaVersion: 2,
+      storage: 'file',
+      resources: {},
+      agents: {},
+      agentProfiles: {},
+      blueprints: {},
+      ...manifest,
+    }, null, 2)}\n`
+  );
+}
+
+function registerFileEntry(srcRoot, section, id, relativePath) {
+  const manifestPath = path.join(srcRoot, 'generated', 'runtime-content-registry.json');
+  const manifest = fs.existsSync(manifestPath)
+    ? JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    : {
+      schemaVersion: 2,
+      storage: 'file',
+      resources: {},
+      agents: {},
+      agentProfiles: {},
+      blueprints: {},
+    };
+  manifest[section][id] = relativePath;
+  writeRuntimeContentManifest(srcRoot, manifest);
+}
+
 function writeAgent(srcRoot, name, body) {
-  return writeFileUnder(srcRoot, path.join('agents', `${name}.md`), body);
+  const relativePath = path.posix.join('agents', `${name}.md`);
+  const filePath = writeFileUnder(srcRoot, relativePath, body);
+  registerFileEntry(srcRoot, 'agents', name, relativePath);
+  return filePath;
 }
 
 function writeResource(srcRoot, id, body) {
-  return writeFileUnder(srcRoot, RESOURCE_ALLOWLIST[id], body);
+  const relativePath = RESOURCE_ALLOWLIST[id];
+  const filePath = writeFileUnder(srcRoot, relativePath, body);
+  registerFileEntry(srcRoot, 'resources', id, relativePath);
+  return filePath;
 }
 
 function withExtensionRoot(value, fn) {
@@ -37,4 +75,4 @@ function withExtensionRoot(value, fn) {
   }, fn);
 }
 
-export { makeTempSrcRoot, cleanupTempRoots, writeFileUnder, writeAgent, writeResource, withExtensionRoot };
+export { makeTempSrcRoot, cleanupTempRoots, writeFileUnder, writeRuntimeContentManifest, writeAgent, writeResource, withExtensionRoot };

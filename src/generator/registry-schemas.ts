@@ -15,10 +15,55 @@ const hookEntrySchema = z.object({
   fn: z.string(),
 }).passthrough();
 
+const inlineRuntimeContentEntrySchema = z.object({
+  kind: z.literal('inline'),
+  relativePath: z.string(),
+  content: z.string(),
+}).strict();
+
+const packedRuntimeContentEntrySchema = z.union([
+  z.tuple([
+    z.string(),
+    z.number().int().nonnegative().safe(),
+    z.number().int().nonnegative().safe(),
+  ]),
+  inlineRuntimeContentEntrySchema,
+]);
+
+function runtimeContentSections<T extends z.ZodTypeAny>(entrySchema: T) {
+  return {
+    resources: z.record(entrySchema),
+    agents: z.record(entrySchema),
+    agentProfiles: z.record(entrySchema),
+    blueprints: z.record(entrySchema),
+  };
+}
+
+const runtimeContentRegistrySchema = z.discriminatedUnion('storage', [
+  z.object({
+    schemaVersion: z.literal(2),
+    storage: z.literal('file'),
+    ...runtimeContentSections(z.string()),
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal(2),
+    storage: z.literal('packed'),
+    payload: z.string(),
+    payloadEncoding: z.literal('gzip'),
+    ...runtimeContentSections(packedRuntimeContentEntrySchema),
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal(2),
+    storage: z.literal('inline'),
+    ...runtimeContentSections(inlineRuntimeContentEntrySchema),
+  }).strict(),
+]);
+
 const REGISTRY_SCHEMAS = {
   'agent-registry.json': z.array(agentEntrySchema),
   'resource-registry.json': z.record(z.string()),
   'hook-registry.json': z.record(hookEntrySchema),
+  'runtime-content-registry.json': runtimeContentRegistrySchema,
 };
 
 /**

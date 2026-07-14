@@ -391,6 +391,7 @@ describe('mcp server bundle behavior', () => {
       updateRuntimeContentRegistry(packageRoot, (registry) => {
         payloadPath = runtimeContentPayloadPath(packageRoot, registry);
         registry.resources.architecture = {
+          kind: 'inline',
           relativePath: 'references/architecture.md',
           content: 'Inline architecture survives packed corruption.\n',
         };

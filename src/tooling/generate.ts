@@ -6,6 +6,7 @@ import { createGenerationSession } from '../generator/generation-session.js';
 import { expandManifest, assertNoMirroredSharedOutputs, buildRuntimeOutputPath } from '../generator/manifest-expander.js';
 import { pruneStaleFiles } from '../generator/stale-pruner.js';
 import { buildRegistryModel, collectRegistryOutputs } from '../generator/registry-scanner.js';
+import { createFileRuntimeContentOutput } from '../generator/runtime-content-manifest.js';
 import { readAgentSourceContent } from '../core/agent-sources.js';
 import { expandEntryPoints, expandCoreCommands } from '../generator/entry-point-expander.js';
 import { OWNED_GENERATED_DIRS } from '../generator/generated-surface-inventory.js';
@@ -112,6 +113,7 @@ async function main() {
     quiet: listOutputs,
   });
   session.writeAll(collectRegistryOutputs(registryModel));
+  session.writeAll([createFileRuntimeContentOutput(SRC, registryModel)]);
 
   if (cleanMode) {
     session.clean(manifest.flatMap((entry) => Object.values(entry.outputs)));

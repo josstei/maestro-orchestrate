@@ -97,13 +97,16 @@ describe('TypeScript build and generation contract', () => {
       const runtimeContentRegistry = JSON.parse(
         fs.readFileSync(tempRepoPath('dist', 'src', 'generated', 'runtime-content-registry.json'), 'utf8')
       );
+      assert.equal(runtimeContentRegistry.schemaVersion, 2);
+      assert.equal(runtimeContentRegistry.storage, 'packed');
       assert.equal(runtimeContentRegistry.payload, 'runtime-content-registry.txt.gz');
       assert.equal(runtimeContentRegistry.payloadEncoding, 'gzip');
       assert.equal(Object.keys(runtimeContentRegistry.resources).length, 15);
-      assert.equal(Object.keys(runtimeContentRegistry.agents).length, 39);
+      assert.equal(Object.keys(runtimeContentRegistry.agents).length, 0);
+      assert.equal(Object.keys(runtimeContentRegistry.agentProfiles).length, 1);
       assert.equal(Object.keys(runtimeContentRegistry.blueprints).length, 2);
       assert.equal(Array.isArray(runtimeContentRegistry.resources.delegation), true);
-      for (const rawContentRoot of ['agents', 'references', 'skills', 'templates']) {
+      for (const rawContentRoot of ['agent-profiles', 'agents', 'references', 'skills', 'templates']) {
         assert.equal(fs.existsSync(tempRepoPath('dist', 'src', rawContentRoot)), false);
       }
 
@@ -121,6 +124,12 @@ describe('TypeScript build and generation contract', () => {
       assert.equal(fs.existsSync(tempRepoPath('agents', 'architect.md')), true);
       assert.equal(fs.existsSync(tempRepoPath('docs', 'runtime-codex.md')), true);
       assert.equal(fs.existsSync(tempRepoPath('src', 'generated', 'agent-registry.json')), true);
+      const sourceRuntimeContentRegistry = JSON.parse(
+        fs.readFileSync(tempRepoPath('src', 'generated', 'runtime-content-registry.json'), 'utf8')
+      );
+      assert.equal(sourceRuntimeContentRegistry.storage, 'file');
+      assert.equal(sourceRuntimeContentRegistry.resources.delegation, 'skills/shared/delegation/SKILL.md');
+      assert.deepEqual(sourceRuntimeContentRegistry.agents, {});
 
       const packageJson = JSON.parse(fs.readFileSync(tempRepoPath('package.json'), 'utf8'));
       assert.equal(packageJson.files.includes('dist'), false);

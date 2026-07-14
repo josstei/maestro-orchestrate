@@ -70,6 +70,27 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     notes: 'The manifest is only one producer; it does not describe detached payloads or metadata.',
   },
   {
+    id: 'runtime-content-manifest-outputs',
+    producer: 'src/generator/runtime-content-manifest.ts',
+    writeMode: 'generate and prepack',
+    sourceInputs: [
+      'src/agents/*.md',
+      'src/agent-profiles/*.profile',
+      'src/skills/shared/**/*.md',
+      'src/templates/*.md',
+      'src/templates/session-blueprints/*.md',
+      'src/references/*.md',
+    ],
+    outputs: [
+      'src/generated/runtime-content-registry.json',
+      'dist/src/generated/runtime-content-registry.json',
+      'dist/src/generated/runtime-content-registry.txt.gz',
+    ],
+    tracked: false,
+    packaged: true,
+    notes: 'One logical path manifest projects to file-backed source storage during generation and packed gzip storage during build; both projections carry an explicit storage discriminator.',
+  },
+  {
     id: 'entry-point-expander-outputs',
     producer: 'src/generator/entry-point-expander.ts',
     writeMode: 'generate and prepack',

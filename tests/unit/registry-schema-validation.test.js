@@ -101,3 +101,51 @@ describe('buildRegistries on the live tree', () => {
     ]);
   });
 });
+
+describe('validateRegistry — runtime content storage', () => {
+  const sections = {
+    resources: {},
+    agents: {},
+    agentProfiles: {},
+    blueprints: {},
+  };
+
+  it('accepts explicit file, packed, and inline encodings', () => {
+    assert.doesNotThrow(() => validateRegistry('runtime-content-registry.json', {
+      schemaVersion: 2,
+      storage: 'file',
+      ...sections,
+    }));
+    assert.doesNotThrow(() => validateRegistry('runtime-content-registry.json', {
+      schemaVersion: 2,
+      storage: 'packed',
+      payload: 'runtime-content-registry.txt.gz',
+      payloadEncoding: 'gzip',
+      ...sections,
+      resources: { delegation: ['skills/shared/delegation/SKILL.md', 0, 4] },
+    }));
+    assert.doesNotThrow(() => validateRegistry('runtime-content-registry.json', {
+      schemaVersion: 2,
+      storage: 'inline',
+      ...sections,
+      resources: {
+        delegation: { kind: 'inline', relativePath: 'skill.md', content: 'body' },
+      },
+    }));
+  });
+
+  it('rejects implicit storage and unsafe packed ranges', () => {
+    assert.throws(
+      () => validateRegistry('runtime-content-registry.json', { schemaVersion: 2, ...sections }),
+      /storage/
+    );
+    assert.throws(() => validateRegistry('runtime-content-registry.json', {
+      schemaVersion: 2,
+      storage: 'packed',
+      payload: 'content.gz',
+      payloadEncoding: 'gzip',
+      ...sections,
+      resources: { delegation: ['skill.md', -1, 4] },
+    }), /resources/);
+  });
+});

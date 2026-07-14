@@ -144,16 +144,11 @@ src/mcp/
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) use the same provider contract for Gemini, Claude, Codex, and Qwen, rooted at package-root `dist/src`. Packaged builds prefer the generated registry index at `dist/src/generated/runtime-content-registry.json` plus gzip-compressed payload at `dist/src/generated/runtime-content-registry.txt.gz`; source checkouts without that registry continue to read canonical content from the filesystem:
-
-- Gemini: `primary=registry`, `source-checkout fallback=filesystem`
-- Claude: `primary=registry`, `source-checkout fallback=filesystem`
-- Codex: `primary=registry`, `source-checkout fallback=filesystem`
-- Qwen: `primary=registry`, `source-checkout fallback=filesystem`
+The content tools (`get_agent`, `get_skill_content`) use one manifest-backed provider contract for Gemini, Claude, Codex, and Qwen. The versioned manifest carries an explicit storage discriminator: `npm run generate` writes `src/generated/runtime-content-registry.json` with `storage=file` and canonical relative paths, while `npm run build` writes `dist/src/generated/runtime-content-registry.json` with `storage=packed` plus the gzip payload at `dist/src/generated/runtime-content-registry.txt.gz`. File storage reads canonical files live; packed storage caches its manifest, payload read, and decompression for the provider lifetime. Additions, removals, and renames require regeneration and provider/server recreation because the manifest is cached. Missing manifests fail explicitly; there is no directory fallback or storage inference from file existence or entry shape.
 
 All four runtimes spawn `dist/src/bin/maestro-mcp-server.js` via a release-versioned `npx -y -p @josstei/maestro@<version> maestro-mcp-server` invocation declared in each runtime's manifest (`gemini-extension.json`, `qwen-extension.json`, `claude/.mcp.json`, `plugins/maestro/.mcp.json`). The bin honors an env-provided `MAESTRO_RUNTIME` (defaulting to `codex` if absent) — Gemini's and Qwen's manifests set `MAESTRO_RUNTIME=gemini`/`MAESTRO_RUNTIME=qwen`, Claude's sets `MAESTRO_RUNTIME=claude`, Codex's sets `MAESTRO_RUNTIME=codex` — overwrites `MAESTRO_EXTENSION_PATH` with the package root, then imports `dist/src/mcp/maestro-server.js`. The repo-root `mcp/maestro-server.js` (shared by Gemini/Qwen) and `claude/mcp/maestro-server.js` wrappers still ship but are no longer the launch target.
 
-Provider sources return raw content before runtime materialization. Runtime transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.ts`, and the generated registry feeds that same materialization path instead of carrying pre-transformed copies.
+`RuntimeContentSnapshot` is the sole raw reader for resources, agents, profiles, and blueprints. It returns raw content before runtime materialization; transforms, frontmatter stripping, feature blocks, agent naming, and tool mapping stay centralized in `src/mcp/content/runtime-content.ts`.
 
 MCP tool packs declare tools through homomorphic command tables keyed by each
 pack's `zodSchemas` object. Each command owns its description, workspace

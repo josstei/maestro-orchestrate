@@ -116,7 +116,7 @@ The runtime guide states:
 
 > Use Maestro MCP tools for stateful operations. If the current Codex environment does not expose the required state tool, stop and report that the state surface is unavailable.
 
-This MCP-only state access model keeps session lifecycle behavior behind one structured tool surface. Runtime content follows one path: shared methodology and agent bodies are resolved from package-root `dist/src/` through the `maestro-mcp-server` npm bin. There is no hand-maintained packaged registry copy, no plugin-level `agents/` directory, and no Codex-local detached `plugins/maestro/src/` payload.
+This MCP-only state access model keeps session lifecycle behavior behind one structured tool surface. Runtime content follows one path: the `maestro-mcp-server` npm bin resolves a versioned manifest under package-root `dist/src/`, backed by its packed gzip payload. There is no hand-maintained registry copy, no plugin-level `agents/` directory, and no Codex-local detached `plugins/maestro/src/` payload.
 
 ## Tool Mapping
 
@@ -158,15 +158,15 @@ This differs from Gemini (passthrough variables) and Claude (environment variabl
 
 When `MAESTRO_WORKSPACE_PATH` is not set, the MCP server uses the first valid local `file://` root from the client `roots/list` response as a suggestion. If neither explicit input is available, initialization must wait for the user to provide a workspace path.
 
-## Canonical Filesystem Content
+## Canonical Manifest Content
 
 Codex follows the same source-of-truth model as the other runtimes:
 
 - shared skills, protocols, templates, references, and agent bodies are authored in canonical root `src/`
-- package-root `dist/src/` is the runtime content root for published Codex bundles
+- package-root `dist/src/generated/` holds the packed manifest and gzip payload for published Codex bundles
 - generated `plugins/maestro/skills/` files are public entrypoints or discovery stubs only
 - Codex does not consume plugin agent files; `get_agent` serves the canonical methodology bodies
-- no tracked `plugins/maestro/src/`, `plugins/maestro/lib/`, or bundled content registry is part of the runtime
+- no tracked `plugins/maestro/src/` or `plugins/maestro/lib/` tree is part of the runtime; source checkouts use the generated file-backed manifest
 
 ## Generated Files
 

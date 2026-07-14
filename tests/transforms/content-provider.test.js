@@ -12,9 +12,9 @@ import {
   makeTempSrcRoot,
   cleanupTempRoots,
   writeFileUnder,
-  writeAgent as writeFilesystemAgentAt,
-  writeResource as writeFilesystemResourceAt,
-  withExtensionRoot,
+  writeRuntimeContentManifest,
+  writeAgent,
+  writeResource,
 } from '../support/content.js';
 
 const moduleFilename = fileURLToPath(import.meta.url);
@@ -23,142 +23,104 @@ const REPO_SRC = path.resolve(moduleDirname, '../../src');
 
 after(cleanupTempRoots);
 
-function writeFilesystemResource(root, id, content) {
-  return writeFilesystemResourceAt(path.join(root, 'src'), id, content);
+function inline(relativePath, content) {
+  return { kind: 'inline', relativePath, content };
 }
 
-function writeFilesystemAgent(root, agentName, content) {
-  return writeFilesystemAgentAt(path.join(root, 'src'), agentName, content);
-}
-
-function writeRuntimeContentRegistry(root, registry) {
-  return writeFileUnder(
-    path.join(root, 'src'),
-    'generated/runtime-content-registry.json',
-    `${JSON.stringify({ schemaVersion: 1, resources: {}, agents: {}, blueprints: {}, ...registry }, null, 2)}\n`
-  );
-}
-
-function writePackedRuntimeContentRegistry(root, registry, payload) {
-  const registryPath = writeRuntimeContentRegistry(root, {
-    payload: 'runtime-content-registry.txt.gz',
-    payloadEncoding: 'gzip',
+function writeInlineManifest(srcRoot, registry) {
+  return writeRuntimeContentManifest(srcRoot, {
+    storage: 'inline',
+    resources: {},
+    agents: {},
+    agentProfiles: {},
+    blueprints: {},
     ...registry,
   });
-  const payloadPath = path.join(
-    root,
-    'src',
-    'generated',
-    'runtime-content-registry.txt.gz'
+}
+
+function writePackedManifest(srcRoot, registry, payload) {
+  const payloadName = 'runtime-content-registry.txt.gz';
+  const manifestPath = writeRuntimeContentManifest(srcRoot, {
+    storage: 'packed',
+    payload: payloadName,
+    payloadEncoding: 'gzip',
+    resources: {},
+    agents: {},
+    agentProfiles: {},
+    blueprints: {},
+    ...registry,
+  });
+  const payloadPath = writeFileUnder(
+    srcRoot,
+    path.posix.join('generated', payloadName),
+    gzipSync(payload)
   );
-  fs.writeFileSync(payloadPath, gzipSync(payload));
-  return { registryPath, payloadPath };
+  return { manifestPath, payloadPath };
 }
 
 describe('content provider runtime policy', () => {
-  it('reads filesystem-backed canonical content for claude', () => {
-    const root = makeTempSrcRoot('maestro-provider-claude-');
-
-    writeFilesystemResource(
-      root,
+  it('uses one registry-named provider for live file-backed Claude content', () => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-file-');
+    const filePath = writeResource(
+      srcRoot,
       'delegation',
-      '---\nname: delegation\ndescription: Filesystem copy\n---\nFilesystem content.\n'
+      '---\nname: delegation\ndescription: File copy\n---\nFirst value.\n'
     );
-    const result = withExtensionRoot(root, () => {
-      const provider = createContentProvider(getRuntimeConfig('claude'), path.join(root, 'src'));
-      return provider.readResource('delegation');
-    });
+    const provider = createContentProvider(getRuntimeConfig('claude'), srcRoot);
 
-    assert.ok(result.content.includes('Filesystem content.'));
-    assert.ok(result.content.includes('user-invocable: false'));
-  });
+    assert.equal(provider.name, 'registry');
+    assert.ok(provider.readResource('delegation').content.includes('First value.'));
+    assert.ok(provider.readResource('delegation').content.includes('user-invocable: false'));
 
-  it('does not fall back from a missing Claude content root to sibling source content', () => {
-    const root = makeTempSrcRoot('maestro-provider-claude-no-fallback-');
-    const retiredClaudeSrc = path.join(root, 'claude', 'src');
-
-    writeFilesystemResource(root, 'delegation', 'Package-root source content.\n');
-    writeFilesystemAgent(
-      root,
-      'coder',
-      '---\nname: coder\ntools: [read_file]\n---\nPackage-root source agent body.\n'
+    fs.writeFileSync(
+      filePath,
+      '---\nname: delegation\ndescription: File copy\n---\nSecond value.\n'
     );
-
-    const { resourceResult, agentResult } = withExtensionRoot(path.join(root, 'claude'), () => {
-      const provider = createContentProvider(getRuntimeConfig('claude'), retiredClaudeSrc);
-      return {
-        resourceResult: provider.readResource('delegation'),
-        agentResult: provider.readAgent('coder'),
-      };
-    });
-
-    assert.equal(resourceResult.error, 'Failed to read resource "delegation": ENOENT');
-    assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');
+    assert.ok(provider.readResource('delegation').content.includes('Second value.'));
   });
 
-  it('createContentProvider returns the filesystem provider when no registry exists', () => {
-    const srcRoot = makeTempSrcRoot('maestro-provider-filesystem-only-');
-    const provider = createContentProvider({ name: 'gemini' }, srcRoot);
-    assert.equal(provider.name, 'filesystem');
-    assert.equal(provider.srcRoot, path.resolve(srcRoot));
-    assert.match(provider.readResource('constructor').error, /^Unknown resource identifier/);
-  });
-
-  it('filesystem provider reads composed canonical agents when no registry exists', () => {
+  it('reads composed source agents through the generated file manifest', () => {
     const provider = createContentProvider(getRuntimeConfig('codex'), REPO_SRC);
     const result = provider.readAgent('accessibility-specialist');
 
-    assert.equal(provider.name, 'filesystem');
+    assert.equal(provider.name, 'registry');
     assert.equal(result.error, undefined);
     assert.ok(result.agent.body.includes('You are an **Accessibility Specialist**'));
     assert.ok(result.agent.tools.includes('direct file reads'));
   });
 
-  it('createContentProvider returns the registry provider when a registry exists', () => {
-    const root = makeTempSrcRoot('maestro-provider-registry-');
-    const srcRoot = path.join(root, 'src');
-    writeRuntimeContentRegistry(root, {
+  it('serves explicit inline fixtures and applies runtime materialization', () => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-inline-');
+    writeInlineManifest(srcRoot, {
       resources: {
-        delegation: {
-          relativePath: 'skills/shared/delegation/SKILL.md',
-          content: 'Registry content.\n',
-        },
+        delegation: inline('skills/shared/delegation/SKILL.md', 'Inline content.\n'),
       },
       agents: {
-        coder: {
-          relativePath: 'agents/coder.md',
-          content: '---\nname: coder\ntools: [read_file]\n---\nRegistry agent body.\n',
-        },
+        coder: inline(
+          'agents/coder.md',
+          '---\nname: coder\ntools: [read_file]\n---\nInline agent.\n'
+        ),
       },
     });
 
     const provider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
-    const resourceResult = provider.readResource('delegation');
-    const agentResult = provider.readAgent('coder');
-
-    assert.equal(provider.name, 'registry');
-    assert.equal(provider.srcRoot, path.resolve(srcRoot));
-    assert.equal(resourceResult.content, 'Registry content.\n');
-    assert.equal(agentResult.agent.body, 'Registry agent body.\n');
-    assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
+    assert.equal(provider.readResource('delegation').content, 'Inline content.\n');
+    assert.deepEqual(provider.readAgent('coder'), {
+      agent: { body: 'Inline agent.\n', tools: ['direct file reads'] },
+    });
   });
 
-  it('reads and decompresses packed content once per registry provider', (t) => {
-    const root = makeTempSrcRoot('maestro-provider-packed-cache-');
-    const srcRoot = path.join(root, 'src');
+  it('reads and decompresses packed content once per provider', (t) => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-packed-cache-');
     const delegation = 'Packed delegation content.\n';
     const architecture = 'Packed architecture content.\n';
     const prefix = '😀';
     const payload = `${prefix}${delegation}${architecture}`;
-    const { registryPath, payloadPath } = writePackedRuntimeContentRegistry(
-      root,
+    const { manifestPath, payloadPath } = writePackedManifest(
+      srcRoot,
       {
         resources: {
-          delegation: [
-            'skills/shared/delegation/SKILL.md',
-            prefix.length,
-            delegation.length,
-          ],
+          delegation: ['skills/shared/delegation/SKILL.md', prefix.length, delegation.length],
           architecture: [
             'references/architecture.md',
             prefix.length + delegation.length,
@@ -170,14 +132,14 @@ describe('content provider runtime policy', () => {
     );
     const originalReadFileSync = fs.readFileSync;
     const originalGunzipSync = zlib.gunzipSync;
-    let registryReads = 0;
+    const realPayloadPath = fs.realpathSync(payloadPath);
+    let manifestReads = 0;
     let payloadReads = 0;
     let decompressions = 0;
 
     t.mock.method(fs, 'readFileSync', function (...args) {
-      const filePath = String(args[0]);
-      if (filePath === registryPath) registryReads += 1;
-      if (filePath === payloadPath) payloadReads += 1;
+      if (String(args[0]) === manifestPath) manifestReads += 1;
+      if (String(args[0]) === realPayloadPath) payloadReads += 1;
       return originalReadFileSync.apply(this, args);
     });
     t.mock.method(zlib, 'gunzipSync', function (...args) {
@@ -186,132 +148,96 @@ describe('content provider runtime policy', () => {
     });
 
     const provider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
-    const first = provider.readResource('delegation');
-    const second = provider.readResource('architecture');
-    const repeated = provider.readResource('delegation');
-
-    assert.equal(first.content, delegation);
-    assert.equal(second.content, architecture);
-    assert.equal(repeated.content, delegation);
-    assert.equal(registryReads, 1);
+    assert.equal(provider.readResource('delegation').content, delegation);
+    assert.equal(provider.readResource('architecture').content, architecture);
+    assert.equal(provider.readResource('delegation').content, delegation);
+    assert.equal(manifestReads, 1);
     assert.equal(payloadReads, 1);
     assert.equal(decompressions, 1);
   });
 
-  it('caches content for one provider but observes mutations through a new provider', () => {
-    const root = makeTempSrcRoot('maestro-provider-lifetime-');
-    const srcRoot = path.join(root, 'src');
-    writeRuntimeContentRegistry(root, {
-      resources: {
-        delegation: {
-          relativePath: 'skills/shared/delegation/SKILL.md',
-          content: 'First provider value.\n',
+  it('keeps explicit inline packed entries readable after payload corruption', () => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-packed-isolation-');
+    const { payloadPath } = writePackedManifest(
+      srcRoot,
+      {
+        resources: {
+          delegation: ['skills/shared/delegation/SKILL.md', 0, 4],
+          architecture: inline(
+            'references/architecture.md',
+            'Inline architecture.\n'
+          ),
         },
       },
-    });
+      'data'
+    );
+    fs.writeFileSync(payloadPath, Buffer.from('not-gzip'));
+    const provider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
 
-    const firstProvider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
-    assert.equal(firstProvider.readResource('delegation').content, 'First provider value.\n');
-
-    writeRuntimeContentRegistry(root, {
-      resources: {
-        delegation: {
-          relativePath: 'skills/shared/delegation/SKILL.md',
-          content: 'Second provider value.\n',
-        },
-      },
-    });
-
-    assert.equal(firstProvider.readResource('delegation').content, 'First provider value.\n');
-    const secondProvider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
-    assert.equal(secondProvider.readResource('delegation').content, 'Second provider value.\n');
+    assert.equal(
+      provider.readResource('delegation').error,
+      'Failed to read resource "delegation": Z_DATA_ERROR'
+    );
+    assert.equal(provider.readResource('architecture').content, 'Inline architecture.\n');
   });
 
-  it('does not normalize post-read transform failures as registry read errors', () => {
-    const root = makeTempSrcRoot('maestro-provider-transform-error-');
-    const srcRoot = path.join(root, 'src');
-    writeRuntimeContentRegistry(root, {
+  it('does not normalize post-read transform failures as content read errors', () => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-transform-error-');
+    writeInlineManifest(srcRoot, {
       resources: {
-        architecture: {
-          relativePath: 'references/architecture.md',
-          content: '<!-- @feature unknown -->\ncontent\n<!-- @end-feature -->\n',
-        },
+        architecture: inline(
+          'references/architecture.md',
+          '<!-- @feature unknown -->\ncontent\n<!-- @end-feature -->\n'
+        ),
       },
     });
-
     const provider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
+
     assert.throws(
       () => provider.readResource('architecture'),
       /Unknown feature flag: "unknown"/
     );
   });
 
-  it('provider module no longer exports content-policy plumbing', () => {
+  it('fails explicitly when the required manifest is missing', () => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-missing-manifest-');
+    const provider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
+
+    assert.equal(
+      provider.readResource('delegation').error,
+      'Failed to read resource "delegation": ENOENT'
+    );
+    assert.equal(
+      provider.readAgent('coder').error,
+      'Failed to read agent "coder": ENOENT'
+    );
+  });
+
+  it('retires representation-specific provider exports', () => {
+    assert.equal(contentProviderModule.createFilesystemProvider, undefined);
+    assert.equal(contentProviderModule.createRegistryProvider, undefined);
     assert.equal(contentProviderModule.normalizeContentPolicy, undefined);
     assert.equal(contentProviderModule.createContentSourceSpecs, undefined);
   });
 
-  it('does not fall back when Claude package-root content is unreadable', () => {
-    const root = makeTempSrcRoot('maestro-provider-claude-corrupt-');
-    const sourceRoot = path.join(root, 'src');
-    const detachedSkillPath = path.join(
-      sourceRoot,
-      'skills',
-      'shared',
-      'delegation',
-      'SKILL.md'
-    );
-    const detachedAgentPath = path.join(sourceRoot, 'agents', 'coder.md');
+  it('returns unknown errors before reading a manifest', () => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-unknown-');
+    const provider = createContentProvider(getRuntimeConfig('codex'), srcRoot);
 
-    fs.mkdirSync(detachedSkillPath, { recursive: true });
-    fs.mkdirSync(detachedAgentPath, { recursive: true });
-
-    const { resourceResult, agentResult } = withExtensionRoot(path.join(root, 'claude'), () => {
-      const provider = createContentProvider(getRuntimeConfig('claude'), sourceRoot);
-      return {
-        resourceResult: provider.readResource('delegation'),
-        agentResult: provider.readAgent('coder'),
-      };
-    });
-
-    assert.equal(resourceResult.error, 'Failed to read resource "delegation": EISDIR');
-    assert.equal(agentResult.error, 'Failed to read agent "coder": EISDIR');
+    assert.match(provider.readResource('constructor').error, /^Unknown resource identifier/);
+    assert.match(provider.readAgent('unknown-agent').error, /^Unknown agent identifier/);
   });
 
-  it('reads filesystem-backed canonical agent and resource content for codex', () => {
-    const root = makeTempSrcRoot('maestro-provider-codex-');
-
-    writeFilesystemResource(root, 'delegation', 'Filesystem content.\n');
-    writeFilesystemAgent(
-      root,
+  it('reads physical agents from file storage', () => {
+    const srcRoot = makeTempSrcRoot('maestro-provider-physical-agent-');
+    writeAgent(
+      srcRoot,
       'coder',
-      '---\nname: coder\ntools: [read_file]\n---\nFilesystem agent body.\n'
+      '---\nname: coder\ntools: [read_file]\n---\nPhysical body.\n'
     );
-    const { resourceResult, agentResult } = withExtensionRoot(root, () => {
-      const provider = createContentProvider(getRuntimeConfig('codex'), path.join(root, 'src'));
-      return {
-        resourceResult: provider.readResource('delegation'),
-        agentResult: provider.readAgent('coder'),
-      };
-    });
+    const result = createContentProvider(getRuntimeConfig('codex'), srcRoot).readAgent('coder');
 
-    assert.equal(resourceResult.content, 'Filesystem content.\n');
-    assert.equal(agentResult.agent.body, 'Filesystem agent body.\n');
-    assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
+    assert.equal(result.agent.body, 'Physical body.\n');
+    assert.deepEqual(result.agent.tools, ['direct file reads']);
   });
-
-  it('returns filesystem read errors when codex exhausts its configured content sources', () => {
-    const root = makeTempSrcRoot('maestro-provider-empty-');
-    const { resourceResult, agentResult } = withExtensionRoot(root, () => {
-      const provider = createContentProvider(getRuntimeConfig('codex'), path.join(root, 'src'));
-      return {
-        resourceResult: provider.readResource('delegation'),
-        agentResult: provider.readAgent('coder'),
-      };
-    });
-
-    assert.equal(resourceResult.error, 'Failed to read resource "delegation": ENOENT');
-    assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');
-  });
-
 });

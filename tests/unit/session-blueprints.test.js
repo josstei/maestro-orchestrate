@@ -7,6 +7,7 @@ import { gzipSync } from 'node:zlib';
 import { NotFoundError } from '../../dist/src/lib/errors/index.js';
 import { handleInstantiateSessionBlueprint, handleListSessionBlueprints } from '../../dist/src/mcp/handlers/session-blueprints.js';
 const PROJECT_ROOT = process.cwd();
+const PROJECT_SRC = path.join(PROJECT_ROOT, 'src');
 
 function createRegistryRuntimeRoot(t, registry, payload) {
   const runtimeSrcRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-blueprint-registry-'));
@@ -16,9 +17,11 @@ function createRegistryRuntimeRoot(t, registry, payload) {
   fs.writeFileSync(
     registryPath,
     `${JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      storage: 'packed',
       resources: {},
       agents: {},
+      agentProfiles: {},
       blueprints: {},
       ...registry,
     })}\n`,
@@ -36,7 +39,7 @@ function createRegistryRuntimeRoot(t, registry, payload) {
 
 describe('session blueprints', () => {
   it('lists authored seed blueprints by id and title', () => {
-    const result = handleListSessionBlueprints({}, PROJECT_ROOT);
+    const result = handleListSessionBlueprints({ runtimeSrcRoot: PROJECT_SRC });
 
     assert.deepEqual(result.blueprints, [
       { id: 'add-db-migration', title: 'Add Database Migration' },
@@ -47,7 +50,7 @@ describe('session blueprints', () => {
   it('instantiates blueprint phases with create_session-compatible shape', () => {
     const result = handleInstantiateSessionBlueprint(
       { blueprint_id: 'add-rest-endpoint', task: 'add /users endpoint' },
-      PROJECT_ROOT
+      { runtimeSrcRoot: PROJECT_SRC }
     );
 
     assert.equal(result.task, 'add /users endpoint');
@@ -69,33 +72,14 @@ describe('session blueprints', () => {
     });
   });
 
-  it('falls back to source checkout blueprints when compiled runtime registry is absent', () => {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-blueprint-fallback-'));
+  it('fails explicitly when the required manifest is missing', (t) => {
+    const runtimeSrcRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-blueprint-missing-'));
+    t.after(() => fs.rmSync(runtimeSrcRoot, { recursive: true, force: true }));
 
-    try {
-      const runtimeSrcRoot = path.join(tempRoot, 'dist', 'src');
-      const sourceBlueprintDir = path.join(tempRoot, 'src', 'templates', 'session-blueprints');
-      fs.mkdirSync(runtimeSrcRoot, { recursive: true });
-      fs.mkdirSync(sourceBlueprintDir, { recursive: true });
-      fs.copyFileSync(
-        path.join(PROJECT_ROOT, 'src', 'templates', 'session-blueprints', 'add-rest-endpoint.md'),
-        path.join(sourceBlueprintDir, 'add-rest-endpoint.md')
-      );
-
-      const listResult = handleListSessionBlueprints({ runtimeSrcRoot });
-      const blueprintResult = handleInstantiateSessionBlueprint(
-        { blueprint_id: 'add-rest-endpoint', task: 'add /users endpoint' },
-        { runtimeSrcRoot }
-      );
-
-      assert.deepEqual(listResult.blueprints, [
-        { id: 'add-rest-endpoint', title: 'Add REST Endpoint' },
-      ]);
-      assert.equal(blueprintResult.task, 'add /users endpoint');
-      assert.equal(blueprintResult.phases.length, 5);
-    } finally {
-      fs.rmSync(tempRoot, { recursive: true, force: true });
-    }
+    assert.throws(
+      () => handleListSessionBlueprints({ runtimeSrcRoot }),
+      (error) => error.code === 'ENOENT' && error.path.endsWith('runtime-content-registry.json')
+    );
   });
 
   it('throws NotFoundError for an unknown blueprint id', () => {
@@ -103,7 +87,7 @@ describe('session blueprints', () => {
       () =>
         handleInstantiateSessionBlueprint(
           { blueprint_id: 'missing-blueprint', task: 'do work' },
-          PROJECT_ROOT
+          { runtimeSrcRoot: PROJECT_SRC }
         ),
       NotFoundError
     );
@@ -140,12 +124,13 @@ describe('session blueprints', () => {
       gzipSync(first + second)
     );
     const payloadPath = path.join(runtimeSrcRoot, 'generated', payloadName);
+    const realPayloadPath = fs.realpathSync(payloadPath);
     const originalReadFileSync = fs.readFileSync;
     let registryReads = 0;
     let payloadReads = 0;
     t.mock.method(fs, 'readFileSync', function (...args) {
       if (String(args[0]) === registryPath) registryReads += 1;
-      if (String(args[0]) === payloadPath) payloadReads += 1;
+      if (String(args[0]) === realPayloadPath) payloadReads += 1;
       return originalReadFileSync.apply(this, args);
     });
 
@@ -168,11 +153,14 @@ describe('session blueprints', () => {
       SyntaxError
     );
 
-    fs.writeFileSync(
-      registryPath,
-      `${JSON.stringify({ schemaVersion: 1, resources: {}, agents: {}, blueprints: {} })}\n`,
-      'utf8'
-    );
+    fs.writeFileSync(registryPath, `${JSON.stringify({
+      schemaVersion: 2,
+      storage: 'inline',
+      resources: {},
+      agents: {},
+      agentProfiles: {},
+      blueprints: {},
+    })}\n`, 'utf8');
     assert.throws(
       () => handleInstantiateSessionBlueprint(
         { blueprint_id: 'missing-blueprint', task: 'do work' },
@@ -203,6 +191,24 @@ describe('session blueprints', () => {
     );
   });
 
+  it('treats a missing file-backed blueprint as not found without hiding payload failures', (t) => {
+    const { runtimeSrcRoot } = createRegistryRuntimeRoot(t, {
+      storage: 'file',
+      blueprints: {
+        missing: 'templates/session-blueprints/missing.md',
+      },
+    });
+
+    assert.deepEqual(handleListSessionBlueprints({ runtimeSrcRoot }).blueprints, []);
+    assert.throws(
+      () => handleInstantiateSessionBlueprint(
+        { blueprint_id: 'missing', task: 'do work' },
+        { runtimeSrcRoot }
+      ),
+      NotFoundError
+    );
+  });
+
   it('filters malformed registry entries and treats a direct malformed read as missing', (t) => {
     const validContent = fs.readFileSync(
       path.join(PROJECT_ROOT, 'src', 'templates', 'session-blueprints', 'add-rest-endpoint.md'),
@@ -212,6 +218,7 @@ describe('session blueprints', () => {
       blueprints: {
         malformed: ['templates/session-blueprints/malformed.md', 'bad-offset', 4],
         'add-rest-endpoint': {
+          kind: 'inline',
           relativePath: 'templates/session-blueprints/add-rest-endpoint.md',
           content: validContent,
         },

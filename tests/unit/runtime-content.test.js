@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { gzipSync } from 'node:zlib';
+import zlib, { gzipSync } from 'node:zlib';
 
 import {
   DEFAULT_RUNTIME_NAME,
@@ -18,17 +18,9 @@ import {
   parseInlineArray,
   parseFrontmatter,
   mapTools,
-  runtimeContentRegistryPath,
-  hasRuntimeContentRegistry,
-  readRuntimeContentRegistry,
-  readRawResourceFromRegistry,
-  readResourceFromRegistry,
-  readRawAgentFromRegistry,
-  readAgentFromRegistry,
-  listBlueprintsFromRegistry,
-  readBlueprintFromRegistry,
 } from '../../dist/src/mcp/content/runtime-content.js';
 import { createRuntimeContentSnapshot } from '../../dist/src/mcp/content/runtime-content-snapshot.js';
+import * as runtimeContentModule from '../../dist/src/mcp/content/runtime-content.js';
 
 function createSnapshotFixture(t, registry, payload) {
   const srcRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-runtime-snapshot-'));
@@ -38,9 +30,11 @@ function createSnapshotFixture(t, registry, payload) {
   fs.writeFileSync(
     registryPath,
     `${JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      storage: 'inline',
       resources: {},
       agents: {},
+      agentProfiles: {},
       blueprints: {},
       ...registry,
     })}\n`,
@@ -48,12 +42,16 @@ function createSnapshotFixture(t, registry, payload) {
   );
   if (payload !== undefined) {
     fs.writeFileSync(
-      path.join(generatedDir, registry.payload || 'runtime-content-registry.txt'),
+      path.join(generatedDir, registry.payload || 'runtime-content-registry.txt.gz'),
       payload
     );
   }
   t.after(() => fs.rmSync(srcRoot, { recursive: true, force: true }));
   return { srcRoot, registryPath };
+}
+
+function inline(relativePath, content) {
+  return { kind: 'inline', relativePath, content };
 }
 
 function profile(agentName, body) {
@@ -320,320 +318,279 @@ describe('mapTools', () => {
 });
 
 describe('createRuntimeContentSnapshot', () => {
-  it('preserves snapshot-backed registry compatibility exports', (t) => {
-    const { srcRoot, registryPath } = createSnapshotFixture(t, {
-      resources: {
-        delegation: {
-          relativePath: 'skills/shared/delegation/SKILL.md',
-          content: 'Use ${workspacePath}.\n',
-        },
-      },
-      agents: {
-        coder: {
-          relativePath: 'agents/coder.md',
-          content: '---\nname: coder\ntools: [read_file]\n---\nCompatibility agent.\n',
-        },
-      },
-      blueprints: {
-        demo: {
-          relativePath: 'templates/session-blueprints/demo.md',
-          content: 'Compatibility blueprint.\n',
-        },
-      },
-    });
-    const runtimeConfig = {
-      name: 'codex',
-      agentNaming: 'kebab-case',
-      env: { workspacePath: 'WORKSPACE_ROOT' },
-      features: {},
-      tools: { read_file: 'Read' },
-    };
-    const snapshot = createRuntimeContentSnapshot(srcRoot);
-
-    assert.equal(runtimeContentRegistryPath(srcRoot), registryPath);
-    assert.equal(hasRuntimeContentRegistry(srcRoot), true);
-    assert.equal(readRuntimeContentRegistry(srcRoot).schemaVersion, 1);
-
-    const rawResource = readRawResourceFromRegistry('delegation', srcRoot);
-    assert.deepEqual(rawResource, snapshot.readResource('delegation'));
-    assert.equal(Object.isFrozen(rawResource), false);
-    const rawError = readRawResourceFromRegistry('unknown-resource', srcRoot);
-    assert.match(rawError.error, /^Unknown resource identifier/);
-    assert.equal(Object.isFrozen(rawError), false);
-    assert.equal(
-      readResourceFromRegistry('delegation', runtimeConfig, srcRoot).content,
-      'Use ${WORKSPACE_ROOT}.\n'
-    );
-
-    const rawAgent = readRawAgentFromRegistry('coder', srcRoot);
-    assert.deepEqual(rawAgent, snapshot.readAgent('coder'));
-    assert.equal(Object.isFrozen(rawAgent), false);
-    assert.deepEqual(readAgentFromRegistry('coder', runtimeConfig, srcRoot), {
-      agent: {
-        body: 'Compatibility agent.\n',
-        tools: ['Read'],
-      },
-    });
-
-    const blueprints = listBlueprintsFromRegistry(srcRoot);
-    assert.deepEqual(blueprints.map(({ id }) => id), ['demo']);
-    assert.equal(Object.isFrozen(blueprints), false);
-    assert.equal(Object.isFrozen(blueprints[0]), false);
-    const blueprint = readBlueprintFromRegistry('demo', srcRoot);
-    assert.deepEqual(blueprint, snapshot.readBlueprint('demo'));
-    assert.equal(Object.isFrozen(blueprint), false);
+  it('retires raw reader and representation-selector compatibility exports', () => {
+    for (const name of [
+      'runtimeContentRegistryPath',
+      'hasRuntimeContentRegistry',
+      'readRuntimeContentRegistry',
+      'readRawResourceFromFilesystem',
+      'readRawResourceFromRegistry',
+      'readResourceFromFilesystem',
+      'readResourceFromRegistry',
+      'readRawAgentFromFilesystem',
+      'readRawAgentFromRegistry',
+      'readAgentFromFilesystem',
+      'readAgentFromRegistry',
+      'listBlueprintsFromRegistry',
+      'readBlueprintFromRegistry',
+    ]) {
+      assert.equal(runtimeContentModule[name], undefined, name);
+    }
   });
 
-  it('performs no runtime registry read during construction or unknown lookups', (t) => {
+  it('does not read the manifest during construction or unknown lookups', (t) => {
     const { srcRoot, registryPath } = createSnapshotFixture(t, {});
     fs.writeFileSync(registryPath, '{ malformed json', 'utf8');
     const originalReadFileSync = fs.readFileSync;
-    let registryReads = 0;
+    let manifestReads = 0;
     t.mock.method(fs, 'readFileSync', function (...args) {
-      if (String(args[0]) === registryPath) registryReads += 1;
+      if (String(args[0]) === registryPath) manifestReads += 1;
       return originalReadFileSync.apply(this, args);
     });
 
     const snapshot = createRuntimeContentSnapshot(srcRoot);
-    assert.equal(registryReads, 0);
-    assert.match(snapshot.readResource('unknown-resource').error, /^Unknown resource identifier/);
-    assert.match(snapshot.readResource('constructor').error, /^Unknown resource identifier/);
-    assert.match(snapshot.readResource('toString').error, /^Unknown resource identifier/);
     assert.match(snapshot.readResource('__proto__').error, /^Unknown resource identifier/);
     assert.match(snapshot.readAgent('unknown-agent').error, /^Unknown agent identifier/);
-    assert.equal(registryReads, 0);
-
-    assert.deepEqual(snapshot.readResource('delegation'), {
-      error: 'Failed to read resource "delegation": UNKNOWN',
-      code: 'UNKNOWN',
-      path: registryPath,
-    });
-    assert.deepEqual(snapshot.readAgent('coder'), {
-      error: 'Failed to read agent "coder": UNKNOWN',
-      code: 'UNKNOWN',
-      path: registryPath,
-    });
-    assert.equal(registryReads, 1);
+    assert.equal(manifestReads, 0);
+    assert.equal(
+      snapshot.readResource('delegation').code,
+      'UNKNOWN'
+    );
+    assert.equal(manifestReads, 1);
   });
 
-  it('serves inline resources, agents, and blueprints without a payload file', (t) => {
+  it('serves explicit inline resources, agents, and blueprints', (t) => {
     const { srcRoot } = createSnapshotFixture(t, {
       resources: {
-        delegation: {
-          relativePath: 'skills/shared/delegation/SKILL.md',
-          content: 'Inline skill.\n',
-        },
+        delegation: inline('skills/shared/delegation/SKILL.md', 'Inline skill.\n'),
       },
-      agents: {
-        coder: {
-          relativePath: 'agents/coder.md',
-          content: 'Inline agent.\n',
-        },
-      },
+      agents: { coder: inline('agents/coder.md', 'Inline agent.\n') },
       blueprints: {
-        demo: {
-          relativePath: 'templates/session-blueprints/demo.md',
-          content: 'Inline blueprint.\n',
-        },
+        demo: inline('templates/session-blueprints/demo.md', 'Inline blueprint.\n'),
       },
     });
-
     const snapshot = createRuntimeContentSnapshot(srcRoot);
+
     assert.equal(snapshot.readResource('delegation').content, 'Inline skill.\n');
     assert.equal(snapshot.readAgent('coder').content, 'Inline agent.\n');
     assert.equal(snapshot.readBlueprint('demo').content, 'Inline blueprint.\n');
     assert.deepEqual(snapshot.listBlueprints().map(({ id }) => id), ['demo']);
   });
 
-  it('attributes missing, unsupported, and corrupt payload failures to the registry', (t) => {
+  it('performs uncached file reads for resources and composed profiles', (t) => {
+    const { srcRoot } = createSnapshotFixture(t, {
+      storage: 'file',
+      resources: { delegation: 'skills/shared/delegation/SKILL.md' },
+      agentProfiles: { agents: 'agent-profiles/agents.profile' },
+    });
+    const resourcePath = path.join(srcRoot, 'skills/shared/delegation/SKILL.md');
+    const profilePath = path.join(srcRoot, 'agent-profiles/agents.profile');
+    fs.mkdirSync(path.dirname(resourcePath), { recursive: true });
+    fs.mkdirSync(path.dirname(profilePath), { recursive: true });
+    fs.writeFileSync(resourcePath, 'First resource.\n');
+    fs.writeFileSync(profilePath, profile('coder', 'First profile body.'));
+    const snapshot = createRuntimeContentSnapshot(srcRoot);
+
+    assert.equal(snapshot.readResource('delegation').content, 'First resource.\n');
+    assert.match(snapshot.readAgent('coder').content, /First profile body/);
+    fs.writeFileSync(resourcePath, 'Second resource.\n');
+    fs.writeFileSync(profilePath, profile('coder', 'Second profile body.'));
+    assert.equal(snapshot.readResource('delegation').content, 'Second resource.\n');
+    assert.match(snapshot.readAgent('coder').content, /Second profile body/);
+  });
+
+  it('rejects unsafe file paths before reading content', (t) => {
     const cases = [
-      {
-        name: 'missing',
-        registry: {
-          payload: 'missing.gz',
-          payloadEncoding: 'gzip',
-          resources: { delegation: ['skills/shared/delegation/SKILL.md', 0, 4] },
-        },
-        expectedCode: 'ENOENT',
-      },
-      {
-        name: 'unsupported',
-        registry: {
-          payload: 'content.bin',
-          payloadEncoding: 'brotli',
-          resources: { delegation: ['skills/shared/delegation/SKILL.md', 0, 4] },
-        },
-        payload: Buffer.from('data'),
-        expectedCode: 'UNKNOWN',
-      },
-      {
-        name: 'corrupt',
-        registry: {
-          payload: 'content.gz',
-          payloadEncoding: 'gzip',
-          resources: { delegation: ['skills/shared/delegation/SKILL.md', 0, 4] },
-        },
-        payload: Buffer.from([0x6e, 0x6f, 0x74, 0x2d, 0x67, 0x7a, 0x69, 0x70]),
-        expectedCode: 'Z_DATA_ERROR',
-      },
+      ['/tmp/content.md', 'ERR_RUNTIME_CONTENT_PATH_ABSOLUTE'],
+      ['C:/content.md', 'ERR_RUNTIME_CONTENT_PATH_ABSOLUTE'],
+      ['skills\\content.md', 'ERR_RUNTIME_CONTENT_PATH_BACKSLASH'],
+      ['../content.md', 'ERR_RUNTIME_CONTENT_PATH_TRAVERSAL'],
+      ['skills/../content.md', 'ERR_RUNTIME_CONTENT_PATH_TRAVERSAL'],
+      ['skills/content\0.md', 'ERR_RUNTIME_CONTENT_PATH_NUL'],
     ];
 
-    for (const fixture of cases) {
-      const { srcRoot, registryPath } = createSnapshotFixture(
-        t,
-        fixture.registry,
-        fixture.payload
-      );
-      const result = createRuntimeContentSnapshot(srcRoot).readResource('delegation');
-      assert.deepEqual(result, {
-        error: `Failed to read resource "delegation": ${fixture.expectedCode}`,
-        code: fixture.expectedCode,
-        path: registryPath,
-      }, fixture.name);
+    for (const [relativePath, code] of cases) {
+      const { srcRoot } = createSnapshotFixture(t, {
+        storage: 'file',
+        resources: { delegation: relativePath },
+      });
+      assert.equal(createRuntimeContentSnapshot(srcRoot).readResource('delegation').code, code);
     }
   });
 
-  it('keeps packed agent failures in the agent-specific registry envelope', (t) => {
-    const { srcRoot, registryPath } = createSnapshotFixture(t, {
-      payload: 'missing-agents.gz',
-      payloadEncoding: 'gzip',
-      agents: {
-        coder: ['agents/coder.md', 0, 10],
-      },
-    });
-
-    assert.deepEqual(createRuntimeContentSnapshot(srcRoot).readAgent('coder'), {
-      error: 'Failed to read agent "coder": ENOENT',
-      code: 'ENOENT',
-      path: registryPath,
-    });
-  });
-
-  it('does not let a cached packed-payload failure poison later inline entries', (t) => {
-    const { srcRoot, registryPath } = createSnapshotFixture(t, {
-      payload: 'missing.gz',
-      payloadEncoding: 'gzip',
+  it('rejects symlink escape and reports missing file paths', (t) => {
+    const { srcRoot } = createSnapshotFixture(t, {
+      storage: 'file',
       resources: {
-        delegation: ['skills/shared/delegation/SKILL.md', 0, 4],
-        architecture: {
-          relativePath: 'references/architecture.md',
-          content: 'Inline architecture.\n',
-        },
-        validation: ['skills/shared/validation/SKILL.md', 4, 4],
+        delegation: 'skills/shared/delegation/SKILL.md',
+        architecture: 'references/architecture.md',
       },
     });
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-outside-'));
+    const outsideFile = path.join(outside, 'SKILL.md');
+    const linkedFile = path.join(srcRoot, 'skills/shared/delegation/SKILL.md');
+    fs.writeFileSync(outsideFile, 'outside\n');
+    fs.mkdirSync(path.dirname(linkedFile), { recursive: true });
+    fs.symlinkSync(outsideFile, linkedFile);
+    t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
     const snapshot = createRuntimeContentSnapshot(srcRoot);
 
-    assert.deepEqual(snapshot.readResource('delegation'), {
-      error: 'Failed to read resource "delegation": ENOENT',
-      code: 'ENOENT',
-      path: registryPath,
-    });
-    assert.equal(snapshot.readResource('architecture').content, 'Inline architecture.\n');
-    assert.deepEqual(snapshot.readResource('validation'), {
-      error: 'Failed to read resource "validation": ENOENT',
-      code: 'ENOENT',
-      path: registryPath,
-    });
+    assert.equal(snapshot.readResource('delegation').code, 'ERR_RUNTIME_CONTENT_PATH_ESCAPE');
+    const missing = snapshot.readResource('architecture');
+    assert.equal(missing.code, 'ENOENT');
+    assert.equal(missing.path, path.join(srcRoot, 'references/architecture.md'));
   });
 
-  it('isolates malformed agent profiles from resources and blueprints', (t) => {
-    const { srcRoot, registryPath } = createSnapshotFixture(t, {
+  it('rejects unsupported storage, corrupt JSON, malformed sections, and legacy entries', (t) => {
+    const unsupported = createSnapshotFixture(t, { storage: 'legacy' });
+    assert.equal(
+      createRuntimeContentSnapshot(unsupported.srcRoot).readResource('delegation').code,
+      'ERR_RUNTIME_CONTENT_STORAGE'
+    );
+
+    const legacy = createSnapshotFixture(t, { schemaVersion: 1 });
+    assert.equal(
+      createRuntimeContentSnapshot(legacy.srcRoot).readResource('delegation').code,
+      'ERR_RUNTIME_CONTENT_MANIFEST'
+    );
+
+    const corrupt = createSnapshotFixture(t, {});
+    fs.writeFileSync(corrupt.registryPath, '{bad json', 'utf8');
+    assert.equal(
+      createRuntimeContentSnapshot(corrupt.srcRoot).readResource('delegation').code,
+      'UNKNOWN'
+    );
+
+    const malformedSection = createSnapshotFixture(t, { resources: [] });
+    assert.equal(
+      createRuntimeContentSnapshot(malformedSection.srcRoot).readResource('delegation').code,
+      'ERR_RUNTIME_CONTENT_MANIFEST'
+    );
+
+    const legacyEntry = createSnapshotFixture(t, {
       resources: {
         delegation: {
           relativePath: 'skills/shared/delegation/SKILL.md',
-          content: 'Healthy resource.\n',
+          content: 'Implicit legacy entry.\n',
         },
       },
-      agents: {
-        coder: {
-          relativePath: 'agents/coder.md',
-          content: 'Fallback agent.\n',
-        },
+    });
+    assert.equal(
+      createRuntimeContentSnapshot(legacyEntry.srcRoot).readResource('delegation').code,
+      'ERR_RUNTIME_CONTENT_ENTRY'
+    );
+  });
+
+  it('caches one packed manifest, payload read, and decompression with UTF-16 offsets', (t) => {
+    const prefix = '😀';
+    const content = 'Delegation after π.\n';
+    const payloadName = 'content.gz';
+    const { srcRoot, registryPath } = createSnapshotFixture(t, {
+      storage: 'packed',
+      payload: payloadName,
+      payloadEncoding: 'gzip',
+      resources: {
+        delegation: ['skills/shared/delegation/SKILL.md', prefix.length, content.length],
       },
-      agentProfiles: {
-        broken: {
-          relativePath: 'agent-profiles/broken.profile',
-          content: 'not a profile',
+    }, gzipSync(prefix + content));
+    const payloadPath = path.join(srcRoot, 'generated', payloadName);
+    const realPayloadPath = fs.realpathSync(payloadPath);
+    const originalReadFileSync = fs.readFileSync;
+    const originalGunzipSync = zlib.gunzipSync;
+    let manifestReads = 0;
+    let payloadReads = 0;
+    let decompressions = 0;
+    t.mock.method(fs, 'readFileSync', function (...args) {
+      if (String(args[0]) === registryPath) manifestReads += 1;
+      if (String(args[0]) === realPayloadPath) payloadReads += 1;
+      return originalReadFileSync.apply(this, args);
+    });
+    t.mock.method(zlib, 'gunzipSync', function (...args) {
+      decompressions += 1;
+      return originalGunzipSync.apply(this, args);
+    });
+    const snapshot = createRuntimeContentSnapshot(srcRoot);
+
+    assert.equal(snapshot.readResource('delegation').content, content);
+    assert.equal(snapshot.readResource('delegation').content, content);
+    assert.deepEqual([manifestReads, payloadReads, decompressions], [1, 1, 1]);
+  });
+
+  it('isolates packed failures from explicit inline entries', (t) => {
+    const fixtures = [
+      { payload: 'missing.gz', encoding: 'gzip', expected: 'ENOENT' },
+      { payload: 'content.bin', encoding: 'brotli', body: Buffer.from('data'), expected: 'UNKNOWN' },
+      { payload: 'content.gz', encoding: 'gzip', body: Buffer.from('not-gzip'), expected: 'Z_DATA_ERROR' },
+    ];
+
+    for (const fixture of fixtures) {
+      const { srcRoot, registryPath } = createSnapshotFixture(t, {
+        storage: 'packed',
+        payload: fixture.payload,
+        payloadEncoding: fixture.encoding,
+        resources: {
+          delegation: ['skills/shared/delegation/SKILL.md', 0, 4],
+          architecture: inline('references/architecture.md', 'Healthy inline.\n'),
         },
+      }, fixture.body);
+      const snapshot = createRuntimeContentSnapshot(srcRoot);
+      const failure = snapshot.readResource('delegation');
+      assert.equal(failure.code, fixture.expected);
+      assert.equal(failure.path, registryPath);
+      assert.equal(snapshot.readResource('architecture').content, 'Healthy inline.\n');
+    }
+  });
+
+  it('rejects invalid packed ranges without slicing or reading unrelated sections', (t) => {
+    const { srcRoot } = createSnapshotFixture(t, {
+      storage: 'packed',
+      payload: 'content.gz',
+      payloadEncoding: 'gzip',
+      resources: {
+        delegation: ['skills/shared/delegation/SKILL.md', 0, Number.MAX_SAFE_INTEGER],
       },
       blueprints: {
-        demo: {
-          relativePath: 'templates/session-blueprints/demo.md',
-          content: 'Healthy blueprint.\n',
-        },
+        demo: inline('templates/session-blueprints/demo.md', 'Healthy blueprint.\n'),
+      },
+    }, gzipSync('tiny'));
+    const snapshot = createRuntimeContentSnapshot(srcRoot);
+
+    assert.equal(snapshot.readResource('delegation').code, 'ERR_RUNTIME_CONTENT_RANGE');
+    assert.equal(snapshot.readBlueprint('demo').content, 'Healthy blueprint.\n');
+  });
+
+  it('isolates malformed profiles from resources and blueprints', (t) => {
+    const { srcRoot } = createSnapshotFixture(t, {
+      resources: {
+        delegation: inline('skills/shared/delegation/SKILL.md', 'Healthy resource.\n'),
+      },
+      agents: { coder: inline('agents/coder.md', 'Fallback agent.\n') },
+      agentProfiles: {
+        broken: inline('agent-profiles/broken.profile', 'not a profile'),
+      },
+      blueprints: {
+        demo: inline('templates/session-blueprints/demo.md', 'Healthy blueprint.\n'),
       },
     });
     const snapshot = createRuntimeContentSnapshot(srcRoot);
 
-    assert.deepEqual(snapshot.readAgent('coder'), {
-      error: 'Failed to read agent "coder": UNKNOWN',
-      code: 'UNKNOWN',
-      path: registryPath,
-    });
+    assert.equal(snapshot.readAgent('coder').code, 'UNKNOWN');
     assert.equal(snapshot.readResource('delegation').content, 'Healthy resource.\n');
     assert.equal(snapshot.readBlueprint('demo').content, 'Healthy blueprint.\n');
-    assert.deepEqual(snapshot.listBlueprints().map(({ id }) => id), ['demo']);
   });
 
-  it('preserves the first matching agent profile and caches the rendered index', (t) => {
-    const { srcRoot } = createSnapshotFixture(t, {
-      agentProfiles: {
-        first: {
-          relativePath: 'agent-profiles/first.profile',
-          content: profile('coder', 'First profile body.'),
-        },
-        second: {
-          relativePath: 'agent-profiles/second.profile',
-          content: profile('coder', 'Second profile body.'),
-        },
-      },
-    });
-    const snapshot = createRuntimeContentSnapshot(srcRoot);
-    const first = snapshot.readAgent('coder');
-    const repeated = snapshot.readAgent('coder');
-
-    assert.match(first.content, /First profile body/);
-    assert.doesNotMatch(first.content, /Second profile body/);
-    assert.equal(repeated, first);
-  });
-
-  it('returns null for missing or malformed blueprints and filters malformed entries', (t) => {
+  it('filters malformed blueprint entries and preserves deterministic order', (t) => {
     const { srcRoot } = createSnapshotFixture(t, {
       blueprints: {
-        malformed: ['templates/session-blueprints/malformed.md', 'bad-offset', 4],
-        valid: {
-          relativePath: 'templates/session-blueprints/valid.md',
-          content: 'Valid.\n',
-        },
+        malformed: { kind: 'inline', relativePath: 42, content: 'bad' },
+        zeta: inline('templates/session-blueprints/zeta.md', 'Zeta.\n'),
+        alpha: inline('templates/session-blueprints/alpha.md', 'Alpha.\n'),
       },
     });
     const snapshot = createRuntimeContentSnapshot(srcRoot);
 
     assert.equal(snapshot.readBlueprint('missing'), null);
     assert.equal(snapshot.readBlueprint('malformed'), null);
-    assert.deepEqual(snapshot.listBlueprints().map(({ id }) => id), ['valid']);
-  });
-
-  it('uses JavaScript string offsets for packed non-ASCII payloads', (t) => {
-    const content = 'Delegation after π.\n';
-    const prefix = '😀';
-    const { srcRoot } = createSnapshotFixture(
-      t,
-      {
-        payload: 'content.gz',
-        payloadEncoding: 'gzip',
-        resources: {
-          delegation: [
-            'skills/shared/delegation/SKILL.md',
-            prefix.length,
-            content.length,
-          ],
-        },
-      },
-      gzipSync(prefix + content)
-    );
-
-    assert.equal(createRuntimeContentSnapshot(srcRoot).readResource('delegation').content, content);
+    assert.deepEqual(snapshot.listBlueprints().map(({ id }) => id), ['alpha', 'zeta']);
   });
 });

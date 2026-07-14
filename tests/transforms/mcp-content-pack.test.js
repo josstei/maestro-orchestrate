@@ -1,10 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'fs';
 import path from 'path';
 import { getRuntimeConfig } from '../../dist/src/mcp/runtime/runtime-config-map.js';
 import { buildMcpServer, createContentPack, makeTempWorkspace } from '../support/mcp.js';
-import { withExtensionRoot } from '../support/content.js';
+import { withExtensionRoot, writeAgent, writeResource } from '../support/content.js';
 import { fileURLToPath } from 'node:url';
 const moduleFilename = fileURLToPath(import.meta.url);
 const moduleDirname = path.dirname(moduleFilename);
@@ -30,26 +29,21 @@ describe('content tool pack', () => {
 
   it('serves skill content, agent content, and runtime context through the pack', async (t) => {
     const root = makeTempWorkspace('maestro-content-pack-', t);
-    fs.mkdirSync(path.join(root, 'src', 'skills', 'shared', 'delegation'), {
-      recursive: true,
-    });
-    fs.mkdirSync(path.join(root, 'src', 'agents'), { recursive: true });
-
-    fs.writeFileSync(
-      path.join(root, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
-      '---\nname: delegation\ndescription: Demo skill\n---\nUse ${extensionPath} here.\n',
-      'utf8'
+    writeResource(
+      path.join(root, 'src'),
+      'delegation',
+      '---\nname: delegation\ndescription: Demo skill\n---\nUse ${extensionPath} here.\n'
     );
-    fs.writeFileSync(
-      path.join(root, 'src', 'agents', 'coder.md'),
+    writeAgent(
+      path.join(root, 'src'),
+      'coder',
       [
         '---',
         'name: coder',
         'tools: [read_file, write_file]',
         '---',
         'Methodology body.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const server = await buildMcpServer({

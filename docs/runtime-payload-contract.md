@@ -45,6 +45,8 @@ The machine-readable source-only topology is `RUNTIME_TOPOLOGY` in
 
 No package or release payload may be removed until both the positive runtime catalog and the independently authored artifact policy and literal package tests are changed. No runtime now requires a detached `src` payload mirror.
 
+Runtime content has one versioned logical manifest with two production encodings. `npm run generate` writes the ignored source manifest with `storage=file`; additions, removals, and renames require regeneration plus provider/server recreation, while edits at a stable path are read live. `npm run build` writes `storage=packed` under `dist/src/generated/` with the existing tuple offsets and gzip payload. Runtime selection uses the required discriminator and never manifest existence or entry shape.
+
 The tooling-owned cross-check for this contract is `src/tooling/runtime-payload-contract.ts`; positive runtime facts remain pure in `src/platforms/runtime-declarations.ts`.
 
 ## Runtime Matrix

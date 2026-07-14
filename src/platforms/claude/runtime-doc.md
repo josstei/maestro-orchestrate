@@ -28,7 +28,7 @@ The Claude Code plugin is rooted at the package root and exposes Claude-specific
 }
 ```
 
-The manifest launches the server via `npx` against the versioned `@josstei/maestro` npm package, with `MAESTRO_RUNTIME=claude`. The public `maestro-mcp-server` bin resolves to compiled `dist/src/bin/maestro-mcp-server.js`, which loads the compiled server from `dist/src/mcp/maestro-server.js`. The runtime-local `claude/mcp/maestro-server.js` adapter still ships for direct source-checkout and local-plugin use and also requires the compiled `dist/src` server. Claude declares `primary: filesystem` and `fallback: none`; shared skills, templates, references, and agent bodies are resolved from package-root `dist/src/`.
+The manifest launches the server via `npx` against the versioned `@josstei/maestro` npm package, with `MAESTRO_RUNTIME=claude`. The public `maestro-mcp-server` bin resolves to compiled `dist/src/bin/maestro-mcp-server.js`, which loads the compiled server from `dist/src/mcp/maestro-server.js`. The runtime-local `claude/mcp/maestro-server.js` adapter still ships for direct source-checkout and local-plugin use and also requires the compiled `dist/src` server. Claude uses the manifest-backed content provider with no fallback: installed `dist/src` storage is packed, while generated source-checkout storage is file-backed and reads stable paths live; source additions, removals, and renames require regeneration and provider/server recreation.
 
 ## Agent Naming
 
