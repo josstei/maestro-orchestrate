@@ -168,6 +168,7 @@ function getVersionEntries(root: string): VersionEntry[] {
   const pkg = readJson(root, 'package.json');
   const gemini = readJson(root, 'gemini-extension.json');
   const qwen = readJson(root, 'qwen-extension.json');
+  const agy = readJson(root, 'agy-extension.json');
   const claudePlugin = readJson(root, '.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
@@ -181,6 +182,7 @@ function getVersionEntries(root: string): VersionEntry[] {
     ['package.json', requireVersion(pkg.version, 'package.json')],
     ['gemini-extension.json', requireVersion(gemini.version, 'gemini-extension.json')],
     ['qwen-extension.json', requireVersion(qwen.version, 'qwen-extension.json')],
+    ['agy-extension.json', requireVersion(agy.version, 'agy-extension.json')],
     ['.claude-plugin/plugin.json', requireVersion(claudePlugin.version, 'claude plugin')],
     ['plugins/maestro/.codex-plugin/plugin.json', requireVersion(codexPlugin.version, 'Codex plugin')],
     ['.claude-plugin/marketplace.json metadata.version', requireVersion(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
@@ -210,6 +212,7 @@ function assertRuntimeManifestShape(root: string, expectedVersion: string | null
   const pkg = readJson(root, 'package.json');
   const gemini = readJson(root, 'gemini-extension.json');
   const qwen = readJson(root, 'qwen-extension.json');
+  const agy = readJson(root, 'agy-extension.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
   const codexMarketplace = readJson(root, '.agents/plugins/marketplace.json');
   const claudePlugin = readJson(root, '.claude-plugin/plugin.json');
@@ -261,6 +264,10 @@ function assertRuntimeManifestShape(root: string, expectedVersion: string | null
 
   if (qwen.contextFileName !== 'QWEN.md' || !qwen.mcpServers || !qwen.mcpServers.maestro) {
     throw new Error('qwen-extension.json must define QWEN.md and maestro MCP server');
+  }
+
+  if (agy.contextFileName !== 'AGY.md' || !agy.mcpServers || !agy.mcpServers.maestro) {
+    throw new Error('agy-extension.json must define AGY.md and maestro MCP server');
   }
 
   if (claudePlugin.hooks !== './claude/hooks/claude-hooks.json') {

@@ -15,9 +15,11 @@ const OWNED_GENERATED_DIRS = Object.freeze([
   'agents',
   'claude/agents',
   'qwen/agents',
+  'agy/agents',
   'claude/skills',
   'plugins/maestro/skills',
-  'commands',
+  'commands/maestro',
+  'commands/agy',
 ]);
 
 const TRACKED_OUTPUT_EXEMPTIONS = Object.freeze([
@@ -62,6 +64,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
       'agents/*.md',
       'claude/agents/*.md',
       'qwen/agents/*.md',
+      'agy/agents/*.md',
       'claude/skills/*/SKILL.md',
       'plugins/maestro/skills/*/SKILL.md',
     ],
@@ -101,6 +104,7 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     ],
     outputs: [
       'commands/maestro/*.toml',
+      'commands/agy/*.toml',
       'claude/skills/*/SKILL.md',
       'plugins/maestro/skills/*/SKILL.md',
     ],
@@ -137,8 +141,8 @@ const GENERATED_SURFACE_INVENTORY = Object.freeze([
     id: 'hook-config-outputs',
     producer: 'src/generator/hook-config-emitter.ts',
     writeMode: 'generate and prepack',
-    sourceInputs: ['src/platforms/gemini/runtime-config.ts', 'src/platforms/qwen/runtime-config.ts'],
-    outputs: ['hooks/hooks.json', 'qwen/hooks.json', 'claude/hooks/claude-hooks.json'],
+    sourceInputs: ['src/platforms/gemini/runtime-config.ts', 'src/platforms/qwen/runtime-config.ts', 'src/platforms/agy/runtime-config.ts'],
+    outputs: ['hooks/hooks.json', 'qwen/hooks.json', 'agy/hooks.json', 'claude/hooks/claude-hooks.json'],
     tracked: false,
     packaged: true,
     notes: 'Runtime hook configs generated from gemini-family hook metadata; the Claude config is a structurally distinct build.',

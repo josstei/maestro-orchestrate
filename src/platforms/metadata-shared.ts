@@ -99,7 +99,7 @@ function buildExtensionMcpServer(context: MetadataContext, runtime: RuntimeName)
     MAESTRO_RUNTIME: runtime,
   };
 
-  if (runtime === 'qwen' || runtime === 'gemini') {
+  if (runtime === 'qwen' || runtime === 'gemini' || runtime === 'agy') {
     env.MAESTRO_WORKSPACE_PATH = '${workspacePath}';
   }
 

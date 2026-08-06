@@ -41,9 +41,11 @@ describe('generated surface inventory', () => {
 
   it('projects runtime context outputs from positive catalog facts', () => {
     assert.deepEqual([...RUNTIME_CONTEXT_OUTPUTS].sort(), [
+      'AGY.md',
       'GEMINI.md',
       'QWEN.md',
       'claude/README.md',
+      'docs/runtime-agy.md',
       'docs/runtime-claude.md',
       'docs/runtime-codex.md',
       'docs/runtime-gemini.md',

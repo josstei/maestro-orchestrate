@@ -22,18 +22,18 @@ Before running orchestration commands:
    - {{subagentPrerequisite}}
    - If missing, ask permission before proposing a manual settings update. Do not claim automatic settings mutation by Maestro scripts.
 2. Run workspace preparation:
-   - If `initialize_workspace` appears in your available tools, call it with an explicit `workspace_path`. Pass `state_dir` only for an explicit user override; otherwise the server resolves it from environment and workspace settings and returns the authoritative value.
+   - If `mcp_maestro_initialize_workspace` or `initialize_workspace` appears in your available tools, call it with an explicit `workspace_path`. Pass `state_dir` only for an explicit user override; otherwise the server resolves it from environment and workspace settings and returns the authoritative value.
    - Use `MAESTRO_WORKSPACE_PATH` when the host exposes it; otherwise use a workspace suggestion from `get_runtime_context` or ask the user for the path.
    - Stop and report if the MCP workspace tool is unavailable or initialization fails.
 3. Resolve settings after workspace initialization:
-   - **Preferred**: If `resolve_settings` appears in your available tools, call it to resolve all Maestro settings in one call. It preserves raw string/null provenance in `settings`, returns typed/defaulted values in `effective_settings`, and includes a parsed `disabled_agents` array.
-   - **Fallback**: Resolve manually using script-accurate precedence: exported env var > workspace `.env` (`$PWD/.env`) > extension `.env` (`${MAESTRO_EXTENSION_PATH:-$HOME/.{{runtimeName}}/extensions/maestro}/.env`) > undefined (callers apply defaults).
-4. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning. (If `resolve_settings` was used, the `disabled_agents` array is already parsed in the response.) Use `effective_settings` for default-sensitive behavior; `settings` intentionally remains the raw provenance view.
+   - **Preferred**: If `mcp_maestro_resolve_settings` or `resolve_settings` appears in your available tools, call it to resolve all Maestro settings in one call. It preserves raw string/null provenance in `settings`, returns typed/defaulted values in `effective_settings`, and includes a parsed `disabled_agents` array.
+   - **Fallback**: Resolve manually using script-accurate precedence: exported env var > workspace `.env` (`$PWD/.env`) > extension `.env` (`${MAESTRO_EXTENSION_PATH:-{{extensionHome}}}/.env`) > undefined (callers apply defaults).
+4. Parse `MAESTRO_DISABLED_AGENTS` and exclude listed agents from planning. (If `resolve_settings` or `mcp_maestro_resolve_settings` was used, the `disabled_agents` array is already parsed in the response.) Use `effective_settings` for default-sensitive behavior; `settings` intentionally remains the raw provenance view.
 
 ## {{displayName}} Integration Constraints
 
 - Extension settings from `{{extensionManifest}}` are exposed as `MAESTRO_*` env vars via {{displayName}} extension settings; honor them as runtime source of truth.
-- Maestro slash commands are file commands loaded from `commands/maestro/*.toml`; they are expected to resolve as `/maestro:*`.
+- Maestro slash commands are file commands loaded from `{{commandDir}}/*.toml`; they are expected to resolve as `/{{commandNamespace}}:*`.
 - Hook entries must remain `type: "command"` in `{{hooksConfigPath}}` for compatibility with current {{displayName}} hook validation.
 - Extension workflows run only when the extension is linked/enabled and workspace trust allows extension assets.
 - Keep `{{askUserTool}}` header fields short (aim for 16 characters or fewer) to fit the UI chip display. Short headers like `Database`, `Auth`, `Approach` work best.

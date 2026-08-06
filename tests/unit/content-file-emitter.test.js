@@ -35,9 +35,11 @@ describe('content-file-emitter', () => {
     assert.deepEqual(
       outputs.map((output) => output.outputPath).sort(),
       [
+        'AGY.md',
         'GEMINI.md',
         'QWEN.md',
         'claude/README.md',
+        'docs/runtime-agy.md',
         'docs/runtime-claude.md',
         'docs/runtime-codex.md',
         'docs/runtime-gemini.md',

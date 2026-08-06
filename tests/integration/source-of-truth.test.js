@@ -54,7 +54,7 @@ describe('src-first architecture invariants', () => {
   });
 
   it('keeps content policy out of runtime configs', () => {
-    for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen']) {
+    for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen', 'agy']) {
       const runtimeConfig = getRuntimeConfig(runtimeName);
       assert.equal(runtimeConfig.content, undefined);
     }
@@ -66,6 +66,7 @@ describe('src-first architecture invariants', () => {
       claude: getRuntimeConfig('claude'),
       codex: getRuntimeConfig('codex'),
       qwen: getRuntimeConfig('qwen'),
+      agy: getRuntimeConfig('agy'),
     };
 
     const manifest = expandManifest(manifestRules, runtimes, path.join(ROOT, 'src'));

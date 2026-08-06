@@ -46,4 +46,4 @@ function buildCodexPreamble(entry: EntryPointRegistryEntry): string {
   return refs.join('\n');
 }
 
-export { buildGeminiPreamble as gemini, buildClaudePreamble as claude, buildCodexPreamble as codex };
+export { buildGeminiPreamble as gemini, buildClaudePreamble as claude, buildCodexPreamble as codex, buildGeminiPreamble as agy };

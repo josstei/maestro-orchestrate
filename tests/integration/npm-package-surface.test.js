@@ -10,14 +10,20 @@ import { createTrackedCandidateRepoCopy } from '../support/filesystem.js';
 import { REPO_ROOT } from '../support/paths.js';
 
 function parsePackJson(stdout) {
-  const start = stdout.indexOf('[');
-  const end = stdout.lastIndexOf(']');
+  const objectStart = stdout.indexOf('{');
+  const arrayStart = stdout.indexOf('[');
+  const start = Math.min(
+    objectStart === -1 ? Infinity : objectStart,
+    arrayStart === -1 ? Infinity : arrayStart,
+  );
+  const end = Math.max(stdout.lastIndexOf('}'), stdout.lastIndexOf(']'));
 
-  if (start === -1 || end === -1 || end < start) {
+  if (start === Infinity || end === -1 || end < start) {
     throw new Error(`npm pack did not emit JSON output:\n${stdout}`);
   }
 
-  return JSON.parse(stdout.slice(start, end + 1));
+  const raw = JSON.parse(stdout.slice(start, end + 1));
+  return Array.isArray(raw) ? raw : Object.values(raw);
 }
 
 function runNpmPack(root) {

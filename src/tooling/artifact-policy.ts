@@ -43,6 +43,7 @@ const RUNTIME_DIST_PATHS = Object.freeze([
   'dist/src/lib/naming',
   'dist/src/lib/validation',
   'dist/src/mcp',
+  'dist/src/platforms/agy/runtime-config.js',
   'dist/src/platforms/claude/runtime-config.js',
   'dist/src/platforms/codex/runtime-config.js',
   'dist/src/platforms/gemini/runtime-config.js',
@@ -93,6 +94,9 @@ const PACKAGE_SURFACE_ENTRIES: readonly ArtifactInventoryEntry[] = [
   { path: 'QWEN.md', scope: ARTIFACT_SCOPE.BOTH },
   { path: 'qwen-extension.json', scope: ARTIFACT_SCOPE.BOTH },
   { path: 'qwen', scope: ARTIFACT_SCOPE.BOTH },
+  { path: 'AGY.md', scope: ARTIFACT_SCOPE.BOTH },
+  { path: 'agy-extension.json', scope: ARTIFACT_SCOPE.BOTH },
+  { path: 'agy', scope: ARTIFACT_SCOPE.BOTH },
 ];
 
 const RELEASE_DOC_ENTRIES: readonly ArtifactInventoryEntry[] = [
@@ -104,6 +108,7 @@ const RELEASE_DOC_ENTRIES: readonly ArtifactInventoryEntry[] = [
   { path: 'docs/maestro-cheatsheet.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/overview.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/runtime-payload-contract.md', scope: ARTIFACT_SCOPE.RELEASE },
+  { path: 'docs/runtime-agy.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/runtime-claude.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/runtime-codex.md', scope: ARTIFACT_SCOPE.RELEASE },
   { path: 'docs/runtime-gemini.md', scope: ARTIFACT_SCOPE.RELEASE },
@@ -214,6 +219,16 @@ const RUNTIME_PACKAGE_INVARIANTS = Object.freeze({
     'qwen/hooks.json',
     'mcp/maestro-server.js',
   ]),
+  agy: Object.freeze([
+    'agy-extension.json',
+    'agy/hooks.json',
+    'dist/src/bin/maestro-mcp-server.js',
+    'dist/src/generated/runtime-content-registry.json',
+    'dist/src/generated/runtime-content-registry.txt.gz',
+    'dist/src/mcp/maestro-server.js',
+    'dist/src/platforms/runtime-declarations.js',
+    'mcp/maestro-server.js',
+  ]),
 });
 
 const COMPATIBILITY_PACKAGE_FILES = Object.freeze([
@@ -232,9 +247,9 @@ const REQUIRED_PACKAGE_FILES = Object.freeze(
 
 const PACKAGE_BUDGET: PackageBudget = Object.freeze({
   id: 'runtime-package',
-  maxEntryCount: 337,
+  maxEntryCount: 395,
   maxPackedSize: 330000,
-  maxUnpackedSize: 850000,
+  maxUnpackedSize: 920000,
 });
 
 const PRIVATE_SCRIPT_ROLES: Readonly<Record<string, PrivateScriptRole>> = Object.freeze({
@@ -398,6 +413,11 @@ const PACKAGE_SURFACE_RULES: readonly PackageSurfaceRule[] = Object.freeze([
     id: 'qwen-runtime',
     exact: ['qwen/hooks.json'],
     prefixes: ['qwen/agents/'],
+  },
+  {
+    id: 'agy-runtime',
+    exact: ['agy/hooks.json'],
+    prefixes: ['agy/agents/'],
   },
   buildRuntimeDistPackageRule(),
 ]);

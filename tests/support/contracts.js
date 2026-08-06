@@ -6,10 +6,12 @@ const packageJson = JSON.parse(readFileSync(repoPath('package.json')));
 
 const VALID_ARTIFACT_SCOPES = new Set(['both', 'npm', 'release']);
 
-const EXPECTED_RUNTIME_NAMES = Object.freeze(['claude', 'codex', 'gemini', 'qwen']);
+const EXPECTED_RUNTIME_NAMES = Object.freeze(['agy', 'claude', 'codex', 'gemini', 'qwen']);
 
 const EXPECTED_REQUIRED_PACKAGE_FILES = Object.freeze([
   '.claude-plugin/plugin.json',
+  'agy-extension.json',
+  'agy/hooks.json',
   'claude/.mcp.json',
   'claude/mcp/maestro-server.js',
   'dist/src/bin/maestro-install-codex.js',
@@ -53,6 +55,7 @@ const RELEASE_ONLY_PACKAGE_DOCS = [
   'docs/maestro-cheatsheet.md',
   'docs/overview.md',
   'docs/runtime-payload-contract.md',
+  'docs/runtime-agy.md',
   'docs/runtime-claude.md',
   'docs/runtime-codex.md',
   'docs/runtime-gemini.md',

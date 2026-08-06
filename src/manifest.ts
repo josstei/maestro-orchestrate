@@ -4,7 +4,7 @@ const manifest = [
   // ── Agent discovery stubs — Gemini, Claude, and Qwen ───────────────
   { glob: 'agents/*.md',
     transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],
-    runtimes: ['gemini', 'claude', 'qwen'] },
+    runtimes: ['gemini', 'claude', 'qwen', 'agy'] },
 
   // ── Shared skill discovery stubs — Claude + Codex only ─────────────
   { glob: 'skills/shared/**/SKILL.md',

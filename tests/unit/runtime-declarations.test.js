@@ -48,6 +48,7 @@ describe('runtime definitions', () => {
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
       '.claude-plugin/plugin.json',
+      'agy-extension.json',
       'claude/.mcp.json',
       'gemini-extension.json',
       'plugins/maestro/.codex-plugin/plugin.json',

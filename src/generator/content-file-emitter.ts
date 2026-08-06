@@ -157,6 +157,8 @@ function renderContextFile(
     replaceTool: cf.toolNames.replace,
     beforeAgentEventName: runtime.hooks.events['before-agent'] || '',
     afterAgentEventName: runtime.hooks.events['after-agent'] || '',
+    commandDir: cf.commandDir || 'commands/maestro',
+    commandNamespace: cf.commandNamespace || 'maestro',
     toolMappingSection: cf.includeToolMappingTable ? renderToolMappingSection(runtime) : '',
   };
 

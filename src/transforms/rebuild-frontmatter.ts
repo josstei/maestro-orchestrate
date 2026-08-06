@@ -93,6 +93,7 @@ const RUNTIME_FIELD_ORDER: Partial<Record<RuntimeConfig['name'], string[]>> = {
   claude: ['name', 'kind', 'description', 'model', 'color', 'turns', 'tools'],
   gemini: GEMINI_STYLE_FIELD_ORDER,
   qwen: GEMINI_STYLE_FIELD_ORDER,
+  agy: GEMINI_STYLE_FIELD_ORDER,
 };
 
 function asString(value: FrontmatterValue | undefined): string {

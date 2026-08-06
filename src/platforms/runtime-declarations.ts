@@ -1,3 +1,4 @@
+import { AGY_RUNTIME_CONFIG } from './agy/runtime-config.js';
 import { CLAUDE_RUNTIME_CONFIG } from './claude/runtime-config.js';
 import { CODEX_RUNTIME_CONFIG } from './codex/runtime-config.js';
 import { GEMINI_RUNTIME_CONFIG } from './gemini/runtime-config.js';
@@ -128,6 +129,28 @@ const RUNTIME_DEFINITIONS: Readonly<Record<RuntimeName, RuntimeDefinition>> = Ob
         'mcp/',
       ]),
       docs: Object.freeze(['docs/runtime-qwen.md', 'QWEN.md']),
+    }),
+  }),
+  agy: Object.freeze({
+    name: 'agy',
+    config: AGY_RUNTIME_CONFIG,
+    metadata: Object.freeze({
+      extensionManifest: Object.freeze({
+        outputPath: 'agy-extension.json',
+        contextFileName: 'AGY.md',
+      }),
+    }),
+    payload: Object.freeze({
+      startupManifest: 'agy-extension.json',
+      generatedSurfaces: Object.freeze([
+        'commands/agy/',
+        'agy/agents/',
+        'agy/hooks.json',
+        'AGY.md',
+        'agy-extension.json',
+        'mcp/',
+      ]),
+      docs: Object.freeze(['docs/runtime-agy.md', 'AGY.md']),
     }),
   }),
 });

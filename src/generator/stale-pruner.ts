@@ -80,7 +80,7 @@ function pruneStaleFiles({
     allOwnedFiles.push(...walkDir(dir, rootDir));
   }
 
-  const staleFiles = allOwnedFiles.filter((filePath) => !manifestPaths.has(filePath));
+  const staleFiles = Array.from(new Set(allOwnedFiles)).filter((filePath) => !manifestPaths.has(filePath));
   for (const filePath of staleFiles) {
     fs.unlinkSync(path.join(rootDir, filePath));
     pruned.push(filePath);

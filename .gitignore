@@ -2,11 +2,8 @@
 node_modules/
 
 # Build output
-# dist/src is generated from src/ for local commands, package, and release artifacts.
-/dist/src/
-# Local release and development plugin bundles remain transient.
-/dist/release/
-/dist/claude-plugin/
+# dist/ is generated from src/ for local commands, package, and release artifacts.
+/dist/
 build/
 out/
 
@@ -57,22 +54,29 @@ hooks/permissions.json
 # Generator-owned outputs (src/ is the source of truth — see `npm run generate -- --list-outputs`)
 /agents/
 /commands/maestro/
+/test-site/
+/commands/agy/
 /claude/agents/
 /claude/skills/
 /qwen/agents/
+/agy/agents/
 /plugins/maestro/skills/
 /src/generated/
 
 /GEMINI.md
 /QWEN.md
+/AGY.md
 /gemini-extension.json
 /qwen-extension.json
+/agy-extension.json
 /policies/maestro.toml
 /hooks/hooks.json
 /qwen/hooks.json
+/agy/hooks.json
 /claude/hooks/claude-hooks.json
 /claude/README.md
 /claude/.mcp.json
+/docs/runtime-agy.md
 /docs/runtime-claude.md
 /docs/runtime-codex.md
 /docs/runtime-gemini.md

@@ -1,4 +1,4 @@
-export type RuntimeName = 'gemini' | 'claude' | 'codex' | 'qwen';
+export type RuntimeName = 'gemini' | 'claude' | 'codex' | 'qwen' | 'agy';
 export type AgentNaming = 'snake_case' | 'kebab-case';
 export type ToolMapping = string | readonly string[];
 export type ToolDialect = Record<string, ToolMapping>;

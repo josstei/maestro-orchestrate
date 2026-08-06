@@ -72,6 +72,8 @@ interface RuntimeContextFileConfig {
   extensionManifest: string;
   hooksConfigPath: string;
   includeToolMappingTable?: boolean;
+  commandDir?: string;
+  commandNamespace?: string;
   toolNames: {
     askUser: string;
     writeTodos: string;
