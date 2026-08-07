@@ -204,6 +204,21 @@ function getSessionStatus(_params: any, projectRoot: any) {
   };
 }
 
+const AUTHORIZED_REVIEWER_AGENTS = new Set([
+  'code_reviewer',
+  'security_engineer',
+  'compliance_reviewer',
+  'accessibility_specialist',
+  'database_administrator',
+  'db2_dba',
+  'performance_engineer',
+  'architect',
+  'cloud_architect',
+  'solutions_architect',
+  'seo_specialist',
+  'qa_engineer',
+]);
+
 function recordCodeReview(params: any, projectRoot: any) {
   if (params.session_id) {
     assertSessionId(params.session_id);
@@ -211,11 +226,13 @@ function recordCodeReview(params: any, projectRoot: any) {
   const document = assertValidActiveSession(projectRoot, params.session_id);
   const { state } = document;
 
-  const reviewer = typeof params.reviewer_agent === 'string' ? params.reviewer_agent.trim() : '';
-  if (!reviewer) {
-    throw new ValidationError('reviewer_agent is required and must be a non-empty string', {
-      code: 'INVALID_REVIEWER_AGENT',
-    });
+  const reviewerRaw = typeof params.reviewer_agent === 'string' ? params.reviewer_agent.trim() : '';
+  const reviewer = reviewerRaw.replace(/-/g, '_').toLowerCase();
+  if (!reviewer || !AUTHORIZED_REVIEWER_AGENTS.has(reviewer)) {
+    throw new ValidationError(
+      `reviewer_agent '${reviewerRaw}' is not an authorized code reviewer agent. Authorized agents are: ${Array.from(AUTHORIZED_REVIEWER_AGENTS).join(', ')}`,
+      { code: 'INVALID_REVIEWER_AGENT' }
+    );
   }
 
   if (!Array.isArray(params.reviewed_phase_ids) || params.reviewed_phase_ids.length === 0) {

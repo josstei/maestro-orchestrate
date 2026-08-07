@@ -61,6 +61,22 @@ describe('Code Review Archive Gate Integration', () => {
     const stateFile = path.join(workspace, 'docs/maestro/state/active-session.md');
     assert.equal(fs.existsSync(stateFile), true);
 
+    // 3b. Attempt review with unauthorized reviewer agent (e.g. 'coder') -> fails with INVALID_REVIEWER_AGENT
+    const unauthorizedReview = await server.callTool(
+      'record_code_review',
+      {
+        session_id: sessionId,
+        reviewed_phase_ids: [1],
+        reviewer_agent: 'coder',
+        reviewed_files: ['src/widget.ts'],
+        finding_count: 0,
+        blocking_finding_count: 0,
+      },
+      workspace
+    );
+    assert.equal(unauthorizedReview.ok, false);
+    assert.equal(unauthorizedReview.code, 'INVALID_REVIEWER_AGENT');
+
     // 4. Record review with blocking findings -> status becomes blocked
     const reviewResult1 = await server.callTool(
       'record_code_review',

@@ -14,12 +14,16 @@ describe('documentation-classifier', () => {
     assert.equal(isDocumentationPath('subfolder/architecture.rst'), true);
   });
 
-  it('classifies implementation files as non-documentation', () => {
+  it('classifies implementation files, workflows, and scripts as non-documentation', () => {
     assert.equal(isDocumentationPath('src/index.ts'), false);
     assert.equal(isDocumentationPath('src/mcp/handlers/get-agent.ts'), false);
     assert.equal(isDocumentationPath('tests/unit/foo.test.js'), false);
     assert.equal(isDocumentationPath('package.json'), false);
     assert.equal(isDocumentationPath('tsconfig.json'), false);
+    assert.equal(isDocumentationPath('.github/workflows/ci.yml'), false);
+    assert.equal(isDocumentationPath('.github/actions/setup/action.yaml'), false);
+    assert.equal(isDocumentationPath('.github/scripts/deploy.sh'), false);
+    assert.equal(isDocumentationPath('docs/scripts/build.js'), false);
   });
 
   it('handles invalid or empty paths safely', () => {

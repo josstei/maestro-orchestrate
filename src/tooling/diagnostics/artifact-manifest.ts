@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { ArtifactEntrySchema, ArtifactManifest, ArtifactManifestSchema } from './evidence-schema.js';
 
 function computeSha256(filePath: string): string {
@@ -39,7 +39,7 @@ function getMimeCategory(filePath: string): string {
 
 function isGitTracked(repoRoot: string, relativePath: string): boolean {
   try {
-    execSync(`git ls-files --error-unmatch "${relativePath}"`, {
+    execFileSync('git', ['ls-files', '--error-unmatch', relativePath], {
       cwd: repoRoot,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
@@ -90,4 +90,12 @@ export function generateArtifactManifest(targetDir: string, projectRoot: string)
     generated_at: new Date().toISOString(),
     files: files.map((f) => ArtifactEntrySchema.parse(f)),
   });
+}
+
+// CLI runner when executed directly
+if (process.argv[1] && process.argv[1].endsWith('artifact-manifest.js')) {
+  const targetDir = process.argv[2] || '.';
+  const projectRoot = process.argv[3] || process.cwd();
+  const manifest = generateArtifactManifest(targetDir, projectRoot);
+  console.log(JSON.stringify(manifest, null, 2));
 }
