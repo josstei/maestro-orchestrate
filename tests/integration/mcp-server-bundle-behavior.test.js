@@ -201,6 +201,14 @@ describe('mcp server bundle behavior', () => {
           agents: runtime.verifyAgent ? ['ux_designer'] : ['coder'],
         });
 
+        const tools = await client.listTools();
+        const toolNames = tools.map((t) => t.name);
+        assert.ok(toolNames.includes('record_code_review'));
+        assert.ok(toolNames.includes('record_phase_failure'));
+
+        const aliasResult = await client.callTool('get_agent', { agent: 'coder' });
+        assert.ok(aliasResult.parsed.agents.coder);
+
         assert.ok(skillResult.parsed.contents.delegation.includes(runtime.expectSkill));
         assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
         assert.deepEqual(skillResult.parsed.errors, {});
