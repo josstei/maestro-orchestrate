@@ -1,5 +1,6 @@
 {
   "reviewer_agent": "code_reviewer",
+  "dispatch_id": "dispatch-reviewer-1",
   "reviewed_phase_ids": [
     1
   ],
@@ -12,5 +13,7 @@
   "status": "passed",
   "reviewed_at": "2026-08-07T05:48:51.815Z",
   "review_output_hash": "cdc8442699491ba72b20c469095b5c717cab45a9f065b6ca33f4581a184db086",
+  "output_retained": false,
+  "output_file": null,
   "archive_gate_result": "passed"
 }

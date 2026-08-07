@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { ArtifactEntrySchema, ArtifactManifest, ArtifactManifestSchema } from './evidence-schema.js';
+import { ArtifactEntrySchema, ArtifactManifestSchema } from './evidence-schema.js';
+import type { ArtifactManifest } from './evidence-schema.js';
 
 function computeSha256(filePath: string): string {
   const content = fs.readFileSync(filePath);
@@ -39,7 +40,7 @@ function getMimeCategory(filePath: string): string {
 
 function isGitTracked(repoRoot: string, relativePath: string): boolean {
   try {
-    execFileSync('git', ['ls-files', '--error-unmatch', relativePath], {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', relativePath], {
       cwd: repoRoot,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
@@ -49,7 +50,18 @@ function isGitTracked(repoRoot: string, relativePath: string): boolean {
   }
 }
 
+function assertContainedPath(candidate: string, root: string, label: string): void {
+  const relative = path.relative(root, candidate);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`${label} must be contained within project root`);
+  }
+}
+
 export function generateArtifactManifest(targetDir: string, projectRoot: string): ArtifactManifest {
+  const resolvedProjectRoot = path.resolve(projectRoot);
+  const resolvedTargetDir = path.resolve(targetDir);
+  assertContainedPath(resolvedTargetDir, resolvedProjectRoot, 'targetDir');
+
   const files: Array<Record<string, unknown>> = [];
 
   function walk(currentDir: string) {
@@ -62,40 +74,46 @@ export function generateArtifactManifest(targetDir: string, projectRoot: string)
         if (entry.name === '.git' || entry.name === 'node_modules') continue;
         walk(fullPath);
       } else if (entry.isFile()) {
-        const relativePath = path.relative(projectRoot, fullPath).replace(/\\/g, '/');
+        const relativePath = path.relative(resolvedProjectRoot, fullPath).replace(/\\/g, '/');
         const stats = fs.statSync(fullPath);
-        const bytes = stats.size;
-        const sha256 = computeSha256(fullPath);
-        const mime_category = getMimeCategory(fullPath);
-        const tracked = isGitTracked(projectRoot, relativePath);
+        const tracked = isGitTracked(resolvedProjectRoot, relativePath);
 
         files.push({
           relative_path: relativePath,
-          bytes,
-          sha256,
-          mime_category,
+          bytes: stats.size,
+          sha256: computeSha256(fullPath),
+          mime_category: getMimeCategory(fullPath),
           tracked,
           created_or_modified: tracked ? 'modified' : 'created',
           validation_results: [],
+          content_available: true,
+          provenance: 'filesystem_capture',
         });
       }
     }
   }
 
-  walk(targetDir);
+  walk(resolvedTargetDir);
 
   files.sort((a, b) => (a.relative_path as string).localeCompare(b.relative_path as string));
 
   return ArtifactManifestSchema.parse({
     generated_at: new Date().toISOString(),
-    files: files.map((f) => ArtifactEntrySchema.parse(f)),
+    files: files.map((entry) => ArtifactEntrySchema.parse(entry)),
   });
 }
 
-// CLI runner when executed directly
 if (process.argv[1] && process.argv[1].endsWith('artifact-manifest.js')) {
-  const targetDir = process.argv[2] || '.';
-  const projectRoot = process.argv[3] || process.cwd();
-  const manifest = generateArtifactManifest(targetDir, projectRoot);
-  console.log(JSON.stringify(manifest, null, 2));
+  try {
+    const projectRoot = path.resolve(process.argv[3] || process.cwd());
+    const targetArg = process.argv[2] || '.';
+    const targetDir = path.isAbsolute(targetArg)
+      ? path.resolve(targetArg)
+      : path.resolve(projectRoot, targetArg);
+    const manifest = generateArtifactManifest(targetDir, projectRoot);
+    process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }

@@ -1,9 +1,18 @@
 {
   "assigned_agent": "coder",
   "registered_dispatch_tool": "invoke_subagent",
+  "dispatch_ids": [
+    "dispatch-coder-1"
+  ],
   "attempt_count": 1,
   "success": true,
   "failure_type": null,
   "parent_direct_implementation": false,
-  "escalation_result": null
+  "escalation_result": null,
+  "response_sha256": "2fe9fffba10b5bbbb65049f6c28e37e52d2a3b897e071b06e6f231d0ded30940",
+  "task_report_sha256": null,
+  "files_reported": [
+    "test-site/index.html",
+    "test-site/styles.css"
+  ]
 }

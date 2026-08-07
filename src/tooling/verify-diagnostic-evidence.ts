@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
+  AgentDispatchRecordSchema,
   ArtifactManifestSchema,
   CodeReviewOutcomeSchema,
   DelegationOutcomeSchema,
@@ -20,11 +21,12 @@ export interface VerificationResult {
   evidence_dir: string;
 }
 
-const REQUIRED_EVIDENCE_FILES = [
+const REQUIRED_FILES = [
   'manifest.json',
   'environment.json',
   'timeline.json',
   'mcp-calls.redacted.jsonl',
+  'agent-dispatches.redacted.jsonl',
   'orchestration-outcome.json',
   'artifact-manifest.json',
   'delegation-outcome.json',
@@ -32,307 +34,426 @@ const REQUIRED_EVIDENCE_FILES = [
   'validation-output.txt',
   'production-readiness.json',
   'run-summary.md',
+] as const;
+
+const PLACEHOLDER_HASHES = [
+  /^a1b2c3d4e5f6/i,
+  /^c1d2e3f4a5b6/i,
+  /^0123456789abcdef/i,
+  /^1234567890abcdef/i,
 ];
 
-const PLACEHOLDER_HASH_PATTERNS = [
-  /^a1b2c3d4e5f6/,
-  /^c1d2e3f4a5b6/,
-  /^0123456789abcdef/,
-  /^1234567890abcdef/,
-  /728126379a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d/,
-  /8aba18f0a3e912bc345d1e2f3g4h5i6j7k8l9m0n/,
-];
-
-function computeSha256(filePath: string): string {
-  const content = fs.readFileSync(filePath);
-  return crypto.createHash('sha256').update(content).digest('hex');
+function sha256(filePath: string): string {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-function verifyGitCommitExists(commitSha: string, projectRoot?: string): boolean {
+function runGit(cwd: string, args: string[]): string {
+  return execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+function resolveGitRoot(startPath: string): string {
+  for (const candidate of [startPath, process.cwd()]) {
+    try {
+      return runGit(candidate, ['rev-parse', '--show-toplevel']);
+    } catch {}
+  }
+  throw new Error(`Unable to resolve a Git repository root from '${startPath}' or the current working directory`);
+}
+
+function resolveBranchRef(root: string, branch: string): string | null {
+  for (const candidate of [branch, `refs/heads/${branch}`, `refs/remotes/origin/${branch}`]) {
+    try {
+      runGit(root, ['rev-parse', '--verify', candidate]);
+      return candidate;
+    } catch {}
+  }
+  return null;
+}
+
+function isPlaceholderHash(value: string): boolean {
+  return PLACEHOLDER_HASHES.some((pattern) => pattern.test(value));
+}
+
+function safeEvidencePath(evidenceDir: string, relativePath: string): string | null {
+  const resolved = path.resolve(evidenceDir, relativePath);
+  const relative = path.relative(evidenceDir, resolved);
+  return relative.startsWith('..') || path.isAbsolute(relative) ? null : resolved;
+}
+
+function parseJson<T>(filePath: string, parser: { parse(value: unknown): T }, label: string, errors: string[]): T | null {
   try {
-    const cwd = projectRoot || process.cwd();
-    execFileSync('git', ['cat-file', '-e', `${commitSha}^{commit}`], {
-      cwd,
-      stdio: ['ignore', 'ignore', 'ignore'],
-    });
-    return true;
-  } catch {
-    return false;
+    return parser.parse(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+  } catch (error: any) {
+    errors.push(`${label} validation error: ${error?.message || String(error)}`);
+    return null;
   }
 }
 
-export function verifyDiagnosticEvidence(evidenceDir: string, projectRoot?: string): VerificationResult {
+function parseJsonl<T>(filePath: string, parser: { parse(value: unknown): T }, label: string, errors: string[]): T[] {
+  const records: T[] = [];
+  const lines = fs.readFileSync(filePath, 'utf8').split('\n').filter((line) => line.trim());
+  lines.forEach((line, index) => {
+    try {
+      records.push(parser.parse(JSON.parse(line)));
+    } catch (error: any) {
+      errors.push(`${label} line ${index + 1} validation error: ${error?.message || String(error)}`);
+    }
+  });
+  return records;
+}
+
+function verifyReadiness(
+  readiness: any,
+  inventory: Map<string, any>,
+  productionReady: boolean,
+  errors: string[],
+): void {
+  if (productionReady !== readiness.production_ready) {
+    errors.push('Manifest production_ready outcome disagrees with production-readiness.json');
+  }
+  if (!readiness.production_ready) return;
+
+  const checks = [
+    ['html_validation', readiness.html_validation],
+    ['accessibility', readiness.accessibility],
+    ['responsive_viewports', readiness.responsive_viewports],
+    ['console_check', readiness.console_check],
+    ['link_check', readiness.link_check],
+  ] as const;
+  for (const [name, check] of checks) {
+    if (check.status !== 'passed' || !check.tool || !check.version || !check.output_file) {
+      errors.push(`Production-readiness check '${name}' is not backed by an inventoried tool output`);
+      continue;
+    }
+    if (!inventory.has(check.output_file)) {
+      errors.push(`Production-readiness output '${check.output_file}' is not listed in the evidence inventory`);
+    }
+  }
+  if (!readiness.code_review_passed || readiness.unresolved_blocking_findings !== 0) {
+    errors.push('production_ready=true requires a passing review and zero unresolved blocking findings');
+  }
+  if (readiness.console_check.error_count !== 0) {
+    errors.push('production_ready=true requires zero browser-console errors');
+  }
+  if (readiness.link_check.broken_count !== 0) {
+    errors.push('production_ready=true requires zero broken links');
+  }
+}
+
+export function verifyDiagnosticEvidence(
+  evidenceDir: string,
+  projectRoot?: string,
+): VerificationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-
   const absDir = path.resolve(evidenceDir);
+
   if (!fs.existsSync(absDir) || !fs.statSync(absDir).isDirectory()) {
     return {
       valid: false,
       errors: [`Evidence directory '${evidenceDir}' does not exist or is not a directory`],
-      warnings: [],
+      warnings,
       evidence_dir: evidenceDir,
     };
   }
 
-  // 1. Check required files
-  for (const filename of REQUIRED_EVIDENCE_FILES) {
-    const file = path.join(absDir, filename);
-    if (!fs.existsSync(file)) {
+  for (const filename of REQUIRED_FILES) {
+    if (!fs.existsSync(path.join(absDir, filename))) {
       errors.push(`Missing required evidence file: '${filename}'`);
     }
   }
+  if (errors.length > 0) return { valid: false, errors, warnings, evidence_dir: absDir };
 
-  if (errors.length > 0) {
-    return { valid: false, errors, warnings, evidence_dir: absDir };
-  }
+  const manifest = parseJson(
+    path.join(absDir, 'manifest.json'),
+    EvidenceManifestSchema,
+    'manifest.json',
+    errors,
+  );
+  if (!manifest) return { valid: false, errors, warnings, evidence_dir: absDir };
 
-  // 2. Parse manifest.json
-  let manifest;
+  let gitRoot: string | null = null;
   try {
-    const manifestContent = JSON.parse(fs.readFileSync(path.join(absDir, 'manifest.json'), 'utf8'));
-    manifest = EvidenceManifestSchema.parse(manifestContent);
-  } catch (err: any) {
-    errors.push(`manifest.json schema validation error: ${err?.message || String(err)}`);
-    return { valid: false, errors, warnings, evidence_dir: absDir };
+    gitRoot = resolveGitRoot(projectRoot ? path.resolve(projectRoot) : absDir);
+  } catch (error: any) {
+    errors.push(error?.message || String(error));
   }
 
-  // 3. Verify Commit SHA existence and placeholder check
-  const commitSha = manifest.repository.commit_sha;
-  if (!/^[0-9a-f]{40}$/i.test(commitSha)) {
-    errors.push(`Invalid commit SHA format in manifest: '${commitSha}' (must be 40 hex characters)`);
-  } else {
-    for (const pat of PLACEHOLDER_HASH_PATTERNS) {
-      if (pat.test(commitSha)) {
-        errors.push(`Manifest contains synthetic placeholder commit SHA: '${commitSha}'`);
-        break;
-      }
+  if (gitRoot) {
+    try {
+      runGit(gitRoot, ['cat-file', '-e', `${manifest.repository.commit_sha}^{commit}`]);
+    } catch {
+      errors.push(`Commit SHA '${manifest.repository.commit_sha}' does not exist in repository history`);
     }
-    const root = projectRoot || path.resolve(absDir, '../../..');
-    if (fs.existsSync(path.join(root, '.git'))) {
-      if (!verifyGitCommitExists(commitSha, root)) {
-        errors.push(`Commit SHA '${commitSha}' referenced in manifest does not exist in local git history`);
+    const branchRef = resolveBranchRef(gitRoot, manifest.repository.branch);
+    if (!branchRef) {
+      errors.push(`Declared branch '${manifest.repository.branch}' is not available as a local or origin-tracking ref`);
+    } else {
+      try {
+        runGit(gitRoot, ['merge-base', '--is-ancestor', manifest.repository.commit_sha, branchRef]);
+      } catch {
+        errors.push(
+          `Commit SHA '${manifest.repository.commit_sha}' is not reachable from declared branch '${manifest.repository.branch}'`,
+        );
       }
     }
   }
 
-  // 4. Verify evidence file hashes
+  const runSuffix = manifest.run_id.split('-').at(-1);
+  if (runSuffix && !manifest.repository.commit_sha.startsWith(runSuffix)) {
+    errors.push(`Run ID suffix '${runSuffix}' does not match evaluated commit SHA`);
+  }
+
+  const inventory = new Map<string, any>();
   for (const entry of manifest.evidence_files) {
-    const filePath = path.join(absDir, entry.path);
-    if (!fs.existsSync(filePath)) {
-      errors.push(`Manifest listed file '${entry.path}' missing from evidence directory`);
+    if (inventory.has(entry.path)) {
+      errors.push(`Duplicate evidence inventory entry: '${entry.path}'`);
       continue;
     }
-    const computedHash = computeSha256(filePath);
-    if (computedHash !== entry.sha256) {
-      errors.push(`Hash mismatch for '${entry.path}': expected ${entry.sha256}, got ${computedHash}`);
+    inventory.set(entry.path, entry);
+    const filePath = safeEvidencePath(absDir, entry.path);
+    if (!filePath) {
+      errors.push(`Evidence inventory path escapes evidence directory: '${entry.path}'`);
+      continue;
+    }
+    if (!fs.existsSync(filePath)) {
+      errors.push(`Manifest listed file '${entry.path}' is missing`);
+      continue;
+    }
+    const stats = fs.statSync(filePath);
+    if (stats.size !== entry.bytes) {
+      errors.push(`Byte-size mismatch for '${entry.path}': expected ${entry.bytes}, got ${stats.size}`);
+    }
+    const actualHash = sha256(filePath);
+    if (actualHash !== entry.sha256) {
+      errors.push(`Hash mismatch for '${entry.path}': expected ${entry.sha256}, got ${actualHash}`);
+    }
+    if (isPlaceholderHash(entry.sha256)) {
+      errors.push(`Evidence inventory contains a placeholder hash for '${entry.path}'`);
+    }
+  }
+  for (const filename of REQUIRED_FILES.filter((name) => name !== 'manifest.json')) {
+    if (!inventory.has(filename)) errors.push(`Required evidence file '${filename}' is absent from the manifest inventory`);
+  }
+
+  const timeline = parseJson(path.join(absDir, 'timeline.json'), TimelineSchema, 'timeline.json', errors) || [];
+  const orchestration = parseJson(
+    path.join(absDir, 'orchestration-outcome.json'),
+    OrchestrationOutcomeSchema,
+    'orchestration-outcome.json',
+    errors,
+  );
+  const artifacts = parseJson(
+    path.join(absDir, 'artifact-manifest.json'),
+    ArtifactManifestSchema,
+    'artifact-manifest.json',
+    errors,
+  );
+  const delegation = parseJson(
+    path.join(absDir, 'delegation-outcome.json'),
+    DelegationOutcomeSchema,
+    'delegation-outcome.json',
+    errors,
+  );
+  const review = parseJson(
+    path.join(absDir, 'code-review-outcome.json'),
+    CodeReviewOutcomeSchema,
+    'code-review-outcome.json',
+    errors,
+  );
+  const readiness = parseJson(
+    path.join(absDir, 'production-readiness.json'),
+    ProductionReadinessSchema,
+    'production-readiness.json',
+    errors,
+  );
+  const mcpCalls = parseJsonl(
+    path.join(absDir, 'mcp-calls.redacted.jsonl'),
+    McpCallRecordSchema,
+    'mcp-calls.redacted.jsonl',
+    errors,
+  );
+  const dispatches = parseJsonl(
+    path.join(absDir, 'agent-dispatches.redacted.jsonl'),
+    AgentDispatchRecordSchema,
+    'agent-dispatches.redacted.jsonl',
+    errors,
+  );
+
+  const startMs = Date.parse(manifest.timestamps.start);
+  const endMs = Date.parse(manifest.timestamps.end);
+  if (endMs - startMs !== manifest.timestamps.wall_duration_ms) {
+    errors.push('Manifest wall_duration_ms does not equal end minus start timestamps');
+  }
+
+  const callIds = new Set(mcpCalls.map((record) => record.call_id));
+  const dispatchIds = new Set(dispatches.map((record) => record.dispatch_id));
+  for (const event of timeline) {
+    const wallOffset = Date.parse(event.timestamp) - startMs;
+    if (Math.abs(wallOffset - event.offset_ms) > 1000) {
+      errors.push(`Timeline event '${event.operation}' offset_ms does not match its wall timestamp`);
+    }
+    for (const id of event.linked_mcp_call_ids) {
+      if (!callIds.has(id)) errors.push(`Timeline references uncaptured MCP call ID '${id}'`);
+    }
+    for (const id of event.linked_dispatch_ids) {
+      if (!dispatchIds.has(id)) errors.push(`Timeline references uncaptured dispatch ID '${id}'`);
     }
   }
 
-  // 5. Validate schemas and check placeholder hashes
-  let timelineEvents: any[] = [];
-  try {
-    const timelineData = JSON.parse(fs.readFileSync(path.join(absDir, 'timeline.json'), 'utf8'));
-    timelineEvents = TimelineSchema.parse(timelineData);
-  } catch (err: any) {
-    errors.push(`timeline.json schema validation error: ${err?.message || String(err)}`);
-  }
-
-  let orchestrationOutcome: any = {};
-  try {
-    const orchestrationData = JSON.parse(fs.readFileSync(path.join(absDir, 'orchestration-outcome.json'), 'utf8'));
-    orchestrationOutcome = OrchestrationOutcomeSchema.parse(orchestrationData);
-  } catch (err: any) {
-    errors.push(`orchestration-outcome.json schema validation error: ${err?.message || String(err)}`);
-  }
-
-  let delegationOutcome: any = {};
-  try {
-    const delegationData = JSON.parse(fs.readFileSync(path.join(absDir, 'delegation-outcome.json'), 'utf8'));
-    delegationOutcome = DelegationOutcomeSchema.parse(delegationData);
-  } catch (err: any) {
-    errors.push(`delegation-outcome.json schema validation error: ${err?.message || String(err)}`);
-  }
-
-  let codeReviewOutcome: any = {};
-  try {
-    const codeReviewData = JSON.parse(fs.readFileSync(path.join(absDir, 'code-review-outcome.json'), 'utf8'));
-    codeReviewOutcome = CodeReviewOutcomeSchema.parse(codeReviewData);
-    if (codeReviewOutcome.review_output_hash) {
-      for (const pat of PLACEHOLDER_HASH_PATTERNS) {
-        if (pat.test(codeReviewOutcome.review_output_hash)) {
-          errors.push(`code-review-outcome contains synthetic placeholder review_output_hash: '${codeReviewOutcome.review_output_hash}'`);
-          break;
-        }
+  const toolNames = new Set(mcpCalls.filter((call) => call.status === 'success').map((call) => call.tool_name));
+  if (orchestration) {
+    const requiredTools = [
+      ['workspace_initialized', 'initialize_workspace'],
+      ['session_created', 'create_session'],
+      ['transition_completed', 'transition_phase'],
+    ] as const;
+    for (const [field, tool] of requiredTools) {
+      if (orchestration[field] && !toolNames.has(tool)) {
+        errors.push(`MCP trace missing '${tool}' required by orchestration outcome`);
       }
     }
-  } catch (err: any) {
-    errors.push(`code-review-outcome.json schema validation error: ${err?.message || String(err)}`);
+    if (orchestration.code_review_status === 'passed' && !toolNames.has('record_code_review')) {
+      errors.push("MCP trace missing 'record_code_review' required by passing review outcome");
+    }
+    if (orchestration.archive_status === 'archived' && !toolNames.has('archive_session')) {
+      errors.push("MCP trace missing 'archive_session' required by archived outcome");
+    }
   }
 
-  let readinessData: any = {};
-  try {
-    const readinessContent = JSON.parse(fs.readFileSync(path.join(absDir, 'production-readiness.json'), 'utf8'));
-    readinessData = ProductionReadinessSchema.parse(readinessContent);
-  } catch (err: any) {
-    errors.push(`production-readiness.json schema validation error: ${err?.message || String(err)}`);
+  for (const dispatch of dispatches) {
+    if (dispatch.runtime !== manifest.runtime.name || dispatch.model !== manifest.runtime.model) {
+      errors.push(`Dispatch '${dispatch.dispatch_id}' runtime/model does not match manifest runtime/model`);
+    }
+    if (dispatch.end_offset_ms < dispatch.start_offset_ms) {
+      errors.push(`Dispatch '${dispatch.dispatch_id}' has a negative duration`);
+    }
+    if (dispatch.response_sha256 && isPlaceholderHash(dispatch.response_sha256)) {
+      errors.push(`Dispatch '${dispatch.dispatch_id}' contains a placeholder response hash`);
+    }
+    if (!dispatch.output_retained) {
+      warnings.push(`Dispatch '${dispatch.dispatch_id}' output was not retained; its response hash is provenance-only`);
+    } else if (!dispatch.output_file || !inventory.has(dispatch.output_file)) {
+      errors.push(`Dispatch '${dispatch.dispatch_id}' retained output is not inventoried`);
+    }
   }
 
-  let artifactManifest: any = {};
-  try {
-    const artifactData = JSON.parse(fs.readFileSync(path.join(absDir, 'artifact-manifest.json'), 'utf8'));
-    artifactManifest = ArtifactManifestSchema.parse(artifactData);
-    for (const f of artifactManifest.files || []) {
-      for (const pat of PLACEHOLDER_HASH_PATTERNS) {
-        if (pat.test(f.sha256)) {
-          errors.push(`artifact-manifest contains synthetic placeholder file hash for '${f.relative_path}': '${f.sha256}'`);
-          break;
-        }
+  if (manifest.outcome.delegation_successful && delegation) {
+    const implementationDispatch = dispatches.find(
+      (dispatch) => dispatch.agent === delegation.assigned_agent && dispatch.status === 'success',
+    );
+    if (!implementationDispatch) {
+      errors.push('delegation_successful=true but no successful assigned-agent dispatch was captured');
+    } else {
+      if (!delegation.dispatch_ids.includes(implementationDispatch.dispatch_id)) {
+        errors.push('Delegation outcome does not reference the captured implementation dispatch');
       }
-    }
-  } catch (err: any) {
-    errors.push(`artifact-manifest.json schema validation error: ${err?.message || String(err)}`);
-  }
-
-  // 6. Parse mcp-calls.redacted.jsonl and correlate with outcomes
-  const mcpCalls: any[] = [];
-  const mcpCallTools = new Set<string>();
-  const mcpCallIds = new Set<string>();
-  const jsonlLines = fs
-    .readFileSync(path.join(absDir, 'mcp-calls.redacted.jsonl'), 'utf8')
-    .split('\n')
-    .filter((l) => l.trim().length > 0);
-
-  for (let i = 0; i < jsonlLines.length; i++) {
-    const line = jsonlLines[i];
-    if (!line) continue;
-    try {
-      const record = JSON.parse(line);
-      const parsed = McpCallRecordSchema.parse(record);
-      mcpCalls.push(parsed);
-      mcpCallTools.add(parsed.tool_name);
-      mcpCallIds.add(parsed.call_id);
-    } catch (err: any) {
-      errors.push(`mcp-calls.redacted.jsonl line ${i + 1} validation error: ${err?.message || String(err)}`);
-    }
-  }
-
-  // Correlate outcomes with MCP calls
-  if (orchestrationOutcome.workspace_initialized && !mcpCallTools.has('initialize_workspace')) {
-    errors.push('MCP trace missing initialize_workspace call required by orchestration outcome');
-  }
-  if (orchestrationOutcome.session_created && !mcpCallTools.has('create_session')) {
-    errors.push('MCP trace missing create_session call required by orchestration outcome');
-  }
-  if (orchestrationOutcome.transition_completed && !mcpCallTools.has('transition_phase')) {
-    errors.push('MCP trace missing transition_phase call required by orchestration outcome');
-  }
-  if (orchestrationOutcome.code_review_status === 'passed' && !mcpCallTools.has('record_code_review')) {
-    errors.push('MCP trace missing record_code_review call required by passing code review outcome');
-  }
-  if (orchestrationOutcome.archive_status === 'archived' && !mcpCallTools.has('archive_session')) {
-    errors.push('MCP trace missing archive_session call required by archived outcome');
-  }
-
-  // Check timeline event references to MCP calls
-  for (const event of timelineEvents) {
-    for (const linkedId of event.linked_mcp_call_ids || []) {
-      if (!mcpCallIds.has(linkedId)) {
-        errors.push(`Timeline event '${event.stage_id}/${event.operation}' references uncaptured MCP call ID '${linkedId}'`);
+      if (delegation.response_sha256 !== implementationDispatch.response_sha256) {
+        errors.push('Delegation response hash does not match captured implementation dispatch');
       }
     }
   }
 
-  // 7. Validation Output test totals check
-  const valOutputText = fs.readFileSync(path.join(absDir, 'validation-output.txt'), 'utf8');
-  const passMatch = valOutputText.match(/# pass (\d+)|ℹ pass (\d+)/);
-  if (passMatch) {
-    const passStr = passMatch[1] || passMatch[2] || '0';
-    const totalPasses = parseInt(passStr, 10);
-    if (manifest.outcome.overall && totalPasses < 100) {
-      errors.push(`validation-output.txt test pass total (${totalPasses}) is incomplete for full repository run`);
+  if (manifest.outcome.code_review_passed && review) {
+    const reviewDispatch = dispatches.find(
+      (dispatch) => dispatch.dispatch_id === review.dispatch_id && dispatch.status === 'success',
+    );
+    if (!reviewDispatch) {
+      errors.push('code_review_passed=true but no successful reviewer dispatch was captured');
+    } else if (review.review_output_hash !== reviewDispatch.response_sha256) {
+      errors.push('Review output hash does not match captured reviewer dispatch');
     }
   }
 
-  // 8. Redaction checks
-  for (const filename of REQUIRED_EVIDENCE_FILES) {
-    const filePath = path.join(absDir, filename);
-    const content = fs.readFileSync(filePath, 'utf8');
-    if (/\/home\/[a-zA-Z0-9_-]+/.test(content) || /\/Users\/[a-zA-Z0-9_-]+/.test(content)) {
-      errors.push(`Unredacted home directory path found in '${filename}'`);
+  const transitionedFiles = new Set<string>();
+  for (const call of mcpCalls.filter((record) => record.tool_name === 'transition_phase')) {
+    for (const key of ['files_created', 'files_modified', 'files_deleted']) {
+      const values = (call.request_summary as Record<string, unknown>)[key];
+      if (Array.isArray(values)) values.forEach((value) => transitionedFiles.add(String(value)));
     }
-    if (/gh[pousr]_[a-zA-Z0-9]{36}/.test(content) || /sk-[a-zA-Z0-9]{32,}/.test(content)) {
+  }
+  const artifactPaths = new Set((artifacts?.files || []).map((file: any) => file.relative_path));
+  for (const file of transitionedFiles) {
+    if (!artifactPaths.has(file)) errors.push(`Transitioned file '${file}' is missing from artifact manifest`);
+  }
+  for (const file of artifacts?.files || []) {
+    if (!file.content_available) {
+      warnings.push(`Artifact '${file.relative_path}' content was not retained; its hash is a recorded runtime value`);
+    }
+  }
+
+  const validationText = fs.readFileSync(path.join(absDir, 'validation-output.txt'), 'utf8');
+  const tests = [...validationText.matchAll(/ℹ tests (\d+)/g)].at(-1);
+  const pass = [...validationText.matchAll(/ℹ pass (\d+)/g)].at(-1);
+  const fail = [...validationText.matchAll(/ℹ fail (\d+)/g)].at(-1);
+  if (manifest.outcome.overall) {
+    if (!tests || !pass || !fail) errors.push('validation-output.txt does not contain complete Node test totals');
+    if (tests && pass && tests[1] !== pass[1]) errors.push('validation-output.txt test and pass totals differ');
+    if (fail && Number(fail[1]) !== 0) errors.push(`validation-output.txt reports ${fail[1]} failing tests`);
+    if (!validationText.includes('check:source')) errors.push('validation-output.txt does not capture npm run check:source');
+    if (!validationText.includes('check:release')) errors.push('validation-output.txt does not capture npm run check:release');
+  }
+
+  if (readiness) verifyReadiness(readiness, inventory, manifest.outcome.production_ready, errors);
+
+  for (const filename of REQUIRED_FILES) {
+    const text = fs.readFileSync(path.join(absDir, filename), 'utf8');
+    if (/\/(?:home|Users)\/[A-Za-z0-9_-]+/.test(text)) {
+      errors.push(`Unredacted home-directory path found in '${filename}'`);
+    }
+    if (/gh[pousr]_[A-Za-z0-9]{36}/.test(text) || /sk-[A-Za-z0-9]{32,}/.test(text)) {
       errors.push(`Unredacted secret token pattern found in '${filename}'`);
     }
   }
 
-  // 9. Report file machine-local link check
-  if (manifest.report_path) {
-    const root = projectRoot || path.resolve(absDir, '../../..');
-    const reportAbsPath = path.resolve(root, manifest.report_path);
-    if (fs.existsSync(reportAbsPath)) {
-      const reportText = fs.readFileSync(reportAbsPath, 'utf8');
-      if (/file:\/\/\/(?:home|Users)\//i.test(reportText)) {
-        errors.push(`Report document '${manifest.report_path}' contains machine-local 'file://' links`);
+  if (manifest.report_path && gitRoot) {
+    const reportPath = path.resolve(gitRoot, manifest.report_path);
+    const relative = path.relative(gitRoot, reportPath);
+    if (relative.startsWith('..') || path.isAbsolute(relative) || !fs.existsSync(reportPath)) {
+      errors.push(`Report document '${manifest.report_path}' cannot be resolved inside repository root`);
+    } else {
+      const report = fs.readFileSync(reportPath, 'utf8');
+      if (/file:\/\/\/(?:home|Users)\//i.test(report)) {
+        errors.push(`Report document '${manifest.report_path}' contains machine-local file links`);
+      }
+      if (!report.includes(manifest.repository.commit_sha)) {
+        errors.push(`Report document '${manifest.report_path}' does not reference evaluated commit SHA`);
       }
     }
   }
 
-  // 10. Semantic consistency rules
   if (manifest.outcome.overall) {
-    if (!manifest.outcome.protocol_compliant) {
-      errors.push('Semantic conflict: overall outcome is true but protocol_compliant is false');
-    }
-    if (!manifest.outcome.delegation_successful) {
-      errors.push('Semantic conflict: overall outcome is true but delegation_successful is false');
-    }
-    if (!manifest.outcome.code_review_passed) {
-      errors.push('Semantic conflict: overall outcome is true but code_review_passed is false');
-    }
+    if (!manifest.outcome.protocol_compliant) errors.push('overall=true requires protocol_compliant=true');
+    if (!manifest.outcome.delegation_successful) errors.push('overall=true requires delegation_successful=true');
+    if (!manifest.outcome.code_review_passed) errors.push('overall=true requires code_review_passed=true');
+  }
+  if (delegation?.parent_direct_implementation && manifest.outcome.protocol_compliant) {
+    errors.push('parent_direct_implementation=true conflicts with protocol_compliant=true');
   }
 
-  if (delegationOutcome?.parent_direct_implementation) {
-    if (manifest.outcome.protocol_compliant) {
-      errors.push('Semantic conflict: parent_direct_implementation occurred but protocol_compliant is true');
-    }
-  }
-
-  if (readinessData?.production_ready) {
-    if (
-      !readinessData.html_validation ||
-      !readinessData.accessibility ||
-      !readinessData.responsive_viewports ||
-      !readinessData.console_errors ||
-      !readinessData.broken_links ||
-      !readinessData.code_review_passed ||
-      readinessData.unresolved_blocking_findings > 0
-    ) {
-      errors.push('Semantic conflict: production_ready is true but one or more required readiness criteria failed');
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-    evidence_dir: absDir,
-  };
+  return { valid: errors.length === 0, errors, warnings, evidence_dir: absDir };
 }
 
-// CLI runner when executed directly
 if (process.argv[1] && process.argv[1].endsWith('verify-diagnostic-evidence.js')) {
-  const targetDir = process.argv[2];
-  if (!targetDir) {
-    console.error('Usage: node verify-diagnostic-evidence.js <evidence-dir>');
+  const args = process.argv.slice(2);
+  const targetDir = args[0];
+  const rootIndex = args.indexOf('--project-root');
+  const projectRoot = rootIndex >= 0 ? args[rootIndex + 1] : undefined;
+  if (!targetDir || (rootIndex >= 0 && !projectRoot)) {
+    console.error('Usage: node verify-diagnostic-evidence.js <evidence-dir> [--project-root <repo-root>]');
     process.exit(1);
   }
-  const result = verifyDiagnosticEvidence(targetDir);
+  const result = verifyDiagnosticEvidence(targetDir, projectRoot);
   if (result.valid) {
     console.log(`[PASS] Evidence directory '${targetDir}' passed diagnostic verification.`);
+    result.warnings.forEach((warning) => console.warn(`  [WARN] ${warning}`));
     process.exit(0);
-  } else {
-    console.error(`[FAIL] Evidence directory '${targetDir}' failed diagnostic verification:`);
-    for (const err of result.errors) console.error(`  - ${err}`);
-    process.exit(1);
   }
+  console.error(`[FAIL] Evidence directory '${targetDir}' failed diagnostic verification:`);
+  result.errors.forEach((error) => console.error(`  - ${error}`));
+  process.exit(1);
 }

@@ -1,6 +1,6 @@
 [
   {
-    "offset_ms": 0,
+    "offset_ms": 2000,
     "timestamp": "2026-08-07T05:48:02.000Z",
     "stage_id": "init",
     "operation": "initialize_workspace",
@@ -9,10 +9,11 @@
     "linked_mcp_call_ids": [
       "call-1"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 20,
+    "offset_ms": 4000,
     "timestamp": "2026-08-07T05:48:04.000Z",
     "stage_id": "init",
     "operation": "resolve_settings",
@@ -21,10 +22,11 @@
     "linked_mcp_call_ids": [
       "call-2"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 35,
+    "offset_ms": 5000,
     "timestamp": "2026-08-07T05:48:05.000Z",
     "stage_id": "init",
     "operation": "get_session_status",
@@ -33,10 +35,11 @@
     "linked_mcp_call_ids": [
       "call-3"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 50,
+    "offset_ms": 6000,
     "timestamp": "2026-08-07T05:48:06.000Z",
     "stage_id": "design",
     "operation": "assess_task_complexity",
@@ -45,10 +48,11 @@
     "linked_mcp_call_ids": [
       "call-4"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 70,
+    "offset_ms": 7000,
     "timestamp": "2026-08-07T05:48:07.000Z",
     "stage_id": "session",
     "operation": "create_session",
@@ -57,10 +61,11 @@
     "linked_mcp_call_ids": [
       "call-5"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 95,
+    "offset_ms": 8000,
     "timestamp": "2026-08-07T05:48:08.000Z",
     "stage_id": "delegation",
     "operation": "get_agent",
@@ -69,10 +74,24 @@
     "linked_mcp_call_ids": [
       "call-6"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 120,
+    "offset_ms": 8100,
+    "timestamp": "2026-08-07T05:48:08.100Z",
+    "stage_id": "delegation",
+    "operation": "invoke_subagent:coder",
+    "duration_ms": 34900,
+    "outcome": "success",
+    "linked_mcp_call_ids": [],
+    "linked_dispatch_ids": [
+      "dispatch-coder-1"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 43000,
     "timestamp": "2026-08-07T05:48:43.000Z",
     "stage_id": "execution",
     "operation": "transition_phase",
@@ -81,10 +100,24 @@
     "linked_mcp_call_ids": [
       "call-7"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 150,
+    "offset_ms": 47000,
+    "timestamp": "2026-08-07T05:48:47.000Z",
+    "stage_id": "review",
+    "operation": "invoke_subagent:code_reviewer",
+    "duration_ms": 4000,
+    "outcome": "success",
+    "linked_mcp_call_ids": [],
+    "linked_dispatch_ids": [
+      "dispatch-reviewer-1"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 51000,
     "timestamp": "2026-08-07T05:48:51.000Z",
     "stage_id": "review",
     "operation": "record_code_review",
@@ -93,10 +126,11 @@
     "linked_mcp_call_ids": [
       "call-8"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   },
   {
-    "offset_ms": 185,
+    "offset_ms": 52000,
     "timestamp": "2026-08-07T05:48:52.000Z",
     "stage_id": "archive",
     "operation": "archive_session",
@@ -105,6 +139,7 @@
     "linked_mcp_call_ids": [
       "call-9"
     ],
+    "linked_dispatch_ids": [],
     "error_code": null
   }
 ]

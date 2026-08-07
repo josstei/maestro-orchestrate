@@ -1,13 +1,40 @@
 {
-  "html_validation": true,
-  "accessibility": true,
-  "responsive_viewports": true,
-  "console_errors": true,
-  "broken_links": true,
+  "html_validation": {
+    "status": "not_assessed",
+    "tool": null,
+    "version": null,
+    "output_file": null
+  },
+  "accessibility": {
+    "status": "not_assessed",
+    "tool": null,
+    "version": null,
+    "output_file": null
+  },
+  "responsive_viewports": {
+    "status": "not_assessed",
+    "tool": null,
+    "version": null,
+    "output_file": null
+  },
+  "console_check": {
+    "status": "not_assessed",
+    "tool": null,
+    "version": null,
+    "output_file": null,
+    "error_count": null
+  },
+  "link_check": {
+    "status": "not_assessed",
+    "tool": null,
+    "version": null,
+    "output_file": null,
+    "broken_count": null
+  },
   "code_review_passed": true,
   "unresolved_blocking_findings": 0,
-  "production_ready": true,
+  "production_ready": false,
   "scope_caveats": [
-    "Requires production HTTPS deployment configuration"
+    "The AGY evaluation is an orchestration smoke test; production-readiness checks were not executed or retained."
   ]
 }

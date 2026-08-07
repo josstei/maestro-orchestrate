@@ -1,9 +1,0 @@
-{
-  "assigned_agent": "coder",
-  "registered_dispatch_tool": "coder",
-  "attempt_count": 1,
-  "success": true,
-  "failure_type": null,
-  "parent_direct_implementation": false,
-  "escalation_result": null
-}

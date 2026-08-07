@@ -58,6 +58,28 @@ function resolvePhasesToStart(state: any, phaseIds: any) {
   return phasesToStart;
 }
 
+function createCompletionReviewState(required: boolean) {
+  return {
+    required,
+    status: required ? 'pending' : 'not_required',
+    reviewer_agent: null,
+    reviewed_at: null,
+    reviewed_phase_ids: [],
+    finding_count: 0,
+    blocking_finding_count: 0,
+    reviewed_files: [],
+    summary: null,
+  };
+}
+
+function hasNonDocumentationChanges(phase: any): boolean {
+  return [
+    ...(phase.files_created || []),
+    ...(phase.files_modified || []),
+    ...(phase.files_deleted || []),
+  ].some((filePath: string) => !isDocumentationPath(filePath));
+}
+
 function completePhase(phase: any, params: any, state: any, now: any) {
   const { filesCreated, filesModified, filesDeleted, hasFiles } =
     extractFileManifest(params);
@@ -110,62 +132,24 @@ function completePhase(phase: any, params: any, state: any, now: any) {
     durationMs,
   });
 
-  // Update completion_review state requirements
-  const allCompletedPhases = (state.phases || []).filter((p: any) => p.status === 'completed');
-  let hasNonDocChanges = false;
-  const currentNonDocFiles: string[] = [];
+  const currentPhaseHasNonDocChanges = hasNonDocumentationChanges(phase);
+  const anyCompletedPhaseHasNonDocChanges = (state.phases || [])
+    .filter((candidate: any) => candidate.status === 'completed')
+    .some(hasNonDocumentationChanges);
 
-  for (const cp of allCompletedPhases) {
-    const cpFiles = [
-      ...(cp.files_created || []),
-      ...(cp.files_modified || []),
-      ...(cp.files_deleted || []),
-    ];
-    for (const f of cpFiles) {
-      if (!isDocumentationPath(f)) {
-        hasNonDocChanges = true;
-        const norm = f.replace(/\\/g, '/');
-        if (!currentNonDocFiles.includes(norm)) {
-          currentNonDocFiles.push(norm);
-        }
-      }
-    }
-  }
-
-  if (hasNonDocChanges) {
-    if (!state.completion_review || state.completion_review.status === 'not_required') {
-      state.completion_review = {
-        required: true,
-        status: 'pending',
-        reviewer_agent: null,
-        reviewed_at: null,
-        reviewed_phase_ids: [],
-        finding_count: 0,
-        blocking_finding_count: 0,
-        reviewed_files: [],
-        summary: null,
-      };
-    } else if (state.completion_review.status === 'passed') {
-      const reviewedSet = new Set((state.completion_review.reviewed_files || []).map((f: string) => f.replace(/\\/g, '/')));
-      const unreviewed = currentNonDocFiles.some((f) => !reviewedSet.has(f));
-      if (unreviewed) {
-        state.completion_review.status = 'pending';
-      }
-    }
-  } else {
-    if (!state.completion_review || state.completion_review.status === 'not_required') {
-      state.completion_review = {
-        required: false,
-        status: 'not_required',
-        reviewer_agent: null,
-        reviewed_at: null,
-        reviewed_phase_ids: [],
-        finding_count: 0,
-        blocking_finding_count: 0,
-        reviewed_files: [],
-        summary: null,
-      };
-    }
+  // A passing or blocked review is a snapshot of the change set at review time.
+  // Any later completed phase with non-documentation changes invalidates that
+  // snapshot, including a modification to a path that was reviewed previously.
+  if (currentPhaseHasNonDocChanges) {
+    state.completion_review = createCompletionReviewState(true);
+  } else if (anyCompletedPhaseHasNonDocChanges && !state.completion_review) {
+    // Conservatively upgrade legacy sessions that predate completion_review.
+    state.completion_review = createCompletionReviewState(true);
+  } else if (
+    !anyCompletedPhaseHasNonDocChanges &&
+    (!state.completion_review || state.completion_review.status === 'not_required')
+  ) {
+    state.completion_review = createCompletionReviewState(false);
   }
 }
 

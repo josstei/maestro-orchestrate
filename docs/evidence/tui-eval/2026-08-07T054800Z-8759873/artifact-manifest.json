@@ -8,10 +8,9 @@
       "mime_category": "text/html",
       "tracked": false,
       "created_or_modified": "created",
-      "validation_results": [
-        "html5_valid",
-        "a11y_wcag21_aa"
-      ]
+      "validation_results": [],
+      "content_available": false,
+      "provenance": "agy_tui_runtime_capture"
     },
     {
       "relative_path": "test-site/styles.css",
@@ -20,9 +19,22 @@
       "mime_category": "text/css",
       "tracked": false,
       "created_or_modified": "created",
+      "validation_results": [],
+      "content_available": false,
+      "provenance": "agy_tui_runtime_capture"
+    },
+    {
+      "relative_path": "docs/maestro/state/archive/2026-08-07-nova-analytics-landing-page.md",
+      "bytes": 2532,
+      "sha256": "4d3a8074b14de4c58eed0bbad0cd5f4b8c2780f90b1154d60a4ef98337cfdebc",
+      "mime_category": "text/markdown",
+      "tracked": false,
+      "created_or_modified": "created",
       "validation_results": [
-        "css3_valid"
-      ]
+        "archive_state_recorded"
+      ],
+      "content_available": false,
+      "provenance": "agy_tui_runtime_capture"
     }
   ]
 }

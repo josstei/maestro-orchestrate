@@ -1,95 +1,108 @@
-# Maestro TUI Orchestration Diagnostic Assessment & Authoritative Evaluation Report
+# Maestro AGY TUI Orchestration Evaluation and Remediation Report
 
 ## Document Metadata
 
-- **Evaluated Repository**: `josstei/maestro-orchestrate`
-- **Evaluated Branch**: `refactor/codebase_normalization_reduction`
-- **Evaluated Commit SHA**: `87598736fd0e638db89168a70a96c36553ce4ba7` (Authoritative Evaluated Commit)
-- **Runtime**: AGY (Antigravity CLI v1.6.4)
-- **Model Display Name**: Gemini 3.6 Flash
-- **Report Generation Date**: 2026-08-07 (Authoritative Closeout)
-- **Evidence Bundle Location**: `docs/evidence/tui-eval/2026-08-07T054800Z-8759873/`
-- **Report Status**: `authoritative / machine-verified`
-- **Evidence Verification**: Verified by `npm run diagnostic:evidence:verify -- docs/evidence/tui-eval/2026-08-07T054800Z-8759873`
-
----
+- **Repository**: `josstei/maestro-orchestrate`
+- **Branch**: `refactor/codebase_normalization_reduction`
+- **Evaluated Commit**: `87598736fd0e638db89168a70a96c36553ce4ba7`
+- **Runtime**: AGY TUI; the AGY CLI build/version was not retained by the evaluation capture
+- **Maestro Version**: `1.6.4`
+- **Model Display Name**: Gemini 3.6 Flash; an exact provider model ID was not retained
+- **Evaluation Date**: 2026-08-07
+- **Evidence Bundle**: [`docs/evidence/tui-eval/2026-08-07T054800Z-8759873/`](evidence/tui-eval/2026-08-07T054800Z-8759873/)
+- **Report Status**: Evidence-backed AGY end-to-end orchestration smoke test
 
 ## Executive Summary
 
-This authoritative report details the genuine end-to-end Maestro orchestration evaluation executed through the AGY TUI using Gemini 3.6 Flash on branch `refactor/codebase_normalization_reduction`.
+A genuine Maestro orchestration was executed through the AGY TUI using Gemini 3.6 Flash against the frozen commit `87598736fd0e638db89168a70a96c36553ce4ba7`. The evaluated task created a static Nova Analytics landing page with vanilla HTML and CSS.
 
-The orchestration executed the full 11-step lifecycle without direct parent orchestrator file modifications. The task assigned was: *"Create a small static Nova Analytics landing page in ./test-site using vanilla HTML and CSS."* Real AGY subagent dispatches were performed for both implementation (`coder`) and mandatory quality audit (`code_reviewer`). Complete telemetry, durations, SHA-256 hashes, file manifests, and validation outputs were recorded into machine evidence and verified.
+The run completed the expected Maestro control-plane lifecycle, dispatched separate implementation and review subagents through AGY, recorded a passing mandatory review, and archived the session without parent-orchestrator implementation fallback. The evidence bundle records the Git binding, MCP calls, AGY dispatch metadata, wall-clock timeline, artifact metadata, review outcome, and local validation output.
 
-### Orchestration Performance & Compliance Matrix
+This is an **orchestration and lifecycle smoke test**. It is not a production-readiness certification. HTML validation, browser testing, accessibility scanning, responsive viewport testing, console inspection, and broken-link testing were not retained as independently verifiable outputs and are therefore marked `not_assessed`.
 
-| Dimension | Target Constraint / Requirement | Evaluated AGY System Status | Machine Evidence Reference |
-| --- | --- | --- | --- |
-| **Runtime & Model** | AGY TUI / Gemini 3.6 Flash | Verified AGY Runtime & Gemini 3.6 Flash | [`manifest.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/manifest.json) |
-| **Commit Freeze** | Exact pre-run Git SHA | `87598736fd0e638db89168a70a96c36553ce4ba7` | [`manifest.json#repository`](evidence/tui-eval/2026-08-07T054800Z-8759873/manifest.json) |
-| **Workflow Selection** | Express / Simple Classification | Simple Task Complexity $\rightarrow$ Express Mode | [`mcp-calls.redacted.jsonl#call-4`](evidence/tui-eval/2026-08-07T054800Z-8759873/mcp-calls.redacted.jsonl) |
-| **Subagent Dispatches** | Actual AGY `coder` & `code_reviewer` | Real Subagent Executions (`invoke_subagent`) | [`delegation-outcome.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/delegation-outcome.json) |
-| **Direct Parent Write** | Zero direct writes by parent | Hard Gate Enforced: 0 Direct Parent Writes | [`delegation-outcome.json#parent_direct_implementation`](evidence/tui-eval/2026-08-07T054800Z-8759873/delegation-outcome.json) |
-| **Mandatory Code Review** | Required before `archive_session` | Hard Gate Passed: 0 Blocking Findings | [`code-review-outcome.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/code-review-outcome.json) |
-| **Verification Tooling** | `diagnostic:evidence:verify` | **PASS** (1,781 tests across 329 suites) | [`validation-output.txt`](evidence/tui-eval/2026-08-07T054800Z-8759873/validation-output.txt) |
+## Evaluation Result
 
----
+| Dimension | Result | Evidence |
+| --- | --- | --- |
+| Frozen implementation commit | Pass | [`manifest.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/manifest.json) |
+| Runtime and model capture | AGY / Gemini 3.6 Flash | [`manifest.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/manifest.json) |
+| MCP lifecycle | Pass | [`mcp-calls.redacted.jsonl`](evidence/tui-eval/2026-08-07T054800Z-8759873/mcp-calls.redacted.jsonl) |
+| Coder dispatch | Pass | [`agent-dispatches.redacted.jsonl`](evidence/tui-eval/2026-08-07T054800Z-8759873/agent-dispatches.redacted.jsonl) |
+| Parent direct implementation | Not observed | [`delegation-outcome.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/delegation-outcome.json) |
+| Mandatory review | Pass; zero blocking findings | [`code-review-outcome.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/code-review-outcome.json) |
+| Session archival | Pass | [`orchestration-outcome.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/orchestration-outcome.json) |
+| Local test suite at evaluated commit | 1,781 passing tests across 329 suites | [`validation-output.txt`](evidence/tui-eval/2026-08-07T054800Z-8759873/validation-output.txt) |
+| Source and release gates at evaluated commit | Pass | [`validation-output.txt`](evidence/tui-eval/2026-08-07T054800Z-8759873/validation-output.txt) |
+| Production readiness | Not assessed | [`production-readiness.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/production-readiness.json) |
 
-## 1. Run Timeline & Duration Breakdown
+## Run Timeline
 
-| Stage | Duration | Status | Key Actions & Control Flow | Machine Evidence Pointer |
-| --- | --- | --- | --- | --- |
-| **0. Workspace Init** | 15ms | Success | `initialize_workspace`, `resolve_settings` | `timeline.json#stage_id=init` |
-| **1. Session Check & Complexity** | 24ms | Success | `get_session_status`, `assess_task_complexity` | `mcp-calls.redacted.jsonl#call-3,call-4` |
-| **2. Session Creation** | 18ms | Success | `create_session` (`2026-08-07-nova-analytics-landing-page`) | `mcp-calls.redacted.jsonl#call-5` |
-| **3. Agent Specification** | 15ms | Success | `get_agent(coder)` specification load | `mcp-calls.redacted.jsonl#call-6` |
-| **4. Coder Agent Dispatch** | ~31,000ms | Success | `coder` subagent dispatch (`invoke_subagent`) | `delegation-outcome.json` |
-| **5. Phase Transition** | 25ms | Success | `transition_phase` (`test-site/index.html`, `test-site/styles.css`) | `mcp-calls.redacted.jsonl#call-7` |
-| **6. Reviewer Agent Dispatch** | ~4,000ms | Success | `code_reviewer` subagent review (`invoke_subagent`) | `code-review-outcome.json` |
-| **7. Code Review Recording** | 30ms | Success | `record_code_review` (0 blocking findings) | `mcp-calls.redacted.jsonl#call-8` |
-| **8. Session Archival** | 20ms | Success | `archive_session` (archived to state root) | `mcp-calls.redacted.jsonl#call-9` |
-| **Total TUI Duration** | **53,000ms** | **VERIFIED SUCCESSFUL & PROTOCOL-COMPLIANT** | Complete lifecycle verified by evidence verifier | `manifest.json` |
+The timeline uses actual wall-clock offsets from the manifest start time. MCP operation durations and agent-execution windows are represented separately.
 
----
+| Stage | Approximate Window | Result | Evidence |
+| --- | ---: | --- | --- |
+| Workspace initialization and settings | 2–4 seconds | Pass | `timeline.json`, calls 1–2 |
+| Session status and task classification | 5–6 seconds | Pass | `timeline.json`, calls 3–4 |
+| Session creation and agent methodology load | 7–8 seconds | Pass | `timeline.json`, calls 5–6 |
+| AGY coder dispatch | 8.1–43 seconds | Pass | `dispatch-coder-1` |
+| Phase transition | At 43 seconds | Pass | call 7 |
+| AGY code-reviewer dispatch | 47–51 seconds | Pass | `dispatch-reviewer-1` |
+| Review recording and archival | 51–52 seconds | Pass | calls 8–9 |
+| Total captured wall-clock window | 53 seconds | Pass | `manifest.json` |
 
-## 2. Real Output Hashes & File Manifest
+## Captured Outputs
 
-### A. Subagent Output Hashes (SHA-256)
+### Generated artifacts
 
-- **Coder Response Hash**: `2fe9fffba10b5bbbb65049f6c28e37e52d2a3b897e071b06e6f231d0ded30940`
-- **Code Reviewer Response Hash**: `cdc8442699491ba72b20c469095b5c717cab45a9f065b6ca33f4581a184db086`
+The hashes below were recorded by the AGY evaluation capture. The generated files were intentionally not committed to the source branch, so their content is not independently re-hashable from this repository checkout.
 
-### B. Generated Artifacts
+- `test-site/index.html`: 22,541 bytes; SHA-256 `11a84821b3d6152297817d122fc2586c95432a2dd307f828d41d965d1084a847`
+- `test-site/styles.css`: 17,322 bytes; SHA-256 `3c5a83de7263f338390ad955ead1203ef8cd37ee3a41a99dff343fa5ca3f6a90`
+- `docs/maestro/state/archive/2026-08-07-nova-analytics-landing-page.md`: 2,532 bytes; SHA-256 `4d3a8074b14de4c58eed0bbad0cd5f4b8c2780f90b1154d60a4ef98337cfdebc`
 
-- `test-site/index.html` (22,541 bytes, SHA-256: `11a84821b3d6152297817d122fc2586c95432a2dd307f828d41d965d1084a847`)
-- `test-site/styles.css` (17,322 bytes, SHA-256: `3c5a83de7263f338390ad955ead1203ef8cd37ee3a41a99dff343fa5ca3f6a90`)
+See [`artifact-manifest.json`](evidence/tui-eval/2026-08-07T054800Z-8759873/artifact-manifest.json).
 
-### C. Archived Session State
+### Agent-response provenance
 
-- `docs/maestro/state/archive/2026-08-07-nova-analytics-landing-page.md` (2,532 bytes, SHA-256: `4d3a8074b14de4c58eed0bbad0cd5f4b8c2780f90b1154d60a4ef98337cfdebc`)
+The AGY capture retained response digests but not raw or redacted response bodies. These digests establish correlation within the capture; they are not independently recalculable from the repository.
 
----
+- Coder response SHA-256: `2fe9fffba10b5bbbb65049f6c28e37e52d2a3b897e071b06e6f231d0ded30940`
+- Code-reviewer response SHA-256: `cdc8442699491ba72b20c469095b5c717cab45a9f065b6ca33f4581a184db086`
 
-## 3. Full Repository Verification Results
+See [`agent-dispatches.redacted.jsonl`](evidence/tui-eval/2026-08-07T054800Z-8759873/agent-dispatches.redacted.jsonl).
 
-- **`npm test`**: Passed (1,781 unit, transform, and integration tests across 329 suites).
-- **`npm run check:source`**: Passed (zero generator drift, zero layer boundary violations, zero ESM import errors).
-- **`npm run check:release`**: Passed (package tarball verification and release artifact bundling clean).
-- **`npm run diagnostic:evidence:verify -- docs/evidence/tui-eval/2026-08-07T054800Z-8759873`**: Passed.
+## Remediation End State
 
----
+The branch now implements the following controls. The AGY run proves the orchestration path at the frozen evaluated commit; review-freshness and verifier hardening added after that run are source-level remediations covered by regression tests rather than claims derived from the run itself.
 
-## Appendix: Remediation Closed Findings (F-01 through F-11)
+1. Canonical and compatibility agent inputs normalize to one internal representation while rejecting missing, empty, ambiguous, and invalid-cardinality payloads.
+2. Failed subagent execution is recorded as a failed phase rather than being silently replaced by parent implementation.
+3. Non-documentation changes require an explicitly recorded passing review before archival.
+4. Reviewer identities are restricted to authorized review agents.
+5. A later non-documentation phase invalidates any prior passing review, including a modification to a previously reviewed path.
+6. Executable and code files beneath documentation-oriented directories are conservatively treated as implementation changes.
+7. Diagnostic evidence verification resolves the real Git root, verifies commit existence and branch reachability, correlates MCP calls and AGY dispatches, validates timestamp offsets, and rejects unsupported production-readiness claims.
+8. Artifact manifest generation uses argument-safe Git invocation and path-containment checks.
 
-| ID | Finding Description | Baseline Status | Code Fix Commit | Test Suite Reference | Evidence Reference | Final Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| **F-01** | Success classification despite degraded delegation | Protocol Non-Compliant | `7281263`, `07acd78` | [`code-review-archive-gate.test.js`](../tests/integration/code-review-archive-gate.test.js) | `manifest.json#outcome` | **CLOSED** |
-| **F-02** | Direct parent write fallback | Protocol Violation | `07acd78` | [`execution/SKILL.md`](../src/skills/shared/execution/SKILL.md) | `delegation-outcome.json` | **CLOSED** |
-| **F-03** | Missing mandatory code review before archive | Missing Evidence | `07acd78` | [`code-review-archive-gate.test.js`](../tests/integration/code-review-archive-gate.test.js) | `code-review-outcome.json` | **CLOSED** |
-| **F-04** | Ambiguity in input schema validation | Code-Grounded | `84f2db5` | [`input-compatibility.test.js`](../tests/unit/input-compatibility.test.js) | `mcp-calls.redacted.jsonl` | **CLOSED** |
-| **F-05** | Broad design-gate mismatch handling | Code-Grounded | `7281263` | [`design-document-lifecycle.test.js`](../tests/integration/design-document-lifecycle.test.js) | `orchestration-outcome.json` | **CLOSED** |
-| **F-06** | Relative path validation handling | Code-Grounded | `6f99119`, `8aba18f` | [`plan-contract.test.js`](../tests/integration/plan-contract.test.js) | `artifact-manifest.json` | **CLOSED** |
-| **F-07** | `get_agent` occurrence frequency language | Unverified Claims | `84f2db5`, `6f99119` | [`input-compatibility.test.js`](../tests/unit/input-compatibility.test.js) | `timeline.json` | **CLOSED** |
-| **F-08** | Tool input compatibility edge cases | Design Revision | `84f2db5` | [`input-compatibility.test.js`](../tests/unit/input-compatibility.test.js) | `mcp-calls.redacted.jsonl` | **CLOSED** |
-| **F-09** | Phase schema single-agent cardinality rules | Design Revision | `84f2db5` | [`input-compatibility.test.js`](../tests/unit/input-compatibility.test.js) | `mcp-calls.redacted.jsonl` | **CLOSED** |
-| **F-10** | Synthetic placeholder hashes presented as real | Unverified Claims | `6f99119`, `7f239e2` | [`diagnostic-evidence.test.js`](../tests/unit/diagnostic-evidence.test.js) | `manifest.json` | **CLOSED** |
-| **F-11** | Product readiness claims without machine evidence | Unverified Claims | `6f99119`, `7f239e2` | [`diagnostic-evidence.test.js`](../tests/unit/diagnostic-evidence.test.js) | `production-readiness.json` | **CLOSED** |
+## Original Audit Findings
+
+| ID | Finding | Final disposition |
+| --- | --- | --- |
+| F-01 | Incorrect overall success classification | Closed: outcomes are separated by artifact, delegation, review, protocol, and archival status. |
+| F-02 | Parent direct-write fallback treated as recovery | Closed: prohibited by orchestration instructions and failure-state handling. |
+| F-03 | Mandatory review not demonstrated before archive | Closed: server-enforced review gate and recorded AGY reviewer dispatch. |
+| F-04 | SDK boundary and service validation conflated | Closed: documentation and tests distinguish the validation layers. |
+| F-05 | Design-gate mismatch described too broadly | Closed: wording and tests reflect approved foreign-session gates only. |
+| F-06 | Relative plan paths described as categorically failing | Closed: supported and failing path variants are tested separately. |
+| F-07 | Unsupported model-behavior frequency claims | Closed: frequency language was removed unless evidence-backed. |
+| F-08 | Unsafe permissive `get_agent` compatibility proposal | Closed: bounded normalization and exclusivity validation implemented. |
+| F-09 | Undefined multi-agent phase compatibility semantics | Closed: compatibility arrays require exactly one agent. |
+| F-10 | Timings, sizes, and tests asserted without evidence | Closed: claims are linked to versioned evidence and unsupported provenance is explicitly qualified. |
+| F-11 | Unsupported production-ready claim | Closed: production readiness is explicitly `not_assessed`. |
+
+## Evidence Limitations
+
+- The AGY CLI version and exact provider model ID were not retained by the runtime capture.
+- Raw coder and reviewer responses were not retained; their hashes are provenance-only.
+- Generated page and archived state contents were not committed; their hashes are capture records rather than repository-recalculable artifacts.
+- The evaluation establishes orchestration behavior, not visual or production quality.
