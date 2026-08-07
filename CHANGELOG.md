@@ -5,10 +5,18 @@ All notable changes to Maestro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+### Added
+
+- **TUI Diagnostic Remediation Program**: Complete remediation of TUI diagnostic evaluation findings (F-01 through F-11).
+- **Review & Failure Governance Tools**: Added `record_code_review` and `record_phase_failure` MCP tools to enforce subagent delegation accountability and mandatory code review gates prior to session archival.
+- **Diagnostic Evidence Harness**: Added versioned diagnostic evidence Zod schema (`src/tooling/diagnostics/evidence-schema.ts`), machine-readable timeline recorder, artifact manifest generator, automated redaction module, and evidence verification CLI (`npm run diagnostic:evidence:verify`).
+- **Documentation Classifier**: Added `isDocumentationPath` predicate for conservative file path classification during review gate verification.
 
 ### Changed
 
+- **MCP Input Compatibility Normalization**: Normalized `get_agent` and `create_session` plan phase inputs to support scalar and alias forms (`agent: "coder"` or `agents: ["coder"]`) with single-agent cardinality enforcement.
+- **Session Archival Review Gate**: `archive_session` now verifies that non-documentation code changes have recorded a passing `record_code_review` with zero blocking findings before permitting archival.
+- **Orchestration Execution Instructions**: Tightened system instructions in `orchestration-steps.md` and `execution/SKILL.md` to strictly prohibit parent orchestrator direct file implementation fallback.
 - **Generated runtime surfaces**: no longer tracked in git; installs are served from GitHub release archives (Gemini/Qwen) and the generated `dist` branch (Claude/Codex plugin content). Local development requires `npm run generate` after clone.
 - **Dist runtime topology**: public bins and direct MCP wrappers now execute compiled NodeNext ESM output under `dist/src/`. Package and release artifacts ship the explicit `dist/src/` runtime inventory plus public generated surfaces, not package-root raw `src/`.
 - **Package surface hardening**: `maestro-install-codex` and `maestro-mcp-server` now resolve to `dist/src/bin/` entrypoints; root `scripts/`, root `bin/`, and package-root raw `src/` are source-checkout content and are no longer published package or release artifact content.

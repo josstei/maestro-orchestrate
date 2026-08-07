@@ -247,9 +247,9 @@ const REQUIRED_PACKAGE_FILES = Object.freeze(
 
 const PACKAGE_BUDGET: PackageBudget = Object.freeze({
   id: 'runtime-package',
-  maxEntryCount: 395,
-  maxPackedSize: 330000,
-  maxUnpackedSize: 920000,
+  maxEntryCount: 410,
+  maxPackedSize: 350000,
+  maxUnpackedSize: 950000,
 });
 
 const PRIVATE_SCRIPT_ROLES: Readonly<Record<string, PrivateScriptRole>> = Object.freeze({
