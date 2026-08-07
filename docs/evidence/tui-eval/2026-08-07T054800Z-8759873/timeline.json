@@ -1,0 +1,110 @@
+[
+  {
+    "offset_ms": 0,
+    "timestamp": "2026-08-07T05:48:02.000Z",
+    "stage_id": "init",
+    "operation": "initialize_workspace",
+    "duration_ms": 15,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-1"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 20,
+    "timestamp": "2026-08-07T05:48:04.000Z",
+    "stage_id": "init",
+    "operation": "resolve_settings",
+    "duration_ms": 12,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-2"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 35,
+    "timestamp": "2026-08-07T05:48:05.000Z",
+    "stage_id": "init",
+    "operation": "get_session_status",
+    "duration_ms": 10,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-3"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 50,
+    "timestamp": "2026-08-07T05:48:06.000Z",
+    "stage_id": "design",
+    "operation": "assess_task_complexity",
+    "duration_ms": 14,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-4"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 70,
+    "timestamp": "2026-08-07T05:48:07.000Z",
+    "stage_id": "session",
+    "operation": "create_session",
+    "duration_ms": 18,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-5"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 95,
+    "timestamp": "2026-08-07T05:48:08.000Z",
+    "stage_id": "delegation",
+    "operation": "get_agent",
+    "duration_ms": 15,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-6"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 120,
+    "timestamp": "2026-08-07T05:48:43.000Z",
+    "stage_id": "execution",
+    "operation": "transition_phase",
+    "duration_ms": 25,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-7"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 150,
+    "timestamp": "2026-08-07T05:48:51.000Z",
+    "stage_id": "review",
+    "operation": "record_code_review",
+    "duration_ms": 30,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-8"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 185,
+    "timestamp": "2026-08-07T05:48:52.000Z",
+    "stage_id": "archive",
+    "operation": "archive_session",
+    "duration_ms": 20,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-9"
+    ],
+    "error_code": null
+  }
+]

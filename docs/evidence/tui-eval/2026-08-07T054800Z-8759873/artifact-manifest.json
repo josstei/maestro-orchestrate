@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-08-07T05:48:40.000Z",
+  "files": [
+    {
+      "relative_path": "test-site/index.html",
+      "bytes": 22541,
+      "sha256": "11a84821b3d6152297817d122fc2586c95432a2dd307f828d41d965d1084a847",
+      "mime_category": "text/html",
+      "tracked": false,
+      "created_or_modified": "created",
+      "validation_results": [
+        "html5_valid",
+        "a11y_wcag21_aa"
+      ]
+    },
+    {
+      "relative_path": "test-site/styles.css",
+      "bytes": 17322,
+      "sha256": "3c5a83de7263f338390ad955ead1203ef8cd37ee3a41a99dff343fa5ca3f6a90",
+      "mime_category": "text/css",
+      "tracked": false,
+      "created_or_modified": "created",
+      "validation_results": [
+        "css3_valid"
+      ]
+    }
+  ]
+}

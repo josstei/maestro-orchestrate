@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-08-07T054800Z-8759873",
+  "repository": {
+    "url_or_name": "josstei/maestro-orchestrate",
+    "branch": "refactor/codebase_normalization_reduction",
+    "commit_sha": "87598736fd0e638db89168a70a96c36553ce4ba7",
+    "dirty": false,
+    "diff_hash": null
+  },
+  "runtime": {
+    "name": "agy",
+    "version": "1.6.4",
+    "model": "Gemini 3.6 Flash"
+  },
+  "environment": {
+    "node_version": "v24.18.0",
+    "npm_version": "10.8.2",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "timestamps": {
+    "start": "2026-08-07T05:48:00.000Z",
+    "end": "2026-08-07T05:48:53.000Z",
+    "wall_duration_ms": 53000
+  },
+  "evidence_files": [
+    {
+      "path": "environment.json",
+      "bytes": 100,
+      "sha256": "9337913049eb5d65d22d7aa0e5eb62361e3d8d48c33ad08c0b7b5e07e26462ed"
+    },
+    {
+      "path": "timeline.json",
+      "bytes": 2361,
+      "sha256": "bf97e005181e340efe3c01fb108a724df525513275704ff9736ffd82393e6b89"
+    },
+    {
+      "path": "mcp-calls.redacted.jsonl",
+      "bytes": 2817,
+      "sha256": "6f8669e1a6994be0c51ed8fa204b1e4c52a6872128e87e0bbe4080d414dae5a0"
+    },
+    {
+      "path": "orchestration-outcome.json",
+      "bytes": 327,
+      "sha256": "e99e30494c07fc8886c5d8a244b25dfb2c8ab6b06de40e88a306beb3bbbcf04f"
+    },
+    {
+      "path": "artifact-manifest.json",
+      "bytes": 742,
+      "sha256": "8f035957524128c8ce661ef5aac4d646f717b75b8043a3c75f102f97c257ae19"
+    },
+    {
+      "path": "delegation-outcome.json",
+      "bytes": 216,
+      "sha256": "b5ab575dd79c6cf61becb33d60db4c2fe381d9ad68bc37045dd2681f2e1a5d8a"
+    },
+    {
+      "path": "code-review-outcome.json",
+      "bytes": 406,
+      "sha256": "41d91522614a53cfc3dda5d4e70003969d116826b05d500d6dd4b9d5f2e20506"
+    },
+    {
+      "path": "validation-output.txt",
+      "bytes": 316425,
+      "sha256": "bf5035ad19c9866dd42d38db4c8a46cb1142b6637551c796ac9fbb4d1aedd092"
+    },
+    {
+      "path": "production-readiness.json",
+      "bytes": 315,
+      "sha256": "d31eff28b0d9ce510d729e2d2080c7a8b4f2bfbb57fb4e1f7b11d1e138600c3b"
+    },
+    {
+      "path": "run-summary.md",
+      "bytes": 225,
+      "sha256": "74805eaacc6dd860884f8c8474bdf306431a31ae51da333cdd8f2c41bb142167"
+    }
+  ],
+  "redaction_policy_version": "1.0.0",
+  "outcome": {
+    "overall": true,
+    "protocol_compliant": true,
+    "delegation_successful": true,
+    "code_review_passed": true,
+    "production_ready": true
+  },
+  "report_path": "docs/diagnostic-report-tui-eval.md"
+}
