@@ -6,7 +6,17 @@ const AGY_RUNTIME_CONFIG = buildGeminiFamilyConfig({
   mcpPrefix: 'mcp_maestro_',
   plan_mode_native: true,
   env: { extensionPath: 'extensionPath', workspacePath: null },
-  agentToolDialect: {},
+  agentToolDialect: {
+    read_file: 'view_file',
+    write_file: 'write_to_file',
+    replace: 'replace_file_content',
+    run_shell_command: 'run_command',
+    list_directory: 'list_dir',
+    google_web_search: 'search_web',
+    web_fetch: 'read_url_content',
+    ask_user: 'ask_question',
+    write_todos: 'write_todos',
+  },
   tools: {
     write_todos: 'write_todos',
   },
