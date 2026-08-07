@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-08-07T041500Z-7281263",
+  "repository": {
+    "url_or_name": "josstei/maestro-orchestrate",
+    "branch": "refactor/codebase_normalization_reduction",
+    "commit_sha": "728126379a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
+    "dirty": false,
+    "diff_hash": null
+  },
+  "runtime": {
+    "name": "codex",
+    "version": "1.6.4",
+    "model": "gpt-4o"
+  },
+  "environment": {
+    "node_version": "v24.18.0",
+    "npm_version": "10.8.2",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "timestamps": {
+    "start": "2026-08-07T04:15:00.000Z",
+    "end": "2026-08-07T04:15:30.000Z",
+    "wall_duration_ms": 30000
+  },
+  "evidence_files": [
+    {
+      "path": "environment.json",
+      "bytes": 100,
+      "sha256": "9337913049eb5d65d22d7aa0e5eb62361e3d8d48c33ad08c0b7b5e07e26462ed"
+    },
+    {
+      "path": "timeline.json",
+      "bytes": 527,
+      "sha256": "9ecd5e84dbe3fe19684d0099e9fed2864f7da4d1aec24612bc19615697680134"
+    },
+    {
+      "path": "mcp-calls.redacted.jsonl",
+      "bytes": 475,
+      "sha256": "b8f45a53c316680d82d4b0a37c2b7f87bc16e273b92a527264b7ef544dbfee81"
+    },
+    {
+      "path": "orchestration-outcome.json",
+      "bytes": 327,
+      "sha256": "b4d7e02f85523f77066f1a66138e6e9749c3f4338d2b308f73f9d9f54b2bc6ab"
+    },
+    {
+      "path": "artifact-manifest.json",
+      "bytes": 418,
+      "sha256": "77a127e4a15e82a4248268f855ea4b2092742829f6e0309622d4e61e38494552"
+    },
+    {
+      "path": "delegation-outcome.json",
+      "bytes": 206,
+      "sha256": "de35d2e5f42195c45ff7b236eaf3b6ef0f23005f23cd7a1e1ca6f6381b1dbe63"
+    },
+    {
+      "path": "code-review-outcome.json",
+      "bytes": 378,
+      "sha256": "632c4d0fc40b178da996f213ecc4c2a8d3f7b2d4ad12629a433d2088c155f261"
+    },
+    {
+      "path": "validation-output.txt",
+      "bytes": 60,
+      "sha256": "c4615f9888696ffee36474515282cd1a6526e76f8877b87f2d04d7db34b9dc57"
+    },
+    {
+      "path": "production-readiness.json",
+      "bytes": 315,
+      "sha256": "d31eff28b0d9ce510d729e2d2080c7a8b4f2bfbb57fb4e1f7b11d1e138600c3b"
+    },
+    {
+      "path": "run-summary.md",
+      "bytes": 90,
+      "sha256": "8ccacb2f7974a07db09681af596acfd9d35346fdb5c70877e8681295d1804bfc"
+    }
+  ],
+  "redaction_policy_version": "1.0.0",
+  "outcome": {
+    "overall": true,
+    "protocol_compliant": true,
+    "delegation_successful": true,
+    "code_review_passed": true,
+    "production_ready": true
+  },
+  "report_path": "docs/diagnostic-report-tui-eval.md"
+}

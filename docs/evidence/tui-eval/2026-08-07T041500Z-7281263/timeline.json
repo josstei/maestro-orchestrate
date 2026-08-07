@@ -1,0 +1,26 @@
+[
+  {
+    "offset_ms": 0,
+    "timestamp": "2026-08-07T04:15:00.000Z",
+    "stage_id": "init",
+    "operation": "initialize_workspace",
+    "duration_ms": 15,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-1"
+    ],
+    "error_code": null
+  },
+  {
+    "offset_ms": 20,
+    "timestamp": "2026-08-07T04:15:00.020Z",
+    "stage_id": "design",
+    "operation": "enter_design_gate",
+    "duration_ms": 10,
+    "outcome": "success",
+    "linked_mcp_call_ids": [
+      "call-2"
+    ],
+    "error_code": null
+  }
+]

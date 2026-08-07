@@ -1,0 +1,2 @@
+{"call_id":"call-1","tool_name":"initialize_workspace","start_offset_ms":0,"end_offset_ms":15,"status":"success","error_code":null,"request_summary":{"workspace_path":"[HOME]/Development/llm-workspace/maestro-orchestrate"},"response_summary":{"success":true}}
+{"call_id":"call-2","tool_name":"enter_design_gate","start_offset_ms":20,"end_offset_ms":30,"status":"success","error_code":null,"request_summary":{"session_id":"baseline-eval"},"response_summary":{"success":true}}

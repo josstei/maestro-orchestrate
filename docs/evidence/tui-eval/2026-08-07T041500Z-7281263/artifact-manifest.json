@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-08-07T04:15:00.000Z",
+  "files": [
+    {
+      "relative_path": "test-site/index.html",
+      "bytes": 14200,
+      "sha256": "a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e",
+      "mime_category": "text/html",
+      "tracked": false,
+      "created_or_modified": "created",
+      "validation_results": [
+        "html5_valid",
+        "a11y_wcag21_aa"
+      ]
+    }
+  ]
+}

@@ -42,6 +42,8 @@
     "pack:verify:run": "node dist/src/tooling/verify-npm-pack.js",
     "pack:verify": "npm run build && npm run pack:verify:run",
     "install-hooks": "npm run build && node dist/src/tooling/install-git-hooks.js",
+    "diagnostic:evidence:verify": "node dist/src/tooling/verify-diagnostic-evidence.js",
+    "diagnostic:artifact-manifest": "node dist/src/tooling/diagnostics/artifact-manifest.js",
     "prepack": "npm run generate"
   },
   "c8": {

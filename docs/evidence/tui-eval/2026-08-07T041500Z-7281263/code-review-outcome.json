@@ -1,0 +1,15 @@
+{
+  "reviewer_agent": "code_reviewer",
+  "reviewed_phase_ids": [
+    1
+  ],
+  "reviewed_files": [
+    "test-site/index.html"
+  ],
+  "finding_count": 0,
+  "blocking_finding_count": 0,
+  "status": "passed",
+  "reviewed_at": "2026-08-07T04:15:00.000Z",
+  "review_output_hash": "c1d2e3f4a5b67890123456789abcdef0123456789abcdef0123456789abcdef0",
+  "archive_gate_result": "passed"
+}
