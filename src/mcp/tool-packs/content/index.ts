@@ -15,10 +15,16 @@ const zodSchemas = {
   },
   get_agent: {
     agents: z
-      .array(z.string())
-      .min(1)
+      .union([z.string(), z.array(z.string())])
+      .optional()
       .describe(
-        'Agent identifiers (kebab-case or snake_case): "coder", "code-reviewer" / "code_reviewer", "ux-designer" / "ux_designer", etc.',
+        'Canonical agent list or scalar string (e.g. ["coder"], "coder", ["code_reviewer"]).',
+      ),
+    agent: z
+      .string()
+      .optional()
+      .describe(
+        'Compatibility alias for a single agent identifier (e.g. "coder"). Canonical form is agents array.',
       ),
   },
   get_runtime_context: {},
@@ -32,7 +38,7 @@ const contentCommands = defineCommandTable(zodSchemas, {
   },
   get_agent: {
     description:
-      'Read one or more Maestro agent methodology definitions. Returns the methodology body, declared tool restrictions, and a runtime-specific tool_name for dispatch.',
+      'Read one or more Maestro agent methodology definitions. Accepts canonical agents array or compatibility scalar/alias forms. Returns the methodology body, declared tool restrictions, and a runtime-specific tool_name for dispatch.',
     handler: withHandlerContext(handleGetAgent),
   },
   get_runtime_context: {

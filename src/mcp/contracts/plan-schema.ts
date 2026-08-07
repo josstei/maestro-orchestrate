@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizePlanPhaseAgentInput } from './input-compatibility.js';
 
 const PHASE_REQUIRED_FIELDS = [
   'id',
@@ -18,7 +19,7 @@ const PlanPhaseIdSchema = WirePhaseIdSchema.refine(isValidPhaseId);
 const FileArraySchema = z.array(z.string());
 const NonEmptyFileArraySchema = z.array(z.string().min(1));
 
-const WirePlanPhaseSchema = z.object({
+const BaseWirePlanPhaseSchema = z.object({
   id: WirePhaseIdSchema,
   name: z.string().min(1),
   agent: z.string().min(1),
@@ -26,6 +27,11 @@ const WirePlanPhaseSchema = z.object({
   blocked_by: z.array(WirePhaseIdSchema),
   files: NonEmptyFileArraySchema.optional(),
 }).passthrough();
+
+const WirePlanPhaseSchema = z.preprocess(
+  (val) => normalizePlanPhaseAgentInput(val),
+  BaseWirePlanPhaseSchema
+);
 
 const PlanPhaseSchema = z.object({
   id: PlanPhaseIdSchema,
@@ -58,7 +64,7 @@ const PHASE_FIELD_VALIDATORS = Object.freeze([
 ]);
 
 type PhaseId = z.infer<typeof PlanPhaseIdSchema>;
-type WirePlanPhase = z.infer<typeof WirePlanPhaseSchema>;
+type WirePlanPhase = z.infer<typeof BaseWirePlanPhaseSchema>;
 type PlanPhase = z.infer<typeof PlanPhaseSchema>;
 type Plan = z.infer<typeof PlanSchema>;
 

@@ -47,7 +47,22 @@ No package or release payload may be removed until both the positive runtime cat
 
 Runtime content has one versioned logical manifest with two production encodings. `npm run generate` writes the ignored source manifest with `storage=file`; additions, removals, and renames require regeneration plus provider/server recreation, while edits at a stable path are read live. `npm run build` writes `storage=packed` under `dist/src/generated/` with the existing tuple offsets and gzip payload. Runtime selection uses the required discriminator and never manifest existence or entry shape.
 
-The tooling-owned cross-check for this contract is `src/tooling/runtime-payload-contract.ts`; positive runtime facts remain pure in `src/platforms/runtime-declarations.ts`.
+## MCP Input Compatibility Contracts
+
+- **Canonical Internal Representations**:
+  - `get_agent`: `{ agents: string[] }`
+  - `create_session` plan phase: `{ id, name, agent: string, parallel, blocked_by, files? }`
+  - Persisted session state phase: `agents: string[]` (array containing the single assigned agent)
+- **Accepted Compatibility Surface**:
+  - `get_agent`: `{ agents: ["coder"] }` (canonical), `{ agents: "coder" }` (scalar string), `{ agent: "coder" }` (singular alias)
+  - `create_session` phase: `{ agent: "coder" }` (canonical), `{ agents: ["coder"] }` (single-entry array)
+- **Rejected Malformed Payload Rules**:
+  - Payloads containing neither canonical nor alias fields throw `MISSING_AGENT_INPUT`.
+  - Payloads containing both canonical and alias fields throw `AMBIGUOUS_AGENT_INPUT`.
+  - Empty strings or whitespace-only strings throw `INVALID_AGENT_INPUT`.
+  - Empty arrays or arrays with non-string items throw `INVALID_AGENT_INPUT`.
+  - Plan phases with multiple agents (`agents: ["coder", "tester"]`) throw `INVALID_AGENT_CARDINALITY`.
+  - Arrays passed to singular `agent` fields throw `INVALID_AGENT_INPUT`.
 
 ## Runtime Matrix
 

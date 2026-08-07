@@ -13,6 +13,7 @@ import {
   getApprovedDesignDocumentPath,
   removeDesignGate,
 } from '../handlers/design-gate.js';
+import { normalizePlanPhaseAgentInput } from '../contracts/input-compatibility.js';
 import { recordAgentPerformance } from '../handlers/agent-performance.js';
 import { recordPlanAccuracy } from '../handlers/plan-accuracy.js';
 import { recordArchitectureMemory } from '../handlers/architecture-memory.js';
@@ -109,7 +110,14 @@ function createSession(params: any, projectRoot: any) {
     );
   }
 
-  const phasesValidation = validatePhases(params.phases);
+  if (!Array.isArray(params.phases)) {
+    throw new ValidationError('Invalid phases payload: phases must be an array', {
+      details: [{ rule: 'invalid_phases', detail: 'phases must be an array', severity: 'error' }],
+    });
+  }
+
+  const normalizedPhases = params.phases.map((p: any) => normalizePlanPhaseAgentInput(p));
+  const phasesValidation = validatePhases(normalizedPhases);
   if (!phasesValidation.valid) {
     const rules = phasesValidation.violations.map((v: any) => v.rule || v.field).join(', ');
     throw new ValidationError(`Invalid phases payload: ${rules}`, {
@@ -127,7 +135,8 @@ function createSession(params: any, projectRoot: any) {
     : null;
   const implementationPlan = resolveImplementationPlan(params, projectRoot);
 
-  const state = buildInitialSessionState(params, { designDocument, implementationPlan });
+  const stateParams = { ...params, phases: normalizedPhases };
+  const state = buildInitialSessionState(stateParams, { designDocument, implementationPlan });
   const sessionPath = sessionStore.create(
     projectRoot,
     state,

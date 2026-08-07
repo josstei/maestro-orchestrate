@@ -2,6 +2,7 @@ import { getDefaultRuntimeConfig, normalizeRuntimeConfig } from '../runtime/runt
 import { AGENT_ALLOWLIST } from '../content/runtime-content.js';
 import { createContentProvider } from '../content/provider.js';
 import { toSnakeCase, toKebabCase } from '../../lib/naming/index.js';
+import { normalizeGetAgentInput } from '../contracts/input-compatibility.js';
 
 interface AgentHandlerResult {
   body: string;
@@ -20,12 +21,15 @@ interface GetAgentResult {
  * runtime-specific dispatch tool_name. Runtime config and the canonical
  * source root are read from the handler context.
  *
- * @param {{ agents: string[] }} params
+ * External inputs are normalized first by `normalizeGetAgentInput`.
+ *
+ * @param {unknown} params
  * @param {{ runtimeConfig?: object, services?: { canonicalSrcRoot?: string } }} ctx
  * @returns {{ agents: Record<string, object>, errors: Record<string, string> }}
  */
 function handleGetAgent(params: any, ctx: any = {}): GetAgentResult {
-  const requestedAgents = params.agents;
+  const normalized = normalizeGetAgentInput(params);
+  const requestedAgents = normalized.agents;
 
   const runtimeConfig = normalizeRuntimeConfig(ctx.runtimeConfig || getDefaultRuntimeConfig());
   const services = ctx.services || {};
