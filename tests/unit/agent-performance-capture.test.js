@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { handleCreateSession, handleTransitionPhase, handleArchiveSession } from '../../dist/src/mcp/handlers/session-state-tools.js';
+import { recordCodeReview } from '../../dist/src/mcp/session/session-lifecycle-service.js';
 import { ensureMaestroWorkspace, makeTempWorkspace, readSessionFrontmatter } from '../support/mcp.js';
 
 function makeWorkspace(testContext) {
@@ -86,6 +87,18 @@ describe('transition_phase blocker/finding capture', () => {
         review_finding_count: 3,
         files_created: ['src/cache.js'],
         downstream_context: POPULATED_CONTEXT,
+      },
+      workspace
+    );
+    recordCodeReview(
+      {
+        session_id: 'perf-session',
+        reviewed_phase_ids: [1],
+        reviewer_agent: 'code_reviewer',
+        reviewed_files: ['src/cache.js'],
+        finding_count: 3,
+        blocking_finding_count: 0,
+        summary: 'Cache implementation approved.',
       },
       workspace
     );

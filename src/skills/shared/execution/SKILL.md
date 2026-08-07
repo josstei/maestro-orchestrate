@@ -240,12 +240,17 @@ After processing each handoff:
 7. Update `updated`
 8. Advance or clear `current_batch` as each chunk finishes
 
+<HARD-GATE>
+No Parent Direct-Write Fallback — Parent orchestrators are strictly prohibited from directly writing code, creating deliverables, or editing source files to recover from a subagent delegation failure. Subagent delegation failure MUST be recorded via `record_phase_failure` and retried, re-scoped, or escalated. A direct-write fallback is a protocol violation.
+</HARD-GATE>
+
 ## Completion Protocol
 
 When all phases are completed:
 
 1. Verify there are no `failed` or `pending` phases
 2. Confirm plan deliverables are accounted for
-3. Run the final code-review gate for non-documentation changes
-4. Archive the session through `session-management`
-5. Present a final summary with deliverables, files changed, token usage, deviations, and review status
+3. Run the final code-review gate for non-documentation changes: delegate to code reviewer, parse findings, and call `record_code_review(session_id, reviewed_phase_ids, reviewer_agent, reviewed_files, finding_count, blocking_finding_count, summary)`
+4. Ensure `record_code_review` recorded `status: passed` before calling `archive_session`
+5. Archive the session through `session-management` (`archive_session`)
+6. Present a final summary with deliverables, files changed, token usage, deviations, and review status

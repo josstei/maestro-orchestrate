@@ -177,6 +177,20 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
       workspace
     );
 
+    await server.callTool(
+      'record_code_review',
+      {
+        session_id: 'ddl-arc',
+        reviewed_phase_ids: [1],
+        reviewer_agent: 'code_reviewer',
+        reviewed_files: ['index.html'],
+        finding_count: 0,
+        blocking_finding_count: 0,
+        summary: 'Design document lifecycle work reviewed.',
+      },
+      workspace
+    );
+
     const archive = await server.callTool(
       'archive_session',
       { session_id: 'ddl-arc' },

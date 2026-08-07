@@ -2,17 +2,24 @@
   "type": "object",
   "properties": {
     "agents": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "minItems": 1,
-      "description": "Agent identifiers (kebab-case or snake_case): \"coder\", \"code-reviewer\" / \"code_reviewer\", \"ux-designer\" / \"ux_designer\", etc."
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "description": "Canonical agent list or scalar string (e.g. [\"coder\"], \"coder\", [\"code_reviewer\"])."
+    },
+    "agent": {
+      "type": "string",
+      "description": "Compatibility alias for a single agent identifier (e.g. \"coder\"). Canonical form is agents array."
     }
   },
-  "required": [
-    "agents"
-  ],
   "additionalProperties": false,
   "$schema": "http://json-schema.org/draft-07/schema#"
 }

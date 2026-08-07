@@ -13,6 +13,7 @@ import {
   sessionStore,
   updateCurrentSession,
 } from './session-store.js';
+import { isDocumentationPath } from './documentation-classifier.js';
 
 function assertTransitionShape(params: any) {
   const hasNextPhaseIds =
@@ -108,6 +109,64 @@ function completePhase(phase: any, params: any, state: any, now: any) {
     tokenUsage: params.token_usage,
     durationMs,
   });
+
+  // Update completion_review state requirements
+  const allCompletedPhases = (state.phases || []).filter((p: any) => p.status === 'completed');
+  let hasNonDocChanges = false;
+  const currentNonDocFiles: string[] = [];
+
+  for (const cp of allCompletedPhases) {
+    const cpFiles = [
+      ...(cp.files_created || []),
+      ...(cp.files_modified || []),
+      ...(cp.files_deleted || []),
+    ];
+    for (const f of cpFiles) {
+      if (!isDocumentationPath(f)) {
+        hasNonDocChanges = true;
+        const norm = f.replace(/\\/g, '/');
+        if (!currentNonDocFiles.includes(norm)) {
+          currentNonDocFiles.push(norm);
+        }
+      }
+    }
+  }
+
+  if (hasNonDocChanges) {
+    if (!state.completion_review || state.completion_review.status === 'not_required') {
+      state.completion_review = {
+        required: true,
+        status: 'pending',
+        reviewer_agent: null,
+        reviewed_at: null,
+        reviewed_phase_ids: [],
+        finding_count: 0,
+        blocking_finding_count: 0,
+        reviewed_files: [],
+        summary: null,
+      };
+    } else if (state.completion_review.status === 'passed') {
+      const reviewedSet = new Set((state.completion_review.reviewed_files || []).map((f: string) => f.replace(/\\/g, '/')));
+      const unreviewed = currentNonDocFiles.some((f) => !reviewedSet.has(f));
+      if (unreviewed) {
+        state.completion_review.status = 'pending';
+      }
+    }
+  } else {
+    if (!state.completion_review || state.completion_review.status === 'not_required') {
+      state.completion_review = {
+        required: false,
+        status: 'not_required',
+        reviewer_agent: null,
+        reviewed_at: null,
+        reviewed_phase_ids: [],
+        finding_count: 0,
+        blocking_finding_count: 0,
+        reviewed_files: [],
+        summary: null,
+      };
+    }
+  }
 }
 
 function startPhases(state: any, params: any, nextPhase: any, phasesToStart: any, now: any) {
@@ -187,6 +246,7 @@ function transitionPhase(params: any, projectRoot: any) {
   }
 
   assertTransitionShape(params);
+
   const mutator = ({ state }: any) => {
     const transition = deriveTransition(state, params, () => new Date().toISOString());
     Object.assign(state, transition.next);
@@ -203,4 +263,8 @@ function transitionPhase(params: any, projectRoot: any) {
     : updateCurrentSession(projectRoot, mutator);
 }
 
-export { transitionPhase };
+export {
+  assertTransitionShape,
+  deriveTransition,
+  transitionPhase,
+};

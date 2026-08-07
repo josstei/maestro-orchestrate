@@ -308,7 +308,7 @@ describe('get_agent handler', () => {
     });
 
     const result = handleGetAgent(
-      { agents: [' not_a_real_agent ', '__proto__', ''] },
+      { agents: [' not_a_real_agent ', '__proto__', 'unknown_agent_3'] },
       {
         runtimeConfig: getRuntimeConfig('codex'),
         services: { canonicalSrcRoot: srcRoot },
@@ -319,11 +319,11 @@ describe('get_agent handler', () => {
     assert.deepEqual(Object.keys(result.errors), [
       'not_a_real_agent',
       '__proto__',
-      '(empty)',
+      'unknown_agent_3',
     ]);
     assert.match(result.errors.not_a_real_agent, /"not_a_real_agent"/);
     assert.match(result.errors['__proto__'], /"__proto__"/);
-    assert.match(result.errors['(empty)'], /identifier: ""/);
+    assert.match(result.errors.unknown_agent_3, /identifier: "unknown_agent_3"/);
     assert.equal(registryChecks, 0);
   });
 

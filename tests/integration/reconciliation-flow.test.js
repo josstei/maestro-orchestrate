@@ -69,6 +69,20 @@ describe('reconciliation flow', () => {
     );
     assert.equal(reconciled.ok, true);
 
+    await server.callTool(
+      'record_code_review',
+      {
+        session_id: 'rf-1',
+        reviewed_phase_ids: [1],
+        reviewer_agent: 'code_reviewer',
+        reviewed_files: ['index.html', 'assets/css/styles.css'],
+        finding_count: 0,
+        blocking_finding_count: 0,
+        summary: 'Hung worker output reviewed cleanly.',
+      },
+      workspace
+    );
+
     const archive = await server.callTool(
       'archive_session',
       { session_id: 'rf-1' },

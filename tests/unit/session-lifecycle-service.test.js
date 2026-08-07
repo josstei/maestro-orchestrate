@@ -9,6 +9,7 @@ import {
   getSessionStatus,
   updateSession,
 } from '../../dist/src/mcp/session/session-lifecycle-service.js';
+import { transitionPhase } from '../../dist/src/mcp/session/phase-transition-service.js';
 import {
   ReadableSessionStateSchema,
   SessionIdSchema,
@@ -64,6 +65,26 @@ describe('session lifecycle service', () => {
       workspace
     );
     assert.deepEqual(updated.updated_fields, ['execution_mode', 'current_batch']);
+
+    transitionPhase(
+      {
+        session_id: 'service-session',
+        completed_phase_id: 1,
+        next_phase_id: 2,
+        files_created: ['docs/p1.md'],
+        downstream_context: { key_interfaces_introduced: ['P1'] },
+      },
+      workspace
+    );
+    transitionPhase(
+      {
+        session_id: 'service-session',
+        completed_phase_id: 2,
+        files_created: ['docs/p2.md'],
+        downstream_context: { key_interfaces_introduced: ['P2'] },
+      },
+      workspace
+    );
 
     const archived = archiveSession({ session_id: 'service-session' }, workspace);
     assert.equal(archived.success, true);

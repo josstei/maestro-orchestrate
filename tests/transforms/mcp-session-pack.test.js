@@ -34,6 +34,8 @@ describe('session tool pack', () => {
         'update_session',
         'transition_phase',
         'archive_session',
+        'record_code_review',
+        'record_phase_failure',
         'enter_design_gate',
         'record_design_approval',
         'get_design_gate_status',
@@ -237,6 +239,17 @@ describe('session tool pack', () => {
         design_document: 'docs/maestro/plans/design.md',
         implementation_plan: 'docs/maestro/plans/plan.md',
         phases: [phaseFixture()],
+      },
+      projectRoot
+    );
+
+    await server.callTool(
+      'transition_phase',
+      {
+        session_id: 'archive-session',
+        completed_phase_id: 1,
+        files_created: ['docs/arch.md'],
+        downstream_context: { key_interfaces_introduced: ['Arch'] },
       },
       projectRoot
     );

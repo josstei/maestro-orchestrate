@@ -69,6 +69,22 @@ export const zodSchemas = {
   archive_session: {
     session_id: z.string(),
   },
+  record_code_review: {
+    session_id: z.string(),
+    reviewed_phase_ids: z.array(z.union([z.number(), z.string()])).min(1),
+    reviewer_agent: z.string().min(1),
+    reviewed_files: z.array(z.string()),
+    finding_count: z.number().int().nonnegative(),
+    blocking_finding_count: z.number().int().nonnegative(),
+    summary: z.string().optional(),
+  },
+  record_phase_failure: {
+    session_id: z.string(),
+    phase_id: z.union([z.number(), z.string()]),
+    agent: z.string().optional(),
+    failure_type: z.string().optional(),
+    message: z.string().optional(),
+  },
   enter_design_gate: {
     session_id: z.string(),
   },

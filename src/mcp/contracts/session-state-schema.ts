@@ -74,6 +74,25 @@ const SessionPhaseStateSchema = z.object({
   token_usage: PhaseTokenUsageSchema.optional(),
 }).strict();
 
+const CompletionReviewStatusSchema = z.enum([
+  'not_required',
+  'pending',
+  'passed',
+  'blocked',
+]);
+
+const CompletionReviewSchema = z.object({
+  required: z.boolean(),
+  status: CompletionReviewStatusSchema,
+  reviewer_agent: z.string().nullable(),
+  reviewed_at: z.string().nullable(),
+  reviewed_phase_ids: z.array(PlanPhaseIdSchema),
+  finding_count: z.number().int().nonnegative(),
+  blocking_finding_count: z.number().int().nonnegative(),
+  reviewed_files: z.array(z.string()),
+  summary: z.string().nullable(),
+}).strict();
+
 const SessionStateSchema = z.object({
   schema_version: z.number().int().nonnegative(),
   session_id: SessionIdSchema,
@@ -93,6 +112,7 @@ const SessionStateSchema = z.object({
   current_batch: z.string().nullable(),
   task_complexity: z.string().nullable(),
   token_usage: SessionTokenUsageSchema,
+  completion_review: CompletionReviewSchema.optional(),
   phases: z.array(SessionPhaseStateSchema),
 }).strict();
 
@@ -110,6 +130,8 @@ const ReadableSessionTokenUsageSchema = SessionTokenUsageSchema.partial()
     by_agent: z.record(ReadableAgentTokenUsageSchema).optional(),
   })
   .passthrough();
+
+const ReadableCompletionReviewSchema = CompletionReviewSchema.partial().passthrough();
 
 const ReadableSessionPhaseStateSchema = SessionPhaseStateSchema.partial()
   .extend({
@@ -131,15 +153,17 @@ const ReadableOptionalSessionFieldsSchema = SessionStateSchema.omit({
 }).partial().extend({
   current_phase: WirePhaseIdSchema.nullable().optional(),
   token_usage: ReadableSessionTokenUsageSchema.optional(),
+  completion_review: ReadableCompletionReviewSchema.optional(),
 });
 
 const ReadableSessionStateSchema = z.object({
   schema_version: SessionStateSchema.shape.schema_version,
-  session_id: SessionStateSchema.shape.session_id,
+  session_id: SessionIdSchema,
   status: z.string(),
   phases: z.array(ReadableSessionPhaseStateSchema),
 }).extend(ReadableOptionalSessionFieldsSchema.shape).passthrough();
 
+type CompletionReview = z.infer<typeof CompletionReviewSchema>;
 type SessionPhaseState = z.infer<typeof SessionPhaseStateSchema>;
 type ReadableSessionPhaseState = z.infer<typeof ReadableSessionPhaseStateSchema>;
 type SessionState = z.infer<typeof SessionStateSchema>;
@@ -154,6 +178,20 @@ type PendingPhaseSeed = {
   blockedBy: readonly PhaseId[];
   plannedFiles?: readonly string[];
 };
+
+function createDefaultCompletionReview(): CompletionReview {
+  return {
+    required: false,
+    status: 'not_required',
+    reviewer_agent: null,
+    reviewed_at: null,
+    reviewed_phase_ids: [],
+    finding_count: 0,
+    blocking_finding_count: 0,
+    reviewed_files: [],
+    summary: null,
+  };
+}
 
 function createPendingPhaseProgress() {
   return {
@@ -220,6 +258,7 @@ function createEmptySessionTokenUsage(): SessionTokenUsage {
 
 export {
   AgentTokenUsageSchema,
+  CompletionReviewSchema,
   PhaseTokenUsageSchema,
   ReadableSessionPhaseStateSchema,
   ReadableSessionStateSchema,
@@ -227,6 +266,7 @@ export {
   SessionPhaseStateSchema,
   SessionStateSchema,
   SessionTokenUsageSchema,
+  createDefaultCompletionReview,
   createEmptySessionTokenUsage,
   createPendingPhaseProgress,
   createPendingPhaseState,
@@ -234,6 +274,7 @@ export {
   sessionIdZodIssue,
 };
 export type {
+  CompletionReview,
   ReadableSessionPhaseState,
   ReadableSessionState,
   PendingPhaseSeed,

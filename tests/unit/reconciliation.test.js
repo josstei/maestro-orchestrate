@@ -158,6 +158,20 @@ describe('reconcile_phase', () => {
     assert.equal(outcome.ok, true);
     assert.deepEqual(outcome.result.files_created, ['src/foo.js']);
 
+    await server.callTool(
+      'record_code_review',
+      {
+        session_id: 'recon-test',
+        reviewed_phase_ids: [1],
+        reviewer_agent: 'code_reviewer',
+        reviewed_files: ['src/foo.js'],
+        finding_count: 0,
+        blocking_finding_count: 0,
+        summary: 'Reconciled files reviewed cleanly.',
+      },
+      workspace
+    );
+
     const archive = await server.callTool(
       'archive_session',
       { session_id: 'recon-test' },

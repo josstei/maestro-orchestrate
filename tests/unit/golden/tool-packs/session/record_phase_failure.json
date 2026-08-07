@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "phase_id": {
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "agent": {
+      "type": "string"
+    },
+    "failure_type": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id",
+    "phase_id"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

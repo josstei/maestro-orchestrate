@@ -45,6 +45,8 @@ describe('mcp pack composition', () => {
         'update_session',
         'transition_phase',
         'archive_session',
+        'record_code_review',
+        'record_phase_failure',
         'enter_design_gate',
         'record_design_approval',
         'get_design_gate_status',

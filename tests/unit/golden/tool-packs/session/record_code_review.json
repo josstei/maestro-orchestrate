@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "reviewed_phase_ids": {
+      "type": "array",
+      "items": {
+        "type": [
+          "number",
+          "string"
+        ]
+      },
+      "minItems": 1
+    },
+    "reviewer_agent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewed_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "finding_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "blocking_finding_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id",
+    "reviewed_phase_ids",
+    "reviewer_agent",
+    "reviewed_files",
+    "finding_count",
+    "blocking_finding_count"
+  ],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

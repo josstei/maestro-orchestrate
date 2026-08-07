@@ -115,7 +115,7 @@ src/mcp/
 │   ├── runtime-content.ts      # Runtime-specific content resolution
 │   └── runtime-content-snapshot.ts # Provider-lifetime registry snapshot
 ├── contracts/                  # Shared plan, session, and workspace contracts
-├── handlers/                   # 28 handler modules
+├── handlers/                   # 30 handler modules
 ├── memory/                     # Project and cross-session persistence stores
 ├── retrieval/                  # Recall corpus and BM25 provider
 ├── runtime/
@@ -133,7 +133,7 @@ src/mcp/
 │   ├── contracts.ts            # Tool registry contracts
 │   ├── command-table.ts        # Name-keyed schema/handler declarations
 │   ├── workspace/index.ts      # 4 tools
-│   ├── session/index.ts        # 12 tools
+│   ├── session/index.ts        # 14 tools
 │   ├── content/index.ts        # 3 tools
 │   ├── memory/index.ts         # 15 tools
 │   └── history/index.ts        # 6 tools
@@ -350,11 +350,11 @@ For detailed documentation of all seven GitHub Actions workflows, the release pi
 
 ### Test Suite
 
-181 test files using Node.js built-in `node:test`:
+184 test files using Node.js built-in `node:test`:
 
-- 135 unit test files (`tests/unit/`)
+- 137 unit test files (`tests/unit/`)
 - 14 transform test files (`tests/transforms/`)
-- 32 integration test files (`tests/integration/`)
+- 33 integration test files (`tests/integration/`)
 
 The justfile's `just test` target uses glob expansion
 (`tests/unit/*.test.js`, `tests/transforms/*.test.js`, `tests/integration/*.test.js`),

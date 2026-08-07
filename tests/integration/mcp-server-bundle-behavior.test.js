@@ -480,6 +480,13 @@ describe('mcp server bundle behavior', () => {
             assert.equal(sessionResult.parsed.path, expectedSessionPath);
             assert.equal(fs.existsSync(expectedSessionPath), true);
 
+            await client.callTool('transition_phase', {
+              session_id: 'codex-roots-workspace',
+              completed_phase_id: 1,
+              files_created: ['docs/notes.md'],
+              downstream_context: { key_interfaces_introduced: ['Notes'] },
+            });
+
             const archiveResult = await client.callTool('archive_session', {
               session_id: 'codex-roots-workspace',
             });

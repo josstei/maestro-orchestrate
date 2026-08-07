@@ -10,6 +10,8 @@ import {
   archiveSession,
   createSession,
   getSessionStatus,
+  recordCodeReview,
+  recordPhaseFailure,
   updateSession,
 } from '../../session/session-lifecycle-service.js';
 import { transitionPhase } from '../../session/phase-transition-service.js';
@@ -35,7 +37,7 @@ const sessionCommands = defineCommandTable(zodSchemas, {
   },
   get_session_status: {
     description:
-      'Read current session status including workflow_mode. Returns { exists: false } if no active session, or { exists: true, ...status } if one exists.',
+      'Read current session status including workflow_mode and completion_review. Returns { exists: false } if no active session, or { exists: true, ...status } if one exists.',
     handler: withRequiredProjectRoot((args, projectRoot) => getSessionStatus(args, projectRoot)),
   },
   update_session: {
@@ -50,8 +52,18 @@ const sessionCommands = defineCommandTable(zodSchemas, {
   },
   archive_session: {
     description:
-      'Move active session to archive. Also moves associated design document and implementation plan to plans/archive/ if they exist.',
+      'Move active session to archive. Requires completed phases, no failed phases, resolved reconciliation, and passing code review for non-documentation changes.',
     handler: withRequiredProjectRoot((args, projectRoot) => archiveSession(args, projectRoot)),
+  },
+  record_code_review: {
+    description:
+      'Record mandatory code-review results for completed phases. Evaluates finding counts, blocking findings, and file coverage before allowing session archival.',
+    handler: withRequiredProjectRoot((args, projectRoot) => recordCodeReview(args, projectRoot)),
+  },
+  record_phase_failure: {
+    description:
+      'Record a subagent delegation failure for a phase without marking the phase complete. Increments retry count and records error trace in session state.',
+    handler: withRequiredProjectRoot((args, projectRoot) => recordPhaseFailure(args, projectRoot)),
   },
   enter_design_gate: {
     description:

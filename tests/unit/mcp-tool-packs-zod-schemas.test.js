@@ -72,8 +72,9 @@ test('get_skill_content.resources rejects a non-string array item', () => {
   assert.throws(() => contentSchemas.get_skill_content.resources.parse(['delegation', 42]));
 });
 
-test('get_agent.agents is required', () => {
-  assert.throws(() => contentSchemas.get_agent.agents.parse(undefined));
+test('get_agent.agents accepts scalar string or array', () => {
+  assert.equal(contentSchemas.get_agent.agents.parse('coder'), 'coder');
+  assert.deepEqual(contentSchemas.get_agent.agents.parse(['coder']), ['coder']);
 });
 
 test('fork_session requires source_session_id and new_session_id', () => {

@@ -149,10 +149,10 @@ EXECUTION (Phase 3 — delegation loop)
 
 COMPLETION (Phase 4)
 27. Call `get_skill_content` with resources: ["code-review"].
-28. If execution changed non-documentation files, delegate to the code reviewer agent. Block on Critical/Major findings.
+28. If execution changed non-documentation files, delegate to the code reviewer agent. Parse findings and call `record_code_review(session_id, reviewed_phase_ids, reviewer_agent, reviewed_files, finding_count, blocking_finding_count, summary)`. Block on Critical/Major findings.
     <HARD-GATE>
-    If Critical/Major findings: re-delegate to the implementing agent to fix.
-    The orchestrator MUST NOT write code directly.
+    If Critical/Major findings exist (blocking_finding_count > 0): `record_code_review` sets status to 'blocked' and `archive_session` will reject with CODE_REVIEW_BLOCKED. Re-delegate to the implementing agent to fix.
+    The orchestrator MUST NOT write code directly. A parent direct-write fallback is a protocol violation. After remediation, re-run code review and call `record_code_review` again.
     </HARD-GATE>
 28a. Solicit a human-satisfaction rating for the completed work. Using the runtime's user-prompt tool, ask the user for a thumbs up/down judgment plus an optional note, and record it with `rate(target: 'session', session_id, rating, note?)`. When the user calls out a specific phase, additionally record `rate(target: 'phase', session_id, phase_id, rating, note?)`. Ratings persist to `<state_dir>/knowledge/ratings.jsonl` (outside the archived session document) and feed the `get_agent_performance` priors that later sessions consult.
     <HARD-GATE>
@@ -161,7 +161,7 @@ COMPLETION (Phase 4)
     `rate` accepts only 'up' or 'down' as the rating value.
     Pass the session_id verbatim (the same id used for every prior MCP call).
     </HARD-GATE>
-29. Read the typed/defaulted value from `effective_settings.MAESTRO_AUTO_ARCHIVE`. If it is true, call archive_session. Its unset default is false; when false, inform the user the session is complete but not archived and ask whether to archive.
+29. Read the typed/defaulted value from `effective_settings.MAESTRO_AUTO_ARCHIVE`. Call `archive_session` (call archive_session) after `record_code_review` has recorded a passing status for non-documentation changes (or status is server-classified not_required). If auto-archive is false, inform the user the session is complete but not archived and ask whether to archive.
 30. Present final summary with files changed, phase outcomes, and next steps.
 
 RECOVERY (referenced from any step on user request)
@@ -169,7 +169,7 @@ If the user says the flow moved too fast: return to the most recent unanswered a
 If the user asks for implementation before approval: remind them Maestro requires approval first.
 If the user asks to skip execution-mode: remind them parallel/sequential is required unless MAESTRO_EXECUTION_MODE pins it.
 If an answer invalidates a prior choice: restate the updated assumption and re-run the relevant gate.
-If delegation collapses to parent session without fallback approval: return to step 19 or re-scope the child-agent work packages.
+If delegation collapses to parent session without fallback approval: record failure via `record_phase_failure` and return to step 19 or re-scope the child-agent work packages. Parent direct file creation is prohibited.
 
 EXPRESS WORKFLOW (simple tasks only — jumped to from step 9)
 
@@ -200,7 +200,7 @@ EXPRESS MCP STATE REQUIREMENT: If MCP state tools (`create_session`, `transition
 35. Call `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"] and prepend them to the delegation prompt.
 36. Delegate to the assigned agent.
     <HARD-GATE>
-    Same dispatch rule as step 23: call agent by registered tool name, not generalist.
+    Same dispatch rule as step 23: call agent by registered tool name, not generalist. If dispatch fails: call `record_phase_failure(session_id, phase_id, agent, failure_type, message)` and retry or escalate. Do NOT write code directly.
     </HARD-GATE>
 37. Parse Task Report from the agent's response. Call transition_phase to persist results.
     <HARD-GATE>
@@ -210,12 +210,12 @@ EXPRESS MCP STATE REQUIREMENT: If MCP state tools (`create_session`, `transition
     state has no record of what was delivered. Do NOT skip to code review or archive
     without calling transition_phase first.
     </HARD-GATE>
-38. Delegate to the code reviewer agent.
+38. Delegate to the code reviewer agent. Parse findings and call `record_code_review(session_id, reviewed_phase_ids, reviewer_agent, reviewed_files, finding_count, blocking_finding_count, summary)`.
     <HARD-GATE>
-    If Critical/Major findings: re-delegate to implementing agent (1 retry).
-    Orchestrator MUST NOT write code directly. If retry fails, escalate to user.
+    If Critical/Major findings exist: re-delegate to implementing agent (1 retry).
+    Orchestrator MUST NOT write code directly. Call `record_code_review` again after fixes.
     </HARD-GATE>
-39. Call archive_session.
+39. Call archive_session (only after `record_code_review` has passed or is server-classified not required).
 40. Present summary.
 
 EXPRESS RESUME (when resuming an Express session from get_session_status)
