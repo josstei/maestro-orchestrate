@@ -1,6 +1,5 @@
 'use strict';
 
-const { defineToolPack } = require('../contracts');
 const {
   handleInitializeWorkspace,
 } = require('../../handlers/initialize-workspace');
@@ -11,7 +10,7 @@ const { handleValidatePlan } = require('../../handlers/validate-plan');
 const { handleResolveSettings } = require('../../handlers/resolve-settings');
 
 function createToolPack() {
-  return defineToolPack({
+  return {
     name: 'workspace',
     tools: [
       {
@@ -90,7 +89,7 @@ function createToolPack() {
       validate_plan: handleValidatePlan,
       resolve_settings: handleResolveSettings,
     },
-  });
+  };
 }
 
 module.exports = {

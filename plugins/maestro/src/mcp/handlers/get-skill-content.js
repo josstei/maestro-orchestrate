@@ -1,33 +1,25 @@
 'use strict';
 
 const { getDefaultRuntimeConfig } = require('../runtime/runtime-config-map');
-const {
-  RESOURCE_ALLOWLIST,
-  applyRuntimeTransforms,
-} = require('../content/runtime-content');
-const { createContentProvider } = require('../content/provider');
+const { readResourceFromFilesystem } = require('../content/runtime-content');
+const { resolveCanonicalSrcFromExtensionRoot } = require('../utils/extension-root');
 const { ValidationError } = require('../../lib/errors');
 
-const DEFAULT_RUNTIME_CONFIG = getDefaultRuntimeConfig();
-
-function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot) {
+function createHandler(runtimeConfig = getDefaultRuntimeConfig(), canonicalSrcRoot) {
   return function handleGetSkillContent(params) {
     const resources = params.resources;
     if (!Array.isArray(resources) || resources.length === 0) {
       throw new ValidationError('resources must be a non-empty array of resource identifiers');
     }
 
-    const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
+    const srcRoot =
+      canonicalSrcRoot === undefined ? resolveCanonicalSrcFromExtensionRoot() : canonicalSrcRoot;
     const contents = {};
     const errors = {};
 
+    // readResourceFromFilesystem rejects ids outside RESOURCE_ALLOWLIST.
     for (const id of resources) {
-      if (!RESOURCE_ALLOWLIST[id]) {
-        errors[id] = `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCE_ALLOWLIST).join(', ')}`;
-        continue;
-      }
-
-      const result = provider.readResource(id);
+      const result = readResourceFromFilesystem(id, runtimeConfig, srcRoot);
       if (result.error) {
         errors[id] = result.error;
         continue;
@@ -40,12 +32,6 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
   };
 }
 
-const handleGetSkillContent = createHandler();
-
 module.exports = {
-  RESOURCE_ALLOWLIST,
-  DEFAULT_RUNTIME_CONFIG,
-  applyRuntimeTransforms,
   createHandler,
-  handleGetSkillContent,
 };

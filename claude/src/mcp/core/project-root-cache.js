@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { pathToFileURL, fileURLToPath } = require('node:url');
+const { fileURLToPath } = require('node:url');
 
 const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
 
@@ -20,12 +20,7 @@ const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
  * used as a fallback for other tools.
  */
 function createProjectRootCache(options) {
-  const {
-    runtimeConfig,
-    requestClientRoots,
-    env = process.env,
-    getCwd = () => process.cwd(),
-  } = options;
+  const { runtimeConfig, requestClientRoots } = options;
 
   let explicitWorkspacePath = null;
   let clientRoots = [];
@@ -35,7 +30,7 @@ function createProjectRootCache(options) {
     const envVarName =
       runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
     if (!envVarName) return null;
-    const value = env[envVarName];
+    const value = process.env[envVarName];
     if (!value || value.includes('${')) return null;
     const resolved = path.resolve(value);
     if (!fs.existsSync(resolved)) return null;
@@ -62,15 +57,15 @@ function createProjectRootCache(options) {
   }
 
   function cwdSuggestion() {
-    const cwd = path.resolve(getCwd());
+    const cwd = path.resolve(process.cwd());
     if (isExtensionCachePath(cwd)) return null;
     return cwd;
   }
 
   async function refreshClientRoots() {
-    if (!clientSupportsRoots || typeof requestClientRoots !== 'function') {
+    if (!clientSupportsRoots) {
       clientRoots = [];
-      return clientRoots;
+      return;
     }
     try {
       const result = await requestClientRoots();
@@ -78,7 +73,6 @@ function createProjectRootCache(options) {
     } catch {
       clientRoots = [];
     }
-    return clientRoots;
   }
 
   function workspaceSuggestion() {
@@ -90,13 +84,6 @@ function createProjectRootCache(options) {
   }
 
   async function getProjectRoot() {
-    if (!explicitWorkspacePath) {
-      const error = new Error(
-        'Workspace not initialized. Call initialize_workspace(workspace_path=...) before any stateful tool.'
-      );
-      error.code = 'WORKSPACE_NOT_INITIALIZED';
-      throw error;
-    }
     return explicitWorkspacePath;
   }
 
@@ -108,9 +95,6 @@ function createProjectRootCache(options) {
       clientSupportsRoots = Boolean(supports);
     },
     refreshClientRoots,
-    invalidateProjectRoot() {
-      explicitWorkspacePath = null;
-    },
     invalidateClientRoots() {
       clientRoots = [];
     },

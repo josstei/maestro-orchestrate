@@ -104,10 +104,6 @@ function parseInlineArray(raw) {
     .filter(Boolean);
 }
 
-function parseFrontmatter(content) {
-  return parseFrontmatterOnly(content).frontmatter;
-}
-
 function mapTools(frontmatter, runtimeConfig) {
   const runtimeName = runtimeConfig.name || DEFAULT_RUNTIME_NAME;
   const overrideKey = `tools.${runtimeName}`;
@@ -115,13 +111,9 @@ function mapTools(frontmatter, runtimeConfig) {
     ? parseInlineArray(frontmatter[overrideKey])
     : parseInlineArray(frontmatter.tools);
 
-  return configuredTools.flatMap((toolName) => {
-    const mapped = runtimeConfig.tools && runtimeConfig.tools[toolName];
-    if (Array.isArray(mapped)) {
-      return mapped;
-    }
-    return mapped || toolName;
-  });
+  return configuredTools.flatMap(
+    (toolName) => (runtimeConfig.tools && runtimeConfig.tools[toolName]) || toolName
+  );
 }
 
 function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
@@ -145,17 +137,15 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
   }
 }
 
+/**
+ * Callers must pass a name from AGENT_ALLOWLIST; get_agent enforces this
+ * before reading.
+ */
 function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
-  if (!AGENT_ALLOWLIST.includes(agentName)) {
-    return {
-      error: `Unknown agent identifier: "${agentName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`,
-    };
-  }
-
   const absolutePath = path.join(srcRoot, 'agents', `${agentName}.md`);
   try {
     const content = fs.readFileSync(absolutePath, 'utf8');
-    const frontmatter = parseFrontmatter(content);
+    const { frontmatter } = parseFrontmatterOnly(content);
     return {
       agent: {
         body: stripFrontmatter(stripFeatureBlocks(content, runtimeConfig)),
@@ -181,7 +171,6 @@ module.exports = {
   stripFrontmatter,
   stripFeatureBlocks,
   parseInlineArray,
-  parseFrontmatter,
   mapTools,
   readResourceFromFilesystem,
   readAgentFromFilesystem,

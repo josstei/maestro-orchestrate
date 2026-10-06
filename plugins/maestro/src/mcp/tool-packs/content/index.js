@@ -1,21 +1,16 @@
 'use strict';
 
-const { defineToolPack } = require('../contracts');
 const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
 const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
-const { getDefaultRuntimeConfig } = require('../../runtime/runtime-config-map');
 
-function createToolPack(context = {}) {
-  const runtimeConfig = context.runtimeConfig || getDefaultRuntimeConfig();
+function createToolPack({ runtimeConfig, services }) {
   const canonicalSrcRoot =
-    context.services &&
-    typeof context.services.canonicalSrcRoot === 'string' &&
-    context.services.canonicalSrcRoot.length > 0
-      ? context.services.canonicalSrcRoot
+    typeof services.canonicalSrcRoot === 'string' && services.canonicalSrcRoot.length > 0
+      ? services.canonicalSrcRoot
       : undefined;
 
-  return defineToolPack({
+  return {
     name: 'content',
     tools: [
       {
@@ -67,12 +62,12 @@ function createToolPack(context = {}) {
       get_agent: createAgentHandler(runtimeConfig, canonicalSrcRoot),
       get_runtime_context: createRuntimeContextHandler(
         runtimeConfig,
-        typeof context.services?.workspaceSuggestion === 'function'
-          ? context.services.workspaceSuggestion
+        typeof services.workspaceSuggestion === 'function'
+          ? services.workspaceSuggestion
           : () => null
       ),
     },
-  });
+  };
 }
 
 module.exports = {

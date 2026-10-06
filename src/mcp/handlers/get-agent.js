@@ -1,19 +1,20 @@
 'use strict';
 
-const { DEFAULT_RUNTIME_CONFIG } = require('./get-skill-content');
-const { AGENT_ALLOWLIST } = require('../content/runtime-content');
-const { createContentProvider } = require('../content/provider');
+const { getDefaultRuntimeConfig } = require('../runtime/runtime-config-map');
+const { AGENT_ALLOWLIST, readAgentFromFilesystem } = require('../content/runtime-content');
+const { resolveCanonicalSrcFromExtensionRoot } = require('../utils/extension-root');
 const { ValidationError } = require('../../lib/errors');
 const { toSnakeCase, toKebabCase } = require('../../lib/naming');
 
-function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot) {
+function createHandler(runtimeConfig = getDefaultRuntimeConfig(), canonicalSrcRoot) {
   return function handleGetAgent(params) {
     const requestedAgents = params.agents;
     if (!Array.isArray(requestedAgents) || requestedAgents.length === 0) {
       throw new ValidationError('agents must be a non-empty array of agent identifiers');
     }
 
-    const provider = createContentProvider(runtimeConfig, canonicalSrcRoot);
+    const srcRoot =
+      canonicalSrcRoot === undefined ? resolveCanonicalSrcFromExtensionRoot() : canonicalSrcRoot;
     const agents = {};
     const errors = {};
 
@@ -27,7 +28,7 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
         continue;
       }
 
-      const result = provider.readAgent(canonicalName);
+      const result = readAgentFromFilesystem(canonicalName, runtimeConfig, srcRoot);
       if (result.error) {
         errors[inputName] = result.error;
         continue;
@@ -45,10 +46,6 @@ function createHandler(runtimeConfig = DEFAULT_RUNTIME_CONFIG, canonicalSrcRoot)
   };
 }
 
-const handleGetAgent = createHandler();
-
 module.exports = {
-  AGENT_ALLOWLIST,
   createHandler,
-  handleGetAgent,
 };

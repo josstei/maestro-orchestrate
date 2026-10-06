@@ -13,17 +13,8 @@ const RUNTIME_NAMES = fs.readdirSync(PLATFORMS_DIR, { withFileTypes: true })
   .map((entry) => entry.name)
   .sort();
 
-const configCache = Object.create(null);
-
 function loadRuntimeConfig(name) {
-  if (configCache[name]) {
-    return configCache[name];
-  }
-
-  const configPath = path.join(PLATFORMS_DIR, name, 'runtime-config.js');
-  const config = require(configPath);
-  configCache[name] = config;
-  return config;
+  return require(path.join(PLATFORMS_DIR, name, 'runtime-config.js'));
 }
 
 function getRuntimeConfig(name) {
@@ -38,10 +29,6 @@ function getDefaultRuntimeConfig() {
   const runtime = process.env.MAESTRO_RUNTIME;
   if (runtime && RUNTIME_NAMES.includes(runtime)) {
     return loadRuntimeConfig(runtime);
-  }
-
-  if (RUNTIME_NAMES.length === 0) {
-    throw new Error('No runtime configs found in platforms/');
   }
 
   return loadRuntimeConfig(RUNTIME_NAMES[0]);

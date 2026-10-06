@@ -13,10 +13,7 @@ const {
   createProtocolHandlers,
 } = require('./core/protocol-dispatcher');
 const { DEFAULT_TOOL_PACKS } = require('./tool-packs');
-const {
-  getDefaultRuntimeConfig,
-  normalizeRuntimeConfig,
-} = require('./runtime/runtime-config-map');
+const { normalizeRuntimeConfig } = require('./runtime/runtime-config-map');
 const { resolveCanonicalSrcFromExtensionRoot } = require('./utils/extension-root');
 
 const SERVER_INFO = Object.freeze({
@@ -38,19 +35,23 @@ function runRuntimeServer(runtimeConfig, options = {}) {
   const stdin = options.stdin || process.stdin;
   const stdout = options.stdout || process.stdout;
 
-  let requestFromClient;
   const cache = createProjectRootCache({
     runtimeConfig: resolvedRuntimeConfig,
-    requestClientRoots: () => requestFromClient('roots/list', {}),
+    requestClientRoots: () => handlers.requestFromClient('roots/list', {}),
   });
 
   const server = createServer({
     runtimeConfig: resolvedRuntimeConfig,
     services: {
       canonicalSrcRoot,
-      workspaceSuggestion: () => cache.workspaceSuggestion(),
+      workspaceSuggestion: cache.workspaceSuggestion,
     },
     toolPacks,
+    onToolSuccess(name, result) {
+      if (name === 'initialize_workspace' && result && result.success && result.workspace_path) {
+        cache.setExplicitWorkspacePath(result.workspace_path);
+      }
+    },
   });
 
   const handlers = createProtocolHandlers(server, cache.getProjectRoot, stdout, {
@@ -70,16 +71,8 @@ function runRuntimeServer(runtimeConfig, options = {}) {
     },
   });
 
-  requestFromClient = handlers.requestFromClient;
-
-  server.onToolCall('initialize_workspace', (result) => {
-    if (result && result.success && result.workspace_path) {
-      cache.setExplicitWorkspacePath(result.workspace_path);
-    }
-  });
-
   const lineReader = createLineDispatcher(stdin, (message) => {
-    Promise.resolve(handlers.respond(message)).catch((error) => {
+    handlers.respond(message).catch((error) => {
       log('error', `Failed to handle MCP message: ${error.message}`);
     });
   });
@@ -97,9 +90,7 @@ function runRuntimeServer(runtimeConfig, options = {}) {
 }
 
 function main(runtimeConfig) {
-  const resolved =
-    runtimeConfig || process.env.MAESTRO_RUNTIME || getDefaultRuntimeConfig();
-  runRuntimeServer(resolved);
+  runRuntimeServer(runtimeConfig || process.env.MAESTRO_RUNTIME);
 }
 
 if (require.main === module) {

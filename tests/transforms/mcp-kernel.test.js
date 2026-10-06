@@ -2,59 +2,73 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createServer } = require('../../src/mcp/core/create-server');
-const { createToolRegistry } = require('../../src/mcp/core/tool-registry');
-const { defineToolPack } = require('../../src/mcp/tool-packs/contracts');
 const { ValidationError } = require('../../src/lib/errors');
 
 describe('mcp kernel', () => {
-  it('assembles tool schemas and handlers in pack order', () => {
+  it('assembles tool schemas and handlers in pack order', async () => {
     const initHandler = () => ({ ok: 'workspace' });
     const sessionHandler = () => ({ ok: 'session' });
+    const toolPacks = [
+      {
+        name: 'workspace',
+        tools: [{ name: 'initialize_workspace' }],
+        handlers: { initialize_workspace: initHandler },
+      },
+      (context) => ({
+        name: `session-${context.runtimeConfig.name}`,
+        tools: [{ name: 'get_session_status' }],
+        handlers: { get_session_status: sessionHandler },
+      }),
+    ];
 
-    const registry = createToolRegistry({
+    const server = createServer({
       runtimeConfig: { name: 'codex' },
       services: { logger: {} },
-      toolPacks: [
-        defineToolPack({
-          name: 'workspace',
-          tools: [{ name: 'initialize_workspace' }],
-          handlers: { initialize_workspace: initHandler },
-        }),
-        (context) =>
-          defineToolPack({
-            name: `session-${context.runtimeConfig.name}`,
-            tools: [{ name: 'get_session_status' }],
-            handlers: { get_session_status: sessionHandler },
-          }),
-      ],
+      toolPacks,
     });
 
     assert.deepEqual(
-      registry.schemas.map((schema) => schema.name),
+      server.getToolSchemas().map((schema) => schema.name),
       ['initialize_workspace', 'get_session_status']
     );
-    assert.equal(registry.handlers.initialize_workspace, initHandler);
-    assert.equal(registry.handlers.get_session_status, sessionHandler);
-    assert.equal(registry.toolPacks[1].name, 'session-codex');
+    assert.deepEqual(await server.callTool('initialize_workspace'), {
+      ok: true,
+      result: { ok: 'workspace' },
+    });
+    assert.deepEqual(await server.callTool('get_session_status'), {
+      ok: true,
+      result: { ok: 'session' },
+    });
+    assert.throws(
+      () =>
+        createServer({
+          runtimeConfig: { name: 'codex' },
+          toolPacks: [
+            ...toolPacks,
+            { name: 'dup', tools: [{ name: 'get_session_status' }], handlers: {} },
+          ],
+        }),
+      /Duplicate tool name "get_session_status" found in packs "session-codex" and "dup"\./
+    );
   });
 
   it('rejects duplicate tool names across packs', () => {
     assert.throws(
       () =>
-        createToolRegistry({
+        createServer({
           runtimeConfig: { name: 'codex' },
           services: {},
           toolPacks: [
-            defineToolPack({
+            {
               name: 'first-pack',
               tools: [{ name: 'validate_plan' }],
               handlers: { validate_plan: () => ({ ok: true }) },
-            }),
-            defineToolPack({
+            },
+            {
               name: 'second-pack',
               tools: [{ name: 'validate_plan' }],
               handlers: { validate_plan: () => ({ ok: true }) },
-            }),
+            },
           ],
         }),
       /Duplicate tool name "validate_plan" found in packs "first-pack" and "second-pack"\./
@@ -66,7 +80,7 @@ describe('mcp kernel', () => {
       runtimeConfig: { name: 'codex' },
       services: {},
       toolPacks: [
-        defineToolPack({
+        {
           name: 'workspace',
           tools: [{ name: 'resolve_settings' }],
           handlers: {
@@ -75,7 +89,7 @@ describe('mcp kernel', () => {
               requested: args.settings,
             }),
           },
-        }),
+        },
       ],
     });
 
@@ -97,7 +111,7 @@ describe('mcp kernel', () => {
       runtimeConfig: { name: 'codex' },
       services: {},
       toolPacks: [
-        defineToolPack({
+        {
           name: 'session',
           tools: [{ name: 'create_session' }],
           handlers: {
@@ -105,7 +119,7 @@ describe('mcp kernel', () => {
               throw new Error('Active session already exists.');
             },
           },
-        }),
+        },
       ],
     });
 
@@ -123,7 +137,7 @@ describe('mcp kernel', () => {
       runtimeConfig: { name: 'codex' },
       services: {},
       toolPacks: [
-        defineToolPack({
+        {
           name: 'content',
           tools: [{ name: 'get_agent' }],
           handlers: {
@@ -131,7 +145,7 @@ describe('mcp kernel', () => {
               throw new ValidationError('agents must be a non-empty array of agent identifiers');
             },
           },
-        }),
+        },
       ],
     });
 

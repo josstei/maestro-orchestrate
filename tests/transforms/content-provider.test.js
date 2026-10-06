@@ -4,8 +4,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createContentProvider } = require('../../src/mcp/content/provider');
-const { RESOURCE_ALLOWLIST } = require('../../src/mcp/content/runtime-content');
+const {
+  RESOURCE_ALLOWLIST,
+  readResourceFromFilesystem,
+  readAgentFromFilesystem,
+} = require('../../src/mcp/content/runtime-content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 function withExtensionRoot(root, fn) {
@@ -43,10 +46,9 @@ describe('content provider runtime policy', () => {
       'delegation',
       '---\nname: delegation\ndescription: Filesystem copy\n---\nFilesystem content.\n'
     );
-    const result = withExtensionRoot(root, () => {
-      const provider = createContentProvider(getRuntimeConfig('claude'), path.join(root, 'src'));
-      return provider.readResource('delegation');
-    });
+    const result = withExtensionRoot(root, () =>
+      readResourceFromFilesystem('delegation', getRuntimeConfig('claude'), path.join(root, 'src'))
+    );
 
     assert.ok(result.content.includes('Filesystem content.'));
     assert.ok(result.content.includes('user-invocable: false'));
@@ -62,10 +64,11 @@ describe('content provider runtime policy', () => {
       '---\nname: coder\ntools: [read_file]\n---\nFilesystem agent body.\n'
     );
     const { resourceResult, agentResult } = withExtensionRoot(root, () => {
-      const provider = createContentProvider(getRuntimeConfig('codex'), path.join(root, 'src'));
+      const runtimeConfig = getRuntimeConfig('codex');
+      const srcRoot = path.join(root, 'src');
       return {
-        resourceResult: provider.readResource('delegation'),
-        agentResult: provider.readAgent('coder'),
+        resourceResult: readResourceFromFilesystem('delegation', runtimeConfig, srcRoot),
+        agentResult: readAgentFromFilesystem('coder', runtimeConfig, srcRoot),
       };
     });
 
@@ -77,10 +80,11 @@ describe('content provider runtime policy', () => {
   it('returns filesystem read errors when codex exhausts its configured content sources', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-empty-'));
     const { resourceResult, agentResult } = withExtensionRoot(root, () => {
-      const provider = createContentProvider(getRuntimeConfig('codex'), path.join(root, 'src'));
+      const runtimeConfig = getRuntimeConfig('codex');
+      const srcRoot = path.join(root, 'src');
       return {
-        resourceResult: provider.readResource('delegation'),
-        agentResult: provider.readAgent('coder'),
+        resourceResult: readResourceFromFilesystem('delegation', runtimeConfig, srcRoot),
+        agentResult: readAgentFromFilesystem('coder', runtimeConfig, srcRoot),
       };
     });
 

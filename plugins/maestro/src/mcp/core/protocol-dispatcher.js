@@ -41,15 +41,7 @@ function createToolErrorResult(errorOrOutcome, recoveryHint) {
     payload.details = outcome.details;
   }
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(payload),
-      },
-    ],
-    isError: true,
-  };
+  return { ...createToolSuccessResult(payload), isError: true };
 }
 
 function createToolSuccessResult(result) {
@@ -134,117 +126,73 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
       return;
     }
 
-    if (typeof message.method !== 'string') {
+    const { id, method, params } = message;
+    if (typeof method !== 'string') {
       return;
     }
 
-    if (message.method === 'initialize') {
-      if (typeof callbacks.onInitialize === 'function') {
-        await Promise.resolve(callbacks.onInitialize(message.params || {}));
-      }
+    const reply = (result) => writeMessage(stdout, { jsonrpc: '2.0', id, result });
 
-      writeMessage(stdout, {
-        jsonrpc: '2.0',
-        id: message.id,
-        result: buildInitializeResult(
-          message.params && message.params.protocolVersion,
-          serverInfo
-        ),
-      });
-      return;
-    }
-
-    if (message.method === 'notifications/initialized') {
-      if (typeof callbacks.onInitialized === 'function') {
-        await Promise.resolve(callbacks.onInitialized());
-      }
-      return;
-    }
-
-    if (message.method === 'notifications/roots/list_changed') {
-      if (typeof callbacks.onRootsListChanged === 'function') {
-        await Promise.resolve(callbacks.onRootsListChanged());
-      }
-      return;
-    }
-
-    if (
-      message.method === 'notifications/cancelled' ||
-      message.method === '$/cancelRequest'
-    ) {
-      return;
-    }
-
-    if (message.method === 'ping') {
-      writeMessage(stdout, {
-        jsonrpc: '2.0',
-        id: message.id,
-        result: {},
-      });
-      return;
-    }
-
-    if (message.method === 'tools/list') {
-      writeMessage(stdout, {
-        jsonrpc: '2.0',
-        id: message.id,
-        result: {
-          tools: server.getToolSchemas(),
-        },
-      });
-      return;
-    }
-
-    if (message.method === 'tools/call') {
-      const name = message.params && message.params.name;
-      const args =
-        message.params && message.params.arguments && typeof message.params.arguments === 'object'
-          ? message.params.arguments
-          : {};
-      let projectRoot = null;
-      try {
-        projectRoot = await getProjectRoot();
-      } catch (error) {
-        if (error && error.code !== 'WORKSPACE_NOT_INITIALIZED') {
-          log(
-            'warn',
-            `getProjectRoot failed unexpectedly while handling ${name || '(unknown)'}: ${error.message}`
-          );
+    switch (method) {
+      case 'initialize':
+        if (typeof callbacks.onInitialize === 'function') {
+          await callbacks.onInitialize(params || {});
         }
-        projectRoot = null;
-      }
-      const outcome = await server.callTool(name, args, projectRoot);
+        reply(buildInitializeResult(params && params.protocolVersion, serverInfo));
+        return;
 
-      if (outcome.ok) {
-        writeMessage(stdout, {
-          jsonrpc: '2.0',
-          id: message.id,
-          result: createToolSuccessResult(outcome.result),
-        });
+      case 'notifications/initialized':
+        if (typeof callbacks.onInitialized === 'function') {
+          await callbacks.onInitialized();
+        }
+        return;
+
+      case 'notifications/roots/list_changed':
+        if (typeof callbacks.onRootsListChanged === 'function') {
+          await callbacks.onRootsListChanged();
+        }
+        return;
+
+      case 'notifications/cancelled':
+      case '$/cancelRequest':
+        return;
+
+      case 'ping':
+        reply({});
+        return;
+
+      case 'tools/list':
+        reply({ tools: server.getToolSchemas() });
+        return;
+
+      case 'tools/call': {
+        const name = params && params.name;
+        const args =
+          params && params.arguments && typeof params.arguments === 'object'
+            ? params.arguments
+            : {};
+        const projectRoot = await getProjectRoot();
+        const outcome = await server.callTool(name, args, projectRoot);
+
+        if (!outcome.ok) {
+          log('error', `Tool ${name || '(unknown)'} failed: ${outcome.error}`);
+        }
+        reply(outcome.ok ? createToolSuccessResult(outcome.result) : createToolErrorResult(outcome));
         return;
       }
 
-      log('error', `Tool ${name || '(unknown)'} failed: ${outcome.error}`);
-      writeMessage(stdout, {
-        jsonrpc: '2.0',
-        id: message.id,
-        result: createToolErrorResult(outcome),
-      });
-      return;
+      default:
+        if (id != null) {
+          writeMessage(stdout, {
+            jsonrpc: '2.0',
+            id,
+            error: {
+              code: -32601,
+              message: `Method not found: ${method}`,
+            },
+          });
+        }
     }
-
-    if (message.id == null) {
-      return;
-    }
-
-    writeMessage(stdout, {
-      jsonrpc: '2.0',
-      id: message.id,
-      error: {
-        code: -32601,
-        message: `Method not found: ${message.method}`,
-      },
-    });
   }
 
   /**
@@ -265,7 +213,6 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
 
 module.exports = {
   DEFAULT_PROTOCOL_VERSION,
-  DEFAULT_CLIENT_REQUEST_TIMEOUT_MS,
   writeMessage,
   buildInitializeResult,
   createToolErrorResult,
