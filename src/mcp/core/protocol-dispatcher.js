@@ -19,28 +19,9 @@ function buildInitializeResult(protocolVersion, serverInfo) {
   };
 }
 
-function createToolErrorResult(errorOrOutcome, recoveryHint) {
-  const outcome =
-    errorOrOutcome &&
-    typeof errorOrOutcome === 'object' &&
-    !Array.isArray(errorOrOutcome) &&
-    Object.prototype.hasOwnProperty.call(errorOrOutcome, 'error')
-      ? errorOrOutcome
-      : { error: errorOrOutcome, recovery_hint: recoveryHint };
-
-  const payload = {
-    error: outcome.error,
-    recovery_hint: outcome.recovery_hint ?? null,
-  };
-
-  if (outcome.code) {
-    payload.code = outcome.code;
-  }
-
-  if (outcome.details !== undefined) {
-    payload.details = outcome.details;
-  }
-
+// `outcome` is a createServer failure, already shaped as the wire payload plus `ok`.
+function createToolErrorResult(outcome) {
+  const { ok: _ok, ...payload } = outcome;
   return { ...createToolSuccessResult(payload), isError: true };
 }
 
