@@ -4,53 +4,28 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 /**
- * Recursively collect all file paths under a directory.
- * Returns relative paths using forward-slash separators.
- * @param {string} dir - Relative directory path (forward-slash separated)
+ * Recursively collect all file and subdirectory paths under a directory.
+ * Paths are relative to rootDir with forward-slash separators. Subdirectories
+ * are recorded after their contents (leaf-first within each subtree).
+ * @param {string} dir - Relative directory path (forward-slash separated; '' for rootDir itself)
  * @param {string} rootDir - Absolute path to the project root
- * @returns {string[]} Relative file paths within the directory
+ * @param {{ files: string[], dirs: string[] }} out - Accumulator for file and subdirectory paths
  */
-function walkDir(dir, rootDir) {
-  const results = [];
+function walk(dir, rootDir, out) {
   const absDir = path.join(rootDir, dir);
   if (!fs.existsSync(absDir)) {
-    return results;
+    return;
   }
   const entries = fs.readdirSync(absDir, { withFileTypes: true });
   for (const entry of entries) {
-    const relPath = `${dir}/${entry.name}`;
+    const relPath = dir ? `${dir}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      results.push(...walkDir(relPath, rootDir));
+      walk(relPath, rootDir, out);
+      out.dirs.push(relPath);
     } else {
-      results.push(relPath);
+      out.files.push(relPath);
     }
   }
-  return results;
-}
-
-/**
- * Recursively collect all subdirectory paths under a directory.
- * Returns leaf-first ordering suitable for bottom-up deletion.
- * @param {string} dir - Relative directory path (forward-slash separated)
- * @param {string} rootDir - Absolute path to the project root
- * @returns {string[]} Relative subdirectory paths, deepest first within each subtree
- */
-function walkSubdirs(dir, rootDir) {
-  const results = [];
-  const absDir = path.join(rootDir, dir);
-  if (!fs.existsSync(absDir)) {
-    return results;
-  }
-  const entries = fs.readdirSync(absDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-    const relPath = `${dir}/${entry.name}`;
-    results.push(...walkSubdirs(relPath, rootDir));
-    results.push(relPath);
-  }
-  return results;
 }
 
 /**
@@ -69,20 +44,18 @@ function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
   const pruned = [];
   const emptyDirsRemoved = [];
 
-  const allOwnedFiles = [];
+  const owned = { files: [], dirs: [] };
   for (const dir of ownedDirs) {
-    allOwnedFiles.push(...walkDir(dir, rootDir));
+    walk(dir, rootDir, owned);
   }
 
-  const staleFiles = allOwnedFiles.filter((filePath) => !manifestPaths.has(filePath));
+  const staleFiles = owned.files.filter((filePath) => !manifestPaths.has(filePath));
   for (const filePath of staleFiles) {
     fs.unlinkSync(path.join(rootDir, filePath));
     pruned.push(filePath);
   }
 
-  const ownedSubdirs = ownedDirs
-    .flatMap((dir) => walkSubdirs(dir, rootDir))
-    .sort((a, b) => b.length - a.length);
+  const ownedSubdirs = owned.dirs.sort((a, b) => b.length - a.length);
 
   for (const dir of ownedSubdirs) {
     const absDir = path.join(rootDir, dir);
