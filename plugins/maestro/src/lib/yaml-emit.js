@@ -8,10 +8,9 @@
  * containing `:`, `"`, `\`, or leading/trailing whitespace will
  * produce invalid YAML.
  *
- * Current callers (entry-point-expander, preamble-builders) pass
- * agent names, skill names, and reference names — all controlled
- * inputs from the canonical source tree — so the raw interpolation
- * is safe in practice.
+ * The generator passes agent names, skill names, and reference
+ * names — all controlled inputs from the canonical source tree — so
+ * the raw interpolation is safe in practice.
  */
 
 /**

@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { parseFrontmatterOnly, splitAtBoundary } = require('../../lib/frontmatter');
+const { parse, splitAtBoundary } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
 const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');
 
@@ -105,7 +105,7 @@ function parseInlineArray(raw) {
 }
 
 function parseFrontmatter(content) {
-  return parseFrontmatterOnly(content).frontmatter;
+  return parse(content, (value) => value).frontmatter;
 }
 
 function mapTools(frontmatter, runtimeConfig) {

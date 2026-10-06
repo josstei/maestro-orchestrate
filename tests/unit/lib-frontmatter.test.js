@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 
 const {
   parse,
-  parseFrontmatterOnly,
   extractValue,
   escapeYaml,
   splitAtBoundary,
@@ -297,69 +296,64 @@ describe('parse', () => {
   });
 });
 
-describe('parseFrontmatterOnly', () => {
+describe('parse with an identity valueFn (raw string values)', () => {
+  const parseRaw = (content) => parse(content, (value) => value);
+
   it('parses key-value pairs as raw strings with body', () => {
     const content = '---\nname: my-agent\ntimeout: 30\n---\nBody.';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.deepEqual(result.frontmatter, { name: 'my-agent', timeout: '30' });
     assert.equal(result.body, 'Body.');
   });
 
   it('does not coerce numeric values', () => {
     const content = '---\ncount: 42\n---\n';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.strictEqual(result.frontmatter.count, '42');
   });
 
   it('does not parse inline arrays', () => {
     const content = '---\ntools: [read, write]\n---\n';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.strictEqual(result.frontmatter.tools, '[read, write]');
   });
 
   it('returns empty frontmatter and full body when no opening delimiter', () => {
     const content = 'No frontmatter here.';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.deepEqual(result.frontmatter, {});
     assert.equal(result.body, content);
   });
 
   it('returns empty frontmatter and full body when no closing delimiter', () => {
     const content = '---\nname: orphan\nno closing';
-    const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, content);
-  });
-
-  it('returns empty frontmatter and full body when no trailing newline after closing delimiter', () => {
-    const content = '---\nkey: val\n---';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.deepEqual(result.frontmatter, {});
     assert.equal(result.body, content);
   });
 
   it('skips lines without a colon', () => {
     const content = '---\nname: test\ninvalid\ntier: full\n---\n';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.deepEqual(result.frontmatter, { name: 'test', tier: 'full' });
   });
 
   it('handles values containing colons', () => {
     const content = '---\ndesc: a: b: c\n---\n';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.equal(result.frontmatter.desc, 'a: b: c');
   });
 
   it('returns empty body string when body is empty after frontmatter', () => {
     const content = '---\nkey: val\n---\n';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.deepEqual(result.frontmatter, { key: 'val' });
     assert.equal(result.body, '');
   });
 
   it('preserves multiline body', () => {
     const content = '---\nkey: val\n---\nLine 1\nLine 2';
-    const result = parseFrontmatterOnly(content);
+    const result = parseRaw(content);
     assert.equal(result.body, 'Line 1\nLine 2');
   });
 });

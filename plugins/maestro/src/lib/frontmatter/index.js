@@ -1,18 +1,14 @@
 'use strict';
 
 /**
- * Unified frontmatter parsing module.
- *
- * Consolidates three distinct boundary-detection implementations and two YAML
- * escaping implementations into a single authoritative module.
- *
- * Boundary detection approaches unified:
- *   - Character-offset indexOf (agent-stub.js, parseFrontmatterOnly)
- *   - Line-split iteration (core/frontmatter-parser.js parse)
- *   - Regex multiline match (skill-metadata.js)
+ * Frontmatter parsing (boundary splitting, key-value parsing, scalar
+ * coercion, single-key extraction) and YAML escaping shared by the
+ * generator, transforms, and MCP content tools.
  *
  * @module lib/frontmatter
  */
+
+const DOUBLE_QUOTED_ESCAPES = { '"': '"', '\\': '\\', n: '\n', r: '\r', t: '\t' };
 
 /**
  * Parse a double-quoted string value with escape sequence support.
@@ -24,45 +20,7 @@
  * @returns {string} The unescaped string value.
  */
 function parseDoubleQuotedValue(raw) {
-  let value = '';
-
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw[i];
-    const next = raw[i + 1];
-
-    if (char !== '\\' || next == null) {
-      value += char;
-      continue;
-    }
-
-    switch (next) {
-      case '"':
-        value += '"';
-        i++;
-        break;
-      case '\\':
-        value += '\\';
-        i++;
-        break;
-      case 'n':
-        value += '\n';
-        i++;
-        break;
-      case 'r':
-        value += '\r';
-        i++;
-        break;
-      case 't':
-        value += '\t';
-        i++;
-        break;
-      default:
-        value += char;
-        break;
-    }
-  }
-
-  return value;
+  return raw.replace(/\\(["\\nrt])/g, (_, c) => DOUBLE_QUOTED_ESCAPES[c]);
 }
 
 /**
@@ -101,10 +59,8 @@ function parseValue(raw) {
 /**
  * Split content at the frontmatter boundary using line iteration.
  *
- * Unifies the three boundary-detection approaches into one canonical
- * implementation. Uses line-split iteration (the most permissive approach)
- * which handles all edge cases including content without a trailing newline
- * after the closing delimiter.
+ * The opening `---` must be the first line; the block ends at the next line
+ * that is exactly `---`, with or without a trailing newline after it.
  *
  * @param {string} content - The full content string with optional frontmatter.
  * @returns {{ raw: string, body: string }} The raw frontmatter text (between
@@ -160,65 +116,23 @@ function parseLines(lines, valueFn) {
 }
 
 /**
- * Parse frontmatter with full type coercion (rich parser).
+ * Parse frontmatter key-value pairs.
  *
- * Splits content on `---` delimiters and parses key-value pairs with type
- * coercion via {@link parseValue}. Arrays, numbers, and quoted strings are
- * converted to their native types.
+ * Splits content on `---` delimiters via {@link splitAtBoundary} and applies
+ * `valueFn` to each raw value. The default, {@link parseValue}, converts
+ * arrays, numbers, and quoted strings to their native types; pass an identity
+ * function to keep raw string values.
  *
  * Returns empty frontmatter and the full content as body when no valid
  * frontmatter block is found (missing opening or closing `---`).
  *
  * @param {string} content - The full content string with optional frontmatter.
+ * @param {function(string): *} [valueFn=parseValue] - Transform applied to each raw value.
  * @returns {{ frontmatter: Object, body: string }} Parsed frontmatter object and remaining body.
  */
-function parse(content) {
+function parse(content, valueFn = parseValue) {
   const { raw, body } = splitAtBoundary(content);
-
-  if (raw === '' && body === content) {
-    return { frontmatter: {}, body: content };
-  }
-
-  const fmLines = raw.split('\n');
-  const frontmatter = parseLines(fmLines, parseValue);
-
-  return { frontmatter, body };
-}
-
-/**
- * Parse frontmatter returning raw string values without type coercion (simple parser).
- *
- * Uses substring-based boundary detection (`---\n` prefix and `\n---\n`
- * closing). Returns a wrapper object with a frontmatter map (raw string
- * values) and the remaining body text.
- *
- * This intentionally uses stricter boundary detection than {@link parse} or
- * {@link splitAtBoundary}: it requires a newline after the closing `---`
- * delimiter. This preserves the historical contract where content ending
- * exactly at `---` (no trailing newline) returns empty frontmatter with the
- * full content as body.
- *
- * Returns empty frontmatter and the full content as body when no valid
- * frontmatter block is found.
- *
- * @param {string} content - The full content string with optional frontmatter.
- * @returns {{ frontmatter: Object<string, string>, body: string }} Raw frontmatter map and remaining body.
- */
-function parseFrontmatterOnly(content) {
-  if (!content.startsWith('---\n')) {
-    return { frontmatter: {}, body: content };
-  }
-
-  const end = content.indexOf('\n---\n', 4);
-  if (end === -1) {
-    return { frontmatter: {}, body: content };
-  }
-
-  const lines = content.slice(4, end).split('\n');
-  const frontmatter = parseLines(lines, (v) => v);
-  const body = content.slice(end + 5);
-
-  return { frontmatter, body };
+  return { frontmatter: parseLines(raw.split('\n'), valueFn), body };
 }
 
 /**
@@ -253,7 +167,6 @@ function escapeYaml(value) {
 
 module.exports = {
   parse,
-  parseFrontmatterOnly,
   extractValue,
   escapeYaml,
   splitAtBoundary,
