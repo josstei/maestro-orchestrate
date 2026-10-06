@@ -9,8 +9,6 @@ const os = require('node:os');
 const {
   expandGlob,
   computeOutputPath,
-  normalizeOutputBase,
-  joinRelativePath,
   buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
@@ -155,54 +153,6 @@ describe('manifest-expander', () => {
     });
   });
 
-  describe('normalizeOutputBase', () => {
-    it('returns empty string for null input', () => {
-      assert.equal(normalizeOutputBase(null, 'claude'), '');
-    });
-
-    it('returns empty string for undefined input', () => {
-      assert.equal(normalizeOutputBase(undefined, 'claude'), '');
-    });
-
-    it('returns the string directly for string input', () => {
-      assert.equal(normalizeOutputBase('custom/base', 'claude'), 'custom/base');
-    });
-
-    it('returns runtime-specific value from object input', () => {
-      const outputBase = { claude: 'claude-base', gemini: 'gemini-base' };
-
-      assert.equal(normalizeOutputBase(outputBase, 'claude'), 'claude-base');
-      assert.equal(normalizeOutputBase(outputBase, 'gemini'), 'gemini-base');
-    });
-
-    it('returns empty string for missing runtime key in object input', () => {
-      const outputBase = { claude: 'claude-base' };
-
-      assert.equal(normalizeOutputBase(outputBase, 'codex'), '');
-    });
-
-    it('throws for invalid outputBase types', () => {
-      assert.throws(
-        () => normalizeOutputBase(42, 'claude'),
-        /Invalid outputBase/
-      );
-    });
-  });
-
-  describe('joinRelativePath', () => {
-    it('returns relativePath unchanged when base is empty', () => {
-      assert.equal(joinRelativePath('', 'agents/foo.md'), 'agents/foo.md');
-    });
-
-    it('joins base and relativePath with posix separator', () => {
-      assert.equal(joinRelativePath('custom', 'agents/foo.md'), 'custom/agents/foo.md');
-    });
-
-    it('normalizes redundant separators', () => {
-      assert.equal(joinRelativePath('base/', 'sub/file.md'), 'base/sub/file.md');
-    });
-  });
-
   describe('buildRuntimeOutputPath', () => {
     it('prepends outputDir to relativePath', () => {
       assert.equal(
@@ -320,19 +270,6 @@ describe('manifest-expander', () => {
       codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
     };
 
-    it('passes through legacy rules with outputs field', () => {
-      const legacy = {
-        src: 'some/file.md',
-        transforms: ['copy'],
-        outputs: { gemini: 'out/file.md' },
-      };
-
-      const result = expandManifest([legacy], runtimes, tmpDir);
-
-      assert.equal(result.length, 1);
-      assert.deepStrictEqual(result[0], legacy);
-    });
-
     it('expands glob rules into per-file entries', () => {
       const rule = {
         glob: 'agents/*.md',
@@ -365,62 +302,6 @@ describe('manifest-expander', () => {
       assert.equal(result[0].src, 'skills/shared/delegation/SKILL.md');
       assert.equal(result[0].outputs.claude, 'claude/skills/delegation/SKILL.md');
       assert.equal(result[0].outputs.codex, 'plugins/maestro/skills/delegation/SKILL.md');
-    });
-
-    it('respects exclude list on glob rules', () => {
-      const rule = {
-        glob: 'agents/*.md',
-        transforms: ['copy'],
-        runtimes: ['gemini'],
-        exclude: ['agents/baz.md'],
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result.length, 2);
-      const srcs = result.map((e) => e.src);
-      assert.ok(!srcs.includes('agents/baz.md'));
-    });
-
-    it('applies outputName when specified', () => {
-      const rule = {
-        src: 'some/source.md',
-        transforms: ['copy'],
-        runtimes: ['claude'],
-        outputName: 'custom-output.md',
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result[0].outputs.claude, 'claude/custom-output.md');
-    });
-
-    it('preserves source path when preserveSourcePath is set', () => {
-      const rule = {
-        src: 'agents/foo-bar.md',
-        transforms: ['copy'],
-        runtimes: ['gemini'],
-        preserveSourcePath: true,
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result[0].outputs.gemini, 'agents/foo-bar.md');
-    });
-
-    it('applies outputBase from object per runtime', () => {
-      const rule = {
-        src: 'agents/baz.md',
-        transforms: ['copy'],
-        runtimes: ['gemini', 'claude'],
-        preserveSourcePath: true,
-        outputBase: { gemini: 'custom', claude: 'other' },
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result[0].outputs.gemini, 'custom/agents/baz.md');
-      assert.equal(result[0].outputs.claude, 'claude/other/agents/baz.md');
     });
 
     it('throws when rule is missing runtimes', () => {

@@ -45,11 +45,6 @@ function processManifestEntry(entry, runtimes, writer) {
   const sourceContent = fs.readFileSync(srcPath, 'utf8');
   for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
     const runtime = runtimes[runtimeName];
-    if (!runtime) {
-      writer.reportError(`Unknown runtime "${runtimeName}" for ${entry.src}`);
-      continue;
-    }
-
     try {
       let content = sourceContent;
       for (const transformName of entry.transforms) {

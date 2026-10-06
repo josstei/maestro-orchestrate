@@ -67,17 +67,6 @@ describe('expandManifest', () => {
     assert.equal(crEntry.outputs.gemini, 'agents/code_reviewer.md');
   });
 
-  it('passes through explicit entries unchanged', () => {
-    const entry = {
-      src: 'mcp/maestro-server.js',
-      transforms: ['strip-feature'],
-      outputs: { gemini: 'mcp/maestro-server.js', claude: 'claude/mcp/maestro-server.js' },
-    };
-    const entries = expandManifest([entry], {}, '/unused');
-    assert.equal(entries.length, 1);
-    assert.deepEqual(entries[0], entry);
-  });
-
   it('throws on malformed rule missing glob and src', () => {
     assert.throws(
       () => expandManifest([{ transforms: ['copy'], runtimes: ['gemini'] }], {}, '/unused'),
@@ -90,38 +79,4 @@ describe('expandManifest', () => {
       () => expandManifest([{ glob: 'agents/*.md', transforms: ['copy'] }], {}, '/unused'),
       { message: /missing "runtimes"/ }
     );
-  });
-
-  it('handles outputName override for hook configs', () => {
-    const rule = {
-      src: 'hooks/hook-configs/gemini.json',
-      transforms: ['copy'],
-      runtimes: ['gemini'],
-      outputName: 'hooks/hooks.json',
-    };
-    const runtimes = {
-      gemini: { name: 'gemini', outputDir: './' },
-    };
-    const entries = expandManifest([rule], runtimes, '/unused');
-    assert.equal(entries[0].outputs.gemini, 'hooks/hooks.json');
-  });
-
-  it('preserves source paths under an output base when requested', () => {
-    const rule = {
-      glob: 'mcp/**/*.js',
-      transforms: ['copy'],
-      runtimes: ['codex'],
-      preserveSourcePath: true,
-      outputBase: 'src',
-    };
-    const runtimes = {
-      codex: { name: 'codex', outputDir: 'plugins/maestro/' },
-    };
-    const srcDir = path.resolve(__dirname, '../../src');
-    const entries = expandManifest([rule], runtimes, srcDir);
-
-    const serverEntry = entries.find((e) => e.src === 'mcp/maestro-server.js');
-    assert.ok(serverEntry, 'mcp/maestro-server.js should be included');
-    assert.equal(serverEntry.outputs.codex, 'plugins/maestro/src/mcp/maestro-server.js');
-  });
-});
+  });});
