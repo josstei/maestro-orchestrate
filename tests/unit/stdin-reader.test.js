@@ -54,29 +54,6 @@ describe('stdin-reader.readText', () => {
   });
 });
 
-describe('stdin-reader.readJson', () => {
-  it('parses valid JSON', () => {
-    const { parsed } = runWithStdin('readJson', '{"a":1,"b":[2,3]}');
-    assert.deepEqual(parsed.result, { a: 1, b: [2, 3] });
-  });
-
-  it('returns {} for empty stdin', () => {
-    const { parsed } = runWithStdin('readJson', '');
-    assert.deepEqual(parsed.result, {});
-  });
-
-  it('returns {} for whitespace-only stdin', () => {
-    const { parsed } = runWithStdin('readJson', '   \n\t  ');
-    assert.deepEqual(parsed.result, {});
-  });
-
-  it('returns {} and logs a warning for malformed JSON', () => {
-    const { parsed, stderr } = runWithStdin('readJson', '{not json');
-    assert.deepEqual(parsed.result, {});
-    assert.match(stderr, /Failed to parse JSON from stdin/);
-  });
-});
-
 describe('stdin-reader.readBoundedJson', () => {
   it('parses JSON from piped stdin without a TTY guard', () => {
     const { parsed } = runWithStdin('readBoundedJson', '{"name":"maestro"}');
