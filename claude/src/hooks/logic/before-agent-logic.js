@@ -4,8 +4,31 @@ const { log } = require('../../core/logger');
 const { detectAgentFromPrompt, normalizeAgentName } = require('../../core/agent-registry');
 const { assertSessionId } = require('../../lib/validation');
 const { readFileSafe } = require('../../lib/io');
+const markdownState = require('../../core/markdown-state');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
+
+/**
+ * Builds the `key=value` context parts from active-session.md. Sessions created
+ * through MCP use JSON frontmatter; legacy hand-written files use YAML-style lines.
+ * @param {string} content
+ * @returns {string[]}
+ */
+function summarizeSession(content) {
+  try {
+    const { data } = markdownState.parse(content);
+    return [['current_phase', data.current_phase], ['status', data.status]]
+      .filter(([, value]) => value !== null && value !== undefined && value !== '')
+      .map(([key, value]) => `${key}=${value}`);
+  } catch {
+    const parts = [];
+    const phaseMatch = content.match(/current_phase:\s*(\S+)/);
+    if (phaseMatch) parts.push(`current_phase=${phaseMatch[1]}`);
+    const statusMatch = content.match(/status:\s*(\S+)/);
+    if (statusMatch) parts.push(`status=${statusMatch[1]}`);
+    return parts;
+  }
+}
 
 /**
  * Before-agent hook logic (runtime-agnostic).
@@ -33,25 +56,10 @@ function handleBeforeAgent(ctx) {
     log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }
 
-  const sessionPath = state.resolveActiveSessionPath(ctx.cwd);
-  let contextParts = '';
-
-  const content = readFileSafe(sessionPath, '');
-  if (content) {
-    const parts = [];
-    const phaseMatch = content.match(/current_phase:\s*(\S+)/);
-    if (phaseMatch) parts.push(`current_phase=${phaseMatch[1]}`);
-    const statusMatch = content.match(/status:\s*(\S+)/);
-    if (statusMatch) parts.push(`status=${statusMatch[1]}`);
-    if (parts.length > 0) {
-      contextParts = `Active session: ${parts.join(', ')}`;
-    }
-  }
-
-  if (contextParts) {
-    return { action: 'allow', message: contextParts, reason: null };
-  }
-  return { action: 'allow', message: null, reason: null };
+  const content = readFileSafe(state.resolveActiveSessionPath(ctx.cwd), '');
+  const parts = content ? summarizeSession(content) : [];
+  const message = parts.length > 0 ? `Active session: ${parts.join(', ')}` : null;
+  return { action: 'allow', message, reason: null };
 }
 
 module.exports = { handleBeforeAgent };

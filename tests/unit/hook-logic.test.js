@@ -15,8 +15,16 @@ const { handleAfterAgent } = require('../../src/hooks/logic/after-agent-logic');
 const { handleBeforeAgent } = require('../../src/hooks/logic/before-agent-logic');
 const { handleSessionStart } = require('../../src/hooks/logic/session-start-logic');
 const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
+const markdownState = require('../../src/core/markdown-state');
 
 const SESSION_ID = 'test-session-abc123';
+
+function writeMcpSession(stateDir, data) {
+  const sessionFilePath = path.join(stateDir, 'state', 'active-session.md');
+  fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
+  fs.writeFileSync(sessionFilePath, markdownState.serialize(data, '# Session\n'), 'utf8');
+}
+
 const VALID_RESULT = '## Task Report\nDone.\n\n## Downstream Context\nContext info.';
 
 describe('handleAfterAgent', () => {
@@ -150,6 +158,34 @@ describe('handleBeforeAgent', () => {
     assert.ok(result.message.includes('active'));
   });
 
+  it('reads phase/status from the JSON frontmatter that create_session writes', () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-json-session-'));
+    try {
+      writeMcpSession(path.join(cwd, 'docs', 'maestro'), {
+        session_id: 's1',
+        status: 'in_progress',
+        current_phase: 1,
+        phases: [{ id: 1, status: 'pending' }],
+      });
+      const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
+      assert.equal(result.action, 'allow');
+      assert.equal(result.message, 'Active session: current_phase=1, status=in_progress');
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('omits a null current_phase from JSON frontmatter', () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-json-null-'));
+    try {
+      writeMcpSession(path.join(cwd, 'docs', 'maestro'), { status: 'in_progress', current_phase: null });
+      const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
+      assert.equal(result.message, 'Active session: status=in_progress');
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('detects agent from prompt and sets active agent', () => {
     delete process.env.MAESTRO_CURRENT_AGENT;
     hookState.clearActiveAgent(SESSION_ID);
@@ -211,6 +247,7 @@ describe('handleSessionStart', () => {
     const sessionDir = path.join(hooksDir, SESSION_ID);
     assert.ok(fs.existsSync(sessionDir));
   });
+
 });
 
 describe('handleSessionEnd', () => {
