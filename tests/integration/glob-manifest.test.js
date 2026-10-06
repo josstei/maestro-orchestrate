@@ -2,13 +2,13 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const { expandManifest } = require('../../scripts/generate');
+const { expandManifest } = require('../../src/generator/manifest-expander');
 
 describe('expandManifest', () => {
   it('expands a glob entry into explicit entries per runtime', () => {
     const rule = {
       glob: 'agents/*.md',
-      transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],
+      transforms: ['rebuild-frontmatter', 'agent-stub'],
       runtimes: ['gemini', 'claude'],
     };
     const runtimes = {
@@ -24,12 +24,12 @@ describe('expandManifest', () => {
     assert.equal(coderEntries.length, 1, 'coder.md should appear once for this rule');
     assert.equal(coderEntries[0].outputs.gemini, 'agents/coder.md');
     assert.equal(coderEntries[0].outputs.claude, 'claude/agents/coder.md');
-    assert.deepEqual(coderEntries[0].transforms, ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub']);
+    assert.deepEqual(coderEntries[0].transforms, ['rebuild-frontmatter', 'agent-stub']);
   });
 
   it('produces separate entries for same source with different transforms', () => {
     const rules = [
-      { glob: 'agents/*.md', transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'], runtimes: ['gemini', 'claude'] },
+      { glob: 'agents/*.md', transforms: ['rebuild-frontmatter', 'agent-stub'], runtimes: ['gemini', 'claude'] },
       { glob: 'agents/*.md', transforms: ['agent-stub'], runtimes: ['codex'] },
     ];
     const runtimes = {
@@ -44,7 +44,7 @@ describe('expandManifest', () => {
     assert.equal(coderEntries.length, 2, 'coder.md appears in both rules');
 
     const geminiClaudeEntry = coderEntries.find((e) => e.outputs.gemini);
-    assert.deepEqual(geminiClaudeEntry.transforms, ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub']);
+    assert.deepEqual(geminiClaudeEntry.transforms, ['rebuild-frontmatter', 'agent-stub']);
 
     const codexEntry = coderEntries.find((e) => e.outputs.codex);
     assert.deepEqual(codexEntry.transforms, ['agent-stub']);
@@ -67,17 +67,6 @@ describe('expandManifest', () => {
     assert.equal(crEntry.outputs.gemini, 'agents/code_reviewer.md');
   });
 
-  it('passes through explicit entries unchanged', () => {
-    const entry = {
-      src: 'mcp/maestro-server.js',
-      transforms: ['strip-feature'],
-      outputs: { gemini: 'mcp/maestro-server.js', claude: 'claude/mcp/maestro-server.js' },
-    };
-    const entries = expandManifest([entry], {}, '/unused');
-    assert.equal(entries.length, 1);
-    assert.deepEqual(entries[0], entry);
-  });
-
   it('throws on malformed rule missing glob and src', () => {
     assert.throws(
       () => expandManifest([{ transforms: ['copy'], runtimes: ['gemini'] }], {}, '/unused'),
@@ -90,38 +79,5 @@ describe('expandManifest', () => {
       () => expandManifest([{ glob: 'agents/*.md', transforms: ['copy'] }], {}, '/unused'),
       { message: /missing "runtimes"/ }
     );
-  });
-
-  it('handles outputName override for hook configs', () => {
-    const rule = {
-      src: 'hooks/hook-configs/gemini.json',
-      transforms: ['copy'],
-      runtimes: ['gemini'],
-      outputName: 'hooks/hooks.json',
-    };
-    const runtimes = {
-      gemini: { name: 'gemini', outputDir: './' },
-    };
-    const entries = expandManifest([rule], runtimes, '/unused');
-    assert.equal(entries[0].outputs.gemini, 'hooks/hooks.json');
-  });
-
-  it('preserves source paths under an output base when requested', () => {
-    const rule = {
-      glob: 'mcp/**/*.js',
-      transforms: ['copy'],
-      runtimes: ['codex'],
-      preserveSourcePath: true,
-      outputBase: 'src',
-    };
-    const runtimes = {
-      codex: { name: 'codex', outputDir: 'plugins/maestro/' },
-    };
-    const srcDir = path.resolve(__dirname, '../../src');
-    const entries = expandManifest([rule], runtimes, srcDir);
-
-    const serverEntry = entries.find((e) => e.src === 'mcp/maestro-server.js');
-    assert.ok(serverEntry, 'mcp/maestro-server.js should be included');
-    assert.equal(serverEntry.outputs.codex, 'plugins/maestro/src/mcp/maestro-server.js');
   });
 });

@@ -1,17 +1,9 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const parseFrontmatter = require('../../src/transforms/parse-frontmatter');
-const extractExamples = require('../../src/transforms/extract-examples');
 const rebuildFrontmatter = require('../../src/transforms/rebuild-frontmatter');
 
-function injectFrontmatter(content, runtime, opts) {
-  const state = {};
-  const options = { ...opts, state };
-  let result = content;
-  result = parseFrontmatter(result, runtime, options);
-  result = extractExamples(result, runtime, options);
-  result = rebuildFrontmatter(result, runtime, options);
-  return result;
+function injectFrontmatter(content, runtime) {
+  return rebuildFrontmatter(content, runtime);
 }
 
 describe('inject-frontmatter transform', () => {

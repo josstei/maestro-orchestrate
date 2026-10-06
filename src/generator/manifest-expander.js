@@ -4,6 +4,14 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { toSnakeCase } = require('../lib/naming');
 
+const FORBIDDEN_OUTPUTS = [
+  'mcp/maestro-server-core.js',
+  'claude/mcp/maestro-server-core.js',
+  'plugins/maestro/mcp/maestro-server-core.js',
+];
+
+const FORBIDDEN_OUTPUT_PREFIXES = ['lib/', 'claude/lib/', 'plugins/maestro/lib/'];
+
 /**
  * Expand a glob pattern relative to srcDir.
  * Supports `*` (wildcard within a single directory) and `**` (recursive).
@@ -95,44 +103,6 @@ function computeOutputPath(srcRelPath, runtime) {
 }
 
 /**
- * Normalize an outputBase value for a given runtime.
- * Accepts string, per-runtime object, or null/undefined.
- * @param {string | Record<string, string> | null | undefined} outputBase - Base path specification
- * @param {string} runtimeName - Name of the target runtime
- * @returns {string} Normalized base path
- */
-function normalizeOutputBase(outputBase, runtimeName) {
-  if (!outputBase) {
-    return '';
-  }
-
-  if (typeof outputBase === 'string') {
-    return outputBase;
-  }
-
-  if (typeof outputBase === 'object') {
-    return outputBase[runtimeName] || '';
-  }
-
-  throw new Error(`Invalid outputBase: ${JSON.stringify(outputBase)}`);
-}
-
-/**
- * Join a base path with a relative path using posix separators.
- * Returns the relative path unchanged when base is empty.
- * @param {string} base - Base path prefix
- * @param {string} relativePath - Path to append
- * @returns {string} Joined path
- */
-function joinRelativePath(base, relativePath) {
-  if (!base) {
-    return relativePath;
-  }
-
-  return path.posix.join(base, relativePath);
-}
-
-/**
  * Prepend a runtime's outputDir to a relative path.
  * Skips prepending when outputDir is absent or './'.
  * @param {{ outputDir?: string }} runtime - Runtime configuration
@@ -156,15 +126,8 @@ function assertNoMirroredSharedOutputs(manifest) {
   for (const entry of manifest) {
     for (const outputPath of Object.values(entry.outputs)) {
       if (
-        outputPath === 'mcp/maestro-server-core.js' ||
-        outputPath === 'claude/mcp/maestro-server-core.js' ||
-        outputPath === 'plugins/maestro/mcp/maestro-server-core.js' ||
-        outputPath === 'lib/mcp/generated/resource-registry.js' ||
-        outputPath === 'plugins/maestro/lib/mcp/generated/resource-registry.js' ||
-        outputPath === 'plugins/maestro/lib/mcp/generated/agent-registry.js' ||
-        outputPath.startsWith('lib/') ||
-        outputPath.startsWith('claude/lib/') ||
-        outputPath.startsWith('plugins/maestro/lib/')
+        FORBIDDEN_OUTPUTS.includes(outputPath) ||
+        FORBIDDEN_OUTPUT_PREFIXES.some((prefix) => outputPath.startsWith(prefix))
       ) {
         throw new Error(`Manifest output is not allowed in src-first mode: "${outputPath}"`);
       }
@@ -175,10 +138,9 @@ function assertNoMirroredSharedOutputs(manifest) {
 /**
  * Expand convention-based manifest rules into explicit entries.
  *
- * Three rule formats:
- *   1. Legacy: has `outputs` field -- passed through unchanged
- *   2. Explicit src + runtimes: has `src` and `runtimes` (no `glob`) -- expands to outputs per runtime
- *   3. Glob: has `glob` and `runtimes` -- scans srcDir, produces one entry per matched file
+ * Two rule formats:
+ *   1. Explicit src + runtimes: has `src` and `runtimes` (no `glob`) -- expands to outputs per runtime
+ *   2. Glob: has `glob` and `runtimes` -- scans srcDir, produces one entry per matched file
  *
  * Does NOT merge entries for the same source file -- different rules may have different transforms.
  * @param {Array<Object>} rules - Manifest rules to expand
@@ -190,48 +152,19 @@ function expandManifest(rules, runtimes, srcDir) {
   const entries = [];
 
   for (const rule of rules) {
-    if (rule.outputs) {
-      entries.push(rule);
-      continue;
-    }
-
-    if (!rule.runtimes || !Array.isArray(rule.runtimes)) {
+    if (!Array.isArray(rule.runtimes)) {
       throw new Error(`Manifest rule missing "runtimes": ${JSON.stringify(rule)}`);
     }
     if (!rule.glob && !rule.src) {
       throw new Error(`Manifest rule needs "glob" or "src": ${JSON.stringify(rule)}`);
     }
 
-    let srcFiles;
-    if (rule.glob) {
-      srcFiles = expandGlob(rule.glob, srcDir);
-      if (rule.exclude) {
-        const excludeSet = new Set(rule.exclude);
-        srcFiles = srcFiles.filter((f) => !excludeSet.has(f));
-      }
-    } else {
-      srcFiles = [rule.src];
-    }
+    const srcFiles = rule.glob ? expandGlob(rule.glob, srcDir) : [rule.src];
 
     for (const srcRelPath of srcFiles) {
       const outputs = {};
       for (const runtimeName of rule.runtimes) {
-        const runtime = runtimes[runtimeName];
-        if (rule.outputName) {
-          outputs[runtimeName] = buildRuntimeOutputPath(runtime, rule.outputName);
-        } else if (rule.preserveSourcePath) {
-          const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
-          outputs[runtimeName] = buildRuntimeOutputPath(
-            runtime,
-            joinRelativePath(outputBase, srcRelPath)
-          );
-        } else {
-          const outputBase = normalizeOutputBase(rule.outputBase, runtimeName);
-          outputs[runtimeName] = buildRuntimeOutputPath(
-            runtime,
-            joinRelativePath(outputBase, normalizeSrcRelPath(srcRelPath, runtime))
-          );
-        }
+        outputs[runtimeName] = computeOutputPath(srcRelPath, runtimes[runtimeName]);
       }
       entries.push({
         src: srcRelPath,
@@ -246,10 +179,7 @@ function expandManifest(rules, runtimes, srcDir) {
 
 module.exports = {
   expandGlob,
-  normalizeSrcRelPath,
   computeOutputPath,
-  normalizeOutputBase,
-  joinRelativePath,
   buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,

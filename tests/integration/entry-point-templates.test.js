@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { expandCoreCommands, expandEntryPoints } = require('../../scripts/generate');
+const { expandCoreCommands, expandEntryPoints } = require('../../src/generator/entry-point-expander');
 
 describe('expandEntryPoints', () => {
   it('produces gemini TOML for each registry entry', () => {

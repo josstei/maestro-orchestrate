@@ -32,8 +32,8 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 4 |
-| Source transforms | 6 |
-| Test files | 85 files across unit, transforms, and integration |
+| Source transforms | 3 |
+| Test files | 82 files across unit, transforms, and integration |
 
 ## Project Structure
 
@@ -57,7 +57,7 @@ maestro-orchestrate/
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/
 │   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 85 test files across unit, transforms, and integration
+├── tests/                        # 82 test files across unit, transforms, and integration
 │
 ├── agents/                       # [generated] Gemini agent stubs
 ├── commands/maestro/             # [generated] Gemini TOML commands
@@ -123,7 +123,7 @@ A bundled Model Context Protocol server providing 17 tools across 3 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter, stub, and metadata transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
+A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter and stub transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
 
 ### State Management
 

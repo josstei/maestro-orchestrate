@@ -1,9 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const fs = require('node:fs');
-const { discover, generateRegistry } = require('../lib/discovery');
-const { serializeRegistry } = require('../lib/discovery');
+const { discover, serializeRegistry } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
 const { toPascalCase } = require('../lib/naming');
 
@@ -25,6 +23,17 @@ function buildAgentRegistry(srcDir) {
   return agentEntries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
 }
 
+function flatMarkdownEntries(srcDir, subdir) {
+  return discover({
+    dir: path.join(srcDir, subdir),
+    pattern: '*.md',
+    identity: (filepath) => path.basename(filepath, '.md'),
+    metadata: (filepath) => ({
+      relativePath: `${subdir}/${path.basename(filepath)}`,
+    }),
+  });
+}
+
 function buildResourceRegistry(srcDir) {
   const skillsParentDir = path.join(srcDir, 'skills');
   const skillEntries = discover({
@@ -44,26 +53,12 @@ function buildResourceRegistry(srcDir) {
     },
   });
 
-  const templateEntries = discover({
-    dir: path.join(srcDir, 'templates'),
-    pattern: '*.md',
-    identity: (filepath) => path.basename(filepath, '.md'),
-    metadata: (filepath) => ({
-      relativePath: `templates/${path.basename(filepath)}`,
-    }),
-  });
-
-  const referenceEntries = discover({
-    dir: path.join(srcDir, 'references'),
-    pattern: '*.md',
-    identity: (filepath) => path.basename(filepath, '.md'),
-    metadata: (filepath) => ({
-      relativePath: `references/${path.basename(filepath)}`,
-    }),
-  });
-
   const resources = {};
-  for (const entry of [...skillEntries, ...templateEntries, ...referenceEntries]) {
+  for (const entry of [
+    ...skillEntries,
+    ...flatMarkdownEntries(srcDir, 'templates'),
+    ...flatMarkdownEntries(srcDir, 'references'),
+  ]) {
     resources[entry.id] = entry.relativePath;
   }
 
@@ -75,56 +70,30 @@ function buildHookRegistry(srcDir) {
     dir: path.join(srcDir, 'hooks', 'logic'),
     pattern: '*-logic.js',
     identity: (filepath) => path.basename(filepath).replace(/-logic\.js$/, ''),
-    metadata: (filepath) => {
-      const file = path.basename(filepath);
-      const hookName = file.replace(/-logic\.js$/, '');
-      return {
-        module: `hooks/logic/${file}`,
-        fn: `handle${toPascalCase(hookName)}`,
-      };
-    },
   });
 
   const hooks = {};
-  for (const entry of hookEntries) {
-    hooks[entry.id] = { module: entry.module, fn: entry.fn };
+  for (const { id } of hookEntries) {
+    hooks[id] = { module: `hooks/logic/${id}-logic.js`, fn: `handle${toPascalCase(id)}` };
   }
 
   return hooks;
 }
 
-function buildRegistries(srcDir) {
-  return [
+function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
+  const generatedDir = path.join(srcDir, 'generated');
+  const registries = [
     { fileName: 'agent-registry.json', data: buildAgentRegistry(srcDir) },
     { fileName: 'resource-registry.json', data: buildResourceRegistry(srcDir) },
     { fileName: 'hook-registry.json', data: buildHookRegistry(srcDir) },
   ];
-}
 
-function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
-  const generatedDir = path.join(srcDir, 'generated');
-
-  return buildRegistries(srcDir).map(({ fileName, data }) => ({
+  return registries.map(({ fileName, data }) => ({
     outputPath: path.relative(rootDir, path.join(generatedDir, fileName)),
     content: serializeRegistry(data),
   }));
 }
 
-/**
- * Run all discovery scans and write the resulting JSON registry files to
- * src/generated/.
- * @param {string} srcDir - Absolute path to the src/ directory
- */
-function generateRegistries(srcDir) {
-  const generatedDir = path.join(srcDir, 'generated');
-  fs.mkdirSync(generatedDir, { recursive: true });
-
-  for (const { fileName, data } of buildRegistries(srcDir)) {
-    generateRegistry(data, path.join(generatedDir, fileName));
-  }
-}
-
 module.exports = {
   collectRegistryOutputs,
-  generateRegistries,
 };

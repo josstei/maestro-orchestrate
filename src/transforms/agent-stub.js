@@ -2,7 +2,6 @@ const { extractValue, splitAtBoundary } = require('../lib/frontmatter');
 const { toKebabCase } = require('../lib/naming');
 
 function canonicalAgentName(name, runtime) {
-  if (!name) return name;
   if (runtime.agentNaming === 'snake_case') {
     return toKebabCase(name);
   }

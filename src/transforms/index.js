@@ -19,17 +19,15 @@ for (const entry of entries) {
 
 /**
  * Resolve a transform name to its function.
- * Supports parameterized transforms like 'strip-feature:flagName'.
  * @param {string} name
- * @returns {{ fn: Function, param: string|null }}
+ * @returns {Function}
  */
 function resolve(name) {
-  const [baseName, param] = name.split(':');
-  const fn = transforms[baseName];
+  const fn = transforms[name];
   if (!fn) {
-    throw new Error(`Unknown transform: "${baseName}"`);
+    throw new Error(`Unknown transform: "${name}"`);
   }
-  return { fn, param: param || null };
+  return fn;
 }
 
 module.exports = { resolve, transforms };

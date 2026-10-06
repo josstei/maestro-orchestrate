@@ -18,7 +18,6 @@ module.exports = [
       'Perform a Maestro-style code review with findings ordered by severity and concrete file references',
     agents: ['code-reviewer'],
     skills: ['delegation', 'code-review'],
-    refs: ['architecture'],
     workflow: [
       'Determine review scope: explicit user-provided paths, staged changes, or last commit diff',
       'Delegate to the code-reviewer agent with the diff content and file paths',
@@ -40,7 +39,6 @@ module.exports = [
       'Run the Maestro debugging workflow for investigation-heavy tasks',
     agents: ['debugger'],
     skills: ['delegation'],
-    refs: ['architecture'],
     workflow: [
       'Establish the failing behavior, repro path, and expected behavior',
       'Form concrete hypotheses (2-3 likely root causes)',
@@ -61,7 +59,6 @@ module.exports = [
       'Archive the active Maestro session while preserving the shared state layout',
     agents: [],
     skills: ['session-management'],
-    refs: ['architecture'],
     workflow: [
       'Check for an active session; if none exists, inform the user there is nothing to archive',
       'Present a brief summary of what will be archived (session ID, task, phase progress)',
@@ -82,7 +79,6 @@ module.exports = [
       'Summarize the active Maestro session without mutating state',
     agents: [],
     skills: ['session-management'],
-    refs: ['architecture'],
     workflow: [
       'Read the active session using MCP state tools if available; otherwise fall back to scripts or direct file read',
       'Report session ID, creation timestamp, workflow mode, and overall status',
@@ -101,7 +97,6 @@ module.exports = [
       'Run a Maestro-style security assessment for authentication, authorization, data exposure, secret handling, and exploitability risks',
     agents: ['security-engineer'],
     skills: ['delegation'],
-    refs: ['architecture'],
     workflow: [
       'Define the audit scope from the user request and relevant code paths',
       'Trace trust boundaries, auth flows, secret handling, and data exposure paths',
@@ -123,7 +118,6 @@ module.exports = [
       'Run a Maestro-style performance assessment for hotspots, regressions, and optimization planning',
     agents: ['performance-engineer'],
     skills: ['delegation'],
-    refs: ['architecture'],
     workflow: [
       'Define the performance target or pain point',
       'Establish the current baseline from available code, metrics, or reproducible commands',
@@ -143,7 +137,6 @@ module.exports = [
       'Run a Maestro-style SEO assessment for meta tags, structured data, crawlability, and Core Web Vitals',
     agents: ['seo-specialist'],
     skills: ['delegation'],
-    refs: ['architecture'],
     workflow: [
       'Define the SEO audit scope (page or site)',
       'Identify web-facing output files (HTML, templates, routes)',
@@ -163,7 +156,6 @@ module.exports = [
       'Run a Maestro-style accessibility audit for WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility',
     agents: ['accessibility-specialist'],
     skills: ['delegation'],
-    refs: ['architecture'],
     workflow: [
       'Define the accessibility audit scope and target conformance level (A, AA, AAA)',
       'Identify UI components, pages, and interactive elements',
@@ -183,7 +175,6 @@ module.exports = [
       'Run a Maestro-style regulatory compliance review for GDPR/CCPA, cookie consent, data handling, and licensing',
     agents: ['compliance-reviewer'],
     skills: ['delegation'],
-    refs: ['architecture'],
     workflow: [
       'Identify applicable regulations and define audit scope',
       'Review data handling patterns, user disclosures, consent flows, retention policies, and third-party integrations',

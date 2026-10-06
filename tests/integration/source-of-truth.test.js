@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { ROOT } = require('./helpers');
-const { expandManifest, assertNoMirroredSharedOutputs } = require('../../scripts/generate');
+const { expandManifest, assertNoMirroredSharedOutputs } = require('../../src/generator/manifest-expander');
 const manifestRules = require('../../src/manifest');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 

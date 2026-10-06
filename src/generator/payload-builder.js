@@ -2,7 +2,9 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { isAdapterFile, extractRuntime } = require('../platforms/shared/adapters/conventions');
+const { extractRuntime } = require('../platforms/shared/adapters/conventions');
+const { writeIfChanged } = require('../lib/io');
+const { pruneStaleFiles } = require('./stale-pruner');
 
 const VERSION_JSON_FILENAME = 'version.json';
 
@@ -20,11 +22,8 @@ function isForeignAdapter(relativePath, runtimeName) {
   if (!relativePath.startsWith(ADAPTER_PATH_PREFIX)) {
     return false;
   }
-  const filename = relativePath.slice(ADAPTER_PATH_PREFIX.length);
-  if (!isAdapterFile(filename)) {
-    return false;
-  }
-  return extractRuntime(filename) !== runtimeName;
+  const runtime = extractRuntime(relativePath.slice(ADAPTER_PATH_PREFIX.length));
+  return runtime !== null && runtime !== runtimeName;
 }
 
 /**
@@ -104,18 +103,15 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName) {
   const stats = { copied: 0, removed: 0, skipped: 0 };
   const keptOutputs = new Set();
 
-  function walkAndCopy(dir) {
+  function walkAndCopy(dir, relDir = '') {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      const relativePath = path
-        .relative(srcDir, fullPath)
-        .split(path.sep)
-        .join('/');
+      const relativePath = relDir ? `${relDir}/${entry.name}` : entry.name;
 
       if (entry.isDirectory()) {
         if (shouldDescendInto(relativePath, allowlist)) {
-          walkAndCopy(fullPath);
+          walkAndCopy(fullPath, relativePath);
         } else {
           stats.skipped++;
         }
@@ -137,42 +133,9 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName) {
       }
 
       keptOutputs.add(relativePath);
-      const outputPath = path.join(outputDir, relativePath);
-      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
       const content = fs.readFileSync(fullPath, 'utf8');
-      const existing = fs.existsSync(outputPath)
-        ? fs.readFileSync(outputPath, 'utf8')
-        : null;
-      if (existing !== content) {
-        fs.writeFileSync(outputPath, content, 'utf8');
+      if (writeIfChanged(path.join(outputDir, relativePath), content)) {
         stats.copied++;
-      }
-    }
-  }
-
-  function cleanStale(dir) {
-    if (!fs.existsSync(dir)) {
-      return;
-    }
-
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const relativePath = path
-        .relative(outputDir, fullPath)
-        .split(path.sep)
-        .join('/');
-      if (entry.isDirectory()) {
-        cleanStale(fullPath);
-        if (
-          fs.existsSync(fullPath) &&
-          fs.readdirSync(fullPath).length === 0
-        ) {
-          fs.rmdirSync(fullPath);
-        }
-      } else if (!keptOutputs.has(relativePath)) {
-        fs.unlinkSync(fullPath);
-        stats.removed++;
       }
     }
   }
@@ -181,7 +144,11 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName) {
   if (runtimeName) {
     keptOutputs.add(VERSION_JSON_FILENAME);
   }
-  cleanStale(outputDir);
+  stats.removed = pruneStaleFiles({
+    rootDir: outputDir,
+    manifestPaths: keptOutputs,
+    ownedDirs: [''],
+  }).pruned.length;
   return stats;
 }
 

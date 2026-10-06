@@ -3,6 +3,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
+const { writeIfChanged } = require('../lib/io');
 
 /**
  * @param {string} relativePath
@@ -52,18 +53,10 @@ function executeDiff(absOutputPath, content, displayPath) {
  * @param {string} displayPath
  */
 function executeDryRun(absOutputPath, content, displayPath) {
-  const exists = fs.existsSync(absOutputPath);
-  const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
-
-  let status;
-  if (!exists) {
-    status = 'CREATE';
-  } else if (current === content) {
-    status = 'UNCHANGED';
-  } else {
-    status = 'UPDATE';
+  let status = 'CREATE';
+  if (fs.existsSync(absOutputPath)) {
+    status = fs.readFileSync(absOutputPath, 'utf8') === content ? 'UNCHANGED' : 'UPDATE';
   }
-
   console.log(`[${status}] ${displayPath}`);
 }
 
@@ -73,16 +66,10 @@ function executeDryRun(absOutputPath, content, displayPath) {
  * @param {{ written: number, unchanged: number, errors: number }} stats
  */
 function executeWrite(absOutputPath, content, stats) {
-  fs.mkdirSync(path.dirname(absOutputPath), { recursive: true });
-
-  const exists = fs.existsSync(absOutputPath);
-  const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
-
-  if (current === content) {
-    stats.unchanged++;
-  } else {
-    fs.writeFileSync(absOutputPath, content, 'utf8');
+  if (writeIfChanged(absOutputPath, content)) {
     stats.written++;
+  } else {
+    stats.unchanged++;
   }
 }
 
@@ -97,13 +84,15 @@ function executeWrite(absOutputPath, content, stats) {
  * @typedef {Object} FileWriterStats
  * @property {number} written - Number of files written (new or changed)
  * @property {number} unchanged - Number of files skipped (content identical)
- * @property {number} errors - Number of files that failed to write
+ * @property {number} errors - Number of failed writes plus reported errors
  */
 
 /**
  * @typedef {Object} FileWriter
  * @property {(outputPath: string, content: string) => void} write
+ * @property {(outputs: Array<{ outputPath: string, content: string }>) => void} writeAll
  * @property {(outputPaths: string[]) => void} clean
+ * @property {(message: string, error?: Error) => void} reportError
  * @property {() => FileWriterStats} getStats
  */
 
@@ -139,6 +128,15 @@ function createFileWriter(opts) {
   }
 
   /**
+   * @param {Array<{ outputPath: string, content: string }>} outputs
+   */
+  function writeAll(outputs) {
+    for (const output of outputs) {
+      write(output.outputPath, output.content);
+    }
+  }
+
+  /**
    * @param {string[]} outputPaths - Relative paths from rootDir to delete
    */
   function clean(outputPaths) {
@@ -155,13 +153,25 @@ function createFileWriter(opts) {
   }
 
   /**
+   * Log a non-write failure and count it toward the error total.
+   * @param {string} message
+   * @param {Error} [error]
+   */
+  function reportError(message, error) {
+    const formatted =
+      error && error.message ? `${message}: ${error.message}` : message;
+    console.error(`ERROR: ${formatted}`);
+    stats.errors++;
+  }
+
+  /**
    * @returns {FileWriterStats}
    */
   function getStats() {
     return { written: stats.written, unchanged: stats.unchanged, errors: stats.errors };
   }
 
-  return { write, clean, getStats };
+  return { write, writeAll, clean, reportError, getStats };
 }
 
 module.exports = { createFileWriter, safeResolve };
