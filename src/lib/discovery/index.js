@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { readFileSafe, writeIfChanged } = require('../io');
+const { readFileSafe } = require('../io');
 
 /**
  * @typedef {Object} DiscoveryEntry
@@ -32,18 +32,8 @@ const { readFileSafe, writeIfChanged } = require('../io');
  * @returns {RegExp} Compiled regular expression
  */
 function patternToRegex(pattern) {
-  let regex = '';
-  for (let i = 0; i < pattern.length; i++) {
-    const char = pattern[i];
-    if (char === '*') {
-      regex += '[^/]*';
-    } else if ('.+?^${}()|[]\\'.includes(char)) {
-      regex += '\\' + char;
-    } else {
-      regex += char;
-    }
-  }
-  return new RegExp('^' + regex + '$');
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('^' + escaped.replace(/\*/g, '[^/]*') + '$');
 }
 
 /**
@@ -54,15 +44,10 @@ function patternToRegex(pattern) {
  * @returns {{ regex: RegExp, impliedRecursive: boolean }}
  */
 function parsePattern(pattern) {
-  if (pattern.startsWith('**/')) {
-    return {
-      regex: patternToRegex(pattern.slice(3)),
-      impliedRecursive: true,
-    };
-  }
+  const impliedRecursive = pattern.startsWith('**/');
   return {
-    regex: patternToRegex(pattern),
-    impliedRecursive: false,
+    regex: patternToRegex(impliedRecursive ? pattern.slice(3) : pattern),
+    impliedRecursive,
   };
 }
 
@@ -140,19 +125,6 @@ function discover({ dir, pattern, identity, metadata, validate, recursive = fals
 }
 
 /**
- * Serialize data as JSON and write it to a file, skipping the write when
- * the content has not changed.
- *
- * @param {*} data - Any JSON-serializable value
- * @param {string} outputPath - Absolute path to the output file
- * @returns {boolean} True if the file was written, false if content was identical
- */
-function generateRegistry(data, outputPath) {
-  const content = serializeRegistry(data);
-  return writeIfChanged(outputPath, content);
-}
-
-/**
  * Serialize registry data to stable, newline-terminated JSON.
  *
  * @param {*} data - Any JSON-serializable registry value
@@ -164,7 +136,6 @@ function serializeRegistry(data) {
 
 module.exports = {
   discover,
-  generateRegistry,
   serializeRegistry,
   patternToRegex,
   parsePattern,

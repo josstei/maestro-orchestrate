@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const {
   discover,
-  generateRegistry,
+  serializeRegistry,
   patternToRegex,
   parsePattern,
   collectFiles,
@@ -374,59 +374,25 @@ describe('discover', () => {
 });
 
 // ---------------------------------------------------------------------------
-// generateRegistry
+// serializeRegistry
 // ---------------------------------------------------------------------------
 
-describe('generateRegistry', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
-  it('writes JSON array with trailing newline', () => {
-    const outputPath = path.join(tempRoot, 'registry.json');
-    generateRegistry([{ id: 'a' }, { id: 'b' }], outputPath);
-    const content = fs.readFileSync(outputPath, 'utf8');
+describe('serializeRegistry', () => {
+  it('serializes a JSON array with trailing newline', () => {
+    const content = serializeRegistry([{ id: 'a' }, { id: 'b' }]);
     assert.ok(content.endsWith('\n'));
     assert.deepEqual(JSON.parse(content), [{ id: 'a' }, { id: 'b' }]);
   });
 
-  it('writes JSON object with trailing newline', () => {
-    const outputPath = path.join(tempRoot, 'hooks.json');
-    generateRegistry({ 'session-start': { module: 'm', fn: 'f' } }, outputPath);
-    const content = fs.readFileSync(outputPath, 'utf8');
+  it('serializes a JSON object with trailing newline', () => {
+    const content = serializeRegistry({ 'session-start': { module: 'm', fn: 'f' } });
+    assert.ok(content.endsWith('\n'));
     assert.deepEqual(JSON.parse(content), { 'session-start': { module: 'm', fn: 'f' } });
   });
 
   it('uses 2-space indentation', () => {
-    const outputPath = path.join(tempRoot, 'indent.json');
-    generateRegistry({ key: 'value' }, outputPath);
-    const content = fs.readFileSync(outputPath, 'utf8');
+    const content = serializeRegistry({ key: 'value' });
     assert.ok(content.includes('  "key"'));
-  });
-
-  it('returns true when file is new', () => {
-    const outputPath = path.join(tempRoot, 'new.json');
-    const result = generateRegistry([], outputPath);
-    assert.equal(result, true);
-  });
-
-  it('returns false when content is identical', () => {
-    const outputPath = path.join(tempRoot, 'same.json');
-    generateRegistry({ a: 1 }, outputPath);
-    const result = generateRegistry({ a: 1 }, outputPath);
-    assert.equal(result, false);
-  });
-
-  it('creates parent directories', () => {
-    const outputPath = path.join(tempRoot, 'deep', 'nested', 'registry.json');
-    generateRegistry([], outputPath);
-    assert.ok(fs.existsSync(outputPath));
   });
 });
 
@@ -435,10 +401,10 @@ describe('generateRegistry', () => {
 // ---------------------------------------------------------------------------
 
 describe('module exports', () => {
-  it('exports discover and generateRegistry as functions', () => {
+  it('exports discover and serializeRegistry as functions', () => {
     const mod = require('../../src/lib/discovery');
     assert.equal(typeof mod.discover, 'function');
-    assert.equal(typeof mod.generateRegistry, 'function');
+    assert.equal(typeof mod.serializeRegistry, 'function');
   });
 
   it('exports internal helpers for testing', () => {
