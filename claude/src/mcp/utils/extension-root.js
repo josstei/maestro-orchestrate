@@ -1,7 +1,7 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
-const { resolveCanonicalProjectRoot, resolveCanonicalSrcRoot } = require('../../core/canonical-source');
 
 function resolveExtensionRoot() {
   if (process.env.MAESTRO_EXTENSION_PATH) {
@@ -16,16 +16,26 @@ function resolveExtensionRoot() {
   return process.cwd();
 }
 
-function resolveRepoRoot() {
-  return resolveCanonicalProjectRoot(resolveExtensionRoot());
-}
-
+/**
+ * Walk up from the extension root to the first directory containing
+ * src/mcp/maestro-server.js and return its src/ path.
+ */
 function resolveCanonicalSrcFromExtensionRoot() {
-  return resolveCanonicalSrcRoot(resolveExtensionRoot());
+  const startDir = resolveExtensionRoot();
+  let current = path.resolve(startDir);
+
+  while (!fs.existsSync(path.join(current, 'src', 'mcp', 'maestro-server.js'))) {
+    const parent = path.dirname(current);
+    if (parent === current) {
+      throw new Error(`Unable to locate canonical src/ from "${startDir}"`);
+    }
+
+    current = parent;
+  }
+
+  return path.join(current, 'src');
 }
 
 module.exports = {
   resolveCanonicalSrcFromExtensionRoot,
-  resolveExtensionRoot,
-  resolveRepoRoot,
 };
