@@ -1,7 +1,7 @@
 'use strict';
 
 const { toSnakeCase } = require('../lib/naming');
-const { escapeYaml } = require('../lib/frontmatter');
+const { parse, escapeYaml } = require('../lib/frontmatter');
 const { emitBlockList } = require('../lib/yaml-emit');
 
 /**
@@ -101,21 +101,61 @@ function buildDescription(baseDescription, examples, runtime) {
 }
 
 /**
+ * Extract <example>...</example> blocks from body text.
+ * @param {string} body - Body text to extract examples from
+ * @returns {{ examples: string[], remaining: string }}
+ */
+function extractExamples(body) {
+  const examples = [];
+  const lines = body.split('\n');
+  const remainingLines = [];
+  let inExample = false;
+  let currentExample = [];
+
+  for (const line of lines) {
+    if (line.trim() === '<example>') {
+      inExample = true;
+      currentExample = ['<example>'];
+    } else if (line.trim() === '</example>') {
+      inExample = false;
+      currentExample.push('</example>');
+      examples.push(currentExample.join('\n'));
+      currentExample = [];
+    } else if (inExample) {
+      currentExample.push(line);
+    } else {
+      remainingLines.push(line);
+    }
+  }
+
+  if (inExample) {
+    throw new Error('Unclosed <example> tag in agent body');
+  }
+
+  let remaining = remainingLines.join('\n');
+  remaining = remaining.replace(/\n{3,}/g, '\n\n');
+  remaining = remaining.replace(/^\n{2,}/, '\n');
+
+  return { examples, remaining };
+}
+
+/**
  * Transform: rebuild-frontmatter
  *
- * Reads parsed frontmatter, body, and optional examples from the shared
- * pipeline state and produces the final output content with runtime-specific
- * frontmatter formatting.
+ * Parses the agent's YAML frontmatter, extracts `<example>` blocks from the
+ * body (Claude only; they are appended to the description), and produces the
+ * final output content with runtime-specific frontmatter formatting.
  *
- * @param {string} _content - Original content (unused; state drives output)
+ * @param {string} content  - Full agent file with --- delimited frontmatter
  * @param {object} runtime  - Runtime config (name, agentNaming, agentFrontmatter, tools)
- * @param {object} options  - Pipeline options with shared state
  * @returns {string} Final content with rebuilt frontmatter
  */
-function rebuildFrontmatterTransform(_content, runtime, options) {
-  const frontmatter = options.state.frontmatter || {};
-  const body = options.state.body != null ? options.state.body : '';
-  const examples = options.state.examples || [];
+function rebuildFrontmatterTransform(content, runtime) {
+  const { frontmatter, body: sourceBody } = parse(content);
+  const { examples, remaining: body } =
+    runtime.name === 'claude'
+      ? extractExamples(sourceBody)
+      : { examples: [], remaining: sourceBody };
   const fm = runtime.agentFrontmatter || {};
 
   const name =
@@ -135,9 +175,7 @@ function rebuildFrontmatterTransform(_content, runtime, options) {
   const fieldOrder = RUNTIME_FIELD_ORDER[runtime.name] || DEFAULT_FIELD_ORDER;
   const lines = ['---'];
   for (const fieldName of fieldOrder) {
-    const emit = FIELDS[fieldName];
-    if (!emit) continue;
-    lines.push(...emit(ctx));
+    lines.push(...FIELDS[fieldName](ctx));
   }
   lines.push('---');
 

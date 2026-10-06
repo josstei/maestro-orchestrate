@@ -52,10 +52,9 @@ function processManifestEntry(entry, runtimes, writer) {
 
     try {
       let content = sourceContent;
-      const state = {};
       for (const transformName of entry.transforms) {
-        const { fn, param } = resolveTransform(transformName);
-        content = fn(content, runtime, { src: entry.src, param, outputPath, state });
+        const fn = resolveTransform(transformName);
+        content = fn(content, runtime);
       }
       writer.write(outputPath, content);
     } catch (err) {

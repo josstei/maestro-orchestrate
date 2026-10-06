@@ -42,7 +42,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 ```javascript
 {
   src: 'agents/architect.md',           // Source file
-  transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],  // Transform pipeline
+  transforms: ['rebuild-frontmatter', 'agent-stub'],  // Transform pipeline
   runtimes: ['gemini', 'claude', 'qwen'],       // Target runtimes
 }
 ```
@@ -52,23 +52,20 @@ Or with glob patterns:
 ```javascript
 {
   glob: 'agents/*.md',
-  transforms: ['parse-frontmatter', 'extract-examples', 'rebuild-frontmatter', 'agent-stub'],
+  transforms: ['rebuild-frontmatter', 'agent-stub'],
   runtimes: ['gemini', 'claude', 'qwen'],
 }
 ```
 
 ### Transform Pipeline
 
-The generator exposes 6 transforms (in `src/transforms/`, excluding the `index.js` barrel). Current manifest entries use a subset depending on the target surface.
+The generator exposes 3 transforms (in `src/transforms/`, excluding the `index.js` barrel). Current manifest entries use a subset depending on the target surface.
 
 | Transform | Purpose |
 |-----------|---------|
-| `parse-frontmatter` | Parse YAML frontmatter from source and stash it in pipeline state |
-| `extract-examples` | Extract `<example>` blocks from agent bodies (Claude only) |
-| `rebuild-frontmatter` | Emit runtime-specific YAML frontmatter (tools, fields, kind) |
+| `rebuild-frontmatter` | Parse source YAML frontmatter, extract `<example>` blocks from agent bodies (Claude only), and emit runtime-specific YAML frontmatter (tools, fields, kind) |
 | `agent-stub` | Replace agent body with MCP delegation stub referencing `get_agent()` |
 | `skill-discovery-stub` | Replace shared skill body with MCP tool stub referencing `get_skill_content()` |
-| `skill-metadata` | Inject `user-invocable: false` into Claude skill frontmatter |
 
 ### Runtime Definitions
 
@@ -304,10 +301,10 @@ For detailed documentation of all seven GitHub Actions workflows, the release pi
 
 ### Test Suite
 
-84 test files using Node.js built-in `node:test`:
+83 test files using Node.js built-in `node:test`:
 
 - 51 unit test files (`tests/unit/`)
-- 13 transform test files (`tests/transforms/`)
+- 12 transform test files (`tests/transforms/`)
 - 20 integration test files (`tests/integration/`)
 
 The justfile's `just test` target uses glob expansion
