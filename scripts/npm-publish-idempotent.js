@@ -110,7 +110,7 @@ function highestStableVersion(versions) {
 
 function parseDistTagOutput(output) {
   const tags = {};
-  const text = Buffer.isBuffer(output) ? output.toString('utf8') : String(output || '');
+  const text = String(output || '');
 
   for (const line of text.split(/\r?\n/)) {
     const match = line.match(/^([^:\s]+):\s*(\S+)\s*$/);
@@ -123,8 +123,7 @@ function parseDistTagOutput(output) {
 }
 
 function parseVersionsOutput(output) {
-  const text = Buffer.isBuffer(output) ? output.toString('utf8') : String(output || '');
-  const trimmed = text.trim();
+  const trimmed = String(output || '').trim();
 
   if (!trimmed) {
     return [];
@@ -142,48 +141,15 @@ function parseVersionsOutput(output) {
   return [];
 }
 
-function packageVersionExists(packageSpec, runner) {
+function queryNpm(runner, args, parse, notFoundValue) {
   try {
-    const stdout = runner('npm', ['view', packageSpec, 'version'], {
+    return parse(runner('npm', args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return stdout.toString().trim().length > 0;
+    }));
   } catch (error) {
     if (isNpmNotFoundError(error)) {
-      return false;
-    }
-
-    throw error;
-  }
-}
-
-function getDistTags(packageName, runner) {
-  try {
-    const stdout = runner('npm', ['dist-tag', 'ls', packageName], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return parseDistTagOutput(stdout);
-  } catch (error) {
-    if (isNpmNotFoundError(error)) {
-      return {};
-    }
-
-    throw error;
-  }
-}
-
-function getPublishedVersions(packageName, runner) {
-  try {
-    const stdout = runner('npm', ['view', packageName, 'versions', '--json'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return parseVersionsOutput(stdout);
-  } catch (error) {
-    if (isNpmNotFoundError(error)) {
-      return [];
+      return notFoundValue;
     }
 
     throw error;
@@ -206,8 +172,21 @@ function validatePublishTag(pkg, tag) {
   }
 }
 
+function moveLatest(pkg, runner, logger, latest, target, reason) {
+  runner('npm', ['dist-tag', 'add', `${pkg.name}@${target}`, 'latest'], {
+    stdio: 'inherit',
+  });
+  logger.log(`Moved npm latest dist-tag from ${latest || '<unset>'} to stable ${target}.`);
+  return {
+    latest,
+    reason,
+    status: 'moved',
+    target,
+  };
+}
+
 function ensureLatestTagPolicy(pkg, runner, logger = console) {
-  const tags = getDistTags(pkg.name, runner);
+  const tags = queryNpm(runner, ['dist-tag', 'ls', pkg.name], parseDistTagOutput, {});
   const latest = tags.latest || null;
 
   if (isPrereleaseVersion(pkg.version)) {
@@ -222,18 +201,12 @@ function ensureLatestTagPolicy(pkg, runner, logger = console) {
       };
     }
 
-    const stableVersion = highestStableVersion(getPublishedVersions(pkg.name, runner));
+    const stableVersion = highestStableVersion(
+      queryNpm(runner, ['view', pkg.name, 'versions', '--json'], parseVersionsOutput, [])
+    );
     if (stableVersion) {
-      runner('npm', ['dist-tag', 'add', `${pkg.name}@${stableVersion}`, 'latest'], {
-        stdio: 'inherit',
-      });
-      logger.log(`Moved npm latest dist-tag from ${latest} to stable ${stableVersion}.`);
-      return {
-        latest,
-        reason: `latest pointed to prerelease ${latest}; moved it back to stable ${stableVersion}.`,
-        status: 'moved',
-        target: stableVersion,
-      };
+      const reason = `latest pointed to prerelease ${latest}; moved it back to stable ${stableVersion}.`;
+      return moveLatest(pkg, runner, logger, latest, stableVersion, reason);
     }
 
     const reason = `latest points to prerelease ${latest}, but no stable versions are published; stable release must move latest.`;
@@ -247,16 +220,8 @@ function ensureLatestTagPolicy(pkg, runner, logger = console) {
   }
 
   if (latest !== pkg.version) {
-    runner('npm', ['dist-tag', 'add', `${pkg.name}@${pkg.version}`, 'latest'], {
-      stdio: 'inherit',
-    });
-    logger.log(`Moved npm latest dist-tag from ${latest || '<unset>'} to stable ${pkg.version}.`);
-    return {
-      latest,
-      reason: `latest pointed to ${latest || '<unset>'}; moved it to stable ${pkg.version}.`,
-      status: 'moved',
-      target: pkg.version,
-    };
+    const reason = `latest pointed to ${latest || '<unset>'}; moved it to stable ${pkg.version}.`;
+    return moveLatest(pkg, runner, logger, latest, pkg.version, reason);
   }
 
   return {
@@ -275,32 +240,30 @@ function publishIfNeeded(options = {}) {
   const packageSpec = `${pkg.name}@${pkg.version}`;
   validatePublishTag(pkg, options.tag);
 
-  if (packageVersionExists(packageSpec, runner)) {
-    const latestPolicy = ensureLatestTagPolicy(pkg, runner, logger);
-    return {
-      latestPolicy,
-      packageSpec,
-      published: false,
-    };
+  const alreadyPublished = queryNpm(
+    runner,
+    ['view', packageSpec, 'version'],
+    (stdout) => stdout.toString().trim().length > 0,
+    false
+  );
+
+  if (!alreadyPublished) {
+    const publishArgs = ['publish'];
+    if (options.tag) {
+      publishArgs.push('--tag', options.tag);
+    }
+    publishArgs.push('--access', options.access || 'public');
+
+    runner('npm', publishArgs, {
+      cwd: root,
+      stdio: 'inherit',
+    });
   }
-
-  const publishArgs = ['publish'];
-  if (options.tag) {
-    publishArgs.push('--tag', options.tag);
-  }
-  publishArgs.push('--access', options.access || 'public');
-
-  runner('npm', publishArgs, {
-    cwd: root,
-    stdio: 'inherit',
-  });
-
-  const latestPolicy = ensureLatestTagPolicy(pkg, runner, logger);
 
   return {
-    latestPolicy,
+    latestPolicy: ensureLatestTagPolicy(pkg, runner, logger),
     packageSpec,
-    published: true,
+    published: !alreadyPublished,
   };
 }
 
@@ -321,18 +284,9 @@ if (require.main === module) {
 }
 
 module.exports = {
-  ensureLatestTagPolicy,
-  getDistTags,
-  getPublishedVersions,
   highestStableVersion,
   isNpmNotFoundError,
-  isPrereleaseVersion,
-  isStableVersion,
-  packageVersionExists,
   parseDistTagOutput,
   parseArgs,
-  parseVersionsOutput,
   publishIfNeeded,
-  readPackage,
-  validatePublishTag,
 };
