@@ -17,7 +17,6 @@ const state = require('../../state/session-state');
  * @param {string} ctx.sessionId
  * @param {string} ctx.cwd
  * @param {string|null} ctx.agentInput  - the agent prompt text
- * @param {string} [ctx.event]          - hook event name (used in context message)
  * @returns {{ action: string, message: string|null, reason: null }}
  */
 function handleBeforeAgent(ctx) {

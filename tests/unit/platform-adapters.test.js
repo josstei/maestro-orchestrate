@@ -8,7 +8,7 @@ const qwenAdapter = require('../../src/platforms/shared/adapters/qwen-adapter');
 
 describe('claude-adapter', () => {
   describe('normalizeInput', () => {
-    it('maps session_id, cwd, and hook_event_name', () => {
+    it('maps session_id and cwd', () => {
       const raw = {
         session_id: 'abc-123',
         cwd: '/home/user/project',
@@ -19,7 +19,6 @@ describe('claude-adapter', () => {
 
       assert.equal(result.sessionId, 'abc-123');
       assert.equal(result.cwd, '/home/user/project');
-      assert.equal(result.event, 'PreToolUse');
     });
 
     it('maps tool_input.subagent_type to agentName and tool_input.prompt to agentInput', () => {
@@ -57,7 +56,6 @@ describe('claude-adapter', () => {
 
       assert.equal(result.sessionId, '');
       assert.equal(result.cwd, '');
-      assert.equal(result.event, '');
       assert.equal(result.agentName, null);
       assert.equal(result.agentInput, null);
       assert.equal(result.agentResult, null);
@@ -113,7 +111,7 @@ describe('claude-adapter', () => {
 
 describe('gemini-adapter', () => {
   describe('normalizeInput', () => {
-    it('maps session_id, cwd, and hook_event_name', () => {
+    it('maps session_id and cwd', () => {
       const raw = {
         session_id: 'xyz-789',
         cwd: '/workspace/app',
@@ -124,7 +122,6 @@ describe('gemini-adapter', () => {
 
       assert.equal(result.sessionId, 'xyz-789');
       assert.equal(result.cwd, '/workspace/app');
-      assert.equal(result.event, 'BeforeAgent');
     });
 
     it('maps prompt to agentInput and prompt_response to agentResult', () => {
@@ -201,7 +198,7 @@ describe('gemini-adapter', () => {
 
 describe('qwen-adapter', () => {
   describe('normalizeInput', () => {
-    it('maps session_id, cwd, and hook_event_name', () => {
+    it('maps session_id and cwd', () => {
       const raw = {
         session_id: 'qwen-123',
         cwd: '/workspace/app',
@@ -212,7 +209,6 @@ describe('qwen-adapter', () => {
 
       assert.equal(result.sessionId, 'qwen-123');
       assert.equal(result.cwd, '/workspace/app');
-      assert.equal(result.event, 'SubagentStart');
     });
 
     it('maps agent_type to agentName and leaves agentInput null for SubagentStart', () => {
