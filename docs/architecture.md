@@ -108,7 +108,7 @@ src/mcp/
 │   ├── create-server.js        # Server factory + error sanitization
 │   ├── tool-registry.js        # Tool schema/handler composition
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 11 handler implementations
+├── handlers/                   # 10 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
 │   ├── get-skill-content.js    # Skill/template/reference serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -116,7 +116,6 @@ src/mcp/
 │   ├── assess-task-complexity.js # Repo analysis signals
 │   ├── validate-plan.js        # Plan validation + dependency DAG
 │   ├── resolve-settings.js     # Config resolution
-│   ├── session-state-core.js   # Session-state transaction helpers
 │   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   └── reconciliation.js       # Phase reconciliation (2 tools)

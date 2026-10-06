@@ -22,16 +22,13 @@ const {
   removeDesignGate,
 } = require('./design-gate');
 const {
-  resolveBasePath,
-  resolveActiveSessionPath,
-  parseSessionState,
-  serializeSessionState,
-  extractBody,
+  resolveStateDirPath,
   readActiveSession,
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
-} = require('./session-state-core');
+  assertSessionMatch,
+} = require('../../state/session-state');
 
 /**
  * Materialize a session document (design or plan) into `<state_dir>/plans/`.
@@ -183,16 +180,12 @@ function handleCreateSession(params, projectRoot) {
     });
   }
 
-  const basePath = resolveBasePath(projectRoot);
-  const sessionPath = resolveActiveSessionPath(basePath);
-
-  if (fs.existsSync(sessionPath)) {
-    const existing = parseSessionState(fs.readFileSync(sessionPath, 'utf8'));
-    if (existing.status === 'in_progress') {
-      throw new StateError(
-        `Active session '${existing.session_id}' already exists (status: in_progress). Archive it first with archive_session.`
-      );
-    }
+  const basePath = resolveStateDirPath(projectRoot);
+  const existing = readActiveSessionOrNull(projectRoot);
+  if (existing && existing.state.status === 'in_progress') {
+    throw new StateError(
+      `Active session '${existing.state.session_id}' already exists (status: in_progress). Archive it first with archive_session.`
+    );
   }
 
   const designDocumentCandidate =
@@ -250,7 +243,11 @@ function handleCreateSession(params, projectRoot) {
     state.phases[0].started = now;
   }
 
-  writeActiveSession(basePath, state, `# ${params.task} Orchestration Log\n`);
+  const sessionPath = writeActiveSession(
+    basePath,
+    state,
+    `# ${params.task} Orchestration Log\n`
+  );
 
   return {
     success: true,
@@ -310,11 +307,7 @@ function handleTransitionPhase(params, projectRoot) {
   }
 
   return withSessionState(projectRoot, ({ state }) => {
-    if (params.session_id && state.session_id !== params.session_id) {
-      throw new StateError(
-        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-      );
-    }
+    assertSessionMatch(state, params.session_id);
 
     let completedPhase;
     if (hasCompletedPhase) {
@@ -436,21 +429,15 @@ function handleTransitionPhase(params, projectRoot) {
       response.started_phase_ids = startedPhaseIds;
     }
 
-    return { response, writeBack: true };
+    return response;
   });
 }
 
 function handleArchiveSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  const session = readActiveSession(projectRoot);
-  const { state, basePath, sessionPath, content } = session;
-
-  if (state.session_id !== params.session_id) {
-    throw new StateError(
-      `Session mismatch: active session is '${state.session_id}', requested '${params.session_id}'`
-    );
-  }
+  const { state, basePath, sessionPath, body } = readActiveSession(projectRoot);
+  assertSessionMatch(state, params.session_id, 'requested');
 
   const pendingRec = (state.phases || []).find(
     (phase) => phase.requires_reconciliation === true
@@ -464,7 +451,7 @@ function handleArchiveSession(params, projectRoot) {
 
   state.status = 'completed';
   state.updated = new Date().toISOString();
-  writeActiveSession(basePath, state, extractBody(content));
+  writeActiveSession(basePath, state, body);
 
   const archivePath = path.join(
     basePath,
@@ -518,11 +505,7 @@ function handleUpdateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
   return withSessionState(projectRoot, ({ state }) => {
-    if (state.session_id !== params.session_id) {
-      throw new StateError(
-        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-      );
-    }
+    assertSessionMatch(state, params.session_id);
 
     const updatableFields = [
       'execution_mode',
@@ -546,10 +529,7 @@ function handleUpdateSession(params, projectRoot) {
 
     state.updated = new Date().toISOString();
 
-    return {
-      response: { success: true, updated_fields: updatedFields },
-      writeBack: true,
-    };
+    return { success: true, updated_fields: updatedFields };
   });
 }
 

@@ -5,7 +5,11 @@ const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
-const { readActiveSession, withSessionState } = require('./session-state-core');
+const {
+  readActiveSession,
+  withSessionState,
+  assertSessionMatch,
+} = require('../../state/session-state');
 const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
@@ -123,12 +127,7 @@ function handleScanPhaseChanges(params, projectRoot) {
     );
   }
   const { state } = readActiveSession(projectRoot);
-
-  if (state.session_id !== params.session_id) {
-    throw new StateError(
-      `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-    );
-  }
+  assertSessionMatch(state, params.session_id);
 
   const phase = (state.phases || []).find((p) => p.id === params.phase_id);
   if (!phase) {
@@ -182,11 +181,7 @@ function handleReconcilePhase(params, projectRoot) {
   }
 
   return withSessionState(projectRoot, ({ state }) => {
-    if (state.session_id !== params.session_id) {
-      throw new StateError(
-        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-      );
-    }
+    assertSessionMatch(state, params.session_id);
 
     const phase = (state.phases || []).find((p) => p.id === params.phase_id);
     if (!phase) {
@@ -210,13 +205,10 @@ function handleReconcilePhase(params, projectRoot) {
     }
     state.updated = new Date().toISOString();
     return {
-      response: {
-        success: true,
-        phase_id: phase.id,
-        files_created: phase.files_created,
-        files_modified: phase.files_modified,
-      },
-      writeBack: true,
+      success: true,
+      phase_id: phase.id,
+      files_created: phase.files_created,
+      files_modified: phase.files_modified,
     };
   });
 }
