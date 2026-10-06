@@ -3,7 +3,6 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { toSnakeCase } = require('../lib/naming');
-const { patternToRegex } = require('../lib/discovery');
 
 const FORBIDDEN_OUTPUTS = [
   'mcp/maestro-server-core.js',
@@ -41,7 +40,9 @@ function expandGlob(pattern, srcDir) {
         }
       }
     } else {
-      const re = patternToRegex(segment);
+      const re = new RegExp(
+        '^' + segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*') + '$'
+      );
 
       let entries;
       try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }

@@ -162,7 +162,14 @@ function stampVersion(payloadDirs, version) {
   const versionContent = JSON.stringify({ version }, null, 2) + '\n';
 
   for (const payloadDir of payloadDirs) {
-    writeIfChanged(path.join(payloadDir, VERSION_JSON_FILENAME), versionContent);
+    const versionPath = path.join(payloadDir, VERSION_JSON_FILENAME);
+    const existingContent = fs.existsSync(versionPath)
+      ? fs.readFileSync(versionPath, 'utf8')
+      : null;
+
+    if (existingContent !== versionContent) {
+      fs.writeFileSync(versionPath, versionContent, 'utf8');
+    }
   }
 }
 
