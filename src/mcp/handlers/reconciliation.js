@@ -5,7 +5,12 @@ const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
-const { readActiveSession, withSessionState } = require('./session-state-core');
+const {
+  DEFAULT_STATE_DIR,
+  readActiveSession,
+  withSessionState,
+  assertSessionMatch,
+} = require('../../state/session-state');
 const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
@@ -19,14 +24,14 @@ const DEFAULT_IGNORE_DIRS = new Set([
   '.worktrees',
   '.claude',
 ]);
-const DOCS_MAESTRO = path.join('docs', 'maestro');
+// path.join normalizes the separator so it compares equal to walk() relPaths.
+const DOCS_MAESTRO = path.join(DEFAULT_STATE_DIR);
 
 /**
- * @param {NodeJS.ProcessEnv} env
  * @returns {string[]}
  */
-function parseIgnoreEnv(env = process.env) {
-  const raw = env.MAESTRO_SCAN_IGNORE;
+function parseIgnoreEnv() {
+  const raw = process.env.MAESTRO_SCAN_IGNORE;
   if (!raw) return [];
   return raw
     .split(':')
@@ -51,11 +56,11 @@ function shouldSkipDir(relPath, name) {
  * @param {string} startedAt
  * @param {number} maxFiles
  * @param {string[]} extraIgnore
- * @returns {{ created: string[], modified: string[], ignored: Array<{path: string, reason: string}>, truncated: boolean }}
+ * @returns {{ created: string[], modified: string[], ignoredCount: number, truncated: boolean }}
  */
 function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
   const startedMs = Date.parse(startedAt);
-  const ignored = [];
+  let ignoredCount = 0;
   const created = [];
   const modified = [];
   let truncated = false;
@@ -81,7 +86,7 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
       const relPath = relDir ? path.join(relDir, entry.name) : entry.name;
       if (entry.isDirectory()) {
         if (shouldSkipDir(relPath, entry.name) || extraIgnore.some((i) => relPath.startsWith(i))) {
-          ignored.push({ path: relPath, reason: 'ignored directory' });
+          ignoredCount += 1;
           continue;
         }
         walk(absPath, relPath);
@@ -108,7 +113,20 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
   }
 
   walk(workspace, '');
-  return { created, modified, ignored, truncated };
+  return { created, modified, ignoredCount, truncated };
+}
+
+/**
+ * @param {{ session_id: string, phase_id: number | string }} params
+ * @throws {ValidationError} when session_id or phase_id is malformed
+ */
+function assertPhaseRequest(params) {
+  assertSessionId(params.session_id);
+  if (!isValidPhaseId(params.phase_id)) {
+    throw new ValidationError(
+      'phase_id must be a positive integer or a non-empty string'
+    );
+  }
 }
 
 /**
@@ -116,19 +134,9 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
  * @param {string} projectRoot
  */
 function handleScanPhaseChanges(params, projectRoot) {
-  assertSessionId(params.session_id);
-  if (!isValidPhaseId(params.phase_id)) {
-    throw new ValidationError(
-      'phase_id must be a positive integer or a non-empty string'
-    );
-  }
+  assertPhaseRequest(params);
   const { state } = readActiveSession(projectRoot);
-
-  if (state.session_id !== params.session_id) {
-    throw new StateError(
-      `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-    );
-  }
+  assertSessionMatch(state, params.session_id);
 
   const phase = (state.phases || []).find((p) => p.id === params.phase_id);
   if (!phase) {
@@ -148,7 +156,7 @@ function handleScanPhaseChanges(params, projectRoot) {
     started_at: phase.started,
     scanned_at: new Date().toISOString(),
     candidates: { created: result.created.sort(), modified: result.modified.sort() },
-    ignored_count: result.ignored.length,
+    ignored_count: result.ignoredCount,
     truncated: result.truncated,
     max_files: maxFiles,
   };
@@ -159,12 +167,7 @@ function handleScanPhaseChanges(params, projectRoot) {
  * @param {string} projectRoot
  */
 function handleReconcilePhase(params, projectRoot) {
-  assertSessionId(params.session_id);
-  if (!isValidPhaseId(params.phase_id)) {
-    throw new ValidationError(
-      'phase_id must be a positive integer or a non-empty string'
-    );
-  }
+  assertPhaseRequest(params);
 
   const filesCreated = Array.isArray(params.files_created) ? params.files_created : [];
   const filesModified = Array.isArray(params.files_modified) ? params.files_modified : [];
@@ -182,11 +185,7 @@ function handleReconcilePhase(params, projectRoot) {
   }
 
   return withSessionState(projectRoot, ({ state }) => {
-    if (state.session_id !== params.session_id) {
-      throw new StateError(
-        `Session mismatch: active session is '${state.session_id}', got '${params.session_id}'`
-      );
-    }
+    assertSessionMatch(state, params.session_id);
 
     const phase = (state.phases || []).find((p) => p.id === params.phase_id);
     if (!phase) {
@@ -210,13 +209,10 @@ function handleReconcilePhase(params, projectRoot) {
     }
     state.updated = new Date().toISOString();
     return {
-      response: {
-        success: true,
-        phase_id: phase.id,
-        files_created: phase.files_created,
-        files_modified: phase.files_modified,
-      },
-      writeBack: true,
+      success: true,
+      phase_id: phase.id,
+      files_created: phase.files_created,
+      files_modified: phase.files_modified,
     };
   });
 }

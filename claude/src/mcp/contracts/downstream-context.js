@@ -24,35 +24,18 @@ const CANONICAL_FIELDS = Object.freeze([
 
 const EMPTY_VALUE_TOKENS = new Set(['', 'none', 'n/a', 'not applicable']);
 
-function isEmptyValueToken(value) {
-  return EMPTY_VALUE_TOKENS.has(String(value).trim().toLowerCase());
-}
-
 function normalizeFieldValue(value) {
-  if (value == null) return [];
-  if (Array.isArray(value)) {
-    return value
-      .filter((item) => typeof item === 'string')
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0 && !isEmptyValueToken(item));
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed.length === 0 || isEmptyValueToken(trimmed)) return [];
-    return [trimmed];
-  }
-  return [];
+  return (Array.isArray(value) ? value : [value])
+    .filter((item) => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => !EMPTY_VALUE_TOKENS.has(item.toLowerCase()));
 }
 
 /**
  * @returns {Object<string, string[]>} a fresh empty canonical context.
  */
 function createEmptyDownstreamContext() {
-  const empty = {};
-  for (const field of CANONICAL_FIELDS) {
-    empty[field] = [];
-  }
-  return empty;
+  return normalizeDownstreamContext(null);
 }
 
 /**
@@ -63,14 +46,11 @@ function createEmptyDownstreamContext() {
  * @returns {Object<string, string[]>}
  */
 function normalizeDownstreamContext(input) {
-  const normalized = createEmptyDownstreamContext();
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    return normalized;
-  }
-  for (const field of CANONICAL_FIELDS) {
-    normalized[field] = normalizeFieldValue(input[field]);
-  }
-  return normalized;
+  const source =
+    input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  return Object.fromEntries(
+    CANONICAL_FIELDS.map((field) => [field, normalizeFieldValue(source[field])])
+  );
 }
 
 /**

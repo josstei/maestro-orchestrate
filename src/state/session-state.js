@@ -3,8 +3,12 @@
 const fs = require('fs');
 const path = require('path');
 const { atomicWriteSync } = require('../lib/io');
+const { StateError } = require('../lib/errors');
+const markdownState = require('../core/markdown-state');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
+const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
+const WORKSPACE_SUBDIRS = Object.freeze(['state', 'state/archive', 'plans', 'plans/archive']);
 
 function validateRelativePath(filePath) {
   if (path.isAbsolute(filePath)) {
@@ -41,7 +45,7 @@ function resolveStateDirPath(cwd, stateDirOverride) {
 }
 
 function resolveActiveSessionPath(cwd) {
-  return path.join(resolveStateDirPath(cwd), 'state', 'active-session.md');
+  return path.join(resolveStateDirPath(cwd), ACTIVE_SESSION_REL);
 }
 
 function hasActiveSession(cwd) {
@@ -65,25 +69,61 @@ function writeState(relativePath, content, basePath) {
   atomicWriteSync(fullPath, content);
 }
 
+function readSessionAt(basePath) {
+  const { data, body } = markdownState.parse(readState(ACTIVE_SESSION_REL, basePath));
+  return {
+    basePath,
+    sessionPath: path.join(basePath, ACTIVE_SESSION_REL),
+    state: data,
+    body,
+  };
+}
+
+function readActiveSession(cwd) {
+  return readSessionAt(resolveStateDirPath(cwd));
+}
+
+function readActiveSessionOrNull(cwd) {
+  const basePath = resolveStateDirPath(cwd);
+  if (!fs.existsSync(path.join(basePath, ACTIVE_SESSION_REL))) {
+    return null;
+  }
+  return readSessionAt(basePath);
+}
+
+function writeActiveSession(basePath, state, body) {
+  writeState(ACTIVE_SESSION_REL, markdownState.serialize(state, body), basePath);
+  return path.join(basePath, ACTIVE_SESSION_REL);
+}
+
+/**
+ * Read the active session, run `mutator` against it (mutating `session.state`
+ * in place), persist the state with the original body, and return whatever
+ * the mutator returned. A throwing mutator leaves the session file untouched.
+ */
+function withSessionState(cwd, mutator) {
+  const session = readActiveSession(cwd);
+  const result = mutator(session);
+  writeActiveSession(session.basePath, session.state, session.body);
+  return result;
+}
+
+function assertSessionMatch(state, sessionId, verb = 'got') {
+  if (sessionId && state.session_id !== sessionId) {
+    throw new StateError(
+      `Session mismatch: active session is '${state.session_id}', ${verb} '${sessionId}'`
+    );
+  }
+}
+
 function ensureWorkspace(stateDir, basePath) {
-  const fullBase = path.isAbsolute(stateDir)
-    ? validateContainment(stateDir, basePath)
-    : (() => {
-        validateRelativePath(stateDir);
-        return path.join(basePath, stateDir);
-      })();
+  const fullBase = resolveStateDirPath(basePath, stateDir);
   fs.mkdirSync(fullBase, { recursive: true, mode: 0o700 });
   const stats = fs.lstatSync(fullBase);
   if (stats.isSymbolicLink()) {
     throw new Error('STATE_DIR must not be a symlink');
   }
-  const dirs = [
-    path.join(fullBase, 'state'),
-    path.join(fullBase, 'state', 'archive'),
-    path.join(fullBase, 'plans'),
-    path.join(fullBase, 'plans', 'archive'),
-  ];
-  for (const dir of dirs) {
+  for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
     try {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     } catch {
@@ -103,11 +143,17 @@ function ensureWorkspace(stateDir, basePath) {
 
 module.exports = {
   DEFAULT_STATE_DIR,
+  WORKSPACE_SUBDIRS,
   validateContainment,
   resolveStateDirPath,
   resolveActiveSessionPath,
   hasActiveSession,
   readState,
   writeState,
+  readActiveSession,
+  readActiveSessionOrNull,
+  writeActiveSession,
+  withSessionState,
+  assertSessionMatch,
   ensureWorkspace,
 };

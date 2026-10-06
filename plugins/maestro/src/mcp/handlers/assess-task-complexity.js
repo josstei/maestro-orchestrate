@@ -4,6 +4,16 @@ const fs = require('fs');
 const path = require('path');
 
 const { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } = require('../../lib/framework-detection');
+const { readJsonSafe } = require('../../lib/io');
+
+// First band whose `max` is >= the file count wins.
+const SIZE_BANDS = [
+  { max: 0, size: 'empty', loc: 'low' },
+  { max: 20, size: 'small', loc: 'low' },
+  { max: 200, size: 'medium', loc: 'moderate' },
+  { max: Infinity, size: 'large', loc: 'high' },
+];
+const TEST_DIRS = ['tests', '__tests__', 'test'];
 
 function countFiles(directory, depth, depthLimit) {
   if (depth > depthLimit) {
@@ -42,42 +52,21 @@ function countFiles(directory, depth, depthLimit) {
 }
 
 function detectFrameworks(directory) {
-  const packagePath = path.join(directory, 'package.json');
-  if (!fs.existsSync(packagePath)) {
+  const pkg = readJsonSafe(path.join(directory, 'package.json'));
+  if (!pkg) {
     return [];
   }
 
-  try {
-    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-    const allDependencies = {
-      ...pkg.dependencies,
-      ...pkg.devDependencies,
-    };
+  const allDependencies = {
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+  };
 
-    return Object.entries(FRAMEWORK_INDICATORS)
-      .filter(([, indicators]) =>
-        indicators.some((indicator) => indicator in allDependencies)
-      )
-      .map(([name]) => name);
-  } catch {
-    return [];
-  }
-}
-
-function estimateSize(fileCount) {
-  if (fileCount === 0) {
-    return 'empty';
-  }
-
-  if (fileCount <= 20) {
-    return 'small';
-  }
-
-  if (fileCount <= 200) {
-    return 'medium';
-  }
-
-  return 'large';
+  return Object.entries(FRAMEWORK_INDICATORS)
+    .filter(([, indicators]) =>
+      indicators.some((indicator) => indicator in allDependencies)
+    )
+    .map(([name]) => name);
 }
 
 function handleAssessTaskComplexity(_params, projectRoot) {
@@ -85,6 +74,7 @@ function handleAssessTaskComplexity(_params, projectRoot) {
   const configFiles = CONFIG_FILES.filter((file) =>
     fs.existsSync(path.join(projectRoot, file))
   );
+  const sizeBand = SIZE_BANDS.find((band) => fileCount <= band.max);
 
   return {
     file_count: fileCount,
@@ -92,14 +82,12 @@ function handleAssessTaskComplexity(_params, projectRoot) {
     has_package_json: fs.existsSync(path.join(projectRoot, 'package.json')),
     has_config_files: configFiles,
     frameworks_detected: detectFrameworks(projectRoot),
-    existing_test_infrastructure:
-      fs.existsSync(path.join(projectRoot, 'tests')) ||
-      fs.existsSync(path.join(projectRoot, '__tests__')) ||
-      fs.existsSync(path.join(projectRoot, 'test')),
-    lines_of_code_estimate:
-      fileCount <= 20 ? 'low' : fileCount <= 200 ? 'moderate' : 'high',
+    existing_test_infrastructure: TEST_DIRS.some((dir) =>
+      fs.existsSync(path.join(projectRoot, dir))
+    ),
+    lines_of_code_estimate: sizeBand.loc,
     repo_is_empty: fileCount === 0,
-    repo_size_estimate: estimateSize(fileCount),
+    repo_size_estimate: sizeBand.size,
   };
 }
 

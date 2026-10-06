@@ -16,7 +16,7 @@ const {
 const {
   listApprovedGates,
   findOrphanedApprovedGates,
-  hasDesignGate,
+  readGate,
 } = require('../../src/mcp/handlers/design-gate');
 
 function makeWorkspace() {
@@ -498,15 +498,15 @@ describe('design gate tools', () => {
     );
   });
 
-  it('hasDesignGate reflects whether an entered-or-approved gate artifact exists for a session', async () => {
+  it('readGate reflects whether an entered-or-approved gate artifact exists for a session', async () => {
     const workspace = makeWorkspace();
     const server = buildServer();
     await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
 
-    assert.equal(hasDesignGate(workspace, 'never-entered'), false);
+    assert.equal(readGate(workspace, 'never-entered'), null);
 
     await server.callTool('enter_design_gate', { session_id: 'just-entered' }, workspace);
-    assert.equal(hasDesignGate(workspace, 'just-entered'), true);
+    assert.notEqual(readGate(workspace, 'just-entered'), null);
 
     await server.callTool(
       'record_design_approval',
@@ -517,7 +517,7 @@ describe('design gate tools', () => {
       },
       workspace
     );
-    assert.equal(hasDesignGate(workspace, 'just-entered'), true);
+    assert.notEqual(readGate(workspace, 'just-entered'), null);
   });
 
   it('create_session with mismatched session_id and an unapproved (entered-only) orphan gate does not fire the mismatch check', async () => {

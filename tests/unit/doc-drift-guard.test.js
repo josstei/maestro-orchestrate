@@ -269,7 +269,8 @@ test('doc-drift: runtime docs use generated-version placeholders', () => {
 test('doc-drift: docs/architecture.md module tree shows correct handler + session tool counts', () => {
   const body = read('docs/architecture.md');
   assert.ok(!body.includes('# 8 handler implementations'), 'docs/architecture.md: still says 8 handler implementations');
-  assert.ok(body.includes('# 12 handler implementations'), 'docs/architecture.md: does not report 12 handlers');
+  assert.ok(!body.includes('# 12 handler implementations'), 'docs/architecture.md: still says 12 handler implementations');
+  assert.ok(body.includes('# 10 handler implementations'), 'docs/architecture.md: does not report 10 handlers');
   assert.ok(!body.includes('session/index.js        # 5 tools'), 'docs/architecture.md: still says session pack has 5 tools');
   assert.ok(body.includes('session/index.js        # 10 tools'), 'docs/architecture.md: does not report 10 session tools');
 });

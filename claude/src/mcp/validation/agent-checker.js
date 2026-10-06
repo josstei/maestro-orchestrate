@@ -43,25 +43,23 @@ function checkAgentCapabilities(phases) {
       continue;
     }
 
-    const touchesFiles =
-      (Array.isArray(phase.files) && phase.files.length > 0) ||
-      (Array.isArray(phase.files_created) && phase.files_created.length > 0) ||
-      (Array.isArray(phase.files_modified) && phase.files_modified.length > 0);
+    const capability = getAgentCapability(normalizedAgent);
+    const touchesFiles = ['files', 'files_created', 'files_modified'].some(
+      (field) => Array.isArray(phase[field]) && phase[field].length > 0
+    );
 
     if (touchesFiles && !canCreateFiles(normalizedAgent)) {
       violations.push({
         rule: 'agent_capability_mismatch',
-        detail: `Phase ${phase.id}: agent '${phase.agent}' (${getAgentCapability(
-          normalizedAgent
-        )}) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.`,
+        detail: `Phase ${phase.id}: agent '${phase.agent}' (${capability}) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.`,
         severity: 'error',
       });
       continue;
     }
 
+    // File-touching phases only reach here with write-capable (never read_only) agents.
     if (
-      !touchesFiles &&
-      getAgentCapability(normalizedAgent) === 'read_only' &&
+      capability === 'read_only' &&
       phase.name &&
       CREATION_SIGNAL_PATTERNS.test(phase.name)
     ) {
