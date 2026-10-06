@@ -1,16 +1,9 @@
 'use strict';
 
 const { resolveSetting } = require('../../config/setting-resolver');
+const { MAESTRO_SETTINGS } = require('../../config/settings-catalog');
 
-const KNOWN_SETTINGS = [
-  'MAESTRO_DISABLED_AGENTS',
-  'MAESTRO_MAX_RETRIES',
-  'MAESTRO_AUTO_ARCHIVE',
-  'MAESTRO_VALIDATION_STRICTNESS',
-  'MAESTRO_STATE_DIR',
-  'MAESTRO_MAX_CONCURRENT',
-  'MAESTRO_EXECUTION_MODE',
-];
+const KNOWN_SETTINGS = MAESTRO_SETTINGS.map((setting) => setting.envVar);
 
 function handleResolveSettings(params, projectRoot) {
   const requested =
@@ -34,6 +27,5 @@ function handleResolveSettings(params, projectRoot) {
 }
 
 module.exports = {
-  KNOWN_SETTINGS,
   handleResolveSettings,
 };
