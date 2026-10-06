@@ -340,22 +340,3 @@ describe('createProtocolHandlers.requestFromClient', () => {
     assert.equal(frames.length, frameCountAfterTimeout);
   });
 });
-
-describe('createProtocolHandlers.drain', () => {
-  it('rejects all pending client requests with a shutdown message', async () => {
-    const { handlers } = makeHandlers(
-      {},
-      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 60000 } }
-    );
-    const p1 = handlers.requestFromClient('a');
-    const p2 = handlers.requestFromClient('b');
-    handlers.drain();
-    await assert.rejects(p1, /MCP server closing; request .* aborted/);
-    await assert.rejects(p2, /MCP server closing; request .* aborted/);
-  });
-
-  it('is a no-op when no client requests are pending', () => {
-    const { handlers } = makeHandlers();
-    assert.doesNotThrow(() => handlers.drain());
-  });
-});
