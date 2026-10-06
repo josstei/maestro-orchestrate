@@ -176,6 +176,7 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
 }
 
 module.exports = {
+  resolveExistingRoot,
   resolveProjectRoot,
   resolveProjectRootForRuntime,
   requireExplicitWorkspaceRoot,
