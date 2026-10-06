@@ -85,7 +85,6 @@ Gemini has a post-delegation validation hook that Claude lacks:
 |-------------|----------------|
 | `session_id` | `sessionId` |
 | `cwd` | `cwd` |
-| `hook_event_name` | `event` |
 | (hardcoded null) | `agentName` |
 | `prompt` | `agentInput` |
 | `prompt_response` | `agentResult` |

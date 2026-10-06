@@ -19,8 +19,7 @@ const { EXIT_SUCCESS, EXIT_BLOCK } = require('./exit-codes');
  *   - PreToolUse:      permission-oriented (uses permissionDecision output, not handled here)
  *
  * Internal contract fields:
- *   event, sessionId, cwd, transcriptPath, permissionMode,
- *   agentId, agentName, agentInput, agentResult, source, model, reason, stopHookActive
+ *   sessionId, cwd, agentName, agentInput, agentResult, stopHookActive
  *
  * Output contract (for non-permission hooks):
  *   { continue, decision, reason?, hookSpecificOutput?: { additionalContext } }
@@ -30,20 +29,13 @@ function normalizeInput(raw) {
   const event = raw.hook_event_name || '';
 
   return {
-    event,
     sessionId: raw.session_id || '',
     cwd: raw.cwd || '',
-    transcriptPath: raw.transcript_path || '',
-    permissionMode: raw.permission_mode || '',
-    agentId: raw.agent_id || '',
     agentName: raw.agent_type || null,
     agentInput: null,
     agentResult: event === 'SubagentStop'
       ? (raw.last_assistant_message || '')
       : null,
-    source: raw.source || '',
-    model: raw.model || '',
-    reason: raw.reason || '',
     stopHookActive: raw.stop_hook_active === true || raw.stop_hook_active === 'true',
   };
 }

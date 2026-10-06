@@ -1,18 +1,14 @@
 'use strict';
 
 /**
- * Unified frontmatter parsing module.
- *
- * Consolidates three distinct boundary-detection implementations and two YAML
- * escaping implementations into a single authoritative module.
- *
- * Boundary detection approaches unified:
- *   - Character-offset indexOf (agent-stub.js, parseFrontmatterOnly)
- *   - Line-split iteration (core/frontmatter-parser.js parse)
- *   - Regex multiline match (skill-metadata.js)
+ * Frontmatter parsing (boundary splitting, key-value parsing, scalar
+ * coercion, single-key extraction) and YAML escaping shared by the
+ * generator, transforms, and MCP content tools.
  *
  * @module lib/frontmatter
  */
+
+const DOUBLE_QUOTED_ESCAPES = { '"': '"', '\\': '\\', n: '\n', r: '\r', t: '\t' };
 
 /**
  * Parse a double-quoted string value with escape sequence support.
@@ -24,45 +20,7 @@
  * @returns {string} The unescaped string value.
  */
 function parseDoubleQuotedValue(raw) {
-  let value = '';
-
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw[i];
-    const next = raw[i + 1];
-
-    if (char !== '\\' || next == null) {
-      value += char;
-      continue;
-    }
-
-    switch (next) {
-      case '"':
-        value += '"';
-        i++;
-        break;
-      case '\\':
-        value += '\\';
-        i++;
-        break;
-      case 'n':
-        value += '\n';
-        i++;
-        break;
-      case 'r':
-        value += '\r';
-        i++;
-        break;
-      case 't':
-        value += '\t';
-        i++;
-        break;
-      default:
-        value += char;
-        break;
-    }
-  }
-
-  return value;
+  return raw.replace(/\\(["\\nrt])/g, (_, c) => DOUBLE_QUOTED_ESCAPES[c]);
 }
 
 /**
@@ -101,10 +59,8 @@ function parseValue(raw) {
 /**
  * Split content at the frontmatter boundary using line iteration.
  *
- * Unifies the three boundary-detection approaches into one canonical
- * implementation. Uses line-split iteration (the most permissive approach)
- * which handles all edge cases including content without a trailing newline
- * after the closing delimiter.
+ * The opening `---` must be the first line; the block ends at the next line
+ * that is exactly `---`, with or without a trailing newline after it.
  *
  * @param {string} content - The full content string with optional frontmatter.
  * @returns {{ raw: string, body: string }} The raw frontmatter text (between
@@ -174,15 +130,7 @@ function parseLines(lines, valueFn) {
  */
 function parse(content) {
   const { raw, body } = splitAtBoundary(content);
-
-  if (raw === '' && body === content) {
-    return { frontmatter: {}, body: content };
-  }
-
-  const fmLines = raw.split('\n');
-  const frontmatter = parseLines(fmLines, parseValue);
-
-  return { frontmatter, body };
+  return { frontmatter: parseLines(raw.split('\n'), parseValue), body };
 }
 
 /**

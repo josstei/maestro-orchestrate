@@ -20,14 +20,6 @@ describe('hook-state', () => {
     });
   });
 
-  describe('getBaseDir', () => {
-    it('returns the configured base directory', () => {
-      const baseDir = makeTempBaseDir();
-      const state = createHookState(baseDir);
-      assert.equal(state.getBaseDir(), baseDir);
-    });
-  });
-
   describe('ensureSessionDir', () => {
     it('creates a directory for a valid session ID', () => {
       const baseDir = makeTempBaseDir();

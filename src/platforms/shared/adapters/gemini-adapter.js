@@ -12,7 +12,6 @@ function normalizeInput(raw) {
   return {
     sessionId: raw.session_id || '',
     cwd: raw.cwd || '',
-    event: raw.hook_event_name || '',
     agentName: null,
     agentInput: raw.prompt || '',
     agentResult: raw.prompt_response || '',

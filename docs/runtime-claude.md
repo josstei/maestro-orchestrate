@@ -87,7 +87,6 @@ Infrastructure skills have `user-invocable: false` — they surface in Claude's 
 |-------------|----------------|
 | `session_id` | `sessionId` |
 | `cwd` | `cwd` |
-| `hook_event_name` | `event` |
 | `tool_input.subagent_type` | `agentName` |
 | `tool_input.prompt` | `agentInput` |
 | `tool_result` | `agentResult` |

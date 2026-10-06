@@ -5,6 +5,9 @@ const TITLE_SPECIAL_CASES = {
   'seo-audit': 'SEO Audit',
 };
 
+const capitalizeParts = (name) =>
+  name.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1));
+
 /**
  * Convert a kebab-case name to snake_case.
  * @param {string} name - Name in kebab-case (e.g. 'api-designer')
@@ -29,10 +32,7 @@ function toKebabCase(name) {
  * @returns {string} Name in PascalCase (e.g. 'SessionStart')
  */
 function toPascalCase(name) {
-  return name
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('');
+  return capitalizeParts(name).join('');
 }
 
 /**
@@ -43,13 +43,16 @@ function toPascalCase(name) {
  * @returns {string} Display-friendly title (e.g. 'Perf Check')
  */
 function toTitleCase(name) {
-  if (TITLE_SPECIAL_CASES[name]) {
-    return TITLE_SPECIAL_CASES[name];
-  }
-  return name
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  return TITLE_SPECIAL_CASES[name] || capitalizeParts(name).join(' ');
+}
+
+/**
+ * Escape RegExp metacharacters so the string matches literally.
+ * @param {string} value - Raw string
+ * @returns {string} String safe to embed in a RegExp source
+ */
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -67,18 +70,13 @@ function toTitleCase(name) {
  * @returns {string} Content with names converted to the target convention
  */
 function replaceInContent(content, names, targetCase) {
-  if (targetCase !== 'snake_case') {
-    return content;
-  }
-
-  if (!names || names.length === 0) {
+  if (targetCase !== 'snake_case' || !names) {
     return content;
   }
 
   let result = content;
   for (const name of names) {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`\\b${escaped}\\b`, 'g');
+    const pattern = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'g');
     result = result.replace(pattern, toSnakeCase(name));
   }
   return result;
@@ -90,5 +88,6 @@ module.exports = {
   toKebabCase,
   toPascalCase,
   toTitleCase,
+  escapeRegExp,
   replaceInContent,
 };

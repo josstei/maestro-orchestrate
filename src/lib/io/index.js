@@ -78,19 +78,9 @@ function writeIfChanged(filePath, content) {
   return true;
 }
 
-/**
- * Ensures a directory exists, creating it and all parent directories as needed.
- *
- * @param {string} dirPath - Absolute path to the directory
- */
-function ensureDir(dirPath) {
-  fs.mkdirSync(dirPath, { recursive: true });
-}
-
 module.exports = {
   atomicWriteSync,
   readFileSafe,
   readJsonSafe,
   writeIfChanged,
-  ensureDir,
 };

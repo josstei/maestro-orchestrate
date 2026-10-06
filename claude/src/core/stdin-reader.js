@@ -4,19 +4,22 @@ const { log } = require('./logger');
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
-function readText() {
+/**
+ * Collect stdin up to MAX_STDIN_BYTES. With `decode`, chunks are read as
+ * UTF-8 strings (StringDecoder joins split multi-byte sequences); otherwise
+ * raw Buffers are concatenated and decoded once at the end. Rejects with
+ * `Stdin payload too large` once the cap is exceeded, after calling
+ * `onOverflow` when provided.
+ */
+function collectStdin({ decode = false, onOverflow } = {}) {
   return new Promise((resolve, reject) => {
-    if (process.stdin.isTTY) {
-      resolve('');
-      return;
-    }
     const chunks = [];
     let totalBytes = 0;
-    process.stdin.setEncoding('utf8');
+    if (decode) process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk) => {
       totalBytes += Buffer.byteLength(chunk, 'utf8');
       if (totalBytes > MAX_STDIN_BYTES) {
-        log('ERROR', 'Stdin payload exceeds maximum size');
+        if (onOverflow) onOverflow();
         process.stdin.destroy();
         reject(new Error('Stdin payload too large'));
         return;
@@ -24,21 +27,17 @@ function readText() {
       chunks.push(chunk);
     });
     process.stdin.on('end', () => {
-      resolve(chunks.join(''));
+      resolve(decode ? chunks.join('') : Buffer.concat(chunks).toString());
     });
     process.stdin.resume();
   });
 }
 
-function readJson() {
-  return readText().then((raw) => {
-    if (!raw.trim()) return {};
-    try {
-      return JSON.parse(raw);
-    } catch {
-      log('WARN', 'Failed to parse JSON from stdin');
-      return {};
-    }
+async function readText() {
+  if (process.stdin.isTTY) return '';
+  return collectStdin({
+    decode: true,
+    onOverflow: () => log('ERROR', 'Stdin payload exceeds maximum size'),
   });
 }
 
@@ -52,26 +51,7 @@ function readJson() {
  * response on stdout instead of crashing the host process.
  */
 function readBoundedJson() {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let totalBytes = 0;
-    process.stdin.on('data', (chunk) => {
-      totalBytes += chunk.length;
-      if (totalBytes > MAX_STDIN_BYTES) {
-        process.stdin.destroy();
-        reject(new Error('Stdin payload too large'));
-        return;
-      }
-      chunks.push(chunk);
-    });
-    process.stdin.on('end', () => {
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString()));
-      } catch (error) {
-        reject(error);
-      }
-    });
-  });
+  return collectStdin().then((raw) => JSON.parse(raw));
 }
 
-module.exports = { readText, readJson, readBoundedJson };
+module.exports = { readText, readBoundedJson };

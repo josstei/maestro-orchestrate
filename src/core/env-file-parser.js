@@ -38,23 +38,21 @@ function parseEnvFile(filePath) {
     return result;
   }
   const lines = content.split('\n');
-  let i = 0;
-  while (i < lines.length) {
+  for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (!trimmed || trimmed.startsWith('#')) { i++; continue; }
+    if (!trimmed || trimmed.startsWith('#')) continue;
     const stripped = trimmed.replace(/^export\s+/, '');
     const eqIndex = stripped.indexOf('=');
-    if (eqIndex === -1) { i++; continue; }
+    if (eqIndex === -1) continue;
     const key = stripped.slice(0, eqIndex);
-    if (!key) { i++; continue; }
-    let rawValue = stripped.slice(eqIndex + 1);
+    if (!key) continue;
+    const rawValue = stripped.slice(eqIndex + 1);
 
     // Multi-line: value starts with " but has no closing " on the same line
     if (rawValue.startsWith('"') && rawValue.indexOf('"', 1) === -1) {
       const valueParts = [rawValue.slice(1)];
-      i++;
       let closed = false;
-      while (i < lines.length) {
+      while (++i < lines.length) {
         const nextLine = lines[i];
         if (nextLine.endsWith('"') && !nextLine.endsWith('\\"')) {
           valueParts.push(nextLine.slice(0, -1));
@@ -62,19 +60,15 @@ function parseEnvFile(filePath) {
           break;
         }
         valueParts.push(nextLine);
-        i++;
       }
       if (!closed) {
         console.warn(`env-file-parser: unclosed quote for key "${key}", treating accumulated content as value`);
       }
       result[key] = valueParts.join('\n');
-      i++;
       continue;
     }
 
-    rawValue = stripInlineComment(rawValue);
-    result[key] = trimQuotes(rawValue);
-    i++;
+    result[key] = trimQuotes(stripInlineComment(rawValue));
   }
   return result;
 }

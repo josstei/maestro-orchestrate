@@ -3,7 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { fileURLToPath } = require('node:url');
 
 const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
 const { MaestroError } = require('../lib/errors');
@@ -11,7 +10,6 @@ const { MaestroError } = require('../lib/errors');
 class WorkspaceResolutionError extends MaestroError {
   constructor(message, { code = 'WORKSPACE_RESOLUTION_FAILED', details = null } = {}) {
     super(message, { code, details });
-    this.name = 'WorkspaceResolutionError';
   }
 }
 
@@ -21,6 +19,14 @@ function resolveGitRoot(baseDir) {
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
   }).trim();
+}
+
+function gitRootOrSelf(resolved) {
+  try {
+    return resolveGitRoot(resolved);
+  } catch {
+    return resolved;
+  }
 }
 
 function resolveExistingRoot(candidate) {
@@ -33,98 +39,20 @@ function resolveExistingRoot(candidate) {
     return null;
   }
 
-  try {
-    return resolveGitRoot(resolvedCandidate);
-  } catch {
-    return resolvedCandidate;
-  }
+  return gitRootOrSelf(resolvedCandidate);
 }
 
-function resolveProjectRootFromCandidates(candidates) {
-  for (const candidate of candidates) {
+function resolveProjectRoot() {
+  const env = process.env;
+  const cwd = process.cwd();
+  for (const candidate of [env.MAESTRO_WORKSPACE_PATH, env.CLAUDE_PROJECT_DIR, env.PWD, env.INIT_CWD]) {
     const resolvedRoot = resolveExistingRoot(candidate);
     if (resolvedRoot) {
       return resolvedRoot;
     }
   }
 
-  return null;
-}
-
-function extractClientRootCandidates(clientRoots) {
-  if (!Array.isArray(clientRoots)) {
-    return [];
-  }
-
-  const candidates = [];
-  for (const clientRoot of clientRoots) {
-    const uri =
-      typeof clientRoot === 'string'
-        ? clientRoot
-        : clientRoot && typeof clientRoot.uri === 'string'
-          ? clientRoot.uri
-          : null;
-
-    if (!uri) {
-      continue;
-    }
-
-    try {
-      const parsed = new URL(uri);
-      if (parsed.protocol !== 'file:') {
-        continue;
-      }
-
-      candidates.push(fileURLToPath(parsed));
-    } catch {
-      continue;
-    }
-  }
-
-  return candidates;
-}
-
-function resolveProjectRootFromEnv(env, cwd) {
-  const candidates = [
-    env.MAESTRO_WORKSPACE_PATH,
-    env.CLAUDE_PROJECT_DIR,
-    env.PWD,
-    env.INIT_CWD,
-  ];
-
-  const resolvedRoot = resolveProjectRootFromCandidates(candidates);
-  if (resolvedRoot) {
-    return resolvedRoot;
-  }
-
   return resolveExistingRoot(cwd) || path.resolve(cwd);
-}
-
-function resolveProjectRootForRuntime(runtimeConfig = {}, options = {}) {
-  const env = options.env || process.env;
-  const cwd = options.cwd || process.cwd();
-  const workspaceEnvName =
-    runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
-  const explicitWorkspacePath =
-    workspaceEnvName && env[workspaceEnvName] ? env[workspaceEnvName] : null;
-
-  const explicitRoot = resolveExistingRoot(explicitWorkspacePath);
-  if (explicitRoot) {
-    return explicitRoot;
-  }
-
-  const clientRoot = resolveProjectRootFromCandidates(
-    extractClientRootCandidates(options.clientRoots)
-  );
-  if (clientRoot) {
-    return clientRoot;
-  }
-
-  return resolveProjectRootFromEnv(env, cwd);
-}
-
-function resolveProjectRoot() {
-  return resolveProjectRootFromEnv(process.env, process.cwd());
 }
 
 /**
@@ -168,16 +96,11 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
       { code: 'WORKSPACE_IN_EXTENSION_CACHE', details: { workspace_path: resolved } }
     );
   }
-  try {
-    return resolveGitRoot(resolved);
-  } catch {
-    return resolved;
-  }
+  return gitRootOrSelf(resolved);
 }
 
 module.exports = {
   resolveProjectRoot,
-  resolveProjectRootForRuntime,
   requireExplicitWorkspaceRoot,
   requireWorkspaceRoot,
   WorkspaceResolutionError,
