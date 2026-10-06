@@ -32,16 +32,18 @@ function validateContainment(absolutePath, rootDir) {
   return resolved;
 }
 
-function resolveStateDirPath(cwd, stateDirOverride) {
-  const stateDir = stateDirOverride || process.env.MAESTRO_STATE_DIR || DEFAULT_STATE_DIR;
-  const base = cwd || process.cwd();
-
+function resolveStateDirUnder(base, stateDir) {
   if (path.isAbsolute(stateDir)) {
     return validateContainment(stateDir, base);
   }
 
   validateRelativePath(stateDir);
   return path.join(base, stateDir);
+}
+
+function resolveStateDirPath(cwd, stateDirOverride) {
+  const stateDir = stateDirOverride || process.env.MAESTRO_STATE_DIR || DEFAULT_STATE_DIR;
+  return resolveStateDirUnder(cwd || process.cwd(), stateDir);
 }
 
 function resolveActiveSessionPath(cwd) {
@@ -117,7 +119,7 @@ function assertSessionMatch(state, sessionId, verb = 'got') {
 }
 
 function ensureWorkspace(stateDir, basePath) {
-  const fullBase = resolveStateDirPath(basePath, stateDir);
+  const fullBase = resolveStateDirUnder(basePath, stateDir);
   fs.mkdirSync(fullBase, { recursive: true, mode: 0o700 });
   const stats = fs.lstatSync(fullBase);
   if (stats.isSymbolicLink()) {
