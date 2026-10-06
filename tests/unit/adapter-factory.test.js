@@ -3,9 +3,8 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { defineAdapter } = require('../../src/platforms/shared/adapters/factory');
+const { defineAdapter, EXIT_SUCCESS } = require('../../src/platforms/shared/adapters/factory');
 const { readBoundedJson } = require('../../src/core/stdin-reader');
-const { EXIT_SUCCESS } = require('../../src/platforms/shared/adapters/exit-codes');
 
 const minimalSpec = () => ({
   normalizeInput: (raw) => raw,

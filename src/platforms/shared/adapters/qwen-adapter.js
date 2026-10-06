@@ -1,7 +1,6 @@
 'use strict';
 
-const { defineAdapter } = require('./factory');
-const { EXIT_SUCCESS, EXIT_BLOCK } = require('./exit-codes');
+const { defineAdapter, EXIT_SUCCESS, EXIT_BLOCK } = require('./factory');
 
 /**
  * Qwen Code hook I/O adapter.
