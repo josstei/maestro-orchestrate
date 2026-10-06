@@ -24,8 +24,9 @@ function handleAfterAgent(ctx) {
     return { action: 'allow', message: null, reason: null };
   }
 
-  // agentResult comes straight from hook stdin JSON and may be an array, so
-  // both heading forms are checked ('## X' implies '# X' only for strings).
+  // agentResult comes straight from hook stdin JSON: for an array '## X' does
+  // not imply '# X', and a non-string without includes() must throw before the
+  // active agent is cleared, so keep both checks ahead of clearActiveAgent.
   const agentResult = ctx.agentResult || '';
   const warnings = REQUIRED_SECTIONS
     .filter((section) => !agentResult.includes(`## ${section}`) && !agentResult.includes(`# ${section}`))
