@@ -2,7 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const { expandManifest } = require('../../scripts/generate');
+const { expandManifest } = require('../../src/generator/manifest-expander');
 
 describe('expandManifest', () => {
   it('expands a glob entry into explicit entries per runtime', () => {

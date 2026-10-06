@@ -167,6 +167,62 @@ describe('FileWriter getStats', () => {
   });
 });
 
+describe('FileWriter reportError', () => {
+  let tempRoot;
+
+  beforeEach(() => {
+    tempRoot = createTempRoot();
+  });
+
+  afterEach(() => {
+    removeTempRoot(tempRoot);
+  });
+
+  it('aggregates reported errors with write errors', () => {
+    const writer = createFileWriter({ rootDir: tempRoot });
+    const logged = [];
+    const originalError = console.error;
+    console.error = (message) => logged.push(message);
+    try {
+      writer.write('../../../etc/passwd', 'malicious');
+      writer.reportError('Source not found: missing.md');
+      writer.reportError('processing a.md -> b.md', new Error('boom'));
+    } finally {
+      console.error = originalError;
+    }
+
+    assert.equal(writer.getStats().errors, 3);
+    assert.deepEqual(logged.slice(1), [
+      'ERROR: Source not found: missing.md',
+      'ERROR: processing a.md -> b.md: boom',
+    ]);
+  });
+});
+
+describe('FileWriter writeAll', () => {
+  let tempRoot;
+
+  beforeEach(() => {
+    tempRoot = createTempRoot();
+  });
+
+  afterEach(() => {
+    removeTempRoot(tempRoot);
+  });
+
+  it('writes every output in order', () => {
+    const writer = createFileWriter({ rootDir: tempRoot });
+    writer.writeAll([
+      { outputPath: 'a.txt', content: 'a' },
+      { outputPath: 'nested/b.txt', content: 'b' },
+    ]);
+
+    assert.equal(fs.readFileSync(path.join(tempRoot, 'a.txt'), 'utf8'), 'a');
+    assert.equal(fs.readFileSync(path.join(tempRoot, 'nested', 'b.txt'), 'utf8'), 'b');
+    assert.equal(writer.getStats().written, 2);
+  });
+});
+
 describe('FileWriter dryRun mode', () => {
   let tempRoot;
 
