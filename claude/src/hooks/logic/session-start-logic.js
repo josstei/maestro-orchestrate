@@ -13,12 +13,7 @@ const state = require('../../state/session-state');
  */
 function handleSessionStart(ctx) {
   hookState.pruneStale();
-
-  if (!state.hasActiveSession(ctx.cwd)) {
-    return { action: 'advisory', message: null, reason: null };
-  }
-
-  hookState.ensureSessionDir(ctx.sessionId);
+  if (state.hasActiveSession(ctx.cwd)) hookState.ensureSessionDir(ctx.sessionId);
   return { action: 'advisory', message: null, reason: null };
 }
 

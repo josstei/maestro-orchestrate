@@ -3,6 +3,8 @@
 const { log } = require('../../core/logger');
 const hookState = require('./hook-state');
 
+const REQUIRED_SECTIONS = ['Task Report', 'Downstream Context'];
+
 /**
  * After-agent hook logic (runtime-agnostic).
  *
@@ -22,13 +24,13 @@ function handleAfterAgent(ctx) {
     return { action: 'allow', message: null, reason: null };
   }
 
+  // agentResult comes straight from hook stdin JSON and may be an array, so
+  // both heading forms are checked ('## X' implies '# X' only for strings).
   const agentResult = ctx.agentResult || '';
-  const hasTaskReport = agentResult.includes('## Task Report') || agentResult.includes('# Task Report');
-  const hasDownstream = agentResult.includes('## Downstream Context') || agentResult.includes('# Downstream Context');
-
-  const warnings = [];
-  if (!hasTaskReport) warnings.push('Missing Task Report section (expected ## Task Report heading)');
-  if (!hasDownstream) warnings.push('Missing Downstream Context section (expected ## Downstream Context heading)');
+  const warnings = REQUIRED_SECTIONS
+    .filter((section) => !agentResult.includes(`## ${section}`) && !agentResult.includes(`# ${section}`))
+    .map((section) => `Missing ${section} section (expected ## ${section} heading)`);
+  hookState.clearActiveAgent(ctx.sessionId);
 
   if (warnings.length > 0) {
     const reason = warnings.join('; ');
@@ -36,7 +38,6 @@ function handleAfterAgent(ctx) {
       log('WARN', `AfterAgent [${agentName}]: Retry still malformed: ${reason} — allowing to prevent infinite loop`);
     } else {
       log('WARN', `AfterAgent [${agentName}]: WARN: ${reason} — requesting retry`);
-      hookState.clearActiveAgent(ctx.sessionId);
       return {
         action: 'deny',
         message: null,
@@ -47,7 +48,6 @@ function handleAfterAgent(ctx) {
     log('INFO', `AfterAgent [${agentName}]: Handoff report validated`);
   }
 
-  hookState.clearActiveAgent(ctx.sessionId);
   return { action: 'allow', message: null, reason: null };
 }
 

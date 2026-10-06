@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { assertSessionId } = require('../../src/lib/validation');
+const { assertSessionId, isValidSessionId } = require('../../src/lib/validation');
 
 const { ValidationError } = require('../../src/lib/errors');
 
@@ -110,5 +110,15 @@ describe('assertSessionId', () => {
       assert.equal(err.name, 'ValidationError');
       return true;
     });
+  });
+});
+
+describe('isValidSessionId', () => {
+  it('agrees with assertSessionId on valid and invalid input', () => {
+    for (const id of ['session-1', 'a-b_c-D-E', '0', '', 'has space', 'path/traversal', null, undefined, 42, {}]) {
+      let asserted = true;
+      try { assertSessionId(id); } catch { asserted = false; }
+      assert.equal(isValidSessionId(id), asserted, `mismatch for ${String(id)}`);
+    }
   });
 });

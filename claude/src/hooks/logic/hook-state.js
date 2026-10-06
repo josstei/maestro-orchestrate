@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { log } = require('../../core/logger');
-const { assertSessionId } = require('../../lib/validation');
+const { isValidSessionId } = require('../../lib/validation');
 const { atomicWriteSync, readFileSafe } = require('../../lib/io');
 
 const HOOK_STATE_TTL_MS = 2 * 60 * 60 * 1000;
@@ -22,13 +22,10 @@ function ensureBaseDir(dir) {
 }
 
 function createHookState(baseDir = DEFAULT_BASE_DIR) {
-  function getBaseDir() {
-    return baseDir;
-  }
+  const activeAgentFile = (sessionId) => path.join(baseDir, sessionId, 'active-agent');
 
   function pruneStale() {
     ensureBaseDir(baseDir);
-    if (!fs.existsSync(baseDir)) return;
 
     const now = Date.now();
     let entries;
@@ -51,56 +48,35 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   }
 
   function setActiveAgent(sessionId, agentName) {
-    try {
-      assertSessionId(sessionId);
-    } catch {
+    if (!isValidSessionId(sessionId)) {
       log('ERROR', 'Invalid session_id: contains unsafe characters');
       return false;
     }
-    const agentFile = path.join(baseDir, sessionId, 'active-agent');
-    atomicWriteSync(agentFile, agentName);
+    atomicWriteSync(activeAgentFile(sessionId), agentName);
     return true;
   }
 
   function getActiveAgent(sessionId) {
-    try {
-      assertSessionId(sessionId);
-    } catch {
-      return '';
-    }
-    const agentFile = path.join(baseDir, sessionId, 'active-agent');
-    return readFileSafe(agentFile, '').trim();
+    if (!isValidSessionId(sessionId)) return '';
+    return readFileSafe(activeAgentFile(sessionId), '').trim();
   }
 
   function clearActiveAgent(sessionId) {
+    if (!isValidSessionId(sessionId)) return;
     try {
-      assertSessionId(sessionId);
-    } catch {
-      return;
-    }
-    const agentFile = path.join(baseDir, sessionId, 'active-agent');
-    try {
-      fs.unlinkSync(agentFile);
+      fs.unlinkSync(activeAgentFile(sessionId));
     } catch {}
   }
 
   function ensureSessionDir(sessionId) {
-    try {
-      assertSessionId(sessionId);
-    } catch {
-      return false;
-    }
+    if (!isValidSessionId(sessionId)) return false;
     ensureBaseDir(baseDir);
     fs.mkdirSync(path.join(baseDir, sessionId), { recursive: true, mode: 0o700 });
     return true;
   }
 
   function removeSessionDir(sessionId) {
-    try {
-      assertSessionId(sessionId);
-    } catch {
-      return false;
-    }
+    if (!isValidSessionId(sessionId)) return false;
     try {
       fs.rmSync(path.join(baseDir, sessionId), { recursive: true, force: true });
     } catch {}
@@ -108,7 +84,6 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   }
 
   return {
-    getBaseDir,
     pruneStale,
     setActiveAgent,
     getActiveAgent,

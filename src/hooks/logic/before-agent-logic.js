@@ -2,7 +2,7 @@
 
 const { log } = require('../../core/logger');
 const { detectAgentFromPrompt, normalizeAgentName } = require('../../core/agent-registry');
-const { assertSessionId } = require('../../lib/validation');
+const { isValidSessionId } = require('../../lib/validation');
 const { readFileSafe } = require('../../lib/io');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
@@ -25,33 +25,23 @@ function handleBeforeAgent(ctx) {
 
   const agentName = detectAgentFromPrompt(ctx.agentInput) || normalizeAgentName(ctx.agentName);
 
-  let validSession = false;
-  try { assertSessionId(ctx.sessionId); validSession = true; } catch (_) {}
-
-  if (agentName && validSession) {
+  if (agentName && isValidSessionId(ctx.sessionId)) {
     hookState.setActiveAgent(ctx.sessionId, agentName);
     log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }
 
-  const sessionPath = state.resolveActiveSessionPath(ctx.cwd);
-  let contextParts = '';
+  const content = readFileSafe(state.resolveActiveSessionPath(ctx.cwd), '');
+  const parts = [];
+  const phaseMatch = content.match(/current_phase:\s*(\S+)/);
+  if (phaseMatch) parts.push(`current_phase=${phaseMatch[1]}`);
+  const statusMatch = content.match(/status:\s*(\S+)/);
+  if (statusMatch) parts.push(`status=${statusMatch[1]}`);
 
-  const content = readFileSafe(sessionPath, '');
-  if (content) {
-    const parts = [];
-    const phaseMatch = content.match(/current_phase:\s*(\S+)/);
-    if (phaseMatch) parts.push(`current_phase=${phaseMatch[1]}`);
-    const statusMatch = content.match(/status:\s*(\S+)/);
-    if (statusMatch) parts.push(`status=${statusMatch[1]}`);
-    if (parts.length > 0) {
-      contextParts = `Active session: ${parts.join(', ')}`;
-    }
-  }
-
-  if (contextParts) {
-    return { action: 'allow', message: contextParts, reason: null };
-  }
-  return { action: 'allow', message: null, reason: null };
+  return {
+    action: 'allow',
+    message: parts.length > 0 ? `Active session: ${parts.join(', ')}` : null,
+    reason: null,
+  };
 }
 
 module.exports = { handleBeforeAgent };
