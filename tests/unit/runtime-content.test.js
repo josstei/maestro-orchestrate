@@ -14,7 +14,6 @@ const {
   stripFrontmatter,
   stripFeatureBlocks,
   parseInlineArray,
-  parseFrontmatter,
   mapTools,
 } = require('../../src/mcp/content/runtime-content');
 
@@ -190,25 +189,6 @@ describe('parseInlineArray', () => {
   it('filters out empty entries', () => {
     const result = parseInlineArray('[a, , b]');
     assert.deepEqual(result, ['a', 'b']);
-  });
-});
-
-describe('parseFrontmatter', () => {
-  it('parses key: value pairs from frontmatter', () => {
-    const content = '---\nname: foo\ntier: full\n---\nbody\n';
-    const result = parseFrontmatter(content);
-    assert.equal(result.name, 'foo');
-    assert.equal(result.tier, 'full');
-  });
-
-  it('returns {} for content without frontmatter', () => {
-    const result = parseFrontmatter('just body text\n');
-    assert.deepEqual(result, {});
-  });
-
-  it('returns {} for unclosed frontmatter', () => {
-    const result = parseFrontmatter('---\nname: foo\nbody\n');
-    assert.deepEqual(result, {});
   });
 });
 

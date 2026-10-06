@@ -102,7 +102,6 @@ The MCP server is authored directly in modular source under `src/mcp/`. Gemini a
 src/mcp/
 ├── maestro-server.js           # Server entry-point (runRuntimeServer)
 ├── content/
-│   ├── provider.js             # Content provider abstraction
 │   └── runtime-content.js      # Runtime-specific content resolution
 ├── core/
 │   ├── create-server.js        # Server factory + error sanitization
