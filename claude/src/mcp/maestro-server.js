@@ -5,14 +5,10 @@ const { resolveVersion } = require('../core/version');
 const { createServer } = require('./core/create-server');
 const { createLineDispatcher } = require('./core/line-reader');
 const { createProjectRootCache } = require('./core/project-root-cache');
-const {
-  DEFAULT_PROTOCOL_VERSION,
-  buildInitializeResult,
-  createToolErrorResult,
-  createToolSuccessResult,
-  createProtocolHandlers,
-} = require('./core/protocol-dispatcher');
-const { DEFAULT_TOOL_PACKS } = require('./tool-packs');
+const { createProtocolHandlers } = require('./core/protocol-dispatcher');
+const { createToolPack: createWorkspaceToolPack } = require('./tool-packs/workspace');
+const { createToolPack: createSessionToolPack } = require('./tool-packs/session');
+const { createToolPack: createContentToolPack } = require('./tool-packs/content');
 const { normalizeRuntimeConfig } = require('./runtime/runtime-config-map');
 const { resolveCanonicalSrcFromExtensionRoot } = require('./utils/extension-root');
 
@@ -21,19 +17,17 @@ const SERVER_INFO = Object.freeze({
   version: resolveVersion(__dirname),
 });
 
-function createInitializeResult(protocolVersion) {
-  return buildInitializeResult(protocolVersion, SERVER_INFO);
-}
+const DEFAULT_TOOL_PACKS = Object.freeze([
+  createWorkspaceToolPack,
+  createSessionToolPack,
+  createContentToolPack,
+]);
 
-function runRuntimeServer(runtimeConfig, options = {}) {
-  const resolvedRuntimeConfig = normalizeRuntimeConfig(runtimeConfig);
-  const canonicalSrcRoot =
-    options.canonicalSrcRoot || resolveCanonicalSrcFromExtensionRoot();
-  const toolPacks = Array.isArray(options.toolPacks)
-    ? options.toolPacks
-    : DEFAULT_TOOL_PACKS;
-  const stdin = options.stdin || process.stdin;
-  const stdout = options.stdout || process.stdout;
+function main(runtimeConfig) {
+  const resolvedRuntimeConfig = normalizeRuntimeConfig(
+    runtimeConfig || process.env.MAESTRO_RUNTIME
+  );
+  const canonicalSrcRoot = resolveCanonicalSrcFromExtensionRoot();
 
   const cache = createProjectRootCache({
     runtimeConfig: resolvedRuntimeConfig,
@@ -46,7 +40,7 @@ function runRuntimeServer(runtimeConfig, options = {}) {
       canonicalSrcRoot,
       workspaceSuggestion: cache.workspaceSuggestion,
     },
-    toolPacks,
+    toolPacks: DEFAULT_TOOL_PACKS,
     onToolSuccess(name, result) {
       if (name === 'initialize_workspace' && result && result.success && result.workspace_path) {
         cache.setExplicitWorkspacePath(result.workspace_path);
@@ -54,7 +48,7 @@ function runRuntimeServer(runtimeConfig, options = {}) {
     },
   });
 
-  const handlers = createProtocolHandlers(server, cache.getProjectRoot, stdout, {
+  const handlers = createProtocolHandlers(server, cache.getProjectRoot, process.stdout, {
     serverInfo: SERVER_INFO,
     callbacks: {
       onInitialize(params) {
@@ -71,7 +65,7 @@ function runRuntimeServer(runtimeConfig, options = {}) {
     },
   });
 
-  const lineReader = createLineDispatcher(stdin, (message) => {
+  createLineDispatcher(process.stdin, (message) => {
     handlers.respond(message).catch((error) => {
       log('error', `Failed to handle MCP message: ${error.message}`);
     });
@@ -79,18 +73,6 @@ function runRuntimeServer(runtimeConfig, options = {}) {
 
   log('info', 'MCP server starting');
   log('info', 'MCP server connected');
-
-  return {
-    close() {
-      lineReader.close();
-      handlers.drain();
-    },
-    server,
-  };
-}
-
-function main(runtimeConfig) {
-  runRuntimeServer(runtimeConfig || process.env.MAESTRO_RUNTIME);
 }
 
 if (require.main === module) {
@@ -102,12 +84,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  DEFAULT_PROTOCOL_VERSION,
-  SERVER_INFO,
-  createInitializeResult,
-  createToolErrorResult,
-  createToolSuccessResult,
-  normalizeRuntimeConfig,
-  runRuntimeServer,
+  DEFAULT_TOOL_PACKS,
   main,
 };

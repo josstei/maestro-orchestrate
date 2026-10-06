@@ -19,28 +19,9 @@ function buildInitializeResult(protocolVersion, serverInfo) {
   };
 }
 
-function createToolErrorResult(errorOrOutcome, recoveryHint) {
-  const outcome =
-    errorOrOutcome &&
-    typeof errorOrOutcome === 'object' &&
-    !Array.isArray(errorOrOutcome) &&
-    Object.prototype.hasOwnProperty.call(errorOrOutcome, 'error')
-      ? errorOrOutcome
-      : { error: errorOrOutcome, recovery_hint: recoveryHint };
-
-  const payload = {
-    error: outcome.error,
-    recovery_hint: outcome.recovery_hint ?? null,
-  };
-
-  if (outcome.code) {
-    payload.code = outcome.code;
-  }
-
-  if (outcome.details !== undefined) {
-    payload.details = outcome.details;
-  }
-
+// `outcome` is a createServer failure, already shaped as the wire payload plus `ok`.
+function createToolErrorResult(outcome) {
+  const { ok: _ok, ...payload } = outcome;
   return { ...createToolSuccessResult(payload), isError: true };
 }
 
@@ -195,20 +176,7 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
     }
   }
 
-  /**
-   * Clear all pending outbound client-request timeouts and reject their
-   * promises. Call during server shutdown so Node can exit promptly and
-   * callers do not receive late timeout rejections.
-   */
-  function drain() {
-    for (const [id, entry] of pendingClientRequests) {
-      clearTimeout(entry.timeout);
-      entry.reject(new Error(`MCP server closing; request ${id} aborted`));
-    }
-    pendingClientRequests.clear();
-  }
-
-  return { requestFromClient, respond, drain };
+  return { requestFromClient, respond };
 }
 
 module.exports = {

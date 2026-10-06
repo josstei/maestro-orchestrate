@@ -12,6 +12,7 @@ const {
   createToolSuccessResult,
   createProtocolHandlers,
 } = require('../../src/mcp/core/protocol-dispatcher');
+const { createServer } = require('../../src/mcp/core/create-server');
 
 function captureWrites(stream) {
   const frames = [];
@@ -70,12 +71,10 @@ describe('buildInitializeResult', () => {
 });
 
 describe('createToolErrorResult', () => {
-  it('wraps a plain error with a recovery hint', () => {
-    const result = createToolErrorResult('boom', 'try again');
+  it('wraps a failure outcome with its recovery hint and drops ok', () => {
+    const result = createToolErrorResult({ ok: false, error: 'boom', recovery_hint: 'try again' });
     assert.equal(result.isError, true);
-    const payload = JSON.parse(result.content[0].text);
-    assert.equal(payload.error, 'boom');
-    assert.equal(payload.recovery_hint, 'try again');
+    assert.equal(result.content[0].text, '{"error":"boom","recovery_hint":"try again"}');
   });
 
   it('passes through an outcome object with code and details', () => {
@@ -91,17 +90,13 @@ describe('createToolErrorResult', () => {
     assert.deepEqual(payload.details, { field: 'name' });
   });
 
-  it('defaults recovery_hint to null when neither is provided', () => {
-    const result = createToolErrorResult('boom');
-    const payload = JSON.parse(result.content[0].text);
-    assert.equal(payload.recovery_hint, null);
-  });
-
-  it('treats arrays as error values rather than outcome objects', () => {
-    const result = createToolErrorResult(['a', 'b'], 'hint');
-    const payload = JSON.parse(result.content[0].text);
-    assert.deepEqual(payload.error, ['a', 'b']);
-    assert.equal(payload.recovery_hint, 'hint');
+  it('carries a null recovery_hint from server failures that have no hint', async () => {
+    const outcome = await createServer({ toolPacks: [] }).callTool('missing');
+    const result = createToolErrorResult(outcome);
+    assert.equal(
+      result.content[0].text,
+      '{"error":"Unknown tool: missing","recovery_hint":null,"code":"UNKNOWN_TOOL"}'
+    );
   });
 });
 
@@ -343,24 +338,5 @@ describe('createProtocolHandlers.requestFromClient', () => {
     await handlers.respond({ jsonrpc: '2.0', id, error: { message: 'too late' } });
 
     assert.equal(frames.length, frameCountAfterTimeout);
-  });
-});
-
-describe('createProtocolHandlers.drain', () => {
-  it('rejects all pending client requests with a shutdown message', async () => {
-    const { handlers } = makeHandlers(
-      {},
-      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 60000 } }
-    );
-    const p1 = handlers.requestFromClient('a');
-    const p2 = handlers.requestFromClient('b');
-    handlers.drain();
-    await assert.rejects(p1, /MCP server closing; request .* aborted/);
-    await assert.rejects(p2, /MCP server closing; request .* aborted/);
-  });
-
-  it('is a no-op when no client requests are pending', () => {
-    const { handlers } = makeHandlers();
-    assert.doesNotThrow(() => handlers.drain());
   });
 });
