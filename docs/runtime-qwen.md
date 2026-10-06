@@ -114,7 +114,7 @@ scriptBasedStateContract:  true
 codexStateContract:        false
 ```
 
-See `src/platforms/qwen/runtime-config.js` for the authoritative values.
+See `src/platforms/qwen/runtime-config.js` for the authoritative values (it extends `src/platforms/gemini/runtime-config.js`, overriding only `name`, `outputDir`, `env`, and six tool mappings).
 
 ## Agent Frontmatter
 

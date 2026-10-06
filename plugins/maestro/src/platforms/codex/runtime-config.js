@@ -9,8 +9,6 @@ module.exports = {
     workspacePath: 'MAESTRO_WORKSPACE_PATH',
   },
 
-  relativeExtensionPath: true,
-
   content: {
     primary: 'filesystem',
     fallback: 'none',

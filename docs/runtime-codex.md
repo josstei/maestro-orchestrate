@@ -148,7 +148,7 @@ See `src/platforms/codex/runtime-config.js` for the authoritative values.
 
 ## Path Resolution
 
-Codex uses relative paths (`relativeExtensionPath: true`):
+Codex uses relative paths:
 
 - `env.extensionPath`: `.` (plugin root)
 - `env.workspacePath`: `MAESTRO_WORKSPACE_PATH` when available
