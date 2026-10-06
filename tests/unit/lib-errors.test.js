@@ -7,14 +7,12 @@ const {
   MaestroError,
   ValidationError,
   NotFoundError,
-  ConfigError,
   StateError,
 } = require('../../src/lib/errors');
 
 const SUBCLASS_SPECS = [
   { Class: ValidationError, code: 'VALIDATION_ERROR', name: 'ValidationError' },
   { Class: NotFoundError, code: 'NOT_FOUND', name: 'NotFoundError' },
-  { Class: ConfigError, code: 'CONFIG_ERROR', name: 'ConfigError' },
   { Class: StateError, code: 'STATE_ERROR', name: 'StateError' },
 ];
 

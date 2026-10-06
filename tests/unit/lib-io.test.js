@@ -11,7 +11,6 @@ const {
   readFileSafe,
   readJsonSafe,
   writeIfChanged,
-  ensureDir,
 } = require('../../src/lib/io');
 
 function createTempRoot() {
@@ -334,64 +333,17 @@ describe('writeIfChanged', () => {
   });
 });
 
-describe('ensureDir', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
-  it('creates a single directory', () => {
-    const dirPath = path.join(tempRoot, 'newdir');
-    ensureDir(dirPath);
-    assert.ok(fs.statSync(dirPath).isDirectory());
-  });
-
-  it('creates nested directories recursively', () => {
-    const dirPath = path.join(tempRoot, 'a', 'b', 'c', 'd');
-    ensureDir(dirPath);
-    assert.ok(fs.statSync(dirPath).isDirectory());
-  });
-
-  it('is idempotent on existing directory', () => {
-    const dirPath = path.join(tempRoot, 'existing');
-    fs.mkdirSync(dirPath);
-    assert.doesNotThrow(() => ensureDir(dirPath));
-    assert.ok(fs.statSync(dirPath).isDirectory());
-  });
-
-  it('does not throw when called multiple times on the same path', () => {
-    const dirPath = path.join(tempRoot, 'repeated');
-    ensureDir(dirPath);
-    assert.doesNotThrow(() => ensureDir(dirPath));
-    assert.doesNotThrow(() => ensureDir(dirPath));
-  });
-
-  it('creates intermediate directories that do not exist', () => {
-    const dirPath = path.join(tempRoot, 'x', 'y', 'z');
-    ensureDir(dirPath);
-    assert.ok(fs.statSync(path.join(tempRoot, 'x')).isDirectory());
-    assert.ok(fs.statSync(path.join(tempRoot, 'x', 'y')).isDirectory());
-    assert.ok(fs.statSync(dirPath).isDirectory());
-  });
-});
-
 describe('module exports', () => {
-  it('exports all five documented functions', () => {
+  it('exports all four documented functions', () => {
     const io = require('../../src/lib/io');
     assert.equal(typeof io.atomicWriteSync, 'function');
     assert.equal(typeof io.readFileSafe, 'function');
     assert.equal(typeof io.readJsonSafe, 'function');
     assert.equal(typeof io.writeIfChanged, 'function');
-    assert.equal(typeof io.ensureDir, 'function');
   });
 
-  it('exports exactly five members', () => {
+  it('exports exactly four members', () => {
     const io = require('../../src/lib/io');
-    assert.equal(Object.keys(io).length, 5);
+    assert.equal(Object.keys(io).length, 4);
   });
 });
