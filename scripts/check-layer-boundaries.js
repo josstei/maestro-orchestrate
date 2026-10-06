@@ -20,53 +20,33 @@ function collectJsFiles(dir) {
   return results;
 }
 
-function scanFile(filepath) {
-  const content = fs.readFileSync(filepath, 'utf8');
-  const requirePattern = /require\(['"]([^'"]+)['"]\)/g;
-  const violations = [];
-  let match;
+const files = collectJsFiles(LIB_DIR);
+const violations = [];
 
-  while ((match = requirePattern.exec(content)) !== null) {
-    const modPath = match[1];
+for (const file of files) {
+  const relativeFile = path.relative(process.cwd(), file);
 
+  for (const [, modPath] of fs.readFileSync(file, 'utf8').matchAll(/require\(['"]([^'"]+)['"]\)/g)) {
     if (modPath.startsWith('node:')) {
       continue;
     }
 
-    if (modPath.startsWith('.')) {
-      const resolved = path.resolve(path.dirname(filepath), modPath);
-      if (!resolved.startsWith(LIB_DIR)) {
-        violations.push({
-          file: path.relative(process.cwd(), filepath),
-          import: modPath,
-          resolved: path.relative(process.cwd(), resolved),
-        });
-      }
+    if (!modPath.startsWith('.')) {
+      violations.push(`${relativeFile}: require('${modPath}') — non-relative, non-node import`);
       continue;
     }
 
-    violations.push({
-      file: path.relative(process.cwd(), filepath),
-      import: modPath,
-      reason: 'non-relative, non-node import',
-    });
+    const resolved = path.resolve(path.dirname(file), modPath);
+    if (!resolved.startsWith(LIB_DIR)) {
+      violations.push(`${relativeFile}: require('${modPath}') — resolves to ${path.relative(process.cwd(), resolved)}`);
+    }
   }
-
-  return violations;
 }
 
-const files = collectJsFiles(LIB_DIR);
-const allViolations = [];
-
-for (const file of files) {
-  allViolations.push(...scanFile(file));
-}
-
-if (allViolations.length > 0) {
+if (violations.length > 0) {
   console.error('Layer boundary violations in src/lib/:');
-  for (const v of allViolations) {
-    const detail = v.reason || `resolves to ${v.resolved}`;
-    console.error(`  ${v.file}: require('${v.import}') — ${detail}`);
+  for (const violation of violations) {
+    console.error(`  ${violation}`);
   }
   process.exit(1);
 } else {
