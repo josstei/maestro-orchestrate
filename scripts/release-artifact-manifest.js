@@ -102,16 +102,6 @@ function isReleaseArtifactPathAllowed(relativePath) {
   });
 }
 
-function ensureInsideRoot(root, targetPath) {
-  const resolvedRoot = path.resolve(root);
-  const resolvedTarget = path.resolve(targetPath);
-  const relative = path.relative(resolvedRoot, resolvedTarget);
-
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new Error(`Path escapes repository root: ${targetPath}`);
-  }
-}
-
 function assertRequiredArtifactPaths(root) {
   const missing = [];
 
@@ -120,10 +110,7 @@ function assertRequiredArtifactPaths(root) {
       throw new Error(`Release artifact allowlist contains denied path: ${relativePath}`);
     }
 
-    const sourcePath = path.join(root, relativePath);
-    ensureInsideRoot(root, sourcePath);
-
-    if (!fs.existsSync(sourcePath)) {
+    if (!fs.existsSync(path.join(root, relativePath))) {
       missing.push(relativePath);
     }
   }
@@ -179,29 +166,16 @@ function assertReleaseArtifactContents(root) {
 }
 
 function readJson(root, relativePath) {
-  const filePath = path.join(root, relativePath);
-  let parsed;
-
   try {
-    parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8'));
   } catch (error) {
     throw new Error(`Invalid JSON in ${relativePath}: ${error.message}`);
   }
-
-  return parsed;
 }
 
-function requireVersion(value, label) {
+function requireNonEmpty(value, label, kind = 'version') {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`Missing version value for ${label}`);
-  }
-
-  return value;
-}
-
-function requireString(value, label) {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`Missing string value for ${label}`);
+    throw new Error(`Missing ${kind} value for ${label}`);
   }
 
   return value;
@@ -220,7 +194,7 @@ function findNamedPlugin(marketplace, name, relativePath) {
   return plugin;
 }
 
-function getVersionEntries(root) {
+function assertRuntimeManifestShape(root, expectedVersion = null) {
   const pkg = readJson(root, 'package.json');
   const gemini = readJson(root, 'gemini-extension.json');
   const qwen = readJson(root, 'qwen-extension.json');
@@ -235,51 +209,31 @@ function getVersionEntries(root) {
     '.claude-plugin/marketplace.json'
   );
 
-  return [
-    ['package.json', requireVersion(pkg.version, 'package.json')],
-    ['gemini-extension.json', requireVersion(gemini.version, 'gemini-extension.json')],
-    ['qwen-extension.json', requireVersion(qwen.version, 'qwen-extension.json')],
-    ['claude/.claude-plugin/plugin.json', requireVersion(claudePlugin.version, 'claude plugin')],
-    ['plugins/maestro/.codex-plugin/plugin.json', requireVersion(codexPlugin.version, 'Codex plugin')],
-    ['.claude-plugin/marketplace.json metadata.version', requireVersion(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
-    ['.claude-plugin/marketplace.json plugins.maestro.version', requireVersion(claudeMarketplacePlugin.version, 'Claude marketplace plugin')],
-    ['claude/src/version.json', requireVersion(claudeSrcVersion.version, 'Claude detached payload')],
-    ['plugins/maestro/src/version.json', requireVersion(codexSrcVersion.version, 'Codex detached payload')],
+  const versionEntries = [
+    ['package.json', requireNonEmpty(pkg.version, 'package.json')],
+    ['gemini-extension.json', requireNonEmpty(gemini.version, 'gemini-extension.json')],
+    ['qwen-extension.json', requireNonEmpty(qwen.version, 'qwen-extension.json')],
+    ['claude/.claude-plugin/plugin.json', requireNonEmpty(claudePlugin.version, 'claude plugin')],
+    ['plugins/maestro/.codex-plugin/plugin.json', requireNonEmpty(codexPlugin.version, 'Codex plugin')],
+    ['.claude-plugin/marketplace.json metadata.version', requireNonEmpty(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
+    ['.claude-plugin/marketplace.json plugins.maestro.version', requireNonEmpty(claudeMarketplacePlugin.version, 'Claude marketplace plugin')],
+    ['claude/src/version.json', requireNonEmpty(claudeSrcVersion.version, 'Claude detached payload')],
+    ['plugins/maestro/src/version.json', requireNonEmpty(codexSrcVersion.version, 'Codex detached payload')],
   ];
-}
-
-function assertVersionConsistency(root, expectedVersion = null) {
-  const entries = getVersionEntries(root);
-  const baseline = expectedVersion || entries[0][1];
-  const mismatches = entries.filter(([, version]) => version !== baseline);
+  const version = expectedVersion || versionEntries[0][1];
+  const mismatches = versionEntries.filter(([, entryVersion]) => entryVersion !== version);
 
   if (mismatches.length > 0) {
-    const details = mismatches.map(([label, version]) => `${label}=${version}`).join(', ');
-    throw new Error(`Release manifest version mismatch; expected ${baseline}: ${details}`);
+    const details = mismatches.map(([label, entryVersion]) => `${label}=${entryVersion}`).join(', ');
+    throw new Error(`Release manifest version mismatch; expected ${version}: ${details}`);
   }
 
-  return baseline;
-}
-
-function assertRuntimeManifestShape(root, expectedVersion = null) {
-  const version = assertVersionConsistency(root, expectedVersion);
-  const pkg = readJson(root, 'package.json');
-  const gemini = readJson(root, 'gemini-extension.json');
-  const qwen = readJson(root, 'qwen-extension.json');
-  const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
   const codexMarketplace = readJson(root, '.agents/plugins/marketplace.json');
-  const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
-  const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMcp = readJson(root, 'claude/.mcp.json');
   const codexMcp = readJson(root, 'plugins/maestro/.mcp.json');
 
-  const packageName = requireString(pkg.name, 'package.json name');
+  const packageName = requireNonEmpty(pkg.name, 'package.json name', 'string');
 
-  const claudeMarketplacePlugin = findNamedPlugin(
-    claudeMarketplace,
-    'maestro',
-    '.claude-plugin/marketplace.json'
-  );
   if (claudeMarketplacePlugin.source !== './claude') {
     throw new Error('.claude-plugin/marketplace.json maestro source must be ./claude');
   }
@@ -362,17 +316,13 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
 module.exports = {
   DENIED_ARTIFACT_PATHS,
-  DENIED_ARTIFACT_PATTERNS,
   RELEASE_ARTIFACT_PATHS,
   REQUIRED_PACKAGE_FILES,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
-  assertVersionConsistency,
-  getVersionEntries,
   isDeniedPath,
   isReleaseArtifactPathAllowed,
-  requireString,
   readJson,
   toPosixPath,
 };

@@ -77,28 +77,10 @@ function resolveVersion(root, requestedVersion) {
 }
 
 function copyPath(root, stagingRoot, relativePath) {
-  if (isDeniedPath(relativePath)) {
-    throw new Error(`Refusing to package denied path: ${relativePath}`);
-  }
-
-  const sourcePath = path.join(root, relativePath);
-  const targetPath = path.join(stagingRoot, relativePath);
-  const sourceStat = fs.statSync(sourcePath);
-
-  if (sourceStat.isDirectory()) {
-    fs.cpSync(sourcePath, targetPath, {
-      recursive: true,
-      filter: (source) => {
-        const sourceRelativePath = toPosixPath(path.relative(root, source));
-        return !sourceRelativePath || !isDeniedPath(sourceRelativePath);
-      },
-    });
-    return;
-  }
-
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.copyFileSync(sourcePath, targetPath);
-  fs.chmodSync(targetPath, sourceStat.mode);
+  fs.cpSync(path.join(root, relativePath), path.join(stagingRoot, relativePath), {
+    recursive: true,
+    filter: (source) => !isDeniedPath(toPosixPath(path.relative(root, source))),
+  });
 }
 
 function createTarball(stagingRoot, archivePath) {
@@ -151,6 +133,4 @@ if (require.main === module) {
 
 module.exports = {
   packageReleaseArtifacts,
-  parseArgs,
-  resolveVersion,
 };

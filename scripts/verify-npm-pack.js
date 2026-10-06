@@ -63,13 +63,9 @@ function verifyPackageEntries(packages) {
   };
 }
 
-function verifyNpmPack(root = ROOT) {
-  return verifyPackageEntries(runNpmPackDryRun(root));
-}
-
 if (require.main === module) {
   try {
-    const result = verifyNpmPack();
+    const result = verifyPackageEntries(runNpmPackDryRun());
     console.log(`Verified npm pack contents: ${result.filename} (${result.entryCount} files)`);
   } catch (error) {
     console.error(`npm pack verification failed: ${error.message}`);
@@ -79,7 +75,5 @@ if (require.main === module) {
 
 module.exports = {
   parsePackJson,
-  runNpmPackDryRun,
-  verifyNpmPack,
   verifyPackageEntries,
 };

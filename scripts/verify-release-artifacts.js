@@ -89,7 +89,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  defaultArchivePath,
-  parseArgs,
   verifyReleaseArtifact,
 };
