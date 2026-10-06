@@ -167,7 +167,6 @@ module.exports = {
   applySkillMetadata,
   applyReplaceAgentNames,
   applyStripFeature,
-  applyRuntimeTransforms,
   stripFrontmatter,
   stripFeatureBlocks,
   parseInlineArray,

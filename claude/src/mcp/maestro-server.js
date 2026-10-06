@@ -23,10 +23,8 @@ const DEFAULT_TOOL_PACKS = Object.freeze([
   createContentToolPack,
 ]);
 
-function main(runtimeConfig) {
-  const resolvedRuntimeConfig = normalizeRuntimeConfig(
-    runtimeConfig || process.env.MAESTRO_RUNTIME
-  );
+function main() {
+  const resolvedRuntimeConfig = normalizeRuntimeConfig(process.env.MAESTRO_RUNTIME);
   const canonicalSrcRoot = resolveCanonicalSrcFromExtensionRoot();
 
   const cache = createProjectRootCache({
