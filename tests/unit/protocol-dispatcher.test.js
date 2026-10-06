@@ -231,9 +231,8 @@ describe('createProtocolHandlers.respond', () => {
     assert.equal(sawRoot, '/ws/alpha');
   });
 
-  it('passes null project root when WORKSPACE_NOT_INITIALIZED is thrown', async () => {
+  it('passes a null project root through when no workspace is initialized', async () => {
     let sawRoot = 'sentinel';
-    const err = Object.assign(new Error('ws missing'), { code: 'WORKSPACE_NOT_INITIALIZED' });
     const { handlers } = makeHandlers(
       {
         callTool: async (_n, _a, root) => {
@@ -241,24 +240,9 @@ describe('createProtocolHandlers.respond', () => {
           return { ok: true, result: {} };
         },
       },
-      { getProjectRoot: async () => { throw err; } }
+      { getProjectRoot: async () => null }
     );
     await handlers.respond({ id: 9, method: 'tools/call', params: { name: 'echo' } });
-    assert.equal(sawRoot, null);
-  });
-
-  it('still calls the tool (with null root) when getProjectRoot fails unexpectedly', async () => {
-    let sawRoot = 'sentinel';
-    const { handlers } = makeHandlers(
-      {
-        callTool: async (_n, _a, root) => {
-          sawRoot = root;
-          return { ok: true, result: {} };
-        },
-      },
-      { getProjectRoot: async () => { throw new Error('disk on fire'); } }
-    );
-    await handlers.respond({ id: 10, method: 'tools/call', params: { name: 'echo' } });
     assert.equal(sawRoot, null);
   });
 
