@@ -32,10 +32,19 @@ function isValidPhaseId(value) {
   return Number.isInteger(value) && value >= 1;
 }
 
-function isValidBlockerId(value) {
-  if (typeof value === 'string') return value.length > 0;
-  return Number.isInteger(value) && value >= 1;
+function isArrayOf(isItem) {
+  return (value) => Array.isArray(value) && value.every(isItem);
 }
+
+// [field, violation rule, predicate] checked, in order, for each field a phase carries.
+const FIELD_RULES = [
+  ['id', 'invalid_field_type', isValidPhaseId],
+  ['name', 'invalid_field_type', isNonEmptyString],
+  ['agent', 'invalid_field_type', isNonEmptyString],
+  ['parallel', 'invalid_field_type', (value) => typeof value === 'boolean'],
+  ['blocked_by', 'invalid_field_type', isArrayOf(isValidPhaseId)],
+  ['files', 'invalid_field_value', isArrayOf(isNonEmptyString)],
+];
 
 /**
  * Validate an array of plan-phase objects against the shared phase schema.
@@ -79,57 +88,12 @@ function validatePhases(phases) {
 
     if (!phase) continue;
 
-    if ('id' in phase && !isValidPhaseId(phase.id)) {
-      violations.push({
-        rule: 'invalid_field_type',
-        phase_id: phaseId ?? null,
-        field: 'id',
-        severity: 'error',
-      });
-    }
-    if ('name' in phase && !isNonEmptyString(phase.name)) {
-      violations.push({
-        rule: 'invalid_field_type',
-        phase_id: phaseId ?? null,
-        field: 'name',
-        severity: 'error',
-      });
-    }
-    if ('agent' in phase && !isNonEmptyString(phase.agent)) {
-      violations.push({
-        rule: 'invalid_field_type',
-        phase_id: phaseId ?? null,
-        field: 'agent',
-        severity: 'error',
-      });
-    }
-    if ('parallel' in phase && typeof phase.parallel !== 'boolean') {
-      violations.push({
-        rule: 'invalid_field_type',
-        phase_id: phaseId ?? null,
-        field: 'parallel',
-        severity: 'error',
-      });
-    }
-    if ('blocked_by' in phase) {
-      if (
-        !Array.isArray(phase.blocked_by) ||
-        !phase.blocked_by.every(isValidBlockerId)
-      ) {
+    for (const [field, rule, isValid] of FIELD_RULES) {
+      if (field in phase && !isValid(phase[field])) {
         violations.push({
-          rule: 'invalid_field_type',
+          rule,
           phase_id: phaseId ?? null,
-          field: 'blocked_by',
-          severity: 'error',
-        });
-      }
-    }
-    if ('files' in phase) {
-      if (!Array.isArray(phase.files) || !phase.files.every(isNonEmptyString)) {
-        violations.push({
-          rule: 'invalid_field_value',
-          phase_id: phaseId ?? null,
-          field: 'files',
+          field,
           severity: 'error',
         });
       }
@@ -140,7 +104,6 @@ function validatePhases(phases) {
 }
 
 module.exports = {
-  PHASE_ID_SCHEMA,
   PHASE_ITEM_SCHEMA,
   PHASE_REQUIRED_FIELDS,
   isValidPhaseId,

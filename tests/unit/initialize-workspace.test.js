@@ -11,7 +11,6 @@ const {
 } = require('../../src/mcp/handlers/initialize-workspace');
 const {
   MARKER_FILENAME,
-  readWorkspaceMarker,
 } = require('../../src/mcp/contracts/workspace-marker');
 const {
   WorkspaceResolutionError,
@@ -33,7 +32,9 @@ describe('handleInitializeWorkspace', () => {
   it('writes a workspace marker to <workspace>/docs/maestro', async () => {
     const workspace = makeWorkspace();
     await handleInitializeWorkspace({ workspace_path: workspace });
-    const marker = readWorkspaceMarker(path.join(workspace, 'docs', 'maestro'));
+    const marker = JSON.parse(
+      fs.readFileSync(path.join(workspace, 'docs', 'maestro', MARKER_FILENAME), 'utf8')
+    );
     assert.equal(marker.workspace_path, workspace);
     assert.equal(marker.schema_version, 1);
     const markerExists = fs.existsSync(

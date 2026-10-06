@@ -8,14 +8,6 @@ const CACHE_PATH_SEGMENTS = [
   path.join('.gemini', 'extensions'),
 ];
 
-function segmentWindows(segments, size) {
-  const windows = [];
-  for (let i = 0; i <= segments.length - size; i += 1) {
-    windows.push(segments.slice(i, i + size).join(path.sep));
-  }
-  return windows;
-}
-
 /**
  * Returns true when the given path falls inside a host extension cache directory.
  * Matches on contiguous two-segment windows so that substring-only matches
@@ -32,8 +24,10 @@ function isExtensionCachePath(candidate) {
     .resolve(candidate)
     .split(path.sep)
     .filter((segment) => segment.length > 0);
-  const windows = segmentWindows(segments, 2);
-  return CACHE_PATH_SEGMENTS.some((cacheSegment) => windows.includes(cacheSegment));
+  return segments.some(
+    (segment, i) =>
+      i > 0 && CACHE_PATH_SEGMENTS.includes(segments[i - 1] + path.sep + segment)
+  );
 }
 
 module.exports = { CACHE_PATH_SEGMENTS, isExtensionCachePath };

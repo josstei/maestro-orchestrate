@@ -4,7 +4,6 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  PHASE_ID_SCHEMA,
   PHASE_ITEM_SCHEMA,
   PHASE_REQUIRED_FIELDS,
   validatePhases,
