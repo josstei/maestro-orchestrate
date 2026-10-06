@@ -30,6 +30,8 @@ const {
   assertSessionMatch,
 } = require('../../state/session-state');
 
+const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
+
 /**
  * Materialize a session document (design or plan) into `<state_dir>/plans/`.
  * Mirrors the design-gate contract so both documents are reachable by
@@ -149,10 +151,9 @@ function handleCreateSession(params, projectRoot) {
     updated: now,
     status: 'in_progress',
     workflow_mode: params.workflow_mode || 'standard',
-    design_document: resolvedDesignDocument || null,
+    design_document: resolvedDesignDocument,
     implementation_plan: resolvedImplementationPlan,
-    current_phase:
-      params.phases && params.phases.length > 0 ? params.phases[0].id : null,
+    current_phase: params.phases.length > 0 ? params.phases[0].id : null,
     total_phases: params.phases.length,
     execution_mode: params.execution_mode || null,
     execution_backend: 'native',
@@ -168,11 +169,11 @@ function handleCreateSession(params, projectRoot) {
       id: phase.id,
       name: phase.name,
       status: 'pending',
-      agents: phase.agent ? [phase.agent] : [],
-      parallel: phase.parallel || false,
+      agents: [phase.agent],
+      parallel: phase.parallel,
       started: null,
       completed: null,
-      blocked_by: phase.blocked_by || [],
+      blocked_by: phase.blocked_by,
       files_created: [],
       files_modified: [],
       files_deleted: [],
@@ -323,8 +324,7 @@ function handleTransitionPhase(params, projectRoot) {
       completedPhase.files_created = filesCreated;
       completedPhase.files_modified = filesModified;
       completedPhase.files_deleted = filesDeleted;
-      completedPhase.requires_reconciliation =
-        !hasFiles && !contextProvided ? true : false;
+      completedPhase.requires_reconciliation = !hasFiles && !contextProvided;
     }
 
     let startedPhaseIds;
@@ -447,14 +447,9 @@ function handleUpdateSession(params, projectRoot) {
   return withSessionState(projectRoot, ({ state }) => {
     assertSessionMatch(state, params.session_id);
 
-    const updatableFields = [
-      'execution_mode',
-      'execution_backend',
-      'current_batch',
-    ];
     const updatedFields = [];
 
-    for (const field of updatableFields) {
+    for (const field of UPDATABLE_SESSION_FIELDS) {
       if (params[field] !== undefined) {
         state[field] = params[field];
         updatedFields.push(field);
@@ -463,7 +458,7 @@ function handleUpdateSession(params, projectRoot) {
 
     if (updatedFields.length === 0) {
       throw new ValidationError(
-        'At least one updatable field (execution_mode, execution_backend, current_batch) is required'
+        `At least one updatable field (${UPDATABLE_SESSION_FIELDS.join(', ')}) is required`
       );
     }
 
