@@ -8,6 +8,7 @@ const markdownState = require('../core/markdown-state');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
+const WORKSPACE_SUBDIRS = Object.freeze(['state', 'state/archive', 'plans', 'plans/archive']);
 
 function validateRelativePath(filePath) {
   if (path.isAbsolute(filePath)) {
@@ -116,24 +117,13 @@ function assertSessionMatch(state, sessionId, verb = 'got') {
 }
 
 function ensureWorkspace(stateDir, basePath) {
-  const fullBase = path.isAbsolute(stateDir)
-    ? validateContainment(stateDir, basePath)
-    : (() => {
-        validateRelativePath(stateDir);
-        return path.join(basePath, stateDir);
-      })();
+  const fullBase = resolveStateDirPath(basePath, stateDir);
   fs.mkdirSync(fullBase, { recursive: true, mode: 0o700 });
   const stats = fs.lstatSync(fullBase);
   if (stats.isSymbolicLink()) {
     throw new Error('STATE_DIR must not be a symlink');
   }
-  const dirs = [
-    path.join(fullBase, 'state'),
-    path.join(fullBase, 'state', 'archive'),
-    path.join(fullBase, 'plans'),
-    path.join(fullBase, 'plans', 'archive'),
-  ];
-  for (const dir of dirs) {
+  for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
     try {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     } catch {
@@ -153,6 +143,7 @@ function ensureWorkspace(stateDir, basePath) {
 
 module.exports = {
   DEFAULT_STATE_DIR,
+  WORKSPACE_SUBDIRS,
   validateContainment,
   resolveStateDirPath,
   resolveActiveSessionPath,

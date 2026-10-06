@@ -3,7 +3,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const { ensureWorkspace, resolveStateDirPath } = require('../../state/session-state');
+const {
+  DEFAULT_STATE_DIR,
+  WORKSPACE_SUBDIRS,
+  ensureWorkspace,
+  resolveStateDirPath,
+} = require('../../state/session-state');
 const { resolveSetting } = require('../../config/setting-resolver');
 const {
   requireExplicitWorkspaceRoot,
@@ -21,7 +26,7 @@ async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
   const stateDir =
     params.state_dir ||
     resolveSetting('MAESTRO_STATE_DIR', resolvedWorkspace) ||
-    'docs/maestro';
+    DEFAULT_STATE_DIR;
   const fullStatePath = resolveStateDirPath(resolvedWorkspace, stateDir);
   const alreadyExisted = fs.existsSync(path.join(fullStatePath, 'state'));
 
@@ -32,12 +37,7 @@ async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
     success: true,
     workspace_path: resolvedWorkspace,
     state_dir: stateDir,
-    created_directories: [
-      'state/',
-      'state/archive/',
-      'plans/',
-      'plans/archive/',
-    ].map((dir) => path.join(stateDir, dir)),
+    created_directories: WORKSPACE_SUBDIRS.map((dir) => path.join(stateDir, `${dir}/`)),
     already_existed: alreadyExisted,
   };
 }
