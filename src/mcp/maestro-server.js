@@ -51,6 +51,11 @@ function runRuntimeServer(runtimeConfig, options = {}) {
       workspaceSuggestion: () => cache.workspaceSuggestion(),
     },
     toolPacks,
+    onToolSuccess(name, result) {
+      if (name === 'initialize_workspace' && result && result.success && result.workspace_path) {
+        cache.setExplicitWorkspacePath(result.workspace_path);
+      }
+    },
   });
 
   const handlers = createProtocolHandlers(server, cache.getProjectRoot, stdout, {
@@ -71,12 +76,6 @@ function runRuntimeServer(runtimeConfig, options = {}) {
   });
 
   requestFromClient = handlers.requestFromClient;
-
-  server.onToolCall('initialize_workspace', (result) => {
-    if (result && result.success && result.workspace_path) {
-      cache.setExplicitWorkspacePath(result.workspace_path);
-    }
-  });
 
   const lineReader = createLineDispatcher(stdin, (message) => {
     Promise.resolve(handlers.respond(message)).catch((error) => {

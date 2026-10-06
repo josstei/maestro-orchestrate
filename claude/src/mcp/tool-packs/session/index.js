@@ -1,6 +1,5 @@
 'use strict';
 
-const { defineToolPack } = require('../contracts');
 const { PHASE_ITEM_SCHEMA } = require('../../contracts/plan-schema');
 const {
   handleCreateSession,
@@ -20,7 +19,7 @@ const {
 } = require('../../handlers/reconciliation');
 
 function createToolPack() {
-  return defineToolPack({
+  return {
     name: 'session',
     tools: [
       {
@@ -235,7 +234,7 @@ function createToolPack() {
       scan_phase_changes: handleScanPhaseChanges,
       reconcile_phase: handleReconcilePhase,
     },
-  });
+  };
 }
 
 module.exports = {

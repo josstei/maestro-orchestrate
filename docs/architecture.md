@@ -104,8 +104,7 @@ src/mcp/
 ├── content/
 │   └── runtime-content.js      # Runtime-specific content resolution
 ├── core/
-│   ├── create-server.js        # Server factory + error sanitization
-│   ├── tool-registry.js        # Tool schema/handler composition
+│   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
 │   └── recovery-hints.js       # Error → recovery guidance mapping
 ├── handlers/                   # 12 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
@@ -122,7 +121,6 @@ src/mcp/
 │   └── blocker-parser.js       # Child-agent blocker surfacing
 ├── tool-packs/
 │   ├── index.js                # Tool pack aggregation
-│   ├── contracts.js            # Tool schema contracts
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 10 tools
 │   └── content/index.js        # 3 tools
