@@ -13,6 +13,7 @@ const {
   readJson,
   toPosixPath,
 } = require('./release-artifact-manifest');
+const { parseFlagArgs, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -30,33 +31,11 @@ Options:
 }
 
 function parseArgs(argv) {
-  const options = {
-    version: null,
-    outDir: 'dist/release',
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-
-    if (arg === '--help' || arg === '-h') {
-      printHelp();
-      process.exit(0);
-    }
-
-    if (arg === '--version') {
-      options.version = argv[index + 1];
-      index += 1;
-      continue;
-    }
-
-    if (arg === '--out-dir') {
-      options.outDir = argv[index + 1];
-      index += 1;
-      continue;
-    }
-
-    throw new Error(`Unknown argument: ${arg}`);
-  }
+  const options = parseFlagArgs(argv, {
+    defaults: { version: null, outDir: 'dist/release' },
+    flags: { '--version': 'version', '--out-dir': 'outDir' },
+    printHelp,
+  });
 
   if (options.version === undefined || options.outDir === undefined) {
     throw new Error('Missing value for release artifact option');
@@ -122,13 +101,10 @@ function packageReleaseArtifacts(options = {}) {
 }
 
 if (require.main === module) {
-  try {
+  runCli('release artifact packaging failed', () => {
     const result = packageReleaseArtifacts(parseArgs(process.argv.slice(2)));
     console.log(`Created release artifact: ${path.relative(ROOT, result.archivePath)}`);
-  } catch (error) {
-    console.error(`release artifact packaging failed: ${error.message}`);
-    process.exit(1);
-  }
+  });
 }
 
 module.exports = {

@@ -3,6 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { runCli } = require('./lib/cli');
 
 const STABLE_SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const BADGE_FILES = [
@@ -110,13 +111,10 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  try {
+  runCli('version update failed', () => {
     updateVersions(version);
     console.log(`Updated canonical release inputs to ${version}`);
-  } catch (error) {
-    console.error(`version update failed: ${error.message}`);
-    process.exit(1);
-  }
+  });
 }
 
 module.exports = {

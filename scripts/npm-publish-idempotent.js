@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { parseFlagArgs, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
@@ -17,33 +18,11 @@ Usage:
 }
 
 function parseArgs(argv) {
-  const options = {
-    access: 'public',
-    tag: null,
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-
-    if (arg === '--help' || arg === '-h') {
-      printHelp();
-      process.exit(0);
-    }
-
-    if (arg === '--access') {
-      options.access = argv[index + 1];
-      index += 1;
-      continue;
-    }
-
-    if (arg === '--tag') {
-      options.tag = argv[index + 1];
-      index += 1;
-      continue;
-    }
-
-    throw new Error(`Unknown argument: ${arg}`);
-  }
+  const options = parseFlagArgs(argv, {
+    defaults: { access: 'public', tag: null },
+    flags: { '--access': 'access', '--tag': 'tag' },
+    printHelp,
+  });
 
   if (!options.access) {
     throw new Error('Missing value for --access');
@@ -268,19 +247,15 @@ function publishIfNeeded(options = {}) {
 }
 
 if (require.main === module) {
-  try {
-    const options = parseArgs(process.argv.slice(2));
-    const result = publishIfNeeded(options);
+  runCli('npm publish failed', () => {
+    const result = publishIfNeeded(parseArgs(process.argv.slice(2)));
 
     if (result.published) {
       console.log(`Published ${result.packageSpec}`);
     } else {
       console.log(`Skipping npm publish; ${result.packageSpec} already exists`);
     }
-  } catch (error) {
-    console.error(`npm publish failed: ${error.message}`);
-    process.exit(1);
-  }
+  });
 }
 
 module.exports = {
