@@ -103,8 +103,12 @@ src/mcp/
 ├── maestro-server.js           # Server entry-point (runRuntimeServer)
 ├── content/
 │   └── runtime-content.js      # Runtime-specific content resolution
+├── contracts/                  # Plan schema, workspace marker, cache-path and handoff contracts
 ├── core/
 │   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
+│   ├── protocol-dispatcher.js  # JSON-RPC routing + tool result framing
+│   ├── project-root-cache.js   # Workspace path + workspace_suggestion
+│   ├── line-reader.js          # stdin line → JSON message dispatch
 │   └── recovery-hints.js       # Error → recovery guidance mapping
 ├── handlers/                   # 12 handler implementations
 │   ├── get-agent.js            # Agent methodology serving
@@ -125,7 +129,8 @@ src/mcp/
 │   ├── session/index.js        # 10 tools
 │   └── content/index.js        # 3 tools
 ├── utils/
-│   └── extension-root.js       # Path resolution
+│   └── extension-root.js       # Canonical src/ resolution
+├── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
 └── runtime/
     └── runtime-config-map.js   # Runtime config registry
 ```
