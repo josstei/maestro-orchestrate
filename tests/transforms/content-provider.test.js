@@ -11,20 +11,6 @@ const {
 } = require('../../src/mcp/content/runtime-content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
-function withExtensionRoot(root, fn) {
-  const previous = process.env.MAESTRO_EXTENSION_PATH;
-  process.env.MAESTRO_EXTENSION_PATH = root;
-  try {
-    return fn();
-  } finally {
-    if (previous == null) {
-      delete process.env.MAESTRO_EXTENSION_PATH;
-    } else {
-      process.env.MAESTRO_EXTENSION_PATH = previous;
-    }
-  }
-}
-
 function writeFilesystemResource(root, id, content) {
   const relativePath = RESOURCE_ALLOWLIST[id];
   fs.mkdirSync(path.join(root, 'src', path.dirname(relativePath)), { recursive: true });
@@ -37,7 +23,7 @@ function writeFilesystemAgent(root, agentName, content) {
   fs.writeFileSync(agentPath, content, 'utf8');
 }
 
-describe('content provider runtime policy', () => {
+describe('runtime-content filesystem reads', () => {
   it('reads filesystem-backed canonical content for claude', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-claude-'));
 
@@ -46,8 +32,10 @@ describe('content provider runtime policy', () => {
       'delegation',
       '---\nname: delegation\ndescription: Filesystem copy\n---\nFilesystem content.\n'
     );
-    const result = withExtensionRoot(root, () =>
-      readResourceFromFilesystem('delegation', getRuntimeConfig('claude'), path.join(root, 'src'))
+    const result = readResourceFromFilesystem(
+      'delegation',
+      getRuntimeConfig('claude'),
+      path.join(root, 'src')
     );
 
     assert.ok(result.content.includes('Filesystem content.'));
@@ -63,30 +51,22 @@ describe('content provider runtime policy', () => {
       'coder',
       '---\nname: coder\ntools: [read_file]\n---\nFilesystem agent body.\n'
     );
-    const { resourceResult, agentResult } = withExtensionRoot(root, () => {
-      const runtimeConfig = getRuntimeConfig('codex');
-      const srcRoot = path.join(root, 'src');
-      return {
-        resourceResult: readResourceFromFilesystem('delegation', runtimeConfig, srcRoot),
-        agentResult: readAgentFromFilesystem('coder', runtimeConfig, srcRoot),
-      };
-    });
+    const runtimeConfig = getRuntimeConfig('codex');
+    const srcRoot = path.join(root, 'src');
+    const resourceResult = readResourceFromFilesystem('delegation', runtimeConfig, srcRoot);
+    const agentResult = readAgentFromFilesystem('coder', runtimeConfig, srcRoot);
 
     assert.equal(resourceResult.content, 'Filesystem content.\n');
     assert.equal(agentResult.agent.body, 'Filesystem agent body.\n');
     assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
   });
 
-  it('returns filesystem read errors when codex exhausts its configured content sources', () => {
+  it('returns filesystem read errors when codex content is missing', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-empty-'));
-    const { resourceResult, agentResult } = withExtensionRoot(root, () => {
-      const runtimeConfig = getRuntimeConfig('codex');
-      const srcRoot = path.join(root, 'src');
-      return {
-        resourceResult: readResourceFromFilesystem('delegation', runtimeConfig, srcRoot),
-        agentResult: readAgentFromFilesystem('coder', runtimeConfig, srcRoot),
-      };
-    });
+    const runtimeConfig = getRuntimeConfig('codex');
+    const srcRoot = path.join(root, 'src');
+    const resourceResult = readResourceFromFilesystem('delegation', runtimeConfig, srcRoot);
+    const agentResult = readAgentFromFilesystem('coder', runtimeConfig, srcRoot);
 
     assert.equal(resourceResult.error, 'Failed to read resource "delegation": ENOENT');
     assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');

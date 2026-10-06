@@ -2,10 +2,6 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const rebuildFrontmatter = require('../../src/transforms/rebuild-frontmatter');
 
-function injectFrontmatter(content, runtime) {
-  return rebuildFrontmatter(content, runtime);
-}
-
 describe('inject-frontmatter transform', () => {
   const canonicalAgent = [
     '---',
@@ -72,7 +68,7 @@ describe('inject-frontmatter transform', () => {
   }
 
   it('produces gemini frontmatter with kind, temperature, timeout', () => {
-    const result = injectFrontmatter(canonicalAgent, geminiRuntime, {});
+    const result = rebuildFrontmatter(canonicalAgent, geminiRuntime);
     assertDocument(
       result,
       [
@@ -92,7 +88,7 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('produces claude frontmatter with model, color, maxTurns', () => {
-    const result = injectFrontmatter(canonicalAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(canonicalAgent, claudeRuntime);
     assertDocument(
       result,
       [
@@ -125,13 +121,13 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(agentWithOverride, claudeRuntime, {});
+    const result = rebuildFrontmatter(agentWithOverride, claudeRuntime);
     assert.ok(result.includes('- Read'));
     assert.ok(result.includes('- WebFetch'));
   });
 
   it('maps canonical tool names through runtime.tools when no override', () => {
-    const result = injectFrontmatter(canonicalAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(canonicalAgent, claudeRuntime);
     assert.ok(result.includes('- Read'));
     assert.ok(result.includes('- Glob'));
     assert.ok(result.includes('- Grep'));
@@ -156,7 +152,7 @@ describe('inject-frontmatter transform', () => {
       '## Methodology',
       'Review code carefully.',
     ].join('\n');
-    const result = injectFrontmatter(agentWithExamples, claudeRuntime, {});
+    const result = rebuildFrontmatter(agentWithExamples, claudeRuntime);
     assertDocument(
       result,
       [
@@ -198,7 +194,7 @@ describe('inject-frontmatter transform', () => {
       '## Methodology',
       'Review code carefully.',
     ].join('\n');
-    const result = injectFrontmatter(agentWithExamples, geminiRuntime, {});
+    const result = rebuildFrontmatter(agentWithExamples, geminiRuntime);
     assertDocument(
       result,
       [
@@ -240,7 +236,7 @@ describe('inject-frontmatter transform', () => {
         write_todos: ['TaskCreate', 'TaskUpdate', 'TaskList'],
       },
     };
-    const result = injectFrontmatter(agentWithArrayTools, runtimeWithArrayMapping, {});
+    const result = rebuildFrontmatter(agentWithArrayTools, runtimeWithArrayMapping);
     assert.ok(result.includes('- Read'));
     assert.ok(result.includes('- TaskCreate'));
     assert.ok(result.includes('- TaskUpdate'));
@@ -263,7 +259,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(noToolsAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(noToolsAgent, claudeRuntime);
     assert.ok(!result.includes('tools:'));
     assert.ok(result.includes('name: product-manager'));
   });
@@ -281,7 +277,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(noColorAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(noColorAgent, claudeRuntime);
     assert.ok(!result.includes('color:'));
     assert.ok(result.includes('name: tester'));
   });
@@ -296,14 +292,14 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(noDescAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(noDescAgent, claudeRuntime);
     const { frontmatter } = parseDocument(result);
     assert.ok(frontmatter.includes('description: ""'));
   });
 
   it('should handle content with no frontmatter', () => {
     const noFrontmatter = 'Just body content.\nNo frontmatter here.';
-    const result = injectFrontmatter(noFrontmatter, claudeRuntime, {});
+    const result = rebuildFrontmatter(noFrontmatter, claudeRuntime);
     assertDocument(
       result,
       [
@@ -316,7 +312,7 @@ describe('inject-frontmatter transform', () => {
 
   it('should handle content with unclosed frontmatter (no closing ---)', () => {
     const badFrontmatter = '---\nname: test\nno closing fence';
-    const result = injectFrontmatter(badFrontmatter, claudeRuntime, {});
+    const result = rebuildFrontmatter(badFrontmatter, claudeRuntime);
     assertDocument(
       result,
       [
@@ -328,7 +324,7 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should produce correct gemini field ordering: name, kind, description, tools, temperature, max_turns, timeout', () => {
-    const result = injectFrontmatter(canonicalAgent, geminiRuntime, {});
+    const result = rebuildFrontmatter(canonicalAgent, geminiRuntime);
     const lines = result.split('\n');
     const nameIdx = lines.findIndex((l) => l.startsWith('name:'));
     const kindIdx = lines.findIndex((l) => l.startsWith('kind:'));
@@ -347,7 +343,7 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should produce correct claude field ordering: name, description, model, color, maxTurns, tools', () => {
-    const result = injectFrontmatter(canonicalAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(canonicalAgent, claudeRuntime);
     const lines = result.split('\n');
     const nameIdx = lines.findIndex((l) => l.startsWith('name:'));
     const descIdx = lines.findIndex((l) => l.startsWith('description:'));
@@ -383,7 +379,7 @@ describe('inject-frontmatter transform', () => {
       '',
       '## Body content',
     ].join('\n');
-    const result = injectFrontmatter(multiExamples, claudeRuntime, {});
+    const result = rebuildFrontmatter(multiExamples, claudeRuntime);
     assert.ok(result.includes('description: |'));
     assert.ok(result.includes('  <example>'));
     assert.ok(result.includes('  First example.'));
@@ -407,7 +403,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(noTurnsAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(noTurnsAgent, claudeRuntime);
     assert.ok(!result.includes('maxTurns:'));
   });
 
@@ -422,7 +418,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(noTempAgent, geminiRuntime, {});
+    const result = rebuildFrontmatter(noTempAgent, geminiRuntime);
     assert.ok(!result.includes('temperature:'));
   });
 
@@ -438,7 +434,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(noTimeoutAgent, geminiRuntime, {});
+    const result = rebuildFrontmatter(noTimeoutAgent, geminiRuntime);
     assert.ok(!result.includes('timeout_mins:'));
   });
 
@@ -453,7 +449,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(agentWithUnknownTool, claudeRuntime, {});
+    const result = rebuildFrontmatter(agentWithUnknownTool, claudeRuntime);
     // unknown_tool should be kept as-is since runtime.tools[unknown_tool] is undefined
     assert.ok(result.includes('- unknown_tool'));
     assert.ok(result.includes('- Read'));
@@ -470,7 +466,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(quotedDesc, geminiRuntime, {});
+    const result = rebuildFrontmatter(quotedDesc, geminiRuntime);
     const { frontmatter } = parseDocument(result);
     assert.ok(frontmatter.includes('description: "Tests things \\"carefully\\"."'));
   });
@@ -486,12 +482,12 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(escapedDesc, geminiRuntime, {});
+    const result = rebuildFrontmatter(escapedDesc, geminiRuntime);
     assert.ok(result.includes('description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"'));
   });
 
   it('should handle numeric values in frontmatter correctly', () => {
-    const result = injectFrontmatter(canonicalAgent, geminiRuntime, {});
+    const result = rebuildFrontmatter(canonicalAgent, geminiRuntime);
     // temperature should be a number, not a string
     assert.ok(result.includes('temperature: 0.2'));
     assert.ok(result.includes('max_turns: 15'));
@@ -499,7 +495,7 @@ describe('inject-frontmatter transform', () => {
   });
 
   it('should produce valid frontmatter delimiters (starts and ends with ---)', () => {
-    const result = injectFrontmatter(canonicalAgent, claudeRuntime, {});
+    const result = rebuildFrontmatter(canonicalAgent, claudeRuntime);
     const lines = result.split('\n');
     assert.equal(lines[0], '---');
     const secondDashIdx = lines.indexOf('---', 1);
@@ -520,7 +516,7 @@ describe('inject-frontmatter transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = injectFrontmatter(agentWithGeminiOverride, geminiRuntime, {});
+    const result = rebuildFrontmatter(agentWithGeminiOverride, geminiRuntime);
     assert.ok(result.includes('- google_web_search'));
     // Should use the override, not the canonical tools
     assert.ok(result.includes('- glob'));

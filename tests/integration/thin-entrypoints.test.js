@@ -42,8 +42,9 @@ describe('thin entrypoint design', () => {
     );
   });
 
-  it('no canonical-source.js copies exist outside src/core/', () => {
+  it('no canonical-source.js helper copies exist (thin entrypoints resolve src/ directly)', () => {
     const forbiddenLocations = [
+      'src/core/canonical-source.js',
       'hooks/canonical-source.js',
       'mcp/canonical-source.js',
       'claude/scripts/canonical-source.js',
