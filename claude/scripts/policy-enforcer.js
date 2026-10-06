@@ -238,17 +238,11 @@ function checkCommand(command) {
   const subshells = extractSubshells(command);
   const allParts = [...new Set([...segments, ...subshells, ...subshells.flatMap((s) => splitCommands(s))])];
 
-  for (const part of allParts) {
-    for (const rule of DENY_RULES) {
-      if (matchRule(rule, part)) {
-        return { decision: 'block', reason: rule.reason };
-      }
-    }
-  }
-  for (const part of allParts) {
-    for (const rule of ASK_RULES) {
-      if (matchRule(rule, part)) {
-        return { decision: 'ask', reason: rule.reason };
+  for (const [rules, decision] of [[DENY_RULES, 'block'], [ASK_RULES, 'ask']]) {
+    for (const part of allParts) {
+      const rule = rules.find((candidate) => matchRule(candidate, part));
+      if (rule) {
+        return { decision, reason: rule.reason };
       }
     }
   }
