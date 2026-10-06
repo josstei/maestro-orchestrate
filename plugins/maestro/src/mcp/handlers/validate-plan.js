@@ -15,27 +15,21 @@ const {
   computeDepths,
   checkCycles,
   checkRedundantDependencies,
+  checkFileOverlap,
   buildParallelizationProfile,
 } = require('../validation/dag-checker');
-const { checkFileOverlap } = require('../validation/file-overlap-checker');
 
 function handleValidatePlan(params) {
   const { plan, task_complexity: taskComplexity } = params;
 
+  // The field schema is only checked once the plan has a phases array.
   const shapeViolations = checkPlanShape(plan);
-  if (shapeViolations.length > 0) {
+  const structureViolations =
+    shapeViolations.length > 0 ? shapeViolations : checkPhaseFieldSchema(plan.phases);
+  if (structureViolations.length > 0) {
     return {
       valid: false,
-      violations: shapeViolations,
-      parallelization_profile: null,
-    };
-  }
-
-  const fieldViolations = checkPhaseFieldSchema(plan.phases);
-  if (fieldViolations.length > 0) {
-    return {
-      valid: false,
-      violations: fieldViolations,
+      violations: structureViolations,
       parallelization_profile: null,
     };
   }
@@ -49,19 +43,16 @@ function handleValidatePlan(params) {
     ...checkDanglingDependencies(phases),
     ...checkUnknownAgents(phases),
     ...checkAgentCapabilities(phases),
-    ...checkCycles(phases, phaseById),
   ];
-
-  const hasCycleViolation = violations.some(
-    (violation) => violation.rule === 'cyclic_dependency'
-  );
+  const cycleViolations = checkCycles(phases, phaseById);
+  violations.push(...cycleViolations);
 
   let parallelization_profile = null;
-  if (!hasCycleViolation) {
+  if (cycleViolations.length === 0) {
     const depths = computeDepths(phases, phaseById);
     violations.push(...checkFileOverlap(phases, depths));
     violations.push(...checkRedundantDependencies(phases, phaseById));
-    parallelization_profile = buildParallelizationProfile(phases, phaseById);
+    parallelization_profile = buildParallelizationProfile(phases, depths);
   }
 
   return {
