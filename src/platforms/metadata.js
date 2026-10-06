@@ -1,46 +1,10 @@
 'use strict';
 
+const { MAESTRO_SETTINGS } = require('../config/settings-catalog');
+
 const RUNTIME_DESCRIPTION = 'Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands';
 
 const BASE_KEYWORDS = ['orchestration', 'multi-agent', 'planning', 'execution'];
-
-const EXTENSION_SETTINGS = [
-  {
-    name: 'Disabled Agents',
-    description: 'Comma-separated list of agent names to exclude from implementation planning.',
-    envVar: 'MAESTRO_DISABLED_AGENTS',
-  },
-  {
-    name: 'Max Retries',
-    description: 'Maximum retry attempts per phase before escalating to user.',
-    envVar: 'MAESTRO_MAX_RETRIES',
-  },
-  {
-    name: 'Auto Archive',
-    description: 'Automatically archive session state on successful completion (true/false).',
-    envVar: 'MAESTRO_AUTO_ARCHIVE',
-  },
-  {
-    name: 'Validation',
-    description: 'Post-phase validation strictness level (strict/normal/lenient).',
-    envVar: 'MAESTRO_VALIDATION_STRICTNESS',
-  },
-  {
-    name: 'State Directory',
-    description: 'Base directory for session state and plans (default: docs/maestro).',
-    envVar: 'MAESTRO_STATE_DIR',
-  },
-  {
-    name: 'Max Concurrent',
-    description: 'Maximum subagents emitted in one native parallel batch turn (0 = dispatch the entire ready batch).',
-    envVar: 'MAESTRO_MAX_CONCURRENT',
-  },
-  {
-    name: 'Execution Mode',
-    description: "Phase 3 execution mode: 'parallel' (native concurrent subagents), 'sequential' (one at a time), or 'ask' (prompt each time). Default: ask.",
-    envVar: 'MAESTRO_EXECUTION_MODE',
-  },
-];
 
 function normalizeRepositoryUrl(repository) {
   if (!repository) {
@@ -94,7 +58,7 @@ function buildExtensionManifest(context, runtime, contextFileName) {
     version: context.version,
     description: RUNTIME_DESCRIPTION,
     contextFileName,
-    settings: EXTENSION_SETTINGS,
+    settings: MAESTRO_SETTINGS,
     mcpServers: {
       maestro: {
         command: 'node',
