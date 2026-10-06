@@ -24,12 +24,12 @@ function parsePackJson(stdout) {
   return JSON.parse(stdout.slice(start, end + 1));
 }
 
-function runNpmPackDryRun(root = ROOT) {
+function runNpmPackDryRun() {
   const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-npm-pack-cache-'));
 
   try {
     const stdout = execFileSync('npm', ['pack', '--dry-run', '--json', '--cache', cacheDir], {
-      cwd: root,
+      cwd: ROOT,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });

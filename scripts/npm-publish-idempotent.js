@@ -164,7 +164,7 @@ function moveLatest(pkg, runner, logger, latest, target, reason) {
   };
 }
 
-function ensureLatestTagPolicy(pkg, runner, logger = console) {
+function ensureLatestTagPolicy(pkg, runner, logger) {
   const tags = queryNpm(runner, ['dist-tag', 'ls', pkg.name], parseDistTagOutput, {});
   const latest = tags.latest || null;
 
