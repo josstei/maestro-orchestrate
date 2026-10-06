@@ -6,6 +6,9 @@ const path = require('path');
 
 const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-test-'));
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
+// Hooks resolve the git toplevel of their cwd; keep fixture dirs from resolving
+// to an enclosing checkout when the temp dir happens to live inside one.
+process.env.GIT_CEILING_DIRECTORIES = fs.realpathSync(os.tmpdir());
 
 const { execFileSync } = require('child_process');
 const { describe, it, before, after } = require('node:test');
@@ -230,6 +233,20 @@ describe('handleBeforeAgent', () => {
     }
   });
 
+  it('resolves the git root from the process cwd when the payload has no cwd', () => {
+    const { root, subdir } = makeGitWorkspace('maestro-git-nocwd-');
+    const originalCwd = process.cwd();
+    try {
+      writeMcpSession(path.join(root, 'docs', 'maestro'), { status: 'in_progress', current_phase: 4 });
+      process.chdir(subdir);
+      const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: '', agentInput: null });
+      assert.equal(result.message, 'Active session: current_phase=4, status=in_progress');
+    } finally {
+      process.chdir(originalCwd);
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('allows with no context when the state dir cannot be resolved', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-badstate-');
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-outside-'));
@@ -304,6 +321,11 @@ describe('handleSessionStart', () => {
 
     const sessionDir = path.join(hooksDir, SESSION_ID);
     assert.ok(fs.existsSync(sessionDir));
+  });
+
+  it('returns advisory for a non-string cwd instead of throwing', () => {
+    const result = handleSessionStart({ sessionId: SESSION_ID, cwd: 42 });
+    assert.deepEqual(result, { action: 'advisory', message: null, reason: null });
   });
 
   it('finds the session at the git root when started from a subdirectory', () => {

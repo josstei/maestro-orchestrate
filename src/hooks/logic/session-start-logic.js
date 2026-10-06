@@ -15,7 +15,7 @@ const state = require('../../state/session-state');
 function handleSessionStart(ctx) {
   hookState.pruneStale();
 
-  if (!state.hasActiveSession(resolveExistingRoot(ctx.cwd) || ctx.cwd)) {
+  if (!state.hasActiveSession(resolveExistingRoot(ctx.cwd || process.cwd()) || ctx.cwd)) {
     return { action: 'advisory', message: null, reason: null };
   }
 

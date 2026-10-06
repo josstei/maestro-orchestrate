@@ -42,8 +42,10 @@ function summarizeSession(content) {
 function readSessionSummary(cwd) {
   let content;
   try {
-    content = readFileSafe(state.resolveActiveSessionPath(resolveExistingRoot(cwd) || cwd), '');
-  } catch {
+    const root = resolveExistingRoot(cwd || process.cwd()) || cwd;
+    content = readFileSafe(state.resolveActiveSessionPath(root), '');
+  } catch (err) {
+    log('WARN', `BeforeAgent: could not resolve session state: ${err.message}`);
     return [];
   }
   return content ? summarizeSession(content) : [];

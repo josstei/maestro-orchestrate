@@ -24,7 +24,7 @@ function resolveGitRoot(baseDir) {
 }
 
 function resolveExistingRoot(candidate) {
-  if (!candidate || candidate.includes('${')) {
+  if (typeof candidate !== 'string' || !candidate || candidate.includes('${')) {
     return null;
   }
 
