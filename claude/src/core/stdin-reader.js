@@ -33,8 +33,8 @@ function collectStdin({ decode = false, onOverflow } = {}) {
   });
 }
 
-function readText() {
-  if (process.stdin.isTTY) return Promise.resolve('');
+async function readText() {
+  if (process.stdin.isTTY) return '';
   return collectStdin({
     decode: true,
     onOverflow: () => log('ERROR', 'Stdin payload exceeds maximum size'),
