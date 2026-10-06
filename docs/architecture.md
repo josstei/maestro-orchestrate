@@ -134,12 +134,7 @@ src/mcp/
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime:
-
-- Gemini: `primary=filesystem`, `fallback=none`
-- Claude: `primary=filesystem`, `fallback=none`
-- Codex: `primary=filesystem`, `fallback=none`
-- Qwen: `primary=filesystem`, `fallback=none`
+The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime: `src/mcp/content/runtime-content.js` reads the requested agent or resource from the resolved canonical `src/` directory and applies the runtime's transforms, with no registry fallback.
 
 Gemini and Qwen use the shared repo-root entrypoint at `mcp/maestro-server.js`, which requires `../src/mcp/maestro-server` directly. Their generated manifests set `MAESTRO_RUNTIME=gemini` or `MAESTRO_RUNTIME=qwen` before launch. Claude uses dual-resolution: it prefers the repo-level `src/mcp/maestro-server.js` via `fs.existsSync()` and falls back to the bundled detached payload (`claude/src/mcp/maestro-server.js`) when running outside the repo. Codex spawns `bin/maestro-mcp-server.js` via a release-versioned `npx -p @josstei/maestro@<version> maestro-mcp-server` invocation (declared in `plugins/maestro/.mcp.json`); the bin sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server`.
 

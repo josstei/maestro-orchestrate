@@ -64,14 +64,6 @@ describe('src-first architecture invariants', () => {
     }
   });
 
-  it('keeps all runtime content policies filesystem-first with no registry fallback', () => {
-    for (const runtimeName of ['gemini', 'claude', 'codex', 'qwen']) {
-      const runtimeConfig = getRuntimeConfig(runtimeName);
-      assert.equal(runtimeConfig.content.primary, 'filesystem');
-      assert.equal(runtimeConfig.content.fallback, 'none');
-    }
-  });
-
   it('rejects manifest outputs that reintroduce mirrored shared code', () => {
     const runtimes = {
       gemini: getRuntimeConfig('gemini'),

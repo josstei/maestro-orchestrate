@@ -22,7 +22,7 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
 }
 ```
 
-Qwen reuses the repo-root public server at `mcp/maestro-server.js`. The Qwen manifest launches that shared adapter with `MAESTRO_RUNTIME=qwen`; without that env var the adapter defaults to Gemini. The adapter requires canonical `src/mcp/maestro-server.js` directly and runs the Qwen runtime against shared source in `src/`. Qwen declares `primary: filesystem` and `fallback: none`.
+Qwen reuses the repo-root public server at `mcp/maestro-server.js`. The Qwen manifest launches that shared adapter with `MAESTRO_RUNTIME=qwen`; without that env var the adapter defaults to Gemini. The adapter requires canonical `src/mcp/maestro-server.js` directly and runs the Qwen runtime against shared source in `src/`. Content tools read from the filesystem only.
 
 ## Agent Naming
 
