@@ -87,6 +87,65 @@ describe('scan_phase_changes', () => {
     assert.equal(created.includes('.git/HEAD'), false);
     assert.equal(created.includes('docs/maestro/notes.md'), false);
   });
+
+  it('scans nested directories when the server cwd is inside an extension cache', async () => {
+    // Claude and Gemini launch the MCP server with cwd set to the plugin/extension
+    // install dir (e.g. ~/.claude/plugins/...), which is itself a cache path.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-cwd-'));
+    const pluginCwd = path.join(root, 'home', '.claude', 'plugins', 'cache', 'maestro');
+    const workspace = path.join(root, 'workspace');
+    fs.mkdirSync(pluginCwd, { recursive: true });
+    fs.mkdirSync(workspace);
+    const server = setupSession(workspace);
+    await bootstrap(server, workspace);
+
+    await new Promise((r) => setTimeout(r, 50));
+    fs.mkdirSync(path.join(workspace, 'src', 'lib'), { recursive: true });
+    fs.writeFileSync(path.join(workspace, 'src', 'lib', 'nested.js'), '// hi\n');
+    fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
+
+    const originalCwd = process.cwd();
+    process.chdir(pluginCwd);
+    let outcome;
+    try {
+      outcome = await server.callTool(
+        'scan_phase_changes',
+        { session_id: 'recon-test', phase_id: 1 },
+        workspace
+      );
+    } finally {
+      process.chdir(originalCwd);
+    }
+    assert.equal(outcome.ok, true);
+    const created = outcome.result.candidates.created;
+    assert.ok(created.includes(path.join('src', 'lib', 'nested.js')));
+    assert.ok(created.includes('top.js'));
+  });
+
+  it('excludes extension cache directories inside the workspace', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-cache-'));
+    const server = setupSession(workspace);
+    await bootstrap(server, workspace);
+
+    await new Promise((r) => setTimeout(r, 50));
+    for (const cacheDir of [['.codex', 'plugins'], ['.gemini', 'extensions']]) {
+      fs.mkdirSync(path.join(workspace, ...cacheDir, 'x'), { recursive: true });
+      fs.writeFileSync(path.join(workspace, ...cacheDir, 'x', 'cached.js'), '// hi\n');
+    }
+    fs.mkdirSync(path.join(workspace, '.codex', 'config'), { recursive: true });
+    fs.writeFileSync(path.join(workspace, '.codex', 'config', 'kept.toml'), '# hi\n');
+
+    const outcome = await server.callTool(
+      'scan_phase_changes',
+      { session_id: 'recon-test', phase_id: 1 },
+      workspace
+    );
+    assert.equal(outcome.ok, true);
+    const created = outcome.result.candidates.created;
+    assert.equal(created.includes(path.join('.codex', 'plugins', 'x', 'cached.js')), false);
+    assert.equal(created.includes(path.join('.gemini', 'extensions', 'x', 'cached.js')), false);
+    assert.ok(created.includes(path.join('.codex', 'config', 'kept.toml')));
+  });
 });
 
 describe('reconcile_phase — empty payload', () => {

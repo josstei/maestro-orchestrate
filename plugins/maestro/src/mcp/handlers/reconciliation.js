@@ -35,14 +35,17 @@ function parseIgnoreEnv(env = process.env) {
 }
 
 /**
- * @param {string} relPath
+ * @param {string} relPath - Workspace-relative path, used for workspace-anchored rules.
  * @param {string} name
+ * @param {string} absPath - Absolute path. The cache check must not use relPath:
+ *   isExtensionCachePath resolves relative paths against process.cwd(), which for
+ *   Claude and Gemini is the plugin/extension install dir, itself a cache path.
  * @returns {boolean}
  */
-function shouldSkipDir(relPath, name) {
+function shouldSkipDir(relPath, name, absPath) {
   if (DEFAULT_IGNORE_DIRS.has(name)) return true;
   if (relPath === DOCS_MAESTRO) return true;
-  if (isExtensionCachePath(relPath)) return true;
+  if (isExtensionCachePath(absPath)) return true;
   return false;
 }
 
@@ -80,7 +83,7 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
       const absPath = path.join(dir, entry.name);
       const relPath = relDir ? path.join(relDir, entry.name) : entry.name;
       if (entry.isDirectory()) {
-        if (shouldSkipDir(relPath, entry.name) || extraIgnore.some((i) => relPath.startsWith(i))) {
+        if (shouldSkipDir(relPath, entry.name, absPath) || extraIgnore.some((i) => relPath.startsWith(i))) {
           ignored.push({ path: relPath, reason: 'ignored directory' });
           continue;
         }
