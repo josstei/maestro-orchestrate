@@ -2,7 +2,8 @@
 'use strict';
 
 /**
- * Postinstall step that activates the repo-local git hooks under .githooks/.
+ * Activates the repo-local git hooks under .githooks/ (run explicitly via
+ * `npm run install-hooks`).
  *
  * Activation conditions (all must hold):
  *   1. Current directory contains .githooks/ — i.e. we are in the maestro
