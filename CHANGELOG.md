@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`scan_phase_changes` missed every file below the workspace root under Claude Code and Gemini CLI**: the extension-cache check resolved each workspace-relative directory against the MCP server's cwd, which these hosts set to the plugin/extension install directory (itself a cache path), so every subdirectory was skipped. The check now uses the absolute path; cache directories inside the workspace (`.codex/plugins`, `.claude/plugins`, `.gemini/extensions`) are still excluded.
+- **`scan_phase_changes` reported Maestro's own state files as phase changes when `MAESTRO_STATE_DIR` is customized**: the scan now skips the resolved state directory in addition to `docs/maestro`.
+
 ## [1.6.4] - 2026-04-30
 
 ### Added

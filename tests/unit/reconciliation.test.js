@@ -122,6 +122,37 @@ describe('scan_phase_changes', () => {
     assert.ok(created.includes('top.js'));
   });
 
+  it('excludes a custom MAESTRO_STATE_DIR', async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-statedir-'));
+    const originalStateDir = process.env.MAESTRO_STATE_DIR;
+    process.env.MAESTRO_STATE_DIR = '.maestro';
+    let outcome;
+    try {
+      const server = setupSession(workspace);
+      await bootstrap(server, workspace);
+
+      await new Promise((r) => setTimeout(r, 50));
+      fs.writeFileSync(path.join(workspace, '.maestro', 'state', 'notes.md'), '...');
+      fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
+
+      outcome = await server.callTool(
+        'scan_phase_changes',
+        { session_id: 'recon-test', phase_id: 1 },
+        workspace
+      );
+    } finally {
+      if (originalStateDir === undefined) delete process.env.MAESTRO_STATE_DIR;
+      else process.env.MAESTRO_STATE_DIR = originalStateDir;
+    }
+    assert.equal(outcome.ok, true);
+    const { created, modified } = outcome.result.candidates;
+    assert.deepEqual(
+      [...created, ...modified].filter((p) => p.startsWith('.maestro')),
+      []
+    );
+    assert.ok(created.includes('top.js'));
+  });
+
   it('excludes extension cache directories inside the workspace', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-cache-'));
     const server = setupSession(workspace);

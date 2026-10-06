@@ -40,11 +40,12 @@ function parseIgnoreEnv(env = process.env) {
  * @param {string} absPath - Absolute path. The cache check must not use relPath:
  *   isExtensionCachePath resolves relative paths against process.cwd(), which for
  *   Claude and Gemini is the plugin/extension install dir, itself a cache path.
+ * @param {string} stateDir - Absolute path of the resolved Maestro state dir.
  * @returns {boolean}
  */
-function shouldSkipDir(relPath, name, absPath) {
+function shouldSkipDir(relPath, name, absPath, stateDir) {
   if (DEFAULT_IGNORE_DIRS.has(name)) return true;
-  if (relPath === DOCS_MAESTRO) return true;
+  if (relPath === DOCS_MAESTRO || absPath === stateDir) return true;
   if (isExtensionCachePath(absPath)) return true;
   return false;
 }
@@ -54,9 +55,10 @@ function shouldSkipDir(relPath, name, absPath) {
  * @param {string} startedAt
  * @param {number} maxFiles
  * @param {string[]} extraIgnore
+ * @param {string} stateDir - Absolute path of the resolved Maestro state dir.
  * @returns {{ created: string[], modified: string[], ignored: Array<{path: string, reason: string}>, truncated: boolean }}
  */
-function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
+function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
   const startedMs = Date.parse(startedAt);
   const ignored = [];
   const created = [];
@@ -83,7 +85,7 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore) {
       const absPath = path.join(dir, entry.name);
       const relPath = relDir ? path.join(relDir, entry.name) : entry.name;
       if (entry.isDirectory()) {
-        if (shouldSkipDir(relPath, entry.name, absPath) || extraIgnore.some((i) => relPath.startsWith(i))) {
+        if (shouldSkipDir(relPath, entry.name, absPath, stateDir) || extraIgnore.some((i) => relPath.startsWith(i))) {
           ignored.push({ path: relPath, reason: 'ignored directory' });
           continue;
         }
@@ -125,7 +127,7 @@ function handleScanPhaseChanges(params, projectRoot) {
       'phase_id must be a positive integer or a non-empty string'
     );
   }
-  const { state } = readActiveSession(projectRoot);
+  const { state, basePath } = readActiveSession(projectRoot);
 
   if (state.session_id !== params.session_id) {
     throw new StateError(
@@ -144,7 +146,7 @@ function handleScanPhaseChanges(params, projectRoot) {
   }
   const maxFiles = Number(process.env.MAESTRO_SCAN_MAX_FILES || 5000);
   const extraIgnore = parseIgnoreEnv();
-  const result = scanWorkspace(projectRoot, phase.started, maxFiles, extraIgnore);
+  const result = scanWorkspace(projectRoot, phase.started, maxFiles, extraIgnore, path.resolve(basePath));
 
   return {
     phase_id: phase.id,
