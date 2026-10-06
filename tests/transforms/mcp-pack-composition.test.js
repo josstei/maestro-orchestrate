@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const { DEFAULT_TOOL_PACKS } = require('../../src/mcp/tool-packs');
+const { DEFAULT_TOOL_PACKS } = require('../../src/mcp/maestro-server');
 
 describe('mcp pack composition', () => {
   it('mounts the default tool packs in a stable order', () => {

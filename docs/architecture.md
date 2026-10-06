@@ -100,7 +100,7 @@ The MCP server is authored directly in modular source under `src/mcp/`. Gemini a
 
 ```
 src/mcp/
-├── maestro-server.js           # Server entry-point (runRuntimeServer)
+├── maestro-server.js           # Server entry-point (main) + default tool pack order
 ├── content/
 │   └── runtime-content.js      # Runtime-specific content resolution
 ├── contracts/                  # Plan schema, workspace marker, cache-path and handoff contracts
@@ -122,7 +122,6 @@ src/mcp/
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   └── reconciliation.js       # Phase reconciliation (2 tools)
 ├── tool-packs/
-│   ├── index.js                # Tool pack aggregation
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 10 tools
 │   └── content/index.js        # 3 tools
