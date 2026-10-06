@@ -17,7 +17,7 @@ const repoRules = path.resolve(__dirname, '../../src/core/policy-rules.js');
 const bundledRules = path.resolve(__dirname, '../src/core/policy-rules.js');
 const { DENY_RULES, ASK_RULES } = require(fs.existsSync(repoRules) ? repoRules : bundledRules);
 
-function splitCommands(command, onSubshell = () => {}) {
+function splitCommands(command) {
   const parts = [];
   let depth = 0;
   let current = '';
@@ -43,14 +43,12 @@ function splitCommands(command, onSubshell = () => {}) {
 
     if (!inSingle && ch === '$' && command[i + 1] === '(') {
       const parsed = readDollarSubshell(command, i + 2);
-      onSubshell(parsed.content);
       current += '$(' + parsed.content + ')';
       i = parsed.end;
       continue;
     }
     if (!inSingle && ch === '`') {
       const parsed = readBacktickSubshell(command, i + 1);
-      onSubshell(parsed.content);
       current += '`' + parsed.content + '`';
       i = parsed.end;
       continue;
@@ -187,12 +185,51 @@ function readDollarSubshell(command, startIndex) {
 
 function extractSubshells(command) {
   const patterns = [];
-  splitCommands(command, (raw) => {
-    const content = raw.trim();
-    if (content) {
-      patterns.push(content, ...extractSubshells(content));
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
     }
-  });
+    if (ch === '\\' && !inSingle) {
+      escaped = true;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (inSingle) continue;
+
+    if (ch === '$' && command[i + 1] === '(') {
+      const parsed = readDollarSubshell(command, i + 2);
+      const content = parsed.content.trim();
+      if (content) {
+        patterns.push(content, ...extractSubshells(content));
+      }
+      i = parsed.end;
+      continue;
+    }
+
+    if (ch === '`') {
+      const parsed = readBacktickSubshell(command, i + 1);
+      const content = parsed.content.trim();
+      if (content) {
+        patterns.push(content, ...extractSubshells(content));
+      }
+      i = parsed.end;
+    }
+  }
+
   return patterns;
 }
 
