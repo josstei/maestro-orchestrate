@@ -2,19 +2,8 @@
 
 const { emitInlineQuotedList } = require('../lib/yaml-emit');
 
-function buildGeminiPreamble(entry) {
-  const resources = [];
-  if (entry.refs && entry.refs.includes('architecture')) {
-    resources.push('architecture');
-  }
-  for (const skill of entry.skills || []) {
-    resources.push(skill);
-  }
-
-  if (resources.length === 0) {
-    return '';
-  }
-
+function buildSkillContentLine(entry) {
+  const resources = ['architecture', ...entry.skills];
   return `Call \`get_skill_content\` with resources: [${emitInlineQuotedList(resources)}].`;
 }
 
@@ -27,19 +16,7 @@ function buildClaudePreamble(entry) {
 }
 
 function buildCodexPreamble(entry) {
-  const refs = [];
-  const resources = [];
-
-  if (entry.refs && entry.refs.includes('architecture')) {
-    resources.push('architecture');
-  }
-  for (const skill of entry.skills || []) {
-    resources.push(skill);
-  }
-
-  if (resources.length > 0) {
-    refs.push(`Call \`get_skill_content\` with resources: [${emitInlineQuotedList(resources)}].`);
-  }
+  const refs = [buildSkillContentLine(entry)];
   if (entry.agents && entry.agents.length > 0) {
     refs.push(`Call \`get_agent\` with agents: [${emitInlineQuotedList(entry.agents)}].`);
   }
@@ -48,7 +25,7 @@ function buildCodexPreamble(entry) {
 }
 
 module.exports = {
-  gemini: buildGeminiPreamble,
+  gemini: buildSkillContentLine,
   claude: buildClaudePreamble,
   codex: buildCodexPreamble,
 };

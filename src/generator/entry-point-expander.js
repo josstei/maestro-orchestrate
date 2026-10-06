@@ -16,38 +16,24 @@ const HOST_RESERVED_NAMES = {
   claude: new Set(['review', 'debug', 'resume']),
 };
 
+// Entry points and core commands share one output location per runtime.
+const OUTPUT_PATHS = {
+  gemini: (e) => `commands/maestro/${e.name}.toml`,
+  claude: (e) => `claude/skills/${e.name}/SKILL.md`,
+  codex: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
+};
+
 const ENTRY_POINT_CONFIG = {
-  gemini: {
-    templateFile: 'gemini-command.toml.tmpl',
-    outputPath: (e) => `commands/maestro/${e.name}.toml`,
-    preamblePlaceholder: 'skills_block',
-  },
-  claude: {
-    templateFile: 'claude-skill.md.tmpl',
-    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
-    preamblePlaceholder: 'protocol_block',
-  },
-  codex: {
-    templateFile: 'codex-skill.md.tmpl',
-    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-    preamblePlaceholder: 'refs_list',
-  },
+  gemini: { templateFile: 'gemini-command.toml.tmpl', preamblePlaceholder: 'skills_block' },
+  claude: { templateFile: 'claude-skill.md.tmpl', preamblePlaceholder: 'protocol_block' },
+  codex: { templateFile: 'codex-skill.md.tmpl', preamblePlaceholder: 'refs_list' },
   qwen: null,
 };
 
 const CORE_COMMAND_CONFIG = {
-  gemini: {
-    templateFile: 'gemini-core-command.toml.tmpl',
-    outputPath: (e) => `commands/maestro/${e.name}.toml`,
-  },
-  claude: {
-    templateFile: 'claude-core-command.md.tmpl',
-    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
-  },
-  codex: {
-    templateFile: 'codex-core-command.md.tmpl',
-    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-  },
+  gemini: { templateFile: 'gemini-core-command.toml.tmpl' },
+  claude: { templateFile: 'claude-core-command.md.tmpl' },
+  codex: { templateFile: 'codex-core-command.md.tmpl' },
   qwen: null,
 };
 
@@ -88,14 +74,15 @@ function assertNotHostReserved(resolvedName, runtimeName) {
 function applySubstitutions(template, substitutions) {
   let content = template;
   for (const [key, value] of Object.entries(substitutions)) {
-    const pattern = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-    content = content.replace(pattern, value);
+    content = content.replaceAll(`{{${key}}}`, value);
   }
   return content;
 }
 
-function runTemplateExpansion({ runtimeName, registry, templatePath, outputPathFn, buildSubstitutions }) {
+function runTemplateExpansion({ runtimeName, registry, srcDir, templateFile, buildSubstitutions }) {
+  const templatePath = path.join(srcDir, 'entry-points', 'templates', templateFile);
   const template = fs.readFileSync(templatePath, 'utf8');
+  const outputPathFn = OUTPUT_PATHS[runtimeName];
   return registry.map((entry) => {
     const runtimeEntry = {
       ...entry,
@@ -129,14 +116,13 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
 
   const registry = require(path.join(srcDir, 'entry-points', 'registry'));
   const preambleBuilders = require(path.join(srcDir, 'entry-points', 'preamble-builders'));
-  const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
   const buildPreamble = preambleBuilders[runtimeName];
 
   return runTemplateExpansion({
     runtimeName,
     registry,
-    templatePath,
-    outputPathFn: config.outputPath,
+    srcDir,
+    templateFile: config.templateFile,
     buildSubstitutions: (runtimeEntry) => ({
       name: runtimeEntry.name,
       Name: toTitleCase(runtimeEntry.name),
@@ -158,13 +144,12 @@ function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
   if (!config) return [];
 
   const registry = require(path.join(srcDir, 'entry-points', 'core-command-registry'));
-  const templatePath = path.join(srcDir, 'entry-points', 'templates', config.templateFile);
 
   return runTemplateExpansion({
     runtimeName,
     registry,
-    templatePath,
-    outputPathFn: config.outputPath,
+    srcDir,
+    templateFile: config.templateFile,
     buildSubstitutions: (runtimeEntry) => ({
       name: runtimeEntry.name,
       description: runtimeEntry.description,
