@@ -1,5 +1,6 @@
 'use strict';
 
+const { resolveExistingRoot } = require('../../core/project-root-resolver');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
 
@@ -13,7 +14,7 @@ const state = require('../../state/session-state');
  */
 function handleSessionStart(ctx) {
   hookState.pruneStale();
-  if (state.hasActiveSession(ctx.cwd)) hookState.ensureSessionDir(ctx.sessionId);
+  if (state.hasActiveSession(resolveExistingRoot(ctx.cwd || process.cwd()) || ctx.cwd)) hookState.ensureSessionDir(ctx.sessionId);
   return { action: 'advisory', message: null, reason: null };
 }
 

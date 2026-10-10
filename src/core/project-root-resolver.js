@@ -30,7 +30,7 @@ function gitRootOrSelf(resolved) {
 }
 
 function resolveExistingRoot(candidate) {
-  if (!candidate || candidate.includes('${')) {
+  if (typeof candidate !== 'string' || !candidate || candidate.includes('${')) {
     return null;
   }
 
@@ -100,6 +100,7 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
 }
 
 module.exports = {
+  resolveExistingRoot,
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,
   requireWorkspaceRoot,

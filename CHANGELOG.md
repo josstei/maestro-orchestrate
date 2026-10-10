@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`scan_phase_changes` missed every file below the workspace root under Claude Code and Gemini CLI**: the extension-cache check resolved each workspace-relative directory against the MCP server's cwd, which these hosts set to the plugin/extension install directory (itself a cache path), so every subdirectory was skipped. The check now uses the absolute path; cache directories inside the workspace (`.codex/plugins`, `.claude/plugins`, `.gemini/extensions`) are still excluded.
+- **`scan_phase_changes` reported Maestro's own state files as phase changes when `MAESTRO_STATE_DIR` is set in the environment**: the scan now skips the resolved state directory (matched on real paths, so symlinked workspaces and state dirs are covered) in addition to `docs/maestro`.
+- **Before-agent hook never injected session context for MCP-created sessions**: it matched YAML-style `current_phase:` / `status:` lines, but `create_session` writes JSON frontmatter. The hook now parses the session file the same way MCP writes it, falling back to the YAML-style match for legacy files.
+- **Hooks looked for session state relative to the hook's working directory**: fired from a subdirectory of the workspace, `before-agent` and `session-start` missed the active session, and with an absolute `MAESTRO_STATE_DIR` the before-agent hook failed and its error fallback stopped the turn on every Agent dispatch (Claude Code) or the agent turn (Gemini CLI). Hooks now resolve the git toplevel the same way `initialize_workspace` does, and a state-dir resolution error is logged and yields no context instead of stopping the turn.
+
 ## [1.6.4] - 2026-04-30
 
 ### Added
