@@ -93,7 +93,7 @@ jobs:
           fi
 
       - name: Run full test suite
-        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+        run: npm test
 
       - name: Create release branch
         env:

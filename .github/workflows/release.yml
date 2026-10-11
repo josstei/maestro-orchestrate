@@ -165,7 +165,7 @@ jobs:
 
       - name: Run full test suite
         if: steps.detect.outputs.is_release == 'true'
-        run: node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+        run: npm test
 
       - name: Verify npm package contents
         if: steps.detect.outputs.is_release == 'true'
