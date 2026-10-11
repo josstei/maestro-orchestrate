@@ -37,18 +37,9 @@ function updateBadge(filePath, version) {
 }
 
 function trimBlankEdges(lines) {
-  let start = 0;
-  let end = lines.length;
-
-  while (start < end && lines[start].trim() === '') {
-    start += 1;
-  }
-
-  while (end > start && lines[end - 1].trim() === '') {
-    end -= 1;
-  }
-
-  return lines.slice(start, end);
+  const isContent = (line) => line.trim() !== '';
+  const start = lines.findIndex(isContent);
+  return start === -1 ? [] : lines.slice(start, lines.findLastIndex(isContent) + 1);
 }
 
 function updateChangelog(filePath, version, dateString = new Date().toISOString().slice(0, 10)) {
