@@ -41,7 +41,7 @@ architect(query: "Design the auth system...")
 
 ## Commands
 
-The Qwen runtime does not emit its own TOML command files. `src/generator/entry-point-expander.js` sets `qwen: null` in both `ENTRY_POINT_CONFIG` and `CORE_COMMAND_CONFIG`, so `expandEntryPoints('qwen')` and `expandCoreCommands('qwen')` return empty arrays. This is intentional: Qwen Code is Gemini-CLI-compatible and consumes the 12 TOML commands generated for Gemini at repo-root `commands/maestro/` when both extensions coexist. See `docs/runtime-gemini.md` for the full command list.
+The Qwen runtime does not emit its own TOML command files. `src/generator/entry-point-expander.js` sets `qwen: null` in `RUNTIME_ENTRY_POINTS`, so `expandEntryPoints('qwen')` and `expandCoreCommands('qwen')` return empty arrays. This is intentional: Qwen Code is Gemini-CLI-compatible and consumes the 12 TOML commands generated for Gemini at repo-root `commands/maestro/` when both extensions coexist. See `docs/runtime-gemini.md` for the full command list.
 
 ## Hooks
 
@@ -64,7 +64,7 @@ Qwen uses the same post-delegation validation as Gemini:
 
 ### Hook Adapter
 
-Qwen reuses the shared Gemini-style adapter at `hooks/adapters/qwen-adapter.js` (or the shared Gemini adapter when the CLI JSON shape matches). Output format: `{ continue: boolean, systemMessage?: string }`.
+Qwen reuses the shared Gemini-style adapter at `src/platforms/shared/adapters/qwen-adapter.js` (or the shared Gemini adapter when the CLI JSON shape matches). Output format: `{ continue: boolean, systemMessage?: string }`.
 
 ## Policies
 

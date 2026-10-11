@@ -81,7 +81,7 @@ Infrastructure skills have `user-invocable: false` — they surface in Claude's 
 
 ### Hook Adapter
 
-`claude/scripts/adapters/claude-adapter.js` normalizes Claude Code stdin:
+`src/platforms/shared/adapters/claude-adapter.js` normalizes Claude Code stdin:
 
 | Claude Field | Internal Field |
 |-------------|----------------|

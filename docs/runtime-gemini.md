@@ -79,7 +79,7 @@ Gemini has a post-delegation validation hook that Claude lacks:
 
 ### Hook Adapter
 
-`hooks/adapters/gemini-adapter.js` normalizes Gemini CLI JSON input:
+`src/platforms/shared/adapters/gemini-adapter.js` normalizes Gemini CLI JSON input:
 
 | Gemini Field | Internal Field |
 |-------------|----------------|
