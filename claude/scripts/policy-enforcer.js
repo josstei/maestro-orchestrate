@@ -70,26 +70,11 @@ function splitCommands(command) {
     if (ch === '}') { depth--; current += ch; continue; }
 
     if (depth === 0) {
-      if (ch === ';') {
+      const isDoubled = (ch === '&' || ch === '|') && command[i + 1] === ch;
+      if (ch === ';' || ch === '|' || isDoubled) {
         parts.push(current);
         current = '';
-        continue;
-      }
-      if (ch === '&' && command[i + 1] === '&') {
-        parts.push(current);
-        current = '';
-        i++;
-        continue;
-      }
-      if (ch === '|' && command[i + 1] === '|') {
-        parts.push(current);
-        current = '';
-        i++;
-        continue;
-      }
-      if (ch === '|') {
-        parts.push(current);
-        current = '';
+        if (isDoubled) i++;
         continue;
       }
     }
@@ -173,7 +158,7 @@ function readDollarSubshell(command, startIndex) {
       i = parsed.end;
       continue;
     }
-    if (!inSingle && ch === ')') {
+    if (ch === ')') {
       return { content, end: i };
     }
 
