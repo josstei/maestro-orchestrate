@@ -37,13 +37,9 @@ function main() {
     services: {
       canonicalSrcRoot,
       workspaceSuggestion: cache.workspaceSuggestion,
+      setWorkspacePath: cache.setExplicitWorkspacePath,
     },
     toolPacks: DEFAULT_TOOL_PACKS,
-    onToolSuccess(name, result) {
-      if (name === 'initialize_workspace' && result && result.success && result.workspace_path) {
-        cache.setExplicitWorkspacePath(result.workspace_path);
-      }
-    },
   });
 
   const handlers = createProtocolHandlers(server, cache.getProjectRoot, process.stdout, {

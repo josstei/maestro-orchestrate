@@ -9,7 +9,7 @@ const {
 const { handleValidatePlan } = require('../../handlers/validate-plan');
 const { handleResolveSettings } = require('../../handlers/resolve-settings');
 
-function createToolPack() {
+function createToolPack({ services = {} } = {}) {
   return {
     name: 'workspace',
     tools: [
@@ -84,7 +84,13 @@ function createToolPack() {
       },
     ],
     handlers: {
-      initialize_workspace: handleInitializeWorkspace,
+      async initialize_workspace(params, projectRoot) {
+        const result = await handleInitializeWorkspace(params, projectRoot);
+        if (typeof services.setWorkspacePath === 'function') {
+          services.setWorkspacePath(result.workspace_path);
+        }
+        return result;
+      },
       assess_task_complexity: handleAssessTaskComplexity,
       validate_plan: handleValidatePlan,
       resolve_settings: handleResolveSettings,

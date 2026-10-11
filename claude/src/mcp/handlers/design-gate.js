@@ -290,6 +290,7 @@ function removeDesignGate(projectRoot, sessionId) {
 }
 
 module.exports = {
+  GATE_FILENAME,
   handleEnterDesignGate,
   handleRecordDesignApproval,
   handleGetDesignGateStatus,

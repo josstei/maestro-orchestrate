@@ -62,11 +62,9 @@ function normalizeToolError(toolName, error) {
 /**
  * Compose tool packs into a server that lists tool schemas and dispatches
  * tool calls. Packs are mounted in order; tool names must be unique.
- * `onToolSuccess(name, result)` runs after each successful call and cannot
- * affect the call's outcome.
  */
 function createServer(options = {}) {
-  const { runtimeConfig = {}, services = {}, toolPacks, onToolSuccess } = options;
+  const { runtimeConfig = {}, services = {}, toolPacks } = options;
   const context = Object.freeze({
     runtimeConfig: isObject(runtimeConfig) ? runtimeConfig : {},
     services: isObject(services) ? services : {},
@@ -122,15 +120,7 @@ function createServer(options = {}) {
         if (requiresWorkspace[name]) {
           requireWorkspaceRoot(projectRoot, name);
         }
-        const result = await handler(args, projectRoot);
-        if (typeof onToolSuccess === 'function') {
-          try {
-            onToolSuccess(name, result);
-          } catch {
-            // Post-call handlers must not mask tool results.
-          }
-        }
-        return { ok: true, result };
+        return { ok: true, result: await handler(args, projectRoot) };
       } catch (error) {
         return normalizeToolError(name, error);
       }

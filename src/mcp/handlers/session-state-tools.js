@@ -13,6 +13,7 @@ const {
 } = require('../contracts/downstream-context');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
 const {
+  GATE_FILENAME,
   readGate,
   findOrphanedApprovedGates,
   toWorkspacePath,
@@ -81,13 +82,14 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind) {
  * @throws {ValidationError} when an orphaned approved gate is detected
  */
 function assertNoOrphanedApprovedGate(projectRoot, currentSessionId, hasCurrentGate) {
+  if (hasCurrentGate) return;
   const orphans = findOrphanedApprovedGates(projectRoot, currentSessionId);
-  if (orphans.length === 0 || hasCurrentGate) return;
+  if (orphans.length === 0) return;
 
   const orphanedIds = orphans.map((gate) => gate.session_id);
   const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
   const stalePaths = orphans
-    .map((g) => `<state_dir>/state/${g.session_id}.design-gate.json`)
+    .map((g) => `<state_dir>/state/${g.session_id}${GATE_FILENAME}`)
     .join(', ');
   throw new ValidationError(
     `Approved design gate exists for session ${idList} but create_session was called with '${currentSessionId}'. Session IDs must match across enter_design_gate, record_design_approval, and create_session. Either call create_session with the matching session_id, or delete the stale gate file(s) at ${stalePaths} and re-enter the gate with '${currentSessionId}'.`,
