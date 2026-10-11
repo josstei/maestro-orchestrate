@@ -37,42 +37,25 @@ diff:
 # Clean all generated files and regenerate from scratch
 clean:
     node scripts/generate.js --clean
-    node scripts/generate.js
 
 # Run all tests
-test:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    shopt -s nullglob
-    files=(tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js)
-    if [ ${#files[@]} -eq 0 ]; then echo "No test files found"; exit 1; fi
-    node --test "${files[@]}"
+test: (_node-test "test" "tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js")
 
 # Run only unit tests (core modules, hooks, handlers)
-test-unit:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    shopt -s nullglob
-    files=(tests/unit/*.test.js)
-    if [ ${#files[@]} -eq 0 ]; then echo "No unit test files found"; exit 1; fi
-    node --test "${files[@]}"
+test-unit: (_node-test "unit test" "tests/unit/*.test.js")
 
 # Run only transform unit tests
-test-transforms:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    shopt -s nullglob
-    files=(tests/transforms/*.test.js)
-    if [ ${#files[@]} -eq 0 ]; then echo "No transform test files found"; exit 1; fi
-    node --test "${files[@]}"
+test-transforms: (_node-test "transform test" "tests/transforms/*.test.js")
 
 # Run only integration tests
-test-integration:
+test-integration: (_node-test "integration test" "tests/integration/*.test.js")
+
+_node-test label globs:
     #!/usr/bin/env bash
     set -euo pipefail
     shopt -s nullglob
-    files=(tests/integration/*.test.js)
-    if [ ${#files[@]} -eq 0 ]; then echo "No integration test files found"; exit 1; fi
+    files=({{globs}})
+    if [ ${#files[@]} -eq 0 ]; then echo "No {{label}} files found"; exit 1; fi
     node --test "${files[@]}"
 
 # Generate and verify zero drift (what CI runs)
