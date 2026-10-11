@@ -6,26 +6,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-
-function createServerForWorkspace() {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createWorkspacePack, createSessionPack],
-  });
-}
+  createInitializedSessionServer,
+  readSessionState,
+} = require('../support/session-server');
 
 async function prepareSession(phaseId = 1) {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hv-'));
-  const server = createServerForWorkspace();
-  await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+  const server = await createInitializedSessionServer(workspace);
   await server.callTool(
     'create_session',
     {
@@ -106,11 +94,7 @@ describe('handoff validation', () => {
       `string-valued downstream_context should be accepted: ${stringForm.error || ''}`
     );
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readSessionState(workspace);
     const phase = state.phases.find((candidate) => candidate.id === 1);
 
     assert.deepEqual(phase.downstream_context.integration_points, [

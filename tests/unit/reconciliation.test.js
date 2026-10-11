@@ -6,21 +6,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-
-function setupSession(workspace) {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createWorkspacePack, createSessionPack],
-  });
-}
+const { withEnv } = require('../support/env');
+const { createSessionServer } = require('../support/session-server');
 
 async function bootstrap(server, workspace) {
   await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
@@ -48,7 +35,7 @@ async function bootstrap(server, workspace) {
 describe('scan_phase_changes', () => {
   it('returns files created after the phase started', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-'));
-    const server = setupSession(workspace);
+    const server = createSessionServer();
     await bootstrap(server, workspace);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -69,7 +56,7 @@ describe('scan_phase_changes', () => {
 
   it('excludes docs/maestro and .git paths', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-exc-'));
-    const server = setupSession(workspace);
+    const server = createSessionServer();
     await bootstrap(server, workspace);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -96,7 +83,7 @@ describe('scan_phase_changes', () => {
     const workspace = path.join(root, 'workspace');
     fs.mkdirSync(pluginCwd, { recursive: true });
     fs.mkdirSync(workspace);
-    const server = setupSession(workspace);
+    const server = createSessionServer();
     await bootstrap(server, workspace);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -124,26 +111,20 @@ describe('scan_phase_changes', () => {
 
   it('excludes a custom MAESTRO_STATE_DIR', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-statedir-'));
-    const originalStateDir = process.env.MAESTRO_STATE_DIR;
-    process.env.MAESTRO_STATE_DIR = '.maestro';
-    let outcome;
-    try {
-      const server = setupSession(workspace);
+    const outcome = await withEnv({ MAESTRO_STATE_DIR: '.maestro' }, async () => {
+      const server = createSessionServer();
       await bootstrap(server, workspace);
 
       await new Promise((r) => setTimeout(r, 50));
       fs.writeFileSync(path.join(workspace, '.maestro', 'state', 'notes.md'), '...');
       fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
 
-      outcome = await server.callTool(
+      return server.callTool(
         'scan_phase_changes',
         { session_id: 'recon-test', phase_id: 1 },
         workspace
       );
-    } finally {
-      if (originalStateDir === undefined) delete process.env.MAESTRO_STATE_DIR;
-      else process.env.MAESTRO_STATE_DIR = originalStateDir;
-    }
+    });
     assert.equal(outcome.ok, true);
     const { created, modified } = outcome.result.candidates;
     assert.deepEqual(
@@ -159,26 +140,23 @@ describe('scan_phase_changes', () => {
     const workspace = path.join(root, 'alias');
     fs.mkdirSync(path.join(realWorkspace, '.maestro'), { recursive: true });
     fs.symlinkSync(realWorkspace, workspace, 'dir');
-    const originalStateDir = process.env.MAESTRO_STATE_DIR;
-    process.env.MAESTRO_STATE_DIR = path.join(workspace, '.maestro');
-    let outcome;
-    try {
-      const server = setupSession(workspace);
-      await bootstrap(server, workspace);
+    const outcome = await withEnv(
+      { MAESTRO_STATE_DIR: path.join(workspace, '.maestro') },
+      async () => {
+        const server = createSessionServer();
+        await bootstrap(server, workspace);
 
-      await new Promise((r) => setTimeout(r, 50));
-      fs.writeFileSync(path.join(workspace, '.maestro', 'state', 'notes.md'), '...');
-      fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
+        await new Promise((r) => setTimeout(r, 50));
+        fs.writeFileSync(path.join(workspace, '.maestro', 'state', 'notes.md'), '...');
+        fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
 
-      outcome = await server.callTool(
-        'scan_phase_changes',
-        { session_id: 'recon-test', phase_id: 1 },
-        workspace
-      );
-    } finally {
-      if (originalStateDir === undefined) delete process.env.MAESTRO_STATE_DIR;
-      else process.env.MAESTRO_STATE_DIR = originalStateDir;
-    }
+        return server.callTool(
+          'scan_phase_changes',
+          { session_id: 'recon-test', phase_id: 1 },
+          workspace
+        );
+      }
+    );
     assert.equal(outcome.ok, true);
     const { created, modified } = outcome.result.candidates;
     assert.deepEqual(
@@ -190,7 +168,7 @@ describe('scan_phase_changes', () => {
 
   it('excludes extension cache directories inside the workspace', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-cache-'));
-    const server = setupSession(workspace);
+    const server = createSessionServer();
     await bootstrap(server, workspace);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -217,7 +195,7 @@ describe('scan_phase_changes', () => {
 describe('reconcile_phase — empty payload', () => {
   it('rejects a call with no files and no downstream_context', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-empty-'));
-    const server = setupSession(workspace);
+    const server = createSessionServer();
     await bootstrap(server, workspace);
 
     await server.callTool(
@@ -244,7 +222,7 @@ describe('reconcile_phase — empty payload', () => {
 
   it('rejects a call with empty arrays and an unpopulated downstream_context', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-empty2-'));
-    const server = setupSession(workspace);
+    const server = createSessionServer();
     await bootstrap(server, workspace);
 
     await server.callTool(
@@ -280,7 +258,7 @@ describe('reconcile_phase — empty payload', () => {
 describe('reconcile_phase', () => {
   it('clears requires_reconciliation and writes file manifests', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-e2e-'));
-    const server = setupSession(workspace);
+    const server = createSessionServer();
     await bootstrap(server, workspace);
 
     await server.callTool(

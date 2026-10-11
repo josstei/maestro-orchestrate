@@ -6,21 +6,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-
-function createServerForWorkspace() {
-  return createServer({
-    runtimeConfig: { name: 'gemini' },
-    services: {},
-    toolPacks: [createWorkspacePack, createSessionPack],
-  });
-}
+  createInitializedSessionServer,
+  readSessionState,
+} = require('../support/session-server');
 
 function writeFile(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -33,8 +22,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-tmp-'));
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'ddl-1' }, workspace);
 
     const approval = await server.callTool(
@@ -61,8 +49,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-latewrite-tmp-'));
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'ddl-late' }, workspace);
     await server.callTool(
       'record_design_approval',
@@ -99,8 +86,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
       'never-written.md'
     );
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'ddl-missing' }, workspace);
     await server.callTool(
       'record_design_approval',
@@ -137,8 +123,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'auto-design.md');
     writeFile(tmpDesignPath, '# Auto Design\n');
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'ddl-auto' }, workspace);
     await server.callTool(
       'record_design_approval',
@@ -160,11 +145,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
     assert.equal(create.ok, true);
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readSessionState(workspace);
     assert.equal(
       state.design_document,
       path.join(workspace, 'docs', 'maestro', 'plans', 'auto-design.md')
@@ -184,8 +165,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     writeFile(tmpDesignPath, '# Design\n');
     writeFile(tmpPlanPath, '# Plan\n');
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'ddl-arc' }, workspace);
     await server.callTool(
       'record_design_approval',
@@ -241,8 +221,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
     writeFile(designPath, '# Design\n');
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'ddl-cleanup' }, workspace);
     await server.callTool(
       'record_design_approval',
@@ -309,8 +288,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const planPath = path.join(plansDir, 'inplace-plan.md');
     writeFile(planPath, '# Inplace Plan\n');
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     const create = await server.callTool(
       'create_session',
       {
@@ -326,11 +304,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
     assert.equal(create.ok, true);
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readSessionState(workspace);
     assert.equal(state.implementation_plan, planPath);
   });
 
@@ -339,8 +313,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const designBody = '# Design (inline)\n\nPassed as content.\n';
     const planBody = '# Plan (inline)\n\nPassed as content.\n';
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'ddl-content' }, workspace);
 
     const approval = await server.callTool(
@@ -388,11 +361,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
     assert.equal(fs.readFileSync(canonicalPlan, 'utf8'), planBody);
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readSessionState(workspace);
     assert.equal(state.design_document, canonicalDesign);
     assert.equal(state.implementation_plan, canonicalPlan);
 
@@ -429,8 +398,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const planPath = path.join(plansDir, 'plan.md');
     writeFile(planPath, '# Plan\n');
 
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     const create = await server.callTool(
       'create_session',
@@ -453,8 +421,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
 
   it('create_session rejects incomplete implementation_plan content variant (missing filename)', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-planincomplete-'));
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     const create = await server.callTool(
       'create_session',
@@ -475,8 +442,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
 
   it('create_session accepts no implementation plan (at-most-one-of semantics permits neither)', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-noplan-'));
-    const server = createServerForWorkspace();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     const create = await server.callTool(
       'create_session',
@@ -492,11 +458,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
     assert.equal(create.ok, true);
 
-    const stateRaw = fs.readFileSync(
-      path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md'),
-      'utf8'
-    );
-    const state = JSON.parse(stateRaw.split('---')[1].trim());
+    const state = readSessionState(workspace);
     assert.equal(state.implementation_plan, null);
   });
 });

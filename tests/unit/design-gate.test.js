@@ -6,36 +6,21 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
 const {
   listApprovedGates,
   findOrphanedApprovedGates,
   readGate,
 } = require('../../src/mcp/handlers/design-gate');
+const { createInitializedSessionServer } = require('../support/session-server');
 
 function makeWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-gate-'));
 }
 
-function buildServer() {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createWorkspacePack, createSessionPack],
-  });
-}
-
 describe('design gate tools', () => {
   it('enter_design_gate records a timestamp on the session-gate store', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     const outcome = await server.callTool(
       'enter_design_gate',
@@ -49,8 +34,7 @@ describe('design gate tools', () => {
 
   it('enter_design_gate is idempotent', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     const first = await server.callTool(
       'enter_design_gate',
@@ -68,8 +52,7 @@ describe('design gate tools', () => {
 
   it('record_design_approval accepts an existing path via the path variant', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
@@ -90,8 +73,7 @@ describe('design gate tools', () => {
 
   it('record_design_approval accepts paths to files that have not yet materialized (defers existence to create_session)', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const outcome = await server.callTool(
@@ -115,8 +97,7 @@ describe('design gate tools', () => {
 
   it('record_design_approval rejects when neither path nor content+filename is provided', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const missing = await server.callTool(
@@ -144,8 +125,7 @@ describe('design gate tools', () => {
 
   it('record_design_approval rejects when both path and content variants are supplied', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const both = await server.callTool(
@@ -164,8 +144,7 @@ describe('design gate tools', () => {
 
   it('record_design_approval rejects the content variant when filename or content is missing', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const noFilename = await server.callTool(
@@ -193,8 +172,7 @@ describe('design gate tools', () => {
 
   it('record_design_approval rejects filenames that contain path separators or traversal', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const traversal = await server.callTool(
@@ -224,8 +202,7 @@ describe('design gate tools', () => {
 
   it('record_design_approval content variant materializes the file atomically under plans/', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const body = '# Design\n\nApproved inline.\n';
@@ -246,8 +223,7 @@ describe('design gate tools', () => {
 
   it('get_design_gate_status returns null when gate was never entered', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     const outcome = await server.callTool(
       'get_design_gate_status',
       { session_id: 'alpha' },
@@ -259,8 +235,7 @@ describe('design gate tools', () => {
 
   it('create_session rejects when design gate is entered but unapproved', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const outcome = await server.callTool(
@@ -287,8 +262,7 @@ describe('design gate tools', () => {
 
   it('create_session succeeds after record_design_approval', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
@@ -323,8 +297,7 @@ describe('design gate tools', () => {
 
   it('create_session rejects when an approved gate exists for a different session_id and the current session has no gate', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
     await server.callTool('enter_design_gate', { session_id: 'placeholder-id' }, workspace);
     await server.callTool(
       'record_design_approval',
@@ -358,8 +331,7 @@ describe('design gate tools', () => {
 
   it('create_session succeeds when an orphan approved gate exists but the current session also has its own gate', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     await server.callTool('enter_design_gate', { session_id: 'prior-abandoned' }, workspace);
     await server.callTool(
@@ -404,8 +376,7 @@ describe('design gate tools', () => {
 
   it('create_session with no gates in the workspace proceeds normally (simple/express tasks skip the design gate)', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     const outcome = await server.callTool(
       'create_session',
@@ -425,8 +396,7 @@ describe('design gate tools', () => {
 
   it('listApprovedGates enumerates only gates with a non-empty approved_at', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     await server.callTool('enter_design_gate', { session_id: 'entered-only' }, workspace);
     await server.callTool('enter_design_gate', { session_id: 'approved-one' }, workspace);
@@ -466,8 +436,7 @@ describe('design gate tools', () => {
 
   it('findOrphanedApprovedGates excludes the current session and skips unapproved gates', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     await server.callTool('enter_design_gate', { session_id: 'current' }, workspace);
     await server.callTool(
@@ -500,8 +469,7 @@ describe('design gate tools', () => {
 
   it('readGate reflects whether an entered-or-approved gate artifact exists for a session', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     assert.equal(readGate(workspace, 'never-entered'), null);
 
@@ -522,8 +490,7 @@ describe('design gate tools', () => {
 
   it('create_session with mismatched session_id and an unapproved (entered-only) orphan gate does not fire the mismatch check', async () => {
     const workspace = makeWorkspace();
-    const server = buildServer();
-    await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
+    const server = await createInitializedSessionServer(workspace);
 
     await server.callTool('enter_design_gate', { session_id: 'pending-approval' }, workspace);
 

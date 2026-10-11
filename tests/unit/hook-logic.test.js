@@ -20,6 +20,7 @@ const { handleBeforeAgent } = require('../../src/hooks/logic/before-agent-logic'
 const { handleSessionStart } = require('../../src/hooks/logic/session-start-logic');
 const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
 const markdownState = require('../../src/core/markdown-state');
+const { withEnv } = require('../support/env');
 
 const SESSION_ID = 'test-session-abc123';
 
@@ -37,16 +38,6 @@ function writeMcpSession(stateDir, data) {
   fs.writeFileSync(sessionFilePath, markdownState.serialize(data, '# Session\n'), 'utf8');
 }
 
-function withStateDirEnv(value, fn) {
-  const original = process.env.MAESTRO_STATE_DIR;
-  process.env.MAESTRO_STATE_DIR = value;
-  try {
-    return fn();
-  } finally {
-    if (original === undefined) delete process.env.MAESTRO_STATE_DIR;
-    else process.env.MAESTRO_STATE_DIR = original;
-  }
-}
 const VALID_RESULT = '## Task Report\nDone.\n\n## Downstream Context\nContext info.';
 
 describe('handleAfterAgent', () => {
@@ -223,7 +214,7 @@ describe('handleBeforeAgent', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-absstate-');
     try {
       writeMcpSession(path.join(root, '.maestro'), { status: 'in_progress', current_phase: 3 });
-      const result = withStateDirEnv(path.join(root, '.maestro'), () =>
+      const result = withEnv({ MAESTRO_STATE_DIR: path.join(root, '.maestro') }, () =>
         handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
       );
       assert.equal(result.action, 'allow');
@@ -251,7 +242,7 @@ describe('handleBeforeAgent', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-badstate-');
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-outside-'));
     try {
-      const result = withStateDirEnv(outside, () =>
+      const result = withEnv({ MAESTRO_STATE_DIR: outside }, () =>
         handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
       );
       assert.deepEqual(result, { action: 'allow', message: null, reason: null });

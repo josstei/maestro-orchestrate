@@ -7,15 +7,7 @@ const path = require('path');
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/session');
 const { ensureWorkspace } = require('../../src/state/session-state');
-
-function readSessionFrontmatter(projectRoot) {
-  const content = fs.readFileSync(
-    path.join(projectRoot, 'docs/maestro/state/active-session.md'),
-    'utf8'
-  );
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  return JSON.parse(match[1]);
-}
+const { readSessionState } = require('../support/session-server');
 
 describe('session tool pack', () => {
   it('registers the session lifecycle tools through the kernel', () => {
@@ -108,7 +100,7 @@ describe('session tool pack', () => {
       1,
     ]);
 
-    const sessionState = readSessionFrontmatter(projectRoot);
+    const sessionState = readSessionState(projectRoot);
     assert.equal(sessionState.execution_mode, 'sequential');
     assert.equal(sessionState.current_phase, 2);
     assert.deepEqual(sessionState.phases[0].files_created, ['src/generated.js']);
@@ -170,7 +162,7 @@ describe('session tool pack', () => {
       projectRoot
     );
 
-    const session = readSessionFrontmatter(projectRoot);
+    const session = readSessionState(projectRoot);
     assert.deepEqual(session.phases[0].planned_files, ['src/foo.js', 'src/bar.js']);
   });
 
@@ -211,7 +203,7 @@ describe('session tool pack', () => {
     );
     assert.equal(createResult.ok, true);
 
-    const session = readSessionFrontmatter(projectRoot);
+    const session = readSessionState(projectRoot);
     assert.equal(session.current_phase, 'design');
     assert.equal(session.phases[0].id, 'design');
     assert.equal(session.phases[1].id, 'impl');

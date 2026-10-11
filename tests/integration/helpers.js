@@ -88,6 +88,26 @@ function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
   return repoRoot;
 }
 
+/**
+ * Runs `fn` against a temporary copy of the repository and removes the copy
+ * afterwards, even when `fn` throws. `fn` must be synchronous because the copy
+ * is removed as soon as `fn` returns.
+ *
+ * @template T
+ * @param {string} prefix - Prefix for the temporary directory name
+ * @param {(repoRoot: string) => T} fn - Synchronous callback receiving the copied repository root
+ * @returns {T} The callback's result
+ */
+function withTempRepoCopy(prefix, fn) {
+  const repoRoot = createTempRepoCopy(prefix);
+
+  try {
+    return fn(repoRoot);
+  } finally {
+    fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
+  }
+}
+
 module.exports = {
   DRY_RUN_MARKER,
   ROOT,
@@ -97,4 +117,5 @@ module.exports = {
   runGenerator,
   runGeneratorExpectFailure,
   withIsolatedClaudePlugin,
+  withTempRepoCopy,
 };

@@ -6,29 +6,16 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
+  createInitializedSessionServer,
+  readSessionState,
+} = require('../support/session-server');
 
 describe('plan contract round-trip', () => {
   it('validate_plan output is accepted verbatim by create_session', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-plan-rt-'));
 
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createWorkspacePack, createSessionPack],
-    });
-
-    await server.callTool(
-      'initialize_workspace',
-      { workspace_path: workspace },
-      workspace
-    );
+    const server = await createInitializedSessionServer(workspace);
 
     const plan = {
       phases: [
@@ -71,15 +58,7 @@ describe('plan contract round-trip', () => {
     );
     assert.equal(created.ok, true);
 
-    const sessionPath = path.join(
-      workspace,
-      'docs',
-      'maestro',
-      'state',
-      'active-session.md'
-    );
-    const raw = fs.readFileSync(sessionPath, 'utf8');
-    const frontmatter = JSON.parse(raw.match(/^---\n([\s\S]*?)\n---/)[1]);
+    const frontmatter = readSessionState(workspace);
     assert.deepEqual(frontmatter.phases[0].planned_files, ['src/foo.js']);
     assert.deepEqual(frontmatter.phases[1].blocked_by, [1]);
     assert.equal(frontmatter.phases[1].parallel, true);

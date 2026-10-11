@@ -8,20 +8,6 @@ const { createHandler: createSkillContentHandler } = require('../../src/mcp/hand
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
-function withExtensionRoot(root, fn) {
-  const previous = process.env.MAESTRO_EXTENSION_PATH;
-  process.env.MAESTRO_EXTENSION_PATH = root;
-  try {
-    return fn();
-  } finally {
-    if (previous == null) {
-      delete process.env.MAESTRO_EXTENSION_PATH;
-    } else {
-      process.env.MAESTRO_EXTENSION_PATH = previous;
-    }
-  }
-}
-
 describe('get_skill_content handler', () => {
   it('reads canonical src content and applies skill transforms', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-skill-content-'));
@@ -35,7 +21,7 @@ describe('get_skill_content handler', () => {
 
     const handler = createSkillContentHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
 
-    const result = withExtensionRoot(root, () => handler({ resources: ['delegation'] }));
+    const result = handler({ resources: ['delegation'] });
     const content = result.contents.delegation;
 
     assert.ok(content.includes('${CLAUDE_PLUGIN_ROOT}'));
@@ -65,7 +51,7 @@ describe('get_skill_content handler', () => {
       env: { extensionPath: 'PLUGIN_ROOT' },
     }, path.join(root, 'src'));
 
-    const result = withExtensionRoot(root, () => handler({ resources: ['architecture'] }));
+    const result = handler({ resources: ['architecture'] });
     const content = result.contents.architecture;
 
     assert.ok(content.includes('${PLUGIN_ROOT}'));
@@ -88,9 +74,7 @@ describe('get_skill_content handler', () => {
       path.join(root, 'src')
     );
 
-    const result = withExtensionRoot(root, () =>
-      handler({ resources: ['delegation'] })
-    );
+    const result = handler({ resources: ['delegation'] });
     const content = result.contents.delegation;
 
     assert.ok(content.includes('code_reviewer'), 'code-reviewer should be replaced with code_reviewer');
@@ -130,7 +114,7 @@ describe('get_agent handler', () => {
       },
     }, path.join(root, 'src'));
 
-    const result = withExtensionRoot(root, () => handler({ agents: ['coder'] }));
+    const result = handler({ agents: ['coder'] });
 
     assert.deepEqual(result.errors, {});
     assert.deepEqual(result.agents.coder.tools, ['Read', 'Write']);
@@ -161,9 +145,7 @@ describe('get_agent handler', () => {
       path.join(root, 'src')
     );
 
-    const result = withExtensionRoot(root, () =>
-      handler({ agents: ['ux_designer'] })
-    );
+    const result = handler({ agents: ['ux_designer'] });
 
     assert.deepEqual(result.errors, {});
     assert.ok(result.agents.ux_designer, 'response keyed by original input name');
@@ -192,9 +174,7 @@ describe('get_agent handler', () => {
       getRuntimeConfig('gemini'),
       path.join(root, 'src')
     );
-    const geminiResult = withExtensionRoot(root, () =>
-      geminiHandler({ agents: ['code-reviewer'] })
-    );
+    const geminiResult = geminiHandler({ agents: ['code-reviewer'] });
 
     assert.equal(
       geminiResult.agents['code-reviewer'].tool_name,
@@ -207,9 +187,7 @@ describe('get_agent handler', () => {
       getRuntimeConfig('claude'),
       path.join(root, 'src')
     );
-    const claudeResult = withExtensionRoot(root, () =>
-      claudeHandler({ agents: ['code-reviewer'] })
-    );
+    const claudeResult = claudeHandler({ agents: ['code-reviewer'] });
 
     assert.equal(
       claudeResult.agents['code-reviewer'].tool_name,
@@ -240,9 +218,7 @@ describe('get_agent handler', () => {
       path.join(root, 'src')
     );
 
-    const result = withExtensionRoot(root, () =>
-      handler({ agents: ['ux_designer'] })
-    );
+    const result = handler({ agents: ['ux_designer'] });
 
     assert.equal(
       result.agents.ux_designer.tool_name,
@@ -274,9 +250,7 @@ describe('get_agent handler', () => {
     );
 
     // Simulate what the Gemini orchestrator did: called with snake_case from plan
-    const result = withExtensionRoot(root, () =>
-      handler({ agents: ['ux_designer'] })
-    );
+    const result = handler({ agents: ['ux_designer'] });
 
     // Should succeed (not error like the original bug)
     assert.deepEqual(result.errors, {});

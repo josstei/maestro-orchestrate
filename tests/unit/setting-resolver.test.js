@@ -7,33 +7,9 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { resolveSetting } = require('../../src/config/setting-resolver');
+const { withEnv } = require('../support/env');
 
 const EXTENSION_ENV_VARS = ['MAESTRO_EXTENSION_PATH', 'CLAUDE_PLUGIN_ROOT'];
-
-function withEnv(overrides, fn) {
-  const previous = {};
-  for (const key of Object.keys(overrides)) {
-    previous[key] = process.env[key];
-  }
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value == null) {
-      delete process.env[key];
-    } else {
-      process.env[key] = value;
-    }
-  }
-  try {
-    return fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
-}
 
 describe('resolveSetting', () => {
   let tmpDir;

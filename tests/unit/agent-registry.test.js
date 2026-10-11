@@ -11,35 +11,9 @@ const {
   getAgentCapability,
   canCreateFiles,
 } = require('../../src/core/agent-registry');
+const { withEnv } = require('../support/env');
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
-
-function withEnv(overrides, fn) {
-  const previous = {};
-  for (const key of Object.keys(overrides)) {
-    previous[key] = process.env[key];
-  }
-
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value == null) {
-      delete process.env[key];
-    } else {
-      process.env[key] = value;
-    }
-  }
-
-  try {
-    return fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  }
-}
 
 describe('KNOWN_AGENTS', () => {
   it('is frozen', () => {

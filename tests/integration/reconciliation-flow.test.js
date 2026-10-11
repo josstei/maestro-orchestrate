@@ -6,27 +6,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
+const { createInitializedSessionServer } = require('../support/session-server');
 
 describe('reconciliation flow', () => {
   it('covers the hung-worker postmortem scenario end to end', async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-rec-flow-'));
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createWorkspacePack, createSessionPack],
-    });
-    await server.callTool(
-      'initialize_workspace',
-      { workspace_path: workspace },
-      workspace
-    );
+    const server = await createInitializedSessionServer(workspace);
 
     await server.callTool(
       'create_session',

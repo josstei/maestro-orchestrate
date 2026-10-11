@@ -4,6 +4,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const path = require('node:path');
 
+const { withEnv } = require('../support/env');
+
 const configMapPath = path.resolve(__dirname, '../../src/mcp/runtime/runtime-config-map.js');
 
 describe('runtime-config-map', () => {
@@ -18,38 +20,28 @@ describe('runtime-config-map', () => {
   });
 
   it('getDefaultRuntimeConfig respects MAESTRO_RUNTIME env var', () => {
-    const original = process.env.MAESTRO_RUNTIME;
     try {
-      process.env.MAESTRO_RUNTIME = 'codex';
-      delete require.cache[configMapPath];
-      const { getDefaultRuntimeConfig } = require(configMapPath);
-      const config = getDefaultRuntimeConfig();
-      assert.equal(config.name, 'codex');
+      withEnv({ MAESTRO_RUNTIME: 'codex' }, () => {
+        delete require.cache[configMapPath];
+        const { getDefaultRuntimeConfig } = require(configMapPath);
+        const config = getDefaultRuntimeConfig();
+        assert.equal(config.name, 'codex');
+      });
     } finally {
-      if (original !== undefined) {
-        process.env.MAESTRO_RUNTIME = original;
-      } else {
-        delete process.env.MAESTRO_RUNTIME;
-      }
       delete require.cache[configMapPath];
       require(configMapPath);
     }
   });
 
   it('getDefaultRuntimeConfig falls back to first discovered runtime without env var', () => {
-    const original = process.env.MAESTRO_RUNTIME;
     try {
-      delete process.env.MAESTRO_RUNTIME;
-      delete require.cache[configMapPath];
-      const { getDefaultRuntimeConfig } = require(configMapPath);
-      const config = getDefaultRuntimeConfig();
-      assert.equal(config.name, 'claude', 'Expected fallback to first alphabetical runtime');
+      withEnv({ MAESTRO_RUNTIME: null }, () => {
+        delete require.cache[configMapPath];
+        const { getDefaultRuntimeConfig } = require(configMapPath);
+        const config = getDefaultRuntimeConfig();
+        assert.equal(config.name, 'claude', 'Expected fallback to first alphabetical runtime');
+      });
     } finally {
-      if (original !== undefined) {
-        process.env.MAESTRO_RUNTIME = original;
-      } else {
-        delete process.env.MAESTRO_RUNTIME;
-      }
       delete require.cache[configMapPath];
       require(configMapPath);
     }

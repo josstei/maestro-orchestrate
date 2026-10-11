@@ -10,21 +10,6 @@ const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map')
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
-function withExtensionRoot(root, fn) {
-  const previous = process.env.MAESTRO_EXTENSION_PATH;
-  process.env.MAESTRO_EXTENSION_PATH = root;
-
-  try {
-    return fn();
-  } finally {
-    if (previous == null) {
-      delete process.env.MAESTRO_EXTENSION_PATH;
-    } else {
-      process.env.MAESTRO_EXTENSION_PATH = previous;
-    }
-  }
-}
-
 describe('content tool pack', () => {
   it('registers the content and runtime metadata tools', () => {
     const server = createServer({
@@ -73,12 +58,8 @@ describe('content tool pack', () => {
       toolPacks: [createToolPack],
     });
 
-    const skillResult = await withExtensionRoot(root, () =>
-      server.callTool('get_skill_content', { resources: ['delegation'] })
-    );
-    const agentResult = await withExtensionRoot(root, () =>
-      server.callTool('get_agent', { agents: ['coder'] })
-    );
+    const skillResult = await server.callTool('get_skill_content', { resources: ['delegation'] });
+    const agentResult = await server.callTool('get_agent', { agents: ['coder'] });
     const contextResult = await server.callTool('get_runtime_context');
 
     assert.equal(skillResult.ok, true);

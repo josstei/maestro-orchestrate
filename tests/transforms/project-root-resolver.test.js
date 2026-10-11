@@ -5,37 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { resolveProjectRoot } = require('../../src/core/project-root-resolver');
-
-function withEnv(overrides, fn) {
-  const previous = {
-    MAESTRO_WORKSPACE_PATH: process.env.MAESTRO_WORKSPACE_PATH,
-    CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR,
-    PWD: process.env.PWD,
-    INIT_CWD: process.env.INIT_CWD,
-  };
-
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value == null) {
-      delete process.env[key];
-      continue;
-    }
-
-    process.env[key] = value;
-  }
-
-  try {
-    return fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value == null) {
-        delete process.env[key];
-        continue;
-      }
-
-      process.env[key] = value;
-    }
-  }
-}
+const { withEnv } = require('../support/env');
 
 describe('project root resolver', () => {
   it('prefers an explicit workspace path over inherited cwd-like env vars', () => {
