@@ -74,14 +74,7 @@ function splitAtBoundary(content) {
     return { raw: '', body: content };
   }
 
-  let endIndex = -1;
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i] === '---') {
-      endIndex = i;
-      break;
-    }
-  }
-
+  const endIndex = lines.indexOf('---', 1);
   if (endIndex === -1) {
     return { raw: '', body: content };
   }

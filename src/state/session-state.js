@@ -46,8 +46,8 @@ function resolveStateDirPath(cwd, stateDirOverride) {
   return resolveStateDirUnder(cwd || process.cwd(), stateDir);
 }
 
-function resolveActiveSessionPath(cwd) {
-  return path.join(resolveStateDirPath(cwd), ACTIVE_SESSION_REL);
+function resolveActiveSessionPath(cwd, stateDirOverride) {
+  return path.join(resolveStateDirPath(cwd, stateDirOverride), ACTIVE_SESSION_REL);
 }
 
 function hasActiveSession(cwd) {

@@ -5,13 +5,12 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
-const { MaestroError } = require('../lib/errors');
+const { defineErrorType } = require('../lib/errors');
 
-class WorkspaceResolutionError extends MaestroError {
-  constructor(message, { code = 'WORKSPACE_RESOLUTION_FAILED', details = null } = {}) {
-    super(message, { code, details });
-  }
-}
+const WorkspaceResolutionError = defineErrorType(
+  'WorkspaceResolutionError',
+  'WORKSPACE_RESOLUTION_FAILED'
+);
 
 function resolveGitRoot(baseDir) {
   return execSync('git rev-parse --show-toplevel', {

@@ -8,14 +8,10 @@ const { resolveActiveSessionPath } = require('../state/session-state');
 
 function main() {
   const projectRoot = resolveProjectRoot();
-
-  const resolvedStateDir = resolveSetting('MAESTRO_STATE_DIR', projectRoot);
-  if (resolvedStateDir) {
-    process.env.MAESTRO_STATE_DIR = resolvedStateDir;
-  }
+  const stateDir = resolveSetting('MAESTRO_STATE_DIR', projectRoot);
 
   try {
-    const sessionPath = resolveActiveSessionPath(projectRoot);
+    const sessionPath = resolveActiveSessionPath(projectRoot, stateDir);
     const content = fs.readFileSync(sessionPath, 'utf8');
     process.stdout.write(content);
   } catch {
