@@ -11,6 +11,7 @@ const { buildDetachedPayload, stampVersion } = require('../src/generator/payload
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/mcp/runtime/runtime-config-map');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -21,19 +22,6 @@ const dryRun = args.includes('--dry-run');
 const diffMode = args.includes('--diff');
 const cleanMode = args.includes('--clean');
 const readOnlyMode = dryRun || diffMode;
-
-function loadRuntimes() {
-  const runtimes = {};
-  const configs = fs.readdirSync(path.join(SRC, 'platforms'), { withFileTypes: true })
-    .filter((e) => e.isDirectory() && e.name !== 'shared')
-    .map((e) => path.join(e.name, 'runtime-config.js'))
-    .filter((rel) => fs.existsSync(path.join(SRC, 'platforms', rel)));
-  for (const file of configs) {
-    const config = require(path.join(SRC, 'platforms', file));
-    runtimes[config.name] = config;
-  }
-  return runtimes;
-}
 
 function processManifestEntry(entry, runtimes, writer) {
   const srcPath = path.join(SRC, entry.src);
@@ -72,7 +60,7 @@ function processEntryPoints(runtimes, writer) {
 }
 
 async function main() {
-  const runtimes = loadRuntimes();
+  const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const manifestRules = require(path.join(SRC, 'manifest'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);

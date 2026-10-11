@@ -41,6 +41,7 @@ describe('inject-frontmatter transform', () => {
       model: 'inherit',
       turnsField: 'maxTurns',
     },
+    features: { exampleBlocks: true },
     tools: {
       read_file: 'Read',
       glob: 'Glob',

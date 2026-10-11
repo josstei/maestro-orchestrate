@@ -68,14 +68,14 @@ function expandGlob(pattern, srcDir) {
 }
 
 /**
- * Apply the path-shape rewrites that differ per runtime but do NOT
- * prepend outputDir. Handles skills/shared flattening and snake_case
- * agent renaming.
- * @param {string} srcRelPath
- * @param {{ agentNaming?: string }} runtime
- * @returns {string}
+ * Compute the output path for a source-relative path in a given runtime:
+ * flatten skills/shared/, snake_case agent filenames for snake_case runtimes,
+ * then prepend outputDir unless it is absent or './'.
+ * @param {string} srcRelPath - Source-relative path
+ * @param {{ agentNaming?: string, outputDir?: string }} runtime - Runtime configuration
+ * @returns {string} Computed output path
  */
-function normalizeSrcRelPath(srcRelPath, runtime) {
+function computeOutputPath(srcRelPath, runtime) {
   let outPath = srcRelPath;
 
   if (outPath.startsWith('skills/shared/')) {
@@ -83,38 +83,14 @@ function normalizeSrcRelPath(srcRelPath, runtime) {
   }
 
   if (outPath.startsWith('agents/') && runtime.agentNaming === 'snake_case') {
-    const dir = path.dirname(outPath);
-    const base = path.basename(outPath);
-    outPath = dir + '/' + toSnakeCase(base);
+    outPath = path.dirname(outPath) + '/' + toSnakeCase(path.basename(outPath));
   }
 
-  return outPath;
-}
-
-/**
- * Compute the output path for a source-relative path in a given runtime.
- * Composes the name-shape rewrites with outputDir prepending.
- * @param {string} srcRelPath - Source-relative path
- * @param {{ agentNaming?: string, outputDir?: string }} runtime - Runtime configuration
- * @returns {string} Computed output path
- */
-function computeOutputPath(srcRelPath, runtime) {
-  return buildRuntimeOutputPath(runtime, normalizeSrcRelPath(srcRelPath, runtime));
-}
-
-/**
- * Prepend a runtime's outputDir to a relative path.
- * Skips prepending when outputDir is absent or './'.
- * @param {{ outputDir?: string }} runtime - Runtime configuration
- * @param {string} relativePath - Path to prepend to
- * @returns {string} Path with outputDir prepended
- */
-function buildRuntimeOutputPath(runtime, relativePath) {
   if (!runtime.outputDir || runtime.outputDir === './') {
-    return relativePath;
+    return outPath;
   }
 
-  return runtime.outputDir + relativePath;
+  return runtime.outputDir + outPath;
 }
 
 /**
@@ -180,7 +156,6 @@ function expandManifest(rules, runtimes, srcDir) {
 module.exports = {
   expandGlob,
   computeOutputPath,
-  buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
 };

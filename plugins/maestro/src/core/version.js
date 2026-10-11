@@ -40,5 +40,6 @@ function resolveVersion(startDir) {
 }
 
 module.exports = {
+  VERSION_JSON_FILENAME,
   resolveVersion,
 };

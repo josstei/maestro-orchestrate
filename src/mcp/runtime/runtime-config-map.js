@@ -51,6 +51,7 @@ function normalizeRuntimeConfig(runtimeConfig) {
 }
 
 module.exports = {
+  RUNTIME_NAMES,
   getRuntimeConfig,
   getDefaultRuntimeConfig,
   normalizeRuntimeConfig,

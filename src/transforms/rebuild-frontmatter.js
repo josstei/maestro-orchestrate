@@ -23,7 +23,7 @@ const FIELDS = {
   kind: (ctx) => (ctx.fm.kind ? [`kind: ${ctx.fm.kind}`] : []),
 
   description: (ctx) => {
-    if (ctx.runtime.name === 'claude' && ctx.description.includes('\n')) {
+    if (ctx.runtime.features?.exampleBlocks && ctx.description.includes('\n')) {
       return [
         'description: |',
         ...ctx.description.split('\n').map((line) => `  ${line}`),
@@ -84,17 +84,13 @@ function resolveTools(frontmatter, runtime) {
     return frontmatter[overrideKey];
   }
 
-  return (frontmatter.tools || [])
-    .map((tool) => {
-      const mapped = runtime.tools && runtime.tools[tool];
-      if (Array.isArray(mapped)) return mapped;
-      return mapped || tool;
-    })
-    .flat();
+  return (frontmatter.tools || []).flatMap(
+    (tool) => (runtime.tools && runtime.tools[tool]) || tool
+  );
 }
 
-function buildDescription(baseDescription, examples, runtime) {
-  if (runtime.name === 'claude' && examples.length > 0) {
+function buildDescription(baseDescription, examples) {
+  if (examples.length > 0) {
     return baseDescription + '\n\n' + examples.join('\n');
   }
   return baseDescription;
@@ -153,7 +149,7 @@ function extractExamples(body) {
 function rebuildFrontmatterTransform(content, runtime) {
   const { frontmatter, body: sourceBody } = parse(content);
   const { examples, remaining: body } =
-    runtime.name === 'claude'
+    runtime.features?.exampleBlocks
       ? extractExamples(sourceBody)
       : { examples: [], remaining: sourceBody };
   const fm = runtime.agentFrontmatter || {};
@@ -166,7 +162,7 @@ function rebuildFrontmatterTransform(content, runtime) {
   const ctx = {
     name,
     frontmatter,
-    description: buildDescription(frontmatter.description || '', examples, runtime),
+    description: buildDescription(frontmatter.description || '', examples),
     tools: resolveTools(frontmatter, runtime),
     runtime,
     fm,

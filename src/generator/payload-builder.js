@@ -3,10 +3,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { extractRuntime } = require('../platforms/shared/adapters/conventions');
+const { VERSION_JSON_FILENAME } = require('../core/version');
 const { writeIfChanged } = require('../lib/io');
 const { pruneStaleFiles } = require('./stale-pruner');
-
-const VERSION_JSON_FILENAME = 'version.json';
 
 const ADAPTER_PATH_PREFIX = 'platforms/shared/adapters/';
 

@@ -7,33 +7,40 @@ const { emitInlineQuotedList } = require('../lib/yaml-emit');
 
 const DEFAULT_SRC = path.resolve(__dirname, '..');
 
-// Host platform names that must never appear as public skill names.
-// Confirmed: Claude /review shadows the built-in PR review command.
-// Confirmed: Codex review, debug, resume conflict with built-in commands.
-// Defensive: Claude debug and resume preemptively reserved.
-const HOST_RESERVED_NAMES = {
-  codex: new Set(['review', 'debug', 'resume']),
-  claude: new Set(['review', 'debug', 'resume']),
-};
+/**
+ * Host command names that must never appear as public skill names. Claude
+ * /review shadows the built-in PR review command and Codex review, debug and
+ * resume conflict with built-ins; Claude debug and resume are reserved
+ * defensively.
+ */
+const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
 
-// Entry points and core commands share one output location per runtime.
-const OUTPUT_PATHS = {
-  gemini: (e) => `commands/maestro/${e.name}.toml`,
-  claude: (e) => `claude/skills/${e.name}/SKILL.md`,
-  codex: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-};
-
-const ENTRY_POINT_CONFIG = {
-  gemini: { templateFile: 'gemini-command.toml.tmpl', preamblePlaceholder: 'skills_block' },
-  claude: { templateFile: 'claude-skill.md.tmpl', preamblePlaceholder: 'protocol_block' },
-  codex: { templateFile: 'codex-skill.md.tmpl', preamblePlaceholder: 'refs_list' },
-  qwen: null,
-};
-
-const CORE_COMMAND_CONFIG = {
-  gemini: { templateFile: 'gemini-core-command.toml.tmpl' },
-  claude: { templateFile: 'claude-core-command.md.tmpl' },
-  codex: { templateFile: 'codex-core-command.md.tmpl' },
+/**
+ * Per-runtime entry-point surface. Entry points and core commands share one
+ * output location per runtime; Qwen reuses Gemini's commands and emits none.
+ */
+const RUNTIME_ENTRY_POINTS = {
+  gemini: {
+    outputPath: (e) => `commands/maestro/${e.name}.toml`,
+    entryTemplate: 'gemini-command.toml.tmpl',
+    preamblePlaceholder: 'skills_block',
+    coreTemplate: 'gemini-core-command.toml.tmpl',
+    reservedNames: null,
+  },
+  claude: {
+    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
+    entryTemplate: 'claude-skill.md.tmpl',
+    preamblePlaceholder: 'protocol_block',
+    coreTemplate: 'claude-core-command.md.tmpl',
+    reservedNames: HOST_RESERVED_NAMES,
+  },
+  codex: {
+    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
+    entryTemplate: 'codex-skill.md.tmpl',
+    preamblePlaceholder: 'refs_list',
+    coreTemplate: 'codex-core-command.md.tmpl',
+    reservedNames: HOST_RESERVED_NAMES,
+  },
   qwen: null,
 };
 
@@ -59,11 +66,11 @@ function getEntryPointRuntimeName(entry, runtimeName) {
 /**
  * @param {string} resolvedName
  * @param {string} runtimeName
+ * @param {Set<string>|null} reservedNames
  * @throws {Error}
  */
-function assertNotHostReserved(resolvedName, runtimeName) {
-  const reserved = HOST_RESERVED_NAMES[runtimeName];
-  if (reserved && reserved.has(resolvedName)) {
+function assertNotHostReserved(resolvedName, runtimeName, reservedNames) {
+  if (reservedNames && reservedNames.has(resolvedName)) {
     throw new Error(
       `Reserved ${runtimeName} host command name "${resolvedName}" conflicts with a built-in — ` +
       'add a runtimeNames entry to the registry to remap it'
@@ -79,27 +86,25 @@ function applySubstitutions(template, substitutions) {
   return content;
 }
 
-function runTemplateExpansion({ runtimeName, registry, srcDir, templateFile, buildSubstitutions }) {
+function runTemplateExpansion({ runtimeName, config, registry, srcDir, templateFile, buildSubstitutions }) {
   const templatePath = path.join(srcDir, 'entry-points', 'templates', templateFile);
   const template = fs.readFileSync(templatePath, 'utf8');
-  const outputPathFn = OUTPUT_PATHS[runtimeName];
   return registry.map((entry) => {
     const runtimeEntry = {
       ...entry,
       name: getEntryPointRuntimeName(entry, runtimeName),
     };
-    assertNotHostReserved(runtimeEntry.name, runtimeName);
+    assertNotHostReserved(runtimeEntry.name, runtimeName, config.reservedNames);
     return {
-      outputPath: outputPathFn(runtimeEntry),
+      outputPath: config.outputPath(runtimeEntry),
       content: applySubstitutions(template, buildSubstitutions(runtimeEntry)),
     };
   });
 }
 
-function resolveRuntimeConfig(configMap, runtimeName, kind) {
-  const config = configMap[runtimeName];
-  if (config === null) return null;
-  if (!config) {
+function resolveRuntimeEntryPoints(runtimeName, kind) {
+  const config = RUNTIME_ENTRY_POINTS[runtimeName];
+  if (config === undefined) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
   return config;
@@ -111,7 +116,7 @@ function resolveRuntimeConfig(configMap, runtimeName, kind) {
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = resolveRuntimeConfig(ENTRY_POINT_CONFIG, runtimeName, 'entry-point');
+  const config = resolveRuntimeEntryPoints(runtimeName, 'entry-point');
   if (!config) return [];
 
   const registry = require(path.join(srcDir, 'entry-points', 'registry'));
@@ -120,9 +125,10 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
 
   return runTemplateExpansion({
     runtimeName,
+    config,
     registry,
     srcDir,
-    templateFile: config.templateFile,
+    templateFile: config.entryTemplate,
     buildSubstitutions: (runtimeEntry) => ({
       name: runtimeEntry.name,
       Name: toTitleCase(runtimeEntry.name),
@@ -140,16 +146,17 @@ function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
  * @returns {Array<{ outputPath: string, content: string }>}
  */
 function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = resolveRuntimeConfig(CORE_COMMAND_CONFIG, runtimeName, 'core-command');
+  const config = resolveRuntimeEntryPoints(runtimeName, 'core-command');
   if (!config) return [];
 
   const registry = require(path.join(srcDir, 'entry-points', 'core-command-registry'));
 
   return runTemplateExpansion({
     runtimeName,
+    config,
     registry,
     srcDir,
-    templateFile: config.templateFile,
+    templateFile: config.coreTemplate,
     buildSubstitutions: (runtimeEntry) => ({
       name: runtimeEntry.name,
       description: runtimeEntry.description,
@@ -157,9 +164,7 @@ function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
       requestType: runtimeEntry.requestType,
       executeInstructions: runtimeEntry.executeInstructions,
       preloadList: emitInlineQuotedList(runtimeEntry.preload),
-      sessionStateBlock: (runtimeName === 'gemini' && runtimeEntry.geminiSessionStateInjection)
-        ? GEMINI_SESSION_STATE_BLOCK
-        : '',
+      sessionStateBlock: runtimeEntry.geminiSessionStateInjection ? GEMINI_SESSION_STATE_BLOCK : '',
     }),
   });
 }

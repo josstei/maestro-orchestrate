@@ -41,7 +41,6 @@ function walk(dir, rootDir, out) {
  * @returns {{ pruned: string[], emptyDirsRemoved: string[] }}
  */
 function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
-  const pruned = [];
   const emptyDirsRemoved = [];
 
   const owned = { files: [], dirs: [] };
@@ -49,10 +48,9 @@ function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
     walk(dir, rootDir, owned);
   }
 
-  const staleFiles = owned.files.filter((filePath) => !manifestPaths.has(filePath));
-  for (const filePath of staleFiles) {
+  const pruned = owned.files.filter((filePath) => !manifestPaths.has(filePath));
+  for (const filePath of pruned) {
     fs.unlinkSync(path.join(rootDir, filePath));
-    pruned.push(filePath);
   }
 
   const ownedSubdirs = owned.dirs.sort((a, b) => b.length - a.length);

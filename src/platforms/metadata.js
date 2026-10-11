@@ -52,6 +52,31 @@ function buildAuthor(context) {
   };
 }
 
+function codexMarketplacePlugin(pluginPath) {
+  return {
+    name: 'maestro',
+    source: {
+      source: 'local',
+      path: pluginPath,
+    },
+    policy: {
+      installation: 'AVAILABLE',
+      authentication: 'ON_INSTALL',
+    },
+    category: 'Coding',
+  };
+}
+
+function codexMarketplace(plugins) {
+  return {
+    name: 'maestro-orchestrator',
+    interface: {
+      displayName: 'Maestro Orchestrator',
+    },
+    plugins,
+  };
+}
+
 function buildExtensionManifest(context, runtime, contextFileName) {
   return {
     name: 'maestro',
@@ -123,26 +148,7 @@ const METADATA_BUILDERS = {
     }],
   ],
   codex: (context) => [
-    ['.agents/plugins/marketplace.json', {
-      name: 'maestro-orchestrator',
-      interface: {
-        displayName: 'Maestro Orchestrator',
-      },
-      plugins: [
-        {
-          name: 'maestro',
-          source: {
-            source: 'local',
-            path: './plugins/maestro',
-          },
-          policy: {
-            installation: 'AVAILABLE',
-            authentication: 'ON_INSTALL',
-          },
-          category: 'Coding',
-        },
-      ],
-    }],
+    ['.agents/plugins/marketplace.json', codexMarketplace([codexMarketplacePlugin('./plugins/maestro')])],
     ['plugins/maestro/.codex-plugin/plugin.json', {
       name: 'maestro',
       version: context.version,
@@ -207,4 +213,6 @@ function buildPlatformMetadataOutputs(runtimes, pkg) {
 
 module.exports = {
   buildPlatformMetadataOutputs,
+  codexMarketplace,
+  codexMarketplacePlugin,
 };

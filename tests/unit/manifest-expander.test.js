@@ -9,7 +9,6 @@ const os = require('node:os');
 const {
   expandGlob,
   computeOutputPath,
-  buildRuntimeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
 } = require('../../src/generator/manifest-expander');
@@ -150,29 +149,6 @@ describe('manifest-expander', () => {
       });
 
       assert.equal(result, 'skills/my-skill/SKILL.md');
-    });
-  });
-
-  describe('buildRuntimeOutputPath', () => {
-    it('prepends outputDir to relativePath', () => {
-      assert.equal(
-        buildRuntimeOutputPath({ outputDir: 'claude/' }, 'agents/foo.md'),
-        'claude/agents/foo.md'
-      );
-    });
-
-    it('returns relativePath unchanged when outputDir is ./', () => {
-      assert.equal(
-        buildRuntimeOutputPath({ outputDir: './' }, 'agents/foo.md'),
-        'agents/foo.md'
-      );
-    });
-
-    it('returns relativePath unchanged when outputDir is absent', () => {
-      assert.equal(
-        buildRuntimeOutputPath({}, 'agents/foo.md'),
-        'agents/foo.md'
-      );
     });
   });
 

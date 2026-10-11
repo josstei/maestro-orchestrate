@@ -4,32 +4,13 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { codexMarketplace, codexMarketplacePlugin } = require('../src/platforms/metadata');
 
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE_PLUGIN_DIR = path.join(ROOT, 'plugins', 'maestro');
 const TARGET_PLUGIN_DIR = path.join(os.homedir(), '.codex', 'plugins', 'maestro');
 const MARKETPLACE_FILE = path.join(os.homedir(), '.agents', 'plugins', 'marketplace.json');
-
-const DEFAULT_MARKETPLACE = {
-  name: 'maestro-orchestrator',
-  interface: {
-    displayName: 'Maestro Orchestrator',
-  },
-  plugins: [],
-};
-
-const PLUGIN_ENTRY = {
-  name: 'maestro',
-  source: {
-    source: 'local',
-    path: './.codex/plugins/maestro',
-  },
-  policy: {
-    installation: 'AVAILABLE',
-    authentication: 'ON_INSTALL',
-  },
-  category: 'Coding',
-};
+const PLUGIN_SOURCE_PATH = './.codex/plugins/maestro';
 
 function printHelp() {
   console.log(`Install Maestro into Codex's personal plugin marketplace.
@@ -70,9 +51,10 @@ function assertSourcePlugin() {
 }
 
 function readMarketplace() {
+  const defaults = codexMarketplace([]);
   if (!fs.existsSync(MARKETPLACE_FILE)) {
     return {
-      marketplace: JSON.parse(JSON.stringify(DEFAULT_MARKETPLACE)),
+      marketplace: defaults,
       existed: false,
     };
   }
@@ -94,13 +76,13 @@ function readMarketplace() {
   }
 
   if (!marketplace.name) {
-    marketplace.name = DEFAULT_MARKETPLACE.name;
+    marketplace.name = defaults.name;
   }
 
   if (!marketplace.interface || typeof marketplace.interface !== 'object') {
-    marketplace.interface = { ...DEFAULT_MARKETPLACE.interface };
+    marketplace.interface = defaults.interface;
   } else if (!marketplace.interface.displayName) {
-    marketplace.interface.displayName = DEFAULT_MARKETPLACE.interface.displayName;
+    marketplace.interface.displayName = defaults.interface.displayName;
   }
 
   return {
@@ -110,7 +92,7 @@ function readMarketplace() {
 }
 
 function upsertPluginEntry(marketplace) {
-  const nextEntry = JSON.parse(JSON.stringify(PLUGIN_ENTRY));
+  const nextEntry = codexMarketplacePlugin(PLUGIN_SOURCE_PATH);
   const existingIndex = marketplace.plugins.findIndex((plugin) => plugin && plugin.name === 'maestro');
 
   if (existingIndex >= 0) {
