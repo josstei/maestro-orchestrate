@@ -6,6 +6,7 @@ const {
   getAgentCapability,
   canCreateFiles,
 } = require('../../core/agent-registry');
+const { violation } = require('./violation');
 
 const CREATION_SIGNAL_PATTERNS =
   /\b(implement|create|build|scaffold|write|generate|set\s*up|develop)\b/i;
@@ -18,11 +19,12 @@ function checkUnknownAgents(phases) {
   for (const phase of phases) {
     const normalizedAgent = normalizeAgentName(phase.agent);
     if (normalizedAgent && !KNOWN_AGENTS.includes(normalizedAgent)) {
-      violations.push({
-        rule: 'unknown_agent',
-        detail: `Phase ${phase.id}: unknown agent "${phase.agent}" (normalized: "${normalizedAgent}")`,
-        severity: 'error',
-      });
+      violations.push(
+        violation(
+          'unknown_agent',
+          `Phase ${phase.id}: unknown agent "${phase.agent}" (normalized: "${normalizedAgent}")`
+        )
+      );
     }
   }
   return violations;
@@ -49,11 +51,12 @@ function checkAgentCapabilities(phases) {
     );
 
     if (touchesFiles && !canCreateFiles(normalizedAgent)) {
-      violations.push({
-        rule: 'agent_capability_mismatch',
-        detail: `Phase ${phase.id}: agent '${phase.agent}' (${capability}) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.`,
-        severity: 'error',
-      });
+      violations.push(
+        violation(
+          'agent_capability_mismatch',
+          `Phase ${phase.id}: agent '${phase.agent}' (${capability}) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.`
+        )
+      );
       continue;
     }
 
@@ -63,11 +66,13 @@ function checkAgentCapabilities(phases) {
       phase.name &&
       CREATION_SIGNAL_PATTERNS.test(phase.name)
     ) {
-      violations.push({
-        rule: 'agent_capability_mismatch',
-        detail: `Phase ${phase.id}: agent '${phase.agent}' (read_only) assigned to phase '${phase.name}' which may require file creation. Verify this agent can deliver the phase's requirements.`,
-        severity: 'warning',
-      });
+      violations.push(
+        violation(
+          'agent_capability_mismatch',
+          `Phase ${phase.id}: agent '${phase.agent}' (read_only) assigned to phase '${phase.name}' which may require file creation. Verify this agent can deliver the phase's requirements.`,
+          'warning'
+        )
+      );
     }
   }
   return violations;
