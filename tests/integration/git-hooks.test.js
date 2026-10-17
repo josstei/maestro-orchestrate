@@ -1,4 +1,4 @@
-const { describe, it } = require('node:test');
+const { after, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -8,6 +8,20 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const { ROOT } = require('./helpers');
 
 const ZERO_SHA = '0000000000000000000000000000000000000000';
+
+const tmpDirs = [];
+
+function makeTempDir(prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tmpDirs.push(dir);
+  return dir;
+}
+
+after(() => {
+  for (const dir of tmpDirs) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 function hookPath(name) {
   return path.join(ROOT, '.githooks', name);
@@ -22,13 +36,13 @@ function runHook(name, args = [], options = {}) {
 }
 
 function writeMessage(subject) {
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-commit-msg-')), 'message');
+  const file = path.join(makeTempDir('maestro-commit-msg-'), 'message');
   fs.writeFileSync(file, `${subject}\n\nBody\n`, 'utf8');
   return file;
 }
 
 function createRepo(branchName) {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-git-hook-repo-'));
+  const repo = makeTempDir('maestro-git-hook-repo-');
 
   execFileSync('git', ['init'], { cwd: repo, stdio: 'ignore' });
   execFileSync('git', ['checkout', '-b', branchName], { cwd: repo, stdio: 'ignore' });
@@ -44,6 +58,10 @@ function commitFile(repo, message) {
   execFileSync('git', ['add', 'file.txt'], { cwd: repo, stdio: 'ignore' });
   execFileSync('git', ['commit', '-m', message], { cwd: repo, stdio: 'ignore' });
   return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+}
+
+function pushInput(branch, sha) {
+  return `refs/heads/${branch} ${sha} refs/heads/${branch} ${ZERO_SHA}\n`;
 }
 
 describe('repo git hooks', () => {
@@ -93,7 +111,7 @@ describe('repo git hooks', () => {
     const sha = commitFile(repo, 'feat(test): seed commit');
     const result = runHook('pre-push', ['origin', 'unused'], {
       cwd: repo,
-      input: `refs/heads/feature/hook-validation ${sha} refs/heads/feature/hook-validation ${ZERO_SHA}\n`,
+      input: pushInput('feature/hook-validation', sha),
     });
 
     assert.equal(result.status, 1);
@@ -105,7 +123,7 @@ describe('repo git hooks', () => {
     const sha = commitFile(repo, 'update hook stuff');
     const result = runHook('pre-push', ['origin', 'unused'], {
       cwd: repo,
-      input: `refs/heads/feat/hook-validation ${sha} refs/heads/feat/hook-validation ${ZERO_SHA}\n`,
+      input: pushInput('feat/hook-validation', sha),
     });
 
     assert.equal(result.status, 1);
@@ -117,7 +135,7 @@ describe('repo git hooks', () => {
     const sha = commitFile(repo, 'feat(test): seed commit');
     const result = runHook('pre-push', ['origin', 'unused'], {
       cwd: repo,
-      input: `refs/heads/feat/hook-validation ${sha} refs/heads/feat/hook-validation ${ZERO_SHA}\n`,
+      input: pushInput('feat/hook-validation', sha),
     });
 
     assert.equal(result.status, 0, result.stderr);
