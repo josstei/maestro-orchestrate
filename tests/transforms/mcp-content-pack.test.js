@@ -7,6 +7,7 @@ const path = require('path');
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { writeOutputContract } = require('../support/agent-fixtures');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -32,6 +33,7 @@ describe('content tool pack', () => {
       recursive: true,
     });
     fs.mkdirSync(path.join(root, 'src', 'agents'), { recursive: true });
+    writeOutputContract(path.join(root, 'src'));
 
     fs.writeFileSync(
       path.join(root, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),

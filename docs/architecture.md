@@ -202,6 +202,8 @@ Each agent in `src/agents/` has:
 - **Methodology body**: role description, assessment areas, decision frameworks, anti-patterns
 - **Downstream consumer contracts**: what other agents need from this agent's output
 
+All agents share one Output Contract (the Handoff Report format). It lives once in `src/agents/shared/handoff-report.md`, and `get_agent` appends it to every agent body it serves.
+
 ### Stub Generation
 
 The generator creates thin stubs for each runtime. Full methodology is served via MCP at delegation time:

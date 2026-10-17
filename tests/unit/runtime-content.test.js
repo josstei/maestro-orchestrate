@@ -15,7 +15,10 @@ const {
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { writeOutputContract } = require('../support/agent-fixtures');
+
+const SRC_ROOT = path.resolve(__dirname, '../../src');
 
 function writeFilesystemResource(root, id, content) {
   const relativePath = RESOURCE_ALLOWLIST[id];
@@ -27,6 +30,7 @@ function writeFilesystemAgent(root, agentName, content) {
   const agentPath = path.join(root, 'src', 'agents', `${agentName}.md`);
   fs.mkdirSync(path.dirname(agentPath), { recursive: true });
   fs.writeFileSync(agentPath, content, 'utf8');
+  return writeOutputContract(path.join(root, 'src'));
 }
 
 describe('RESOURCE_ALLOWLIST', () => {
@@ -160,7 +164,7 @@ describe('runtime-content filesystem reads', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-codex-'));
 
     writeFilesystemResource(root, 'delegation', 'Filesystem content.\n');
-    writeFilesystemAgent(
+    const outputContract = writeFilesystemAgent(
       root,
       'coder',
       '---\nname: coder\ntools: [read_file]\n---\nFilesystem agent body.\n'
@@ -171,13 +175,13 @@ describe('runtime-content filesystem reads', () => {
     const agentResult = readAgentFromFilesystem('coder', runtimeConfig, srcRoot);
 
     assert.equal(resourceResult.content, 'Filesystem content.\n');
-    assert.equal(agentResult.agent.body, 'Filesystem agent body.\n');
+    assert.equal(agentResult.agent.body, `Filesystem agent body.\n\n${outputContract}`);
     assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
   });
 
   it('collapses blank lines across the frontmatter boundary of an agent file', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-blank-'));
-    writeFilesystemAgent(root, 'coder', '---\nname: coder\n---\n\n\nbody\n');
+    const outputContract = writeFilesystemAgent(root, 'coder', '---\nname: coder\n---\n\n\nbody\n');
 
     const agentResult = readAgentFromFilesystem(
       'coder',
@@ -185,7 +189,7 @@ describe('runtime-content filesystem reads', () => {
       path.join(root, 'src')
     );
 
-    assert.equal(agentResult.agent.body, '\nbody\n');
+    assert.equal(agentResult.agent.body, `\nbody\n\n${outputContract}`);
   });
 
   it('returns filesystem read errors when codex content is missing', () => {
@@ -198,4 +202,54 @@ describe('runtime-content filesystem reads', () => {
     assert.equal(resourceResult.error, 'Failed to read resource "delegation": ENOENT');
     assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');
   });
+
+  it('reports a missing Output Contract fragment as an agent read error', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-nocontract-'));
+    const agentPath = path.join(root, 'src', 'agents', 'coder.md');
+    fs.mkdirSync(path.dirname(agentPath), { recursive: true });
+    fs.writeFileSync(agentPath, '---\nname: coder\n---\nbody\n', 'utf8');
+
+    const agentResult = readAgentFromFilesystem(
+      'coder',
+      getRuntimeConfig('codex'),
+      path.join(root, 'src')
+    );
+
+    assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');
+  });
+});
+
+describe('served agent bodies', () => {
+  const outputContract = fs.readFileSync(
+    path.join(SRC_ROOT, 'agents', 'shared', 'handoff-report.md'),
+    'utf8'
+  );
+
+  it('keep the shared Output Contract as a single newline-terminated section', () => {
+    assert.ok(outputContract.startsWith('## Output Contract\n'));
+    assert.ok(outputContract.endsWith('\n') && !outputContract.endsWith('\n\n'));
+  });
+
+  for (const runtimeName of RUNTIME_NAMES) {
+    it(`end with the shared Output Contract for every agent on ${runtimeName}`, () => {
+      const runtimeConfig = getRuntimeConfig(runtimeName);
+
+      for (const agentName of AGENT_ALLOWLIST) {
+        const result = readAgentFromFilesystem(agentName, runtimeConfig, SRC_ROOT);
+        assert.equal(result.error, undefined, `${agentName}: ${result.error}`);
+
+        const { body } = result.agent;
+        assert.equal(
+          body.split('\n\n## Output Contract\n').length,
+          2,
+          `${agentName}: expected exactly one Output Contract section`
+        );
+        assert.ok(
+          !body.includes('\n\n\n## Output Contract\n'),
+          `${agentName}: the agent file must end with exactly one newline`
+        );
+        assert.ok(body.endsWith(outputContract), `${agentName}: body must end with the fragment`);
+      }
+    });
+  }
 });

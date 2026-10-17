@@ -99,13 +99,20 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
 }
 
 /**
+ * Read an agent definition and serve its methodology body with the shared
+ * Output Contract (agents/shared/handoff-report.md) appended.
+ *
  * Callers must pass a name from AGENT_ALLOWLIST; get_agent enforces this
  * before reading.
  */
 function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
-  const absolutePath = path.join(srcRoot, 'agents', `${agentName}.md`);
+  const agentsDir = path.join(srcRoot, 'agents');
   try {
-    const content = fs.readFileSync(absolutePath, 'utf8');
+    const content = fs.readFileSync(path.join(agentsDir, `${agentName}.md`), 'utf8');
+    const outputContract = fs.readFileSync(
+      path.join(agentsDir, 'shared', 'handoff-report.md'),
+      'utf8'
+    );
     // Strip feature blocks before splitting off the frontmatter, so blank-line
     // collapsing also applies across the frontmatter boundary.
     const { frontmatter, body } = parse(
@@ -113,7 +120,7 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
     );
     return {
       agent: {
-        body,
+        body: `${body}\n${outputContract}`,
         tools: mapTools(frontmatter, runtimeConfig),
       },
     };

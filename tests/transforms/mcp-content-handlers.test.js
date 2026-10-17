@@ -7,6 +7,7 @@ const path = require('node:path');
 const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { writeOutputContract } = require('../support/agent-fixtures');
 
 describe('get_skill_content handler', () => {
   it('reads canonical src content and applies skill transforms', () => {
@@ -89,6 +90,7 @@ describe('get_agent handler', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-content-'));
     const agentDir = path.join(root, 'src', 'agents');
     fs.mkdirSync(agentDir, { recursive: true });
+    writeOutputContract(path.join(root, 'src'));
     fs.writeFileSync(
       path.join(agentDir, 'coder.md'),
       [
@@ -127,6 +129,7 @@ describe('get_agent handler', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-snake-'));
     const agentDir = path.join(root, 'src', 'agents');
     fs.mkdirSync(agentDir, { recursive: true });
+    writeOutputContract(path.join(root, 'src'));
     fs.writeFileSync(
       path.join(agentDir, 'ux-designer.md'),
       [
@@ -156,6 +159,7 @@ describe('get_agent handler', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-toolname-'));
     const agentDir = path.join(root, 'src', 'agents');
     fs.mkdirSync(agentDir, { recursive: true });
+    writeOutputContract(path.join(root, 'src'));
     fs.writeFileSync(
       path.join(agentDir, 'code-reviewer.md'),
       [
@@ -200,6 +204,7 @@ describe('get_agent handler', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-snaketool-'));
     const agentDir = path.join(root, 'src', 'agents');
     fs.mkdirSync(agentDir, { recursive: true });
+    writeOutputContract(path.join(root, 'src'));
     fs.writeFileSync(
       path.join(agentDir, 'ux-designer.md'),
       [
@@ -231,6 +236,7 @@ describe('get_agent handler', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-replay-'));
     const agentDir = path.join(root, 'src', 'agents');
     fs.mkdirSync(agentDir, { recursive: true });
+    writeOutputContract(path.join(root, 'src'));
     fs.writeFileSync(
       path.join(agentDir, 'ux-designer.md'),
       [

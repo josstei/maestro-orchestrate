@@ -113,6 +113,7 @@ describe('mcp server bundle behavior', () => {
         assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
         assert.deepEqual(skillResult.parsed.errors, {});
         assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
+        assert.ok(agentResult.parsed.agents.coder.body.includes('## Output Contract'));
         assert.deepEqual(agentResult.parsed.errors, {});
       });
     }
@@ -135,6 +136,7 @@ describe('mcp server bundle behavior', () => {
           assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
           assert.deepEqual(skillResult.parsed.errors, {});
           assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
+          assert.ok(agentResult.parsed.agents.coder.body.includes('## Output Contract'));
           assert.deepEqual(agentResult.parsed.errors, {});
         }
       );
