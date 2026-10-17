@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 #
-# pre-push: mirror the source-of-truth drift check that CI enforces.
+# pre-push: mirror the semantic-git and source-of-truth checks that CI enforces.
 #
-# Regenerates runtime outputs from src/ and aborts the push if any
-# committed file disagrees with what the generator produced.
+# First validates the pushed branch names and new commit subjects against
+# the semantic conventions, then regenerates runtime outputs from src/ and
+# aborts the push if any committed file disagrees with what the generator
+# produced.
 
 set -euo pipefail
 
