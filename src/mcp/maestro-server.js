@@ -43,9 +43,7 @@ function main() {
     serverInfo: SERVER_INFO,
     callbacks: {
       onInitialize(params) {
-        cache.setClientSupportsRoots(
-          Boolean(params && params.capabilities && params.capabilities.roots)
-        );
+        cache.setClientSupportsRoots(Boolean(params.capabilities && params.capabilities.roots));
       },
       async onInitialized() {
         await cache.refreshClientRoots();
