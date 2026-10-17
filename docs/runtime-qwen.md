@@ -64,11 +64,22 @@ Qwen uses the same post-delegation validation as Gemini:
 
 ### Hook Adapter
 
-Qwen reuses the shared Gemini-style adapter at `src/platforms/shared/adapters/qwen-adapter.js` (or the shared Gemini adapter when the CLI JSON shape matches). Output format: `{ continue: boolean, systemMessage?: string }`.
+`src/platforms/qwen/hook-adapter.js` normalizes Qwen Code JSON input:
+
+| Qwen Field | Internal Field |
+|-----------|----------------|
+| `session_id` | `sessionId` |
+| `cwd` | `cwd` |
+| `agent_type` | `agentName` |
+| (hardcoded null) | `agentInput` |
+| `last_assistant_message` (`SubagentStop` only) | `agentResult` |
+| `stop_hook_active` | `stopHookActive` |
+
+Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string, hookSpecificOutput?: { additionalContext: string } }`. A deny emits `continue: false` with `decision: "block"` and exits with code 2; an allow that carries a reason emits `decision: "allow"`; any context message goes in `hookSpecificOutput.additionalContext`. If the hook fails, the runner emits `{ continue: true, decision: "allow" }`.
 
 ## Policies
 
-`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine (same rules as Gemini):
+`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine (the same generated file Gemini uses, built from `src/core/policy-rules.js`):
 
 **Deny (priority 950)**:
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
@@ -114,35 +125,39 @@ scriptBasedStateContract:  true
 codexStateContract:        false
 ```
 
-See `src/platforms/qwen/runtime-config.js` for the authoritative values (it extends `src/platforms/gemini/runtime-config.js`, overriding only `name`, `outputDir`, `env`, and six tool mappings).
+See `src/platforms/qwen/runtime-config.js` for the authoritative values. It extends `src/platforms/gemini/runtime-config.js` and overrides only `name`, `outputDir`, `mcpPrefix` (empty), `planModeNative` (false), `env.workspacePath`, six tool mappings, and `agentFrontmatter.fields`.
 
 ## Agent Frontmatter
 
-Qwen agent stubs share the Gemini shape:
+Qwen agent stubs carry the fields listed in Qwen's `agentFrontmatter.fields`, with `max_turns` before a block-list `tools` written in Qwen tool names, and no `temperature` or `timeout_mins`:
 
 ```yaml
 ---
 name: coder
 kind: local
 description: "..."
-tools: [read_file, write_file, ...]
-temperature: 0.2
 max_turns: 25
-timeout_mins: 10
+tools:
+  - read_file
+  - edit
+  - todo_write
+  - skill
+  - ask_user_question
+  - ...
 ---
 ```
 
-Fields: `kind` (always "local"), `temperature`, `max_turns`, `timeout_mins`.
+Fields: `kind` (always "local"), `max_turns`.
 
-## Generated Files
+## Runtime Files
 
 ```text
 qwen/
-├── agents/                39 agent stubs (snake_case, Qwen tool names)
-└── hooks.json             hook registration (SubagentStart, SubagentStop, …)
+├── agents/                [generated] 39 agent stubs (snake_case, Qwen tool names)
+└── hooks.json             [generated] hook registration (SubagentStart, SubagentStop, …)
 ```
 
-The Qwen extension reuses Gemini's repo-root `commands/maestro/`, `hooks/`, `mcp/`, and `policies/` artifacts when both runtimes coexist; no duplicates are written under `qwen/`.
+`qwen-extension.json` at the repo root is generated; `QWEN.md` is hand-maintained. The Qwen extension reuses Gemini's repo-root `commands/maestro/`, `hooks/hook-runner.js`, `mcp/`, and `policies/` artifacts when both runtimes coexist; no duplicates are written under `qwen/`.
 
 ## Notes
 

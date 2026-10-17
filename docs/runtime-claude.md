@@ -59,17 +59,17 @@ Agent(subagent_type: "maestro:architect", prompt: "...")
 - `execution/SKILL.md`, `implementation-planning/SKILL.md`
 - `session-management/SKILL.md`, `validation/SKILL.md`
 
-Infrastructure skills have `user-invocable: false` — they surface in Claude's skill picker but delegate to MCP for content.
+Infrastructure skills set `user-invocable: false`: they stay out of the `/` menu but remain available to the model, and their bodies point at MCP `get_skill_content` for the content.
 
 ## Hooks
 
-4 hook entries across 3 event types (2 with matchers):
+4 hook entries in `claude/hooks/claude-hooks.json`, across 3 event types (2 with matchers):
 
 | Event | Matcher | Script | Timeout |
 |-------|---------|--------|---------|
 | `SessionStart` | — | `scripts/hook-runner.js claude session-start` | 10s |
 | `PreToolUse` | `Agent` | `scripts/hook-runner.js claude before-agent` | 10s |
-| `PreToolUse` | `Bash` | scripts/policy-enforcer.js | 5s |
+| `PreToolUse` | `Bash` | `scripts/policy-enforcer.js` | 5s |
 | `SessionEnd` | — | `scripts/hook-runner.js claude session-end` | 10s |
 
 ### Key Differences from Gemini
@@ -81,7 +81,7 @@ Infrastructure skills have `user-invocable: false` — they surface in Claude's 
 
 ### Hook Adapter
 
-`src/platforms/shared/adapters/claude-adapter.js` normalizes Claude Code stdin:
+`src/platforms/claude/hook-adapter.js` normalizes Claude Code stdin:
 
 | Claude Field | Internal Field |
 |-------------|----------------|
@@ -96,7 +96,7 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 
 ## Policy Enforcement
 
-`claude/scripts/policy-enforcer.js` — JavaScript-based, triggered on Bash tool use:
+`src/platforms/claude/policy-enforcer.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. Its rules come from `src/core/policy-rules.js`, the same rules `policies/maestro.toml` applies for Gemini CLI and Qwen Code:
 
 **Deny rules** (blocks command):
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
@@ -144,7 +144,7 @@ See `src/platforms/claude/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
-Claude agent stubs include example blocks in the description and use camelCase for turns:
+Claude agent stubs include the fields listed in `agentFrontmatter.fields` (`src/platforms/claude/runtime-config.js`), take their tools from each agent's `tools.claude` list, include example blocks in the description, and use camelCase for turns:
 
 ```yaml
 ---
@@ -172,18 +172,20 @@ tools:
 
 Fields: `model` (always "inherit"), `color`, `maxTurns` (camelCase). No temperature or timeout.
 
-## Generated Files
+## Runtime Files
 
 ```
 claude/
-├── agents/                39 agent stubs (kebab-case)
-├── skills/                19 skill directories
-├── hooks/                 1 hook config (claude-hooks.json)
-├── scripts/               thin hook wrapper, adapter wrapper, policy enforcer
-├── mcp/                   thin MCP entrypoint
-├── src/                   generated detached runtime payload for isolated installs
-├── .claude-plugin/        1 plugin manifest
-├── .mcp.json
-├── mcp-config.example.json
-└── README.md
+├── agents/                [generated] 39 agent stubs (kebab-case)
+├── skills/                [generated] 19 skill directories
+├── hooks/                 [generated] claude-hooks.json
+├── scripts/               hook-runner.js and policy-enforcer.js shims (hand-maintained)
+├── mcp/                   maestro-server.js shim (hand-maintained)
+├── src/                   [generated] detached runtime payload for isolated installs
+├── .claude-plugin/        [generated] plugin.json manifest
+├── .mcp.json              [generated]
+├── mcp-config.example.json  hand-maintained
+└── README.md              hand-maintained (version badge stamped by scripts/update-versions.js)
 ```
+
+The repo-root `.claude-plugin/marketplace.json` is generated too.
