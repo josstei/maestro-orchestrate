@@ -8,7 +8,7 @@ module.exports = {
   outputDir: 'qwen/',
 
   env: {
-    extensionPath: 'extensionPath',
+    ...gemini.env,
     workspacePath: 'workspacePath',
   },
 
@@ -20,5 +20,10 @@ module.exports = {
     read_many_files: 'read_many_files',
     write_todos: 'todo_write',
     activate_skill: 'skill',
+  },
+
+  agentFrontmatter: {
+    ...gemini.agentFrontmatter,
+    fields: ['name', 'kind', 'description', 'turns', 'tools'],
   },
 };

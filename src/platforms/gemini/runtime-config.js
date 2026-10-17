@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = {
   name: 'gemini',
   outputDir: './',
@@ -31,8 +33,7 @@ module.exports = {
   agentFrontmatter: {
     kind: 'local',
     turnsField: 'max_turns',
-    hasTemperature: true,
-    hasTimeout: true,
+    fields: ['name', 'kind', 'description', 'tools', 'temperature', 'turns', 'timeout'],
   },
 
   delegation: {
