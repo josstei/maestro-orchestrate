@@ -4,14 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
 
-const {
-  DEFAULT_PROTOCOL_VERSION,
-  writeMessage,
-  buildInitializeResult,
-  createToolErrorResult,
-  createToolSuccessResult,
-  createProtocolHandlers,
-} = require('../../src/mcp/core/protocol-dispatcher');
+const { createProtocolHandlers } = require('../../src/mcp/core/protocol-dispatcher');
 const { createServer } = require('../../src/mcp/core/create-server');
 
 function captureWrites(stream) {
@@ -46,69 +39,6 @@ function makeHandlers(serverOverrides = {}, dispatcherOverrides = {}) {
   return { handlers, frames, stdout, server };
 }
 
-describe('writeMessage', () => {
-  it('writes a newline-terminated JSON frame', () => {
-    const out = new PassThrough();
-    const captured = [];
-    out.on('data', (chunk) => captured.push(chunk.toString('utf8')));
-    writeMessage(out, { jsonrpc: '2.0', id: 1, result: {} });
-    assert.equal(captured.join(''), '{"jsonrpc":"2.0","id":1,"result":{}}\n');
-  });
-});
-
-describe('buildInitializeResult', () => {
-  it('uses the default protocol version when none is supplied', () => {
-    const result = buildInitializeResult(undefined, { name: 's', version: '1' });
-    assert.equal(result.protocolVersion, DEFAULT_PROTOCOL_VERSION);
-    assert.deepEqual(result.capabilities, { tools: {} });
-    assert.deepEqual(result.serverInfo, { name: 's', version: '1' });
-  });
-
-  it('passes through a client-supplied protocol version', () => {
-    const result = buildInitializeResult('2025-06-01', { name: 's', version: '1' });
-    assert.equal(result.protocolVersion, '2025-06-01');
-  });
-});
-
-describe('createToolErrorResult', () => {
-  it('wraps a failure outcome with its recovery hint and drops ok', () => {
-    const result = createToolErrorResult({ ok: false, error: 'boom', recovery_hint: 'try again' });
-    assert.equal(result.isError, true);
-    assert.equal(result.content[0].text, '{"error":"boom","recovery_hint":"try again"}');
-  });
-
-  it('passes through an outcome object with code and details', () => {
-    const result = createToolErrorResult({
-      error: 'bad input',
-      recovery_hint: 'check args',
-      code: 'INVALID_ARG',
-      details: { field: 'name' },
-    });
-    const payload = JSON.parse(result.content[0].text);
-    assert.equal(payload.error, 'bad input');
-    assert.equal(payload.code, 'INVALID_ARG');
-    assert.deepEqual(payload.details, { field: 'name' });
-  });
-
-  it('carries a null recovery_hint from server failures that have no hint', async () => {
-    const outcome = await createServer({ toolPacks: [] }).callTool('missing');
-    const result = createToolErrorResult(outcome);
-    assert.equal(
-      result.content[0].text,
-      '{"error":"Unknown tool: missing","recovery_hint":null,"code":"UNKNOWN_TOOL"}'
-    );
-  });
-});
-
-describe('createToolSuccessResult', () => {
-  it('wraps the result as a stringified JSON text block', () => {
-    const result = createToolSuccessResult({ ok: true, value: 42 });
-    assert.equal(result.isError, undefined);
-    assert.equal(result.content[0].type, 'text');
-    assert.deepEqual(JSON.parse(result.content[0].text), { ok: true, value: 42 });
-  });
-});
-
 describe('createProtocolHandlers.respond', () => {
   it('ignores non-object messages', async () => {
     const { handlers, frames } = makeHandlers();
@@ -125,12 +55,34 @@ describe('createProtocolHandlers.respond', () => {
     assert.equal(frames.length, 0);
   });
 
+  it('writes each frame as one newline-terminated JSON line', async () => {
+    const stdout = new PassThrough();
+    const chunks = [];
+    stdout.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
+    const handlers = createProtocolHandlers(makeServerStub(), async () => null, stdout, {});
+    await handlers.respond({ jsonrpc: '2.0', id: 1, method: 'ping' });
+    assert.equal(chunks.join(''), '{"jsonrpc":"2.0","id":1,"result":{}}\n');
+  });
+
   it('responds to initialize with the default protocol version', async () => {
     const { handlers, frames } = makeHandlers();
     await handlers.respond({ jsonrpc: '2.0', id: 1, method: 'initialize' });
     assert.equal(frames.length, 1);
-    assert.equal(frames[0].id, 1);
-    assert.equal(frames[0].result.protocolVersion, DEFAULT_PROTOCOL_VERSION);
+    assert.deepEqual(frames[0], {
+      jsonrpc: '2.0',
+      id: 1,
+      result: {
+        protocolVersion: '2025-03-26',
+        capabilities: { tools: {} },
+        serverInfo: { name: 'maestro-test', version: '0.0.0' },
+      },
+    });
+  });
+
+  it('passes through a client-supplied protocol version on initialize', async () => {
+    const { handlers, frames } = makeHandlers();
+    await handlers.respond({ id: 1, method: 'initialize', params: { protocolVersion: '2025-06-01' } });
+    assert.equal(frames[0].result.protocolVersion, '2025-06-01');
   });
 
   it('invokes onInitialize callback with params', async () => {
@@ -169,8 +121,9 @@ describe('createProtocolHandlers.respond', () => {
       params: { name: 'echo', arguments: { text: 'hi' } },
     });
     assert.equal(frames[0].id, 3);
-    assert.deepEqual(JSON.parse(frames[0].result.content[0].text), { echoed: 'hi' });
-    assert.equal(frames[0].result.isError, undefined);
+    assert.deepEqual(frames[0].result, {
+      content: [{ type: 'text', text: '{"echoed":"hi"}' }],
+    });
   });
 
   it('responds with an error frame when callTool returns !ok', async () => {
@@ -191,6 +144,41 @@ describe('createProtocolHandlers.respond', () => {
     const payload = JSON.parse(frames[0].result.content[0].text);
     assert.equal(payload.error, 'bad thing');
     assert.equal(payload.code, 'OOPS');
+  });
+
+  it('serializes a failure outcome without ok, keeping details', async () => {
+    const { handlers, frames } = makeHandlers({
+      callTool: async () => ({
+        ok: false,
+        error: 'bad input',
+        recovery_hint: 'check args',
+        code: 'INVALID_ARG',
+        details: { field: 'name' },
+      }),
+    });
+    await handlers.respond({ id: 4, method: 'tools/call', params: { name: 'echo' } });
+    assert.equal(
+      frames[0].result.content[0].text,
+      '{"error":"bad input","recovery_hint":"check args","code":"INVALID_ARG","details":{"field":"name"}}'
+    );
+  });
+
+  it('frames an unknown-tool failure from a real server with a null recovery_hint', async () => {
+    const stdout = new PassThrough();
+    const frames = captureWrites(stdout);
+    const handlers = createProtocolHandlers(
+      createServer({ toolPacks: [] }),
+      async () => null,
+      stdout,
+      {}
+    );
+    await handlers.respond({ id: 10, method: 'tools/call', params: { name: 'missing' } });
+    assert.deepEqual(Object.keys(frames[0].result), ['content', 'isError']);
+    assert.equal(frames[0].result.isError, true);
+    assert.equal(
+      frames[0].result.content[0].text,
+      '{"error":"Unknown tool: missing","recovery_hint":null,"code":"UNKNOWN_TOOL"}'
+    );
   });
 
   it('defaults arguments to an empty object when params.arguments is missing or non-object', async () => {
