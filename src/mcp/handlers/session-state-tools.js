@@ -22,7 +22,6 @@ const {
 } = require('./design-gate');
 const {
   resolveStateDirPath,
-  readActiveSession,
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
@@ -69,7 +68,7 @@ function handleCreateSession(params, projectRoot) {
 
   const phasesValidation = validatePhases(params.phases);
   if (!phasesValidation.valid) {
-    const rules = phasesValidation.violations.map((v) => v.rule || v.field).join(', ');
+    const rules = phasesValidation.violations.map((v) => v.rule).join(', ');
     throw new ValidationError(`Invalid phases payload: ${rules}`, {
       details: phasesValidation.violations,
     });
@@ -86,9 +85,11 @@ function handleCreateSession(params, projectRoot) {
   const designDocumentCandidate =
     params.design_document ||
     (gate && gate.approved_at ? gate.design_document_path : null);
-  const resolvedDesignDocument = designDocumentCandidate
-    ? materializeSessionDocument(projectRoot, designDocumentCandidate, 'design_document')
-    : null;
+  const resolvedDesignDocument = materializeSessionDocument(
+    projectRoot,
+    designDocumentCandidate,
+    'design_document'
+  );
   const resolvedImplementationPlan = resolveDocumentInput(params, projectRoot, {
     pathKey: 'implementation_plan',
     prefix: 'implementation_plan',
@@ -207,6 +208,7 @@ function handleTransitionPhase(params, projectRoot) {
 
   return withSessionState(projectRoot, ({ state }) => {
     assertSessionMatch(state, params.session_id);
+    const now = new Date().toISOString();
 
     const completedPhase = hasCompletedPhase
       ? findPhaseOrThrow(state.phases, params.completed_phase_id)
@@ -259,7 +261,7 @@ function handleTransitionPhase(params, projectRoot) {
       }
 
       completedPhase.status = 'completed';
-      completedPhase.completed = new Date().toISOString();
+      completedPhase.completed = now;
       completedPhase.downstream_context = normalizedContext;
       completedPhase.files_created = filesCreated;
       completedPhase.files_modified = filesModified;
@@ -267,20 +269,16 @@ function handleTransitionPhase(params, projectRoot) {
       completedPhase.requires_reconciliation = !hasFiles && !contextProvided;
     }
 
-    let startedPhaseIds;
     if (hasNextPhaseIds) {
-      const now = new Date().toISOString();
-      startedPhaseIds = [];
       for (const phase of phasesToStart) {
         phase.status = 'in_progress';
         phase.started = now;
-        startedPhaseIds.push(phase.id);
       }
       state.current_phase = params.next_phase_ids[0];
     } else if (nextPhase) {
       if (nextPhase.status === 'pending') {
         nextPhase.status = 'in_progress';
-        nextPhase.started = new Date().toISOString();
+        nextPhase.started = now;
       }
       state.current_phase = params.next_phase_id;
     }
@@ -295,7 +293,7 @@ function handleTransitionPhase(params, projectRoot) {
       state.token_usage.total_cached += params.token_usage.cached || 0;
     }
 
-    state.updated = new Date().toISOString();
+    state.updated = now;
 
     const response = {
       success: true,
@@ -310,8 +308,8 @@ function handleTransitionPhase(params, projectRoot) {
       },
     };
 
-    if (startedPhaseIds) {
-      response.started_phase_ids = startedPhaseIds;
+    if (hasNextPhaseIds) {
+      response.started_phase_ids = phasesToStart.map((phase) => phase.id);
     }
 
     return response;
@@ -321,22 +319,23 @@ function handleTransitionPhase(params, projectRoot) {
 function handleArchiveSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  const { state, basePath, sessionPath, body } = readActiveSession(projectRoot);
-  assertSessionMatch(state, params.session_id, 'requested');
+  const { state, basePath, sessionPath } = withSessionState(projectRoot, (session) => {
+    assertSessionMatch(session.state, params.session_id, 'requested');
 
-  const pendingRec = (state.phases || []).find(
-    (phase) => phase.requires_reconciliation === true
-  );
-  if (pendingRec) {
-    throw new StateError(
-      `Phase ${pendingRec.id} requires reconciliation before archiving. Call scan_phase_changes or reconcile_phase to resolve.`,
-      { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
+    const pendingRec = (session.state.phases || []).find(
+      (phase) => phase.requires_reconciliation === true
     );
-  }
+    if (pendingRec) {
+      throw new StateError(
+        `Phase ${pendingRec.id} requires reconciliation before archiving. Call scan_phase_changes or reconcile_phase to resolve.`,
+        { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
+      );
+    }
 
-  state.status = 'completed';
-  state.updated = new Date().toISOString();
-  writeActiveSession(basePath, state, body);
+    session.state.status = 'completed';
+    session.state.updated = new Date().toISOString();
+    return session;
+  });
 
   const archivePath = path.join(
     basePath,

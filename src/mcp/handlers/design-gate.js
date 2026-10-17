@@ -198,10 +198,9 @@ function handleRecordDesignApproval(params, projectRoot) {
     );
   }
 
-  const gate =
-    readGate(projectRoot, params.session_id) ||
-    createGate(params.session_id, new Date().toISOString());
-  gate.approved_at = new Date().toISOString();
+  const now = new Date().toISOString();
+  const gate = readGate(projectRoot, params.session_id) || createGate(params.session_id, now);
+  gate.approved_at = now;
   gate.design_document_path = absDesignPath;
   writeGate(projectRoot, params.session_id, gate);
 
