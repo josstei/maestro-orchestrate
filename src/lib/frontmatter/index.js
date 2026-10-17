@@ -2,7 +2,7 @@
 
 /**
  * Frontmatter parsing (boundary splitting, key-value parsing, scalar
- * coercion, single-key extraction) and YAML escaping shared by the
+ * coercion) and YAML escaping shared by the
  * generator, transforms, and MCP content tools.
  *
  * @module lib/frontmatter
@@ -127,22 +127,6 @@ function parse(content) {
 }
 
 /**
- * Extract a single frontmatter value by key via regex.
- *
- * Searches for `key: value` on its own line within the content. Does not
- * require the content to have valid frontmatter delimiters -- works on any
- * text that contains `key: value` lines.
- *
- * @param {string} content - The content string to search.
- * @param {string} key - The frontmatter key to extract.
- * @returns {string|null} The trimmed value string, or null if the key is not found.
- */
-function extractValue(content, key) {
-  const match = content.match(new RegExp(`(?:^|\\n)${key}:\\s*(.+)$`, 'm'));
-  return match ? match[1].trim() : null;
-}
-
-/**
  * Escape special characters in a YAML string value.
  *
  * Escapes backslashes and double quotes for safe embedding inside a
@@ -158,7 +142,6 @@ function escapeYaml(value) {
 
 module.exports = {
   parse,
-  extractValue,
   escapeYaml,
   splitAtBoundary,
 };

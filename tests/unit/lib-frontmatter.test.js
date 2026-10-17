@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 
 const {
   parse,
-  extractValue,
   escapeYaml,
   splitAtBoundary,
 } = require('../../src/lib/frontmatter');
@@ -233,39 +232,6 @@ describe('parse', () => {
     const content = '---\nname:\n---\n';
     const result = parse(content);
     assert.strictEqual(result.frontmatter.name, '');
-  });
-});
-
-describe('extractValue', () => {
-  it('extracts a value for a given key', () => {
-    const content = '---\nname: my-agent\ntier: full\n---\nBody.';
-    assert.equal(extractValue(content, 'name'), 'my-agent');
-    assert.equal(extractValue(content, 'tier'), 'full');
-  });
-
-  it('returns null for a missing key', () => {
-    const content = '---\nname: my-agent\n---\n';
-    assert.equal(extractValue(content, 'tier'), null);
-  });
-
-  it('works without frontmatter delimiters', () => {
-    const content = 'name: standalone-value\ntier: read_only';
-    assert.equal(extractValue(content, 'name'), 'standalone-value');
-    assert.equal(extractValue(content, 'tier'), 'read_only');
-  });
-
-  it('trims whitespace from extracted values', () => {
-    const content = '---\nname:   spaced-value   \n---\n';
-    assert.equal(extractValue(content, 'name'), 'spaced-value');
-  });
-
-  it('returns null for empty content', () => {
-    assert.equal(extractValue('', 'name'), null);
-  });
-
-  it('extracts the first occurrence when key appears multiple times', () => {
-    const content = 'name: first\nname: second';
-    assert.equal(extractValue(content, 'name'), 'first');
   });
 });
 
