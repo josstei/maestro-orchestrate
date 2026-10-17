@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('node:fs');
 const os = require('node:os');
 const { execFileSync } = require('node:child_process');
@@ -10,7 +12,7 @@ const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
 function runGenerator(args = [], options = {}) {
   const cwd = options.cwd || ROOT;
 
-  return execFileSync('node', ['scripts/generate.js', ...args], {
+  return execFileSync(process.execPath, ['scripts/generate.js', ...args], {
     cwd,
     encoding: 'utf8',
   });

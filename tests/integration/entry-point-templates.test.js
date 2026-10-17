@@ -1,3 +1,5 @@
+'use strict';
+
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { expandCoreCommands, expandEntryPoints } = require('../../src/generator/entry-point-expander');

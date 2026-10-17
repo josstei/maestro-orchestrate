@@ -191,33 +191,33 @@ describe('parse', () => {
   it('coerces numeric values to numbers', () => {
     const content = '---\ntimeout: 30\nretries: 3\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.timeout, 30);
-    assert.strictEqual(result.frontmatter.retries, 3);
+    assert.equal(result.frontmatter.timeout, 30);
+    assert.equal(result.frontmatter.retries, 3);
   });
 
   it('coerces floating-point numeric values', () => {
     const content = '---\nthreshold: 0.85\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.threshold, 0.85);
+    assert.equal(result.frontmatter.threshold, 0.85);
   });
 
   it('does not coerce non-numeric strings to numbers', () => {
     const content = '---\nname: agent-42\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.name, 'agent-42');
+    assert.equal(result.frontmatter.name, 'agent-42');
   });
 
   it('coerces negative numbers and zero', () => {
     const content = '---\noffset: -7\ncount: 0\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.offset, -7);
-    assert.strictEqual(result.frontmatter.count, 0);
+    assert.equal(result.frontmatter.offset, -7);
+    assert.equal(result.frontmatter.count, 0);
   });
 
   it('keeps an empty value as an empty string', () => {
     const content = '---\nname:\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.name, '');
+    assert.equal(result.frontmatter.name, '');
   });
 });
 

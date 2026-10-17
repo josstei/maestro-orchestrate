@@ -1,3 +1,5 @@
+'use strict';
+
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');

@@ -1,7 +1,7 @@
 'use strict';
 
 const { describe, it } = require('node:test');
-const assert = require('node:assert');
+const assert = require('node:assert/strict');
 const path = require('node:path');
 
 const configMapPath = path.resolve(__dirname, '../../src/mcp/runtime/runtime-config-map.js');

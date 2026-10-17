@@ -61,19 +61,19 @@ describe('manifest-expander', () => {
       const results = expandGlob('agents/*.md', tmpDir);
 
       const sorted = [...results].sort();
-      assert.deepStrictEqual(results, sorted);
+      assert.deepEqual(results, sorted);
     });
 
     it('returns empty array when no files match', () => {
       const results = expandGlob('nonexistent/*.js', tmpDir);
 
-      assert.deepStrictEqual(results, []);
+      assert.deepEqual(results, []);
     });
 
     it('does not match directories as final segment', () => {
       const results = expandGlob('skills/*', tmpDir);
 
-      assert.deepStrictEqual(results, []);
+      assert.deepEqual(results, []);
     });
 
     it('filters by extension when wildcard is scoped', () => {
@@ -200,7 +200,7 @@ describe('manifest-expander', () => {
       assert.equal(result.length, 3);
 
       const srcs = result.map((e) => e.src).sort();
-      assert.deepStrictEqual(srcs, ['agents/baz.md', 'agents/foo-bar.md', 'agents/qux-thing.md']);
+      assert.deepEqual(srcs, ['agents/baz.md', 'agents/foo-bar.md', 'agents/qux-thing.md']);
 
       const fooEntry = result.find((e) => e.src === 'agents/foo-bar.md');
       assert.equal(fooEntry.outputs.gemini, 'agents/foo_bar.md');
@@ -234,12 +234,12 @@ describe('manifest-expander', () => {
       assert.equal(fooEntries.length, 2, 'foo-bar.md appears in both rules');
 
       const geminiClaudeEntry = fooEntries.find((e) => e.outputs.gemini);
-      assert.deepStrictEqual(geminiClaudeEntry.transforms, ['agent-stub']);
-      assert.deepStrictEqual(Object.keys(geminiClaudeEntry.outputs), ['gemini', 'claude']);
+      assert.deepEqual(geminiClaudeEntry.transforms, ['agent-stub']);
+      assert.deepEqual(Object.keys(geminiClaudeEntry.outputs), ['gemini', 'claude']);
 
       const codexEntry = fooEntries.find((e) => e.outputs.codex);
-      assert.deepStrictEqual(codexEntry.transforms, ['skill-discovery-stub']);
-      assert.deepStrictEqual(codexEntry.outputs, { codex: 'plugins/maestro/agents/foo-bar.md' });
+      assert.deepEqual(codexEntry.transforms, ['skill-discovery-stub']);
+      assert.deepEqual(codexEntry.outputs, { codex: 'plugins/maestro/agents/foo-bar.md' });
     });
 
     it('throws when rule is missing runtimes', () => {
@@ -270,7 +270,7 @@ describe('manifest-expander', () => {
       const result = expandManifest([rule], runtimes, tmpDir);
 
       for (const entry of result) {
-        assert.deepStrictEqual(entry.transforms, ['agent-stub', 'skill-discovery-stub']);
+        assert.deepEqual(entry.transforms, ['agent-stub', 'skill-discovery-stub']);
       }
     });
 
@@ -304,7 +304,7 @@ describe('manifest-expander', () => {
         assert.equal(coderEntries.length, 1, 'coder.md should appear once for this rule');
         assert.equal(coderEntries[0].outputs.gemini, 'agents/coder.md');
         assert.equal(coderEntries[0].outputs.claude, 'claude/agents/coder.md');
-        assert.deepStrictEqual(coderEntries[0].transforms, ['agent-stub']);
+        assert.deepEqual(coderEntries[0].transforms, ['agent-stub']);
 
         const codeReviewerEntry = result.find((e) => e.src === 'agents/code-reviewer.md');
         assert.ok(codeReviewerEntry, 'code-reviewer.md should be in entries');

@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -7,7 +9,7 @@ const { describe, it } = require('node:test');
 const { ROOT } = require('./helpers');
 
 function runInstaller(homeDir, args = []) {
-  return execFileSync('node', ['scripts/install-codex-plugin.js', ...args], {
+  return execFileSync(process.execPath, ['scripts/install-codex-plugin.js', ...args], {
     cwd: ROOT,
     env: { ...process.env, HOME: homeDir },
     encoding: 'utf8',
@@ -126,7 +128,7 @@ describe('codex installer integration', () => {
     const homeDir = makeTempHome();
 
     try {
-      const result = spawnSync('node', ['scripts/install-codex-plugin.js', '--foo'], {
+      const result = spawnSync(process.execPath, ['scripts/install-codex-plugin.js', '--foo'], {
         cwd: ROOT,
         env: { ...process.env, HOME: homeDir },
         encoding: 'utf8',

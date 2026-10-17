@@ -204,7 +204,7 @@ describe('buildDetachedPayload', () => {
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '2.0.0');
 
     const content = JSON.parse(fs.readFileSync(path.join(outputDir, 'version.json'), 'utf8'));
-    assert.deepStrictEqual(content, { version: '2.0.0' });
+    assert.deepEqual(content, { version: '2.0.0' });
     assert.equal(stats.removed, 0);
   });
 

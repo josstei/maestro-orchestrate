@@ -1,8 +1,8 @@
 'use strict';
 
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+const os = require('node:os');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-test-'));
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
@@ -10,7 +10,7 @@ process.env.MAESTRO_HOOKS_DIR = hooksDir;
 // to an enclosing checkout when the temp dir happens to live inside one.
 process.env.GIT_CEILING_DIRECTORIES = fs.realpathSync(os.tmpdir());
 
-const { execFileSync } = require('child_process');
+const { execFileSync } = require('node:child_process');
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
