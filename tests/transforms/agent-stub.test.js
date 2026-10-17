@@ -21,6 +21,25 @@ describe('agent-stub transform', () => {
     'Review code carefully.',
   ].join('\n');
 
+  const agentWithExamples = [
+    '---',
+    'name: code-reviewer',
+    'description: "Code review specialist."',
+    'color: blue',
+    'tools: [read_file, glob, grep_search]',
+    'max_turns: 15',
+    'temperature: 0.2',
+    'timeout_mins: 5',
+    '---',
+    '',
+    '<example>',
+    'Context: User wants a review.',
+    '</example>',
+    '',
+    '## Methodology',
+    'Review code carefully.',
+  ].join('\n');
+
   const geminiRuntime = getRuntimeConfig('gemini');
   const claudeRuntime = getRuntimeConfig('claude');
   const qwenRuntime = getRuntimeConfig('qwen');
@@ -129,24 +148,6 @@ describe('agent-stub transform', () => {
   });
 
   it('embeds example blocks into claude description field', () => {
-    const agentWithExamples = [
-      '---',
-      'name: code-reviewer',
-      'description: "Code review specialist."',
-      'color: blue',
-      'tools: [read_file, glob, grep_search]',
-      'max_turns: 15',
-      'temperature: 0.2',
-      'timeout_mins: 5',
-      '---',
-      '',
-      '<example>',
-      'Context: User wants a review.',
-      '</example>',
-      '',
-      '## Methodology',
-      'Review code carefully.',
-    ].join('\n');
     const result = agentStub(agentWithExamples, claudeRuntime);
     assertDocument(
       result,
@@ -171,24 +172,6 @@ describe('agent-stub transform', () => {
   });
 
   it('does not embed example blocks for gemini', () => {
-    const agentWithExamples = [
-      '---',
-      'name: code-reviewer',
-      'description: "Code review specialist."',
-      'color: blue',
-      'tools: [read_file, glob, grep_search]',
-      'max_turns: 15',
-      'temperature: 0.2',
-      'timeout_mins: 5',
-      '---',
-      '',
-      '<example>',
-      'Context: User wants a review.',
-      '</example>',
-      '',
-      '## Methodology',
-      'Review code carefully.',
-    ].join('\n');
     const result = agentStub(agentWithExamples, geminiRuntime);
     assertDocument(
       result,
