@@ -3,7 +3,7 @@
 /**
  * Canonical policy rules for Maestro command safety enforcement.
  * Used by:
- *   - claude/scripts/policy-enforcer.js (Claude Code PreToolUse hook)
+ *   - src/platforms/claude/policy-enforcer.js (Claude Code PreToolUse hook)
  *   - policies/maestro.toml (Gemini CLI policy pack — generated separately)
  *
  * Rule shapes:
@@ -29,4 +29,24 @@ const ASK_RULES = Object.freeze([
   { matchType: 'regex', pattern: '\\s>>?\\s|\\s>>?$|^>>?\\s|\\d>>?\\s', reason: 'Shell output redirection' },
 ]);
 
-module.exports = { DENY_RULES, ASK_RULES };
+/**
+ * Test one command segment against a rule, ignoring leading whitespace.
+ * @param {{ matchType: string, pattern: string }} rule
+ * @param {string} command
+ * @returns {boolean}
+ */
+function matchRule(rule, command) {
+  const trimmed = command.trimStart();
+  switch (rule.matchType) {
+    case 'prefix':
+      return trimmed.startsWith(rule.pattern);
+    case 'regex':
+      return new RegExp(rule.pattern).test(trimmed);
+    case 'word':
+      return new RegExp('\\b' + rule.pattern + '\\b').test(trimmed);
+    default:
+      return false;
+  }
+}
+
+module.exports = { DENY_RULES, ASK_RULES, matchRule };
