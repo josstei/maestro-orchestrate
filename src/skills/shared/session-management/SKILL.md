@@ -12,7 +12,7 @@ Activate this skill for all session state operations during Maestro orchestratio
 When MCP state tools are available, prefer them for state operations:
 - **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, atomic operations.
 - **Fallback**: `write_file`/`replace` directly on state files — when MCP tools are not in the available tool list.
-- **Legacy**: `node <runtime-script-root>/read-state.js <relative-path>` / `read-active-session.js` — used by command shell blocks to inject state before the first turn; not the recommended path.
+- **Legacy**: `node <runtime-script-root>/read-active-session.js` (used by command shell blocks to inject state before the first turn) / `read-state.js <relative-path>` — not the recommended path.
 
 Detection: check whether MCP state tools appear in your available tools. If they do, use them. If they do not, use `write_file`/`replace`.
 
@@ -41,7 +41,7 @@ All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory 
 1. Resolve state directory from `MAESTRO_STATE_DIR`
 2. Create `<state_dir>/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
 3. Verify no existing `active-session.md` — if one exists, alert the user and offer to archive or resume
-4. Generate session state from the `session-state` template (load it with `get_skill_content(["session-state"])` if not already loaded), setting `workflow_mode` to `standard` or `express`
+4. Generate session state from the `session-state` template (load it with `get_skill_content(["session-state"])` if not already loaded), setting `workflow_mode` to `standard` or `express` and `task_complexity` from the design document frontmatter
 5. Initialize all phases as `pending`
 6. Set overall status to `in_progress`
 7. Set `current_phase` to 1
