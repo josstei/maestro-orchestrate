@@ -4,22 +4,14 @@ const { getRecoveryHint } = require('./recovery-hints');
 const { MaestroError } = require('../../lib/errors');
 const { requireWorkspaceRoot } = require('../../core/project-root-resolver');
 
-function isObject(value) {
-  return Boolean(value) && typeof value === 'object';
-}
-
-function normalizeToolPack(entry, context, index) {
+function resolveToolPack(entry, context, index) {
   const pack = typeof entry === 'function' ? entry(context) : entry;
 
   if (!pack || typeof pack !== 'object' || Array.isArray(pack)) {
     throw new TypeError(`Tool pack at index ${index} must resolve to an object.`);
   }
 
-  return {
-    name: pack.name || `tool-pack-${index + 1}`,
-    tools: Array.isArray(pack.tools) ? pack.tools : [],
-    handlers: pack.handlers && typeof pack.handlers === 'object' ? pack.handlers : {},
-  };
+  return pack;
 }
 
 function sanitizeErrorMessage(error) {
@@ -28,15 +20,7 @@ function sanitizeErrorMessage(error) {
 }
 
 function toolFailure(error, code, recovery_hint = null, details = null) {
-  const outcome = {
-    ok: false,
-    error,
-    recovery_hint,
-  };
-
-  if (code) {
-    outcome.code = code;
-  }
+  const outcome = { ok: false, error, recovery_hint, code };
 
   if (details != null) {
     outcome.details = details;
@@ -61,27 +45,27 @@ function normalizeToolError(toolName, error) {
 
 /**
  * Compose tool packs into a server that lists tool schemas and dispatches
- * tool calls. Packs are mounted in order; tool names must be unique.
+ * tool calls. A pack is `{ name, tools }` (or a factory receiving the frozen
+ * `{ runtimeConfig, services }` context), where each tool is its schema plus a
+ * `handler` function; the handler is not part of the listed schema. Packs are
+ * mounted in order; tool names must be unique.
  */
 function createServer(options = {}) {
-  const { runtimeConfig = {}, services = {}, toolPacks } = options;
-  const context = Object.freeze({
-    runtimeConfig: isObject(runtimeConfig) ? runtimeConfig : {},
-    services: isObject(services) ? services : {},
-  });
-  const packs = (Array.isArray(toolPacks) ? toolPacks : []).map((entry, index) =>
-    normalizeToolPack(entry, context, index)
-  );
+  const { runtimeConfig = {}, services = {}, toolPacks = [] } = options;
+  const context = Object.freeze({ runtimeConfig, services });
+  const packs = toolPacks.map((entry, index) => resolveToolPack(entry, context, index));
   const schemas = [];
   const handlers = Object.create(null);
   const toolSources = Object.create(null);
   const requiresWorkspace = Object.create(null);
 
   for (const pack of packs) {
-    for (const schema of pack.tools) {
-      if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    for (const tool of pack.tools) {
+      if (!tool || typeof tool !== 'object' || Array.isArray(tool)) {
         throw new TypeError(`Tool schema in pack "${pack.name}" must be an object.`);
       }
+
+      const { handler, ...schema } = tool;
 
       if (typeof schema.name !== 'string' || schema.name.length === 0) {
         throw new Error(`Tool schema in pack "${pack.name}" is missing a valid name.`);
@@ -93,7 +77,6 @@ function createServer(options = {}) {
         );
       }
 
-      const handler = pack.handlers[schema.name];
       if (typeof handler !== 'function') {
         throw new Error(
           `Tool "${schema.name}" in pack "${pack.name}" is missing a handler.`
@@ -130,5 +113,4 @@ function createServer(options = {}) {
 
 module.exports = {
   createServer,
-  normalizeToolPack,
 };
