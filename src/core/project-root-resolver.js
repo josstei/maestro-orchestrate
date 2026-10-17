@@ -55,6 +55,19 @@ function resolveProjectRoot() {
 }
 
 /**
+ * Resolve the workspace root for a hook payload's `cwd`. MCP anchors session
+ * state at the git toplevel of the workspace, so a hook fired from a
+ * subdirectory must resolve the same root. Falls back to `process.cwd()` when
+ * the payload has no cwd, and to the raw cwd when it cannot be resolved.
+ *
+ * @param {string|undefined} cwd - hook payload cwd
+ * @returns {string|undefined}
+ */
+function resolveHookWorkspaceRoot(cwd) {
+  return resolveExistingRoot(cwd || process.cwd()) || cwd;
+}
+
+/**
  * Assert that a tool handler was invoked with a resolved workspace root.
  * Used by handlers that cannot function without a workspace (session state,
  * reconciliation, complexity assessment). The dispatcher calls this centrally
@@ -99,7 +112,7 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
 }
 
 module.exports = {
-  resolveExistingRoot,
+  resolveHookWorkspaceRoot,
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,
   requireWorkspaceRoot,
