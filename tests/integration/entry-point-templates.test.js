@@ -3,6 +3,13 @@ const assert = require('node:assert/strict');
 const { expandCoreCommands, expandEntryPoints } = require('../../src/generator/entry-point-expander');
 const entryPointRegistry = require('../../src/entry-points/registry');
 
+/** Host command names each public-skill runtime must remap, and which expansion emits the remap. */
+const HOST_NAME_REMAPS = [
+  { reserved: 'review', remapped: 'review-code', kind: 'entryPoints' },
+  { reserved: 'debug', remapped: 'debug-workflow', kind: 'entryPoints' },
+  { reserved: 'resume', remapped: 'resume-session', kind: 'coreCommands' },
+];
+
 describe('expandEntryPoints', () => {
   it('produces gemini TOML for each registry entry', () => {
     const results = expandEntryPoints('gemini');
@@ -14,44 +21,35 @@ describe('expandEntryPoints', () => {
     assert.ok(review.content.includes('prompt = """'));
   });
 
-  it('produces claude SKILL.md with frontmatter', () => {
-    const results = expandEntryPoints('claude');
-    assert.ok(results.length >= 9);
-    const debug = results.find((r) => r.outputPath === 'claude/skills/debug-workflow/SKILL.md');
-    assert.ok(debug);
-    assert.ok(debug.content.includes('name: debug-workflow'));
-    assert.ok(debug.content.includes('get_skill_content'));
-  });
+  for (const { runtime, root } of [
+    { runtime: 'claude', root: 'claude/skills' },
+    { runtime: 'codex', root: 'plugins/maestro/skills' },
+  ]) {
+    it(`${runtime} public skills remap reserved host command names`, () => {
+      const outputs = {
+        entryPoints: expandEntryPoints(runtime),
+        coreCommands: expandCoreCommands(runtime),
+      };
+      assert.ok(outputs.entryPoints.length >= 9);
+      assert.ok(outputs.coreCommands.length >= 3);
+      const publicSkills = [...outputs.entryPoints, ...outputs.coreCommands];
 
-  it('produces codex SKILL.md with a non-conflicting review skill name', () => {
-    const results = expandEntryPoints('codex');
-    assert.ok(results.length >= 9);
-    const review = results.find((r) => r.outputPath === 'plugins/maestro/skills/review-code/SKILL.md');
-    assert.ok(review);
-    assert.ok(!results.some((r) => r.outputPath === 'plugins/maestro/skills/review/SKILL.md'));
-    assert.ok(review.content.includes('name: review-code'));
-    assert.ok(review.content.includes('get_skill_content'));
-  });
-
-  it('produces codex SKILL.md with a non-conflicting debug skill name', () => {
-    const results = expandEntryPoints('codex');
-    assert.ok(results.length >= 9);
-    const debug = results.find((r) => r.outputPath === 'plugins/maestro/skills/debug-workflow/SKILL.md');
-    assert.ok(debug);
-    assert.ok(!results.some((r) => r.outputPath === 'plugins/maestro/skills/debug/SKILL.md'));
-    assert.ok(debug.content.includes('name: debug-workflow'));
-    assert.ok(debug.content.includes('get_agent'));
-  });
-
-  it('produces codex core SKILL.md with a non-conflicting resume skill name', () => {
-    const results = expandCoreCommands('codex');
-    assert.ok(results.length >= 3);
-    const resume = results.find((r) => r.outputPath === 'plugins/maestro/skills/resume-session/SKILL.md');
-    assert.ok(resume);
-    assert.ok(!results.some((r) => r.outputPath === 'plugins/maestro/skills/resume/SKILL.md'));
-    assert.ok(resume.content.includes('name: resume-session'));
-    assert.ok(resume.content.includes('get_skill_content'));
-  });
+      for (const { reserved, remapped, kind } of HOST_NAME_REMAPS) {
+        const skill = outputs[kind].find((r) => r.outputPath === `${root}/${remapped}/SKILL.md`);
+        assert.ok(skill, `Expected ${runtime} ${kind} to produce ${root}/${remapped}/SKILL.md`);
+        assert.ok(skill.content.includes(`name: ${remapped}`));
+        assert.ok(skill.content.includes('get_skill_content'));
+        assert.ok(
+          !publicSkills.some((r) => r.outputPath === `${root}/${reserved}/SKILL.md`),
+          `Expected ${runtime} public skills to avoid reserved name "${reserved}"`
+        );
+        assert.ok(
+          !publicSkills.some((r) => new RegExp(`^name: ${reserved}$`, 'm').test(r.content)),
+          `Expected ${runtime} public skill frontmatter to avoid reserved name "${reserved}"`
+        );
+      }
+    });
+  }
 
   it('gemini preamble activates correct skills', () => {
     const results = expandEntryPoints('gemini');
@@ -66,6 +64,7 @@ describe('expandEntryPoints', () => {
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
+    assert.ok(review.content.includes('## Protocol'));
   });
 
   it('codex preamble includes agent references for entries with agents', () => {
@@ -73,6 +72,8 @@ describe('expandEntryPoints', () => {
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_agent'));
     assert.ok(review.content.includes('code-reviewer'));
+    const debug = results.find((r) => r.outputPath === 'plugins/maestro/skills/debug-workflow/SKILL.md');
+    assert.ok(debug.content.includes('get_agent'));
   });
 
   it('claude skill headings use the registry title when one is set', () => {
@@ -89,7 +90,7 @@ describe('expandEntryPoints', () => {
     const status = claudeResults.find((r) => r.outputPath.includes('status'));
     assert.ok(status);
     // Status has no agents, so no delegation protocol block
-    assert.ok(!status.content.includes('delegation skill'));
+    assert.ok(!status.content.includes('## Protocol'));
   });
 
   it('gemini constraints appear in the prompt', () => {
@@ -103,74 +104,6 @@ describe('expandEntryPoints', () => {
     const debug = results.find((r) => r.outputPath.includes('debug-workflow'));
     assert.ok(debug.content.includes('1. '));
     assert.ok(debug.content.includes('2. '));
-  });
-
-  it('produces claude SKILL.md with a non-conflicting review skill name', () => {
-    const results = expandEntryPoints('claude');
-    assert.ok(results.length >= 9);
-    const review = results.find((r) => r.outputPath === 'claude/skills/review-code/SKILL.md');
-    assert.ok(review);
-    assert.ok(!results.some((r) => r.outputPath === 'claude/skills/review/SKILL.md'));
-    assert.ok(review.content.includes('name: review-code'));
-    assert.ok(review.content.includes('get_skill_content'));
-  });
-
-  it('produces claude SKILL.md with a non-conflicting debug skill name', () => {
-    const results = expandEntryPoints('claude');
-    assert.ok(results.length >= 9);
-    const debug = results.find((r) => r.outputPath === 'claude/skills/debug-workflow/SKILL.md');
-    assert.ok(debug);
-    assert.ok(!results.some((r) => r.outputPath === 'claude/skills/debug/SKILL.md'));
-    assert.ok(debug.content.includes('name: debug-workflow'));
-    assert.ok(debug.content.includes('get_skill_content'));
-  });
-
-  it('produces claude core SKILL.md with a non-conflicting resume skill name', () => {
-    const results = expandCoreCommands('claude');
-    assert.ok(results.length >= 3);
-    const resume = results.find((r) => r.outputPath === 'claude/skills/resume-session/SKILL.md');
-    assert.ok(resume);
-    assert.ok(!results.some((r) => r.outputPath === 'claude/skills/resume/SKILL.md'));
-    assert.ok(resume.content.includes('name: resume-session'));
-    assert.ok(resume.content.includes('get_skill_content'));
-  });
-
-  it('claude public skills avoid reserved host command names', () => {
-    const publicSkills = [
-      ...expandEntryPoints('claude'),
-      ...expandCoreCommands('claude'),
-    ];
-    const reserved = ['review', 'debug', 'resume'];
-
-    for (const name of reserved) {
-      assert.ok(
-        !publicSkills.some((skill) => skill.outputPath === `claude/skills/${name}/SKILL.md`),
-        `Expected claude public skills to avoid reserved name "${name}"`
-      );
-      assert.ok(
-        !publicSkills.some((skill) => new RegExp(`^name: ${name}$`, 'm').test(skill.content)),
-        `Expected claude public skill frontmatter to avoid reserved name "${name}"`
-      );
-    }
-  });
-
-  it('codex public skills avoid reserved host command names', () => {
-    const publicSkills = [
-      ...expandEntryPoints('codex'),
-      ...expandCoreCommands('codex'),
-    ];
-    const reserved = ['review', 'debug', 'resume'];
-
-    for (const name of reserved) {
-      assert.ok(
-        !publicSkills.some((skill) => skill.outputPath === `plugins/maestro/skills/${name}/SKILL.md`),
-        `Expected codex public skills to avoid reserved name "${name}"`
-      );
-      assert.ok(
-        !publicSkills.some((skill) => new RegExp(`^name: ${name}$`, 'm').test(skill.content)),
-        `Expected codex public skill frontmatter to avoid reserved name "${name}"`
-      );
-    }
   });
 
   it('rejects a registry name that resolves to a reserved host command', () => {
