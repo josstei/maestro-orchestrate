@@ -46,8 +46,12 @@ function resolveStateDirPath(cwd, stateDirOverride) {
   return resolveStateDirUnder(cwd || process.cwd(), stateDir);
 }
 
+function activeSessionFile(basePath) {
+  return path.join(basePath, ACTIVE_SESSION_REL);
+}
+
 function resolveActiveSessionPath(cwd, stateDirOverride) {
-  return path.join(resolveStateDirPath(cwd, stateDirOverride), ACTIVE_SESSION_REL);
+  return activeSessionFile(resolveStateDirPath(cwd, stateDirOverride));
 }
 
 function hasActiveSession(cwd) {
@@ -72,13 +76,9 @@ function writeState(relativePath, content, basePath) {
 }
 
 function readSessionAt(basePath) {
-  const { data, body } = markdownState.parse(readState(ACTIVE_SESSION_REL, basePath));
-  return {
-    basePath,
-    sessionPath: path.join(basePath, ACTIVE_SESSION_REL),
-    state: data,
-    body,
-  };
+  const sessionPath = activeSessionFile(basePath);
+  const { data, body } = markdownState.parse(fs.readFileSync(sessionPath, 'utf8'));
+  return { basePath, sessionPath, state: data, body };
 }
 
 function readActiveSession(cwd) {
@@ -87,15 +87,16 @@ function readActiveSession(cwd) {
 
 function readActiveSessionOrNull(cwd) {
   const basePath = resolveStateDirPath(cwd);
-  if (!fs.existsSync(path.join(basePath, ACTIVE_SESSION_REL))) {
+  if (!fs.existsSync(activeSessionFile(basePath))) {
     return null;
   }
   return readSessionAt(basePath);
 }
 
 function writeActiveSession(basePath, state, body) {
-  writeState(ACTIVE_SESSION_REL, markdownState.serialize(state, body), basePath);
-  return path.join(basePath, ACTIVE_SESSION_REL);
+  const sessionPath = activeSessionFile(basePath);
+  atomicWriteSync(sessionPath, markdownState.serialize(state, body));
+  return sessionPath;
 }
 
 /**
@@ -142,7 +143,6 @@ function ensureWorkspace(stateDir, basePath) {
 module.exports = {
   DEFAULT_STATE_DIR,
   WORKSPACE_SUBDIRS,
-  validateContainment,
   resolveStateDirPath,
   resolveActiveSessionPath,
   hasActiveSession,

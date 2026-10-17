@@ -8,7 +8,6 @@ const path = require('node:path');
 
 const {
   DEFAULT_STATE_DIR,
-  validateContainment,
   resolveStateDirPath,
   resolveActiveSessionPath,
   hasActiveSession,
@@ -40,29 +39,17 @@ describe('session-state', () => {
     assert.equal(DEFAULT_STATE_DIR, 'docs/maestro');
   });
 
-  it('validateContainment returns resolved path when within root', () => {
+  it('resolveStateDirPath returns the resolved path of an absolute state dir within root', () => {
     const subDir = path.join(tmpRoot, 'sub');
     fs.mkdirSync(subDir);
-    const result = validateContainment(subDir, tmpRoot);
+    const result = resolveStateDirPath(tmpRoot, subDir);
     assert.equal(result, fs.realpathSync(subDir));
   });
 
-  it('validateContainment throws when path is outside root', () => {
-    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-outside-'));
-    try {
-      assert.throws(
-        () => validateContainment(outsideDir, tmpRoot),
-        /state_dir must be within the project root/
-      );
-    } finally {
-      fs.rmSync(outsideDir, { recursive: true, force: true });
-    }
-  });
-
-  it('validateContainment throws for path traversal', () => {
+  it('resolveStateDirPath rejects absolute state dirs that traverse out of root', () => {
     const traversalPath = path.join(tmpRoot, '..', 'outside');
     assert.throws(
-      () => validateContainment(traversalPath, tmpRoot),
+      () => resolveStateDirPath(tmpRoot, traversalPath),
       /state_dir must be within the project root/
     );
   });
