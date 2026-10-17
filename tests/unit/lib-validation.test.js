@@ -37,61 +37,25 @@ describe('assertSessionId', () => {
     });
   }
 
-  it('throws for empty string', () => {
-    assertThrowsValidation(
-      () => assertSessionId(''),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
+  const INVALID_IDS = [
+    ['empty string', ''],
+    ['string with spaces', 'has space'],
+    ['string with dots', 'has.dot'],
+    ['string with slashes', 'path/traversal'],
+    ['null', null],
+    ['undefined', undefined],
+    ['a number', 42],
+    ['an object', {}],
+  ];
 
-  it('throws for string with spaces', () => {
-    assertThrowsValidation(
-      () => assertSessionId('has space'),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for string with dots', () => {
-    assertThrowsValidation(
-      () => assertSessionId('has.dot'),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for string with slashes', () => {
-    assertThrowsValidation(
-      () => assertSessionId('path/traversal'),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for null', () => {
-    assertThrowsValidation(
-      () => assertSessionId(null),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for undefined', () => {
-    assertThrowsValidation(
-      () => assertSessionId(undefined),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for a number', () => {
-    assertThrowsValidation(
-      () => assertSessionId(42),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
-
-  it('throws for an object', () => {
-    assertThrowsValidation(
-      () => assertSessionId({}),
-      'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
-    );
-  });
+  for (const [label, id] of INVALID_IDS) {
+    it(`throws for ${label}`, () => {
+      assertThrowsValidation(
+        () => assertSessionId(id),
+        'Invalid session_id: must match pattern [a-zA-Z0-9_-]+'
+      );
+    });
+  }
 
   it('includes the invalid value in error details', () => {
     try {
@@ -100,16 +64,6 @@ describe('assertSessionId', () => {
     } catch (err) {
       assert.deepEqual(err.details, { value: 'bad!id' });
     }
-  });
-
-  it('throws a ValidationError instance', () => {
-    assert.throws(() => assertSessionId('!!!'), (err) => {
-      assert.ok(err instanceof ValidationError);
-      assert.ok(err instanceof Error);
-      assert.equal(err.code, 'VALIDATION_ERROR');
-      assert.equal(err.name, 'ValidationError');
-      return true;
-    });
   });
 });
 

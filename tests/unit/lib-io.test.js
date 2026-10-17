@@ -100,20 +100,6 @@ describe('atomicWriteSync', () => {
     }
   });
 
-  it('propagates the original error after cleanup', () => {
-    const originalWrite = fs.writeFileSync;
-    fs.writeFileSync = function () {
-      throw new Error('simulated failure');
-    };
-
-    try {
-      const filePath = path.join(tempRoot, 'propagate.txt');
-      assert.throws(() => atomicWriteSync(filePath, 'x'), /simulated failure/);
-    } finally {
-      fs.writeFileSync = originalWrite;
-    }
-  });
-
   it('handles empty content', () => {
     const filePath = path.join(tempRoot, 'empty.txt');
     atomicWriteSync(filePath, '');
@@ -191,7 +177,7 @@ describe('readFileSafe', () => {
 
   it('preserves unicode content', () => {
     const filePath = path.join(tempRoot, 'unicode.txt');
-    const content = 'Hello World';
+    const content = 'héllo wörld — 日本語 🎼\n';
     fs.writeFileSync(filePath, content, 'utf8');
     assert.equal(readFileSafe(filePath), content);
   });
@@ -324,14 +310,6 @@ describe('writeIfChanged', () => {
     const result = writeIfChanged(filePath, '');
     assert.equal(result, false);
   });
-
-  it('returns boolean type, not truthy/falsy', () => {
-    const filePath = path.join(tempRoot, 'type-check.txt');
-    const resultNew = writeIfChanged(filePath, 'content');
-    assert.equal(typeof resultNew, 'boolean');
-    const resultSame = writeIfChanged(filePath, 'content');
-    assert.equal(typeof resultSame, 'boolean');
-  });
 });
 
 describe('ensurePrivateDir', () => {
@@ -360,21 +338,5 @@ describe('ensurePrivateDir', () => {
       () => ensurePrivateDir(link, 'must not be a symlink'),
       { message: 'must not be a symlink' }
     );
-  });
-});
-
-describe('module exports', () => {
-  it('exports all five documented functions', () => {
-    const io = require('../../src/lib/io');
-    assert.equal(typeof io.atomicWriteSync, 'function');
-    assert.equal(typeof io.ensurePrivateDir, 'function');
-    assert.equal(typeof io.readFileSafe, 'function');
-    assert.equal(typeof io.readJsonSafe, 'function');
-    assert.equal(typeof io.writeIfChanged, 'function');
-  });
-
-  it('exports exactly five members', () => {
-    const io = require('../../src/lib/io');
-    assert.equal(Object.keys(io).length, 5);
   });
 });

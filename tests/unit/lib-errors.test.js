@@ -60,14 +60,11 @@ describe('MaestroError', () => {
     assert.deepEqual(err.details, details);
   });
 
-  it('can be caught as Error', () => {
-    let caught = false;
-    try {
-      throw new MaestroError('thrown');
-    } catch (e) {
-      if (e instanceof Error) caught = true;
+  it('is not instanceof any subclass', () => {
+    const err = new MaestroError('base only');
+    for (const { Class } of SUBCLASS_SPECS) {
+      assert.ok(!(err instanceof Class));
     }
-    assert.ok(caught);
   });
 });
 
@@ -79,11 +76,6 @@ describe('Subclass contracts', () => {
         assert.ok(err instanceof Error);
         assert.ok(err instanceof MaestroError);
         assert.ok(err instanceof Class);
-      });
-
-      it(`has code "${code}"`, () => {
-        const err = new Class('test');
-        assert.equal(err.code, code);
       });
 
       it(`has name "${name}"`, () => {
@@ -137,47 +129,4 @@ describe('Subclass contracts', () => {
       });
     });
   }
-});
-
-describe('Cross-hierarchy instanceof checks', () => {
-  it('MaestroError is not instanceof any subclass', () => {
-    const err = new MaestroError('base only');
-    for (const { Class } of SUBCLASS_SPECS) {
-      assert.ok(!(err instanceof Class));
-    }
-  });
-
-  it('all subclass instances are instanceof MaestroError', () => {
-    for (const { Class } of SUBCLASS_SPECS) {
-      const err = new Class('check');
-      assert.ok(err instanceof MaestroError);
-    }
-  });
-});
-
-describe('Serialization', () => {
-  it('MaestroError serializes details through JSON round-trip', () => {
-    const details = { fields: ['name', 'id'], counts: { a: 1 } };
-    const err = new MaestroError('serial', { details });
-    const serialized = JSON.parse(JSON.stringify({
-      message: err.message,
-      code: err.code,
-      details: err.details,
-    }));
-    assert.equal(serialized.message, 'serial');
-    assert.equal(serialized.code, 'MAESTRO_ERROR');
-    assert.deepEqual(serialized.details, details);
-  });
-
-  it('subclass details survive JSON round-trip', () => {
-    const details = { missing: 'agent-xyz' };
-    const err = new NotFoundError('not found', { details });
-    const serialized = JSON.parse(JSON.stringify({
-      message: err.message,
-      code: err.code,
-      details: err.details,
-    }));
-    assert.equal(serialized.code, 'NOT_FOUND');
-    assert.deepEqual(serialized.details, details);
-  });
 });

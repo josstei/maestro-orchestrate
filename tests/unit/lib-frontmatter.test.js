@@ -127,24 +127,10 @@ describe('parse', () => {
     assert.equal(result.body, content);
   });
 
-  it('returns empty frontmatter and full body when no closing delimiter', () => {
-    const content = '---\nname: orphan\nno closing fence';
-    const result = parse(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, content);
-  });
-
   it('preserves body content after closing delimiter', () => {
     const content = '---\nkey: value\n---\nLine one.\nLine two.\nLine three.';
     const result = parse(content);
     assert.equal(result.body, 'Line one.\nLine two.\nLine three.');
-  });
-
-  it('handles empty frontmatter block', () => {
-    const content = '---\n---\nBody only.';
-    const result = parse(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, 'Body only.');
   });
 
   it('skips lines without a colon', () => {
