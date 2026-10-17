@@ -32,7 +32,6 @@ jobs:
           node-version: '20'
 
       - name: Resolve and validate target version
-        id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
@@ -64,7 +63,6 @@ jobs:
             exit 1
           fi
 
-          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
           echo "VERSION=$NEXT" >> "$GITHUB_ENV"
 
       - name: Validate CHANGELOG has unreleased content
