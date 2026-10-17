@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/workspace');
+const { withEnv } = require('../support/env');
 
 function createWorkspacePackServer() {
   return createServer({
@@ -41,10 +42,13 @@ describe('workspace tool pack', () => {
 
     const server = createWorkspacePackServer();
 
-    const result = await server.callTool(
-      'resolve_settings',
-      { settings: ['MAESTRO_DISABLED_AGENTS'] },
-      projectRoot
+    // An inherited MAESTRO_DISABLED_AGENTS would take precedence over the .env file.
+    const result = await withEnv({ MAESTRO_DISABLED_AGENTS: null }, () =>
+      server.callTool(
+        'resolve_settings',
+        { settings: ['MAESTRO_DISABLED_AGENTS'] },
+        projectRoot
+      )
     );
 
     assert.equal(result.ok, true);

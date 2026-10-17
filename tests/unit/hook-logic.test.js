@@ -9,6 +9,9 @@ process.env.MAESTRO_HOOKS_DIR = hooksDir;
 // Hooks resolve the git toplevel of their cwd; keep fixture dirs from resolving
 // to an enclosing checkout when the temp dir happens to live inside one.
 process.env.GIT_CEILING_DIRECTORIES = fs.realpathSync(os.tmpdir());
+// Agent detection falls back to MAESTRO_CURRENT_AGENT; keep an inherited value
+// out of the detection tests.
+delete process.env.MAESTRO_CURRENT_AGENT;
 
 const { execFileSync } = require('node:child_process');
 const { describe, it, before, after } = require('node:test');
@@ -132,18 +135,15 @@ describe('handleBeforeAgent', () => {
   after(() => {
     fs.rmSync(fakeCwd, { recursive: true, force: true });
     hookState.removeSessionDir(SESSION_ID);
-    delete process.env.MAESTRO_CURRENT_AGENT;
   });
 
   it('returns allow with null message when no session file exists', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
     const cwdWithNoSession = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-nosession-'));
     try {
       const result = handleBeforeAgent({
         sessionId: SESSION_ID,
         cwd: cwdWithNoSession,
         agentInput: null,
-        event: 'BeforeAgent',
       });
       assert.equal(result.action, 'allow');
       assert.equal(result.message, null);
@@ -153,7 +153,6 @@ describe('handleBeforeAgent', () => {
   });
 
   it('returns allow with context message when session file has phase/status info', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
     const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
     fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
     fs.writeFileSync(sessionFilePath, '---\ncurrent_phase: implementation\nstatus: active\n---\n', 'utf8');
@@ -162,7 +161,6 @@ describe('handleBeforeAgent', () => {
       sessionId: SESSION_ID,
       cwd: fakeCwd,
       agentInput: null,
-      event: 'BeforeAgent',
     });
 
     assert.equal(result.action, 'allow');
@@ -253,14 +251,12 @@ describe('handleBeforeAgent', () => {
   });
 
   it('detects agent from prompt and sets active agent', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
     hookState.clearActiveAgent(SESSION_ID);
 
     handleBeforeAgent({
       sessionId: SESSION_ID,
       cwd: fakeCwd,
       agentInput: 'agent: coder\nPlease implement the feature.',
-      event: 'BeforeAgent',
     });
 
     const activeAgent = hookState.getActiveAgent(SESSION_ID);
@@ -268,7 +264,6 @@ describe('handleBeforeAgent', () => {
   });
 
   it('uses normalized agentName when no prompt is available', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
     hookState.clearActiveAgent(SESSION_ID);
 
     handleBeforeAgent({
@@ -276,7 +271,6 @@ describe('handleBeforeAgent', () => {
       cwd: fakeCwd,
       agentName: 'code-reviewer',
       agentInput: null,
-      event: 'SubagentStart',
     });
 
     const activeAgent = hookState.getActiveAgent(SESSION_ID);

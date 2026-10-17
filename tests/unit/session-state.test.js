@@ -79,7 +79,7 @@ describe('session-state', () => {
   });
 
   it('resolveActiveSessionPath returns correct path', () => {
-    const result = resolveActiveSessionPath(tmpRoot);
+    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => resolveActiveSessionPath(tmpRoot));
     assert.equal(result, path.join(tmpRoot, DEFAULT_STATE_DIR, 'state', 'active-session.md'));
   });
 

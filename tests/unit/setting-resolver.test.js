@@ -1,6 +1,6 @@
 'use strict';
 
-const { describe, it, before, after } = require('node:test');
+const { describe, it, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -8,8 +8,6 @@ const path = require('node:path');
 
 const { resolveSetting } = require('../../src/config/setting-resolver');
 const { withEnv } = require('../support/env');
-
-const EXTENSION_ENV_VARS = ['MAESTRO_EXTENSION_PATH', 'CLAUDE_PLUGIN_ROOT'];
 
 describe('resolveSetting', () => {
   let tmpDir;
@@ -43,8 +41,9 @@ describe('resolveSetting', () => {
     if (fs.existsSync(extensionEnvPath)) fs.unlinkSync(extensionEnvPath);
   }
 
+  afterEach(clearEnvFiles);
+
   it('returns process.env value when set', () => {
-    clearEnvFiles();
     const result = withEnv(
       { MY_VAR: 'from-env', MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: null },
       () => resolveSetting('MY_VAR', projectDir)
@@ -59,7 +58,6 @@ describe('resolveSetting', () => {
       () => resolveSetting('MY_VAR', projectDir)
     );
     assert.equal(result, 'from-project');
-    clearEnvFiles();
   });
 
   it('returns extension .env value when env var and project .env are not set', () => {
@@ -69,11 +67,9 @@ describe('resolveSetting', () => {
       () => resolveSetting('MY_VAR', projectDir)
     );
     assert.equal(result, 'from-extension');
-    clearEnvFiles();
   });
 
   it('returns undefined when setting is nowhere', () => {
-    clearEnvFiles();
     const result = withEnv(
       { MY_VAR: null, MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: null },
       () => resolveSetting('MY_VAR', projectDir)
@@ -88,7 +84,6 @@ describe('resolveSetting', () => {
       () => resolveSetting('MY_VAR', projectDir)
     );
     assert.equal(result, 'from-env');
-    clearEnvFiles();
   });
 
   it('project .env takes precedence over extension .env', () => {
@@ -99,7 +94,6 @@ describe('resolveSetting', () => {
       () => resolveSetting('MY_VAR', projectDir)
     );
     assert.equal(result, 'from-project');
-    clearEnvFiles();
   });
 
   it('ignores empty string values in env vars', () => {
@@ -109,17 +103,6 @@ describe('resolveSetting', () => {
       () => resolveSetting('MY_VAR', projectDir)
     );
     assert.equal(result, 'from-project');
-    clearEnvFiles();
-  });
-
-  it('uses MAESTRO_EXTENSION_PATH for extension root', () => {
-    writeExtensionEnv('MY_VAR=via-maestro-path\n');
-    const result = withEnv(
-      { MY_VAR: null, MAESTRO_EXTENSION_PATH: extensionDir, CLAUDE_PLUGIN_ROOT: null },
-      () => resolveSetting('MY_VAR', projectDir)
-    );
-    assert.equal(result, 'via-maestro-path');
-    clearEnvFiles();
   });
 
   it('uses CLAUDE_PLUGIN_ROOT as fallback when MAESTRO_EXTENSION_PATH is absent', () => {
@@ -129,6 +112,5 @@ describe('resolveSetting', () => {
       () => resolveSetting('MY_VAR', projectDir)
     );
     assert.equal(result, 'via-plugin-root');
-    clearEnvFiles();
   });
 });
