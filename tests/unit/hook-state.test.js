@@ -6,20 +6,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createHookState, DEFAULT_BASE_DIR } = require('../../src/hooks/logic/hook-state');
+const { createHookState } = require('../../src/hooks/logic/hook-state');
 
 function makeTempBaseDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hook-state-test-'));
 }
 
 describe('hook-state', () => {
-  describe('DEFAULT_BASE_DIR', () => {
-    it('is defined and is a string', () => {
-      assert.ok(DEFAULT_BASE_DIR);
-      assert.equal(typeof DEFAULT_BASE_DIR, 'string');
-    });
-  });
-
   describe('ensureSessionDir', () => {
     it('creates a directory for a valid session ID', () => {
       const baseDir = makeTempBaseDir();

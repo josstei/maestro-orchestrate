@@ -90,6 +90,5 @@ const defaultInstance = createHookState();
 
 module.exports = {
   createHookState,
-  DEFAULT_BASE_DIR,
   ...defaultInstance,
 };

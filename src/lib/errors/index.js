@@ -2,7 +2,7 @@
 
 /**
  * Base error class for the Maestro platform.
- * Provides structured error metadata via `code`, `details`, and `context` properties.
+ * Provides structured error metadata via `code` and `details` properties.
  *
  * @extends Error
  */
@@ -12,14 +12,12 @@ class MaestroError extends Error {
    * @param {object} [opts]
    * @param {string} [opts.code='MAESTRO_ERROR'] - Machine-readable error code
    * @param {*} [opts.details=null] - Structured payload describing the failure
-   * @param {*} [opts.context=null] - Ambient context at the point of failure
    */
-  constructor(message, { code = 'MAESTRO_ERROR', details = null, context = null } = {}) {
+  constructor(message, { code = 'MAESTRO_ERROR', details = null } = {}) {
     super(message);
     this.name = this.constructor.name;
     this.code = code;
     this.details = details;
-    this.context = context;
   }
 }
 
@@ -27,7 +25,7 @@ class MaestroError extends Error {
  * Define a MaestroError subclass named `name` whose `code` defaults to
  * `defaultCode`. Callers may pass a more specific subtype code via `opts.code`
  * (e.g. HANDOFF_INCOMPLETE, DESIGN_GATE_UNAPPROVED, RECONCILIATION_PENDING);
- * `opts.details` and `opts.context` are passed through to MaestroError.
+ * `opts.details` is passed through to MaestroError.
  *
  * @param {string} name - Class name (also used as `err.name`)
  * @param {string} defaultCode - Code used when `opts.code` is not provided
