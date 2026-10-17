@@ -1,11 +1,13 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { DRY_RUN_MARKER, parseDryRunReport, runGenerator } = require('./helpers');
+const { DRY_RUN_MARKER, getGitStatus, parseDryRunReport, runGenerator } = require('./helpers');
 
 describe('zero-diff validation', () => {
   it('generator output matches committed files exactly', () => {
+    const beforeStatus = getGitStatus();
     const report = parseDryRunReport(runGenerator(['--dry-run']));
 
+    assert.equal(getGitStatus(), beforeStatus, 'Expected --dry-run to leave the worktree unchanged');
     assert.equal(report.marker, DRY_RUN_MARKER);
     assert.ok(report.statusLines.length > 0, 'Expected generator to inspect manifest outputs');
     assert.ok(
@@ -41,5 +43,6 @@ describe('zero-diff validation', () => {
       [],
       `Generator output drift detected:\n${report.driftLines.join('\n')}`
     );
+    assert.deepEqual(report.nonStatusLines, []);
   });
 });
