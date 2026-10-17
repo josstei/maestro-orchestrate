@@ -2,40 +2,101 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const codex = require('../../src/platforms/codex/runtime-config');
-const claude = require('../../src/platforms/claude/runtime-config');
 const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
+const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
 
-describe('get_runtime_context response shape', () => {
-  it('codex returns delegation.constraints and plan_mode_native=false', () => {
-    const handler = createHandler(codex, () => '/workspace/suggestion');
-    const result = handler({});
+// The get_runtime_context response is a contract the runtime prompts rely on,
+// so the expected values are written out here instead of read from the configs.
+const SYNCHRONOUS_CONSTRAINTS = { result_surface: 'synchronous', child_cannot_prompt_user: false };
+const GEMINI_STYLE_PATTERN = '{{agent}}(query: "...")';
+
+const EXPECTED_CONTEXT = {
+  claude: {
+    mcp_prefix: 'mcp__plugin_maestro_maestro__',
+    plan_mode_native: true,
+    agent_dispatch: {
+      pattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
+      naming: 'kebab-case',
+      prefix: 'maestro:',
+    },
+    constraints: SYNCHRONOUS_CONSTRAINTS,
+    agents: AGENT_NAMES,
+    tools: { read_file: 'Read', write_file: 'Write' },
+  },
+  codex: {
+    mcp_prefix: 'mcp__maestro_maestro__',
+    plan_mode_native: false,
+    agent_dispatch: { pattern: 'spawn_agent(...)', naming: 'kebab-case', prefix: '' },
+    constraints: {
+      fork_full_context_incompatible_with: ['agent_type', 'model', 'reasoning_effort'],
+      result_surface: 'deferred',
+      child_cannot_prompt_user: true,
+    },
+    agents: AGENT_NAMES,
+    tools: { read_file: 'direct file reads', run_shell_command: 'exec_command' },
+  },
+  gemini: {
+    mcp_prefix: 'mcp_maestro_',
+    plan_mode_native: true,
+    agent_dispatch: { pattern: GEMINI_STYLE_PATTERN, naming: 'snake_case', prefix: '' },
+    constraints: SYNCHRONOUS_CONSTRAINTS,
+    agents: KNOWN_AGENTS,
+    tools: { read_file: 'read_file', run_shell_command: 'run_shell_command' },
+  },
+  qwen: {
+    mcp_prefix: '',
+    plan_mode_native: false,
+    agent_dispatch: { pattern: GEMINI_STYLE_PATTERN, naming: 'snake_case', prefix: '' },
+    constraints: SYNCHRONOUS_CONSTRAINTS,
+    agents: KNOWN_AGENTS,
+    tools: { read_file: 'read_file', replace: 'edit' },
+  },
+};
+
+describe('get_runtime_context handler', () => {
+  for (const [runtime, expected] of Object.entries(EXPECTED_CONTEXT)) {
+    it(`reports the shipped ${runtime} runtime context`, () => {
+      const result = createHandler(getRuntimeConfig(runtime))({});
+
+      assert.equal(result.runtime, runtime);
+      assert.equal(result.mcp_prefix, expected.mcp_prefix);
+      assert.equal(result.plan_mode_native, expected.plan_mode_native);
+      assert.deepEqual(result.agent_dispatch, expected.agent_dispatch);
+      assert.deepEqual(result.delegation, {
+        pattern: expected.agent_dispatch.pattern,
+        constraints: expected.constraints,
+      });
+      assert.deepEqual(result.agents, expected.agents);
+      assert.equal(result.workspace_suggestion, null);
+      for (const [tool, mapped] of Object.entries(expected.tools)) {
+        assert.equal(result.tools[tool], mapped, `${runtime} tools.${tool}`);
+      }
+    });
+  }
+
+  it('reports agent capabilities from the agent registry', () => {
+    const result = createHandler(getRuntimeConfig('claude'))({});
+
+    assert.equal(result.agent_capabilities.architect, 'read_only');
+    assert.equal(result.agent_capabilities.coder, 'full');
+  });
+
+  it('passes the workspace suggestion through', () => {
+    const handler = createHandler(getRuntimeConfig('codex'), () => '/workspace/suggestion');
+
+    assert.equal(handler({}).workspace_suggestion, '/workspace/suggestion');
+  });
+
+  it('defaults to kebab-case agents and empty runtime facts for a bare config', () => {
+    const result = createHandler({ name: 'custom' })({});
+
+    assert.deepEqual(result.agents, AGENT_NAMES);
+    assert.deepEqual(result.agent_dispatch, { pattern: '', naming: 'kebab-case', prefix: '' });
+    assert.deepEqual(result.delegation, { pattern: '', constraints: {} });
+    assert.equal(result.mcp_prefix, '');
     assert.equal(result.plan_mode_native, false);
-    assert.deepEqual(
-      result.delegation.constraints.fork_full_context_incompatible_with,
-      ['agent_type', 'model', 'reasoning_effort']
-    );
-    assert.equal(result.workspace_suggestion, '/workspace/suggestion');
-  });
-
-  it('claude returns plan_mode_native=true', () => {
-    const handler = createHandler(claude, () => null);
-    const result = handler({});
-    assert.equal(result.plan_mode_native, true);
-    assert.equal(result.delegation.constraints.result_surface, 'synchronous');
-    assert.equal(result.workspace_suggestion, null);
-  });
-
-  it('preserves the legacy agent_dispatch.pattern field', () => {
-    const handler = createHandler(codex, () => null);
-    const result = handler({});
-    assert.equal(result.agent_dispatch.pattern, 'spawn_agent(...)');
-  });
-
-  it('lists agents in the runtime agentNaming, defaulting to kebab-case', () => {
-    assert.deepEqual(createHandler(codex)({}).agents, AGENT_NAMES);
-    assert.deepEqual(createHandler({ name: 'gemini', agentNaming: 'snake_case' })({}).agents, KNOWN_AGENTS);
-    assert.deepEqual(createHandler({ name: 'custom' })({}).agents, AGENT_NAMES);
+    assert.deepEqual(result.tools, {});
+    assert.deepEqual(result.paths, {});
   });
 });

@@ -7,6 +7,11 @@ module.exports = {
   name: 'qwen',
   outputDir: 'qwen/',
 
+  // Deliberate overrides: spreading gemini would otherwise report Gemini's
+  // MCP tool prefix and native plan mode for Qwen Code.
+  mcpPrefix: '',
+  planModeNative: false,
+
   env: {
     ...gemini.env,
     workspacePath: 'workspacePath',

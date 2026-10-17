@@ -6,6 +6,9 @@ module.exports = {
 
   agentNaming: 'snake_case',
 
+  mcpPrefix: 'mcp_maestro_',
+  planModeNative: true,
+
   env: {
     extensionPath: 'extensionPath',
     workspacePath: null,

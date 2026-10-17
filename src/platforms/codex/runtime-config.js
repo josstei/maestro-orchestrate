@@ -6,6 +6,9 @@ module.exports = {
 
   agentNaming: 'kebab-case',
 
+  mcpPrefix: 'mcp__maestro_maestro__',
+  planModeNative: false,
+
   env: {
     extensionPath: '.',
     workspacePath: 'MAESTRO_WORKSPACE_PATH',

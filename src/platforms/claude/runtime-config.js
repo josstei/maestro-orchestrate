@@ -5,6 +5,10 @@ module.exports = {
   outputDir: 'claude/',
 
   agentNaming: 'kebab-case',
+  agentPrefix: 'maestro:',
+
+  mcpPrefix: 'mcp__plugin_maestro_maestro__',
+  planModeNative: true,
 
   env: {
     extensionPath: 'CLAUDE_PLUGIN_ROOT',
