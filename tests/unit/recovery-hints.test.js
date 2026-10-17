@@ -19,19 +19,14 @@ describe('getRecoveryHint', () => {
     assert.equal(hint, 'Call get_session_status to verify the current session and phase IDs.');
   });
 
-  it('returns hint for archive_session "no active session" error', () => {
-    const hint = getRecoveryHint('archive_session', 'no active session found');
-    assert.equal(hint, 'Call get_session_status first to verify a session exists.');
-  });
-
   it('returns hint for update_session "ENOENT" error', () => {
     const hint = getRecoveryHint('update_session', 'ENOENT: no such file or directory');
     assert.equal(hint, 'Call get_session_status to verify a session exists before updating.');
   });
 
-  it('returns hint for update_session "no active session" error', () => {
-    const hint = getRecoveryHint('update_session', 'no active session found');
-    assert.equal(hint, 'Call get_session_status to verify a session exists before updating.');
+  it('returns null for archive_session errors, which have no recovery row', () => {
+    const hint = getRecoveryHint('archive_session', "ENOENT: no such file or directory, open '[path]'");
+    assert.equal(hint, null);
   });
 
   it('returns hint for update_session "updatable field" error', () => {
