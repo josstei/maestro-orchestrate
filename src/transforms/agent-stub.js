@@ -56,10 +56,23 @@ const FIELDS = {
       : [],
 };
 
+/**
+ * The canonical `tools` list is written in Gemini CLI tool names, so Gemini
+ * stubs list it verbatim. Gemini's runtime `tools` table must not be applied
+ * here: it is written for the model (get_runtime_context, get_agent), and
+ * some entries map to prose (for example write_todos -> 'not available —
+ * track progress in model context') that is not a valid tool name.
+ */
+const NATIVE_TOOL_RUNTIME = 'gemini';
+
 function resolveTools(frontmatter, runtime) {
   const overrideKey = `tools.${runtime.name}`;
   if (frontmatter[overrideKey]) {
     return frontmatter[overrideKey];
+  }
+
+  if (runtime.name === NATIVE_TOOL_RUNTIME) {
+    return frontmatter.tools || [];
   }
 
   return (frontmatter.tools || []).flatMap(

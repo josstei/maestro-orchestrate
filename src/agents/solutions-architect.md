@@ -3,12 +3,10 @@ name: solutions-architect
 description: "Solutions architecture specialist for enterprise integration patterns, vendor systems, cross-team architecture, and target-state design. Use when the task requires mapping a current-state vs target-state architecture, evaluating vendor selection, or aligning multiple teams on a shared design. For example: designing an integration between SAP and a new CRM, mapping a strangler-fig path from monolith to services, or producing an ADR for a cross-organization capability."
 color: lavender
 tools: [read_file, list_directory, glob, grep_search, google_web_search, read_many_files, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, google_web_search, read_many_files, ask_user, web_fetch]
 tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 max_turns: 15
 temperature: 0.3
 timeout_mins: 5
-capabilities: read_only
 ---
 <!-- @feature exampleBlocks -->
 <example>

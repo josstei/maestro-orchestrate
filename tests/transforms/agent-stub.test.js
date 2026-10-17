@@ -431,7 +431,29 @@ describe('agent-stub transform', () => {
     assert.ok(result.includes('description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"'));
   });
 
-  it('should use gemini tools override when running for gemini', () => {
+  it('lists canonical tools verbatim for gemini instead of mapping them through runtime.tools', () => {
+    const agentWithProseMappedTools = [
+      '---',
+      'name: planner',
+      'description: "Planner."',
+      'tools: [read_file, read_many_files, write_todos]',
+      'max_turns: 10',
+      '---',
+      '',
+      'Body.',
+    ].join('\n');
+    // gemini's runtime.tools maps these two to prose for the model
+    assert.equal(geminiRuntime.tools.read_many_files, 'read_file (called per-file)');
+    assert.match(geminiRuntime.tools.write_todos, /^not available/);
+
+    const { frontmatter } = parseDocument(agentStub(agentWithProseMappedTools, geminiRuntime));
+    assert.deepEqual(
+      frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
+      ['tools:', '  - read_file', '  - read_many_files', '  - write_todos']
+    );
+  });
+
+  it('explicit tools.<runtime> override beats the native rule', () => {
     const agentWithGeminiOverride = [
       '---',
       'name: architect',
@@ -445,9 +467,10 @@ describe('agent-stub transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = agentStub(agentWithGeminiOverride, geminiRuntime);
-    assert.ok(result.includes('- google_web_search'));
-    // Should use the override, not the canonical tools
-    assert.ok(result.includes('- glob'));
+    const { frontmatter } = parseDocument(agentStub(agentWithGeminiOverride, geminiRuntime));
+    assert.deepEqual(
+      frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
+      ['tools:', '  - read_file', '  - glob', '  - grep_search', '  - google_web_search']
+    );
   });
 });
