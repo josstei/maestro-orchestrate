@@ -22,6 +22,14 @@ describe('verify npm pack', () => {
   });
 
   it('requires release-critical files in the package', () => {
+    assert.deepEqual(REQUIRED_PACKAGE_FILES, [
+      'bin/maestro-mcp-server.js',
+      'claude/.claude-plugin/plugin.json',
+      'gemini-extension.json',
+      'plugins/maestro/.codex-plugin/plugin.json',
+      'qwen-extension.json',
+      'src/mcp/maestro-server.js',
+    ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
   });
 
