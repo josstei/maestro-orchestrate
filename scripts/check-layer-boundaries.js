@@ -37,7 +37,7 @@ for (const file of files) {
     }
 
     const resolved = path.resolve(path.dirname(file), modPath);
-    if (!resolved.startsWith(LIB_DIR)) {
+    if (resolved !== LIB_DIR && !resolved.startsWith(LIB_DIR + path.sep)) {
       violations.push(`${relativeFile}: require('${modPath}') — resolves to ${path.relative(process.cwd(), resolved)}`);
     }
   }

@@ -91,6 +91,23 @@ describe('check-layer-boundaries (fixture cases)', () => {
     assert.match(stderr, /'\.\.\/core\/logger'/);
   });
 
+  it('flags relative imports into a sibling directory that shares the lib prefix', () => {
+    const root = makeFixtureRepo();
+    writeLibFile(root, 'sneaky.js', "const x = require('../lib-extra/x');\n");
+    const result = runScript(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr.toString('utf8'), /sneaky\.js: require\('\.\.\/lib-extra\/x'\)/);
+  });
+
+  it('allows relative imports that resolve to the lib directory itself', () => {
+    const root = makeFixtureRepo();
+    writeLibFile(root, 'index.js', "module.exports = 1;\n");
+    writeLibFile(root, 'nested/user.js', "const lib = require('..');\nmodule.exports = lib;\n");
+    const result = runScript(root);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout.toString('utf8'), /2 files scanned, 0 violations/);
+  });
+
   it('flags non-relative, non-node imports as violations', () => {
     const root = makeFixtureRepo();
     writeLibFile(root, 'depender.js', "const lodash = require('lodash');\n");
