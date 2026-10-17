@@ -13,7 +13,9 @@ const { emitBlockList } = require('../lib/yaml-emit');
  *   - `name`         - agent name in the runtime's naming convention
  *   - `frontmatter`  - parsed input frontmatter
  *   - `description`  - final description (may have examples appended for claude)
- *   - `tools`        - flattened tool list (after per-runtime mapping)
+ *   - `tools`        - resolved tool list (explicit `tools.<runtime>` override,
+ *                      the canonical list verbatim for gemini, otherwise mapped
+ *                      through runtime.tools)
  *   - `runtime`      - full runtime config
  *   - `fm`           - runtime.agentFrontmatter config (shape hints)
  */

@@ -9,7 +9,6 @@ const { expandManifest, assertNoMirroredSharedOutputs } = require('../src/genera
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
-const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/mcp/runtime/runtime-config-map');
 
@@ -71,6 +70,9 @@ function main() {
     processManifestEntry(entry, runtimes, writer);
   }
 
+  // Required here, not at the top, so a broken src/entry-points module is
+  // reported through main()'s 'Generator failed:' handler like the manifest.
+  const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
   const entryPointPaths = [];
   for (const expand of [expandEntryPoints, expandCoreCommands]) {
     for (const runtimeName of Object.keys(runtimes)) {
