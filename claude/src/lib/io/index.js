@@ -78,8 +78,24 @@ function writeIfChanged(filePath, content) {
   return true;
 }
 
+/**
+ * Creates a directory (and its parents) with mode 0o700, then refuses to use it
+ * if it is a symlink.
+ *
+ * @param {string} dir - Absolute path to the directory
+ * @param {string} symlinkMessage - Error message thrown when `dir` is a symlink
+ * @throws {Error} When `dir` is a symlink
+ */
+function ensurePrivateDir(dir, symlinkMessage) {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  if (fs.lstatSync(dir).isSymbolicLink()) {
+    throw new Error(symlinkMessage);
+  }
+}
+
 module.exports = {
   atomicWriteSync,
+  ensurePrivateDir,
   readFileSafe,
   readJsonSafe,
   writeIfChanged,

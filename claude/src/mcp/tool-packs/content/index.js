@@ -3,12 +3,10 @@
 const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
 const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
+const { resolveCanonicalSrcFromExtensionRoot } = require('../../utils/extension-root');
 
 function createToolPack({ runtimeConfig, services }) {
-  const canonicalSrcRoot =
-    typeof services.canonicalSrcRoot === 'string' && services.canonicalSrcRoot.length > 0
-      ? services.canonicalSrcRoot
-      : undefined;
+  const srcRoot = services.canonicalSrcRoot || resolveCanonicalSrcFromExtensionRoot();
 
   return {
     name: 'content',
@@ -29,6 +27,7 @@ function createToolPack({ runtimeConfig, services }) {
           },
           required: ['resources'],
         },
+        handler: createSkillContentHandler(runtimeConfig, srcRoot),
       },
       {
         name: 'get_agent',
@@ -46,6 +45,7 @@ function createToolPack({ runtimeConfig, services }) {
           },
           required: ['agents'],
         },
+        handler: createAgentHandler(runtimeConfig, srcRoot),
       },
       {
         name: 'get_runtime_context',
@@ -55,18 +55,9 @@ function createToolPack({ runtimeConfig, services }) {
           type: 'object',
           properties: {},
         },
+        handler: createRuntimeContextHandler(runtimeConfig, services.workspaceSuggestion),
       },
     ],
-    handlers: {
-      get_skill_content: createSkillContentHandler(runtimeConfig, canonicalSrcRoot),
-      get_agent: createAgentHandler(runtimeConfig, canonicalSrcRoot),
-      get_runtime_context: createRuntimeContextHandler(
-        runtimeConfig,
-        typeof services.workspaceSuggestion === 'function'
-          ? services.workspaceSuggestion
-          : () => null
-      ),
-    },
   };
 }
 

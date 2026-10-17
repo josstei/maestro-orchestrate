@@ -3,12 +3,10 @@ name: mlops-engineer
 description: "MLOps specialist for model registry, CI/CD for models, deployment, monitoring, and drift detection. Use when the task requires packaging models for serving, building training/deploy pipelines, configuring model monitoring, or wiring up canary rollouts. For example: automating retraining on a schedule, setting up shadow deployments, or instrumenting drift alerts."
 color: indigo
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2
 timeout_mins: 10
-capabilities: full
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -91,26 +89,3 @@ Manual rollback when drift is ambiguous — always prefer reverting over debuggi
 - `devops-engineer`: Needs infrastructure manifests (compute, autoscaling, secrets) aligned with the serving topology
 - `observability-engineer`: Needs dashboards, alert contracts, and SLOs for the serving and pipeline surfaces
 - `site-reliability-engineer`: Needs runbooks for rollback, quarantine, and on-call escalation
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

@@ -11,12 +11,17 @@ Activate this skill when delegating work to subagents during orchestration execu
 
 Before constructing any delegation prompt, inject the shared agent base protocol:
 
-### Injection Steps
-1. Load `agent-base-protocol` via `get_skill_content`
-2. Load `filesystem-safety-protocol` via `get_skill_content`
-3. Prepend both protocols to the delegation prompt (base protocol first, then filesystem safety) — these appear before the task-specific content
-4. For each phase listed in the current phase's `blocked_by`, read `phases[].downstream_context` from session state and include it in the prompt
-5. If any required `downstream_context` is missing, include an explicit placeholder noting the missing dependency context (never omit silently)
+### Prompt Assembly Order
+1. Required header (`Agent` / `Phase` / `Batch` / `Session` — see Agent Tool Dispatch Contract)
+2. Agent Base Protocol (load `agent-base-protocol` via `get_skill_content`)
+3. Filesystem Safety Protocol (load `filesystem-safety-protocol` via `get_skill_content`)
+4. **TOOL RESTRICTIONS block (immediately after the protocols, before any task content)** — see Tool Restriction Enforcement
+5. **FILE WRITING RULES block (immediately after tool restrictions)**
+6. Context chain from prior phases (Context Chain Construction, including the Missing Context Fallback placeholder) plus the Downstream Consumer Declaration
+7. Task-specific instructions (Delegation Prompt Template)
+8. Scope boundaries and prohibitions (the template's `Do NOT` list)
+
+Both protocols come immediately after the header (base protocol first, then filesystem safety), ahead of the task-specific content.
 
 The injected protocol ensures every agent follows consistent pre-work procedures and output formatting regardless of their specialization.
 
@@ -31,6 +36,7 @@ Context from completed phases:
   - Interfaces introduced: [list with file locations]
   - Patterns established: [list]
   - Integration points: [specific files, functions, endpoints]
+  - Assumptions: [list]
   - Warnings: [list]
 ```
 
@@ -38,7 +44,7 @@ Context from completed phases:
 
 **File Manifest**: Complete list of files created or modified in prior phases, so the agent knows what already exists and can import from or extend those files.
 
-**Missing Context Fallback**: If a blocked dependency has no stored downstream context, include a visible placeholder entry in the prompt:
+**Missing Context Fallback**: If a blocked dependency has no stored downstream context, include a visible placeholder entry in the prompt (never omit silently):
 `- Phase [N] ([agent]): Downstream Context missing in session state — verify dependency output before implementation`
 
 ### Downstream Consumer Declaration
@@ -191,7 +197,7 @@ Session: <session_id>
 
 **Sequential dispatch**: Invoke the agent using your runtime's dispatch mechanism with the full delegation prompt.
 
-**Parallel dispatch**: Emit contiguous agent dispatch calls in a single turn for all agents in the ready batch. Each call includes the same header format with the shared batch ID.
+**Parallel dispatch**: See Parallel Delegation.
 
 Call `get_agent` with the agent name (as it appears in the implementation plan or Agent Roster) to load the agent methodology body, declared tool restrictions, and the runtime-specific `tool_name`. Use the returned `tool_name` as the dispatch target when invoking the agent tool. Runtime-local agent files remain registration stubs only; do not rely on them for the full methodology body.
 
@@ -204,11 +210,7 @@ Parallel delegation uses the runtime's native subagent scheduler. The orchestrat
 For each agent in a ready batch:
 
 1. Build a full delegation prompt using the same template as sequential delegation
-2. Include the required header:
-   - `Agent: <agent_name>`
-   - `Phase: <id>/<total>`
-   - `Batch: <batch_id>`
-   - `Session: <session_id>`
+2. Include the required header from the Agent Tool Dispatch Contract with the batch's shared `Batch: <batch_id>` — every call in the batch carries the same batch ID
 3. Keep prompts self-contained with explicit files, deliverables, validation commands, exclusions, and dependency context
 4. Emit only contiguous agent tool calls for the current batch turn — no shell commands, file writes, or narration between them
 
@@ -224,15 +226,7 @@ Tool permissions are enforced natively via each agent's registered frontmatter s
 
 **Level 2: Prompt-based enforcement (defense-in-depth)**
 
-Native tool permissions remain the primary boundary. As defense-in-depth, every delegation prompt should still include an explicit tool restriction block so the agent sees its allowed surface in plain language.
-
-1. Agent Base Protocol (load `agent-base-protocol` via `get_skill_content`)
-2. Filesystem Safety Protocol (load `filesystem-safety-protocol` via `get_skill_content`)
-3. **TOOL RESTRICTIONS block (immediately here, before any task content)**
-4. **FILE WRITING RULES block (immediately after tool restrictions)**
-5. Context chain from prior phases
-6. Task-specific instructions
-7. Scope boundaries and prohibitions
+Native tool permissions remain the primary boundary. As defense-in-depth, every delegation prompt should still include an explicit tool restriction block so the agent sees its allowed surface in plain language. The TOOL RESTRICTIONS and FILE WRITING RULES blocks occupy positions 4-5 of the Prompt Assembly Order.
 
 The tool restriction block template:
 
@@ -286,8 +280,6 @@ Before each agent dispatch, a hook tracks which agent is currently executing:
 - Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
 - Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
 
-The detected agent name is persisted to `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/active-agent` and cleared by the post-delegation hook on every allowed response (both successful validation and retry allow-through). On deny (malformed output), the active agent is preserved to enable re-validation on retry.
-
 ### Session Context Injection
 
 When an active orchestration session exists, the pre-delegation hook parses `<MAESTRO_STATE_DIR>/state/active-session.md` and injects a compact context line into the agent's turn:
@@ -308,7 +300,7 @@ After completion, the post-delegation hook validates that every subagent respons
 If either heading is missing:
 
 1. **First failure**: The hook blocks the response and requests a retry with a diagnostic message specifying which section is missing.
-2. **Second failure** (`stop_hook_active=true`, mapped to `stopHookActive` in JS): The hook allows the malformed response through to prevent infinite retry loops, logging a warning.
+2. **Second failure**: The hook allows the malformed response through to prevent infinite retry loops, logging a warning.
 
 This enforcement is the runtime complement to the Output Handoff Contract defined in the agent-base-protocol. Delegation prompts do not need to re-state the retry mechanism — the hook handles it transparently.
 
@@ -327,12 +319,7 @@ Read `delegation.constraints` from `get_runtime_context` before constructing any
 
 **MANDATORY** when `delegation.constraints.child_cannot_prompt_user` is true (Codex today). **RECOMMENDED** uniformly so the orchestrator remains the single approval point across runtimes.
 
-Every agent's Task Report may include a `## Blockers` section, placed between `## Task Report` and `## Downstream Context`:
-
-    ## Blockers
-    - BLOCKER: [question the agent cannot resolve]
-      Context: [why this question arose]
-      Required to proceed: [what answer unlocks continuation]
+Every agent's Task Report may include a `## Blockers` section, placed between `## Task Report` and `## Downstream Context` (format: agent-base-protocol → Blockers, which every delegated prompt carries).
 
 When parsing an agent response:
 

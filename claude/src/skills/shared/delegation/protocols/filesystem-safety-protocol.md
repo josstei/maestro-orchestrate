@@ -8,8 +8,6 @@ This protocol is injected into every delegation prompt alongside the Agent Base 
 
 Before any file creation, write, or move operation, verify the target's parent directory exists. If it doesn't, create it using `mkdir -p`. This applies to every file operation that produces output at a path — writes, moves, copies, renames.
 
-**Protocol Override:** This rule modifies the base protocol's Scope Verification Step 2, specifically the check "Files listed for creation have existing parent directories." When parent directories are missing, create the missing directory using `mkdir -p` and continue with the file operation. Do NOT stop and report the issue as a verification failure. All other Step 2 verifications (file existence, tool permissions, scope boundaries) remain in effect.
-
 ## Rule 2 — Silent Success, Clear Failure
 
 Directory creation is a precondition, not a noteworthy event. Do not report successful directory creation. Only report failures (permission denied, disk full) immediately as a blocker in the Task Report.

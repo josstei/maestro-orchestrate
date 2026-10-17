@@ -5,7 +5,7 @@ STARTUP (Turn 1 — tool calls only, no text output)
  3. Call get_session_status — if active, present status and offer resume/archive.
  4. Call assess_task_complexity.
  5. Parse MAESTRO_DISABLED_AGENTS from resolved settings. Exclude listed agents from all planning.
- 6. STOP. Turn 1 is ONLY steps 1-5. No text, no design questions, no file reads.
+ 6. STOP. Turn 1 is ONLY steps 0-5. No text, no design questions, no file reads.
 
 CLASSIFICATION (Turn 2)
  7. Pre-load architecture plus every skill used before Phase 3 in a single batch:

@@ -3,12 +3,10 @@ name: solutions-architect
 description: "Solutions architecture specialist for enterprise integration patterns, vendor systems, cross-team architecture, and target-state design. Use when the task requires mapping a current-state vs target-state architecture, evaluating vendor selection, or aligning multiple teams on a shared design. For example: designing an integration between SAP and a new CRM, mapping a strangler-fig path from monolith to services, or producing an ADR for a cross-organization capability."
 color: lavender
 tools: [read_file, list_directory, glob, grep_search, google_web_search, read_many_files, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, google_web_search, read_many_files, ask_user, web_fetch]
 tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 max_turns: 15
 temperature: 0.3
 timeout_mins: 5
-capabilities: read_only
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -112,26 +110,3 @@ Before committing to a strangler-fig pattern:
 - `architect`: Needs the target-state component boundaries and data contracts to design individual components
 - `api-designer`: Needs the canonical data model and integration contract to design APIs at boundaries
 - `product-manager`: Needs the phased roadmap with exit criteria to align stakeholders and sequence delivery
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

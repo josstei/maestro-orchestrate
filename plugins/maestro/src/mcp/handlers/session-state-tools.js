@@ -13,9 +13,7 @@ const {
 } = require('../contracts/downstream-context');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
 const {
-  GATE_FILENAME,
-  readGate,
-  findOrphanedApprovedGates,
+  readGateForCreateSession,
   toWorkspacePath,
   isInsidePlansDir,
   ensureDesignDocumentInPlans,
@@ -24,11 +22,11 @@ const {
 } = require('./design-gate');
 const {
   resolveStateDirPath,
-  readActiveSession,
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
   assertSessionMatch,
+  findPhaseOrThrow,
 } = require('../../state/session-state');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
@@ -63,62 +61,14 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind) {
   return ensureDesignDocumentInPlans(projectRoot, absolutePath);
 }
 
-/**
- * Reject create_session when an approved design gate exists for a different
- * session_id and the current session has no gate of its own. This signals the
- * orchestrator drifted away from the session_id it entered the gate with —
- * silently proceeding would strand the approved design document because
- * create_session looks the gate up by session_id. The error names the
- * orphaned ids and describes remediation so the caller can either align on
- * the original id or delete the stale gate file before retrying.
- *
- * A current-session gate (approved or not) suppresses the check: that path is
- * the normal approve-then-create flow, and any leftover gate from a prior
- * workflow in the same workspace is benign alongside the valid one.
- *
- * @param {string} projectRoot
- * @param {string} currentSessionId
- * @param {boolean} hasCurrentGate - whether a gate artifact exists for currentSessionId
- * @throws {ValidationError} when an orphaned approved gate is detected
- */
-function assertNoOrphanedApprovedGate(projectRoot, currentSessionId, hasCurrentGate) {
-  if (hasCurrentGate) return;
-  const orphans = findOrphanedApprovedGates(projectRoot, currentSessionId);
-  if (orphans.length === 0) return;
-
-  const orphanedIds = orphans.map((gate) => gate.session_id);
-  const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
-  const stalePaths = orphans
-    .map((g) => `<state_dir>/state/${g.session_id}${GATE_FILENAME}`)
-    .join(', ');
-  throw new ValidationError(
-    `Approved design gate exists for session ${idList} but create_session was called with '${currentSessionId}'. Session IDs must match across enter_design_gate, record_design_approval, and create_session. Either call create_session with the matching session_id, or delete the stale gate file(s) at ${stalePaths} and re-enter the gate with '${currentSessionId}'.`,
-    {
-      code: 'DESIGN_GATE_SESSION_MISMATCH',
-      details: {
-        current_session_id: currentSessionId,
-        orphaned_session_ids: orphanedIds,
-      },
-    }
-  );
-}
-
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  const gate = readGate(projectRoot, params.session_id);
-  assertNoOrphanedApprovedGate(projectRoot, params.session_id, gate !== null);
-
-  if (gate && gate.entered_at && !gate.approved_at) {
-    throw new StateError(
-      'Design gate entered but not approved. Call record_design_approval before create_session.',
-      { code: 'DESIGN_GATE_UNAPPROVED' }
-    );
-  }
+  const gate = readGateForCreateSession(projectRoot, params.session_id);
 
   const phasesValidation = validatePhases(params.phases);
   if (!phasesValidation.valid) {
-    const rules = phasesValidation.violations.map((v) => v.rule || v.field).join(', ');
+    const rules = phasesValidation.violations.map((v) => v.rule).join(', ');
     throw new ValidationError(`Invalid phases payload: ${rules}`, {
       details: phasesValidation.violations,
     });
@@ -135,9 +85,11 @@ function handleCreateSession(params, projectRoot) {
   const designDocumentCandidate =
     params.design_document ||
     (gate && gate.approved_at ? gate.design_document_path : null);
-  const resolvedDesignDocument = designDocumentCandidate
-    ? materializeSessionDocument(projectRoot, designDocumentCandidate, 'design_document')
-    : null;
+  const resolvedDesignDocument = materializeSessionDocument(
+    projectRoot,
+    designDocumentCandidate,
+    'design_document'
+  );
   const resolvedImplementationPlan = resolveDocumentInput(params, projectRoot, {
     pathKey: 'implementation_plan',
     prefix: 'implementation_plan',
@@ -256,36 +208,24 @@ function handleTransitionPhase(params, projectRoot) {
 
   return withSessionState(projectRoot, ({ state }) => {
     assertSessionMatch(state, params.session_id);
+    const now = new Date().toISOString();
 
-    let completedPhase;
-    if (hasCompletedPhase) {
-      completedPhase = state.phases.find(
-        (phase) => phase.id === params.completed_phase_id
-      );
-      if (!completedPhase) {
-        throw new NotFoundError(
-          `Phase ${params.completed_phase_id} not found in session state`
-        );
-      }
-    }
+    const completedPhase = hasCompletedPhase
+      ? findPhaseOrThrow(state.phases, params.completed_phase_id)
+      : undefined;
 
-    let nextPhase;
-    if (hasNextPhaseId) {
-      nextPhase = state.phases.find((phase) => phase.id === params.next_phase_id);
-      if (!nextPhase) {
-        throw new NotFoundError(
+    const nextPhase = hasNextPhaseId
+      ? findPhaseOrThrow(
+          state.phases,
+          params.next_phase_id,
           `next_phase_id ${params.next_phase_id} does not match any phase in session state`
-        );
-      }
-    }
+        )
+      : undefined;
 
     const phasesToStart = [];
     if (hasNextPhaseIds) {
       for (const id of params.next_phase_ids) {
-        const phase = state.phases.find((candidate) => candidate.id === id);
-        if (!phase) {
-          throw new NotFoundError(`Phase ${id} not found in session state`);
-        }
+        const phase = findPhaseOrThrow(state.phases, id);
         if (phase.status === 'completed' || phase.status === 'failed') {
           throw new StateError(`Cannot start phase ${id}: status is '${phase.status}'`);
         }
@@ -321,7 +261,7 @@ function handleTransitionPhase(params, projectRoot) {
       }
 
       completedPhase.status = 'completed';
-      completedPhase.completed = new Date().toISOString();
+      completedPhase.completed = now;
       completedPhase.downstream_context = normalizedContext;
       completedPhase.files_created = filesCreated;
       completedPhase.files_modified = filesModified;
@@ -329,20 +269,16 @@ function handleTransitionPhase(params, projectRoot) {
       completedPhase.requires_reconciliation = !hasFiles && !contextProvided;
     }
 
-    let startedPhaseIds;
     if (hasNextPhaseIds) {
-      const now = new Date().toISOString();
-      startedPhaseIds = [];
       for (const phase of phasesToStart) {
         phase.status = 'in_progress';
         phase.started = now;
-        startedPhaseIds.push(phase.id);
       }
       state.current_phase = params.next_phase_ids[0];
     } else if (nextPhase) {
       if (nextPhase.status === 'pending') {
         nextPhase.status = 'in_progress';
-        nextPhase.started = new Date().toISOString();
+        nextPhase.started = now;
       }
       state.current_phase = params.next_phase_id;
     }
@@ -357,7 +293,7 @@ function handleTransitionPhase(params, projectRoot) {
       state.token_usage.total_cached += params.token_usage.cached || 0;
     }
 
-    state.updated = new Date().toISOString();
+    state.updated = now;
 
     const response = {
       success: true,
@@ -372,8 +308,8 @@ function handleTransitionPhase(params, projectRoot) {
       },
     };
 
-    if (startedPhaseIds) {
-      response.started_phase_ids = startedPhaseIds;
+    if (hasNextPhaseIds) {
+      response.started_phase_ids = phasesToStart.map((phase) => phase.id);
     }
 
     return response;
@@ -383,22 +319,23 @@ function handleTransitionPhase(params, projectRoot) {
 function handleArchiveSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  const { state, basePath, sessionPath, body } = readActiveSession(projectRoot);
-  assertSessionMatch(state, params.session_id, 'requested');
+  const { state, basePath, sessionPath } = withSessionState(projectRoot, (session) => {
+    assertSessionMatch(session.state, params.session_id, 'requested');
 
-  const pendingRec = (state.phases || []).find(
-    (phase) => phase.requires_reconciliation === true
-  );
-  if (pendingRec) {
-    throw new StateError(
-      `Phase ${pendingRec.id} requires reconciliation before archiving. Call scan_phase_changes or reconcile_phase to resolve.`,
-      { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
+    const pendingRec = (session.state.phases || []).find(
+      (phase) => phase.requires_reconciliation === true
     );
-  }
+    if (pendingRec) {
+      throw new StateError(
+        `Phase ${pendingRec.id} requires reconciliation before archiving. Call scan_phase_changes or reconcile_phase to resolve.`,
+        { code: 'RECONCILIATION_PENDING', details: { phase_id: pendingRec.id } }
+      );
+    }
 
-  state.status = 'completed';
-  state.updated = new Date().toISOString();
-  writeActiveSession(basePath, state, body);
+    session.state.status = 'completed';
+    session.state.updated = new Date().toISOString();
+    return session;
+  });
 
   const archivePath = path.join(
     basePath,

@@ -5,7 +5,7 @@ const { detectAgentFromPrompt, normalizeAgentName } = require('../../core/agent-
 const { isValidSessionId } = require('../../lib/validation');
 const { readFileSafe } = require('../../lib/io');
 const markdownState = require('../../core/markdown-state');
-const { resolveExistingRoot } = require('../../core/project-root-resolver');
+const { resolveHookWorkspaceRoot } = require('../../core/project-root-resolver');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
 
@@ -32,17 +32,16 @@ function summarizeSession(content) {
 }
 
 /**
- * Reads the active session summary for the workspace containing `cwd`. MCP anchors
- * session state at the git toplevel of the workspace, so a hook fired from a
- * subdirectory must resolve the same root. A state-dir resolution error yields no
- * context rather than failing the hook (which would block the agent).
+ * Reads the active session summary for the workspace containing `cwd` (see
+ * resolveHookWorkspaceRoot). A state-dir resolution error yields no context
+ * rather than failing the hook (which would block the agent).
  * @param {string|undefined} cwd
  * @returns {string[]}
  */
 function readSessionSummary(cwd) {
   let content;
   try {
-    const root = resolveExistingRoot(cwd || process.cwd()) || cwd;
+    const root = resolveHookWorkspaceRoot(cwd);
     content = readFileSafe(state.resolveActiveSessionPath(root), '');
   } catch (err) {
     log('WARN', `BeforeAgent: could not resolve session state: ${err.message}`);

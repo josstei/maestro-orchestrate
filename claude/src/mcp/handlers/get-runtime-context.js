@@ -1,8 +1,6 @@
 'use strict';
 
-const { KNOWN_AGENTS, AGENT_CAPABILITIES } = require('../../core/agent-registry');
-const { normalizeRuntimeConfig } = require('../runtime/runtime-config-map');
-const { toKebabCase } = require('../../lib/naming');
+const { AGENT_NAMES, KNOWN_AGENTS, AGENT_CAPABILITIES } = require('../../core/agent-registry');
 
 const MCP_PREFIXES = {
   gemini: 'mcp_maestro_',
@@ -13,34 +11,30 @@ const MCP_PREFIXES = {
 const PLAN_MODE_NATIVE = { claude: true, gemini: true, codex: false, qwen: false };
 
 function createHandler(runtimeConfig, getWorkspaceSuggestion = () => null) {
-  const resolvedRuntimeConfig = normalizeRuntimeConfig(runtimeConfig);
-  const agentNames = KNOWN_AGENTS.map((name) =>
-    resolvedRuntimeConfig.agentNaming === 'kebab-case'
-      ? toKebabCase(name)
-      : name
-  );
+  const agentNames = runtimeConfig.agentNaming === 'snake_case' ? KNOWN_AGENTS : AGENT_NAMES;
 
-  const prefix = resolvedRuntimeConfig.name === 'claude' ? 'maestro:' : '';
-  const delegation = resolvedRuntimeConfig.delegation || { pattern: '', constraints: {} };
+  const prefix = runtimeConfig.name === 'claude' ? 'maestro:' : '';
+  const delegation = runtimeConfig.delegation || {};
+  const pattern = delegation.pattern || '';
 
   return function handleGetRuntimeContext(_params) {
     return {
-      runtime: resolvedRuntimeConfig.name,
-      tools: resolvedRuntimeConfig.tools || {},
+      runtime: runtimeConfig.name,
+      tools: runtimeConfig.tools || {},
       agent_dispatch: {
-        pattern: delegation.pattern || '',
-        naming: resolvedRuntimeConfig.agentNaming || 'kebab-case',
+        pattern,
+        naming: runtimeConfig.agentNaming || 'kebab-case',
         prefix,
       },
       delegation: {
-        pattern: delegation.pattern || '',
+        pattern,
         constraints: delegation.constraints || {},
       },
-      mcp_prefix: MCP_PREFIXES[resolvedRuntimeConfig.name] || '',
-      paths: resolvedRuntimeConfig.paths || {},
+      mcp_prefix: MCP_PREFIXES[runtimeConfig.name] || '',
+      paths: runtimeConfig.paths || {},
       agents: agentNames,
       agent_capabilities: AGENT_CAPABILITIES,
-      plan_mode_native: PLAN_MODE_NATIVE[resolvedRuntimeConfig.name] || false,
+      plan_mode_native: PLAN_MODE_NATIVE[runtimeConfig.name] || false,
       workspace_suggestion: getWorkspaceSuggestion() || null,
     };
   };

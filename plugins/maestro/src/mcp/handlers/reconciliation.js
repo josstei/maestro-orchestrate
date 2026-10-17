@@ -4,14 +4,15 @@ const fs = require('fs');
 const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
-const { ValidationError, NotFoundError, StateError } = require('../../lib/errors');
+const { ValidationError, StateError } = require('../../lib/errors');
 const {
   DEFAULT_STATE_DIR,
   readActiveSession,
   withSessionState,
   assertSessionMatch,
+  findPhaseOrThrow,
 } = require('../../state/session-state');
-const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
+const { isExtensionCachePath } = require('../../core/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
   normalizeDownstreamContext,
@@ -160,10 +161,7 @@ function handleScanPhaseChanges(params, projectRoot) {
   const { state, basePath } = readActiveSession(projectRoot);
   assertSessionMatch(state, params.session_id);
 
-  const phase = (state.phases || []).find((p) => p.id === params.phase_id);
-  if (!phase) {
-    throw new NotFoundError(`Phase ${params.phase_id} not found in session state`);
-  }
+  const phase = findPhaseOrThrow(state.phases || [], params.phase_id);
   if (!phase.started) {
     throw new StateError(
       `Phase ${params.phase_id} has not started; nothing to scan`
@@ -215,10 +213,11 @@ function handleReconcilePhase(params, projectRoot) {
   return withSessionState(projectRoot, ({ state }) => {
     assertSessionMatch(state, params.session_id);
 
-    const phase = (state.phases || []).find((p) => p.id === params.phase_id);
-    if (!phase) {
-      throw new NotFoundError(`Phase ${params.phase_id} not found`);
-    }
+    const phase = findPhaseOrThrow(
+      state.phases || [],
+      params.phase_id,
+      `Phase ${params.phase_id} not found`
+    );
     if (params.files_created !== undefined) {
       phase.files_created = filesCreated;
     }

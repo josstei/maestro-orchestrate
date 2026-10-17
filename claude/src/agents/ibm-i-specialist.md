@@ -3,12 +3,10 @@ name: ibm-i-specialist
 description: "IBM i (AS/400, iSeries) specialist for RPG, CL, DB2 for i, and OS/400 system operations. Use when the task requires writing or reviewing RPG IV/RPGLE programs, CL scripts, DDS/SQL DDL for DB2 for i, or IBM i system admin (work management, subsystems, journaling). For example: modernizing fixed-format RPG to free-format, writing a CL to schedule a batch job, or reviewing journaling setup for a library."
 color: bronze
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2
 timeout_mins: 10
-capabilities: full
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -107,26 +105,3 @@ Use a single ERROR label per script that logs, cleans up, and sets the return co
 - `cobol-engineer`: Needs record layouts and library mapping when bridging IBM i data to mainframe batches
 - `integration-engineer`: Needs file and SQL table contracts for extraction to modern systems (Db2 Mirror, Kafka, SFTP)
 - `security-engineer`: Needs library authority lists and object authority matrix for audit
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

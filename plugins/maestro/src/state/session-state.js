@@ -2,8 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { atomicWriteSync } = require('../lib/io');
-const { StateError } = require('../lib/errors');
+const { atomicWriteSync, ensurePrivateDir } = require('../lib/io');
+const { StateError, NotFoundError } = require('../lib/errors');
 const markdownState = require('../core/markdown-state');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
@@ -46,8 +46,12 @@ function resolveStateDirPath(cwd, stateDirOverride) {
   return resolveStateDirUnder(cwd || process.cwd(), stateDir);
 }
 
+function activeSessionFile(basePath) {
+  return path.join(basePath, ACTIVE_SESSION_REL);
+}
+
 function resolveActiveSessionPath(cwd, stateDirOverride) {
-  return path.join(resolveStateDirPath(cwd, stateDirOverride), ACTIVE_SESSION_REL);
+  return activeSessionFile(resolveStateDirPath(cwd, stateDirOverride));
 }
 
 function hasActiveSession(cwd) {
@@ -72,13 +76,9 @@ function writeState(relativePath, content, basePath) {
 }
 
 function readSessionAt(basePath) {
-  const { data, body } = markdownState.parse(readState(ACTIVE_SESSION_REL, basePath));
-  return {
-    basePath,
-    sessionPath: path.join(basePath, ACTIVE_SESSION_REL),
-    state: data,
-    body,
-  };
+  const sessionPath = activeSessionFile(basePath);
+  const { data, body } = markdownState.parse(fs.readFileSync(sessionPath, 'utf8'));
+  return { basePath, sessionPath, state: data, body };
 }
 
 function readActiveSession(cwd) {
@@ -87,15 +87,16 @@ function readActiveSession(cwd) {
 
 function readActiveSessionOrNull(cwd) {
   const basePath = resolveStateDirPath(cwd);
-  if (!fs.existsSync(path.join(basePath, ACTIVE_SESSION_REL))) {
+  if (!fs.existsSync(activeSessionFile(basePath))) {
     return null;
   }
   return readSessionAt(basePath);
 }
 
 function writeActiveSession(basePath, state, body) {
-  writeState(ACTIVE_SESSION_REL, markdownState.serialize(state, body), basePath);
-  return path.join(basePath, ACTIVE_SESSION_REL);
+  const sessionPath = activeSessionFile(basePath);
+  atomicWriteSync(sessionPath, markdownState.serialize(state, body));
+  return sessionPath;
 }
 
 /**
@@ -118,13 +119,25 @@ function assertSessionMatch(state, sessionId, verb = 'got') {
   }
 }
 
+/**
+ * Look up a phase by id, throwing NotFoundError with `message` when absent.
+ * @param {Array<{ id: number | string }>} phases
+ * @param {number | string} phaseId
+ * @param {string} [message]
+ * @returns {object} the matching phase
+ * @throws {NotFoundError} when no phase has id `phaseId`
+ */
+function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found in session state`) {
+  const phase = phases.find((candidate) => candidate.id === phaseId);
+  if (!phase) {
+    throw new NotFoundError(message);
+  }
+  return phase;
+}
+
 function ensureWorkspace(stateDir, basePath) {
   const fullBase = resolveStateDirUnder(basePath, stateDir);
-  fs.mkdirSync(fullBase, { recursive: true, mode: 0o700 });
-  const stats = fs.lstatSync(fullBase);
-  if (stats.isSymbolicLink()) {
-    throw new Error('STATE_DIR must not be a symlink');
-  }
+  ensurePrivateDir(fullBase, 'STATE_DIR must not be a symlink');
   for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
     try {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -146,7 +159,6 @@ function ensureWorkspace(stateDir, basePath) {
 module.exports = {
   DEFAULT_STATE_DIR,
   WORKSPACE_SUBDIRS,
-  validateContainment,
   resolveStateDirPath,
   resolveActiveSessionPath,
   hasActiveSession,
@@ -157,5 +169,6 @@ module.exports = {
   writeActiveSession,
   withSessionState,
   assertSessionMatch,
+  findPhaseOrThrow,
   ensureWorkspace,
 };

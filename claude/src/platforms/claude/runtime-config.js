@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = {
   name: 'claude',
   outputDir: 'claude/',
@@ -31,6 +33,7 @@ module.exports = {
   agentFrontmatter: {
     model: 'inherit',
     turnsField: 'maxTurns',
+    fields: ['name', 'description', 'model', 'color', 'turns', 'tools'],
   },
 
   delegation: {

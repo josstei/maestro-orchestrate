@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { readFileSafe } = require('../io');
+const { escapeRegExp } = require('../naming');
 
 /**
  * @typedef {Object} DiscoveryEntry
@@ -13,11 +14,9 @@ const { readFileSafe } = require('../io');
 /**
  * @typedef {Object} DiscoverOptions
  * @property {string} dir - Absolute path to the directory to scan
- * @property {string} pattern - File-matching pattern (e.g., '*.js', '*-logic.js', '**\/*.md')
+ * @property {string} pattern - File-matching pattern (e.g., '*.js', '*-logic.js'); a leading '**\/' (e.g., '**\/*.md') also scans subdirectories
  * @property {Function} identity - (filepath: string) => string — derives the entry identifier
  * @property {Function} [metadata] - (filepath: string, content: string) => Object — extracts metadata per file
- * @property {Function} [validate] - (entry: DiscoveryEntry) => boolean — false excludes the entry
- * @property {boolean} [recursive=false] - Whether to recurse into subdirectories
  */
 
 /**
@@ -32,23 +31,7 @@ const { readFileSafe } = require('../io');
  * @returns {RegExp} Compiled regular expression
  */
 function patternToRegex(pattern) {
-  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp('^' + escaped.replace(/\*/g, '[^/]*') + '$');
-}
-
-/**
- * Parse a discovery pattern into its file-matching regex and whether
- * recursive scanning is implied by a `**\/` prefix.
- *
- * @param {string} pattern - The discovery pattern (e.g., '*.md', '**\/*.md')
- * @returns {{ regex: RegExp, impliedRecursive: boolean }}
- */
-function parsePattern(pattern) {
-  const impliedRecursive = pattern.startsWith('**/');
-  return {
-    regex: patternToRegex(impliedRecursive ? pattern.slice(3) : pattern),
-    impliedRecursive,
-  };
+  return new RegExp('^' + pattern.split('*').map(escapeRegExp).join('[^/]*') + '$');
 }
 
 /**
@@ -87,18 +70,14 @@ function collectFiles(dir, recursive) {
  * @param {DiscoverOptions} options
  * @returns {Array<DiscoveryEntry>} Entries sorted by id
  */
-function discover({ dir, pattern, identity, metadata, validate, recursive = false }) {
-  const { regex, impliedRecursive } = parsePattern(pattern);
-  const shouldRecurse = recursive || impliedRecursive;
-
-  const filePaths = collectFiles(dir, shouldRecurse);
+function discover({ dir, pattern, identity, metadata }) {
+  const recursive = pattern.startsWith('**/');
+  const regex = patternToRegex(recursive ? pattern.slice(3) : pattern);
 
   const entries = [];
 
-  for (const filePath of filePaths) {
-    const filename = path.basename(filePath);
-
-    if (!regex.test(filename)) {
+  for (const filePath of collectFiles(dir, recursive)) {
+    if (!regex.test(path.basename(filePath))) {
       continue;
     }
 
@@ -110,13 +89,7 @@ function discover({ dir, pattern, identity, metadata, validate, recursive = fals
       extra = metadata(filePath, content) || {};
     }
 
-    const entry = { id, path: filePath, ...extra };
-
-    if (validate && !validate(entry)) {
-      continue;
-    }
-
-    entries.push(entry);
+    entries.push({ id, path: filePath, ...extra });
   }
 
   entries.sort((a, b) => a.id.localeCompare(b.id));
@@ -135,9 +108,7 @@ function serializeRegistry(data) {
 }
 
 module.exports = {
+  collectFiles,
   discover,
   serializeRegistry,
-  patternToRegex,
-  parsePattern,
-  collectFiles,
 };

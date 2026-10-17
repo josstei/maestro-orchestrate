@@ -3,12 +3,10 @@ name: analytics-engineer
 description: "Analytics engineering specialist for event tracking implementation, analytics schemas, conversion funnels, A/B test design, and measurement planning. Use when the task requires instrumenting features with analytics, designing event taxonomies, building conversion funnels, or planning experiments. For example: adding event tracking to a checkout flow, designing an A/B test for a pricing page, or defining KPI dashboards."
 color: olive
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, google_web_search, write_todos, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, google_web_search, write_todos, read_many_files, ask_user]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2
 timeout_mins: 10
-capabilities: full
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -157,26 +155,3 @@ Each cohort definition needs: cohort criteria (what puts a user in this cohort),
 - `coder`: Needs tracking implementation patterns — event function call signatures, SDK initialization code, property builder utilities, and exact file locations where tracking calls should be inserted
 - `content-strategist`: Needs content performance data definitions — which events measure content engagement (page views, scroll depth, time on page, share actions) and how to segment by content type
 - `product-manager`: Needs product analytics insights — KPI definitions, funnel conversion rates, cohort retention data, and experiment results that inform feature prioritization decisions
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

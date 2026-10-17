@@ -3,12 +3,10 @@ name: prompt-engineer
 description: "Prompt engineering specialist for LLM prompt design, few-shot and chain-of-thought structuring, eval harnesses, and RAG retrieval quality. Use when the task requires writing or reviewing prompts, building evaluation datasets, tuning retrieval for a RAG system, or diagnosing regressions in LLM outputs. For example: designing a classifier prompt with calibrated confidence, writing an eval set for a summarization prompt, or tuning chunk size and reranking in a RAG pipeline."
 color: lime
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, read_many_files, google_web_search, write_todos, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, read_many_files, google_web_search, write_todos, ask_user, web_fetch]
 tools.claude: [Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 15
 temperature: 0.3
 timeout_mins: 5
-capabilities: read_write
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -104,26 +102,3 @@ Change one dial at a time; measure against a frozen query set.
 - `ml-engineer`: Needs prompt versions and eval results to decide between fine-tuning, RAG, and prompting
 - `mlops-engineer`: Needs prompt artifacts with version identifiers to register and deploy alongside models
 - `tester`: Needs the eval harness wired into CI so prompt regressions are caught before release
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

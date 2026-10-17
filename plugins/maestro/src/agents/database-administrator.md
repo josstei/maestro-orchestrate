@@ -3,12 +3,10 @@ name: database-administrator
 description: "Database administration specialist for RDBMS schema review, query tuning, index strategy, and migration safety on PostgreSQL, MySQL, SQL Server, and Oracle. Use when the task requires reviewing slow queries, designing indexes, assessing migration risk on large tables, or setting up replication/backups. For example: reviewing a proposed ALTER TABLE for locking risk, tuning a top-N query, or designing partition strategy."
 color: navy
 tools: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
 tools.claude: [Read, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 20
 temperature: 0.2
 timeout_mins: 8
-capabilities: read_shell
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -101,26 +99,3 @@ For large backfills:
 - `coder`: Needs specific index definitions, revised query text, and migration DDL ready to commit
 - `devops-engineer`: Needs PITR, backup verification, and monitoring thresholds for replication lag and long-running transactions
 - `data-engineer`: Needs partitioning and retention guidance for analytics-adjacent tables
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

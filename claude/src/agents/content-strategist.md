@@ -3,12 +3,10 @@ name: content-strategist
 description: "Content strategy specialist for content planning, editorial calendars, audience targeting, and content gap analysis. Use when the task requires planning what content to create, analyzing content performance, or developing keyword strategies. For example: building an editorial calendar, conducting content gap analysis, or defining content pillars for a product launch."
 color: amber
 tools: [read_file, list_directory, glob, grep_search, google_web_search, web_fetch, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, google_web_search, web_fetch, read_many_files, ask_user]
 tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]
 max_turns: 15
 temperature: 0.3
 timeout_mins: 5
-capabilities: read_only
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -86,26 +84,3 @@ Effort = research depth + production complexity + review requirements.
 
 - `copywriter`: Needs content briefs with: topic, target audience, primary keyword, search intent, desired action, word count target, competitor references, and key points to cover
 - `seo-specialist`: Needs keyword strategy and content-to-keyword mapping for on-page optimization alignment
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]
