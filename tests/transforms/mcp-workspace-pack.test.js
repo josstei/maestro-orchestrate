@@ -1,4 +1,4 @@
-const { afterEach, describe, it } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
@@ -7,33 +7,17 @@ const path = require('path');
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/workspace');
 
-const envKeysToRestore = [
-  'MAESTRO_DISABLED_AGENTS',
-  'MAESTRO_EXECUTION_MODE',
-  'MAESTRO_EXTENSION_PATH',
-];
-
-const originalEnv = Object.fromEntries(
-  envKeysToRestore.map((key) => [key, process.env[key]])
-);
-
-afterEach(() => {
-  for (const key of envKeysToRestore) {
-    if (originalEnv[key] === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = originalEnv[key];
-    }
-  }
-});
+function createWorkspacePackServer() {
+  return createServer({
+    runtimeConfig: { name: 'codex' },
+    services: {},
+    toolPacks: [createToolPack],
+  });
+}
 
 describe('workspace tool pack', () => {
   it('registers the workspace and planning tool surface through the kernel', () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = createWorkspacePackServer();
 
     assert.deepEqual(
       server.getToolSchemas().map((schema) => schema.name),
@@ -53,11 +37,7 @@ describe('workspace tool pack', () => {
       'MAESTRO_DISABLED_AGENTS=architect, tester\n'
     );
 
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = createWorkspacePackServer();
 
     const result = await server.callTool(
       'resolve_settings',
@@ -78,11 +58,7 @@ describe('workspace tool pack', () => {
       path.join(os.tmpdir(), 'maestro-workspace-')
     );
 
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = createWorkspacePackServer();
 
     const result = await server.callTool(
       'initialize_workspace',
@@ -103,11 +79,7 @@ describe('workspace tool pack', () => {
   });
 
   it('reports overlapping files for parallel phases', async () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = createWorkspacePackServer();
 
     const result = await server.callTool(
       'validate_plan',
