@@ -97,11 +97,34 @@ describe('hook entrypoints', () => {
     });
   });
 
-  it('checks the runtime before the hook name', () => {
-    const result = runHook('hooks/hook-runner.js', 'bogus', 'nope', {});
+  it('rejects bad invocations, checking the runtime before the hook name', () => {
+    const usage = 'Usage: node hook-runner.js <runtime> <hook-name>\n';
+    const cases = [
+      [[], usage],
+      [['gemini'], usage],
+      [['gemini', 'nope'], 'Unknown hook: nope\n'],
+      [['bogus', 'nope'], 'Unknown runtime: bogus\n'],
+    ];
 
-    assert.equal(result.status, 1);
-    assert.equal(result.stderr, 'Unknown runtime: bogus\n');
+    for (const [args, stderr] of cases) {
+      const result = spawnSync(process.execPath, ['hooks/hook-runner.js', ...args], {
+        cwd: ROOT,
+        input: '{}\n',
+        encoding: 'utf8',
+      });
+
+      assert.equal(result.status, 1, `exit code for [${args.join(' ')}]`);
+      assert.equal(result.stderr, stderr);
+      assert.equal(result.stdout, '');
+    }
+  });
+
+  it('answers with the adapter error fallback when stdin is not JSON', () => {
+    const result = runHook('hooks/hook-runner.js', 'gemini', 'session-start', 'not-json');
+
+    assert.equal(result.status, 0);
+    assert.match(result.stderr, /^Hook error: /);
+    assert.deepEqual(JSON.parse(result.stdout), { continue: false });
   });
 
   it('boots qwen hook adapters against canonical src hook logic', () => {
