@@ -11,7 +11,7 @@ const {
   withSessionState,
   assertSessionMatch,
 } = require('../../state/session-state');
-const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
+const { isExtensionCachePath } = require('../../core/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
   normalizeDownstreamContext,

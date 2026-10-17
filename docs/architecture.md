@@ -103,7 +103,7 @@ src/mcp/
 ├── maestro-server.js           # Server entry-point (main) + default tool pack order
 ├── content/
 │   └── runtime-content.js      # Runtime-specific content resolution
-├── contracts/                  # Plan schema, workspace marker, cache-path and handoff contracts
+├── contracts/                  # Plan schema, workspace marker and handoff contracts
 ├── core/
 │   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
 │   ├── protocol-dispatcher.js  # JSON-RPC routing + tool result framing

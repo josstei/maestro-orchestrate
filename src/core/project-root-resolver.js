@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const { isExtensionCachePath } = require('../mcp/contracts/cache-path-rejector');
+const { isExtensionCachePath } = require('./cache-path-rejector');
 const { defineErrorType } = require('../lib/errors');
 
 const WorkspaceResolutionError = defineErrorType(

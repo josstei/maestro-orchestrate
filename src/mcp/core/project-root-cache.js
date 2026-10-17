@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { fileURLToPath } = require('node:url');
 
-const { isExtensionCachePath } = require('../contracts/cache-path-rejector');
+const { isExtensionCachePath } = require('../../core/cache-path-rejector');
 
 /**
  * Project-root cache for the MCP session.
