@@ -297,11 +297,11 @@ For detailed documentation of all seven GitHub Actions workflows, the release pi
 
 ### Test Suite
 
-80 test files using Node.js built-in `node:test`:
+82 test files using Node.js built-in `node:test`:
 
-- 50 unit test files (`tests/unit/`)
+- 51 unit test files (`tests/unit/`)
 - 10 transform test files (`tests/transforms/`)
-- 20 integration test files (`tests/integration/`)
+- 21 integration test files (`tests/integration/`)
 
 The justfile's `just test` target uses glob expansion
 (`tests/unit/*.test.js`, `tests/transforms/*.test.js`, `tests/integration/*.test.js`),
