@@ -1,6 +1,6 @@
 'use strict';
 
-const path = require('path');
+const path = require('node:path');
 const { parseEnvFile } = require('../core/env-file-parser');
 
 function resolveSetting(varName, projectRoot) {

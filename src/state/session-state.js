@@ -1,7 +1,7 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { atomicWriteSync, ensurePrivateDir } = require('../lib/io');
 const { StateError, NotFoundError } = require('../lib/errors');
 const markdownState = require('../core/markdown-state');

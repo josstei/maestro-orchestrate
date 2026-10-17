@@ -1,8 +1,8 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
 const { log } = require('../../core/logger');
 const { isValidSessionId } = require('../../lib/validation');
 const { atomicWriteSync, ensurePrivateDir, readFileSafe } = require('../../lib/io');
