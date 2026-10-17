@@ -9,8 +9,7 @@ const { createProtocolHandlers } = require('./core/protocol-dispatcher');
 const { createToolPack: createWorkspaceToolPack } = require('./tool-packs/workspace');
 const { createToolPack: createSessionToolPack } = require('./tool-packs/session');
 const { createToolPack: createContentToolPack } = require('./tool-packs/content');
-const { normalizeRuntimeConfig } = require('./runtime/runtime-config-map');
-const { resolveCanonicalSrcFromExtensionRoot } = require('./utils/extension-root');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('./runtime/runtime-config-map');
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
@@ -24,8 +23,7 @@ const DEFAULT_TOOL_PACKS = Object.freeze([
 ]);
 
 function main() {
-  const resolvedRuntimeConfig = normalizeRuntimeConfig(process.env.MAESTRO_RUNTIME);
-  const canonicalSrcRoot = resolveCanonicalSrcFromExtensionRoot();
+  const resolvedRuntimeConfig = getRuntimeConfig(process.env.MAESTRO_RUNTIME || RUNTIME_NAMES[0]);
 
   const cache = createProjectRootCache({
     runtimeConfig: resolvedRuntimeConfig,
@@ -35,7 +33,6 @@ function main() {
   const server = createServer({
     runtimeConfig: resolvedRuntimeConfig,
     services: {
-      canonicalSrcRoot,
       workspaceSuggestion: cache.workspaceSuggestion,
       setWorkspacePath: cache.setExplicitWorkspacePath,
     },

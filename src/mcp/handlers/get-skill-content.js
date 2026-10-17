@@ -1,19 +1,15 @@
 'use strict';
 
-const { getDefaultRuntimeConfig } = require('../runtime/runtime-config-map');
 const { readResourceFromFilesystem } = require('../content/runtime-content');
-const { resolveCanonicalSrcFromExtensionRoot } = require('../utils/extension-root');
 const { ValidationError } = require('../../lib/errors');
 
-function createHandler(runtimeConfig = getDefaultRuntimeConfig(), canonicalSrcRoot) {
+function createHandler(runtimeConfig, srcRoot) {
   return function handleGetSkillContent(params) {
     const resources = params.resources;
     if (!Array.isArray(resources) || resources.length === 0) {
       throw new ValidationError('resources must be a non-empty array of resource identifiers');
     }
 
-    const srcRoot =
-      canonicalSrcRoot === undefined ? resolveCanonicalSrcFromExtensionRoot() : canonicalSrcRoot;
     const contents = {};
     const errors = {};
 

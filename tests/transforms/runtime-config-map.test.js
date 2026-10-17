@@ -4,8 +4,6 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const path = require('node:path');
 
-const { withEnv } = require('../support/env');
-
 const configMapPath = path.resolve(__dirname, '../../src/mcp/runtime/runtime-config-map.js');
 
 describe('runtime-config-map', () => {
@@ -19,40 +17,16 @@ describe('runtime-config-map', () => {
     }
   });
 
-  it('getDefaultRuntimeConfig respects MAESTRO_RUNTIME env var', () => {
-    try {
-      withEnv({ MAESTRO_RUNTIME: 'codex' }, () => {
-        delete require.cache[configMapPath];
-        const { getDefaultRuntimeConfig } = require(configMapPath);
-        const config = getDefaultRuntimeConfig();
-        assert.equal(config.name, 'codex');
-      });
-    } finally {
-      delete require.cache[configMapPath];
-      require(configMapPath);
-    }
+  it('lists runtime names alphabetically, so claude is the first discovered runtime', () => {
+    const { RUNTIME_NAMES } = require(configMapPath);
+    assert.deepEqual(RUNTIME_NAMES, ['claude', 'codex', 'gemini', 'qwen']);
   });
 
-  it('getDefaultRuntimeConfig falls back to first discovered runtime without env var', () => {
-    try {
-      withEnv({ MAESTRO_RUNTIME: null }, () => {
-        delete require.cache[configMapPath];
-        const { getDefaultRuntimeConfig } = require(configMapPath);
-        const config = getDefaultRuntimeConfig();
-        assert.equal(config.name, 'claude', 'Expected fallback to first alphabetical runtime');
-      });
-    } finally {
-      delete require.cache[configMapPath];
-      require(configMapPath);
-    }
-  });
-
-  it('does not export listRuntimeConfigs', () => {
-    const exports = require(configMapPath);
+  it('getRuntimeConfig returns the platform runtime-config module', () => {
+    const { getRuntimeConfig } = require(configMapPath);
     assert.equal(
-      exports.listRuntimeConfigs,
-      undefined,
-      'listRuntimeConfigs should not be exported'
+      getRuntimeConfig('codex'),
+      require('../../src/platforms/codex/runtime-config')
     );
   });
 
@@ -64,16 +38,11 @@ describe('runtime-config-map', () => {
     );
   });
 
-  it('normalizeRuntimeConfig handles string, object, and falsy inputs', () => {
-    const { normalizeRuntimeConfig } = require(configMapPath);
-
-    const fromString = normalizeRuntimeConfig('claude');
-    assert.equal(fromString.name, 'claude');
-
-    const fromObject = normalizeRuntimeConfig({ name: 'test-runtime', tools: {} });
-    assert.equal(fromObject.name, 'test-runtime');
-
-    const fromFalsy = normalizeRuntimeConfig(null);
-    assert.ok(fromFalsy.name, 'Expected fallback to default runtime');
+  it('throws for a missing runtime name', () => {
+    const { getRuntimeConfig } = require(configMapPath);
+    assert.throws(
+      () => getRuntimeConfig(undefined),
+      /Unknown runtime config: undefined/
+    );
   });
 });

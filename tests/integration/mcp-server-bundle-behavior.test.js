@@ -36,6 +36,17 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
+  it('falls back to the first discovered runtime when MAESTRO_RUNTIME is empty', async () => {
+    await withServer(
+      { cwd: ROOT, relativePath: 'src/mcp/maestro-server.js', env: { MAESTRO_RUNTIME: '' } },
+      async (client) => {
+        const result = await client.callTool('get_runtime_context');
+
+        assert.equal(result.parsed.runtime, 'claude');
+      }
+    );
+  });
+
   it('serves updated get_skill_content metadata from every runtime bundle', async () => {
     const staticRuntimes = [
       { cwd: ROOT, relativePath: 'mcp/maestro-server.js' },

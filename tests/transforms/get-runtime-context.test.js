@@ -78,12 +78,12 @@ describe('get-runtime-context handler', () => {
     assert.equal(result.tools.run_shell_command, 'exec_command');
   });
 
-  it('accepts a runtime name and resolves it through the shared runtime config map', () => {
+  it('reports the shipped codex runtime config', () => {
     const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
-    const handler = createHandler('codex');
+    const handler = createHandler(getRuntimeConfig('codex'));
     const result = handler({});
 
-    assert.equal(result.runtime, getRuntimeConfig('codex').name);
+    assert.equal(result.runtime, 'codex');
     assert.equal(result.mcp_prefix, 'mcp__maestro_maestro__');
     assert.equal(result.tools.read_file, 'direct file reads');
   });
