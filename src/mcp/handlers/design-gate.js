@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { assertSessionId } = require('../../lib/validation');
-const { ValidationError } = require('../../lib/errors');
+const { ValidationError, StateError } = require('../../lib/errors');
 const { resolveStateDirPath } = require('../../state/session-state');
 const { atomicWriteSync, readJsonSafe } = require('../../lib/io');
 
@@ -223,16 +223,21 @@ function handleGetDesignGateStatus(params, projectRoot) {
 }
 
 /**
- * Enumerate every approved design gate currently persisted in the workspace.
+ * Find approved design gates whose session_id does not match the caller's.
+ * The orchestrator must use a single session_id from enter_design_gate through
+ * archive_session; a mismatched approved gate signals either (a) an in-flight
+ * workflow the caller forgot to continue with the original id or (b) an
+ * abandoned prior run. create_session uses this to fail fast rather than
+ * silently discard the approved design document.
+ *
  * Reads the `state/` directory once and parses each `<session_id>.design-gate.json`
- * artifact. Corrupt or unapproved gate files are skipped silently. Used by
- * create_session to detect session_id drift across the enter_design_gate →
- * record_design_approval → create_session sequence.
+ * artifact. Corrupt or unapproved gate files are skipped silently.
  *
  * @param {string} projectRoot
+ * @param {string} currentSessionId
  * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
  */
-function listApprovedGates(projectRoot) {
+function findOrphanedApprovedGates(projectRoot, currentSessionId) {
   const stateDir = path.join(resolveStateDirPath(projectRoot), 'state');
   let entries;
   try {
@@ -244,7 +249,7 @@ function listApprovedGates(projectRoot) {
   for (const entry of entries) {
     if (!entry.endsWith(GATE_FILENAME)) continue;
     const sessionId = entry.slice(0, -GATE_FILENAME.length);
-    if (sessionId.length === 0) continue;
+    if (sessionId.length === 0 || sessionId === currentSessionId) continue;
     // Unreadable or corrupt gates read as null and are skipped; detection is best-effort.
     const gate = readJsonSafe(path.join(stateDir, entry));
     if (gate && typeof gate.approved_at === 'string' && gate.approved_at.length > 0) {
@@ -259,21 +264,66 @@ function listApprovedGates(projectRoot) {
 }
 
 /**
- * Find approved design gates whose session_id does not match the caller's.
- * The orchestrator must use a single session_id from enter_design_gate through
- * archive_session; a mismatched approved gate signals either (a) an in-flight
- * workflow the caller forgot to continue with the original id or (b) an
- * abandoned prior run. create_session uses this to fail fast rather than
- * silently discard the approved design document.
+ * Reject create_session when an approved design gate exists for a different
+ * session_id. This signals the orchestrator drifted away from the session_id
+ * it entered the gate with — silently proceeding would strand the approved
+ * design document because create_session looks the gate up by session_id.
+ * The error names the orphaned ids and describes remediation so the caller
+ * can either align on the original id or delete the stale gate file before
+ * retrying.
  *
  * @param {string} projectRoot
  * @param {string} currentSessionId
- * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
+ * @throws {ValidationError} when an orphaned approved gate is detected
  */
-function findOrphanedApprovedGates(projectRoot, currentSessionId) {
-  return listApprovedGates(projectRoot).filter(
-    (gate) => gate.session_id !== currentSessionId
+function assertNoOrphanedApprovedGate(projectRoot, currentSessionId) {
+  const orphans = findOrphanedApprovedGates(projectRoot, currentSessionId);
+  if (orphans.length === 0) return;
+
+  const orphanedIds = orphans.map((gate) => gate.session_id);
+  const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
+  const stalePaths = orphans
+    .map((g) => `<state_dir>/state/${g.session_id}${GATE_FILENAME}`)
+    .join(', ');
+  throw new ValidationError(
+    `Approved design gate exists for session ${idList} but create_session was called with '${currentSessionId}'. Session IDs must match across enter_design_gate, record_design_approval, and create_session. Either call create_session with the matching session_id, or delete the stale gate file(s) at ${stalePaths} and re-enter the gate with '${currentSessionId}'.`,
+    {
+      code: 'DESIGN_GATE_SESSION_MISMATCH',
+      details: {
+        current_session_id: currentSessionId,
+        orphaned_session_ids: orphanedIds,
+      },
+    }
   );
+}
+
+/**
+ * Read the current session's design gate and enforce create_session's gate
+ * preconditions. The orphaned-gate check runs only when the current session
+ * has no gate: a current-session gate (approved or not) is the normal
+ * approve-then-create flow, and any leftover gate from a prior workflow in the
+ * same workspace is benign alongside the valid one.
+ *
+ * @param {string} projectRoot
+ * @param {string} sessionId
+ * @returns {ReturnType<typeof readGate>} the current session's gate, or null when none exists
+ * @throws {ValidationError} DESIGN_GATE_SESSION_MISMATCH when an orphaned approved gate is detected
+ * @throws {StateError} DESIGN_GATE_UNAPPROVED when the gate was entered but not approved
+ */
+function readGateForCreateSession(projectRoot, sessionId) {
+  const gate = readGate(projectRoot, sessionId);
+  if (gate === null) {
+    assertNoOrphanedApprovedGate(projectRoot, sessionId);
+  }
+
+  if (gate && gate.entered_at && !gate.approved_at) {
+    throw new StateError(
+      'Design gate entered but not approved. Call record_design_approval before create_session.',
+      { code: 'DESIGN_GATE_UNAPPROVED' }
+    );
+  }
+
+  return gate;
 }
 
 /**
@@ -290,13 +340,12 @@ function removeDesignGate(projectRoot, sessionId) {
 }
 
 module.exports = {
-  GATE_FILENAME,
   handleEnterDesignGate,
   handleRecordDesignApproval,
   handleGetDesignGateStatus,
   readGate,
-  listApprovedGates,
   findOrphanedApprovedGates,
+  readGateForCreateSession,
   toWorkspacePath,
   isInsidePlansDir,
   ensureDesignDocumentInPlans,

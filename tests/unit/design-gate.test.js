@@ -7,7 +7,6 @@ const os = require('node:os');
 const path = require('node:path');
 
 const {
-  listApprovedGates,
   findOrphanedApprovedGates,
   readGate,
 } = require('../../src/mcp/handlers/design-gate');
@@ -394,7 +393,7 @@ describe('design gate tools', () => {
     assert.equal(outcome.ok, true);
   });
 
-  it('listApprovedGates enumerates only gates with a non-empty approved_at', async () => {
+  it('findOrphanedApprovedGates enumerates only gates with a non-empty approved_at', async () => {
     const workspace = makeWorkspace();
     const server = await createInitializedSessionServer(workspace);
 
@@ -420,7 +419,7 @@ describe('design gate tools', () => {
       workspace
     );
 
-    const approved = listApprovedGates(workspace);
+    const approved = findOrphanedApprovedGates(workspace, 'absent-session');
     const ids = approved.map((g) => g.session_id).sort();
     assert.deepEqual(ids, ['approved-one', 'approved-two']);
     for (const gate of approved) {
@@ -429,9 +428,9 @@ describe('design gate tools', () => {
     }
   });
 
-  it('listApprovedGates returns an empty list when the state directory is absent', () => {
+  it('findOrphanedApprovedGates returns an empty list when the state directory is absent', () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-no-state-'));
-    assert.deepEqual(listApprovedGates(workspace), []);
+    assert.deepEqual(findOrphanedApprovedGates(workspace, 'absent-session'), []);
   });
 
   it('findOrphanedApprovedGates excludes the current session and skips unapproved gates', async () => {

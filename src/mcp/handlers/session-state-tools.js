@@ -13,9 +13,7 @@ const {
 } = require('../contracts/downstream-context');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
 const {
-  GATE_FILENAME,
-  readGate,
-  findOrphanedApprovedGates,
+  readGateForCreateSession,
   toWorkspacePath,
   isInsidePlansDir,
   ensureDesignDocumentInPlans,
@@ -64,58 +62,10 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind) {
   return ensureDesignDocumentInPlans(projectRoot, absolutePath);
 }
 
-/**
- * Reject create_session when an approved design gate exists for a different
- * session_id and the current session has no gate of its own. This signals the
- * orchestrator drifted away from the session_id it entered the gate with —
- * silently proceeding would strand the approved design document because
- * create_session looks the gate up by session_id. The error names the
- * orphaned ids and describes remediation so the caller can either align on
- * the original id or delete the stale gate file before retrying.
- *
- * A current-session gate (approved or not) suppresses the check: that path is
- * the normal approve-then-create flow, and any leftover gate from a prior
- * workflow in the same workspace is benign alongside the valid one.
- *
- * @param {string} projectRoot
- * @param {string} currentSessionId
- * @param {boolean} hasCurrentGate - whether a gate artifact exists for currentSessionId
- * @throws {ValidationError} when an orphaned approved gate is detected
- */
-function assertNoOrphanedApprovedGate(projectRoot, currentSessionId, hasCurrentGate) {
-  if (hasCurrentGate) return;
-  const orphans = findOrphanedApprovedGates(projectRoot, currentSessionId);
-  if (orphans.length === 0) return;
-
-  const orphanedIds = orphans.map((gate) => gate.session_id);
-  const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
-  const stalePaths = orphans
-    .map((g) => `<state_dir>/state/${g.session_id}${GATE_FILENAME}`)
-    .join(', ');
-  throw new ValidationError(
-    `Approved design gate exists for session ${idList} but create_session was called with '${currentSessionId}'. Session IDs must match across enter_design_gate, record_design_approval, and create_session. Either call create_session with the matching session_id, or delete the stale gate file(s) at ${stalePaths} and re-enter the gate with '${currentSessionId}'.`,
-    {
-      code: 'DESIGN_GATE_SESSION_MISMATCH',
-      details: {
-        current_session_id: currentSessionId,
-        orphaned_session_ids: orphanedIds,
-      },
-    }
-  );
-}
-
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  const gate = readGate(projectRoot, params.session_id);
-  assertNoOrphanedApprovedGate(projectRoot, params.session_id, gate !== null);
-
-  if (gate && gate.entered_at && !gate.approved_at) {
-    throw new StateError(
-      'Design gate entered but not approved. Call record_design_approval before create_session.',
-      { code: 'DESIGN_GATE_UNAPPROVED' }
-    );
-  }
+  const gate = readGateForCreateSession(projectRoot, params.session_id);
 
   const phasesValidation = validatePhases(params.phases);
   if (!phasesValidation.valid) {
