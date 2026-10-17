@@ -4,89 +4,66 @@ const { spawnSync } = require('node:child_process');
 
 const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
 
-function runHook(relativePath, runtime, hookName, payload, cwd = ROOT) {
-  return spawnSync('node', [relativePath, runtime, hookName], {
+function runHook(relativePath, runtime, hookName, input, cwd = ROOT) {
+  return spawnSync(process.execPath, [relativePath, runtime, hookName], {
     cwd,
-    input: `${JSON.stringify(payload)}\n`,
+    input: typeof input === 'string' ? input : `${JSON.stringify(input)}\n`,
     encoding: 'utf8',
   });
 }
 
-function runHookRaw(relativePath, runtime, hookName, input, cwd = ROOT) {
-  return spawnSync('node', [relativePath, runtime, hookName], {
+function assertHooksBoot({ runner, runtime, hooks, cwd = ROOT }) {
+  const payload = {
     cwd,
-    input,
-    encoding: 'utf8',
-  });
+    session_id: 'hook-test-session',
+  };
+
+  for (const hookName of hooks) {
+    const result = runHook(runner, runtime, hookName, payload, cwd);
+
+    assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+    assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
+  }
 }
+
+const CLAUDE_HOOKS = ['session-start', 'before-agent', 'session-end'];
+
+const BOOT_CASES = [
+  {
+    label: 'gemini',
+    runner: 'hooks/hook-runner.js',
+    runtime: 'gemini',
+    hooks: ['session-start', 'before-agent', 'after-agent', 'session-end'],
+  },
+  {
+    label: 'claude',
+    runner: 'claude/scripts/hook-runner.js',
+    runtime: 'claude',
+    hooks: CLAUDE_HOOKS,
+  },
+];
 
 describe('hook entrypoints', () => {
-  it('boots gemini hook adapters against canonical src hook logic', () => {
-    const payload = {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-    };
-
-    const hookNames = [
-      'session-start',
-      'before-agent',
-      'after-agent',
-      'session-end',
-    ];
-
-    for (const hookName of hookNames) {
-      const result = runHook('hooks/hook-runner.js', 'gemini', hookName, payload);
-
-      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
-    }
-  });
-
-  it('boots claude hook adapters against canonical src hook logic', () => {
-    const payload = {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-    };
-
-    const hookNames = [
-      'session-start',
-      'before-agent',
-      'session-end',
-    ];
-
-    for (const hookName of hookNames) {
-      const result = runHook('claude/scripts/hook-runner.js', 'claude', hookName, payload);
-
-      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
-    }
-  });
+  for (const bootCase of BOOT_CASES) {
+    it(`boots ${bootCase.label} hook adapters against canonical src hook logic`, () => {
+      assertHooksBoot(bootCase);
+    });
+  }
 
   it('boots installed claude hook adapters from an isolated plugin bundle', async () => {
     await withIsolatedClaudePlugin(async (pluginRoot) => {
-      const payload = {
+      assertHooksBoot({
+        runner: 'scripts/hook-runner.js',
+        runtime: 'claude',
+        hooks: CLAUDE_HOOKS,
         cwd: pluginRoot,
-        session_id: 'hook-test-session',
-      };
-
-      const hookNames = [
-        'session-start',
-        'before-agent',
-        'session-end',
-      ];
-
-      for (const hookName of hookNames) {
-        const result = runHook('scripts/hook-runner.js', 'claude', hookName, payload, pluginRoot);
-
-        assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-        assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
-      }
+      });
     });
   });
 
   it('installed claude hook fallback blocks on invalid stdin', async () => {
     await withIsolatedClaudePlugin(async (pluginRoot) => {
-      const result = runHookRaw(
+      const result = runHook(
         'scripts/hook-runner.js',
         'claude',
         'session-start',
