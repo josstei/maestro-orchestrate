@@ -5,6 +5,22 @@ const assert = require('node:assert/strict');
 
 const { handleValidatePlan } = require('../../src/mcp/handlers/validate-plan');
 
+/**
+ * A sequential architect phase with no dependencies. `name` defaults to
+ * `Phase <n>` for id `p<n>` and to `Phase <id>` otherwise.
+ */
+const phase = (id, overrides = {}) => ({
+  id,
+  name: `Phase ${id.replace(/^p(?=\d)/, '')}`,
+  agent: 'architect',
+  parallel: false,
+  blocked_by: [],
+  ...overrides,
+});
+
+/** Phases `p1` … `p<count>`, built with {@link phase} defaults. */
+const sequentialPhases = (count) => Array.from({ length: count }, (_, i) => phase(`p${i + 1}`));
+
 describe('handleValidatePlan — plan structure validation', () => {
   it('returns invalid for null plan', () => {
     const result = handleValidatePlan({ plan: null, task_complexity: 'simple' });
@@ -33,50 +49,28 @@ describe('handleValidatePlan — plan structure validation', () => {
 
 describe('handleValidatePlan — phase count limits', () => {
   it('returns valid for simple plan within 3-phase limit', () => {
-    const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p2', name: 'Phase 2', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p3', name: 'Phase 3', agent: 'architect', parallel: false, blocked_by: [] },
-    ];
+    const phases = sequentialPhases(3);
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, true);
     assert.ok(!result.violations.some((v) => v.rule === 'phase_count'));
   });
 
   it('returns invalid when simple plan exceeds 3 phases', () => {
-    const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p2', name: 'Phase 2', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p3', name: 'Phase 3', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p4', name: 'Phase 4', agent: 'architect', parallel: false, blocked_by: [] },
-    ];
+    const phases = sequentialPhases(4);
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, false);
     assert.ok(result.violations.some((v) => v.rule === 'phase_count'));
   });
 
   it('returns invalid when medium plan exceeds 5 phases', () => {
-    const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p2', name: 'Phase 2', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p3', name: 'Phase 3', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p4', name: 'Phase 4', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p5', name: 'Phase 5', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p6', name: 'Phase 6', agent: 'architect', parallel: false, blocked_by: [] },
-    ];
+    const phases = sequentialPhases(6);
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.valid, false);
     assert.ok(result.violations.some((v) => v.rule === 'phase_count'));
   });
 
   it('complex plans have no phase limit', () => {
-    const phases = Array.from({ length: 20 }, (_, i) => ({
-      id: `p${i + 1}`,
-      name: `Phase ${i + 1}`,
-      agent: 'architect',
-      parallel: false,
-      blocked_by: [],
-    }));
+    const phases = sequentialPhases(20);
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'complex' });
     assert.ok(!result.violations.some((v) => v.rule === 'phase_count'));
   });
@@ -85,8 +79,8 @@ describe('handleValidatePlan — phase count limits', () => {
 describe('handleValidatePlan — duplicate phase IDs', () => {
   it('detects duplicate phase IDs', () => {
     const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p1', name: 'Phase 1 duplicate', agent: 'architect', parallel: false, blocked_by: [] },
+      phase('p1'),
+      phase('p1', { name: 'Phase 1 duplicate' }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.valid, false);
@@ -96,9 +90,7 @@ describe('handleValidatePlan — duplicate phase IDs', () => {
 
 describe('handleValidatePlan — dangling dependencies', () => {
   it('detects dangling dependency references', () => {
-    const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: ['nonexistent'] },
-    ];
+    const phases = [phase('p1', { blocked_by: ['nonexistent'] })];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, false);
     assert.ok(result.violations.some((v) => v.rule === 'dangling_dependency'));
@@ -107,18 +99,14 @@ describe('handleValidatePlan — dangling dependencies', () => {
 
 describe('handleValidatePlan — agent validation', () => {
   it('detects unknown agent names', () => {
-    const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'totally-fake-agent', parallel: false, blocked_by: [] },
-    ];
+    const phases = [phase('p1', { agent: 'totally-fake-agent' })];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, false);
     assert.ok(result.violations.some((v) => v.rule === 'unknown_agent'));
   });
 
   it('accepts known agents in kebab-case by normalizing to snake_case', () => {
-    const phases = [
-      { id: 'p1', name: 'Review code', agent: 'code-reviewer', parallel: false, blocked_by: [] },
-    ];
+    const phases = [phase('p1', { name: 'Review code', agent: 'code-reviewer' })];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.ok(!result.violations.some((v) => v.rule === 'unknown_agent'));
   });
@@ -126,16 +114,7 @@ describe('handleValidatePlan — agent validation', () => {
 
 describe('handleValidatePlan — agent capability mismatch', () => {
   it('detects read_only agent assigned to phase with files_created', () => {
-    const phases = [
-      {
-        id: 'p1',
-        name: 'Review code',
-        agent: 'architect',
-        parallel: false,
-        blocked_by: [],
-        files_created: ['src/new-file.js'],
-      },
-    ];
+    const phases = [phase('p1', { name: 'Review code', files_created: ['src/new-file.js'] })];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, false);
     assert.ok(result.violations.some((v) => v.rule === 'agent_capability_mismatch' && v.severity === 'error'));
@@ -143,14 +122,11 @@ describe('handleValidatePlan — agent capability mismatch', () => {
 
   it('detects read_shell agent assigned to phase with files_modified', () => {
     const phases = [
-      {
-        id: 'p1',
+      phase('p1', {
         name: 'Debug issue',
         agent: 'debugger',
-        parallel: false,
-        blocked_by: [],
         files_modified: ['src/existing-file.js'],
-      },
+      }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, false);
@@ -158,15 +134,7 @@ describe('handleValidatePlan — agent capability mismatch', () => {
   });
 
   it('warns about read_only agent on phase with creation-signal name', () => {
-    const phases = [
-      {
-        id: 'p1',
-        name: 'Implement feature',
-        agent: 'architect',
-        parallel: false,
-        blocked_by: [],
-      },
-    ];
+    const phases = [phase('p1', { name: 'Implement feature' })];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.ok(
       result.violations.some(
@@ -176,29 +144,18 @@ describe('handleValidatePlan — agent capability mismatch', () => {
   });
 
   it('does not warn for read_only agent on non-creation phase name', () => {
-    const phases = [
-      {
-        id: 'p1',
-        name: 'Review code',
-        agent: 'architect',
-        parallel: false,
-        blocked_by: [],
-      },
-    ];
+    const phases = [phase('p1', { name: 'Review code' })];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.ok(!result.violations.some((v) => v.rule === 'agent_capability_mismatch'));
   });
 
   it('detects read_only agent assigned to phase with planning-time files', () => {
     const phases = [
-      {
-        id: 'p1',
+      phase('p1', {
         name: 'Audit module',
         agent: 'code-reviewer',
-        parallel: false,
-        blocked_by: [],
         files: ['src/app.js'],
-      },
+      }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, false);
@@ -213,8 +170,8 @@ describe('handleValidatePlan — agent capability mismatch', () => {
 describe('handleValidatePlan — cyclic dependencies', () => {
   it('detects direct cyclic dependencies (A blocked_by B, B blocked_by A)', () => {
     const phases = [
-      { id: 'A', name: 'Phase A', agent: 'architect', parallel: false, blocked_by: ['B'] },
-      { id: 'B', name: 'Phase B', agent: 'architect', parallel: false, blocked_by: ['A'] },
+      phase('A', { blocked_by: ['B'] }),
+      phase('B', { blocked_by: ['A'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.valid, false);
@@ -223,9 +180,9 @@ describe('handleValidatePlan — cyclic dependencies', () => {
 
   it('detects multi-node cycles (A→B→C→A)', () => {
     const phases = [
-      { id: 'A', name: 'Phase A', agent: 'architect', parallel: false, blocked_by: ['C'] },
-      { id: 'B', name: 'Phase B', agent: 'architect', parallel: false, blocked_by: ['A'] },
-      { id: 'C', name: 'Phase C', agent: 'architect', parallel: false, blocked_by: ['B'] },
+      phase('A', { blocked_by: ['C'] }),
+      phase('B', { blocked_by: ['A'] }),
+      phase('C', { blocked_by: ['B'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.valid, false);
@@ -234,8 +191,8 @@ describe('handleValidatePlan — cyclic dependencies', () => {
 
   it('returns null parallelization_profile when cycles exist', () => {
     const phases = [
-      { id: 'A', name: 'Phase A', agent: 'architect', parallel: false, blocked_by: ['B'] },
-      { id: 'B', name: 'Phase B', agent: 'architect', parallel: false, blocked_by: ['A'] },
+      phase('A', { blocked_by: ['B'] }),
+      phase('B', { blocked_by: ['A'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.parallelization_profile, null);
@@ -243,24 +200,13 @@ describe('handleValidatePlan — cyclic dependencies', () => {
 });
 
 describe('handleValidatePlan — file overlap in parallel phases', () => {
+  const buildModule = (id, letter, overrides) =>
+    phase(id, { name: `Build module ${letter}`, agent: 'coder', parallel: true, ...overrides });
+
   it('detects file overlaps in parallel phases at the same depth', () => {
     const phases = [
-      {
-        id: 'p1',
-        name: 'Build module A',
-        agent: 'coder',
-        parallel: true,
-        blocked_by: [],
-        files_created: ['src/shared.js'],
-      },
-      {
-        id: 'p2',
-        name: 'Build module B',
-        agent: 'coder',
-        parallel: true,
-        blocked_by: [],
-        files_modified: ['src/shared.js'],
-      },
+      buildModule('p1', 'A', { files_created: ['src/shared.js'] }),
+      buildModule('p2', 'B', { files_modified: ['src/shared.js'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.valid, false);
@@ -269,22 +215,8 @@ describe('handleValidatePlan — file overlap in parallel phases', () => {
 
   it('does not flag file overlap for non-parallel phases', () => {
     const phases = [
-      {
-        id: 'p1',
-        name: 'Build module A',
-        agent: 'coder',
-        parallel: false,
-        blocked_by: [],
-        files_created: ['src/shared.js'],
-      },
-      {
-        id: 'p2',
-        name: 'Build module B',
-        agent: 'coder',
-        parallel: false,
-        blocked_by: ['p1'],
-        files_modified: ['src/shared.js'],
-      },
+      buildModule('p1', 'A', { parallel: false, files_created: ['src/shared.js'] }),
+      buildModule('p2', 'B', { parallel: false, blocked_by: ['p1'], files_modified: ['src/shared.js'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.ok(!result.violations.some((v) => v.rule === 'file_overlap'));
@@ -292,22 +224,8 @@ describe('handleValidatePlan — file overlap in parallel phases', () => {
 
   it('detects file overlap when parallel phases declare the same planning-time files', () => {
     const phases = [
-      {
-        id: 'p1',
-        name: 'Build module A',
-        agent: 'coder',
-        parallel: true,
-        blocked_by: [],
-        files: ['src/app.js'],
-      },
-      {
-        id: 'p2',
-        name: 'Build module B',
-        agent: 'coder',
-        parallel: true,
-        blocked_by: [],
-        files: ['src/app.js'],
-      },
+      buildModule('p1', 'A', { files: ['src/app.js'] }),
+      buildModule('p2', 'B', { files: ['src/app.js'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.valid, false);
@@ -316,22 +234,8 @@ describe('handleValidatePlan — file overlap in parallel phases', () => {
 
   it('detects file overlap when one phase uses planning-time files and a sibling uses runtime manifests', () => {
     const phases = [
-      {
-        id: 'p1',
-        name: 'Build module A',
-        agent: 'coder',
-        parallel: true,
-        blocked_by: [],
-        files: ['src/app.js'],
-      },
-      {
-        id: 'p2',
-        name: 'Build module B',
-        agent: 'coder',
-        parallel: true,
-        blocked_by: [],
-        files_created: ['src/app.js'],
-      },
+      buildModule('p1', 'A', { files: ['src/app.js'] }),
+      buildModule('p2', 'B', { files_created: ['src/app.js'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.valid, false);
@@ -342,9 +246,9 @@ describe('handleValidatePlan — file overlap in parallel phases', () => {
 describe('handleValidatePlan — redundant dependencies', () => {
   it('detects redundant dependencies', () => {
     const phases = [
-      { id: 'A', name: 'Phase A', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'B', name: 'Phase B', agent: 'architect', parallel: false, blocked_by: ['A'] },
-      { id: 'C', name: 'Phase C', agent: 'architect', parallel: false, blocked_by: ['A', 'B'] },
+      phase('A'),
+      phase('B', { blocked_by: ['A'] }),
+      phase('C', { blocked_by: ['A', 'B'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.ok(result.violations.some((v) => v.rule === 'redundant_dependency'));
@@ -353,15 +257,7 @@ describe('handleValidatePlan — redundant dependencies', () => {
 
 describe('handleValidatePlan — warnings-only validity', () => {
   it('returns valid when violations contain only warnings', () => {
-    const phases = [
-      {
-        id: 'p1',
-        name: 'Implement feature',
-        agent: 'architect',
-        parallel: false,
-        blocked_by: [],
-      },
-    ];
+    const phases = [phase('p1', { name: 'Implement feature' })];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.equal(result.valid, true);
     assert.ok(result.violations.every((v) => v.severity === 'warning'));
@@ -371,9 +267,9 @@ describe('handleValidatePlan — warnings-only validity', () => {
 describe('handleValidatePlan — parallelization profile', () => {
   it('returns correct parallelization profile with depths and batches', () => {
     const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p2', name: 'Phase 2', agent: 'architect', parallel: false, blocked_by: ['p1'] },
-      { id: 'p3', name: 'Phase 3', agent: 'architect', parallel: false, blocked_by: ['p1'] },
+      phase('p1'),
+      phase('p2', { blocked_by: ['p1'] }),
+      phase('p3', { blocked_by: ['p1'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     const profile = result.parallelization_profile;
@@ -393,10 +289,10 @@ describe('handleValidatePlan — parallelization profile', () => {
 
   it('parallelization profile includes correct parallel_eligible count', () => {
     const phases = [
-      { id: 'p1', name: 'Phase 1', agent: 'architect', parallel: false, blocked_by: [] },
-      { id: 'p2', name: 'Phase 2', agent: 'architect', parallel: false, blocked_by: ['p1'] },
-      { id: 'p3', name: 'Phase 3', agent: 'architect', parallel: false, blocked_by: ['p1'] },
-      { id: 'p4', name: 'Phase 4', agent: 'architect', parallel: false, blocked_by: ['p2', 'p3'] },
+      phase('p1'),
+      phase('p2', { blocked_by: ['p1'] }),
+      phase('p3', { blocked_by: ['p1'] }),
+      phase('p4', { blocked_by: ['p2', 'p3'] }),
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'complex' });
     const profile = result.parallelization_profile;

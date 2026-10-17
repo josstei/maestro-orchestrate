@@ -37,10 +37,6 @@ describe('handleInitializeWorkspace', () => {
     );
     assert.equal(marker.workspace_path, workspace);
     assert.equal(marker.schema_version, 1);
-    const markerExists = fs.existsSync(
-      path.join(workspace, 'docs', 'maestro', MARKER_FILENAME)
-    );
-    assert.equal(markerExists, true);
   });
 
   it('rejects paths inside an extension cache', async () => {
