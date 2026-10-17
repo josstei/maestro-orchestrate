@@ -79,6 +79,31 @@ describe('hook entrypoints', () => {
     });
   });
 
+  it('rejects a runtime without a hook adapter in the repo install', () => {
+    const result = runHook('hooks/hook-runner.js', 'codex', 'session-start', {});
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, 'Unknown runtime: codex\n');
+    assert.equal(result.stdout, '');
+  });
+
+  it('rejects other runtimes from an isolated claude plugin bundle', async () => {
+    await withIsolatedClaudePlugin(async (pluginRoot) => {
+      const result = runHook('scripts/hook-runner.js', 'gemini', 'session-start', {}, pluginRoot);
+
+      assert.equal(result.status, 1);
+      assert.equal(result.stderr, 'Unknown runtime: gemini\n');
+      assert.equal(result.stdout, '');
+    });
+  });
+
+  it('checks the runtime before the hook name', () => {
+    const result = runHook('hooks/hook-runner.js', 'bogus', 'nope', {});
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, 'Unknown runtime: bogus\n');
+  });
+
   it('boots qwen hook adapters against canonical src hook logic', () => {
     const cases = [
       ['session-start', { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: 'SessionStart' }],

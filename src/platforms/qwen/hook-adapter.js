@@ -1,6 +1,7 @@
 'use strict';
 
-const { defineAdapter, EXIT_SUCCESS, EXIT_BLOCK } = require('./factory');
+const EXIT_SUCCESS = 0;
+const EXIT_BLOCK = 2;
 
 /**
  * Qwen Code hook I/O adapter.
@@ -76,9 +77,9 @@ function getExitCode(result) {
   return result.action === 'deny' ? EXIT_BLOCK : EXIT_SUCCESS;
 }
 
-module.exports = defineAdapter({
+module.exports = {
   normalizeInput,
   formatOutput,
   errorFallback,
   getExitCode,
-});
+};
