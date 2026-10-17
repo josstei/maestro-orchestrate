@@ -297,9 +297,9 @@ For detailed documentation of all seven GitHub Actions workflows, the release pi
 
 ### Test Suite
 
-79 test files using Node.js built-in `node:test`:
+80 test files using Node.js built-in `node:test`:
 
-- 49 unit test files (`tests/unit/`)
+- 50 unit test files (`tests/unit/`)
 - 10 transform test files (`tests/transforms/`)
 - 20 integration test files (`tests/integration/`)
 

@@ -143,7 +143,7 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
-  it('uses MCP client roots for Codex session state when launched from a cwd outside the workspace', async () => {
+  it('keeps Codex session state in the explicit workspace_path when launched from a cwd outside it', async () => {
     const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-workspace-'));
     const spawnCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-spawn-'));
 
