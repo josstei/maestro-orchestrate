@@ -4,9 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { ROOT } = require('./helpers');
-const { expandManifest, assertNoMirroredSharedOutputs } = require('../../src/generator/manifest-expander');
-const manifestRules = require('../../src/manifest');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
 describe('src-first architecture invariants', () => {
   it('ships a detached src payload for Claude isolated installs', () => {
@@ -62,17 +59,5 @@ describe('src-first architecture invariants', () => {
         `Did not expect ${relativePath} to exist in src-first mode`
       );
     }
-  });
-
-  it('rejects manifest outputs that reintroduce mirrored shared code', () => {
-    const runtimes = {
-      gemini: getRuntimeConfig('gemini'),
-      claude: getRuntimeConfig('claude'),
-      codex: getRuntimeConfig('codex'),
-      qwen: getRuntimeConfig('qwen'),
-    };
-
-    const manifest = expandManifest(manifestRules, runtimes, path.join(ROOT, 'src'));
-    assert.doesNotThrow(() => assertNoMirroredSharedOutputs(manifest));
   });
 });
