@@ -42,41 +42,32 @@ jobs:
       - name: Run full test suite
         run: npm test
 
-      - name: Determine publish eligibility
-        id: publish_gate
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Set preview version
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           BASE=$(node -p "require('./package.json').version")
-          SHORT_SHA=$(printf '%s' "$HEAD_SHA" | cut -c1-7)
+          SHORT_SHA="${HEAD_SHA:0:7}"
           PREVIEW="${BASE}-preview.${SHORT_SHA}"
           npm version "$PREVIEW" --no-git-tag-version
 
       - name: Regenerate runtime metadata
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         run: node scripts/generate.js
 
       - name: Verify npm package contents
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         run: npm run pack:verify
 
       - name: Publish preview
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         run: node scripts/npm-publish-idempotent.js --tag preview --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Upsert PR comment
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -84,10 +75,9 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          SHA="$HEAD_SHA"
           BODY="Preview published: \`npm install @josstei/maestro@${VERSION}\`
 
-          Built from \`${SHA}\`"
+          Built from \`${HEAD_SHA}\`"
 
           EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
             --jq 'map(select(.body | startswith("Preview published:"))) | .[0].id')

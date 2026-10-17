@@ -75,7 +75,7 @@ graph TD
 
 ### Environment and Secrets
 
-Uses default permissions (read-only). No secrets or environment variables required.
+`permissions: contents: read` (least privilege; only needs to read the repository). No secrets or environment variables required.
 
 ### Artifacts
 
@@ -206,11 +206,12 @@ graph TD
 | Generate runtime adapters | Runs `node scripts/generate.js` |
 | Check adapter drift | Fails with `::error::Nightly drift detected on main` if generated files differ |
 | Run full test suite | Executes the full test suite |
-| Determine publish eligibility | Sets `enabled=true` output if `NPM_TOKEN` secret is present |
 | Set nightly version | Computes version as `{base}-nightly.{YYYYMMDD}` using `npm version --no-git-tag-version` |
 | Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the nightly version |
 | Verify npm package contents | Runs `npm run pack:verify` against the nightly package surface |
 | Publish nightly | Publishes through `node scripts/npm-publish-idempotent.js --tag nightly --access public`, skipping if the exact version already exists |
+
+Every step after **Run full test suite** is gated on `if: env.NPM_TOKEN != ''` (the job-level `NPM_TOKEN` env holds the secret), so publishing is skipped when the secret is absent.
 
 ### Environment and Secrets
 
@@ -278,12 +279,13 @@ graph TD
 | Generate runtime adapters | Runs `node scripts/generate.js` |
 | Check adapter drift | Fails with `::error::Preview drift detected` if drift exists |
 | Run full test suite | Executes the full test suite |
-| Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Set preview version | Computes version as `{base}-preview.{7-char SHA}` |
 | Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the preview version |
 | Verify npm package contents | Runs `npm run pack:verify` against the preview package surface |
 | Publish preview | Publishes through `node scripts/npm-publish-idempotent.js --tag preview --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a PR comment with the install command |
+
+Every step after **Run full test suite** is gated on `if: env.NPM_TOKEN != ''` (the job-level `NPM_TOKEN` env holds the secret), so publishing is skipped when the secret is absent.
 
 ### Environment and Secrets
 
@@ -353,9 +355,7 @@ graph TD
 | Validate branch | Fails if not running from `refs/heads/main` |
 | Checkout | Full history (`fetch-depth: 0`) using `RELEASE_TOKEN` for push permissions |
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
-| Infer version from commits | Scans commit logs since last tag; determines bump level: `BREAKING CHANGE` or `!:` triggers major, `feat` triggers minor, otherwise patch |
-| Resolve target version | Uses explicit input if provided, otherwise uses inferred version |
-| Validate target version | Ensures version matches `X.Y.Z` semver pattern |
+| Resolve and validate target version | Uses the explicit `version` input if provided; otherwise scans commit logs since the last tag and infers the bump level (`BREAKING CHANGE` or `!:` triggers major, `feat` triggers minor, otherwise patch). Fails unless the result matches the `X.Y.Z` semver pattern, then exports it as `VERSION` for the later steps |
 | Validate CHANGELOG | Fails if the `[Unreleased]` section in `CHANGELOG.md` has no content |
 | Generate and check drift | Runs generator and fails if `main` has uncommitted drift |
 | Run full test suite | Executes the full test suite |
@@ -435,12 +435,13 @@ graph TD
 | Generate runtime adapters | Runs `node scripts/generate.js` |
 | Check adapter drift | Fails with `::error::RC drift detected` |
 | Run full test suite | Executes the full test suite |
-| Determine publish eligibility | Gates on `NPM_TOKEN` presence |
 | Determine RC version | Reads base version from `package.json`, queries npm registry for existing RC versions of this base, increments the RC number to avoid collisions |
 | Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the RC version |
 | Verify npm package contents | Runs `npm run pack:verify` against the RC package surface |
 | Publish RC | Publishes through `node scripts/npm-publish-idempotent.js --tag rc --access public`, skipping if the exact version already exists |
 | Upsert PR comment | Posts or updates a comment with install command and short SHA |
+
+Every step after **Run full test suite** is gated on `if: env.NPM_TOKEN != ''` (the job-level `NPM_TOKEN` env holds the secret), so publishing is skipped when the secret is absent.
 
 ### Environment and Secrets
 
@@ -636,7 +637,7 @@ graph LR
 
 | Workflow | Permissions | Secrets |
 |----------|-------------|---------|
-| Source Of Truth Check | Default (read) | None |
+| Source Of Truth Check | `contents: read` | None |
 | Commit Message Check | `contents: read` | None |
 | Nightly Build | `contents: read` | `NPM_TOKEN` |
 | Preview Build | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
