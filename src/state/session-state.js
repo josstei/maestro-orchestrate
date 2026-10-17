@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { atomicWriteSync, ensurePrivateDir } = require('../lib/io');
-const { StateError } = require('../lib/errors');
+const { StateError, NotFoundError } = require('../lib/errors');
 const markdownState = require('../core/markdown-state');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
@@ -119,6 +119,22 @@ function assertSessionMatch(state, sessionId, verb = 'got') {
   }
 }
 
+/**
+ * Look up a phase by id, throwing NotFoundError with `message` when absent.
+ * @param {Array<{ id: number | string }>} phases
+ * @param {number | string} phaseId
+ * @param {string} [message]
+ * @returns {object} the matching phase
+ * @throws {NotFoundError} when no phase has id `phaseId`
+ */
+function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found in session state`) {
+  const phase = phases.find((candidate) => candidate.id === phaseId);
+  if (!phase) {
+    throw new NotFoundError(message);
+  }
+  return phase;
+}
+
 function ensureWorkspace(stateDir, basePath) {
   const fullBase = resolveStateDirUnder(basePath, stateDir);
   ensurePrivateDir(fullBase, 'STATE_DIR must not be a symlink');
@@ -153,5 +169,6 @@ module.exports = {
   writeActiveSession,
   withSessionState,
   assertSessionMatch,
+  findPhaseOrThrow,
   ensureWorkspace,
 };

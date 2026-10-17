@@ -29,6 +29,7 @@ const {
   writeActiveSession,
   withSessionState,
   assertSessionMatch,
+  findPhaseOrThrow,
 } = require('../../state/session-state');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
@@ -257,35 +258,22 @@ function handleTransitionPhase(params, projectRoot) {
   return withSessionState(projectRoot, ({ state }) => {
     assertSessionMatch(state, params.session_id);
 
-    let completedPhase;
-    if (hasCompletedPhase) {
-      completedPhase = state.phases.find(
-        (phase) => phase.id === params.completed_phase_id
-      );
-      if (!completedPhase) {
-        throw new NotFoundError(
-          `Phase ${params.completed_phase_id} not found in session state`
-        );
-      }
-    }
+    const completedPhase = hasCompletedPhase
+      ? findPhaseOrThrow(state.phases, params.completed_phase_id)
+      : undefined;
 
-    let nextPhase;
-    if (hasNextPhaseId) {
-      nextPhase = state.phases.find((phase) => phase.id === params.next_phase_id);
-      if (!nextPhase) {
-        throw new NotFoundError(
+    const nextPhase = hasNextPhaseId
+      ? findPhaseOrThrow(
+          state.phases,
+          params.next_phase_id,
           `next_phase_id ${params.next_phase_id} does not match any phase in session state`
-        );
-      }
-    }
+        )
+      : undefined;
 
     const phasesToStart = [];
     if (hasNextPhaseIds) {
       for (const id of params.next_phase_ids) {
-        const phase = state.phases.find((candidate) => candidate.id === id);
-        if (!phase) {
-          throw new NotFoundError(`Phase ${id} not found in session state`);
-        }
+        const phase = findPhaseOrThrow(state.phases, id);
         if (phase.status === 'completed' || phase.status === 'failed') {
           throw new StateError(`Cannot start phase ${id}: status is '${phase.status}'`);
         }
