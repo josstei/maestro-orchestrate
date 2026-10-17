@@ -7,10 +7,12 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   RELEASE_ARTIFACT_PATHS,
+  RELEASE_OUT_DIR,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
   readJson,
+  releaseArchiveName,
   toPosixPath,
 } = require('./release-artifact-manifest');
 const { parseFlagArgs, runCli } = require('./lib/cli');
@@ -31,17 +33,11 @@ Options:
 }
 
 function parseArgs(argv) {
-  const options = parseFlagArgs(argv, {
-    defaults: { version: null, outDir: 'dist/release' },
+  return parseFlagArgs(argv, {
+    defaults: { version: null, outDir: RELEASE_OUT_DIR },
     flags: { '--version': 'version', '--out-dir': 'outDir' },
     printHelp,
   });
-
-  if (options.version === undefined || options.outDir === undefined) {
-    throw new Error('Missing value for release artifact option');
-  }
-
-  return options;
 }
 
 function resolveVersion(root, requestedVersion) {
@@ -73,9 +69,9 @@ function createTarball(stagingRoot, archivePath) {
 
 function packageReleaseArtifacts(options = {}) {
   const root = options.root || ROOT;
-  const version = resolveVersion(root, options.version || null);
-  const outDir = path.resolve(root, options.outDir || 'dist/release');
-  const archivePath = path.join(outDir, `maestro-v${version}-extension.tar.gz`);
+  const version = resolveVersion(root, options.version);
+  const outDir = path.resolve(root, options.outDir || RELEASE_OUT_DIR);
+  const archivePath = path.join(outDir, releaseArchiveName(version));
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-artifact-'));
   const stagingRoot = path.join(tempRoot, 'maestro');
 

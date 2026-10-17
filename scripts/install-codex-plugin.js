@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { codexMarketplace, codexMarketplacePlugin } = require('../src/platforms/metadata');
+const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE_PLUGIN_DIR = path.join(ROOT, 'plugins', 'maestro');
@@ -33,7 +34,7 @@ function parseArgs(argv) {
   }
 
   for (const arg of args) {
-    if (!['--dry-run', '--help', '-h'].includes(arg)) {
+    if (arg !== '--dry-run') {
       throw new Error(`Unknown argument: ${arg}`);
     }
   }
@@ -146,4 +147,4 @@ function main() {
   printSummary({ dryRun, marketplaceExisted, pluginAction });
 }
 
-main();
+runCli('codex plugin install failed', main);

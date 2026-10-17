@@ -18,7 +18,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { execSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 
 const HOOKS_DIR = '.githooks';
 
@@ -28,7 +28,7 @@ if (!fs.existsSync(HOOKS_DIR)) {
 
 let topLevel;
 try {
-  topLevel = execSync('git rev-parse --show-toplevel', {
+  topLevel = execFileSync('git', ['rev-parse', '--show-toplevel'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   }).trim();
@@ -40,5 +40,5 @@ if (path.resolve(topLevel) !== path.resolve('.')) {
   process.exit(0);
 }
 
-execSync(`git config core.hooksPath ${HOOKS_DIR}`, { stdio: 'inherit' });
+execFileSync('git', ['config', 'core.hooksPath', HOOKS_DIR], { stdio: 'inherit' });
 console.log(`postinstall: git hooks activated (${HOOKS_DIR}/)`);

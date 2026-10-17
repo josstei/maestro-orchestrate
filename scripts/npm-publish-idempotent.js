@@ -28,10 +28,6 @@ function parseArgs(argv) {
     throw new Error('Missing value for --access');
   }
 
-  if (options.tag === undefined) {
-    throw new Error('Missing value for --tag');
-  }
-
   return options;
 }
 

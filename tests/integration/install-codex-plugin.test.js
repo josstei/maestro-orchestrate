@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { describe, it } = require('node:test');
 const { ROOT } = require('./helpers');
 
@@ -117,6 +117,25 @@ describe('codex installer integration', () => {
       assert.match(output, /Dry run complete\./);
       assert.equal(fs.existsSync(path.join(homeDir, '.codex')), false);
       assert.equal(fs.existsSync(path.join(homeDir, '.agents')), false);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports unknown arguments as a one-line failure without writing files', () => {
+    const homeDir = makeTempHome();
+
+    try {
+      const result = spawnSync('node', ['scripts/install-codex-plugin.js', '--foo'], {
+        cwd: ROOT,
+        env: { ...process.env, HOME: homeDir },
+        encoding: 'utf8',
+      });
+
+      assert.equal(result.status, 1);
+      assert.equal(result.stdout, '');
+      assert.equal(result.stderr, 'codex plugin install failed: Unknown argument: --foo\n');
+      assert.deepEqual(fs.readdirSync(homeDir), []);
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
     }
