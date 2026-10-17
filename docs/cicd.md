@@ -28,7 +28,7 @@ graph LR
     end
 ```
 
-The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release publishes through npm Trusted Publishing with GitHub Actions OIDC. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
+The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release requires the `NPM_TOKEN` secret and publishes with it. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
 
 ## Source Of Truth Check
 
@@ -69,9 +69,10 @@ graph TD
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
 | Generate runtime adapters | Runs `node scripts/generate.js` to rebuild all runtime outputs |
 | Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any generated file differs from what is committed |
-| Run full test suite | Executes `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` |
+| Run full test suite | Runs `npm test` (the `node --test` globs over `tests/unit/`, `tests/transforms/`, and `tests/integration/` in `package.json`) |
 | Verify npm package contents | Runs `npm run pack:verify` to ensure npm dry-run packaging contains required runtime files and no test-only directories |
-| Package and verify release artifact | Runs `npm run release:artifacts` and `npm run release:verify-artifacts` to validate the generic GitHub Release archive |
+| Package release artifact | Runs `npm run release:artifacts` to build the generic GitHub Release archive |
+| Verify release artifact | Runs `npm run release:verify-artifacts` to validate that archive |
 
 ### Environment and Secrets
 
@@ -127,24 +128,22 @@ graph TD
 
 | Step | Description |
 |------|-------------|
-| Validate PR title | Reads `github.event.pull_request.title` via the `PR_TITLE` env var; tests it against the Conventional Commits regex; emits `::error::` annotation with format guidance on failure |
-
-No checkout step — the job reads only event-payload metadata.
+| Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) so the job can source `.githooks/lib/semantic-git.sh` |
+| Validate PR title | Reads `github.event.pull_request.title` via the `PR_TITLE` env var; tests it against `SEMANTIC_COMMIT_PATTERN` from `semantic-git.sh`; emits `::error::` annotation with format guidance on failure |
 
 **Job: `check-pr-branch` (name: `branch-name-check`)** — runs only on `pull_request` events.
 
 | Step | Description |
 |------|-------------|
-| Validate PR branch | Reads `github.event.pull_request.head.ref`; accepts `<type>/<slug>`, `<namespace>/<type>/<slug>`, `release/vX.Y.Z`, protected branch names, and known automation prefixes; emits `::error::` annotation with rename guidance on failure |
-
-No checkout step — the job reads only event-payload metadata.
+| Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) so the job can source `.githooks/lib/semantic-git.sh` |
+| Validate PR branch | Reads `github.event.pull_request.head.ref` and checks it with `semantic_branch_name_is_valid`, which accepts `<type>/<slug>`, `<namespace>/<type>/<slug>`, `release/vX.Y.Z`, protected branch names, and known automation prefixes; emits `::error::` annotation with rename guidance on failure |
 
 **Job: `check-commits` (name: `commit-subjects-check`)** — runs on both event types.
 
 | Step | Description |
 |------|-------------|
 | Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) with `fetch-depth: 0` to access the full history |
-| Validate commit subjects | Resolves the commit range from the event (PR: `base.sha..head.sha`; push: `before..after`, or `after~1..after` on initial push); iterates `git log --format='%H %s'`; tests each subject against the regex with pass-throughs for `Merge`, `Revert`, `fixup!`, `squash!`, `amend!` |
+| Validate commit subjects | Resolves the commit range from the event (PR: `base.sha..head.sha`; push: `before..after`, or `after~1..after` on initial push); iterates `git log --format='%H %s'`; checks each subject with `semantic_commit_subject_is_valid`, which passes through `Merge`, `Revert`, `fixup!`, `squash!`, and `amend!` subjects |
 
 ### Environment and Secrets
 
@@ -156,9 +155,8 @@ None produced or consumed.
 
 ### Key Behaviors
 
-- The PR-title regex matches the local hook regex character-for-character, ensuring local-pass and CI-pass agree.
-- The PR-branch regex mirrors `.githooks/pre-commit` and `.githooks/pre-push`, so branch names are checked locally before committing, locally before pushing, and in CI before merging.
-- Pass-throughs (`Merge `, `Revert `, `fixup!`, `squash!`, `amend!`) match those in `.githooks/commit-msg`, so git-generated subjects (interactive rebases, merges, reverts) are accepted in both layers.
+- All three jobs source `.githooks/lib/semantic-git.sh`, the same library the local `commit-msg`, `pre-commit`, and `pre-push` hooks source, so local-pass and CI-pass agree. Branch names are checked locally before committing, locally before pushing, and in CI before merging.
+- The PR-title job tests `SEMANTIC_COMMIT_PATTERN` directly, so it has no pass-throughs. The commit-subjects job uses `semantic_commit_subject_is_valid`, which accepts the git-generated `Merge `, `Revert `, `fixup!`, `squash!`, and `amend!` subjects (interactive rebases, merges, reverts) exactly as the `commit-msg` and `pre-push` hooks do.
 - Bot-authored release commits (`release: vX.Y.Z` from Prepare Release) match the regex without exception.
 - The `push` trigger means even a direct admin push to `main` is validated post-hoc — failures appear as red checks on the commit on `main`.
 
@@ -531,7 +529,7 @@ graph TD
 
 | Item | Type | Purpose |
 |------|------|---------|
-| `GH_TOKEN` | Env (derived) | Set to `${{ github.token }}` for PR creation and GitHub API calls |
+| `GH_TOKEN` | Env (derived) | Set to `${{ github.token }}` for the GitHub API lookup of the merged release PR |
 | `NPM_TOKEN` | Secret | npm registry authentication for stable publish and dist-tag repair |
 | `NODE_AUTH_TOKEN` | Env (derived) | Set to `$NPM_TOKEN` for npm CLI |
 
@@ -549,7 +547,7 @@ graph TD
 - Manual recovery is only for stable versions and requires the checked-out commit, `package.json`, `CHANGELOG.md`, and existing `vX.Y.Z` tag to agree. This recovers failures after tag creation without creating a new version or publishing from a maintainer laptop.
 - Version validation cross-checks `package.json` against the CHANGELOG (unconditional), the existing tag when present, and, when applicable, against the release branch name (`release/vX.Y.Z`) and the PR title (`release: vX.Y.Z`). A mismatch in any available source fails the workflow.
 - Stable releases require `NPM_TOKEN`; npm Trusted Publishing should only replace it after the package owner explicitly configures and tests that path.
-- npm `latest` is stable-only. The publish helper rejects prereleases published without an explicit prerelease tag or with `latest`, rejects stable publishes with prerelease dist-tags, removes a stale `latest` tag when it points at a prerelease and no stable exists, and moves `latest` to the stable version after a stable publish or idempotent skip.
+- npm `latest` is stable-only. The publish helper rejects prereleases published without an explicit prerelease tag or with `latest`, rejects stable publishes with prerelease dist-tags, moves a `latest` that points at a prerelease back to the highest stable version (or warns and defers that repair, never deleting `latest`, when no stable version exists), and moves `latest` to the stable version after a stable publish or idempotent skip.
 - Tag creation is idempotent: if the tag already exists at the same commit, the step is skipped. If it exists at a different commit, the workflow fails to prevent overwriting a release.
 
 ---
@@ -571,8 +569,8 @@ The `justfile` provides local development commands that mirror CI behavior.
 | `just test-transforms` | Run only transform unit tests | No CI equivalent |
 | `just test-integration` | Run only integration tests | No CI equivalent |
 | `just check` | Generate + verify zero drift | Replicated in all 6 generator workflows |
-| `just check-layers` | Verify `lib/` layer boundary imports | No CI workflow equivalent |
-| `just ci` | Full CI equivalent: `check` + `check-layers` + `test` | Superset of CI (includes `check-layers`) |
+| `just check-layers` | Verify `lib/` layer boundary imports | Covered by `npm test` in all 6 generator workflows (the suite runs `scripts/check-layer-boundaries.js` against the real `src/lib`) |
+| `just ci` | Full CI equivalent: `check` + `check-layers` + `test` | Matches Source Of Truth Check, minus the npm pack and release-artifact verification |
 | `just cleanup-branches` | Delete local branches whose remote is gone | No CI equivalent |
 
 ### CI Mapping
@@ -582,12 +580,12 @@ The workflows replicate the following `just` commands:
 ```
 just generate  -->  node scripts/generate.js
 just check     -->  git diff --exit-code --name-only (after generate)
-just test      -->  node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+just test      -->  npm test
 pack verify    -->  npm run pack:verify
 artifact check -->  npm run release:artifacts && npm run release:verify-artifacts
 ```
 
-The local `just ci` recipe runs `check`, `check-layers`, and `test`. The GitHub source-of-truth workflow runs `generate`, drift check, `test`, npm pack verification, and release artifact verification, but does not run `check-layers` (`node scripts/check-layer-boundaries.js`). The layer boundary check is a local-only validation.
+`just test` passes the same three `node --test` globs as the `package.json` `test` script.
 
 ---
 

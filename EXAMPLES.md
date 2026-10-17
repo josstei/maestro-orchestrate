@@ -229,7 +229,7 @@ Source: `docs/usage.md`, `justfile`
 ### Run Tests
 
 ```bash
-node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+npm test
 ```
 
 For the local CI equivalent:
