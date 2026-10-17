@@ -1,29 +1,15 @@
 'use strict';
 
-const { after, describe, it } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
+const { makeTempDir } = require('../support/fs');
 const { ROOT } = require('./helpers');
 
 const ZERO_SHA = '0000000000000000000000000000000000000000';
-
-const tmpDirs = [];
-
-function makeTempDir(prefix) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  tmpDirs.push(dir);
-  return dir;
-}
-
-after(() => {
-  for (const dir of tmpDirs) {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 function hookPath(name) {
   return path.join(ROOT, '.githooks', name);

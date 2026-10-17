@@ -1,9 +1,8 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -16,16 +15,13 @@ const {
   ensureWorkspace,
 } = require('../../src/state/session-state');
 const { withEnv } = require('../support/env');
+const { makeTempDir } = require('../support/fs');
 
 describe('session-state', () => {
   let tmpRoot;
 
   beforeEach(() => {
-    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-test-'));
-  });
-
-  afterEach(() => {
-    fs.rmSync(tmpRoot, { recursive: true, force: true });
+    tmpRoot = makeTempDir('maestro-test-');
   });
 
   it('DEFAULT_STATE_DIR equals docs/maestro', () => {
@@ -67,15 +63,11 @@ describe('session-state', () => {
   });
 
   it('resolveStateDirPath rejects absolute paths outside root via validateContainment', () => {
-    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-abs-outside-'));
-    try {
-      assert.throws(
-        () => resolveStateDirPath(tmpRoot, outsideDir),
-        /state_dir must be within the project root/
-      );
-    } finally {
-      fs.rmSync(outsideDir, { recursive: true, force: true });
-    }
+    const outsideDir = makeTempDir('maestro-abs-outside-');
+    assert.throws(
+      () => resolveStateDirPath(tmpRoot, outsideDir),
+      /state_dir must be within the project root/
+    );
   });
 
   it('resolveActiveSessionPath returns correct path', () => {

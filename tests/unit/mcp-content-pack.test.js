@@ -3,22 +3,21 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const { makeTempDir } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 
 describe('content tool pack', () => {
   it('registers the content and runtime metadata tools', () => {
     const server = createServer({
       runtimeConfig: getRuntimeConfig('claude'),
       services: {
-        canonicalSrcRoot: path.join(REPO_ROOT, 'src'),
+        canonicalSrcRoot: path.join(ROOT, 'src'),
       },
       toolPacks: [createToolPack],
     });
@@ -30,7 +29,7 @@ describe('content tool pack', () => {
   });
 
   it('serves skill content, agent content, and runtime context through the pack', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-content-pack-'));
+    const root = makeTempDir('maestro-content-pack-');
     fs.mkdirSync(path.join(root, 'src', 'skills', 'shared', 'delegation'), {
       recursive: true,
     });

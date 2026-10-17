@@ -3,17 +3,17 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
+const { makeTempDir } = require('../support/fs');
 
 describe('get_skill_content handler', () => {
   it('reads canonical src content and applies skill transforms', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-skill-content-'));
+    const root = makeTempDir('maestro-skill-content-');
     const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(
@@ -33,7 +33,7 @@ describe('get_skill_content handler', () => {
   });
 
   it('applies architecture feature stripping and agent-name replacement', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-architecture-'));
+    const root = makeTempDir('maestro-architecture-');
     const refDir = path.join(root, 'src', 'references');
     fs.mkdirSync(refDir, { recursive: true });
     fs.writeFileSync(
@@ -63,7 +63,7 @@ describe('get_skill_content handler', () => {
   });
 
   it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-delegation-names-'));
+    const root = makeTempDir('maestro-delegation-names-');
     const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(
@@ -89,7 +89,7 @@ describe('get_skill_content handler', () => {
 
 describe('get_agent handler', () => {
   it('returns stripped methodology bodies and runtime-mapped tools', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-content-'));
+    const root = makeTempDir('maestro-agent-content-');
     writeAgentFixture(
       path.join(root, 'src'),
       'coder',
@@ -125,7 +125,7 @@ describe('get_agent handler', () => {
   });
 
   it('returns tool_name matching runtime agentNaming convention', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-toolname-'));
+    const root = makeTempDir('maestro-agent-toolname-');
     writeAgentFixture(
       path.join(root, 'src'),
       'code-reviewer',
@@ -167,7 +167,7 @@ describe('get_agent handler', () => {
   });
 
   it('replays Gemini ux_designer delegation scenario end-to-end', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-replay-'));
+    const root = makeTempDir('maestro-replay-');
     writeAgentFixture(
       path.join(root, 'src'),
       'ux-designer',

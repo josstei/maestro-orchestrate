@@ -1,12 +1,13 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
+const { makeTempDir } = require('../support/fs');
 const { ROOT } = require('./helpers');
 
 const SCRIPTS_DIR = path.join(ROOT, 'src', 'scripts');
@@ -23,10 +24,6 @@ const SCRUBBED_ENV = [
   'CLAUDE_PLUGIN_ROOT',
   SETTING,
 ];
-
-function makeTempWorkspace() {
-  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-state-scripts-')));
-}
 
 /**
  * Runs `node src/scripts/<script>` in `cwd` with a scrubbed environment, so the
@@ -52,11 +49,7 @@ describe('state scripts', () => {
   let workspace;
 
   beforeEach(() => {
-    workspace = makeTempWorkspace();
-  });
-
-  afterEach(() => {
-    fs.rmSync(workspace, { recursive: true, force: true });
+    workspace = fs.realpathSync(makeTempDir('maestro-state-scripts-'));
   });
 
   describe('read-setting.js', () => {

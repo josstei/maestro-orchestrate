@@ -3,10 +3,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { withEnv } = require('../support/env');
+const { makeTempDir } = require('../support/fs');
 const { createSessionServer } = require('../support/session-server');
 
 async function bootstrap(server, workspace) {
@@ -47,7 +47,7 @@ function scan(server, workspace) {
 
 describe('scan_phase_changes', () => {
   it('returns files created after the phase started', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-'));
+    const workspace = makeTempDir('maestro-recon-');
     const server = createSessionServer();
     await bootstrap(server, workspace);
 
@@ -64,7 +64,7 @@ describe('scan_phase_changes', () => {
   });
 
   it('excludes docs/maestro and .git paths', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-exc-'));
+    const workspace = makeTempDir('maestro-recon-exc-');
     const server = createSessionServer();
     await bootstrap(server, workspace);
 
@@ -83,7 +83,7 @@ describe('scan_phase_changes', () => {
   it('scans nested directories when the server cwd is inside an extension cache', async () => {
     // Claude and Gemini launch the MCP server with cwd set to the plugin/extension
     // install dir (e.g. ~/.claude/plugins/...), which is itself a cache path.
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-cwd-'));
+    const root = makeTempDir('maestro-recon-cwd-');
     const pluginCwd = path.join(root, 'home', '.claude', 'plugins', 'cache', 'maestro');
     const workspace = path.join(root, 'workspace');
     fs.mkdirSync(pluginCwd, { recursive: true });
@@ -111,7 +111,7 @@ describe('scan_phase_changes', () => {
   });
 
   it('excludes a custom MAESTRO_STATE_DIR', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-statedir-'));
+    const workspace = makeTempDir('maestro-recon-statedir-');
     const outcome = await withEnv({ MAESTRO_STATE_DIR: '.maestro' }, async () => {
       const server = createSessionServer();
       await bootstrap(server, workspace);
@@ -132,7 +132,7 @@ describe('scan_phase_changes', () => {
   });
 
   it('excludes an absolute MAESTRO_STATE_DIR when the workspace is opened through a symlink', async () => {
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-link-')));
+    const root = fs.realpathSync(makeTempDir('maestro-recon-link-'));
     const realWorkspace = path.join(root, 'real');
     const workspace = path.join(root, 'alias');
     fs.mkdirSync(path.join(realWorkspace, '.maestro'), { recursive: true });
@@ -160,7 +160,7 @@ describe('scan_phase_changes', () => {
   });
 
   it('excludes extension cache directories inside the workspace', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-cache-'));
+    const workspace = makeTempDir('maestro-recon-cache-');
     const server = createSessionServer();
     await bootstrap(server, workspace);
 
@@ -188,7 +188,7 @@ describe('reconcile_phase — empty payload', () => {
       { files_created: [], files_modified: [], files_deleted: [], downstream_context: {} },
     ];
     for (const payload of emptyPayloads) {
-      const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-empty-'));
+      const workspace = makeTempDir('maestro-recon-empty-');
       const server = createSessionServer();
       await bootstrap(server, workspace);
 
@@ -218,7 +218,7 @@ describe('reconcile_phase — empty payload', () => {
 
 describe('reconcile_phase', () => {
   it('clears requires_reconciliation and writes file manifests', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-recon-e2e-'));
+    const workspace = makeTempDir('maestro-recon-e2e-');
     const server = createSessionServer();
     await bootstrap(server, workspace);
 

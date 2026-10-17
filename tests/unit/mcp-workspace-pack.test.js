@@ -3,12 +3,12 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/workspace');
 const { withEnv } = require('../support/env');
+const { makeTempDir } = require('../support/fs');
 
 function createWorkspacePackServer() {
   return createServer({
@@ -34,7 +34,7 @@ describe('workspace tool pack', () => {
   });
 
   it('resolves settings from the workspace env file', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-settings-'));
+    const projectRoot = makeTempDir('maestro-settings-');
     fs.writeFileSync(
       path.join(projectRoot, '.env'),
       'MAESTRO_DISABLED_AGENTS=architect, tester\n'
@@ -60,9 +60,7 @@ describe('workspace tool pack', () => {
   });
 
   it('initializes the workspace directories under the provided project root', async () => {
-    const projectRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), 'maestro-workspace-')
-    );
+    const projectRoot = makeTempDir('maestro-workspace-');
 
     const server = createWorkspacePackServer();
 

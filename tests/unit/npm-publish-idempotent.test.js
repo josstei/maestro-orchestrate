@@ -3,7 +3,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -13,26 +12,18 @@ const {
   parseDistTagOutput,
   publishIfNeeded,
 } = require('../../scripts/npm-publish-idempotent');
+const { makeTempDir } = require('../support/fs');
 
 const SILENT_LOGGER = { log() {}, warn() {} };
 
-function createPackageRoot(version = '1.2.3') {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-publish-'));
+function withPackageRoot(version, fn) {
+  const root = makeTempDir('maestro-publish-');
   fs.writeFileSync(
     path.join(root, 'package.json'),
     `${JSON.stringify({ name: '@josstei/maestro', version }, null, 2)}\n`,
     'utf8'
   );
-  return root;
-}
-
-function withPackageRoot(version, fn) {
-  const root = createPackageRoot(version);
-  try {
-    return fn(root);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+  return fn(root);
 }
 
 function npmError(stderr) {

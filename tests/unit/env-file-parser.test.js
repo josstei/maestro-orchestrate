@@ -1,28 +1,21 @@
 'use strict';
 
-const { describe, it, before, after } = require('node:test');
+const { describe, it, before } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { parseEnvFile } = require('../../src/core/env-file-parser');
+const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('parseEnvFile', () => {
   let tmpDir;
 
   before(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'env-file-parser-'));
-  });
-
-  after(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    tmpDir = makeTempDir('env-file-parser-');
   });
 
   function writeFixture(name, content) {
-    const filePath = path.join(tmpDir, name);
-    fs.writeFileSync(filePath, content, 'utf8');
-    return filePath;
+    return writeTree(tmpDir, name, content);
   }
 
   it('parses a simple KEY=VALUE pair', () => {

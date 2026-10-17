@@ -3,11 +3,11 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { DEFAULT_TOOL_PACKS } = require('../../src/mcp/maestro-server');
+const { makeTempDir } = require('../support/fs');
 
 function createFullServer() {
   return createServer({
@@ -72,7 +72,7 @@ describe('workspace requirement contract', () => {
   });
 
   it('workspace-dependent tools succeed after initialize_workspace provides a workspace', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-wr-'));
+    const workspace = makeTempDir('maestro-wr-');
     const server = createFullServer();
 
     const init = await server.callTool(
@@ -90,7 +90,7 @@ describe('workspace requirement contract', () => {
 
 describe('initialize_workspace contract', () => {
   it('rejects initialize_workspace with a path inside a plugin cache', async () => {
-    const cacheParent = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-cache-parent-'));
+    const cacheParent = makeTempDir('codex-cache-parent-');
     const cache = path.join(cacheParent, '.codex', 'plugins', 'maestro');
     fs.mkdirSync(cache, { recursive: true });
 

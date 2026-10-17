@@ -3,19 +3,19 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
 const { withEnv } = require('../support/env');
+const { makeTempDir } = require('../support/fs');
 
 const ENV_VAR = 'MAESTRO_TEST_WORKSPACE_SUGGESTION';
 const RUNTIME_CONFIG = { name: 'test', env: { workspacePath: ENV_VAR } };
 
 /** Creates a real directory (optionally nested) under a fresh temp root. */
 function makeDir(...segments) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-root-cache-')));
+  const root = fs.realpathSync(makeTempDir('maestro-root-cache-'));
   const dir = path.join(root, ...segments);
   fs.mkdirSync(dir, { recursive: true });
   return dir;

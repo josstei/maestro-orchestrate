@@ -7,11 +7,11 @@ const path = require('node:path');
 
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 const AGENT_REGISTRY = require('../../src/generated/agent-registry.json');
+const { ROOT } = require('../support/paths');
 
-const REPO = path.resolve(__dirname, '../..');
-const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
-const listDir = (d) => fs.readdirSync(path.join(REPO, d));
-const listSubdirs = (d) => fs.readdirSync(path.join(REPO, d), { withFileTypes: true })
+const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const listDir = (d) => fs.readdirSync(path.join(ROOT, d));
+const listSubdirs = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
 const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;
@@ -125,7 +125,7 @@ test('doc-drift: Claude surfaces do not advertise host-reserved command names', 
 });
 
 test('doc-drift: examples guide is linked and included in npm package files', () => {
-  assert.equal(fs.existsSync(path.join(REPO, 'EXAMPLES.md')), true, 'EXAMPLES.md is missing');
+  assert.equal(fs.existsSync(path.join(ROOT, 'EXAMPLES.md')), true, 'EXAMPLES.md is missing');
 
   const readme = read('README.md');
   assert.ok(readme.includes('[EXAMPLES.md](EXAMPLES.md)'), 'README.md does not link EXAMPLES.md');

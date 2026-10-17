@@ -1,14 +1,14 @@
 'use strict';
 
-const { afterEach, beforeEach, describe, it } = require('node:test');
+const { beforeEach, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { collectRegistryOutputs } = require('../../src/generator/registry-scanner');
+const { makeTempDir, writeTree } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 
-const ROOT = path.resolve(__dirname, '..', '..');
 const SRC = path.join(ROOT, 'src');
 
 const REGISTRY_PATHS = [
@@ -16,12 +16,6 @@ const REGISTRY_PATHS = [
   path.join('src', 'generated', 'resource-registry.json'),
   path.join('src', 'generated', 'hook-registry.json'),
 ];
-
-function writeFile(base, relativePath, content) {
-  const full = path.join(base, ...relativePath.split('/'));
-  fs.mkdirSync(path.dirname(full), { recursive: true });
-  fs.writeFileSync(full, content, 'utf8');
-}
 
 function agentSource(name, tools, extraLines = []) {
   return ['---', `name: ${name}`, `tools: [${tools.join(', ')}]`, ...extraLines, '---', 'Body.', ''].join('\n');
@@ -47,21 +41,17 @@ describe('collectRegistryOutputs', () => {
     let srcDir;
 
     beforeEach(() => {
-      rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-registry-scanner-'));
+      rootDir = makeTempDir('maestro-registry-scanner-');
       srcDir = path.join(rootDir, 'src');
     });
 
-    afterEach(() => {
-      fs.rmSync(rootDir, { recursive: true, force: true });
-    });
-
     it('derives each agent tool tier from its tools, ignoring any declared capabilities', () => {
-      writeFile(srcDir, 'agents/reader.md', agentSource('reader', ['read_file', 'glob'], ['capabilities: full']));
-      writeFile(srcDir, 'agents/runner.md', agentSource('runner', ['read_file', 'run_shell_command']));
-      writeFile(srcDir, 'agents/editor.md', agentSource('editor', ['read_file', 'replace']));
-      writeFile(srcDir, 'agents/writer.md', agentSource('writer', ['write_file']));
-      writeFile(srcDir, 'agents/builder.md', agentSource('builder', ['write_file', 'run_shell_command']));
-      writeFile(srcDir, 'agents/unnamed.md', '---\ndescription: "No name or tools."\n---\nBody.\n');
+      writeTree(srcDir, 'agents/reader.md', agentSource('reader', ['read_file', 'glob'], ['capabilities: full']));
+      writeTree(srcDir, 'agents/runner.md', agentSource('runner', ['read_file', 'run_shell_command']));
+      writeTree(srcDir, 'agents/editor.md', agentSource('editor', ['read_file', 'replace']));
+      writeTree(srcDir, 'agents/writer.md', agentSource('writer', ['write_file']));
+      writeTree(srcDir, 'agents/builder.md', agentSource('builder', ['write_file', 'run_shell_command']));
+      writeTree(srcDir, 'agents/unnamed.md', '---\ndescription: "No name or tools."\n---\nBody.\n');
 
       const outputs = collectRegistryOutputs(srcDir, rootDir);
 
@@ -76,9 +66,9 @@ describe('collectRegistryOutputs', () => {
     });
 
     it('names hook handlers handle<PascalCase> after their *-logic.js module', () => {
-      writeFile(srcDir, 'hooks/logic/session-start-logic.js', '');
-      writeFile(srcDir, 'hooks/logic/after-agent-logic.js', '');
-      writeFile(srcDir, 'hooks/logic/hook-state.js', '');
+      writeTree(srcDir, 'hooks/logic/session-start-logic.js', '');
+      writeTree(srcDir, 'hooks/logic/after-agent-logic.js', '');
+      writeTree(srcDir, 'hooks/logic/hook-state.js', '');
 
       const outputs = collectRegistryOutputs(srcDir, rootDir);
 
@@ -89,11 +79,11 @@ describe('collectRegistryOutputs', () => {
     });
 
     it('keys skills by directory name and other resources by file name', () => {
-      writeFile(srcDir, 'skills/shared/delegation/SKILL.md', '# Delegation');
-      writeFile(srcDir, 'skills/shared/delegation/protocols/base-protocol.md', '# Protocol');
-      writeFile(srcDir, 'templates/design-document.md', '# Template');
-      writeFile(srcDir, 'templates/nested/ignored.md', '# Not scanned');
-      writeFile(srcDir, 'references/architecture.md', '# Reference');
+      writeTree(srcDir, 'skills/shared/delegation/SKILL.md', '# Delegation');
+      writeTree(srcDir, 'skills/shared/delegation/protocols/base-protocol.md', '# Protocol');
+      writeTree(srcDir, 'templates/design-document.md', '# Template');
+      writeTree(srcDir, 'templates/nested/ignored.md', '# Not scanned');
+      writeTree(srcDir, 'references/architecture.md', '# Reference');
 
       const outputs = collectRegistryOutputs(srcDir, rootDir);
 

@@ -3,12 +3,12 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/session');
 const { ensureWorkspace } = require('../../src/state/session-state');
+const { makeTempDir } = require('../support/fs');
 const { readSessionState } = require('../support/session-server');
 
 function createSessionPackServer() {
@@ -20,7 +20,7 @@ function createSessionPackServer() {
 }
 
 function setup(prefix) {
-  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const projectRoot = makeTempDir(prefix);
   ensureWorkspace('docs/maestro', projectRoot);
   return { projectRoot, server: createSessionPackServer() };
 }

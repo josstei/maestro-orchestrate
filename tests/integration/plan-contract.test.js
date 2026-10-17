@@ -3,9 +3,9 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
+const { makeTempDir } = require('../support/fs');
 const {
   createInitializedSessionServer,
   readSessionState,
@@ -13,7 +13,7 @@ const {
 
 describe('plan contract round-trip', () => {
   it('validate_plan output is accepted verbatim by create_session', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-plan-rt-'));
+    const workspace = makeTempDir('maestro-plan-rt-');
 
     const server = await createInitializedSessionServer(workspace);
 

@@ -4,11 +4,17 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 
+const { makeTempDir } = require('../support/fs');
 const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
+
+// Hooks keep per-session state under MAESTRO_HOOKS_DIR; give them a private
+// one instead of the shared default under os.tmpdir().
+const HOOKS_DIR = makeTempDir('maestro-hooks-test-');
 
 function runHook(relativePath, runtime, hookName, input, cwd = ROOT) {
   return spawnSync(process.execPath, [relativePath, runtime, hookName], {
     cwd,
+    env: { ...process.env, MAESTRO_HOOKS_DIR: HOOKS_DIR },
     input: typeof input === 'string' ? input : `${JSON.stringify(input)}\n`,
     encoding: 'utf8',
   });

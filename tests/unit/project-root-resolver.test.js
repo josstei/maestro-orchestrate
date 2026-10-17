@@ -3,7 +3,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -12,11 +11,12 @@ const {
   WorkspaceResolutionError,
 } = require('../../src/core/project-root-resolver');
 const { withEnv } = require('../support/env');
+const { makeTempDir } = require('../support/fs');
 
 describe('project root resolver', () => {
   it('prefers an explicit workspace path over inherited cwd-like env vars', () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-workspace-'));
-    const inheritedPwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-pwd-'));
+    const workspaceRoot = makeTempDir('maestro-workspace-');
+    const inheritedPwd = makeTempDir('maestro-pwd-');
 
     const result = withEnv(
       {
@@ -32,7 +32,7 @@ describe('project root resolver', () => {
   });
 
   it('falls back to inherited PWD when MCP roots are unavailable', () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-pwd-root-'));
+    const workspaceRoot = makeTempDir('maestro-pwd-root-');
 
     const result = withEnv(
       {
@@ -48,7 +48,7 @@ describe('project root resolver', () => {
   });
 
   it('requireExplicitWorkspaceRoot returns the explicit path when it exists', () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-explicit-'));
+    const workspaceRoot = makeTempDir('maestro-explicit-');
     const result = requireExplicitWorkspaceRoot({ workspacePath: workspaceRoot });
     assert.equal(result, workspaceRoot);
   });
@@ -68,16 +68,12 @@ describe('project root resolver', () => {
   });
 
   it('requireExplicitWorkspaceRoot throws when the path is inside an extension cache', () => {
-    const cacheParent = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cache-parent-'));
-    try {
-      const nested = path.join(cacheParent, '.codex', 'plugins', 'maestro');
-      fs.mkdirSync(nested, { recursive: true });
-      assert.throws(
-        () => requireExplicitWorkspaceRoot({ workspacePath: nested }),
-        (err) => err instanceof WorkspaceResolutionError && /extension cache/i.test(err.message)
-      );
-    } finally {
-      fs.rmSync(cacheParent, { recursive: true, force: true });
-    }
+    const cacheParent = makeTempDir('maestro-cache-parent-');
+    const nested = path.join(cacheParent, '.codex', 'plugins', 'maestro');
+    fs.mkdirSync(nested, { recursive: true });
+    assert.throws(
+      () => requireExplicitWorkspaceRoot({ workspacePath: nested }),
+      (err) => err instanceof WorkspaceResolutionError && /extension cache/i.test(err.message)
+    );
   });
 });

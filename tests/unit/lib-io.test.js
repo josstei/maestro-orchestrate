@@ -1,9 +1,8 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -13,26 +12,15 @@ const {
   readJsonSafe,
   writeIfChanged,
 } = require('../../src/lib/io');
+const { makeTempDir } = require('../support/fs');
 
-function createTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-io-'));
-}
+let tempRoot;
 
-function removeTempRoot(dir) {
-  fs.rmSync(dir, { recursive: true, force: true });
-}
+beforeEach(() => {
+  tempRoot = makeTempDir('maestro-io-');
+});
 
 describe('atomicWriteSync', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('writes content to the target file', () => {
     const filePath = path.join(tempRoot, 'atomic.txt');
     atomicWriteSync(filePath, 'hello atomic');
@@ -129,16 +117,6 @@ describe('atomicWriteSync', () => {
 });
 
 describe('readFileSafe', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('reads existing file content as UTF-8', () => {
     const filePath = path.join(tempRoot, 'readable.txt');
     fs.writeFileSync(filePath, 'file content', 'utf8');
@@ -184,16 +162,6 @@ describe('readFileSafe', () => {
 });
 
 describe('readJsonSafe', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('parses valid JSON from file', () => {
     const filePath = path.join(tempRoot, 'data.json');
     const data = { name: 'maestro', version: 1, nested: { key: 'value' } };
@@ -249,16 +217,6 @@ describe('readJsonSafe', () => {
 });
 
 describe('writeIfChanged', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('writes a new file and returns true', () => {
     const filePath = path.join(tempRoot, 'new.txt');
     const result = writeIfChanged(filePath, 'new content');
@@ -313,16 +271,6 @@ describe('writeIfChanged', () => {
 });
 
 describe('ensurePrivateDir', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('creates the directory and missing parents', () => {
     const dir = path.join(tempRoot, 'a', 'b', 'private');
     ensurePrivateDir(dir, 'unused');

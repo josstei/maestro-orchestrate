@@ -1,38 +1,23 @@
 'use strict';
 
-const { describe, it, after } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
 const {
   handleAssessTaskComplexity,
 } = require('../../src/mcp/handlers/assess-task-complexity');
-
-const tmpRoots = [];
-
-function makeRepo() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-assess-'));
-  tmpRoots.push(dir);
-  return dir;
-}
-
-function writeFile(root, relPath, contents = '') {
-  const abs = path.join(root, relPath);
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, contents);
-}
-
-after(() => {
-  for (const root of tmpRoots) {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
+const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('handleAssessTaskComplexity', () => {
+  let root;
+
+  beforeEach(() => {
+    root = makeTempDir('maestro-assess-');
+  });
+
   it('reports repo_is_empty=true for an empty directory', () => {
-    const root = makeRepo();
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.repo_is_empty, true);
     assert.equal(result.file_count, 0);
@@ -45,8 +30,7 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('classifies a small repo (<=20 files) correctly', () => {
-    const root = makeRepo();
-    for (let i = 0; i < 5; i++) writeFile(root, `file-${i}.js`, '');
+    for (let i = 0; i < 5; i++) writeTree(root, `file-${i}.js`, '');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.file_count, 5);
     assert.equal(result.repo_size_estimate, 'small');
@@ -55,8 +39,7 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('classifies a medium repo (21–200 files)', () => {
-    const root = makeRepo();
-    for (let i = 0; i < 50; i++) writeFile(root, `src/file-${i}.js`, '');
+    for (let i = 0; i < 50; i++) writeTree(root, `src/file-${i}.js`, '');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.file_count, 50);
     assert.equal(result.repo_size_estimate, 'medium');
@@ -64,8 +47,7 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('classifies a large repo (>200 files)', () => {
-    const root = makeRepo();
-    for (let i = 0; i < 210; i++) writeFile(root, `src/file-${i}.js`, '');
+    for (let i = 0; i < 210; i++) writeTree(root, `src/file-${i}.js`, '');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.file_count, 210);
     assert.equal(result.repo_size_estimate, 'large');
@@ -73,28 +55,25 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('tracks directory depth', () => {
-    const root = makeRepo();
-    writeFile(root, 'a/b/c/d/e/deep.js');
+    writeTree(root, 'a/b/c/d/e/deep.js');
     const result = handleAssessTaskComplexity({}, root);
     assert.ok(result.directory_depth >= 5);
   });
 
   it('skips well-known vendored / build directories', () => {
-    const root = makeRepo();
-    writeFile(root, 'node_modules/foo/index.js');
-    writeFile(root, '.git/HEAD');
-    writeFile(root, 'dist/bundle.js');
-    writeFile(root, 'src/real.js');
+    writeTree(root, 'node_modules/foo/index.js');
+    writeTree(root, '.git/HEAD');
+    writeTree(root, 'dist/bundle.js');
+    writeTree(root, 'src/real.js');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.file_count, 1);
   });
 
   it('detects package.json, config files, and tests directory', () => {
-    const root = makeRepo();
-    writeFile(root, 'package.json', '{}');
-    writeFile(root, 'tsconfig.json', '{}');
-    writeFile(root, 'Dockerfile', 'FROM node');
-    writeFile(root, 'tests/x.test.js');
+    writeTree(root, 'package.json', '{}');
+    writeTree(root, 'tsconfig.json', '{}');
+    writeTree(root, 'Dockerfile', 'FROM node');
+    writeTree(root, 'tests/x.test.js');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.has_package_json, true);
     assert.deepEqual(
@@ -105,22 +84,19 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('detects the __tests__ directory convention', () => {
-    const root = makeRepo();
-    writeFile(root, '__tests__/foo.test.js');
+    writeTree(root, '__tests__/foo.test.js');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.existing_test_infrastructure, true);
   });
 
   it('detects the test/ directory convention', () => {
-    const root = makeRepo();
-    writeFile(root, 'test/foo.test.js');
+    writeTree(root, 'test/foo.test.js');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.existing_test_infrastructure, true);
   });
 
   it('detects frameworks listed in dependencies', () => {
-    const root = makeRepo();
-    writeFile(
+    writeTree(
       root,
       'package.json',
       JSON.stringify({ dependencies: { react: '^18.0.0', express: '^4.0.0' } })
@@ -130,8 +106,7 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('detects frameworks listed in devDependencies', () => {
-    const root = makeRepo();
-    writeFile(
+    writeTree(
       root,
       'package.json',
       JSON.stringify({ devDependencies: { next: '^14.0.0' } })
@@ -141,16 +116,14 @@ describe('handleAssessTaskComplexity', () => {
   });
 
   it('returns no frameworks when package.json is unparseable', () => {
-    const root = makeRepo();
-    writeFile(root, 'package.json', '{not json');
+    writeTree(root, 'package.json', '{not json');
     const result = handleAssessTaskComplexity({}, root);
     assert.equal(result.has_package_json, true);
     assert.deepEqual(result.frameworks_detected, []);
   });
 
   it('returns no frameworks when package.json has no dependencies', () => {
-    const root = makeRepo();
-    writeFile(root, 'package.json', '{}');
+    writeTree(root, 'package.json', '{}');
     const result = handleAssessTaskComplexity({}, root);
     assert.deepEqual(result.frameworks_detected, []);
   });

@@ -3,10 +3,10 @@
 const { after, before, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
+const { makeTempDir, removeDir } = require('../support/fs');
 const { createTempRepoCopy, withTempRepoCopy } = require('./helpers');
 const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
 const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifacts');
@@ -25,7 +25,7 @@ const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifact
  * @returns {T} The callback's result
  */
 function withRepackedArchive(archivePath, name, mutate, fn) {
-  const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-repack-'));
+  const workRoot = makeTempDir('maestro-release-repack-');
   const extractRoot = path.join(workRoot, 'extract');
   const repackedPath = path.join(workRoot, name);
 
@@ -36,7 +36,7 @@ function withRepackedArchive(archivePath, name, mutate, fn) {
     execFileSync('tar', ['-czf', repackedPath, '-C', extractRoot, '.']);
     return fn(repackedPath);
   } finally {
-    fs.rmSync(workRoot, { recursive: true, force: true });
+    removeDir(workRoot);
   }
 }
 
@@ -53,7 +53,7 @@ describe('release artifact packaging', () => {
 
   after(() => {
     if (repoRoot) {
-      fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
+      removeDir(path.dirname(repoRoot));
     }
   });
 

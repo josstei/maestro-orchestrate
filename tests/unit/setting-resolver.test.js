@@ -1,29 +1,24 @@
 'use strict';
 
-const { describe, it, before, after, afterEach } = require('node:test');
+const { describe, it, before, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { resolveSetting } = require('../../src/config/setting-resolver');
 const { withEnv } = require('../support/env');
+const { makeTempDir } = require('../support/fs');
 
 describe('resolveSetting', () => {
-  let tmpDir;
   let projectDir;
   let extensionDir;
 
   before(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'setting-resolver-'));
+    const tmpDir = makeTempDir('setting-resolver-');
     projectDir = path.join(tmpDir, 'project');
     extensionDir = path.join(tmpDir, 'extension');
     fs.mkdirSync(projectDir);
     fs.mkdirSync(extensionDir);
-  });
-
-  after(() => {
-    fs.rmSync(tmpDir, { recursive: true });
   });
 
   function writeProjectEnv(content) {

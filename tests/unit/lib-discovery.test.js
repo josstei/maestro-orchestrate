@@ -1,9 +1,8 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -13,60 +12,42 @@ const {
 } = require('../../src/lib/discovery');
 
 const { parse } = require('../../src/lib/frontmatter');
+const { makeTempDir, writeTree } = require('../support/fs');
 
-function createTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-discovery-'));
-}
+let tempRoot;
 
-function removeTempRoot(dir) {
-  fs.rmSync(dir, { recursive: true, force: true });
-}
-
-function writeFile(base, relativePath, content) {
-  const full = path.join(base, relativePath);
-  fs.mkdirSync(path.dirname(full), { recursive: true });
-  fs.writeFileSync(full, content, 'utf8');
-  return full;
-}
+beforeEach(() => {
+  tempRoot = makeTempDir('maestro-discovery-');
+});
 
 // ---------------------------------------------------------------------------
 // collectFiles
 // ---------------------------------------------------------------------------
 
 describe('collectFiles', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('returns empty array for nonexistent directory', () => {
     const result = collectFiles(path.join(tempRoot, 'nope'), false);
     assert.deepEqual(result, []);
   });
 
   it('collects files from a flat directory', () => {
-    writeFile(tempRoot, 'a.txt', 'a');
-    writeFile(tempRoot, 'b.txt', 'b');
+    writeTree(tempRoot, 'a.txt', 'a');
+    writeTree(tempRoot, 'b.txt', 'b');
     const result = collectFiles(tempRoot, false).map((p) => path.basename(p)).sort();
     assert.deepEqual(result, ['a.txt', 'b.txt']);
   });
 
   it('does not recurse when recursive is false', () => {
-    writeFile(tempRoot, 'top.txt', 'top');
-    writeFile(tempRoot, 'sub/nested.txt', 'nested');
+    writeTree(tempRoot, 'top.txt', 'top');
+    writeTree(tempRoot, 'sub/nested.txt', 'nested');
     const result = collectFiles(tempRoot, false).map((p) => path.basename(p));
     assert.deepEqual(result, ['top.txt']);
   });
 
   it('recurses into subdirectories when recursive is true', () => {
-    writeFile(tempRoot, 'top.txt', 'top');
-    writeFile(tempRoot, 'sub/nested.txt', 'nested');
-    writeFile(tempRoot, 'sub/deep/deeper.txt', 'deeper');
+    writeTree(tempRoot, 'top.txt', 'top');
+    writeTree(tempRoot, 'sub/nested.txt', 'nested');
+    writeTree(tempRoot, 'sub/deep/deeper.txt', 'deeper');
     const result = collectFiles(tempRoot, true).map((p) => path.basename(p)).sort();
     assert.deepEqual(result, ['deeper.txt', 'nested.txt', 'top.txt']);
   });
@@ -83,20 +64,10 @@ describe('collectFiles', () => {
 // ---------------------------------------------------------------------------
 
 describe('discover', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('discovers files matching a simple extension pattern', () => {
-    writeFile(tempRoot, 'one.md', '# One');
-    writeFile(tempRoot, 'two.md', '# Two');
-    writeFile(tempRoot, 'skip.txt', 'text');
+    writeTree(tempRoot, 'one.md', '# One');
+    writeTree(tempRoot, 'two.md', '# Two');
+    writeTree(tempRoot, 'skip.txt', 'text');
 
     const entries = discover({
       dir: tempRoot,
@@ -110,9 +81,9 @@ describe('discover', () => {
   });
 
   it('discovers files matching a suffix pattern', () => {
-    writeFile(tempRoot, 'session-start-logic.js', '');
-    writeFile(tempRoot, 'before-agent-logic.js', '');
-    writeFile(tempRoot, 'hook-state.js', '');
+    writeTree(tempRoot, 'session-start-logic.js', '');
+    writeTree(tempRoot, 'before-agent-logic.js', '');
+    writeTree(tempRoot, 'hook-state.js', '');
 
     const entries = discover({
       dir: tempRoot,
@@ -128,9 +99,9 @@ describe('discover', () => {
   });
 
   it('sorts entries by id', () => {
-    writeFile(tempRoot, 'charlie.md', '');
-    writeFile(tempRoot, 'alpha.md', '');
-    writeFile(tempRoot, 'bravo.md', '');
+    writeTree(tempRoot, 'charlie.md', '');
+    writeTree(tempRoot, 'alpha.md', '');
+    writeTree(tempRoot, 'bravo.md', '');
 
     const entries = discover({
       dir: tempRoot,
@@ -145,7 +116,7 @@ describe('discover', () => {
   });
 
   it('includes absolute path on each entry', () => {
-    const written = writeFile(tempRoot, 'item.md', '');
+    const written = writeTree(tempRoot, 'item.md', '');
 
     const entries = discover({
       dir: tempRoot,
@@ -157,7 +128,7 @@ describe('discover', () => {
   });
 
   it('extracts metadata when callback is provided', () => {
-    writeFile(tempRoot, 'agent.md', '---\nname: coder\ncapabilities: full\n---\nbody');
+    writeTree(tempRoot, 'agent.md', '---\nname: coder\ncapabilities: full\n---\nbody');
 
     const entries = discover({
       dir: tempRoot,
@@ -174,7 +145,7 @@ describe('discover', () => {
   });
 
   it('does not read file content when metadata callback is absent', () => {
-    writeFile(tempRoot, 'noop.md', 'content');
+    writeTree(tempRoot, 'noop.md', 'content');
 
     const originalReadFileSync = fs.readFileSync;
     let readCalled = false;
@@ -198,8 +169,8 @@ describe('discover', () => {
   });
 
   it('handles recursive scanning via **/ pattern prefix', () => {
-    writeFile(tempRoot, 'top.md', '');
-    writeFile(tempRoot, 'sub/nested.md', '');
+    writeTree(tempRoot, 'top.md', '');
+    writeTree(tempRoot, 'sub/nested.md', '');
 
     const entries = discover({
       dir: tempRoot,
@@ -215,8 +186,8 @@ describe('discover', () => {
   });
 
   it('does not scan subdirectories for a flat pattern', () => {
-    writeFile(tempRoot, 'top.md', '');
-    writeFile(tempRoot, 'sub/nested.md', '');
+    writeTree(tempRoot, 'top.md', '');
+    writeTree(tempRoot, 'sub/nested.md', '');
 
     const entries = discover({
       dir: tempRoot,
@@ -228,10 +199,10 @@ describe('discover', () => {
   });
 
   it('matches literal pattern characters, including regex metacharacters, exactly', () => {
-    writeFile(tempRoot, 'file.test.js', '');
-    writeFile(tempRoot, 'filextest.js', '');
-    writeFile(tempRoot, 'a.b+c.md', '');
-    writeFile(tempRoot, 'a.bbc.md', '');
+    writeTree(tempRoot, 'file.test.js', '');
+    writeTree(tempRoot, 'filextest.js', '');
+    writeTree(tempRoot, 'a.b+c.md', '');
+    writeTree(tempRoot, 'a.bbc.md', '');
 
     const ids = (pattern) => discover({
       dir: tempRoot,
@@ -244,11 +215,11 @@ describe('discover', () => {
   });
 
   it('anchors the pattern to the full filename', () => {
-    writeFile(tempRoot, 'file.js', '');
-    writeFile(tempRoot, 'file.js.bak', '');
-    writeFile(tempRoot, 'a.md', '');
-    writeFile(tempRoot, 'xa.md', '');
-    writeFile(tempRoot, 'a.mdx', '');
+    writeTree(tempRoot, 'file.js', '');
+    writeTree(tempRoot, 'file.js.bak', '');
+    writeTree(tempRoot, 'a.md', '');
+    writeTree(tempRoot, 'xa.md', '');
+    writeTree(tempRoot, 'a.mdx', '');
 
     const ids = (pattern) => discover({
       dir: tempRoot,
@@ -271,7 +242,7 @@ describe('discover', () => {
   });
 
   it('returns empty array when no files match pattern', () => {
-    writeFile(tempRoot, 'file.txt', 'text');
+    writeTree(tempRoot, 'file.txt', 'text');
 
     const entries = discover({
       dir: tempRoot,
@@ -283,7 +254,7 @@ describe('discover', () => {
   });
 
   it('handles metadata callback returning null gracefully', () => {
-    writeFile(tempRoot, 'item.md', 'content');
+    writeTree(tempRoot, 'item.md', 'content');
 
     const entries = discover({
       dir: tempRoot,
@@ -298,7 +269,7 @@ describe('discover', () => {
   });
 
   it('spreads metadata properties onto the entry', () => {
-    writeFile(tempRoot, 'item.md', '');
+    writeTree(tempRoot, 'item.md', '');
 
     const entries = discover({
       dir: tempRoot,

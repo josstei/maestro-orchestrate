@@ -1,9 +1,8 @@
 'use strict';
 
-const { afterEach, describe, it } = require('node:test');
+const { beforeEach, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -12,22 +11,7 @@ const {
   shouldIncludeInPayload,
   buildDetachedPayload,
 } = require('../../src/generator/payload-builder');
-
-function createTempDir(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-}
-
-function cleanupDir(dirPath) {
-  if (dirPath) {
-    fs.rmSync(dirPath, { recursive: true, force: true });
-  }
-}
-
-function writeFile(base, relativePath, content) {
-  const fullPath = path.join(base, relativePath);
-  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-  fs.writeFileSync(fullPath, content, 'utf8');
-}
+const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('DETACHED_PAYLOAD_BASE_ALLOWLIST', () => {
   it('is the frozen list of payload src/ prefixes', () => {
@@ -99,23 +83,18 @@ describe('buildPayloadAllowlist', () => {
 });
 
 describe('buildDetachedPayload', () => {
-  let srcDir = null;
-  let outputDir = null;
+  let srcDir;
+  let outputDir;
 
-  afterEach(() => {
-    cleanupDir(srcDir);
-    cleanupDir(outputDir);
-    srcDir = null;
-    outputDir = null;
+  beforeEach(() => {
+    srcDir = makeTempDir('maestro-payload-src-');
+    outputDir = makeTempDir('maestro-payload-out-');
   });
 
   it('copies files matching the allowlist', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'module.exports = {};');
-    writeFile(srcDir, 'mcp/server.js', 'module.exports = {};');
-    writeFile(srcDir, 'generated/registry.json', '{}');
+    writeTree(srcDir, 'core/logger.js', 'module.exports = {};');
+    writeTree(srcDir, 'mcp/server.js', 'module.exports = {};');
+    writeTree(srcDir, 'generated/registry.json', '{}');
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
 
@@ -126,12 +105,9 @@ describe('buildDetachedPayload', () => {
   });
 
   it('skips files not matching the allowlist', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'allowed');
-    writeFile(srcDir, 'scripts/build.js', 'disallowed');
-    writeFile(srcDir, 'transforms/copy.js', 'disallowed');
+    writeTree(srcDir, 'core/logger.js', 'allowed');
+    writeTree(srcDir, 'scripts/build.js', 'disallowed');
+    writeTree(srcDir, 'transforms/copy.js', 'disallowed');
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
 
@@ -141,11 +117,8 @@ describe('buildDetachedPayload', () => {
   });
 
   it('removes stale files from the output directory', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'kept');
-    writeFile(outputDir, 'core/old-file.js', 'stale');
+    writeTree(srcDir, 'core/logger.js', 'kept');
+    writeTree(outputDir, 'core/old-file.js', 'stale');
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
 
@@ -155,11 +128,8 @@ describe('buildDetachedPayload', () => {
   });
 
   it('does not rewrite files when content is unchanged', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'same content');
-    writeFile(outputDir, 'core/logger.js', 'same content');
+    writeTree(srcDir, 'core/logger.js', 'same content');
+    writeTree(outputDir, 'core/logger.js', 'same content');
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
 
@@ -167,10 +137,7 @@ describe('buildDetachedPayload', () => {
   });
 
   it('stamps version.json without counting it as copied or pruning it', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'content');
+    writeTree(srcDir, 'core/logger.js', 'content');
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '4.0.0');
 
@@ -182,11 +149,8 @@ describe('buildDetachedPayload', () => {
   });
 
   it('does not rewrite version.json when the version is unchanged', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'content');
-    writeFile(outputDir, 'version.json', JSON.stringify({ version: '1.5.0' }, null, 2) + '\n');
+    writeTree(srcDir, 'core/logger.js', 'content');
+    writeTree(outputDir, 'version.json', JSON.stringify({ version: '1.5.0' }, null, 2) + '\n');
     const mtimeBefore = fs.statSync(path.join(outputDir, 'version.json')).mtimeMs;
 
     buildDetachedPayload(srcDir, outputDir, 'claude', '1.5.0');
@@ -195,11 +159,8 @@ describe('buildDetachedPayload', () => {
   });
 
   it('overwrites version.json when the version differs', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'content');
-    writeFile(outputDir, 'version.json', JSON.stringify({ version: '1.0.0' }, null, 2) + '\n');
+    writeTree(srcDir, 'core/logger.js', 'content');
+    writeTree(outputDir, 'version.json', JSON.stringify({ version: '1.0.0' }, null, 2) + '\n');
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '2.0.0');
 
@@ -209,18 +170,15 @@ describe('buildDetachedPayload', () => {
   });
 
   it('copies only the target runtime platform dir', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'content');
-    writeFile(srcDir, 'platforms/metadata.js', 'metadata');
-    writeFile(srcDir, 'platforms/shared/hook-runner.js', 'runner');
-    writeFile(srcDir, 'platforms/claude/runtime-config.js', 'claude config');
-    writeFile(srcDir, 'platforms/claude/hook-adapter.js', 'claude adapter');
-    writeFile(srcDir, 'platforms/claude/policy-enforcer.js', 'claude enforcer');
-    writeFile(srcDir, 'platforms/gemini/runtime-config.js', 'gemini config');
-    writeFile(srcDir, 'platforms/gemini/hook-adapter.js', 'gemini adapter');
-    writeFile(srcDir, 'platforms/codex/runtime-config.js', 'codex config');
+    writeTree(srcDir, 'core/logger.js', 'content');
+    writeTree(srcDir, 'platforms/metadata.js', 'metadata');
+    writeTree(srcDir, 'platforms/shared/hook-runner.js', 'runner');
+    writeTree(srcDir, 'platforms/claude/runtime-config.js', 'claude config');
+    writeTree(srcDir, 'platforms/claude/hook-adapter.js', 'claude adapter');
+    writeTree(srcDir, 'platforms/claude/policy-enforcer.js', 'claude enforcer');
+    writeTree(srcDir, 'platforms/gemini/runtime-config.js', 'gemini config');
+    writeTree(srcDir, 'platforms/gemini/hook-adapter.js', 'gemini adapter');
+    writeTree(srcDir, 'platforms/codex/runtime-config.js', 'codex config');
 
     buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
 
@@ -235,15 +193,12 @@ describe('buildDetachedPayload', () => {
   });
 
   it('gives the codex payload its runtime config and no hook adapter', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'content');
-    writeFile(srcDir, 'platforms/shared/hook-runner.js', 'runner');
-    writeFile(srcDir, 'platforms/codex/runtime-config.js', 'codex config');
-    writeFile(srcDir, 'platforms/claude/runtime-config.js', 'claude config');
-    writeFile(srcDir, 'platforms/claude/hook-adapter.js', 'claude adapter');
-    writeFile(srcDir, 'platforms/qwen/hook-adapter.js', 'qwen adapter');
+    writeTree(srcDir, 'core/logger.js', 'content');
+    writeTree(srcDir, 'platforms/shared/hook-runner.js', 'runner');
+    writeTree(srcDir, 'platforms/codex/runtime-config.js', 'codex config');
+    writeTree(srcDir, 'platforms/claude/runtime-config.js', 'claude config');
+    writeTree(srcDir, 'platforms/claude/hook-adapter.js', 'claude adapter');
+    writeTree(srcDir, 'platforms/qwen/hook-adapter.js', 'qwen adapter');
 
     buildDetachedPayload(srcDir, outputDir, 'codex', '1.0.0');
 
@@ -255,11 +210,8 @@ describe('buildDetachedPayload', () => {
   });
 
   it('cleans up empty directories after stale file removal', () => {
-    srcDir = createTempDir('maestro-payload-src-');
-    outputDir = createTempDir('maestro-payload-out-');
-
-    writeFile(srcDir, 'core/logger.js', 'content');
-    writeFile(outputDir, 'orphaned-dir/stale.js', 'stale');
+    writeTree(srcDir, 'core/logger.js', 'content');
+    writeTree(outputDir, 'orphaned-dir/stale.js', 'stale');
 
     buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
 

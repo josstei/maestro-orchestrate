@@ -3,7 +3,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -15,14 +14,11 @@ const {
 const {
   WorkspaceResolutionError,
 } = require('../../src/core/project-root-resolver');
-
-function makeWorkspace() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-init-'));
-}
+const { makeTempDir } = require('../support/fs');
 
 describe('handleInitializeWorkspace', () => {
   it('accepts explicit workspace_path and returns the resolved root', async () => {
-    const workspace = makeWorkspace();
+    const workspace = makeTempDir('maestro-init-');
     const result = await handleInitializeWorkspace({ workspace_path: workspace });
     assert.equal(result.success, true);
     assert.equal(result.workspace_path, workspace);
@@ -30,7 +26,7 @@ describe('handleInitializeWorkspace', () => {
   });
 
   it('writes a workspace marker to <workspace>/docs/maestro', async () => {
-    const workspace = makeWorkspace();
+    const workspace = makeTempDir('maestro-init-');
     await handleInitializeWorkspace({ workspace_path: workspace });
     const marker = JSON.parse(
       fs.readFileSync(path.join(workspace, 'docs', 'maestro', MARKER_FILENAME), 'utf8')
@@ -40,7 +36,7 @@ describe('handleInitializeWorkspace', () => {
   });
 
   it('rejects paths inside an extension cache', async () => {
-    const cacheParent = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cache-parent-'));
+    const cacheParent = makeTempDir('maestro-cache-parent-');
     const cache = path.join(cacheParent, '.codex', 'plugins', 'maestro');
     fs.mkdirSync(cache, { recursive: true });
     await assert.rejects(
@@ -57,7 +53,7 @@ describe('handleInitializeWorkspace', () => {
   });
 
   it('accepts cachedProjectRoot as fallback when workspace_path is omitted', async () => {
-    const workspace = makeWorkspace();
+    const workspace = makeTempDir('maestro-init-');
     const result = await handleInitializeWorkspace({}, workspace);
     assert.equal(result.success, true);
     assert.equal(result.workspace_path, workspace);

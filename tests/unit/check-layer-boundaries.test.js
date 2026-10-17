@@ -1,16 +1,15 @@
 'use strict';
 
-const { describe, it, after } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const SCRIPT = path.join(REPO_ROOT, 'scripts', 'check-layer-boundaries.js');
+const { makeTempDir, writeTree } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 
-const tmpDirs = [];
+const SCRIPT = path.join(ROOT, 'scripts', 'check-layer-boundaries.js');
 
 /**
  * Build a scratch repo that mirrors the expected layout so the script's
@@ -18,8 +17,7 @@ const tmpDirs = [];
  * a directory we control.
  */
 function makeFixtureRepo() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-lint-'));
-  tmpDirs.push(root);
+  const root = makeTempDir('maestro-lint-');
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'src', 'lib'), { recursive: true });
   fs.copyFileSync(SCRIPT, path.join(root, 'scripts', 'check-layer-boundaries.js'));
@@ -27,9 +25,7 @@ function makeFixtureRepo() {
 }
 
 function writeLibFile(root, relPath, contents) {
-  const abs = path.join(root, 'src', 'lib', relPath);
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, contents);
+  writeTree(path.join(root, 'src', 'lib'), relPath, contents);
 }
 
 function runScript(root) {
@@ -39,16 +35,10 @@ function runScript(root) {
   });
 }
 
-after(() => {
-  for (const dir of tmpDirs) {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
 describe('check-layer-boundaries (real repo smoke test)', () => {
   it('passes against the real src/lib tree', () => {
     const result = spawnSync(process.execPath, [SCRIPT], {
-      cwd: REPO_ROOT,
+      cwd: ROOT,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     assert.equal(result.status, 0, `stderr: ${result.stderr.toString('utf8')}`);

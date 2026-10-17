@@ -1,10 +1,8 @@
 'use strict';
 
-const { describe, it, before, after } = require('node:test');
+const { describe, it, before } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const fs = require('node:fs');
-const os = require('node:os');
 
 const {
   expandGlob,
@@ -12,31 +10,24 @@ const {
   assertNoMirroredSharedOutputs,
   expandManifest,
 } = require('../../src/generator/manifest-expander');
+const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('manifest-expander', () => {
   let tmpDir;
 
   before(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'manifest-expander-'));
-
-    fs.mkdirSync(path.join(tmpDir, 'agents'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'agents', 'foo-bar.md'), '');
-    fs.writeFileSync(path.join(tmpDir, 'agents', 'baz.md'), '');
-    fs.writeFileSync(path.join(tmpDir, 'agents', 'qux-thing.md'), '');
-
-    fs.mkdirSync(path.join(tmpDir, 'skills', 'shared', 'delegation'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'skills', 'shared', 'delegation', 'SKILL.md'), '');
-
-    fs.mkdirSync(path.join(tmpDir, 'skills', 'shared', 'execution'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'skills', 'shared', 'execution', 'SKILL.md'), '');
-
-    fs.mkdirSync(path.join(tmpDir, 'docs'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'docs', 'readme.txt'), '');
-    fs.writeFileSync(path.join(tmpDir, 'docs', 'guide.md'), '');
-  });
-
-  after(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = makeTempDir('manifest-expander-');
+    for (const relPath of [
+      'agents/foo-bar.md',
+      'agents/baz.md',
+      'agents/qux-thing.md',
+      'skills/shared/delegation/SKILL.md',
+      'skills/shared/execution/SKILL.md',
+      'docs/readme.txt',
+      'docs/guide.md',
+    ]) {
+      writeTree(tmpDir, relPath);
+    }
   });
 
   describe('expandGlob', () => {

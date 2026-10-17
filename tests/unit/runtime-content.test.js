@@ -3,7 +3,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -16,21 +15,17 @@ const {
   readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const { writeOutputContract } = require('../support/agent-fixtures');
+const { writeAgentFixture } = require('../support/agent-fixtures');
+const { makeTempDir, writeTree } = require('../support/fs');
 
 const SRC_ROOT = path.resolve(__dirname, '../../src');
 
 function writeFilesystemResource(root, id, content) {
-  const relativePath = RESOURCE_ALLOWLIST[id];
-  fs.mkdirSync(path.join(root, 'src', path.dirname(relativePath)), { recursive: true });
-  fs.writeFileSync(path.join(root, 'src', relativePath), content, 'utf8');
+  writeTree(path.join(root, 'src'), RESOURCE_ALLOWLIST[id], content);
 }
 
 function writeFilesystemAgent(root, agentName, content) {
-  const agentPath = path.join(root, 'src', 'agents', `${agentName}.md`);
-  fs.mkdirSync(path.dirname(agentPath), { recursive: true });
-  fs.writeFileSync(agentPath, content, 'utf8');
-  return writeOutputContract(path.join(root, 'src'));
+  return writeAgentFixture(path.join(root, 'src'), agentName, content);
 }
 
 describe('RESOURCE_ALLOWLIST', () => {
@@ -143,7 +138,7 @@ describe('mapTools', () => {
 
 describe('runtime-content filesystem reads', () => {
   it('reads filesystem-backed canonical content for claude', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-claude-'));
+    const root = makeTempDir('maestro-provider-claude-');
 
     writeFilesystemResource(
       root,
@@ -161,7 +156,7 @@ describe('runtime-content filesystem reads', () => {
   });
 
   it('reads filesystem-backed canonical agent and resource content for codex', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-codex-'));
+    const root = makeTempDir('maestro-provider-codex-');
 
     writeFilesystemResource(root, 'delegation', 'Filesystem content.\n');
     const outputContract = writeFilesystemAgent(
@@ -180,7 +175,7 @@ describe('runtime-content filesystem reads', () => {
   });
 
   it('collapses blank lines across the frontmatter boundary of an agent file', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-blank-'));
+    const root = makeTempDir('maestro-provider-blank-');
     const outputContract = writeFilesystemAgent(root, 'coder', '---\nname: coder\n---\n\n\nbody\n');
 
     const agentResult = readAgentFromFilesystem(
@@ -193,7 +188,7 @@ describe('runtime-content filesystem reads', () => {
   });
 
   it('returns filesystem read errors when codex content is missing', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-empty-'));
+    const root = makeTempDir('maestro-provider-empty-');
     const runtimeConfig = getRuntimeConfig('codex');
     const srcRoot = path.join(root, 'src');
     const resourceResult = readResourceFromFilesystem('delegation', runtimeConfig, srcRoot);
@@ -204,7 +199,7 @@ describe('runtime-content filesystem reads', () => {
   });
 
   it('reports a missing Output Contract fragment as an agent read error', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-nocontract-'));
+    const root = makeTempDir('maestro-provider-nocontract-');
     const agentPath = path.join(root, 'src', 'agents', 'coder.md');
     fs.mkdirSync(path.dirname(agentPath), { recursive: true });
     fs.writeFileSync(agentPath, '---\nname: coder\n---\nbody\n', 'utf8');

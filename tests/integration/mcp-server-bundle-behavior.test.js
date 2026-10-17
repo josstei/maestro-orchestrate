@@ -3,10 +3,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { makeTempDir } = require('../support/fs');
 const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
 const { spawnMcpServer } = require('./mcp-stdio-client');
 
@@ -119,89 +119,84 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('keeps Codex session state in the explicit workspace_path when launched from a cwd outside it', async () => {
-    const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-workspace-'));
-    const spawnCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-spawn-'));
+    const workspaceRoot = makeTempDir('maestro-codex-workspace-');
+    const spawnCwd = makeTempDir('maestro-codex-spawn-');
 
-    try {
-      await withServer(
-        {
-          cwd: spawnCwd,
-          // Absolute, because the server is spawned from a cwd outside the repo.
-          relativePath: path.join(ROOT, 'bin', 'maestro-mcp-server.js'),
-          roots: [{ uri: pathToFileURL(workspaceRoot).href, name: 'workspace' }],
-        },
-        async (client) => {
-          const stateRoot = path.join(workspaceRoot, 'docs', 'maestro');
-          const plansRoot = path.join(stateRoot, 'plans');
-          const designDocument = path.join(plansRoot, 'codex-design.md');
-          const implementationPlan = path.join(plansRoot, 'codex-impl.md');
+    await withServer(
+      {
+        cwd: spawnCwd,
+        // Absolute, because the server is spawned from a cwd outside the repo.
+        relativePath: path.join(ROOT, 'bin', 'maestro-mcp-server.js'),
+        roots: [{ uri: pathToFileURL(workspaceRoot).href, name: 'workspace' }],
+      },
+      async (client) => {
+        const stateRoot = path.join(workspaceRoot, 'docs', 'maestro');
+        const plansRoot = path.join(stateRoot, 'plans');
+        const designDocument = path.join(plansRoot, 'codex-design.md');
+        const implementationPlan = path.join(plansRoot, 'codex-impl.md');
 
-          const initResult = await client.callTool('initialize_workspace', {
-            workspace_path: workspaceRoot,
-            state_dir: 'docs/maestro',
-          });
-          assert.equal(initResult.parsed.success, true);
-          assert.equal(fs.existsSync(path.join(stateRoot, 'state')), true);
-          assert.equal(fs.existsSync(path.join(stateRoot, 'plans')), true);
+        const initResult = await client.callTool('initialize_workspace', {
+          workspace_path: workspaceRoot,
+          state_dir: 'docs/maestro',
+        });
+        assert.equal(initResult.parsed.success, true);
+        assert.equal(fs.existsSync(path.join(stateRoot, 'state')), true);
+        assert.equal(fs.existsSync(path.join(stateRoot, 'plans')), true);
 
-          fs.writeFileSync(designDocument, '# Design\n');
-          fs.writeFileSync(implementationPlan, '# Plan\n');
+        fs.writeFileSync(designDocument, '# Design\n');
+        fs.writeFileSync(implementationPlan, '# Plan\n');
 
-          const sessionResult = await client.callTool('create_session', {
-            session_id: 'codex-roots-workspace',
-            task: 'Validate Codex root resolution',
-            design_document: path.relative(workspaceRoot, designDocument),
-            implementation_plan: path.relative(workspaceRoot, implementationPlan),
-            phases: [
-              {
-                id: 1,
-                name: 'Implement',
-                agent: 'coder',
-                parallel: false,
-                blocked_by: [],
-              },
-            ],
-          });
+        const sessionResult = await client.callTool('create_session', {
+          session_id: 'codex-roots-workspace',
+          task: 'Validate Codex root resolution',
+          design_document: path.relative(workspaceRoot, designDocument),
+          implementation_plan: path.relative(workspaceRoot, implementationPlan),
+          phases: [
+            {
+              id: 1,
+              name: 'Implement',
+              agent: 'coder',
+              parallel: false,
+              blocked_by: [],
+            },
+          ],
+        });
 
-          const expectedSessionPath = path.join(stateRoot, 'state', 'active-session.md');
-          assert.equal(sessionResult.parsed.success, true);
-          assert.equal(sessionResult.parsed.path, expectedSessionPath);
-          assert.equal(fs.existsSync(expectedSessionPath), true);
+        const expectedSessionPath = path.join(stateRoot, 'state', 'active-session.md');
+        assert.equal(sessionResult.parsed.success, true);
+        assert.equal(sessionResult.parsed.path, expectedSessionPath);
+        assert.equal(fs.existsSync(expectedSessionPath), true);
 
-          const archiveResult = await client.callTool('archive_session', {
-            session_id: 'codex-roots-workspace',
-          });
+        const archiveResult = await client.callTool('archive_session', {
+          session_id: 'codex-roots-workspace',
+        });
 
-          const archivedSession = path.join(
-            stateRoot,
-            'state',
-            'archive',
-            'codex-roots-workspace.md'
-          );
-          const archivedDesign = path.join(stateRoot, 'plans', 'archive', 'codex-design.md');
-          const archivedImplementation = path.join(
-            stateRoot,
-            'plans',
-            'archive',
-            'codex-impl.md'
-          );
+        const archivedSession = path.join(
+          stateRoot,
+          'state',
+          'archive',
+          'codex-roots-workspace.md'
+        );
+        const archivedDesign = path.join(stateRoot, 'plans', 'archive', 'codex-design.md');
+        const archivedImplementation = path.join(
+          stateRoot,
+          'plans',
+          'archive',
+          'codex-impl.md'
+        );
 
-          assert.equal(archiveResult.parsed.success, true);
-          assert.deepEqual(
-            archiveResult.parsed.archived_files.sort(),
-            [archivedDesign, archivedImplementation, archivedSession].sort()
-          );
-          assert.equal(fs.existsSync(archivedSession), true);
-          assert.equal(fs.existsSync(archivedDesign), true);
-          assert.equal(fs.existsSync(archivedImplementation), true);
-          assert.equal(fs.existsSync(designDocument), false);
-          assert.equal(fs.existsSync(implementationPlan), false);
-          assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
-        }
-      );
-    } finally {
-      fs.rmSync(workspaceRoot, { recursive: true, force: true });
-      fs.rmSync(spawnCwd, { recursive: true, force: true });
-    }
+        assert.equal(archiveResult.parsed.success, true);
+        assert.deepEqual(
+          archiveResult.parsed.archived_files.sort(),
+          [archivedDesign, archivedImplementation, archivedSession].sort()
+        );
+        assert.equal(fs.existsSync(archivedSession), true);
+        assert.equal(fs.existsSync(archivedDesign), true);
+        assert.equal(fs.existsSync(archivedImplementation), true);
+        assert.equal(fs.existsSync(designDocument), false);
+        assert.equal(fs.existsSync(implementationPlan), false);
+        assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
+      }
+    );
   });
 });

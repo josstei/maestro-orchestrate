@@ -5,8 +5,9 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const STDIN_READER = path.join(REPO_ROOT, 'src', 'core', 'stdin-reader.js');
+const { ROOT } = require('../support/paths');
+
+const STDIN_READER = path.join(ROOT, 'src', 'core', 'stdin-reader.js');
 
 function runWithStdin(fnName, stdin) {
   const script = `
