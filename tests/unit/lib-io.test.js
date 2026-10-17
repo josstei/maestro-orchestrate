@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const {
   atomicWriteSync,
+  ensurePrivateDir,
   readFileSafe,
   readJsonSafe,
   writeIfChanged,
@@ -333,17 +334,47 @@ describe('writeIfChanged', () => {
   });
 });
 
+describe('ensurePrivateDir', () => {
+  let tempRoot;
+
+  beforeEach(() => {
+    tempRoot = createTempRoot();
+  });
+
+  afterEach(() => {
+    removeTempRoot(tempRoot);
+  });
+
+  it('creates the directory and missing parents', () => {
+    const dir = path.join(tempRoot, 'a', 'b', 'private');
+    ensurePrivateDir(dir, 'unused');
+    assert.ok(fs.statSync(dir).isDirectory());
+  });
+
+  it('throws the given message when the directory is a symlink', () => {
+    const target = path.join(tempRoot, 'target');
+    fs.mkdirSync(target);
+    const link = path.join(tempRoot, 'link');
+    fs.symlinkSync(target, link, 'dir');
+    assert.throws(
+      () => ensurePrivateDir(link, 'must not be a symlink'),
+      { message: 'must not be a symlink' }
+    );
+  });
+});
+
 describe('module exports', () => {
-  it('exports all four documented functions', () => {
+  it('exports all five documented functions', () => {
     const io = require('../../src/lib/io');
     assert.equal(typeof io.atomicWriteSync, 'function');
+    assert.equal(typeof io.ensurePrivateDir, 'function');
     assert.equal(typeof io.readFileSafe, 'function');
     assert.equal(typeof io.readJsonSafe, 'function');
     assert.equal(typeof io.writeIfChanged, 'function');
   });
 
-  it('exports exactly four members', () => {
+  it('exports exactly five members', () => {
     const io = require('../../src/lib/io');
-    assert.equal(Object.keys(io).length, 4);
+    assert.equal(Object.keys(io).length, 5);
   });
 });

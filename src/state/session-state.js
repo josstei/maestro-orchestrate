@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { atomicWriteSync } = require('../lib/io');
+const { atomicWriteSync, ensurePrivateDir } = require('../lib/io');
 const { StateError } = require('../lib/errors');
 const markdownState = require('../core/markdown-state');
 
@@ -120,11 +120,7 @@ function assertSessionMatch(state, sessionId, verb = 'got') {
 
 function ensureWorkspace(stateDir, basePath) {
   const fullBase = resolveStateDirUnder(basePath, stateDir);
-  fs.mkdirSync(fullBase, { recursive: true, mode: 0o700 });
-  const stats = fs.lstatSync(fullBase);
-  if (stats.isSymbolicLink()) {
-    throw new Error('STATE_DIR must not be a symlink');
-  }
+  ensurePrivateDir(fullBase, 'STATE_DIR must not be a symlink');
   for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
     try {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
