@@ -5,14 +5,13 @@ const path = require('path');
 const { parseFrontmatterOnly, splitAtBoundary } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
 const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');
-
-const agentRegistry = require('../../generated/agent-registry.json');
+const { AGENT_NAMES } = require('../../core/agent-registry');
 
 const DEFAULT_RUNTIME_NAME = 'gemini';
 
 const RESOURCE_ALLOWLIST = Object.freeze(require('../../generated/resource-registry.json'));
 
-const AGENT_ALLOWLIST = Object.freeze(agentRegistry.map((entry) => entry.name));
+const AGENT_ALLOWLIST = AGENT_NAMES;
 
 function applyReplacePaths(content, runtimeConfig) {
   let result = content;

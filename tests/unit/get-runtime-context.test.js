@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const codex = require('../../src/platforms/codex/runtime-config');
 const claude = require('../../src/platforms/claude/runtime-config');
 const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
+const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
 
 describe('get_runtime_context response shape', () => {
   it('codex returns delegation.constraints and plan_mode_native=false', () => {
@@ -30,5 +31,11 @@ describe('get_runtime_context response shape', () => {
     const handler = createHandler(codex, () => null);
     const result = handler({});
     assert.equal(result.agent_dispatch.pattern, 'spawn_agent(...)');
+  });
+
+  it('lists agents in the runtime agentNaming, defaulting to kebab-case', () => {
+    assert.deepEqual(createHandler(codex)({}).agents, AGENT_NAMES);
+    assert.deepEqual(createHandler({ name: 'gemini', agentNaming: 'snake_case' })({}).agents, KNOWN_AGENTS);
+    assert.deepEqual(createHandler({ name: 'custom' })({}).agents, AGENT_NAMES);
   });
 });
