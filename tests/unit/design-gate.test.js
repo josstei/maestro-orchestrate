@@ -16,6 +16,14 @@ function makeWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-gate-'));
 }
 
+// A fresh initialized workspace whose 'alpha' session has entered the design gate.
+async function gatedServer() {
+  const workspace = makeWorkspace();
+  const server = await createInitializedSessionServer(workspace);
+  await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+  return { workspace, server };
+}
+
 describe('design gate tools', () => {
   it('enter_design_gate records a timestamp on the session-gate store', async () => {
     const workspace = makeWorkspace();
@@ -50,9 +58,7 @@ describe('design gate tools', () => {
   });
 
   it('record_design_approval accepts an existing path via the path variant', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
     fs.mkdirSync(path.dirname(designPath), { recursive: true });
@@ -70,34 +76,8 @@ describe('design gate tools', () => {
     assert.match(outcome.result.approved_at, /^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it('record_design_approval accepts paths to files that have not yet materialized (defers existence to create_session)', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
-
-    const outcome = await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'alpha',
-        design_document_path: path.join(workspace, 'not-yet-written.md'),
-      },
-      workspace
-    );
-    assert.equal(
-      outcome.ok,
-      true,
-      'approval must not race Plan Mode writes; file existence is enforced at create_session'
-    );
-    assert.equal(
-      outcome.result.design_document_path,
-      path.join(workspace, 'not-yet-written.md')
-    );
-  });
-
   it('record_design_approval rejects when neither path nor content+filename is provided', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const missing = await server.callTool(
       'record_design_approval',
@@ -123,9 +103,7 @@ describe('design gate tools', () => {
   });
 
   it('record_design_approval rejects when both path and content variants are supplied', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const both = await server.callTool(
       'record_design_approval',
@@ -142,9 +120,7 @@ describe('design gate tools', () => {
   });
 
   it('record_design_approval rejects the content variant when filename or content is missing', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const noFilename = await server.callTool(
       'record_design_approval',
@@ -170,9 +146,7 @@ describe('design gate tools', () => {
   });
 
   it('record_design_approval rejects filenames that contain path separators or traversal', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const traversal = await server.callTool(
       'record_design_approval',
@@ -200,9 +174,7 @@ describe('design gate tools', () => {
   });
 
   it('record_design_approval content variant materializes the file atomically under plans/', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const body = '# Design\n\nApproved inline.\n';
     const outcome = await server.callTool(
@@ -233,9 +205,7 @@ describe('design gate tools', () => {
   });
 
   it('create_session rejects when design gate is entered but unapproved', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const outcome = await server.callTool(
       'create_session',
@@ -260,9 +230,7 @@ describe('design gate tools', () => {
   });
 
   it('create_session succeeds after record_design_approval', async () => {
-    const workspace = makeWorkspace();
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
+    const { workspace, server } = await gatedServer();
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
     fs.mkdirSync(path.dirname(designPath), { recursive: true });

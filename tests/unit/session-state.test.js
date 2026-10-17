@@ -19,19 +19,12 @@ const { withEnv } = require('../support/env');
 
 describe('session-state', () => {
   let tmpRoot;
-  let savedStateDirEnv;
 
   beforeEach(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-test-'));
-    savedStateDirEnv = process.env.MAESTRO_STATE_DIR;
   });
 
   afterEach(() => {
-    if (savedStateDirEnv == null) {
-      delete process.env.MAESTRO_STATE_DIR;
-    } else {
-      process.env.MAESTRO_STATE_DIR = savedStateDirEnv;
-    }
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
