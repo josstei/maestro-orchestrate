@@ -5,19 +5,17 @@ const { log } = require('./logger');
 const MAX_STDIN_BYTES = 1024 * 1024;
 
 /**
- * Collect stdin up to MAX_STDIN_BYTES. With `decode`, chunks are read as
- * UTF-8 strings (StringDecoder joins split multi-byte sequences); otherwise
- * raw Buffers are concatenated and decoded once at the end. Rejects with
- * `Stdin payload too large` once the cap is exceeded, after calling
- * `onOverflow` when provided.
+ * Collect stdin up to MAX_STDIN_BYTES. Raw Buffers are concatenated and
+ * decoded as UTF-8 once at the end, so multi-byte sequences split across
+ * chunks decode intact. Rejects with `Stdin payload too large` once the cap
+ * is exceeded, after calling `onOverflow` when provided.
  */
-function collectStdin({ decode = false, onOverflow } = {}) {
+function collectStdin({ onOverflow } = {}) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let totalBytes = 0;
-    if (decode) process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk) => {
-      totalBytes += Buffer.byteLength(chunk, 'utf8');
+      totalBytes += chunk.length;
       if (totalBytes > MAX_STDIN_BYTES) {
         if (onOverflow) onOverflow();
         process.stdin.destroy();
@@ -27,7 +25,7 @@ function collectStdin({ decode = false, onOverflow } = {}) {
       chunks.push(chunk);
     });
     process.stdin.on('end', () => {
-      resolve(decode ? chunks.join('') : Buffer.concat(chunks).toString());
+      resolve(Buffer.concat(chunks).toString());
     });
     process.stdin.resume();
   });
@@ -35,10 +33,7 @@ function collectStdin({ decode = false, onOverflow } = {}) {
 
 async function readText() {
   if (process.stdin.isTTY) return '';
-  return collectStdin({
-    decode: true,
-    onOverflow: () => log('ERROR', 'Stdin payload exceeds maximum size'),
-  });
+  return collectStdin({ onOverflow: () => log('ERROR', 'Stdin payload exceeds maximum size') });
 }
 
 /**
