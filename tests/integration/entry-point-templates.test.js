@@ -1,6 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { expandCoreCommands, expandEntryPoints } = require('../../src/generator/entry-point-expander');
+const entryPointRegistry = require('../../src/entry-points/registry');
 
 describe('expandEntryPoints', () => {
   it('produces gemini TOML for each registry entry', () => {
@@ -52,7 +53,7 @@ describe('expandEntryPoints', () => {
     assert.ok(resume.content.includes('get_skill_content'));
   });
 
-  it('gemini skills_block activates correct skills', () => {
+  it('gemini preamble activates correct skills', () => {
     const results = expandEntryPoints('gemini');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
@@ -60,18 +61,27 @@ describe('expandEntryPoints', () => {
     assert.ok(review.content.includes('code-review'));
   });
 
-  it('claude protocol_block references delegation for agent entries', () => {
+  it('claude preamble references delegation for agent entries', () => {
     const results = expandEntryPoints('claude');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
   });
 
-  it('codex refs_list includes agent references for entries with agents', () => {
+  it('codex preamble includes agent references for entries with agents', () => {
     const results = expandEntryPoints('codex');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_agent'));
     assert.ok(review.content.includes('code-reviewer'));
+  });
+
+  it('claude skill headings use the registry title when one is set', () => {
+    const headings = Object.fromEntries(
+      expandEntryPoints('claude').map((r) => [r.outputPath, r.content.match(/^# .*$/m)[0]])
+    );
+    assert.equal(headings['claude/skills/a11y-audit/SKILL.md'], '# Maestro Accessibility Audit');
+    assert.equal(headings['claude/skills/seo-audit/SKILL.md'], '# Maestro SEO Audit');
+    assert.equal(headings['claude/skills/review-code/SKILL.md'], '# Maestro Review Code');
   });
 
   it('entries without agents omit delegation references', () => {
@@ -161,5 +171,31 @@ describe('expandEntryPoints', () => {
         `Expected codex public skill frontmatter to avoid reserved name "${name}"`
       );
     }
+  });
+
+  it('rejects a registry name that resolves to a reserved host command', () => {
+    const review = entryPointRegistry.find((entry) => entry.name === 'review');
+    const { runtimeNames } = review;
+    review.runtimeNames = { codex: 'review-code' };
+    try {
+      assert.throws(() => expandEntryPoints('claude'), {
+        message:
+          'Reserved claude host command name "review" conflicts with a built-in — ' +
+          'add a runtimeNames entry to the registry to remap it',
+      });
+    } finally {
+      review.runtimeNames = runtimeNames;
+    }
+  });
+
+  it('emits nothing for qwen and rejects unknown runtimes', () => {
+    assert.deepEqual(expandEntryPoints('qwen'), []);
+    assert.deepEqual(expandCoreCommands('qwen'), []);
+    assert.throws(() => expandEntryPoints('nope'), {
+      message: 'Unknown runtime for entry-point expansion: "nope"',
+    });
+    assert.throws(() => expandCoreCommands('nope'), {
+      message: 'Unknown runtime for core-command expansion: "nope"',
+    });
   });
 });

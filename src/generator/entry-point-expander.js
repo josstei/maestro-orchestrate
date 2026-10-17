@@ -4,8 +4,11 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { toTitleCase } = require('../lib/naming');
 const { emitInlineQuotedList } = require('../lib/yaml-emit');
+const entryPointRegistry = require('../entry-points/registry');
+const coreCommandRegistry = require('../entry-points/core-command-registry');
+const preambleBuilders = require('../entry-points/preamble-builders');
 
-const DEFAULT_SRC = path.resolve(__dirname, '..');
+const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
 
 /**
  * Host command names that must never appear as public skill names. Claude
@@ -22,23 +25,26 @@ const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
 const RUNTIME_ENTRY_POINTS = {
   gemini: {
     outputPath: (e) => `commands/maestro/${e.name}.toml`,
-    entryTemplate: 'gemini-command.toml.tmpl',
-    preamblePlaceholder: 'skills_block',
-    coreTemplate: 'gemini-core-command.toml.tmpl',
+    templates: {
+      'entry-point': 'gemini-command.toml.tmpl',
+      'core-command': 'gemini-core-command.toml.tmpl',
+    },
     reservedNames: null,
   },
   claude: {
     outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
-    entryTemplate: 'claude-skill.md.tmpl',
-    preamblePlaceholder: 'protocol_block',
-    coreTemplate: 'claude-core-command.md.tmpl',
+    templates: {
+      'entry-point': 'claude-skill.md.tmpl',
+      'core-command': 'claude-core-command.md.tmpl',
+    },
     reservedNames: HOST_RESERVED_NAMES,
   },
   codex: {
     outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-    entryTemplate: 'codex-skill.md.tmpl',
-    preamblePlaceholder: 'refs_list',
-    coreTemplate: 'codex-core-command.md.tmpl',
+    templates: {
+      'entry-point': 'codex-skill.md.tmpl',
+      'core-command': 'codex-core-command.md.tmpl',
+    },
     reservedNames: HOST_RESERVED_NAMES,
   },
   qwen: null,
@@ -55,28 +61,34 @@ Use the injected session state above as the source of truth for resume position.
 `;
 
 /**
- * @param {{ name: string, runtimeNames?: Record<string, string> }} entry
- * @param {string} runtimeName
- * @returns {string}
+ * Expansion kinds: the registry each renders and the template placeholder
+ * values for one registry entry, given its runtime-resolved name.
  */
-function getEntryPointRuntimeName(entry, runtimeName) {
-  return entry.runtimeNames?.[runtimeName] || entry.name;
-}
-
-/**
- * @param {string} resolvedName
- * @param {string} runtimeName
- * @param {Set<string>|null} reservedNames
- * @throws {Error}
- */
-function assertNotHostReserved(resolvedName, runtimeName, reservedNames) {
-  if (reservedNames && reservedNames.has(resolvedName)) {
-    throw new Error(
-      `Reserved ${runtimeName} host command name "${resolvedName}" conflicts with a built-in — ` +
-      'add a runtimeNames entry to the registry to remap it'
-    );
-  }
-}
+const KINDS = {
+  'entry-point': {
+    registry: entryPointRegistry,
+    substitutions: (entry, runtimeName) => ({
+      name: entry.name,
+      title: entry.title || toTitleCase(entry.name),
+      description: entry.description,
+      workflowNumbered: entry.workflow.map((step, i) => `${i + 1}. ${step}`).join('\n'),
+      constraintsList: (entry.constraints || []).map((c) => `- ${c}`).join('\n'),
+      preamble: preambleBuilders[runtimeName](entry),
+    }),
+  },
+  'core-command': {
+    registry: coreCommandRegistry,
+    substitutions: (entry) => ({
+      name: entry.name,
+      description: entry.description,
+      firstLine: entry.firstLine,
+      requestType: entry.requestType,
+      executeInstructions: entry.executeInstructions,
+      preloadList: emitInlineQuotedList(entry.preload),
+      sessionStateBlock: entry.geminiSessionStateInjection ? GEMINI_SESSION_STATE_BLOCK : '',
+    }),
+  },
+};
 
 function applySubstitutions(template, substitutions) {
   let content = template;
@@ -86,87 +98,56 @@ function applySubstitutions(template, substitutions) {
   return content;
 }
 
-function runTemplateExpansion({ runtimeName, config, registry, srcDir, templateFile, buildSubstitutions }) {
-  const templatePath = path.join(srcDir, 'entry-points', 'templates', templateFile);
-  const template = fs.readFileSync(templatePath, 'utf8');
-  return registry.map((entry) => {
-    const runtimeEntry = {
-      ...entry,
-      name: getEntryPointRuntimeName(entry, runtimeName),
-    };
-    assertNotHostReserved(runtimeEntry.name, runtimeName, config.reservedNames);
-    return {
-      outputPath: config.outputPath(runtimeEntry),
-      content: applySubstitutions(template, buildSubstitutions(runtimeEntry)),
-    };
-  });
-}
-
-function resolveRuntimeEntryPoints(runtimeName, kind) {
+/**
+ * Render every registry entry of one kind for one runtime.
+ * @param {'entry-point'|'core-command'} kind
+ * @param {string} runtimeName
+ * @returns {Array<{ outputPath: string, content: string }>} Empty for a
+ *   runtime that emits no entry points
+ * @throws {Error} For an unknown runtime, or a resolved name that collides
+ *   with a reserved host command
+ */
+function expand(kind, runtimeName) {
   const config = RUNTIME_ENTRY_POINTS[runtimeName];
   if (config === undefined) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
-  return config;
-}
-
-/**
- * @param {string} runtimeName
- * @param {string} [srcDir]
- * @returns {Array<{ outputPath: string, content: string }>}
- */
-function expandEntryPoints(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = resolveRuntimeEntryPoints(runtimeName, 'entry-point');
   if (!config) return [];
 
-  const registry = require(path.join(srcDir, 'entry-points', 'registry'));
-  const preambleBuilders = require(path.join(srcDir, 'entry-points', 'preamble-builders'));
-  const buildPreamble = preambleBuilders[runtimeName];
-
-  return runTemplateExpansion({
-    runtimeName,
-    config,
-    registry,
-    srcDir,
-    templateFile: config.entryTemplate,
-    buildSubstitutions: (runtimeEntry) => ({
-      name: runtimeEntry.name,
-      Name: toTitleCase(runtimeEntry.name),
-      description: runtimeEntry.description,
-      workflow_numbered: runtimeEntry.workflow.map((step, i) => `${i + 1}. ${step}`).join('\n'),
-      constraints_list: (runtimeEntry.constraints || []).map((c) => `- ${c}`).join('\n'),
-      [config.preamblePlaceholder]: buildPreamble(runtimeEntry),
-    }),
+  const { registry, substitutions } = KINDS[kind];
+  const template = fs.readFileSync(path.join(TEMPLATES_DIR, config.templates[kind]), 'utf8');
+  return registry.map((entry) => {
+    const runtimeEntry = {
+      ...entry,
+      name: entry.runtimeNames?.[runtimeName] || entry.name,
+    };
+    if (config.reservedNames && config.reservedNames.has(runtimeEntry.name)) {
+      throw new Error(
+        `Reserved ${runtimeName} host command name "${runtimeEntry.name}" conflicts with a built-in — ` +
+        'add a runtimeNames entry to the registry to remap it'
+      );
+    }
+    return {
+      outputPath: config.outputPath(runtimeEntry),
+      content: applySubstitutions(template, substitutions(runtimeEntry, runtimeName)),
+    };
   });
 }
 
 /**
  * @param {string} runtimeName
- * @param {string} [srcDir]
  * @returns {Array<{ outputPath: string, content: string }>}
  */
-function expandCoreCommands(runtimeName, srcDir = DEFAULT_SRC) {
-  const config = resolveRuntimeEntryPoints(runtimeName, 'core-command');
-  if (!config) return [];
+function expandEntryPoints(runtimeName) {
+  return expand('entry-point', runtimeName);
+}
 
-  const registry = require(path.join(srcDir, 'entry-points', 'core-command-registry'));
-
-  return runTemplateExpansion({
-    runtimeName,
-    config,
-    registry,
-    srcDir,
-    templateFile: config.coreTemplate,
-    buildSubstitutions: (runtimeEntry) => ({
-      name: runtimeEntry.name,
-      description: runtimeEntry.description,
-      firstLine: runtimeEntry.firstLine,
-      requestType: runtimeEntry.requestType,
-      executeInstructions: runtimeEntry.executeInstructions,
-      preloadList: emitInlineQuotedList(runtimeEntry.preload),
-      sessionStateBlock: runtimeEntry.geminiSessionStateInjection ? GEMINI_SESSION_STATE_BLOCK : '',
-    }),
-  });
+/**
+ * @param {string} runtimeName
+ * @returns {Array<{ outputPath: string, content: string }>}
+ */
+function expandCoreCommands(runtimeName) {
+  return expand('core-command', runtimeName);
 }
 
 module.exports = { expandEntryPoints, expandCoreCommands };

@@ -4,7 +4,6 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  TITLE_SPECIAL_CASES,
   toSnakeCase,
   toKebabCase,
   toPascalCase,
@@ -36,8 +35,6 @@ const ENTRY_POINT_NAMES = [
   'status',
   'security-audit',
   'perf-check',
-  'seo-audit',
-  'a11y-audit',
   'compliance-check',
   'orchestrate',
   'execute',
@@ -54,8 +51,6 @@ const ENTRY_POINT_TITLE_EXPECTED = {
   'status': 'Status',
   'security-audit': 'Security Audit',
   'perf-check': 'Perf Check',
-  'seo-audit': 'SEO Audit',
-  'a11y-audit': 'Accessibility Audit',
   'compliance-check': 'Compliance Check',
   'orchestrate': 'Orchestrate',
   'execute': 'Execute',
@@ -138,22 +133,8 @@ describe('toTitleCase', () => {
     assert.equal(toTitleCase('security-audit'), 'Security Audit');
   });
 
-  it('applies special-case mapping for a11y-audit', () => {
-    assert.equal(toTitleCase('a11y-audit'), 'Accessibility Audit');
-  });
-
-  it('applies special-case mapping for seo-audit', () => {
-    assert.equal(toTitleCase('seo-audit'), 'SEO Audit');
-  });
-
   it('returns empty string for empty input', () => {
     assert.equal(toTitleCase(''), '');
-  });
-
-  it('exposes TITLE_SPECIAL_CASES map', () => {
-    assert.equal(typeof TITLE_SPECIAL_CASES, 'object');
-    assert.equal(TITLE_SPECIAL_CASES['a11y-audit'], 'Accessibility Audit');
-    assert.equal(TITLE_SPECIAL_CASES['seo-audit'], 'SEO Audit');
   });
 });
 
@@ -224,7 +205,7 @@ describe('replaceInContent', () => {
   });
 });
 
-describe('toPascalCase matches registry-scanner hookNameToFunctionName (minus handle prefix)', () => {
+describe('toPascalCase over hook names (registry-scanner prefixes handle)', () => {
   for (const hookName of HOOK_NAMES) {
     it(`toPascalCase('${hookName}') === '${HOOK_PASCAL_EXPECTED[hookName]}'`, () => {
       assert.equal(toPascalCase(hookName), HOOK_PASCAL_EXPECTED[hookName]);
@@ -232,7 +213,7 @@ describe('toPascalCase matches registry-scanner hookNameToFunctionName (minus ha
   }
 });
 
-describe('toTitleCase matches entry-point-expander toTitle', () => {
+describe('toTitleCase over entry-point names without a registry title', () => {
   for (const epName of ENTRY_POINT_NAMES) {
     it(`toTitleCase('${epName}') === '${ENTRY_POINT_TITLE_EXPECTED[epName]}'`, () => {
       assert.equal(toTitleCase(epName), ENTRY_POINT_TITLE_EXPECTED[epName]);
