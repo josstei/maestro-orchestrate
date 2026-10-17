@@ -2,6 +2,8 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const { makeTempDir } = require('../support/fs');
@@ -200,5 +202,27 @@ describe('hook entrypoints', () => {
     assert.equal(denyResult.status, 0, `Expected exit 0 for gemini deny, got ${denyResult.status}`);
     const parsed = JSON.parse(denyResult.stdout);
     assert.equal(parsed.continue, false);
+  });
+
+  it('keeps hook state under <os.tmpdir()>/maestro-hooks-<uid> when MAESTRO_HOOKS_DIR is unset', {
+    skip: process.platform === 'win32' && 'os.tmpdir() ignores TMPDIR on Windows',
+  }, () => {
+    // Hosts never set MAESTRO_HOOKS_DIR; point os.tmpdir() at a private dir to
+    // exercise the production default without touching the shared one.
+    const tmpRoot = makeTempDir('maestro-hooks-default-');
+    const env = { ...process.env, TMPDIR: tmpRoot };
+    delete env.MAESTRO_HOOKS_DIR;
+
+    const result = spawnSync(process.execPath, ['hooks/hook-runner.js', 'gemini', 'before-agent'], {
+      cwd: ROOT,
+      env,
+      input: `${JSON.stringify({ cwd: ROOT, session_id: 'hook-default-dir', prompt: 'agent: coder' })}\n`,
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const uid = process.getuid ? process.getuid() : 'default';
+    const activeAgentFile = path.join(tmpRoot, `maestro-hooks-${uid}`, 'hook-default-dir', 'active-agent');
+    assert.equal(fs.readFileSync(activeAgentFile, 'utf8').trim(), 'coder');
   });
 });
