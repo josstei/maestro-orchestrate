@@ -7,7 +7,7 @@ const path = require('node:path');
 const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const { writeOutputContract } = require('../support/agent-fixtures');
+const { writeAgentFixture } = require('../support/agent-fixtures');
 
 describe('get_skill_content handler', () => {
   it('reads canonical src content and applies skill transforms', () => {
@@ -88,11 +88,9 @@ describe('get_skill_content handler', () => {
 describe('get_agent handler', () => {
   it('returns stripped methodology bodies and runtime-mapped tools', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-content-'));
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    writeOutputContract(path.join(root, 'src'));
-    fs.writeFileSync(
-      path.join(agentDir, 'coder.md'),
+    writeAgentFixture(
+      path.join(root, 'src'),
+      'coder',
       [
         '---',
         'name: coder',
@@ -104,8 +102,7 @@ describe('get_agent handler', () => {
         '<!-- @end-feature -->',
         '',
         'Methodology body.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = createAgentHandler({
@@ -125,43 +122,11 @@ describe('get_agent handler', () => {
     assert.ok(!result.agents.coder.body.includes('Example block'));
   });
 
-  it('accepts snake_case agent names and normalizes to kebab-case for lookup', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-snake-'));
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    writeOutputContract(path.join(root, 'src'));
-    fs.writeFileSync(
-      path.join(agentDir, 'ux-designer.md'),
-      [
-        '---',
-        'name: ux-designer',
-        'tools: [read_file, write_file]',
-        '---',
-        '',
-        'UX methodology body.',
-      ].join('\n'),
-      'utf8'
-    );
-
-    const handler = createAgentHandler(
-      getRuntimeConfig('gemini'),
-      path.join(root, 'src')
-    );
-
-    const result = handler({ agents: ['ux_designer'] });
-
-    assert.deepEqual(result.errors, {});
-    assert.ok(result.agents.ux_designer, 'response keyed by original input name');
-    assert.ok(result.agents.ux_designer.body.includes('UX methodology body.'));
-  });
-
   it('returns tool_name matching runtime agentNaming convention', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-toolname-'));
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    writeOutputContract(path.join(root, 'src'));
-    fs.writeFileSync(
-      path.join(agentDir, 'code-reviewer.md'),
+    writeAgentFixture(
+      path.join(root, 'src'),
+      'code-reviewer',
       [
         '---',
         'name: code-reviewer',
@@ -169,8 +134,7 @@ describe('get_agent handler', () => {
         '---',
         '',
         'Review methodology.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     // Gemini runtime: agentNaming is 'snake_case'
@@ -200,45 +164,11 @@ describe('get_agent handler', () => {
     );
   });
 
-  it('returns correct tool_name when input is snake_case', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-agent-snaketool-'));
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    writeOutputContract(path.join(root, 'src'));
-    fs.writeFileSync(
-      path.join(agentDir, 'ux-designer.md'),
-      [
-        '---',
-        'name: ux-designer',
-        'tools: [read_file]',
-        '---',
-        '',
-        'UX body.',
-      ].join('\n'),
-      'utf8'
-    );
-
-    const handler = createAgentHandler(
-      getRuntimeConfig('gemini'),
-      path.join(root, 'src')
-    );
-
-    const result = handler({ agents: ['ux_designer'] });
-
-    assert.equal(
-      result.agents.ux_designer.tool_name,
-      'ux_designer',
-      'tool_name for snake_case input on Gemini should be snake_case'
-    );
-  });
-
   it('replays Gemini ux_designer delegation scenario end-to-end', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-replay-'));
-    const agentDir = path.join(root, 'src', 'agents');
-    fs.mkdirSync(agentDir, { recursive: true });
-    writeOutputContract(path.join(root, 'src'));
-    fs.writeFileSync(
-      path.join(agentDir, 'ux-designer.md'),
+    writeAgentFixture(
+      path.join(root, 'src'),
+      'ux-designer',
       [
         '---',
         'name: ux-designer',
@@ -246,8 +176,7 @@ describe('get_agent handler', () => {
         '---',
         '',
         'UX Designer methodology.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = createAgentHandler(

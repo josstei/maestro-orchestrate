@@ -7,7 +7,7 @@ const path = require('path');
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/content');
 const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
-const { writeOutputContract } = require('../support/agent-fixtures');
+const { writeAgentFixture } = require('../support/agent-fixtures');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -32,24 +32,22 @@ describe('content tool pack', () => {
     fs.mkdirSync(path.join(root, 'src', 'skills', 'shared', 'delegation'), {
       recursive: true,
     });
-    fs.mkdirSync(path.join(root, 'src', 'agents'), { recursive: true });
-    writeOutputContract(path.join(root, 'src'));
 
     fs.writeFileSync(
       path.join(root, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'),
       '---\nname: delegation\ndescription: Demo skill\n---\nUse ${extensionPath} here.\n',
       'utf8'
     );
-    fs.writeFileSync(
-      path.join(root, 'src', 'agents', 'coder.md'),
+    writeAgentFixture(
+      path.join(root, 'src'),
+      'coder',
       [
         '---',
         'name: coder',
         'tools: [read_file, write_file]',
         '---',
         'Methodology body.',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const server = createServer({
