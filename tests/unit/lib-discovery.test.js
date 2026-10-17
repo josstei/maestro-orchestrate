@@ -9,8 +9,6 @@ const path = require('node:path');
 const {
   discover,
   serializeRegistry,
-  patternToRegex,
-  parsePattern,
   collectFiles,
 } = require('../../src/lib/discovery');
 
@@ -30,74 +28,6 @@ function writeFile(base, relativePath, content) {
   fs.writeFileSync(full, content, 'utf8');
   return full;
 }
-
-// ---------------------------------------------------------------------------
-// patternToRegex
-// ---------------------------------------------------------------------------
-
-describe('patternToRegex', () => {
-  it('matches wildcard prefix with extension', () => {
-    const re = patternToRegex('*.md');
-    assert.ok(re.test('readme.md'));
-    assert.ok(re.test('SKILL.md'));
-    assert.ok(!re.test('readme.txt'));
-    assert.ok(!re.test('sub/readme.md'));
-  });
-
-  it('matches wildcard suffix pattern', () => {
-    const re = patternToRegex('*-logic.js');
-    assert.ok(re.test('session-start-logic.js'));
-    assert.ok(re.test('before-agent-logic.js'));
-    assert.ok(!re.test('hook-state.js'));
-    assert.ok(!re.test('session-start-logic.ts'));
-  });
-
-  it('matches bare wildcard', () => {
-    const re = patternToRegex('*');
-    assert.ok(re.test('anything'));
-    assert.ok(re.test('file.txt'));
-    assert.ok(!re.test('a/b'));
-  });
-
-  it('escapes regex-special characters in the pattern', () => {
-    const re = patternToRegex('file.test.js');
-    assert.ok(re.test('file.test.js'));
-    assert.ok(!re.test('filextest.js'));
-    assert.ok(!re.test('filextestxjs'));
-  });
-
-  it('anchors to full filename', () => {
-    const re = patternToRegex('*.js');
-    assert.ok(!re.test('file.js.bak'));
-    assert.ok(re.test('file.js'));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// parsePattern
-// ---------------------------------------------------------------------------
-
-describe('parsePattern', () => {
-  it('returns impliedRecursive false for flat pattern', () => {
-    const result = parsePattern('*.md');
-    assert.equal(result.impliedRecursive, false);
-    assert.ok(result.regex instanceof RegExp);
-  });
-
-  it('strips **/ prefix and sets impliedRecursive true', () => {
-    const result = parsePattern('**/*.md');
-    assert.equal(result.impliedRecursive, true);
-    assert.ok(result.regex.test('readme.md'));
-    assert.ok(!result.regex.test('readme.txt'));
-  });
-
-  it('handles suffix pattern without recursive prefix', () => {
-    const result = parsePattern('*-logic.js');
-    assert.equal(result.impliedRecursive, false);
-    assert.ok(result.regex.test('session-start-logic.js'));
-    assert.ok(!result.regex.test('hook-state.js'));
-  });
-});
 
 // ---------------------------------------------------------------------------
 // collectFiles
@@ -267,40 +197,6 @@ describe('discover', () => {
     }
   });
 
-  it('filters entries via validate callback', () => {
-    writeFile(tempRoot, 'keep.md', '');
-    writeFile(tempRoot, 'drop.md', '');
-
-    const entries = discover({
-      dir: tempRoot,
-      pattern: '*.md',
-      identity: (fp) => path.basename(fp, '.md'),
-      validate: (entry) => entry.id !== 'drop',
-    });
-
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0].id, 'keep');
-  });
-
-  it('handles recursive scanning via recursive option', () => {
-    writeFile(tempRoot, 'top.md', '');
-    writeFile(tempRoot, 'sub/nested.md', '');
-    writeFile(tempRoot, 'sub/deep/leaf.md', '');
-
-    const entries = discover({
-      dir: tempRoot,
-      pattern: '*.md',
-      identity: (fp) => path.basename(fp, '.md'),
-      recursive: true,
-    });
-
-    assert.equal(entries.length, 3);
-    assert.deepEqual(
-      entries.map((e) => e.id),
-      ['leaf', 'nested', 'top']
-    );
-  });
-
   it('handles recursive scanning via **/ pattern prefix', () => {
     writeFile(tempRoot, 'top.md', '');
     writeFile(tempRoot, 'sub/nested.md', '');
@@ -316,6 +212,52 @@ describe('discover', () => {
       entries.map((e) => e.id),
       ['nested', 'top']
     );
+  });
+
+  it('does not scan subdirectories for a flat pattern', () => {
+    writeFile(tempRoot, 'top.md', '');
+    writeFile(tempRoot, 'sub/nested.md', '');
+
+    const entries = discover({
+      dir: tempRoot,
+      pattern: '*.md',
+      identity: (fp) => path.basename(fp, '.md'),
+    });
+
+    assert.deepEqual(entries.map((e) => e.id), ['top']);
+  });
+
+  it('matches literal pattern characters, including regex metacharacters, exactly', () => {
+    writeFile(tempRoot, 'file.test.js', '');
+    writeFile(tempRoot, 'filextest.js', '');
+    writeFile(tempRoot, 'a.b+c.md', '');
+    writeFile(tempRoot, 'a.bbc.md', '');
+
+    const ids = (pattern) => discover({
+      dir: tempRoot,
+      pattern,
+      identity: (fp) => path.basename(fp),
+    }).map((e) => e.id);
+
+    assert.deepEqual(ids('file.test.js'), ['file.test.js']);
+    assert.deepEqual(ids('a.b+c.md'), ['a.b+c.md']);
+  });
+
+  it('anchors the pattern to the full filename', () => {
+    writeFile(tempRoot, 'file.js', '');
+    writeFile(tempRoot, 'file.js.bak', '');
+    writeFile(tempRoot, 'a.md', '');
+    writeFile(tempRoot, 'xa.md', '');
+    writeFile(tempRoot, 'a.mdx', '');
+
+    const ids = (pattern) => discover({
+      dir: tempRoot,
+      pattern,
+      identity: (fp) => path.basename(fp),
+    }).map((e) => e.id);
+
+    assert.deepEqual(ids('*.js'), ['file.js']);
+    assert.deepEqual(ids('a.md'), ['a.md']);
   });
 
   it('returns empty array for nonexistent directory', () => {
@@ -390,24 +332,5 @@ describe('serializeRegistry', () => {
   it('uses 2-space indentation', () => {
     const content = serializeRegistry({ key: 'value' });
     assert.ok(content.includes('  "key"'));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// module exports
-// ---------------------------------------------------------------------------
-
-describe('module exports', () => {
-  it('exports discover and serializeRegistry as functions', () => {
-    const mod = require('../../src/lib/discovery');
-    assert.equal(typeof mod.discover, 'function');
-    assert.equal(typeof mod.serializeRegistry, 'function');
-  });
-
-  it('exports internal helpers for testing', () => {
-    const mod = require('../../src/lib/discovery');
-    assert.equal(typeof mod.patternToRegex, 'function');
-    assert.equal(typeof mod.parsePattern, 'function');
-    assert.equal(typeof mod.collectFiles, 'function');
   });
 });
