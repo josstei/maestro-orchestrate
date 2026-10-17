@@ -9,6 +9,9 @@ const AGENT_REGISTRY = require('../../src/generated/agent-registry.json');
 const REPO = path.resolve(__dirname, '../..');
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
 const listDir = (d) => fs.readdirSync(path.join(REPO, d));
+const listSubdirs = (d) => fs.readdirSync(path.join(REPO, d), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;
 const canonicalAgents = () => listDir('src/agents')
   .filter((f) => f.endsWith('.md'))
@@ -209,17 +212,21 @@ test('doc-drift: runtime-docs Feature Flags list exactly src/platforms/*/runtime
     assert.ok(section, `${surface}: missing Feature Flags section`);
     const block = section[0].match(/```\n([\s\S]*?)```/);
     assert.ok(block, `${surface}: Feature Flags section has no code block`);
+    const features = getRuntimeConfig(runtime).features;
     const documented = Object.fromEntries(
-      [...block[1].matchAll(/^(\w+):\s*(\S+)/gm)].map(([, flag, value]) => [
+      [...block[1].matchAll(/^[ \t]*(\w+):\s*(\S+)/gm)].map(([, flag, value]) => [
         flag,
         value === 'true' ? true : value === 'false' ? false : value,
       ])
     );
     assert.deepEqual(
       documented,
-      getRuntimeConfig(runtime).features,
+      features,
       `${surface}: Feature Flags must list exactly the runtime-config features with their values`
     );
+    for (const [, flag] of section[0].matchAll(/(\w+):/g)) {
+      assert.ok(Object.hasOwn(features, flag), `${surface} Feature Flags: names unknown flag ${flag}`);
+    }
   }
 });
 
@@ -251,7 +258,7 @@ test('doc-drift: docs/architecture.md module tree shows correct handler + tool-p
     [handlerCount],
     `docs/architecture.md: module tree should report ${handlerCount} handler implementations`
   );
-  for (const pack of listDir('src/mcp/tool-packs')) {
+  for (const pack of listSubdirs('src/mcp/tool-packs')) {
     const toolCount = packToolNames(pack).length;
     assert.deepEqual(
       claims(new RegExp(`${pack}/index\\.js\\s+# (\\d+) tools`, 'g')),
