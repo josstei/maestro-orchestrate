@@ -12,30 +12,18 @@ Activate this skill for all session state operations during Maestro orchestratio
 When MCP state tools are available, prefer them for state operations:
 - **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, atomic operations.
 - **Fallback**: `write_file`/`replace` directly on state files — when MCP tools are not in the available tool list.
-- **Legacy**: Shell scripts (`write-state.js`, `read-state.js`) — remain available but are not the recommended path.
+- **Legacy**: `node <runtime-script-root>/read-state.js <relative-path>` / `read-active-session.js` — used by command shell blocks to inject state before the first turn; not the recommended path.
 
 Detection: check whether MCP state tools appear in your available tools. If they do, use them. If they do not, use `write_file`/`replace`.
 
 ## Hook-Level Session State
 
-Maestro hooks maintain a separate, transient state directory under `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` that is distinct from orchestration state in `<MAESTRO_STATE_DIR>`:
-
-| Concern | Orchestration State | Hook State |
-| --- | --- | --- |
-| Location | `<MAESTRO_STATE_DIR>/state/` | `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` |
-| Lifecycle | Created at execution setup, archived in Phase 4 | Directory created by the session-start hook when an active session exists; active-agent file written by the pre-delegation hook and cleared by the post-delegation hook; stale directories pruned by both session-start and pre-delegation hooks |
-| Contents | Session metadata, phase tracking, token usage, file manifests | Active agent tracking file (`active-agent`) |
-| Persistence | Survives session restarts (supports `/maestro:resume`) | Ephemeral — lost on session end or system reboot |
-| Managed by | Orchestrator via session-management skill | The runtime's pre-delegation and post-delegation hooks |
-
-The pre-delegation hook prunes stale hook state directories older than 2 hours to prevent accumulation from abnormal session terminations.
-
-The orchestrator does not read or write hook-level state directly. It interacts only with `<MAESTRO_STATE_DIR>` paths. The two state systems are independent and serve different concerns.
+Maestro hooks keep a separate, ephemeral per-session directory (`${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/`, holding only the `active-agent` file). The orchestrator never reads or writes it and interacts only with `<MAESTRO_STATE_DIR>` paths.
 
 ## Session Creation Protocol
 
 ### When to Create
-For Standard workflow, create a new session at execution setup after the design document and implementation plan are approved and the execution mode gate has resolved. For Express workflow, create a session after the structured brief is approved (see Express Workflow section in the orchestrator template).
+For Standard workflow, create a new session at execution setup after the design document and implementation plan are approved and the execution mode gate has resolved. For Express workflow, create a session after the structured brief is approved (see EXPRESS WORKFLOW step 34 in `orchestration-steps`).
 
 ### Session ID Format
 `YYYY-MM-DD-<topic-slug>`
@@ -49,87 +37,16 @@ Where:
 
 All state paths in this skill use `<MAESTRO_STATE_DIR>` as their base directory (default: `docs/maestro`). In procedural steps, `<state_dir>` represents the resolved value of this variable.
 
-### State File Access
-
-Both `read_file` and `write_file` work on state paths inside `<MAESTRO_STATE_DIR>`. The runtime's file-access configuration makes state paths accessible.
-
-Use the runtime's bundled `scripts/` directory for these helper commands so they still work when the extension is installed outside the workspace root.
-
-**Reading state files:**
-Use `read_file` directly. The `read-state.js` script remains available as an alternative for TOML shell blocks that inject state before the model's first turn:
-
-`run_shell_command`: `node <runtime-script-root>/read-state.js <relative-path>`
-
-**Writing state files:**
-Use `write_file` directly. When content must be piped from a shell command, use the atomic write script:
-
-`run_shell_command`: `echo '...' | node <runtime-script-root>/write-state.js <relative-path>`
-
-**Rules:**
-- The `write-state.js` script writes atomically (temp file + rename) to prevent partial writes
-- Both scripts validate against absolute paths and path traversal
-
 ### Initialization Steps
 1. Resolve state directory from `MAESTRO_STATE_DIR`
 2. Create `<state_dir>/state/` directory if it does not exist (defense-in-depth fallback — workspace readiness startup check is the primary mechanism)
 3. Verify no existing `active-session.md` — if one exists, alert the user and offer to archive or resume
-4. Generate session state using the `session-state` template loaded via `get_skill_content`
+4. Generate session state from the `session-state` template (load it with `get_skill_content(["session-state"])` if not already loaded), setting `workflow_mode` to `standard` or `express`
 5. Initialize all phases as `pending`
 6. Set overall status to `in_progress`
 7. Set `current_phase` to 1
 8. Record design document and implementation plan paths
 9. Initialize empty token_usage, file manifests, downstream_context, and errors sections
-
-### Initial State Template
-
-```yaml
----
-session_id: "<YYYY-MM-DD-topic-slug>"
-task: "<user's original task description>"
-created: "<ISO 8601 timestamp>"
-updated: "<ISO 8601 timestamp>"
-status: "in_progress"
-workflow_mode: "<standard|express>"
-design_document: "<state_dir>/plans/<design-doc-filename>"
-implementation_plan: "<state_dir>/plans/<impl-plan-filename>"
-current_phase: 1
-total_phases: <integer from impl plan>
-execution_mode: null
-execution_backend: null
-task_complexity: null
-
-token_usage:
-  total_input: 0
-  total_output: 0
-  total_cached: 0
-  by_agent: {}
-
-phases:
-  - id: 1
-    name: "<phase name from impl plan>"
-    status: "pending"
-    agents: []
-    parallel: false
-    started: null
-    completed: null
-    blocked_by: []
-    files_created: []
-    files_modified: []
-    files_deleted: []
-    downstream_context:
-      key_interfaces_introduced: []
-      patterns_established: []
-      integration_points: []
-      assumptions: []
-      warnings: []
-    errors: []
-    retry_count: 0
----
-
-# <Topic> Orchestration Log
-```
-
-Include `task_complexity` (from design document frontmatter) in the session state. Place after `execution_backend`, before `token_usage`. Default: `null`.
 
 ## State Update Protocol
 
@@ -163,7 +80,7 @@ Update session state on every meaningful state change:
 errors:
   - agent: "<agent-name>"
     timestamp: "<ISO 8601>"
-    type: "<validation|timeout|file_conflict|runtime|dependency>"
+    type: "<validation|timeout|file_conflict|runtime|dependency|recovery>"
     message: "<full error description>"
     resolution: "<what was done to resolve, or 'pending'>"
     resolved: false
@@ -171,7 +88,7 @@ errors:
 
 ### Retry Tracking
 - Increment `retry_count` on each retry attempt
-- Maximum 2 retries per phase before escalating to user
+- Maximum `MAESTRO_MAX_RETRIES` retries per phase (default `2`) before escalating to user — see execution → Retry Logic
 - Record each retry as a separate error entry with resolution details
 
 ### Markdown Body Updates
@@ -186,6 +103,7 @@ After updating YAML frontmatter, append to the Markdown body:
 ### Files Changed
 - Created: [list]
 - Modified: [list]
+- Deleted: [list]
 
 ### Downstream Context
 - Key Interfaces Introduced: [list]
@@ -256,7 +174,7 @@ Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestra
    - Current active phase (first phase with `status: in_progress` or `pending`)
    - Any failed phases with unresolved errors
 4. **Check Errors**: Identify unresolved errors from previous execution
-5. **Present Summary**: Display status summary to user using the resume format defined in the orchestrator instructions
+5. **Present Summary**: Display a status summary to the user covering the position and errors identified in steps 3-4
 6. **Handle Errors**: If unresolved errors exist:
    - Present each error with context
    - Offer options: retry, skip, abort, or adjust parameters
