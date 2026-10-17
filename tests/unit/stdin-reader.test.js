@@ -8,7 +8,7 @@ const path = require('node:path');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const STDIN_READER = path.join(REPO_ROOT, 'src', 'core', 'stdin-reader.js');
 
-function runWithStdin(fnName, stdin, { buffer = false } = {}) {
+function runWithStdin(fnName, stdin) {
   const script = `
     const reader = require(${JSON.stringify(STDIN_READER)});
     (async () => {
@@ -20,9 +20,8 @@ function runWithStdin(fnName, stdin, { buffer = false } = {}) {
       }
     })();
   `;
-  const input = buffer ? stdin : Buffer.from(stdin, 'utf8');
   const out = spawnSync(process.execPath, ['-e', script], {
-    input,
+    input: Buffer.from(stdin, 'utf8'),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   return {

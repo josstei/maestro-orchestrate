@@ -4,7 +4,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { resolveProjectRoot } = require('../../src/core/project-root-resolver');
+const {
+  resolveProjectRoot,
+  requireExplicitWorkspaceRoot,
+  WorkspaceResolutionError,
+} = require('../../src/core/project-root-resolver');
 const { withEnv } = require('../support/env');
 
 describe('project root resolver', () => {
@@ -41,11 +45,6 @@ describe('project root resolver', () => {
     assert.equal(result, workspaceRoot);
   });
 
-  const {
-    requireExplicitWorkspaceRoot,
-    WorkspaceResolutionError,
-  } = require('../../src/core/project-root-resolver');
-
   it('requireExplicitWorkspaceRoot returns the explicit path when it exists', () => {
     const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-explicit-'));
     const result = requireExplicitWorkspaceRoot({ workspacePath: workspaceRoot });
@@ -67,17 +66,16 @@ describe('project root resolver', () => {
   });
 
   it('requireExplicitWorkspaceRoot throws when the path is inside an extension cache', () => {
-    const cachePath = fs.mkdtempSync(path.join(os.tmpdir(), '.codex-plugins-cache-'));
-    const nested = path.join(
-      path.dirname(cachePath),
-      '.codex',
-      'plugins',
-      'maestro'
-    );
-    fs.mkdirSync(nested, { recursive: true });
-    assert.throws(
-      () => requireExplicitWorkspaceRoot({ workspacePath: nested }),
-      (err) => err instanceof WorkspaceResolutionError && /extension cache/i.test(err.message)
-    );
+    const cacheParent = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cache-parent-'));
+    try {
+      const nested = path.join(cacheParent, '.codex', 'plugins', 'maestro');
+      fs.mkdirSync(nested, { recursive: true });
+      assert.throws(
+        () => requireExplicitWorkspaceRoot({ workspacePath: nested }),
+        (err) => err instanceof WorkspaceResolutionError && /extension cache/i.test(err.message)
+      );
+    } finally {
+      fs.rmSync(cacheParent, { recursive: true, force: true });
+    }
   });
 });

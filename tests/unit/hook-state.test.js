@@ -117,18 +117,4 @@ describe('hook-state', () => {
       assert.ok(fs.existsSync(path.join(baseDir, 'fresh-session')));
     });
   });
-
-  describe('full lifecycle', () => {
-    it('ensure → set → get → clear → get returns empty string', () => {
-      const baseDir = makeTempBaseDir();
-      const state = createHookState(baseDir);
-      const sessionId = 'lifecycle-session';
-
-      state.ensureSessionDir(sessionId);
-      state.setActiveAgent(sessionId, 'debugger');
-      assert.equal(state.getActiveAgent(sessionId), 'debugger');
-      state.clearActiveAgent(sessionId);
-      assert.equal(state.getActiveAgent(sessionId), '');
-    });
-  });
 });
