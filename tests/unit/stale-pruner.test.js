@@ -49,7 +49,7 @@ describe('pruneStaleFiles', () => {
     }
   });
 
-  it('keeps files that are in manifest paths', () => {
+  it('keeps files that are in manifest paths and reports nothing when no stale files exist', () => {
     const rootDir = createTempRoot();
     try {
       createFile(rootDir, 'agents/one.md', 'one');
@@ -69,6 +69,7 @@ describe('pruneStaleFiles', () => {
       });
 
       assert.equal(result.pruned.length, 0);
+      assert.equal(result.emptyDirsRemoved.length, 0);
       assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'one.md')));
       assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'two.md')));
       assert.ok(fs.existsSync(path.join(rootDir, 'commands', 'cmd.toml')));
@@ -195,27 +196,6 @@ describe('pruneStaleFiles', () => {
       assert.equal(result.emptyDirsRemoved.length, 0);
       assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'sub')));
       assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'sub', 'keep.md')));
-    } finally {
-      removeTempRoot(rootDir);
-    }
-  });
-
-  it('returns empty results when no stale files exist', () => {
-    const rootDir = createTempRoot();
-    try {
-      createFile(rootDir, 'agents/a.md', 'a');
-      createFile(rootDir, 'agents/b.md', 'b');
-
-      const manifestPaths = new Set(['agents/a.md', 'agents/b.md']);
-
-      const result = pruneStaleFiles({
-        rootDir,
-        manifestPaths,
-        ownedDirs: ['agents'],
-      });
-
-      assert.equal(result.pruned.length, 0);
-      assert.equal(result.emptyDirsRemoved.length, 0);
     } finally {
       removeTempRoot(rootDir);
     }
