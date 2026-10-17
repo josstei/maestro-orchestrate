@@ -6,8 +6,6 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
-
-const CODEX_BIN = path.join(ROOT, 'bin', 'maestro-mcp-server.js');
 const { spawnMcpServer } = require('./mcp-stdio-client');
 
 async function withServer(options, fn) {
@@ -19,6 +17,43 @@ async function withServer(options, fn) {
   } finally {
     await client.close();
   }
+}
+
+/**
+ * Runs `fn` against a server booted from every runtime bundle: the Gemini,
+ * Claude and Codex entrypoints in the repo plus an isolated copy of the
+ * installed Claude plugin. Each bundle names the `expectSkill` text its
+ * delegation skill content must contain.
+ */
+async function forEachRuntimeBundle(fn) {
+  await withIsolatedClaudePlugin(async (pluginRoot) => {
+    const bundles = [
+      {
+        cwd: ROOT,
+        relativePath: 'mcp/maestro-server.js',
+        expectSkill: '# Delegation Skill',
+      },
+      {
+        cwd: ROOT,
+        relativePath: 'claude/mcp/maestro-server.js',
+        expectSkill: 'user-invocable: false',
+      },
+      {
+        cwd: ROOT,
+        relativePath: 'bin/maestro-mcp-server.js',
+        expectSkill: '# Delegation Skill',
+      },
+      {
+        cwd: pluginRoot,
+        relativePath: 'mcp/maestro-server.js',
+        expectSkill: 'user-invocable: false',
+      },
+    ];
+
+    for (const bundle of bundles) {
+      await withServer(bundle, (client) => fn(client, bundle));
+    }
+  });
 }
 
 describe('mcp server bundle behavior', () => {
@@ -48,98 +83,36 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('serves updated get_skill_content metadata from every runtime bundle', async () => {
-    const staticRuntimes = [
-      { cwd: ROOT, relativePath: 'mcp/maestro-server.js' },
-      { cwd: ROOT, relativePath: 'claude/mcp/maestro-server.js' },
-      { cwd: ROOT, relativePath: CODEX_BIN },
-    ];
+    await forEachRuntimeBundle(async (client, bundle) => {
+      const tools = await client.listTools();
+      const skillTool = tools.find((tool) => tool.name === 'get_skill_content');
 
-    for (const runtime of staticRuntimes) {
-      await withServer(runtime, async (client) => {
-        const tools = await client.listTools();
-        const skillTool = tools.find((tool) => tool.name === 'get_skill_content');
-
-        assert.ok(skillTool, `Expected get_skill_content for ${runtime.relativePath}`);
-        assert.match(
-          skillTool.description,
-          /runtime-configured Maestro content source/
-        );
-      });
-    }
-
-    await withIsolatedClaudePlugin(async (pluginRoot) => {
-      await withServer({ cwd: pluginRoot, relativePath: 'mcp/maestro-server.js' }, async (client) => {
-        const tools = await client.listTools();
-        const skillTool = tools.find((tool) => tool.name === 'get_skill_content');
-
-        assert.ok(skillTool, 'Expected get_skill_content for isolated claude bundle');
-        assert.match(
-          skillTool.description,
-          /runtime-configured Maestro content source/
-        );
-      });
+      assert.ok(
+        skillTool,
+        `Expected get_skill_content for ${path.join(bundle.cwd, bundle.relativePath)}`
+      );
+      assert.match(
+        skillTool.description,
+        /runtime-configured Maestro content source/
+      );
     });
   });
 
   it('serves canonical src content from every runtime bundle', async () => {
-    const staticRuntimes = [
-      {
-        cwd: ROOT,
-        relativePath: 'mcp/maestro-server.js',
-        expectSkill: '# Delegation Skill',
-      },
-      {
-        cwd: ROOT,
-        relativePath: 'claude/mcp/maestro-server.js',
-        expectSkill: 'user-invocable: false',
-      },
-      {
-        cwd: ROOT,
-        relativePath: CODEX_BIN,
-        expectSkill: '# Delegation Skill',
-      },
-    ];
-
-    for (const runtime of staticRuntimes) {
-      await withServer(runtime, async (client) => {
-        const skillResult = await client.callTool('get_skill_content', {
-          resources: ['delegation', 'architecture'],
-        });
-        const agentResult = await client.callTool('get_agent', {
-          agents: ['coder'],
-        });
-
-        assert.ok(skillResult.parsed.contents.delegation.includes(runtime.expectSkill));
-        assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
-        assert.deepEqual(skillResult.parsed.errors, {});
-        assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
-        assert.ok(agentResult.parsed.agents.coder.body.includes('## Output Contract'));
-        assert.deepEqual(agentResult.parsed.errors, {});
+    await forEachRuntimeBundle(async (client, bundle) => {
+      const skillResult = await client.callTool('get_skill_content', {
+        resources: ['delegation', 'architecture'],
       });
-    }
+      const agentResult = await client.callTool('get_agent', {
+        agents: ['coder'],
+      });
 
-    await withIsolatedClaudePlugin(async (pluginRoot) => {
-      await withServer(
-        {
-          cwd: pluginRoot,
-          relativePath: 'mcp/maestro-server.js',
-        },
-        async (client) => {
-          const skillResult = await client.callTool('get_skill_content', {
-            resources: ['delegation', 'architecture'],
-          });
-          const agentResult = await client.callTool('get_agent', {
-            agents: ['coder'],
-          });
-
-          assert.ok(skillResult.parsed.contents.delegation.includes('user-invocable: false'));
-          assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
-          assert.deepEqual(skillResult.parsed.errors, {});
-          assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
-          assert.ok(agentResult.parsed.agents.coder.body.includes('## Output Contract'));
-          assert.deepEqual(agentResult.parsed.errors, {});
-        }
-      );
+      assert.ok(skillResult.parsed.contents.delegation.includes(bundle.expectSkill));
+      assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
+      assert.deepEqual(skillResult.parsed.errors, {});
+      assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
+      assert.ok(agentResult.parsed.agents.coder.body.includes('## Output Contract'));
+      assert.deepEqual(agentResult.parsed.errors, {});
     });
   });
 
@@ -148,83 +121,82 @@ describe('mcp server bundle behavior', () => {
     const spawnCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-codex-spawn-'));
 
     try {
-      {
-        await withServer(
-          {
-            cwd: spawnCwd,
-            relativePath: CODEX_BIN,
-            roots: [{ uri: pathToFileURL(workspaceRoot).href, name: 'workspace' }],
-          },
-          async (client) => {
-            const stateRoot = path.join(workspaceRoot, 'docs', 'maestro');
-            const plansRoot = path.join(stateRoot, 'plans');
-            const designDocument = path.join(plansRoot, 'codex-design.md');
-            const implementationPlan = path.join(plansRoot, 'codex-impl.md');
+      await withServer(
+        {
+          cwd: spawnCwd,
+          // Absolute, because the server is spawned from a cwd outside the repo.
+          relativePath: path.join(ROOT, 'bin', 'maestro-mcp-server.js'),
+          roots: [{ uri: pathToFileURL(workspaceRoot).href, name: 'workspace' }],
+        },
+        async (client) => {
+          const stateRoot = path.join(workspaceRoot, 'docs', 'maestro');
+          const plansRoot = path.join(stateRoot, 'plans');
+          const designDocument = path.join(plansRoot, 'codex-design.md');
+          const implementationPlan = path.join(plansRoot, 'codex-impl.md');
 
-            const initResult = await client.callTool('initialize_workspace', {
-              workspace_path: workspaceRoot,
-              state_dir: 'docs/maestro',
-            });
-            assert.equal(initResult.parsed.success, true);
-            assert.equal(fs.existsSync(path.join(stateRoot, 'state')), true);
-            assert.equal(fs.existsSync(path.join(stateRoot, 'plans')), true);
+          const initResult = await client.callTool('initialize_workspace', {
+            workspace_path: workspaceRoot,
+            state_dir: 'docs/maestro',
+          });
+          assert.equal(initResult.parsed.success, true);
+          assert.equal(fs.existsSync(path.join(stateRoot, 'state')), true);
+          assert.equal(fs.existsSync(path.join(stateRoot, 'plans')), true);
 
-            fs.writeFileSync(designDocument, '# Design\n');
-            fs.writeFileSync(implementationPlan, '# Plan\n');
+          fs.writeFileSync(designDocument, '# Design\n');
+          fs.writeFileSync(implementationPlan, '# Plan\n');
 
-            const sessionResult = await client.callTool('create_session', {
-              session_id: 'codex-roots-workspace',
-              task: 'Validate Codex root resolution',
-              design_document: path.relative(workspaceRoot, designDocument),
-              implementation_plan: path.relative(workspaceRoot, implementationPlan),
-              phases: [
-                {
-                  id: 1,
-                  name: 'Implement',
-                  agent: 'coder',
-                  parallel: false,
-                  blocked_by: [],
-                },
-              ],
-            });
+          const sessionResult = await client.callTool('create_session', {
+            session_id: 'codex-roots-workspace',
+            task: 'Validate Codex root resolution',
+            design_document: path.relative(workspaceRoot, designDocument),
+            implementation_plan: path.relative(workspaceRoot, implementationPlan),
+            phases: [
+              {
+                id: 1,
+                name: 'Implement',
+                agent: 'coder',
+                parallel: false,
+                blocked_by: [],
+              },
+            ],
+          });
 
-            const expectedSessionPath = path.join(stateRoot, 'state', 'active-session.md');
-            assert.equal(sessionResult.parsed.success, true);
-            assert.equal(sessionResult.parsed.path, expectedSessionPath);
-            assert.equal(fs.existsSync(expectedSessionPath), true);
+          const expectedSessionPath = path.join(stateRoot, 'state', 'active-session.md');
+          assert.equal(sessionResult.parsed.success, true);
+          assert.equal(sessionResult.parsed.path, expectedSessionPath);
+          assert.equal(fs.existsSync(expectedSessionPath), true);
 
-            const archiveResult = await client.callTool('archive_session', {
-              session_id: 'codex-roots-workspace',
-            });
+          const archiveResult = await client.callTool('archive_session', {
+            session_id: 'codex-roots-workspace',
+          });
 
-            const archivedSession = path.join(
-              stateRoot,
-              'state',
-              'archive',
-              'codex-roots-workspace.md'
-            );
-            const archivedDesign = path.join(stateRoot, 'plans', 'archive', 'codex-design.md');
-            const archivedImplementation = path.join(
-              stateRoot,
-              'plans',
-              'archive',
-              'codex-impl.md'
-            );
+          const archivedSession = path.join(
+            stateRoot,
+            'state',
+            'archive',
+            'codex-roots-workspace.md'
+          );
+          const archivedDesign = path.join(stateRoot, 'plans', 'archive', 'codex-design.md');
+          const archivedImplementation = path.join(
+            stateRoot,
+            'plans',
+            'archive',
+            'codex-impl.md'
+          );
 
-            assert.equal(archiveResult.parsed.success, true);
-            assert.deepEqual(
-              archiveResult.parsed.archived_files.sort(),
-              [archivedDesign, archivedImplementation, archivedSession].sort()
-            );
-            assert.equal(fs.existsSync(archivedSession), true);
-            assert.equal(fs.existsSync(archivedDesign), true);
-            assert.equal(fs.existsSync(archivedImplementation), true);
-            assert.equal(fs.existsSync(designDocument), false);
-            assert.equal(fs.existsSync(implementationPlan), false);
-            assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
-          }
-        );
-      }
+          assert.equal(archiveResult.parsed.success, true);
+          assert.deepEqual(
+            archiveResult.parsed.archived_files.sort(),
+            [archivedDesign, archivedImplementation, archivedSession].sort()
+          );
+          assert.equal(fs.existsSync(archivedSession), true);
+          assert.equal(fs.existsSync(archivedDesign), true);
+          assert.equal(fs.existsSync(archivedImplementation), true);
+          assert.equal(fs.existsSync(designDocument), false);
+          assert.equal(fs.existsSync(implementationPlan), false);
+          assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
+        }
+      );
     } finally {
       fs.rmSync(workspaceRoot, { recursive: true, force: true });
       fs.rmSync(spawnCwd, { recursive: true, force: true });

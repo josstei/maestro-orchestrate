@@ -4,20 +4,15 @@ const { pathToFileURL } = require('node:url');
 
 const { ROOT } = require('./helpers');
 
+const DEFAULT_STARTUP_TIMEOUT_MS = 5000;
+const KILL_GRACE_MS = 250;
+
 function spawnMcpServer(options) {
   const cwd = options.cwd || ROOT;
   const relativePath = options.relativePath;
+  const startupTimeoutMs = options.startupTimeoutMs || DEFAULT_STARTUP_TIMEOUT_MS;
   const roots = Array.isArray(options.roots)
-    ? options.roots.map((root) => {
-        if (typeof root === 'string') {
-          return {
-            uri: pathToFileURL(root).href,
-            name: path.basename(root) || root,
-          };
-        }
-
-        return root;
-      })
+    ? options.roots
     : [
         {
           uri: pathToFileURL(cwd).href,
@@ -34,8 +29,10 @@ function spawnMcpServer(options) {
   });
 
   let stdoutBuffer = '';
+  let stdout = '';
   let stderr = '';
   let ready = false;
+  let exited = false;
   let nextId = 1;
   let settleReady;
   let rejectReady;
@@ -44,6 +41,15 @@ function spawnMcpServer(options) {
     settleReady = resolve;
     rejectReady = reject;
   });
+
+  const startupTimer = setTimeout(() => {
+    rejectReady(
+      new Error(
+        `Timed out waiting for ${relativePath} to start.\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
+      )
+    );
+    close();
+  }, startupTimeoutMs);
 
   const pending = new Map();
 
@@ -91,7 +97,9 @@ function spawnMcpServer(options) {
   }
 
   child.stdout.on('data', (chunk) => {
-    stdoutBuffer += chunk.toString('utf8');
+    const text = chunk.toString('utf8');
+    stdout += text;
+    stdoutBuffer += text;
 
     while (true) {
       const newlineIndex = stdoutBuffer.indexOf('\n');
@@ -115,19 +123,13 @@ function spawnMcpServer(options) {
 
     if (!ready && stderr.includes('[info] maestro: MCP server connected')) {
       ready = true;
+      clearTimeout(startupTimer);
       settleReady();
-    }
-
-    if (stderr.includes('[error] maestro: MCP server failed:')) {
-      const error = new Error(stderr.trim());
-      if (!ready) {
-        rejectReady(error);
-      }
-      finishPending(error);
     }
   });
 
   child.on('error', (error) => {
+    clearTimeout(startupTimer);
     if (!ready) {
       rejectReady(error);
     }
@@ -135,8 +137,10 @@ function spawnMcpServer(options) {
   });
 
   child.on('exit', (code, signal) => {
+    exited = true;
+    clearTimeout(startupTimer);
     const error = new Error(
-      `${relativePath} exited (code=${code}, signal=${signal}).\nSTDERR:\n${stderr}`
+      `${relativePath} exited (code=${code}, signal=${signal}).\nSTDERR:\n${stderr}\nSTDOUT:\n${stdout}`
     );
 
     if (!ready) {
@@ -206,20 +210,28 @@ function spawnMcpServer(options) {
   }
 
   async function close() {
-    if (!child.killed) {
-      child.kill('SIGTERM');
+    clearTimeout(startupTimer);
+    if (exited || child.killed) {
+      return;
     }
+
+    child.kill('SIGTERM');
+    setTimeout(() => {
+      if (!exited) {
+        child.kill('SIGKILL');
+      }
+    }, KILL_GRACE_MS).unref();
   }
 
   return {
-    child,
     close,
     initialize,
     listTools,
     callTool,
     ready: readyPromise,
-    sendNotification,
-    sendRequest,
+    get stderr() {
+      return stderr;
+    },
   };
 }
 
