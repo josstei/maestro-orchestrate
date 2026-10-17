@@ -86,13 +86,13 @@ function splitAtBoundary(content) {
 }
 
 /**
- * Parse frontmatter key-value lines into an object.
+ * Parse frontmatter key-value lines into an object, coercing each value via
+ * {@link parseValue}.
  *
  * @param {string[]} lines - Lines between frontmatter delimiters.
- * @param {function} valueFn - Function to apply to each raw value string.
  * @returns {Object} Parsed frontmatter object.
  */
-function parseLines(lines, valueFn) {
+function parseLines(lines) {
   const frontmatter = {};
 
   for (const line of lines) {
@@ -102,14 +102,14 @@ function parseLines(lines, valueFn) {
     const key = line.substring(0, colonIndex).trim();
     const rawValue = line.substring(colonIndex + 1).trim();
 
-    frontmatter[key] = valueFn(rawValue);
+    frontmatter[key] = parseValue(rawValue);
   }
 
   return frontmatter;
 }
 
 /**
- * Parse frontmatter with full type coercion (rich parser).
+ * Parse frontmatter with type coercion.
  *
  * Splits content on `---` delimiters and parses key-value pairs with type
  * coercion via {@link parseValue}. Arrays, numbers, and quoted strings are
@@ -123,43 +123,7 @@ function parseLines(lines, valueFn) {
  */
 function parse(content) {
   const { raw, body } = splitAtBoundary(content);
-  return { frontmatter: parseLines(raw.split('\n'), parseValue), body };
-}
-
-/**
- * Parse frontmatter returning raw string values without type coercion (simple parser).
- *
- * Uses substring-based boundary detection (`---\n` prefix and `\n---\n`
- * closing). Returns a wrapper object with a frontmatter map (raw string
- * values) and the remaining body text.
- *
- * This intentionally uses stricter boundary detection than {@link parse} or
- * {@link splitAtBoundary}: it requires a newline after the closing `---`
- * delimiter. This preserves the historical contract where content ending
- * exactly at `---` (no trailing newline) returns empty frontmatter with the
- * full content as body.
- *
- * Returns empty frontmatter and the full content as body when no valid
- * frontmatter block is found.
- *
- * @param {string} content - The full content string with optional frontmatter.
- * @returns {{ frontmatter: Object<string, string>, body: string }} Raw frontmatter map and remaining body.
- */
-function parseFrontmatterOnly(content) {
-  if (!content.startsWith('---\n')) {
-    return { frontmatter: {}, body: content };
-  }
-
-  const end = content.indexOf('\n---\n', 4);
-  if (end === -1) {
-    return { frontmatter: {}, body: content };
-  }
-
-  const lines = content.slice(4, end).split('\n');
-  const frontmatter = parseLines(lines, (v) => v);
-  const body = content.slice(end + 5);
-
-  return { frontmatter, body };
+  return { frontmatter: parseLines(raw.split('\n')), body };
 }
 
 /**
@@ -194,10 +158,7 @@ function escapeYaml(value) {
 
 module.exports = {
   parse,
-  parseFrontmatterOnly,
   extractValue,
   escapeYaml,
   splitAtBoundary,
-  parseValue,
-  parseDoubleQuotedValue,
 };

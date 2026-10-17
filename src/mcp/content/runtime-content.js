@@ -2,26 +2,23 @@
 
 const fs = require('fs');
 const path = require('path');
-const { parseFrontmatterOnly, splitAtBoundary } = require('../../lib/frontmatter');
+const { parse } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
-const { stripFeatureBlocks: stripFeatureBlocksCore } = require('../../core/feature-blocks');
+const { stripFeatureBlocks } = require('../../core/feature-blocks');
 const { AGENT_NAMES } = require('../../core/agent-registry');
-
-const DEFAULT_RUNTIME_NAME = 'gemini';
 
 const RESOURCE_ALLOWLIST = Object.freeze(require('../../generated/resource-registry.json'));
 
 const AGENT_ALLOWLIST = AGENT_NAMES;
+
+const HYPHENATED_AGENT_NAMES = AGENT_ALLOWLIST.filter((name) => name.includes('-'));
 
 function applyReplacePaths(content, runtimeConfig) {
   let result = content;
   const env = runtimeConfig.env || {};
 
   if (env.extensionPath) {
-    const replacement = env.extensionPath.startsWith('${')
-      ? env.extensionPath
-      : '${' + env.extensionPath + '}';
-    result = result.replace(/\$\{extensionPath\}/g, replacement);
+    result = result.replace(/\$\{extensionPath\}/g, '${' + env.extensionPath + '}');
   }
 
   if (env.workspacePath) {
@@ -42,18 +39,6 @@ function applySkillMetadata(content, runtimeConfig, resourcePath) {
   );
 }
 
-function applyReplaceAgentNames(content, runtimeConfig) {
-  return replaceInContent(
-    content,
-    AGENT_ALLOWLIST.filter((n) => n.includes('-')),
-    runtimeConfig.agentNaming
-  );
-}
-
-function applyStripFeature(content, runtimeConfig) {
-  return stripFeatureBlocksCore(content, runtimeConfig.features || {});
-}
-
 const AGENT_NAME_RESOURCES = new Set([
   'references/architecture.md',
   'skills/shared/delegation/SKILL.md',
@@ -66,11 +51,11 @@ function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
   let result = content;
 
   if (resourcePath === 'references/architecture.md') {
-    result = applyStripFeature(result, runtimeConfig);
+    result = stripFeatureBlocks(result, runtimeConfig.features || {});
   }
 
   if (AGENT_NAME_RESOURCES.has(resourcePath)) {
-    result = applyReplaceAgentNames(result, runtimeConfig);
+    result = replaceInContent(result, HYPHENATED_AGENT_NAMES, runtimeConfig.agentNaming);
   }
 
   result = applyReplacePaths(result, runtimeConfig);
@@ -79,40 +64,17 @@ function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
   return result;
 }
 
-function stripFrontmatter(content) {
-  const { raw, body } = splitAtBoundary(content);
-  if (!raw) {
-    return content;
-  }
-  return body;
-}
-
-function stripFeatureBlocks(content, runtimeConfig) {
-  return stripFeatureBlocksCore(content, runtimeConfig.features || {}, { mode: 'lenient' });
-}
-
-function parseInlineArray(raw) {
-  if (!raw || !raw.startsWith('[') || !raw.endsWith(']')) {
-    return [];
-  }
-
-  return raw
-    .slice(1, -1)
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
+/**
+ * Resolve an agent's declared tools for a runtime: the `tools.<runtime>`
+ * override when present, else `tools`, each name mapped (and flattened)
+ * through runtimeConfig.tools. Unmapped names pass through unchanged.
+ */
 function mapTools(frontmatter, runtimeConfig) {
-  const runtimeName = runtimeConfig.name || DEFAULT_RUNTIME_NAME;
-  const overrideKey = `tools.${runtimeName}`;
-  const configuredTools = frontmatter[overrideKey]
-    ? parseInlineArray(frontmatter[overrideKey])
-    : parseInlineArray(frontmatter.tools);
+  const declared = frontmatter[`tools.${runtimeConfig.name}`] || frontmatter.tools;
 
-  return configuredTools.flatMap(
-    (toolName) => (runtimeConfig.tools && runtimeConfig.tools[toolName]) || toolName
-  );
+  return (Array.isArray(declared) ? declared : [])
+    .filter(Boolean)
+    .flatMap((toolName) => (runtimeConfig.tools && runtimeConfig.tools[toolName]) || toolName);
 }
 
 function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
@@ -144,10 +106,14 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
   const absolutePath = path.join(srcRoot, 'agents', `${agentName}.md`);
   try {
     const content = fs.readFileSync(absolutePath, 'utf8');
-    const { frontmatter } = parseFrontmatterOnly(content);
+    // Strip feature blocks before splitting off the frontmatter, so blank-line
+    // collapsing also applies across the frontmatter boundary.
+    const { frontmatter, body } = parse(
+      stripFeatureBlocks(content, runtimeConfig.features || {}, { mode: 'lenient' })
+    );
     return {
       agent: {
-        body: stripFrontmatter(stripFeatureBlocks(content, runtimeConfig)),
+        body,
         tools: mapTools(frontmatter, runtimeConfig),
       },
     };
@@ -159,16 +125,10 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
 }
 
 module.exports = {
-  DEFAULT_RUNTIME_NAME,
   RESOURCE_ALLOWLIST,
   AGENT_ALLOWLIST,
   applyReplacePaths,
   applySkillMetadata,
-  applyReplaceAgentNames,
-  applyStripFeature,
-  stripFrontmatter,
-  stripFeatureBlocks,
-  parseInlineArray,
   mapTools,
   readResourceFromFilesystem,
   readAgentFromFilesystem,

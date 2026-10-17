@@ -2,26 +2,32 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const {
-  DEFAULT_RUNTIME_NAME,
   RESOURCE_ALLOWLIST,
   AGENT_ALLOWLIST,
   applyReplacePaths,
   applySkillMetadata,
-  applyReplaceAgentNames,
-  applyStripFeature,
-  stripFrontmatter,
-  stripFeatureBlocks,
-  parseInlineArray,
   mapTools,
+  readResourceFromFilesystem,
+  readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
+const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 
-describe('DEFAULT_RUNTIME_NAME', () => {
-  it('equals gemini', () => {
-    assert.equal(DEFAULT_RUNTIME_NAME, 'gemini');
-  });
-});
+function writeFilesystemResource(root, id, content) {
+  const relativePath = RESOURCE_ALLOWLIST[id];
+  fs.mkdirSync(path.join(root, 'src', path.dirname(relativePath)), { recursive: true });
+  fs.writeFileSync(path.join(root, 'src', relativePath), content, 'utf8');
+}
+
+function writeFilesystemAgent(root, agentName, content) {
+  const agentPath = path.join(root, 'src', 'agents', `${agentName}.md`);
+  fs.mkdirSync(path.dirname(agentPath), { recursive: true });
+  fs.writeFileSync(agentPath, content, 'utf8');
+}
 
 describe('RESOURCE_ALLOWLIST', () => {
   it('is frozen with 14 entries', () => {
@@ -55,12 +61,6 @@ describe('applyReplacePaths', () => {
     assert.equal(result, 'root is ${WORKSPACE_DIR}/bar');
   });
 
-  it('passes through extensionPath that already starts with ${ as-is', () => {
-    const content = 'path is ${extensionPath}/baz';
-    const result = applyReplacePaths(content, { env: { extensionPath: '${ALREADY_WRAPPED}' } });
-    assert.equal(result, 'path is ${ALREADY_WRAPPED}/baz');
-  });
-
   it('returns content unchanged when no placeholders present', () => {
     const content = 'no placeholders here';
     const result = applyReplacePaths(content, { env: { extensionPath: 'EXT', workspacePath: 'WS' } });
@@ -88,113 +88,9 @@ describe('applySkillMetadata', () => {
   });
 });
 
-describe('applyReplaceAgentNames', () => {
-  it('replaces kebab-case agent names with snake_case for snake_case runtime', () => {
-    const content = 'delegate to code-reviewer for review';
-    const result = applyReplaceAgentNames(content, { agentNaming: 'snake_case' });
-    assert.equal(result, 'delegate to code_reviewer for review');
-  });
-
-  it('returns unchanged for non-snake_case runtimes', () => {
-    const content = 'delegate to code-reviewer for review';
-    const result = applyReplaceAgentNames(content, { agentNaming: 'kebab-case' });
-    assert.equal(result, content);
-  });
-
-  it('replaces multiple different agent names in one pass', () => {
-    const content = 'ask devops-engineer and security-engineer to verify';
-    const result = applyReplaceAgentNames(content, { agentNaming: 'snake_case' });
-    assert.equal(result, 'ask devops_engineer and security_engineer to verify');
-  });
-});
-
-describe('applyStripFeature', () => {
-  it('keeps feature block content when feature flag is true', () => {
-    const content = '<!-- @feature mcp -->\nsome content\n<!-- @end-feature -->\n';
-    const result = applyStripFeature(content, { features: { mcp: true } });
-    assert.ok(result.includes('some content'));
-  });
-
-  it('removes feature block content when feature flag is false', () => {
-    const content = '<!-- @feature mcp -->\nsome content\n<!-- @end-feature -->\n';
-    const result = applyStripFeature(content, { features: { mcp: false } });
-    assert.equal(result.includes('some content'), false);
-  });
-
-  it('throws on unknown feature flag', () => {
-    const content = '<!-- @feature unknown -->\nsome content\n<!-- @end-feature -->\n';
-    assert.throws(
-      () => applyStripFeature(content, { features: {} }),
-      /Unknown feature flag: "unknown"/
-    );
-  });
-
-  it('collapses triple newlines to double', () => {
-    const content = 'before\n\n<!-- @feature mcp -->\nblock\n<!-- @end-feature -->\n\nafter\n';
-    const result = applyStripFeature(content, { features: { mcp: false } });
-    assert.equal(result.includes('\n\n\n'), false);
-  });
-});
-
-describe('stripFrontmatter', () => {
-  it('removes --- delimited frontmatter', () => {
-    const content = '---\nname: foo\n---\nbody text\n';
-    const result = stripFrontmatter(content);
-    assert.equal(result, 'body text\n');
-  });
-
-  it('returns content unchanged when no frontmatter', () => {
-    const content = 'just body text\n';
-    const result = stripFrontmatter(content);
-    assert.equal(result, content);
-  });
-
-  it('returns content unchanged when frontmatter not closed', () => {
-    const content = '---\nname: foo\nbody text\n';
-    const result = stripFrontmatter(content);
-    assert.equal(result, content);
-  });
-});
-
-describe('stripFeatureBlocks', () => {
-  it('strips feature blocks and returns empty result for unknown flags', () => {
-    const content = '<!-- @feature unknown -->\nsome content\n<!-- @end-feature -->\n';
-    const result = stripFeatureBlocks(content, { features: {} });
-    assert.equal(result.includes('some content'), false);
-  });
-
-  it('keeps content for known true flags', () => {
-    const content = '<!-- @feature mcp -->\nkept content\n<!-- @end-feature -->\n';
-    const result = stripFeatureBlocks(content, { features: { mcp: true } });
-    assert.ok(result.includes('kept content'));
-  });
-});
-
-describe('parseInlineArray', () => {
-  it('parses "[a, b, c]" into array of trimmed strings', () => {
-    const result = parseInlineArray('[a, b, c]');
-    assert.deepEqual(result, ['a', 'b', 'c']);
-  });
-
-  it('returns [] for null, undefined, and empty string', () => {
-    assert.deepEqual(parseInlineArray(null), []);
-    assert.deepEqual(parseInlineArray(undefined), []);
-    assert.deepEqual(parseInlineArray(''), []);
-  });
-
-  it('returns [] for non-bracket strings', () => {
-    assert.deepEqual(parseInlineArray('a, b, c'), []);
-  });
-
-  it('filters out empty entries', () => {
-    const result = parseInlineArray('[a, , b]');
-    assert.deepEqual(result, ['a', 'b']);
-  });
-});
-
 describe('mapTools', () => {
   it('maps canonical tool names through runtimeConfig.tools', () => {
-    const frontmatter = { tools: '[read_file, write_file]' };
+    const frontmatter = { tools: ['read_file', 'write_file'] };
     const runtimeConfig = { name: 'gemini', tools: { read_file: 'ReadFile', write_file: 'WriteFile' } };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['ReadFile', 'WriteFile']);
@@ -202,25 +98,104 @@ describe('mapTools', () => {
 
   it('uses per-runtime tool override when present', () => {
     const frontmatter = {
-      tools: '[read_file, write_file]',
-      'tools.claude': '[Read, Write]',
+      tools: ['read_file', 'write_file'],
+      'tools.claude': ['Read', 'Write'],
     };
     const runtimeConfig = { name: 'claude', tools: { Read: 'Read', Write: 'Write' } };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['Read', 'Write']);
   });
 
+  it('maps the per-runtime override through runtimeConfig.tools as well', () => {
+    const frontmatter = {
+      tools: ['read_file'],
+      'tools.gemini': ['write_todos'],
+    };
+    const runtimeConfig = { name: 'gemini', tools: { write_todos: 'not available' } };
+    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['not available']);
+  });
+
   it('flattens array tool mappings', () => {
-    const frontmatter = { tools: '[bash]' };
+    const frontmatter = { tools: ['bash'] };
     const runtimeConfig = { name: 'gemini', tools: { bash: ['Bash', 'Terminal'] } };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['Bash', 'Terminal']);
   });
 
   it('keeps unmapped tool names as-is', () => {
-    const frontmatter = { tools: '[custom_tool]' };
+    const frontmatter = { tools: ['custom_tool'] };
     const runtimeConfig = { name: 'gemini', tools: {} };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['custom_tool']);
+  });
+
+  it('drops empty entries and ignores non-array tool values', () => {
+    const runtimeConfig = { name: 'gemini', tools: {} };
+    assert.deepEqual(mapTools({ tools: ['a', '', 'b'] }, runtimeConfig), ['a', 'b']);
+    assert.deepEqual(mapTools({ tools: 'a, b' }, runtimeConfig), []);
+    assert.deepEqual(mapTools({}, runtimeConfig), []);
+  });
+});
+
+describe('runtime-content filesystem reads', () => {
+  it('reads filesystem-backed canonical content for claude', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-claude-'));
+
+    writeFilesystemResource(
+      root,
+      'delegation',
+      '---\nname: delegation\ndescription: Filesystem copy\n---\nFilesystem content.\n'
+    );
+    const result = readResourceFromFilesystem(
+      'delegation',
+      getRuntimeConfig('claude'),
+      path.join(root, 'src')
+    );
+
+    assert.ok(result.content.includes('Filesystem content.'));
+    assert.ok(result.content.includes('user-invocable: false'));
+  });
+
+  it('reads filesystem-backed canonical agent and resource content for codex', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-codex-'));
+
+    writeFilesystemResource(root, 'delegation', 'Filesystem content.\n');
+    writeFilesystemAgent(
+      root,
+      'coder',
+      '---\nname: coder\ntools: [read_file]\n---\nFilesystem agent body.\n'
+    );
+    const runtimeConfig = getRuntimeConfig('codex');
+    const srcRoot = path.join(root, 'src');
+    const resourceResult = readResourceFromFilesystem('delegation', runtimeConfig, srcRoot);
+    const agentResult = readAgentFromFilesystem('coder', runtimeConfig, srcRoot);
+
+    assert.equal(resourceResult.content, 'Filesystem content.\n');
+    assert.equal(agentResult.agent.body, 'Filesystem agent body.\n');
+    assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
+  });
+
+  it('collapses blank lines across the frontmatter boundary of an agent file', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-blank-'));
+    writeFilesystemAgent(root, 'coder', '---\nname: coder\n---\n\n\nbody\n');
+
+    const agentResult = readAgentFromFilesystem(
+      'coder',
+      getRuntimeConfig('codex'),
+      path.join(root, 'src')
+    );
+
+    assert.equal(agentResult.agent.body, '\nbody\n');
+  });
+
+  it('returns filesystem read errors when codex content is missing', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-provider-empty-'));
+    const runtimeConfig = getRuntimeConfig('codex');
+    const srcRoot = path.join(root, 'src');
+    const resourceResult = readResourceFromFilesystem('delegation', runtimeConfig, srcRoot);
+    const agentResult = readAgentFromFilesystem('coder', runtimeConfig, srcRoot);
+
+    assert.equal(resourceResult.error, 'Failed to read resource "delegation": ENOENT');
+    assert.equal(agentResult.error, 'Failed to read agent "coder": ENOENT');
   });
 });
