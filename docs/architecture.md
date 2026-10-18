@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`claude/`, `plugins/maestro/`, and `qwen/`, plus the repo root, which is Qwen Code's extension directory) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
                     ┌─────────────┐
@@ -20,8 +20,8 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
            ▼               ▼               ▼
     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
     │   Claude    │ │    Codex    │ │    Qwen     │
-    │  (claude/)  │ │(plugins/    │ │  (qwen/ +   │
-    │             │ │  maestro/)  │ │  repo root) │
+    │  (claude/)  │ │(plugins/    │ │ (repo root  │
+    │             │ │  maestro/)  │ │  + qwen/)   │
     └─────────────┘ └─────────────┘ └─────────────┘
 ```
 
@@ -31,10 +31,10 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads every runtime config (`src/platforms/<runtime>/runtime-config.js`, discovered by `src/mcp/runtime/runtime-config-map.js`)
 2. Scans `src/agents/`, `src/skills/shared/`, `src/templates/`, `src/references/`, and `src/hooks/logic/` into `src/generated/agent-registry.json`, `resource-registry.json`, and `hook-registry.json` (`src/generator/registry-scanner.js`)
-3. Expands the rules in `src/manifest.js` and runs their transforms: agent stubs into `claude/agents/` and `qwen/agents/`; shared-skill discovery stubs into `claude/skills/` and `plugins/maestro/skills/`
+3. Expands the rules in `src/manifest.js` and runs their transforms: agent stubs into `claude/agents/` and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `claude/skills/` and `plugins/maestro/skills/`
 4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Claude and Codex skills and Qwen TOML commands (`commands/maestro/`)
 5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`): `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
-6. Prunes stale files from the directories it owns (`claude/agents/`, `qwen/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
+6. Prunes stale files from the directories it owns (`agents/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
 7. Rebuilds the detached payloads `claude/src/` and `plugins/maestro/src/` (an allowlisted copy of `src/` plus that runtime's `src/platforms/<runtime>/` directory) and stamps each with `version.json`
 
 `--dry-run` and `--diff` write nothing and skip steps 6 and 7. `--clean` deletes the manifest outputs before regenerating them.
@@ -78,7 +78,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
 | Field | Claude | Codex | Qwen |
 |-------|--------|-------|------|
-| `outputDir` | `claude/` | `plugins/maestro/` | `qwen/` |
+| `outputDir` | `claude/` | `plugins/maestro/` | `./` (repo root) |
 | `agentNaming` | `kebab-case` | `kebab-case` | `snake_case` |
 | `agentPrefix` | `maestro:` | — | — |
 | `mcpPrefix` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |

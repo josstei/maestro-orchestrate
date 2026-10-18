@@ -14,7 +14,7 @@ Maestro is a multi-agent development orchestration platform with 39 specialists,
 |---------|----------|----------------|-------|
 | Claude Code | `claude/` | `/orchestrate`, `/review-code`, ... | Kebab-case agents with `maestro:` subagent names |
 | Codex | `plugins/maestro/` | `$maestro:*` | Plugin skills, `spawn_agent`, no runtime hooks |
-| Qwen Code | repo root + `qwen/` | `/maestro:*` | Snake-case agents, TOML commands, `QWEN.md` context file, `SubagentStart`/`SubagentStop` hooks, TOML shell policies |
+| Qwen Code | repo root + `qwen/hooks.json` | `/maestro:*` | Snake-case agents, TOML commands, `QWEN.md` context file, `SubagentStart`/`SubagentStop` hooks |
 
 ## Getting Started
 
@@ -22,17 +22,6 @@ Maestro is a multi-agent development orchestration platform with 39 specialists,
 
 - One supported runtime: Claude Code, Codex, or Qwen Code
 - Node.js 20+ for the MCP server and helper scripts
-- Qwen Code only: enable experimental subagents in `~/.qwen/settings.json`
-
-```json
-{
-  "experimental": {
-    "enableAgents": true
-  }
-}
-```
-
-Maestro does not edit `~/.qwen/settings.json` for you.
 
 ### Installation
 
@@ -175,7 +164,7 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 
 ## Development and Release Validation
 
-Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `commands/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
+Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
 
 ```bash
 npm ci

@@ -57,7 +57,7 @@ Shared code and content live in `src/`. The generator (`just generate`) builds m
 |-----------------------------------------------|---------|
 | `claude/agents/`, `claude/skills/`, `claude/hooks/claude-hooks.json`, `claude/.claude-plugin/plugin.json`, `claude/.mcp.json`, `claude/src/`, `.claude-plugin/marketplace.json` | Claude Code |
 | `plugins/maestro/skills/`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `plugins/maestro/src/`, `.agents/plugins/marketplace.json` | Codex |
-| `qwen/agents/`, `qwen/hooks.json`, `qwen-extension.json`, `commands/maestro/`, `policies/maestro.toml` | Qwen Code |
+| `agents/`, `qwen/hooks.json`, `qwen-extension.json`, `commands/maestro/`, `policies/maestro.toml` | Qwen Code |
 | `src/generated/*.json` (agent, resource, and hook registries) | All |
 
 `claude/src/` and `plugins/maestro/src/` are detached copies of `src/`, stamped with `version.json`, for installs outside the repo.

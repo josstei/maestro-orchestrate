@@ -4,7 +4,7 @@ Maestro is a multi-agent development orchestration platform that coordinates 39 
 
 - **Claude Code plugin** (`claude/` subdirectory)
 - **Codex plugin** (`plugins/maestro/` subdirectory)
-- **Qwen Code extension** (`qwen/` subdirectory — the `qwen-extension.json` manifest, `QWEN.md` context file, and the `commands/maestro/`, `policies/`, `mcp/`, and `hooks/` artifacts live at repo root; generated `qwen/agents/` and `qwen/hooks.json` live in the subdirectory)
+- **Qwen Code extension** (repo root, which is Qwen Code's extension directory — the `qwen-extension.json` manifest, `QWEN.md` context file, generated `agents/` stubs, and the `commands/maestro/`, `policies/`, `mcp/`, and `hooks/` artifacts; only the generated `qwen/hooks.json` lives in the `qwen/` subdirectory)
 
 The orchestrator adopts a TechLead persona that designs, plans, delegates to agents, validates, and reports.
 
@@ -60,6 +60,7 @@ maestro-orchestrate/
 ├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)
 ├── tests/                        # Unit, transform, and integration suites + shared helpers
 │
+├── agents/                       # [generated] Qwen agent stubs (39, snake_case, Qwen tool names)
 ├── commands/maestro/             # [generated] Qwen TOML commands
 ├── hooks/                        # Hook-runner shim (used by qwen/hooks.json)
 ├── mcp/                          # MCP server shim (Qwen)
@@ -86,8 +87,7 @@ maestro-orchestrate/
 │   ├── .app.json                 # [generated] App config
 │   └── README.md
 │
-└── qwen/                         # [generated] Qwen Code extension
-    ├── agents/                   # Qwen agent stubs (39, snake_case, Qwen tool names)
+└── qwen/                         # [generated] Qwen Code hook registration
     └── hooks.json                # Qwen hook registration
 ```
 

@@ -137,10 +137,9 @@ Common paths:
 ### Qwen Code
 
 - Command entry point: `/maestro:*`
-- Supports hooks
-- Uses TOML commands and TOML policy files
+- Uses TOML commands
 - Agent naming: `snake_case`
-- Uses `qwen/agents/` and `qwen/hooks.json`; its commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), MCP server shim (`mcp/maestro-server.js`), and hook runner (`hooks/hook-runner.js`) live at the repository root
+- Agent stubs (`agents/`), commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), MCP server shim (`mcp/maestro-server.js`), and hook runner (`hooks/hook-runner.js`) live at the repository root, Qwen Code's extension directory; `qwen/` holds only the generated `qwen/hooks.json`
 
 ## 7. Hook Reference
 
@@ -162,22 +161,7 @@ Common paths:
 - `SubagentStop`
 - `SessionEnd`
 
-## 8. Common Notes
-
-### Qwen Code
-
-- Experimental subagents must be enabled
-- `~/.qwen/settings.json` should include:
-
-```json
-{
-  "experimental": {
-    "enableAgents": true
-  }
-}
-```
-
-## 9. Suggested Reading Order
+## 8. Suggested Reading Order
 
 If you want to go deeper:
 

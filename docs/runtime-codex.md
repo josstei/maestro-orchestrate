@@ -193,4 +193,4 @@ The repo-root `.agents/plugins/marketplace.json` is generated too. The runtime s
 | Skill surface | 19 skills | N/A (12 TOML commands) | plugin namespace `$maestro:*` |
 | Path style | Env var refs | Variable passthrough | `npx` bin |
 | Extra files | policy-enforcer | Qwen manifest, context, TOML commands, policy rules | runtime guide |
-| Runtime payload | thin entrypoint + detached `src/` payload | repo-root thin entrypoint + `qwen/` stubs | npx bin + detached `src/` payload |
+| Runtime payload | thin entrypoint + detached `src/` payload | repo-root thin entrypoint + `agents/` stubs | npx bin + detached `src/` payload |

@@ -1,6 +1,6 @@
 # Qwen Runtime
 
-The Qwen Code extension's generated agent stubs (`qwen/agents/`) and hook registration (`qwen/hooks.json`) live in `qwen/`, the output directory declared in `src/platforms/qwen/runtime-config.js`. The repo root is Qwen Code's extension directory, so the manifest (`qwen-extension.json`), context file (`QWEN.md`), TOML commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), and the MCP server and hook runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`) stay at the repo root.
+The repo root is Qwen Code's extension directory and the output directory (`./`) declared in `src/platforms/qwen/runtime-config.js`. The manifest (`qwen-extension.json`), context file (`QWEN.md`), generated agent stubs (`agents/`), TOML commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), and the MCP server and hook runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`) live at the repo root. The `qwen/` subdirectory holds only the generated hook registration (`qwen/hooks.json`).
 
 ## Configuration
 
@@ -28,7 +28,7 @@ The public server at `mcp/maestro-server.js` is a thin adapter. The Qwen manifes
 
 Qwen uses **snake_case** for agent names: `code_reviewer`, `api_designer`, `accessibility_specialist`.
 
-Agent files are generated at `qwen/agents/*.md` with snake_case filenames.
+Agent files are generated at the repo-root `agents/*.md` with snake_case filenames, because Qwen Code loads an extension's subagents from `<extension>/agents/`.
 
 ## Delegation
 
@@ -58,7 +58,7 @@ architect(query: "Design the auth system...")
 | `a11y-audit.toml` | Entry-point registry |
 | `compliance-check.toml` | Entry-point registry |
 
-The 3 core commands carry a `## Runtime: Qwen Code` preamble that maps step references to Qwen Code syntax: `skill` to load skills, bare MCP tool names, direct agent calls, and `ask_user_question` for prompts and approvals. `resume.toml` also injects the active session state by running `src/scripts/read-active-session.js` under `$MAESTRO_EXTENSION_PATH` (default `$HOME/.qwen/extensions/maestro`), or reports "No active session" when that script is missing.
+The 3 core commands carry a `## Runtime: Qwen Code` preamble that maps step references to Qwen Code syntax: `skill` to load skills, Maestro's MCP tools by the names Qwen Code lists for the `maestro` server, direct agent calls, `exit_plan_mode` with `plan` set to the plan's markdown content (not a file path), and `ask_user_question` for prompts and approvals. `resume.toml` also injects the active session state by running `src/scripts/read-active-session.js` under `$MAESTRO_EXTENSION_PATH` (default `$HOME/.qwen/extensions/maestro`), or reports "No active session" when that script is missing.
 
 ## Hooks
 
@@ -170,13 +170,13 @@ Fields: `kind` (always "local"), `max_turns`.
 
 ```text
 qwen/
-├── agents/                [generated] 39 agent stubs (snake_case, Qwen tool names)
 └── hooks.json             [generated] hook registration (SubagentStart, SubagentStop, …)
 ```
 
 The Qwen extension also owns these repo-root artifacts:
 
 ```text
+agents/                    [generated] 39 agent stubs (snake_case, Qwen tool names)
 commands/maestro/          [generated] 12 TOML commands
 policies/                  [generated] maestro.toml policy pack
 mcp/                       maestro-server.js shim (hand-maintained, defaults to MAESTRO_RUNTIME=qwen)
