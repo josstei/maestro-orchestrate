@@ -14,7 +14,7 @@ const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/mcp/runtime/runtime-
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const OWNED_DIRS = ['claude/agents', 'qwen/agents', 'claude/skills', 'plugins/maestro/skills', 'commands'];
+const OWNED_DIRS = ['agents', 'claude/agents', 'claude/skills', 'plugins/maestro/skills', 'commands'];
 const PAYLOAD_RUNTIMES = ['claude', 'codex'];
 
 const args = process.argv.slice(2);

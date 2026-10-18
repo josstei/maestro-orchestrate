@@ -2,7 +2,9 @@
 
 module.exports = {
   name: 'qwen',
-  outputDir: 'qwen/',
+  // Qwen Code loads an extension's subagents from <extension>/agents/, and the
+  // repo root is Qwen's extension dir.
+  outputDir: './',
 
   agentNaming: 'snake_case',
 

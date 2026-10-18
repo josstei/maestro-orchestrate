@@ -38,7 +38,7 @@ DESIGN GATE (Phase 1 pre-entry)
     </HARD-GATE>
 
 DESIGN (Phase 1)
-10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
+10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex, Qwen), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
 11. Using the `design-dialogue` protocol already loaded in step 7, run the design conversation:
     - Design depth selector (first design question)
     - Repository grounding (for existing codebases, skip for greenfield)

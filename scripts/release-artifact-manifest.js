@@ -11,6 +11,7 @@ const RELEASE_ARTIFACT_PATHS = [
   'LICENSE',
   'QWEN.md',
   'README.md',
+  'agents',
   'bin',
   'claude',
   'commands',

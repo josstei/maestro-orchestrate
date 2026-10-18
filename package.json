@@ -64,6 +64,7 @@
     "src/",
     "scripts/",
     "bin/",
+    "agents/",
     "claude/",
     "plugins/",
     "commands/",
