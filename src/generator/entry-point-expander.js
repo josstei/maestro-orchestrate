@@ -102,17 +102,15 @@ function applySubstitutions(template, substitutions) {
  * Render every registry entry of one kind for one runtime.
  * @param {'entry-point'|'core-command'} kind
  * @param {string} runtimeName
- * @returns {Array<{ outputPath: string, content: string }>} Empty for a
- *   runtime that emits no entry points
+ * @returns {Array<{ outputPath: string, content: string }>}
  * @throws {Error} For an unknown runtime, or a resolved name that collides
  *   with a reserved host command
  */
 function expand(kind, runtimeName) {
   const config = RUNTIME_ENTRY_POINTS[runtimeName];
-  if (config === undefined) {
+  if (!config) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
-  if (!config) return [];
 
   const { registry, substitutions } = KINDS[kind];
   const template = fs.readFileSync(path.join(TEMPLATES_DIR, config.templates[kind]), 'utf8');
