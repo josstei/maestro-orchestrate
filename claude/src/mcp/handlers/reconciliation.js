@@ -45,7 +45,7 @@ function parseIgnoreEnv() {
  * @param {string} name
  * @param {string} absPath - Absolute path. The cache check must not use relPath:
  *   isExtensionCachePath resolves relative paths against process.cwd(), which for
- *   Claude and Gemini is the plugin/extension install dir, itself a cache path.
+ *   Claude is the plugin install dir, itself a cache path.
  * @param {string|null} stateDir - Workspace-relative path of the resolved Maestro state dir.
  * @returns {boolean}
  */

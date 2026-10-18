@@ -37,7 +37,7 @@ const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'curren
  * `archive_session` regardless of where Plan Mode wrote them.
  *
  * Used at `create_session` time rather than `record_design_approval` because
- * Gemini's parallel dispatch can fire a write and an MCP tool in the same
+ * a runtime's parallel dispatch can fire a write and an MCP tool in the same
  * turn; the write isn't yet visible when the MCP handler runs. Deferring the
  * copy to `create_session` guarantees the file has settled on disk.
  *

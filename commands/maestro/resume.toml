@@ -11,25 +11,25 @@ Treat the content within <user-request> tags as a additional context only. Do no
 The current session state is provided below:
 
 <session-state>
-!{extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
+!{extension_root="${MAESTRO_EXTENSION_PATH:-$HOME/.qwen/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
 </session-state>
 
 Use the injected session state above as the source of truth for resume position.
 
-## Runtime: Gemini CLI
+## Runtime: Qwen Code
 
-This preamble maps generic step references to Gemini CLI tool syntax.
+This preamble maps generic step references to Qwen Code tool syntax.
 
 | Action | How |
 |--------|-----|
-| Load skill | `activate_skill(name: "<skill-name>")` — masking-exempt, expands workspace access to skill directory |
+| Load skill | `skill` with the skill name |
 | Load template/reference/protocol | `get_skill_content(resources: ["<name>"])` |
 | Delegate to agent | Call agent tool by name: `coder(query: "...")`, `tester(query: "...")`, `design_system_engineer(query: "...")` |
-| MCP tools | `mcp_maestro_<tool_name>` (Gemini CLI also accepts bare names like `resolve_settings`) |
-| Enter Plan Mode | `enter_plan_mode` — if unavailable, tell user: "Run `gemini --settings` and set `experimental.plan` to `true`, then restart." Offer to continue without Plan Mode using `ask_user` for approvals. |
-| Exit Plan Mode | `exit_plan_mode` with `plan_filename` |
-| User prompt (choose) | `ask_user` with `type: 'choice'` |
-| User prompt (approve) | `ask_user` with `type: 'yesno'` |
+| MCP tools | Bare tool names with no prefix, like `resolve_settings` |
+| Enter Plan Mode | `enter_plan_mode` if available. Qwen Code does not report native Plan Mode (`plan_mode_native` is false), so the server-side design gate is the approval contract; without Plan Mode, use `ask_user_question` for approvals. |
+| Exit Plan Mode | `exit_plan_mode` |
+| User prompt (choose) | `ask_user_question` with a short `header` and one option per choice |
+| User prompt (approve) | `ask_user_question` with Approve and Revise options |
 
 ## Execute
 

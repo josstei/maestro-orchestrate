@@ -14,8 +14,8 @@ const { emitBlockList } = require('../lib/yaml-emit');
  *   - `frontmatter`  - parsed input frontmatter
  *   - `description`  - final description (may have examples appended for claude)
  *   - `tools`        - resolved tool list (explicit `tools.<runtime>` override,
- *                      the canonical list verbatim for gemini, otherwise mapped
- *                      through runtime.tools)
+ *                      otherwise the canonical list mapped through
+ *                      runtime.tools)
  *   - `runtime`      - full runtime config
  *   - `fm`           - runtime.agentFrontmatter config (shape hints)
  */
@@ -42,39 +42,16 @@ const FIELDS = {
 
   tools: (ctx) => emitBlockList('tools', ctx.tools),
 
-  temperature: (ctx) =>
-    ctx.frontmatter.temperature != null
-      ? [`temperature: ${ctx.frontmatter.temperature}`]
-      : [],
-
   turns: (ctx) =>
     ctx.fm.turnsField && ctx.frontmatter.max_turns != null
       ? [`${ctx.fm.turnsField}: ${ctx.frontmatter.max_turns}`]
       : [],
-
-  timeout: (ctx) =>
-    ctx.frontmatter.timeout_mins != null
-      ? [`timeout_mins: ${ctx.frontmatter.timeout_mins}`]
-      : [],
 };
-
-/**
- * The canonical `tools` list is written in Gemini CLI tool names, so Gemini
- * stubs list it verbatim. Gemini's runtime `tools` table must not be applied
- * here: it is written for the model (get_runtime_context, get_agent), and
- * some entries map to prose (for example write_todos -> 'not available —
- * track progress in model context') that is not a valid tool name.
- */
-const NATIVE_TOOL_RUNTIME = 'gemini';
 
 function resolveTools(frontmatter, runtime) {
   const overrideKey = `tools.${runtime.name}`;
   if (frontmatter[overrideKey]) {
     return frontmatter[overrideKey];
-  }
-
-  if (runtime.name === NATIVE_TOOL_RUNTIME) {
-    return frontmatter.tools || [];
   }
 
   return (frontmatter.tools || []).flatMap(

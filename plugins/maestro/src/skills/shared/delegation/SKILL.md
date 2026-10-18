@@ -60,7 +60,7 @@ This primes the agent to structure their Downstream Context section for maximum 
 
 Before constructing any delegation prompt, resolve configurable parameters:
 
-1. Read the agent's base definition frontmatter (`temperature`, `max_turns`, `timeout_mins`, `tools`)
+1. Read the agent's base definition frontmatter (`max_turns`, `tools`)
 2. Do not invent Maestro-level model, temperature, turn, or timeout overrides. Native delegation uses agent frontmatter defaults plus any runtime-level agent configuration already active in the session.
 3. Include only task-relevant execution context in the prompt metadata
 4. If the agent appears in `MAESTRO_DISABLED_AGENTS`, do not construct a delegation prompt — report to the orchestrator that the agent is disabled
@@ -179,12 +179,11 @@ Explicitly state what the agent must NOT do:
 
 Delegate to the assigned agent using the dispatch pattern from `get_runtime_context` (loaded at session start, step 0). Every Maestro agent in the Agent Roster carries its frontmatter configuration:
 
-- `temperature`: Controls output determinism (e.g., coder uses 0.2 for precise code)
 - `max_turns`: Prevents runaway sessions (e.g., 25 turns for implementation agents)
 - `tools`: Restricts the agent to its authorized tool surface (e.g., read-only agents cannot use file-writing tools)
 - Body: Contains the agent's specialized methodology and decision frameworks
 
-Using a generic/default agent tool bypasses all of this — it uses default temperature, has no turn limit, no tool restrictions, and no specialized methodology. Never use a generic agent tool for Maestro phase delegations.
+Using a generic/default agent tool bypasses all of this — it has no turn limit, no tool restrictions, and no specialized methodology. Never use a generic agent tool for Maestro phase delegations.
 
 Every delegation must include the required header fields:
 

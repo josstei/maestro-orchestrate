@@ -123,7 +123,7 @@ function buildExtensionManifest(context, runtime, contextFileName) {
   };
 }
 
-// Gemini CLI and Qwen Code read hook timeouts in milliseconds.
+// Qwen Code reads hook timeouts in milliseconds.
 function buildExtensionHooks(runtime, events, { nameSuffix = '', descriptionSuffix = '' } = {}) {
   return {
     hooks: Object.fromEntries(Object.entries(events).map(([event, hookName]) => [event, [{
@@ -177,7 +177,7 @@ function policyRule(lines) {
 }
 
 /**
- * Render the Gemini CLI / Qwen Code policy pack from the canonical rules that
+ * Render the Qwen Code policy pack from the canonical rules that
  * the Claude policy enforcer applies: ask rules first, then one deny block for
  * every prefix rule, then one deny block per remaining deny rule.
  * @throws {Error} When a rule cannot be expressed as a policy commandRegex
@@ -278,7 +278,7 @@ const METADATA_BUILDERS = {
       interface: {
         displayName: 'Maestro',
         shortDescription: 'Multi-agent coding orchestration for Codex',
-        longDescription: 'Generated Codex runtime for Maestro. Shared methodology, templates, references, and agent personas stay aligned with the Gemini CLI and Claude Code runtimes while Codex-specific delegation and state handling stay isolated to this plugin.',
+        longDescription: 'Generated Codex runtime for Maestro. Shared methodology, templates, references, and agent personas stay aligned with the Claude Code and Qwen Code runtimes while Codex-specific delegation and state handling stay isolated to this plugin.',
         developerName: context.author.name,
         category: 'Coding',
         capabilities: [
@@ -307,17 +307,6 @@ const METADATA_BUILDERS = {
     }],
     [`plugins/maestro/${CODEX_APPS_PATH}`, { apps: {} }],
   ],
-  gemini: (context) => [
-    ['gemini-extension.json', buildExtensionManifest(context, 'gemini', 'GEMINI.md')],
-    ['hooks/hooks.json', buildExtensionHooks('gemini', {
-      SessionStart: 'session-start',
-      BeforeAgent: 'before-agent',
-      AfterAgent: 'after-agent',
-      SessionEnd: 'session-end',
-    })],
-    // The repo root is Gemini's extension dir; Qwen Code reads the same policy pack.
-    ['policies/maestro.toml', buildPolicyPackToml()],
-  ],
   qwen: (context) => [
     ['qwen-extension.json', buildExtensionManifest(context, 'qwen', 'QWEN.md')],
     ['qwen/hooks.json', buildExtensionHooks('qwen', {
@@ -326,6 +315,8 @@ const METADATA_BUILDERS = {
       SubagentStop: 'after-agent',
       SessionEnd: 'session-end',
     }, { nameSuffix: '-qwen', descriptionSuffix: ' (Qwen Code)' })],
+    // The repo root is Qwen Code's extension dir.
+    ['policies/maestro.toml', buildPolicyPackToml()],
   ],
 };
 

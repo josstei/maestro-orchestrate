@@ -5,8 +5,6 @@ color: violet
 tools: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, write_todos, read_many_files, ask_user]
 tools.claude: [Read, Bash, Glob, Grep, WebSearch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 20
-temperature: 0.2
-timeout_mins: 8
 ---
 <!-- @feature exampleBlocks -->
 <example>
