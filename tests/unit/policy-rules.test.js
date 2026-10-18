@@ -85,11 +85,25 @@ describe('policy-rules', () => {
     });
 
     it('regex rule for heredoc matches <<EOF and << EOF', () => {
-      const heredocRule = DENY_RULES.find(r => r.matchType === 'regex' && r.pattern === '<<');
+      const heredocRule = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
       assert.ok(heredocRule, 'No heredoc regex rule found');
       assert.ok(matchRule(heredocRule, '<<EOF'), 'Expected "<<EOF" to match heredoc rule');
       assert.ok(matchRule(heredocRule, '<< EOF'), 'Expected "<< EOF" to match heredoc rule');
       assert.ok(matchRule(heredocRule, 'cat <<EOF'), 'Expected "cat <<EOF" to match heredoc rule');
+    });
+
+    it('regex rule for heredoc matches quoted, escaped and tab-stripping delimiters', () => {
+      const heredocRule = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
+      for (const command of ["cat <<'EOF'", 'cat << "EOF"', 'cat <<-EOF', 'cat <<\\EOF', 'cat<<EOF', 'python3 - <<PY', 'cat <<END_OF_TEXT > notes.md']) {
+        assert.ok(matchRule(heredocRule, command), `Expected ${JSON.stringify(command)} to match heredoc rule`);
+      }
+    });
+
+    it('regex rule for heredoc ignores here-strings, shifts and <<=', () => {
+      const heredocRule = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
+      for (const command of ['echo $((1<<4))', 'python3 -c "print(1 << 3)"', 'cat <<<"$value"', 'cat <<< "$value"', 'cat <<<word', 'x <<= 2']) {
+        assert.equal(matchRule(heredocRule, command), false, `Expected ${JSON.stringify(command)} NOT to match heredoc rule`);
+      }
     });
   });
 

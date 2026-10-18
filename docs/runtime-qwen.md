@@ -102,7 +102,7 @@ Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string,
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
 - `git reset --hard`, `git checkout --`
 - `git clean -fd`, `git clean -df`, `git clean -xfd`, `git clean -xdf`
-- Heredocs (`<<`)
+- Heredocs (`<<EOF`, `<< 'EOF'`, `<<-EOF`; not here-strings `<<<` or arithmetic shifts such as `1<<4`)
 
 **Ask User (priority 850)**:
 - `tee` commands

@@ -21,7 +21,12 @@ const DENY_RULES = Object.freeze([
   { matchType: 'prefix', pattern: 'git clean -df', reason: 'Removes untracked files permanently (flag reorder)' },
   { matchType: 'prefix', pattern: 'git clean -xfd', reason: 'Removes untracked and ignored files permanently' },
   { matchType: 'prefix', pattern: 'git clean -xdf', reason: 'Removes untracked and ignored files permanently (flag reorder)' },
-  { matchType: 'regex', pattern: '<<', reason: 'Heredoc corrupts structured content (YAML, Markdown, JSON) — use write_file instead' },
+  // A heredoc operator: `<<` or `<<-`, optional blanks, then a delimiter word,
+  // bare or quoted (`<<EOF`, `<< 'EOF'`, `<<-"EOF"`, `<<\EOF`). The leading
+  // `(?:^|[^<])` skips here-strings (`<<<`); requiring a delimiter word skips
+  // arithmetic shifts (`$((1<<4))`, `1 << 3`) and `<<=`. No lookbehind, so the
+  // same pattern works as a policy-pack commandRegex.
+  { matchType: 'regex', pattern: '(?:^|[^<])<<-?[ \\t]*[\'"\\\\]?[A-Za-z_]', reason: 'Heredoc corrupts structured content (YAML, Markdown, JSON) — use the file-writing tool instead' },
 ]);
 
 const ASK_RULES = Object.freeze([

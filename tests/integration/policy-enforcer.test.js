@@ -39,6 +39,15 @@ test('blocks destructive commands in nested backtick substitutions', () => {
   assert.equal(runPolicy(command).decision, 'block');
 });
 
+test('blocks heredocs but approves here-strings and arithmetic shifts', () => {
+  assert.equal(runPolicy("cat <<'EOF' > notes.md").decision, 'block');
+  assert.equal(runPolicy('git status && cat << EOF').decision, 'block');
+
+  assert.equal(runPolicy(`echo ${DOLLAR}((1<<4))`).decision, 'approve');
+  assert.equal(runPolicy('python3 -c "print(1 << 3)"').decision, 'approve');
+  assert.equal(runPolicy(`grep -c x <<<"${DOLLAR}value"`).decision, 'approve');
+});
+
 test('approves benign nested substitutions', () => {
   assert.equal(
     runPolicy(`echo ${DOLLAR}(printf %s "${DOLLAR}(git status --short)")`).decision,

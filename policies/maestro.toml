@@ -38,7 +38,7 @@ deny_message = "Maestro blocks destructive shell commands. Use safer targeted to
 
 [[rule]]
 toolName = "run_shell_command"
-commandRegex = ".*(?:<<).*$"
+commandRegex = ".*(?:(?:^|[^<])<<-?[ \\t]*['\"\\\\]?[A-Za-z_]).*$"
 decision = "deny"
 priority = 950
-deny_message = "Heredoc corrupts structured content (YAML, Markdown, JSON) — use write_file instead"
+deny_message = "Heredoc corrupts structured content (YAML, Markdown, JSON) — use the file-writing tool instead"
