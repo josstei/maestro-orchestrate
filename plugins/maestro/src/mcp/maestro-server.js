@@ -9,7 +9,7 @@ const { createProtocolHandlers } = require('./core/protocol-dispatcher');
 const { createToolPack: createWorkspaceToolPack } = require('./tool-packs/workspace');
 const { createToolPack: createSessionToolPack } = require('./tool-packs/session');
 const { createToolPack: createContentToolPack } = require('./tool-packs/content');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('./runtime/runtime-config-map');
+const { getRuntimeConfig } = require('./runtime/runtime-config-map');
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
@@ -22,8 +22,13 @@ const DEFAULT_TOOL_PACKS = Object.freeze([
   createContentToolPack,
 ]);
 
+// Runtime served when MAESTRO_RUNTIME is unset or empty. Every shipped
+// launcher sets MAESTRO_RUNTIME; this keeps a direct
+// `node src/mcp/maestro-server.js` on Claude whichever runtimes exist.
+const DEFAULT_RUNTIME = 'claude';
+
 function main() {
-  const resolvedRuntimeConfig = getRuntimeConfig(process.env.MAESTRO_RUNTIME || RUNTIME_NAMES[0]);
+  const resolvedRuntimeConfig = getRuntimeConfig(process.env.MAESTRO_RUNTIME || DEFAULT_RUNTIME);
 
   const cache = createProjectRootCache({
     runtimeConfig: resolvedRuntimeConfig,

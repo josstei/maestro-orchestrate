@@ -196,13 +196,14 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
-  it('falls back to the first discovered runtime when MAESTRO_RUNTIME is empty', async () => {
+  it('falls back to the claude runtime when MAESTRO_RUNTIME is empty', async () => {
+    // antigravity is the first discovered runtime, but the fallback is pinned.
     await withServer(
       { cwd: ROOT, relativePath: 'src/mcp/maestro-server.js', env: { MAESTRO_RUNTIME: '' } },
       async (client) => {
         const result = await client.callTool('get_runtime_context');
 
-        assert.equal(result.parsed.runtime, 'antigravity');
+        assert.equal(result.parsed.runtime, 'claude');
       }
     );
   });

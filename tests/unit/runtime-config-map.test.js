@@ -17,7 +17,7 @@ describe('runtime-config-map', () => {
     }
   });
 
-  it('lists runtime names alphabetically, so antigravity is the first discovered runtime', () => {
+  it('lists runtime names alphabetically', () => {
     const { RUNTIME_NAMES } = require(configMapPath);
     assert.deepEqual(RUNTIME_NAMES, ['antigravity', 'claude', 'codex', 'qwen']);
   });
