@@ -15,6 +15,7 @@ const {
   readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir, writeTree } = require('../support/fs');
 
@@ -263,13 +264,6 @@ describe('served agent bodies', () => {
 });
 
 describe('served Antigravity agent tools', () => {
-  // The tools Antigravity grants a subagent, verified against agy 1.4.2. It
-  // silently drops any other name (multi_replace_file_content among them).
-  const SUBAGENT_TOOLS = new Set([
-    'view_file', 'list_dir', 'find_by_name', 'grep_search', 'search_web',
-    'read_url_content', 'write_to_file', 'replace_file_content', 'run_command', 'ask_question',
-  ]);
-
   it('name only tools Antigravity grants a subagent, each once', () => {
     const runtimeConfig = getRuntimeConfig('antigravity');
 
@@ -278,7 +272,7 @@ describe('served Antigravity agent tools', () => {
       assert.ok(tools.length > 0, `${agentName}: expected a tool allowlist`);
       assert.equal(new Set(tools).size, tools.length, `${agentName}: duplicate tools ${tools}`);
       for (const tool of tools) {
-        assert.ok(SUBAGENT_TOOLS.has(tool), `${agentName}: ${tool} is not an Antigravity subagent tool`);
+        assert.ok(ANTIGRAVITY_SUBAGENT_TOOLS.has(tool), `${agentName}: ${tool} is not an Antigravity subagent tool`);
       }
     }
   });

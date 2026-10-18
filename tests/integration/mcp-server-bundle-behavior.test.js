@@ -76,7 +76,14 @@ function spawnAntigravityClient({ cwd, roots }) {
     request(method, params = {}) {
       const id = nextId++;
       return new Promise((resolve, reject) => {
-        pending.set(id, { resolve, reject });
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error(`No reply to ${method} within ${ROOTS_TIMEOUT_MS}ms.\nSTDERR:\n${stderr}`));
+        }, ROOTS_TIMEOUT_MS);
+        pending.set(id, {
+          resolve: (message) => { clearTimeout(timer); resolve(message); },
+          reject: (error) => { clearTimeout(timer); reject(error); },
+        });
         send({ id, method, params });
       });
     },

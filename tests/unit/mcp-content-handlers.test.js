@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir } = require('../support/fs');
 
@@ -74,6 +74,26 @@ describe('get_skill_content handler', () => {
     assert.ok(!content.includes('${extensionPath}'));
     assert.ok(!content.includes('${CLAUDE_PLUGIN_ROOT}'));
     assert.ok(!content.includes('node ./src/scripts/'));
+  });
+
+  it('serves every runtime a delegation skill that explains its result surface', () => {
+    for (const runtimeName of RUNTIME_NAMES) {
+      const runtimeConfig = getRuntimeConfig(runtimeName);
+      const handler = createSkillContentHandler(runtimeConfig, SRC_ROOT);
+
+      const content = handler({ resources: ['delegation'] }).contents.delegation;
+
+      assert.ok(
+        content.includes(`\`result_surface: "${runtimeConfig.delegation.constraints.result_surface}"\``),
+        `${runtimeName}: delegation skill does not explain its result surface`
+      );
+    }
+    // Antigravity has no post-delegation hook, so the orchestrator validates handoffs.
+    const antigravity = createSkillContentHandler(getRuntimeConfig('antigravity'), SRC_ROOT);
+    assert.ok(
+      antigravity({ resources: ['delegation'] }).contents.delegation
+        .includes('Antigravity runs no post-delegation hook')
+    );
   });
 
   it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {

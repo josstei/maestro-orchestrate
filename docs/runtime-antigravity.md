@@ -142,7 +142,7 @@ Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: strin
 
 **Ask User** (`force_ask`, which prompts even when `permissions.allow` covers the command; headless runs deny it and `--dangerously-skip-permissions` approves it):
 - `tee` commands
-- Output redirection (`>`, `>>`)
+- Output redirection written with surrounding whitespace (`cmd > file`, `cmd >> file`, `2> file`)
 
 **Any other command** (`ask`): Antigravity applies the user's own permission settings and "Always Allow" choices, exactly as without the hook.
 
@@ -171,9 +171,9 @@ Antigravity maps the canonical tool names to Antigravity tools in `src/platforms
 | `activate_skill` | `view_file` |
 | `enter_plan_mode` | none |
 | `exit_plan_mode` | none |
-| `codebase_investigator` | `invoke_subagent (TypeName: "research") / grep_search / find_by_name` |
+| `codebase_investigator` | `invoke_subagent (TypeName: "research")` |
 
-`read_file`, `read_many_files`, and `activate_skill` all map to `view_file`, which each stub lists once. Antigravity has no todo or plan-mode tools: Maestro session state (`update_session`, `transition_phase`) is the progress record, and with `planModeNative: false` the server-side design gate and `ask_question` approvals carry the design approval.
+`read_file`, `read_many_files`, and `activate_skill` all map to `view_file`, which each stub lists once. `list_dir`, `find_by_name`, and `grep_search` exist only for subagents that list them in `tools`, as every stub that declares them does; the orchestrator's own tool set lacks them, so the Antigravity skills tell it to search with `run_command` (`ls`, `find`, `rg`) or the built-in `research` subagent. Antigravity has no todo or plan-mode tools: Maestro session state (`update_session`, `transition_phase`) is the progress record, and with `planModeNative: false` the server-side design gate and `ask_question` approvals carry the design approval.
 
 ## Feature Flags
 
@@ -234,6 +234,6 @@ The plugin ships no rules or context file.
 
 - Antigravity lists custom subagents in the app and the CLI, but the Antigravity IDE does not run them yet, so Maestro delegation needs `agy` or the app.
 - `/maestro:<skill>` follows the `/<plugin>:<skill>` form that Antigravity's changelog documents for plugin skills. The model also finds every skill in its skill list and can load one without the slash command.
-- Antigravity plugins have no settings form. Export `MAESTRO_*` variables before starting `agy`, or put them in the workspace `.env`.
+- Antigravity plugins have no settings form. Export `MAESTRO_*` variables before starting `agy`.
 - `${PLUGIN_ROOT}` in served Maestro content is the plugin directory. Antigravity does not export it to hooks or `run_command` shells, so the core skills tell the model to write the absolute path instead.
 - `node scripts/generate.js` derives `antigravity/plugin.json` from `package.json` with the other runtime manifests and rebuilds the `antigravity/src/` payload, so release metadata stays aligned.

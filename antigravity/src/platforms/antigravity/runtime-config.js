@@ -23,8 +23,11 @@ module.exports = {
 
   // Agent stubs list the mapped names of the tools an agent declares as that
   // subagent's tool allowlist, so every tool an agent can declare must map to
-  // real Antigravity tool names; [] means no equivalent. codebase_investigator
-  // is never declared by an agent and only guides the orchestrator.
+  // real Antigravity tool names; [] means no equivalent. list_dir,
+  // find_by_name and grep_search exist only for subagents that list them; the
+  // main agent searches with run_command (the core-command preamble says so).
+  // codebase_investigator is never declared by an agent and only guides the
+  // orchestrator.
   tools: {
     read_file: 'view_file',
     list_directory: 'list_dir',
@@ -41,7 +44,7 @@ module.exports = {
     activate_skill: 'view_file',
     enter_plan_mode: [],
     exit_plan_mode: [],
-    codebase_investigator: 'invoke_subagent (TypeName: "research") / grep_search / find_by_name',
+    codebase_investigator: 'invoke_subagent (TypeName: "research")',
   },
 
   agentFrontmatter: {

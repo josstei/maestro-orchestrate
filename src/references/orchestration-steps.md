@@ -105,8 +105,9 @@ EXECUTION SETUP (Phase 3 — pre-delegation)
 EXECUTION (Phase 3 — delegation loop)
 23. For each phase (or parallel batch): call `get_agent` for the assigned agent, then delegate using the returned methodology and tool restrictions. Before constructing the dispatch, read `delegation.constraints` from the cached `get_runtime_context` and shape the call accordingly — omit `agent_type`/`model`/`reasoning_effort` when `fork_full_context_incompatible_with` includes them and you are spawning with full-history fork.
     <HARD-GATE>
-    Dispatch by calling the agent's registered tool directly.
-    Do NOT use the built-in generalist tool or invoke agents by bare name.
+    Dispatch through `agent_dispatch.pattern` from `get_runtime_context`,
+    naming the agent by the `tool_name` that `get_agent` returned.
+    Do NOT hand a Maestro phase to the runtime's built-in generalist agent.
     Each Maestro agent carries specialized methodology, tool restrictions,
     and turn limits from its frontmatter that the generalist ignores.
     </HARD-GATE>
@@ -169,7 +170,7 @@ EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, arch
 35. Call `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"] and place them right after the required `Agent` / `Phase` / `Batch` / `Session` header of the delegation prompt, before the task content.
 36. Delegate to the assigned agent.
     <HARD-GATE>
-    Same dispatch rule as step 23: call agent by registered tool name, not generalist.
+    Same dispatch rule as step 23: dispatch through `agent_dispatch.pattern` with the agent's `tool_name`, never the generalist.
     </HARD-GATE>
 37. Parse Task Report from the agent's response. Call transition_phase to persist results.
     <HARD-GATE>

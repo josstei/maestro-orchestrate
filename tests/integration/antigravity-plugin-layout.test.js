@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { ROOT } = require('./helpers');
+const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const entryPointRegistry = require('../../src/entry-points/registry');
 const coreCommandRegistry = require('../../src/entry-points/core-command-registry');
 const hookRegistry = require('../../src/generated/hook-registry.json');
@@ -16,22 +17,6 @@ const hookRegistry = require('../../src/generated/hook-registry.json');
 const PLUGIN_DIR = path.join(ROOT, 'antigravity');
 const SRC_AGENTS_DIR = path.join(ROOT, 'src', 'agents');
 const SRC_SHARED_SKILLS_DIR = path.join(ROOT, 'src', 'skills', 'shared');
-
-// Tool names verified present for an Antigravity subagent (agy 1.4.2). It
-// silently drops any other name in a subagent's tools list
-// (multi_replace_file_content among them), so stubs may list only these.
-const SUBAGENT_TOOLS = new Set([
-  'view_file',
-  'list_dir',
-  'find_by_name',
-  'grep_search',
-  'search_web',
-  'read_url_content',
-  'write_to_file',
-  'replace_file_content',
-  'run_command',
-  'ask_question',
-]);
 
 const HOOK_EVENTS = ['SessionStart', 'PreToolUse', 'PostToolUse', 'PreInvocation', 'PostInvocation', 'Stop'];
 const GROUPED_HOOK_EVENTS = new Set(['PreToolUse', 'PostToolUse']);
@@ -220,7 +205,7 @@ describe('antigravity plugin layout', () => {
       assert.ok(frontmatter.tools.length > 0, `${stubPath}: no tools`);
       assert.equal(new Set(frontmatter.tools).size, frontmatter.tools.length, `${stubPath}: duplicate tools`);
       for (const tool of frontmatter.tools) {
-        assert.ok(SUBAGENT_TOOLS.has(tool), `${stubPath}: ${tool} is not an Antigravity subagent tool`);
+        assert.ok(ANTIGRAVITY_SUBAGENT_TOOLS.has(tool), `${stubPath}: ${tool} is not an Antigravity subagent tool`);
       }
 
       assert.ok(

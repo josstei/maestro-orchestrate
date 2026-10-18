@@ -15,10 +15,12 @@ This preamble maps generic step references to Antigravity tool syntax.
 |--------|-----|
 | MCP tools | Maestro's MCP tools are native tools named `mcp_maestro_maestro_<tool>` (for example `mcp_maestro_maestro_get_runtime_context`). If they are missing, read the tool's schema file listed for the `maestro_maestro` MCP server and call it through `call_mcp_tool` with `ServerName: "maestro_maestro"` |
 | Load skill | Read the skill's `SKILL.md` with `view_file` at the path listed under Available skills |
+| Find files and search code | Your own tools have no `list_dir`, `find_by_name` or `grep_search` (Antigravity keeps those for subagents that list them): use `run_command` with `ls`, `find` or `rg`, or delegate exploration to the built-in `research` subagent |
 | Load template/reference/protocol | `get_skill_content(resources: ["<name>"])` |
 | Delegate to agent | `invoke_subagent` with one `Subagents` entry per agent: `TypeName` is the agent name (`coder`, `code-reviewer`, `design-system-engineer`), `Role` a 2-5 word job title, and `Prompt` the full delegation prompt. Leave `Model` unset |
 | Parallel batch | One `invoke_subagent` call whose `Subagents` array holds the whole chunk (at most `MAESTRO_MAX_CONCURRENT` entries when it is not 0) |
-| Agent results | `invoke_subagent` returns conversation IDs only. Each agent's final response arrives later as a system message ("Subagent … has gone idle. This was the subagent's most recent response: …"). End your turn without further tool calls to wait for it; do not poll |
+| Agent results | `invoke_subagent` returns conversation IDs only. Each agent's final response arrives later as a system message ("Subagent … has gone idle. This was the subagent's most recent response: …"). End your turn without further tool calls to wait for it; do not poll. If the message reports `<truncated N bytes>`, read the full response from `transcript_full.jsonl` beside the `logAbsoluteUri` file that `invoke_subagent` returned |
+| Dispatch errors | If `invoke_subagent` returns an error, call `manage_subagents` with `Action: "list"` before dispatching again: entries with valid `TypeName`s may already be running |
 | Handoff retry | Antigravity runs no post-delegation hook. If a response lacks `## Task Report` or `## Downstream Context`, `send_message` that agent's conversation ID once (`Recipient`, `Message`) asking for the complete handoff report |
 | Enter Plan Mode | Antigravity exposes no plan-mode tools (`plan_mode_native` is false), so the server-side design gate is the approval contract and `ask_question` carries approvals |
 | Exit Plan Mode | Not applicable: write the design document and implementation plan under `<state_dir>/plans/` and use the path variants |

@@ -33,11 +33,19 @@ function outputsByPath(outputs) {
 
 const ALL_RUNTIMES = { antigravity: {}, claude: {}, codex: {}, qwen: {} };
 
-// Claude and Qwen nest events under "hooks" and wrap handlers in groups (with
-// an optional matcher); Antigravity's top level is named hooks, and its
+// Claude and Qwen nest events under "hooks" and wrap every handler in a group
+// (with an optional matcher); Antigravity's top level is named hooks, and its
 // SessionStart handlers are flat.
 function hookCommands(config) {
-  return (config.hooks ? [config.hooks] : Object.values(config))
+  if (config.hooks) {
+    return Object.values(config.hooks).flat()
+      .flatMap((group) => {
+        assert.ok(Array.isArray(group.hooks), `expected a handler group: ${JSON.stringify(group)}`);
+        return group.hooks;
+      })
+      .map((hook) => hook.command);
+  }
+  return Object.values(config)
     .flatMap((events) => Object.values(events).flat())
     .flatMap((entry) => entry.hooks || [entry])
     .map((hook) => hook.command);
