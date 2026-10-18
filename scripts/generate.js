@@ -63,7 +63,7 @@ function main() {
     } catch (err) {
       writer.reportError('cleaning generated files', err);
     }
-    if (!readOnlyMode) console.log('Cleaned all generator-owned files.');
+    if (!readOnlyMode) console.log('Cleaned generated agent and shared-skill stubs.');
   }
 
   for (const entry of manifest) {

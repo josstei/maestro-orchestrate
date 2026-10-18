@@ -8,7 +8,7 @@ help:
     @echo "  just generate         Generate all runtime files from src/"
     @echo "  just dry-run          Preview what would change without writing"
     @echo "  just diff             Show unified diff of what would change"
-    @echo "  just clean            Delete all generated files and regenerate"
+    @echo "  just clean            Delete generated agent and shared-skill stubs, then regenerate"
     @echo ""
     @echo "Testing:"
     @echo "  just test             Run all tests"
@@ -36,7 +36,7 @@ dry-run:
 diff:
     node scripts/generate.js --diff
 
-# Clean all generated files and regenerate from scratch
+# Delete the generated agent and shared-skill stubs, then regenerate
 clean:
     node scripts/generate.js --clean
 

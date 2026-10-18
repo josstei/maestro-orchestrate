@@ -563,7 +563,7 @@ The `justfile` provides local development commands that mirror CI behavior.
 | `just generate` | Generate all runtime files from `src/` | Used in all 6 generator workflows |
 | `just dry-run` | Preview changes without writing | No CI equivalent |
 | `just diff` | Show unified diff of pending changes | No CI equivalent |
-| `just clean` | Delete generated files and regenerate from scratch | No CI equivalent |
+| `just clean` | Delete the generated agent and shared-skill stubs, then regenerate | No CI equivalent |
 | `just test` | Run all tests (unit + transform + integration) | Used in all 6 generator workflows |
 | `just test-unit` | Run only unit tests | No CI equivalent |
 | `just test-transforms` | Run only transform unit tests | No CI equivalent |
