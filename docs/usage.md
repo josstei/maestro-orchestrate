@@ -47,7 +47,7 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the context files (`GEMINI.md`, `QWEN.md`), and the thin MCP-server and hook-runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `claude/mcp/maestro-server.js`, `claude/scripts/`, `bin/maestro-mcp-server.js`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `claude/src/` and `plugins/maestro/src/` payloads.
+1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the Qwen context file (`QWEN.md`), and the thin MCP-server and hook-runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `claude/mcp/maestro-server.js`, `claude/scripts/`, `bin/maestro-mcp-server.js`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `claude/src/` and `plugins/maestro/src/` payloads.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime outputs
 3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
 4. Run `npm test` (or `just test`) before committing
@@ -74,8 +74,6 @@ All settings are resolved with precedence: environment variable > workspace `.en
 
 | Variable | Runtime | Purpose |
 |----------|---------|---------|
-| `MAESTRO_EXTENSION_PATH` | Gemini | Override extension root path |
-| `MAESTRO_WORKSPACE_PATH` | Gemini | Workspace root (set by Gemini CLI) |
 | `MAESTRO_EXTENSION_PATH` | Qwen | Override extension root path |
 | `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
 | `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
@@ -84,22 +82,22 @@ All settings are resolved with precedence: environment variable > workspace `.en
 
 ## Invoking Maestro
 
-Gemini CLI and Qwen Code run TOML slash commands from `commands/maestro/`, Claude Code runs Markdown skills as slash commands, and Codex invokes skills through the plugin namespace:
+Qwen Code runs TOML slash commands from `commands/maestro/`, Claude Code runs Markdown skills as slash commands, and Codex invokes skills through the plugin namespace:
 
-| Capability | Gemini CLI | Claude Code | Codex | Qwen Code | Purpose |
-|------------|------------|-------------|-------|-----------|---------|
-| Orchestrate | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` | Full orchestration workflow |
-| Execute | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` | Execute an approved plan |
-| Resume | `/maestro:resume` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` | Resume interrupted session |
-| Review | `/maestro:review` | `/review-code` | `$maestro:review-code` | `/maestro:review` | Code review |
-| Debug | `/maestro:debug` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` | Debugging workflow |
-| Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` | Archive active session |
-| Status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` | Show session status |
-| Security Audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` | Security assessment |
-| Performance Check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` | Performance assessment |
-| SEO Audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` | SEO audit |
-| Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` | Accessibility audit |
-| Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` | Compliance review |
+| Capability | Claude Code | Codex | Qwen Code | Purpose |
+|------------|-------------|-------|-----------|---------|
+| Orchestrate | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` | Full orchestration workflow |
+| Execute | `/execute` | `$maestro:execute` | `/maestro:execute` | Execute an approved plan |
+| Resume | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` | Resume interrupted session |
+| Review | `/review-code` | `$maestro:review-code` | `/maestro:review` | Code review |
+| Debug | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` | Debugging workflow |
+| Archive | `/archive` | `$maestro:archive` | `/maestro:archive` | Archive active session |
+| Status | `/status` | `$maestro:status` | `/maestro:status` | Show session status |
+| Security Audit | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` | Security assessment |
+| Performance Check | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` | Performance assessment |
+| SEO Audit | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` | SEO audit |
+| Accessibility Audit | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` | Accessibility audit |
+| Compliance Check | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` | Compliance review |
 
 Claude Code and Codex keep their built-in `/review`, `/debug`, and `/resume` commands. Maestro exposes `review-code`, `debug-workflow`, and `resume-session` in those runtimes (`/review-code` in Claude Code, `$maestro:review-code` in Codex, and so on) to avoid colliding with those host commands.
 
@@ -198,62 +196,62 @@ phases:
 
 ### Read-Only Agents (analysis, no code changes)
 
-| Agent | Specialty | Turns | Temp |
-|-------|-----------|-------|------|
-| architect | System design, technology selection | 15 | 0.3 |
-| api-designer | Endpoint design, API contracts | 15 | 0.3 |
-| cloud-architect | AWS/GCP/Azure topology, IaC, multi-region design | 15 | 0.3 |
-| code-reviewer | Bug detection, quality assessment | 15 | 0.2 |
-| compliance-reviewer | GDPR/CCPA, license auditing | 15 | 0.3 |
-| content-strategist | Content planning, editorial calendars | 15 | 0.3 |
-| solutions-architect | Enterprise integration, cross-team architecture | 15 | 0.3 |
+| Agent | Specialty | Turns |
+|-------|-----------|-------|
+| architect | System design, technology selection | 15 |
+| api-designer | Endpoint design, API contracts | 15 |
+| cloud-architect | AWS/GCP/Azure topology, IaC, multi-region design | 15 |
+| code-reviewer | Bug detection, quality assessment | 15 |
+| compliance-reviewer | GDPR/CCPA, license auditing | 15 |
+| content-strategist | Content planning, editorial calendars | 15 |
+| solutions-architect | Enterprise integration, cross-team architecture | 15 |
 
 ### Read + Shell Agents (investigation, profiling)
 
-| Agent | Specialty | Turns | Temp |
-|-------|-----------|-------|------|
-| accessibility-specialist | WCAG compliance, ARIA review | 20 | 0.2 |
-| database-administrator | RDBMS tuning, indexes, migration safety | 20 | 0.2 |
-| db2-dba | DB2 for z/OS and LUW, REORG/RUNSTATS/bind | 20 | 0.2 |
-| debugger | Root cause analysis, execution tracing | 20 | 0.2 |
-| performance-engineer | Profiling, optimization | 20 | 0.2 |
-| security-engineer | Vulnerability assessment, threat modeling | 20 | 0.2 |
-| seo-specialist | Technical SEO, structured data | 20 | 0.2 |
-| site-reliability-engineer | SLOs, error budgets, runbooks, postmortems | 20 | 0.2 |
-| zos-sysprog | z/OS systems programming, JCL, USS, RACF | 20 | 0.2 |
+| Agent | Specialty | Turns |
+|-------|-----------|-------|
+| accessibility-specialist | WCAG compliance, ARIA review | 20 |
+| database-administrator | RDBMS tuning, indexes, migration safety | 20 |
+| db2-dba | DB2 for z/OS and LUW, REORG/RUNSTATS/bind | 20 |
+| debugger | Root cause analysis, execution tracing | 20 |
+| performance-engineer | Profiling, optimization | 20 |
+| security-engineer | Vulnerability assessment, threat modeling | 20 |
+| seo-specialist | Technical SEO, structured data | 20 |
+| site-reliability-engineer | SLOs, error budgets, runbooks, postmortems | 20 |
+| zos-sysprog | z/OS systems programming, JCL, USS, RACF | 20 |
 
 ### Read + Write Agents (documentation, design)
 
-| Agent | Specialty | Turns | Temp |
-|-------|-----------|-------|------|
-| copywriter | Marketing copy, landing pages | 20 | 0.3 |
-| product-manager | PRDs, user stories, prioritization | 20 | 0.2 |
-| prompt-engineer | LLM prompt design, few-shot, RAG tuning | 15 | 0.3 |
-| release-manager | Release notes, changelogs, rollout planning | 15 | 0.3 |
-| technical-writer | Documentation, API references | 15 | 0.3 |
-| ux-designer | User flows, wireframes, heuristics | 20 | 0.2 |
+| Agent | Specialty | Turns |
+|-------|-----------|-------|
+| copywriter | Marketing copy, landing pages | 20 |
+| product-manager | PRDs, user stories, prioritization | 20 |
+| prompt-engineer | LLM prompt design, few-shot, RAG tuning | 15 |
+| release-manager | Release notes, changelogs, rollout planning | 15 |
+| technical-writer | Documentation, API references | 15 |
+| ux-designer | User flows, wireframes, heuristics | 20 |
 
 ### Full Access Agents (implementation)
 
-| Agent | Specialty | Turns | Temp |
-|-------|-----------|-------|------|
-| analytics-engineer | Event tracking, A/B testing, funnels | 25 | 0.2 |
-| cobol-engineer | Mainframe COBOL, JCL, CICS/IMS on z/OS | 25 | 0.2 |
-| coder | Feature implementation, SOLID principles | 25 | 0.2 |
-| data-engineer | Schema design, ETL, migrations | 20 | 0.2 |
-| design-system-engineer | Design tokens, theming, component APIs | 25 | 0.2 |
-| devops-engineer | CI/CD, containerization, infrastructure | 20 | 0.2 |
-| hlasm-assembler-specialist | IBM HLASM for z/OS, macros, SVCs | 25 | 0.2 |
-| i18n-specialist | Internationalization, RTL, locales | 20 | 0.2 |
-| ibm-i-specialist | IBM i RPG/CL, DB2 for i, OS/400 | 25 | 0.2 |
-| integration-engineer | B2B APIs, ETL, message brokers (Kafka, MQ) | 25 | 0.2 |
-| ml-engineer | Model training, feature pipelines, evaluation | 25 | 0.2 |
-| mlops-engineer | Model registry, CI/CD for models, drift detection | 25 | 0.2 |
-| mobile-engineer | iOS/Android/React Native/Flutter platform work | 25 | 0.2 |
-| observability-engineer | Metrics, logs, traces, OpenTelemetry, dashboards | 25 | 0.2 |
-| platform-engineer | Internal developer platforms, paved paths | 25 | 0.2 |
-| refactor | Code restructuring, debt reduction | 25 | 0.2 |
-| tester | Unit/integration/E2E tests, TDD | 25 | 0.2 |
+| Agent | Specialty | Turns |
+|-------|-----------|-------|
+| analytics-engineer | Event tracking, A/B testing, funnels | 25 |
+| cobol-engineer | Mainframe COBOL, JCL, CICS/IMS on z/OS | 25 |
+| coder | Feature implementation, SOLID principles | 25 |
+| data-engineer | Schema design, ETL, migrations | 20 |
+| design-system-engineer | Design tokens, theming, component APIs | 25 |
+| devops-engineer | CI/CD, containerization, infrastructure | 20 |
+| hlasm-assembler-specialist | IBM HLASM for z/OS, macros, SVCs | 25 |
+| i18n-specialist | Internationalization, RTL, locales | 20 |
+| ibm-i-specialist | IBM i RPG/CL, DB2 for i, OS/400 | 25 |
+| integration-engineer | B2B APIs, ETL, message brokers (Kafka, MQ) | 25 |
+| ml-engineer | Model training, feature pipelines, evaluation | 25 |
+| mlops-engineer | Model registry, CI/CD for models, drift detection | 25 |
+| mobile-engineer | iOS/Android/React Native/Flutter platform work | 25 |
+| observability-engineer | Metrics, logs, traces, OpenTelemetry, dashboards | 25 |
+| platform-engineer | Internal developer platforms, paved paths | 25 |
+| refactor | Code restructuring, debt reduction | 25 |
+| tester | Unit/integration/E2E tests, TDD | 25 |
 
 ## MCP Tools Quick Reference
 

@@ -76,8 +76,10 @@ describe('applySkillMetadata', () => {
 
   it('returns unchanged for non-claude runtimes', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
-    const result = applySkillMetadata(content, { name: 'gemini' }, 'skills/shared/delegation/SKILL.md');
-    assert.equal(result, content);
+    for (const name of ['codex', 'qwen']) {
+      const result = applySkillMetadata(content, { name }, 'skills/shared/delegation/SKILL.md');
+      assert.equal(result, content, name);
+    }
   });
 
   it('returns unchanged for non-SKILL.md paths', () => {
@@ -90,7 +92,7 @@ describe('applySkillMetadata', () => {
 describe('mapTools', () => {
   it('maps canonical tool names through runtimeConfig.tools', () => {
     const frontmatter = { tools: ['read_file', 'write_file'] };
-    const runtimeConfig = { name: 'gemini', tools: { read_file: 'ReadFile', write_file: 'WriteFile' } };
+    const runtimeConfig = { name: 'qwen', tools: { read_file: 'ReadFile', write_file: 'WriteFile' } };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['ReadFile', 'WriteFile']);
   });
@@ -108,28 +110,28 @@ describe('mapTools', () => {
   it('maps the per-runtime override through runtimeConfig.tools as well', () => {
     const frontmatter = {
       tools: ['read_file'],
-      'tools.gemini': ['write_todos'],
+      'tools.qwen': ['write_todos'],
     };
-    const runtimeConfig = { name: 'gemini', tools: { write_todos: 'not available' } };
-    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['not available']);
+    const runtimeConfig = { name: 'qwen', tools: { write_todos: 'todo_write' } };
+    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['todo_write']);
   });
 
   it('flattens array tool mappings', () => {
     const frontmatter = { tools: ['bash'] };
-    const runtimeConfig = { name: 'gemini', tools: { bash: ['Bash', 'Terminal'] } };
+    const runtimeConfig = { name: 'qwen', tools: { bash: ['Bash', 'Terminal'] } };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['Bash', 'Terminal']);
   });
 
   it('keeps unmapped tool names as-is', () => {
     const frontmatter = { tools: ['custom_tool'] };
-    const runtimeConfig = { name: 'gemini', tools: {} };
+    const runtimeConfig = { name: 'qwen', tools: {} };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['custom_tool']);
   });
 
   it('drops empty entries and ignores non-array tool values', () => {
-    const runtimeConfig = { name: 'gemini', tools: {} };
+    const runtimeConfig = { name: 'qwen', tools: {} };
     assert.deepEqual(mapTools({ tools: ['a', '', 'b'] }, runtimeConfig), ['a', 'b']);
     assert.deepEqual(mapTools({ tools: 'a, b' }, runtimeConfig), []);
     assert.deepEqual(mapTools({}, runtimeConfig), []);
@@ -221,6 +223,10 @@ describe('served agent bodies', () => {
   it('keep the shared Output Contract as a single newline-terminated section', () => {
     assert.ok(outputContract.startsWith('## Output Contract\n'));
     assert.ok(outputContract.endsWith('\n') && !outputContract.endsWith('\n\n'));
+  });
+
+  it('cover exactly the supported runtimes', () => {
+    assert.deepEqual(RUNTIME_NAMES, ['claude', 'codex', 'qwen']);
   });
 
   for (const runtimeName of RUNTIME_NAMES) {

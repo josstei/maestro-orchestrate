@@ -25,7 +25,7 @@ function buildCodexPreamble(entry) {
 }
 
 module.exports = {
-  gemini: buildSkillContentLine,
   claude: buildClaudePreamble,
   codex: buildCodexPreamble,
+  qwen: buildSkillContentLine,
 };

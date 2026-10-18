@@ -7,13 +7,13 @@ description: Guides structured design conversations for complex engineering task
 
 **Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate design-dialogue. Return to the EXPRESS WORKFLOW in `orchestration-steps`.
 
-Activate this skill when beginning Phase 1 of Maestro orchestration. Use the plan mode tool from `get_runtime_context` (loaded at session start, step 0). If your runtime provides a Plan Mode surface, enter it now by calling `enter_plan_mode`. If Plan Mode is unavailable or the transition fails, continue without it and use the user-prompt tool from runtime context with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
+Activate this skill when beginning Phase 1 of Maestro orchestration. Use the plan mode tool from `get_runtime_context` (loaded at session start, step 0). If your runtime provides a Plan Mode surface, enter it now by calling `enter_plan_mode`. If Plan Mode is unavailable or the transition fails, continue without it and use the user-prompt tool from runtime context for design approvals and approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
 
 **User confirmation sequence**: Phase 1 entry may trigger a Plan Mode confirmation when `enter_plan_mode` is available. That confirmation is expected; do not treat it as redundant or skip it. If your runtime does not provide Plan Mode, move directly into the depth selector and approval prompts.
 
 ## Design Depth Gate
 
-Before asking any design questions, present the user with a depth selector to control the level of reasoning rigour applied throughout the design phase. Use `ask_user` with `type: 'choice'` to offer three modes. Lead with Standard as the recommended default.
+Before asking any design questions, present the user with a depth selector to control the level of reasoning rigour applied throughout the design phase. Use `ask_user` as a single-choice prompt to offer three modes. Lead with Standard as the recommended default.
 
 **Modes:**
 
@@ -105,7 +105,7 @@ Scale question coverage based on `task_complexity`:
 
 ### Question Format
 
-Prompt the user for a choice using the user-prompt tool from runtime context. Use `type: 'choice'` for structured selections with 2-4 options. Each option should have a short label (1-5 words) and a description explaining when it makes sense and its trade-offs. Include your recommendation rationale in the question text so the user has context before choosing.
+Prompt the user for a choice using the user-prompt tool from runtime context. Use a single-choice prompt for structured selections with 2-4 options. Each option should have a short label (1-5 words) and a description explaining when it makes sense and its trade-offs. Include your recommendation rationale in the question text so the user has context before choosing.
 
 ### Enrichment Protocol
 
@@ -220,7 +220,7 @@ Never skip Problem Statement, Approach, or Risk Assessment. If you believe other
 
 ### Validation Format
 
-After each section, prompt the user for approval using the user-prompt tool from runtime context with `type: 'yesno'`. Do not rely on a separate assistant message for the section content. The prompt body itself must include the section title and the full section summary (200-300 words) so the user can review the material directly in the approval prompt. End with: "Does this section accurately capture our discussion? Any changes needed before I proceed to [next section name]?"
+After each section, prompt the user for approval using the user-prompt tool from runtime context. Do not rely on a separate assistant message for the section content. The prompt body itself must include the section title and the full section summary (200-300 words) so the user can review the material directly in the approval prompt. End with: "Does this section accurately capture our discussion? Any changes needed before I proceed to [next section name]?"
 
 ### Revision Protocol
 - If user requests changes, revise the section and re-present

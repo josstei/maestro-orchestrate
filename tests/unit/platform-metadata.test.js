@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const { buildPlatformMetadataOutputs, buildPolicyPackToml } = require('../../src/platforms/metadata');
 const { DENY_RULES, ASK_RULES } = require('../../src/core/policy-rules');
 const HOOK_REGISTRY = require('../../src/generated/hook-registry.json');
+const { RUNTIME_NAMES } = require('../../src/mcp/runtime/runtime-config-map');
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',
@@ -30,7 +31,7 @@ function outputsByPath(outputs) {
   ]));
 }
 
-const ALL_RUNTIMES = { claude: {}, codex: {}, gemini: {}, qwen: {} };
+const ALL_RUNTIMES = { claude: {}, codex: {}, qwen: {} };
 
 // policies/maestro.toml holds patterns as TOML basic strings, so backslashes are doubled.
 function tomlEscaped(text) {
@@ -38,6 +39,10 @@ function tomlEscaped(text) {
 }
 
 describe('platform metadata generation', () => {
+  it('covers exactly the discovered runtimes', () => {
+    assert.deepEqual(Object.keys(ALL_RUNTIMES).sort(), RUNTIME_NAMES);
+  });
+
   it('generates all runtime metadata from package identity', () => {
     const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
 
@@ -47,8 +52,6 @@ describe('platform metadata generation', () => {
       'claude/.claude-plugin/plugin.json',
       'claude/.mcp.json',
       'claude/hooks/claude-hooks.json',
-      'gemini-extension.json',
-      'hooks/hooks.json',
       'plugins/maestro/.app.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'plugins/maestro/.mcp.json',
@@ -58,12 +61,7 @@ describe('platform metadata generation', () => {
     ];
 
     assert.deepEqual([...outputs.keys()].sort(), expectedPaths);
-    assert.equal(outputs.get('gemini-extension.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('qwen-extension.json').version, PACKAGE_FIXTURE.version);
-    assert.equal(
-      outputs.get('gemini-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
-      'gemini'
-    );
     assert.equal(
       outputs.get('qwen-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
       'qwen'
@@ -90,6 +88,49 @@ describe('platform metadata generation', () => {
     );
   });
 
+  it('makes the qwen runtime own the repo-root extension manifest and policy pack', () => {
+    const outputs = outputsByPath(buildPlatformMetadataOutputs({ qwen: {} }, PACKAGE_FIXTURE));
+
+    assert.deepEqual([...outputs.keys()].sort(), [
+      'policies/maestro.toml',
+      'qwen-extension.json',
+      'qwen/hooks.json',
+    ]);
+    assert.equal(outputs.get('policies/maestro.toml'), buildPolicyPackToml());
+
+    const manifest = outputs.get('qwen-extension.json');
+    assert.equal(manifest.contextFileName, 'QWEN.md');
+    assert.deepEqual(manifest.mcpServers.maestro.args, ['${extensionPath}/mcp/maestro-server.js']);
+    assert.equal(manifest.mcpServers.maestro.env.MAESTRO_WORKSPACE_PATH, '${workspacePath}');
+  });
+
+  it('registers the qwen lifecycle hooks with millisecond timeouts', () => {
+    const outputs = outputsByPath(buildPlatformMetadataOutputs({ qwen: {} }, PACKAGE_FIXTURE));
+    const { hooks } = outputs.get('qwen/hooks.json');
+
+    assert.deepEqual(Object.keys(hooks), ['SessionStart', 'SubagentStart', 'SubagentStop', 'SessionEnd']);
+    for (const [event, entries] of Object.entries(hooks)) {
+      for (const hook of entries.flatMap((entry) => entry.hooks)) {
+        assert.equal(hook.timeout, 10000, `qwen/hooks.json ${event} timeout`);
+      }
+    }
+  });
+
+  it('emits no gemini metadata', () => {
+    const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
+
+    for (const output of outputs) {
+      assert.doesNotMatch(output.outputPath, /gemini/i);
+    }
+    assert.ok(!outputs.some((output) => output.outputPath === 'hooks/hooks.json'));
+    for (const output of outputs.filter((entry) => entry.outputPath.endsWith('.json'))) {
+      const servers = JSON.parse(output.content).mcpServers || {};
+      for (const server of Object.values(servers)) {
+        assert.notEqual(server.env && server.env.MAESTRO_RUNTIME, 'gemini', output.outputPath);
+      }
+    }
+  });
+
   it('points the plugin manifests at the generated hook and app configs', () => {
     const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
 
@@ -101,10 +142,14 @@ describe('platform metadata generation', () => {
   it('runs only registered hooks from every hook config', () => {
     const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
     const expectedRuntimes = {
-      'hooks/hooks.json': 'gemini',
       'qwen/hooks.json': 'qwen',
       'claude/hooks/claude-hooks.json': 'claude',
     };
+
+    assert.deepEqual(
+      [...outputs.keys()].filter((outputPath) => outputPath.endsWith('hooks.json')).sort(),
+      Object.keys(expectedRuntimes).sort()
+    );
 
     for (const [configPath, runtime] of Object.entries(expectedRuntimes)) {
       const commands = Object.values(outputs.get(configPath).hooks)

@@ -53,13 +53,16 @@ function readSessionSummary(cwd) {
 /**
  * Before-agent hook logic (runtime-agnostic).
  *
- * Field name mapping: the Gemini adapter maps ctx.prompt → ctx.agentInput
- * before calling this function.
+ * Field name mapping: each runtime's hook adapter
+ * (src/platforms/<runtime>/hook-adapter.js) fills ctx.agentInput and/or
+ * ctx.agentName from its host payload before calling this function (Claude:
+ * tool_input.prompt and tool_input.subagent_type; Qwen: agent_type only).
  *
  * @param {object} ctx - Internal context contract
  * @param {string} ctx.sessionId
  * @param {string} ctx.cwd
  * @param {string|null} ctx.agentInput  - the agent prompt text
+ * @param {string|null} ctx.agentName   - the dispatched agent's name
  * @returns {{ action: string, message: string|null, reason: null }}
  */
 function handleBeforeAgent(ctx) {

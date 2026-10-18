@@ -64,7 +64,7 @@ and skip directly to delegation. Do not show a picker.
 
 ### Step 4 — Prompt the user
 
-Call `ask_user` with `type: 'choice'` using exactly one of these option sets:
+Call `ask_user` as a single-choice prompt using exactly one of these option sets:
 
 **When recommending parallel:**
   options:

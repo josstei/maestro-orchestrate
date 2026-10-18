@@ -8,7 +8,6 @@ const RELEASE_ARTIFACT_PATHS = [
   '.claude-plugin/marketplace.json',
   'CHANGELOG.md',
   'EXAMPLES.md',
-  'GEMINI.md',
   'LICENSE',
   'QWEN.md',
   'README.md',
@@ -16,12 +15,10 @@ const RELEASE_ARTIFACT_PATHS = [
   'bin',
   'claude',
   'commands',
-  'docs/runtime-gemini.md',
   'docs/runtime-claude.md',
   'docs/runtime-codex.md',
   'docs/runtime-qwen.md',
   'docs/usage.md',
-  'gemini-extension.json',
   'hooks',
   'mcp',
   'package-lock.json',
@@ -62,7 +59,6 @@ const DENIED_ARTIFACT_PATTERNS = [
 const REQUIRED_PACKAGE_FILES = [
   'bin/maestro-mcp-server.js',
   'claude/.claude-plugin/plugin.json',
-  'gemini-extension.json',
   'plugins/maestro/.codex-plugin/plugin.json',
   'qwen-extension.json',
   'src/mcp/maestro-server.js',
@@ -202,7 +198,6 @@ function findNamedPlugin(marketplace, name, relativePath) {
 
 function assertRuntimeManifestShape(root, expectedVersion = null) {
   const pkg = readJson(root, 'package.json');
-  const gemini = readJson(root, 'gemini-extension.json');
   const qwen = readJson(root, 'qwen-extension.json');
   const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
@@ -217,7 +212,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
   const versionEntries = [
     ['package.json', requireNonEmpty(pkg.version, 'package.json')],
-    ['gemini-extension.json', requireNonEmpty(gemini.version, 'gemini-extension.json')],
     ['qwen-extension.json', requireNonEmpty(qwen.version, 'qwen-extension.json')],
     ['claude/.claude-plugin/plugin.json', requireNonEmpty(claudePlugin.version, 'claude plugin')],
     ['plugins/maestro/.codex-plugin/plugin.json', requireNonEmpty(codexPlugin.version, 'Codex plugin')],
@@ -255,10 +249,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     codexMarketplacePlugin.source.path !== './plugins/maestro'
   ) {
     throw new Error('.agents/plugins/marketplace.json maestro source must be local ./plugins/maestro');
-  }
-
-  if (gemini.contextFileName !== 'GEMINI.md' || !gemini.mcpServers || !gemini.mcpServers.maestro) {
-    throw new Error('gemini-extension.json must define GEMINI.md and maestro MCP server');
   }
 
   if (qwen.contextFileName !== 'QWEN.md' || !qwen.mcpServers || !qwen.mcpServers.maestro) {

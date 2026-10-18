@@ -20,17 +20,9 @@ const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
 
 /**
  * Per-runtime entry-point surface. Entry points and core commands share one
- * output location per runtime; Qwen reuses Gemini's commands and emits none.
+ * output location per runtime.
  */
 const RUNTIME_ENTRY_POINTS = {
-  gemini: {
-    outputPath: (e) => `commands/maestro/${e.name}.toml`,
-    templates: {
-      'entry-point': 'gemini-command.toml.tmpl',
-      'core-command': 'gemini-core-command.toml.tmpl',
-    },
-    reservedNames: null,
-  },
   claude: {
     outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
     templates: {
@@ -47,13 +39,21 @@ const RUNTIME_ENTRY_POINTS = {
     },
     reservedNames: HOST_RESERVED_NAMES,
   },
-  qwen: null,
+  // The repo root is Qwen Code's extension dir, so its TOML commands live there.
+  qwen: {
+    outputPath: (e) => `commands/maestro/${e.name}.toml`,
+    templates: {
+      'entry-point': 'qwen-command.toml.tmpl',
+      'core-command': 'qwen-core-command.toml.tmpl',
+    },
+    reservedNames: null,
+  },
 };
 
-const GEMINI_SESSION_STATE_BLOCK = `The current session state is provided below:
+const QWEN_SESSION_STATE_BLOCK = `The current session state is provided below:
 
 <session-state>
-!{extension_root="\${MAESTRO_EXTENSION_PATH:-$HOME/.gemini/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
+!{extension_root="\${MAESTRO_EXTENSION_PATH:-$HOME/.qwen/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
 </session-state>
 
 Use the injected session state above as the source of truth for resume position.
@@ -85,7 +85,7 @@ const KINDS = {
       requestType: entry.requestType,
       executeInstructions: entry.executeInstructions,
       preloadList: emitInlineQuotedList(entry.preload),
-      sessionStateBlock: entry.geminiSessionStateInjection ? GEMINI_SESSION_STATE_BLOCK : '',
+      sessionStateBlock: entry.qwenSessionStateInjection ? QWEN_SESSION_STATE_BLOCK : '',
     }),
   },
 };
@@ -102,17 +102,15 @@ function applySubstitutions(template, substitutions) {
  * Render every registry entry of one kind for one runtime.
  * @param {'entry-point'|'core-command'} kind
  * @param {string} runtimeName
- * @returns {Array<{ outputPath: string, content: string }>} Empty for a
- *   runtime that emits no entry points
+ * @returns {Array<{ outputPath: string, content: string }>}
  * @throws {Error} For an unknown runtime, or a resolved name that collides
  *   with a reserved host command
  */
 function expand(kind, runtimeName) {
   const config = RUNTIME_ENTRY_POINTS[runtimeName];
-  if (config === undefined) {
+  if (!config) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
-  if (!config) return [];
 
   const { registry, substitutions } = KINDS[kind];
   const template = fs.readFileSync(path.join(TEMPLATES_DIR, config.templates[kind]), 'utf8');

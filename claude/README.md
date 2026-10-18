@@ -111,7 +111,7 @@ These Claude entrypoints come from the public top-level skills in `skills/`. Int
 
 ## Agents
 
-All agents are registered with a `maestro:` namespace prefix. When the orchestrator delegates work, it dispatches agents as `maestro:coder`, `maestro:architect`, etc. Claude Code agents use **kebab-case** naming (e.g., `code-reviewer`, `api-designer`), contrasting with Gemini CLI's snake_case convention (e.g., `code_reviewer`, `api_designer`). The `maestro:` prefix is always required when dispatching.
+All agents are registered with a `maestro:` namespace prefix. When the orchestrator delegates work, it dispatches agents as `maestro:coder`, `maestro:architect`, etc. Claude Code agents use **kebab-case** naming (e.g., `code-reviewer`, `api-designer`), contrasting with Qwen Code's snake_case convention (e.g., `code_reviewer`, `api_designer`). The `maestro:` prefix is always required when dispatching.
 
 All agents share a baseline tool set: `Read`, `Glob`, `Grep`. Tool tiers reflect additional capabilities beyond that baseline.
 

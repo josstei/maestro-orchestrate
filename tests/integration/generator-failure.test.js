@@ -34,7 +34,7 @@ describe('generator failure handling', () => {
       // The manifest override no longer globs src/agents, so the broken agent above is not processed again.
       fs.writeFileSync(
         path.join(repoRoot, 'src/manifest.js'),
-        "module.exports = [{ src: 'missing-source.md', transforms: [], runtimes: ['gemini'] }];\n",
+        "module.exports = [{ src: 'missing-source.md', transforms: [], runtimes: ['qwen'] }];\n",
         'utf8'
       );
 

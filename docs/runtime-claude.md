@@ -72,11 +72,11 @@ Infrastructure skills set `user-invocable: false`: they stay out of the `/` menu
 | `PreToolUse` | `Bash` | `scripts/policy-enforcer.js` | 5s |
 | `SessionEnd` | — | `scripts/hook-runner.js claude session-end` | 10s |
 
-### Key Differences from Gemini
+### Key Differences from Qwen
 
-- Uses `PreToolUse` with matchers instead of `BeforeAgent`/`AfterAgent`
-- **No AfterAgent hook** — Claude does not validate handoff report format via hooks
-- Same effective timeouts (10s) but Claude config uses seconds, Gemini uses milliseconds (10000ms)
+- Uses `PreToolUse` with matchers instead of `SubagentStart`/`SubagentStop`
+- **No after-agent hook** — Claude does not validate handoff report format via hooks
+- Same effective timeouts (10s) but Claude config uses seconds, Qwen uses milliseconds (10000ms)
 - Policy enforcement via hook script, not TOML
 
 ### Hook Adapter
@@ -96,7 +96,7 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 
 ## Policy Enforcement
 
-`src/platforms/claude/policy-enforcer.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. Its rules come from `src/core/policy-rules.js`, the same rules `policies/maestro.toml` applies for Gemini CLI and Qwen Code:
+`src/platforms/claude/policy-enforcer.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. Its rules come from `src/core/policy-rules.js`, the same rules `policies/maestro.toml` applies for Qwen Code:
 
 **Deny rules** (blocks command):
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`

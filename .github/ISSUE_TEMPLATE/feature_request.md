@@ -22,7 +22,6 @@ assignees: ''
 
 <!-- Which runtimes would this affect? -->
 
-- [ ] Gemini CLI
 - [ ] Claude Code
 - [ ] Codex
 - [ ] Qwen Code

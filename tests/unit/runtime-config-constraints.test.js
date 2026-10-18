@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 
 const codex = require('../../src/platforms/codex/runtime-config');
 const claude = require('../../src/platforms/claude/runtime-config');
-const gemini = require('../../src/platforms/gemini/runtime-config');
 const qwen = require('../../src/platforms/qwen/runtime-config');
 
 describe('runtime-config delegation.constraints', () => {
@@ -24,21 +23,40 @@ describe('runtime-config delegation.constraints', () => {
     assert.equal(claude.delegation.constraints.child_cannot_prompt_user, false);
   });
 
-  it('gemini declares synchronous result surface', () => {
-    assert.equal(gemini.delegation.constraints.result_surface, 'synchronous');
-    assert.equal(gemini.delegation.constraints.child_cannot_prompt_user, false);
+  it('qwen declares synchronous result surface', () => {
+    assert.equal(qwen.delegation.constraints.result_surface, 'synchronous');
+    assert.equal(qwen.delegation.constraints.child_cannot_prompt_user, false);
   });
 
-  it('qwen declares its delegation constraints', () => {
-    assert.ok(qwen.delegation);
-    assert.ok(qwen.delegation.constraints);
-    assert.equal(typeof qwen.delegation.constraints.result_surface, 'string');
+  it('every runtime-config binds workspacePath to the env var its host provides', () => {
+    assert.deepEqual(
+      {
+        claude: claude.env.workspacePath,
+        codex: codex.env.workspacePath,
+        qwen: qwen.env.workspacePath,
+      },
+      {
+        claude: 'CLAUDE_PROJECT_DIR',
+        codex: 'MAESTRO_WORKSPACE_PATH',
+        qwen: 'workspacePath',
+      }
+    );
   });
 
-  it('gemini runtime-config does not bind workspacePath to an env var', () => {
-    assert.ok(
-      !gemini.env.workspacePath,
-      'gemini has no CLI-injected workspace env var; workspacePath must be falsy so project-root-resolver falls through to cwd/roots'
+  it('every runtime-config roots its generated output in the directory its host loads', () => {
+    // Qwen Code loads subagents from <extension>/agents/, and the repo root
+    // (where qwen-extension.json lives) is Qwen's extension dir.
+    assert.deepEqual(
+      {
+        claude: claude.outputDir,
+        codex: codex.outputDir,
+        qwen: qwen.outputDir,
+      },
+      {
+        claude: 'claude/',
+        codex: 'plugins/maestro/',
+        qwen: './',
+      }
     );
   });
 });

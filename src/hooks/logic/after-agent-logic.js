@@ -8,8 +8,9 @@ const REQUIRED_SECTIONS = ['Task Report', 'Downstream Context'];
 /**
  * After-agent hook logic (runtime-agnostic).
  *
- * Field name mapping: the Gemini adapter maps ctx.promptResponse → ctx.agentResult
- * before calling this function.
+ * Field name mapping: each runtime's hook adapter
+ * (src/platforms/<runtime>/hook-adapter.js) fills ctx.agentResult from its
+ * host payload before calling this function.
  *
  * @param {object} ctx - Internal context contract
  * @param {string} ctx.sessionId

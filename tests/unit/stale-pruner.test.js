@@ -139,6 +139,24 @@ describe('pruneStaleFiles', () => {
     assert.ok(result.pruned.includes('commands/stale-cmd.toml'));
   });
 
+  it('leaves files outside the owned directories untouched', () => {
+    writeTree(rootDir, 'agents/stale.md', 'stale');
+    writeTree(rootDir, 'qwen/hooks.json', '{}');
+    writeTree(rootDir, 'claude/agents/legacy.md', 'legacy');
+
+    const result = pruneStaleFiles({
+      rootDir,
+      manifestPaths: new Set(),
+      ownedDirs: ['agents'],
+    });
+
+    assert.deepEqual(result.pruned, ['agents/stale.md']);
+    assert.deepEqual(result.emptyDirsRemoved, []);
+    assert.ok(fs.existsSync(path.join(rootDir, 'agents')));
+    assert.ok(fs.existsSync(path.join(rootDir, 'qwen', 'hooks.json')));
+    assert.ok(fs.existsSync(path.join(rootDir, 'claude', 'agents', 'legacy.md')));
+  });
+
   it('does not remove non-empty directories', () => {
     writeTree(rootDir, 'agents/sub/keep.md', 'keep');
     writeTree(rootDir, 'agents/sub/stale.md', 'stale');

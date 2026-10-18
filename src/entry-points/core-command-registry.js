@@ -32,6 +32,6 @@ module.exports = [
     requestType: 'additional context',
     executeInstructions:
       'Read the active session state, summarize completed and pending phases, then resume from the first pending or failed phase following the loaded methodology.',
-    geminiSessionStateInjection: true,
+    qwenSessionStateInjection: true,
   },
 ];

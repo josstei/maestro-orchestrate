@@ -2,57 +2,28 @@
 
 [![Version](https://img.shields.io/badge/version-1.6.4-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-extension-orange)](https://github.com/google-gemini/gemini-cli)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
 [![Codex](https://img.shields.io/badge/Codex-plugin-black)](docs/runtime-codex.md)
 [![Qwen Code](https://img.shields.io/badge/Qwen_Code-extension-purple)](https://github.com/QwenLM/qwen-code)
 
-Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Gemini CLI**, **Claude Code**, **Codex**, and **Qwen Code**.
+Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Claude Code**, **Codex**, and **Qwen Code**.
 
 ## Runtime Targets
 
 | Runtime | Location | Public Surface | Notes |
 |---------|----------|----------------|-------|
-| Gemini CLI | repo root | `/maestro:*` | Snake-case agents, TOML commands, hooks, TOML shell policies |
 | Claude Code | `claude/` | `/orchestrate`, `/review-code`, ... | Kebab-case agents with `maestro:` subagent names |
 | Codex | `plugins/maestro/` | `$maestro:*` | Plugin skills, `spawn_agent`, no runtime hooks |
-| Qwen Code | `qwen/` | `/maestro:*` | Gemini-CLI-compatible extension, `QWEN.md` context file, `SubagentStart`/`SubagentStop` hooks |
+| Qwen Code | repo root + `qwen/hooks.json` | `/maestro:*` | Snake-case agents, TOML commands, `QWEN.md` context file, `SubagentStart`/`SubagentStop` hooks |
 
 ## Getting Started
 
 ### Prerequisites
 
-- One supported runtime: Gemini CLI, Claude Code, Codex, or Qwen Code
+- One supported runtime: Claude Code, Codex, or Qwen Code
 - Node.js 20+ for the MCP server and helper scripts
-- Gemini CLI and Qwen Code only: enable experimental subagents in `~/.gemini/settings.json` (Gemini) or `~/.qwen/settings.json` (Qwen)
-
-```json
-{
-  "experimental": {
-    "enableAgents": true
-  }
-}
-```
-
-Maestro does not edit `~/.gemini/settings.json` or `~/.qwen/settings.json` for you.
 
 ### Installation
-
-#### Gemini CLI
-
-```bash
-gemini extensions install https://github.com/josstei/maestro-orchestrate
-```
-
-Local development:
-
-```bash
-git clone https://github.com/josstei/maestro-orchestrate
-cd maestro-orchestrate
-gemini extensions link .
-```
-
-Verify with `gemini extensions list`.
 
 #### Claude Code
 
@@ -106,7 +77,7 @@ cd maestro-orchestrate
 qwen extensions link .
 ```
 
-Verify with `qwen extensions list`. Qwen Code uses the same `/maestro:*` command surface as Gemini CLI and reads `QWEN.md` as its context file.
+Verify with `qwen extensions list`. Qwen Code reads `QWEN.md` as its context file and loads the `/maestro:*` commands from `commands/maestro/*.toml`.
 
 ### Quick Start
 
@@ -114,7 +85,6 @@ Start a full orchestration with the runtime-specific entrypoint:
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Claude Code | `/orchestrate Build a REST API for a task management system with user authentication` |
 | Codex | `$maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Qwen Code | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
@@ -123,7 +93,7 @@ Maestro classifies the task, chooses Express or Standard workflow, asks the requ
 
 ## Examples
 
-Usage examples: [EXAMPLES.md](EXAMPLES.md). Gemini/Qwen forms shown:
+Usage examples: [EXAMPLES.md](EXAMPLES.md). Qwen Code forms shown:
 
 - Full orchestration: `/maestro:orchestrate Build a REST API for a task management system with user authentication`
 - Standalone review: `/maestro:review Review the staged changes for correctness, regressions, security, maintainability risk, and missing tests`
@@ -145,24 +115,24 @@ Defaults work; these settings tune behavior:
 
 ## Commands
 
-| Capability | Gemini CLI | Claude Code | Codex | Qwen Code |
-|------------|------------|-------------|-------|-----------|
-| Orchestrate | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
-| Execute | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
-| Resume | `/maestro:resume` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
-| Status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
-| Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Review | `/maestro:review` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
-| Debug | `/maestro:debug` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
-| Security Audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
-| Performance Check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
-| SEO Audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
-| Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
-| Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
+| Capability | Claude Code | Codex | Qwen Code |
+|------------|-------------|-------|-----------|
+| Orchestrate | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
+| Execute | `/execute` | `$maestro:execute` | `/maestro:execute` |
+| Resume | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
+| Status | `/status` | `$maestro:status` | `/maestro:status` |
+| Archive | `/archive` | `$maestro:archive` | `/maestro:archive` |
+| Review | `/review-code` | `$maestro:review-code` | `/maestro:review` |
+| Debug | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
+| Security Audit | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
+| Performance Check | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
+| SEO Audit | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
+| Accessibility Audit | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
+| Compliance Check | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
 For Claude Code and Codex, Maestro intentionally avoids bare skill names that collide with host commands. Use `/review-code`, `/debug-workflow`, and `/resume-session` in Claude Code, and `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` in Codex, so built-in `/review`, `/debug`, and `/resume` commands keep working.
 
-Qwen Code uses the same `/maestro:*` command surface as Gemini CLI.
+Qwen Code does not remap any entry point; it keeps `/maestro:review`, `/maestro:debug`, and `/maestro:resume`.
 
 ## Workflow
 
@@ -188,14 +158,13 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
 - [docs/maestro-cheatsheet.md](docs/maestro-cheatsheet.md) for a one-page command and runtime quick reference
 - [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
-- [docs/runtime-gemini.md](docs/runtime-gemini.md) for Gemini runtime specifics
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
 - [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
 - [docs/runtime-qwen.md](docs/runtime-qwen.md) for Qwen runtime specifics
 
 ## Development and Release Validation
 
-Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `hooks/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `GEMINI.md`/`QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
+Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
 
 ```bash
 npm ci
@@ -207,7 +176,7 @@ npm run release:artifacts
 npm run release:verify-artifacts
 ```
 
-Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `gemini-extension.json`, `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payload needed by Gemini CLI, Qwen Code, Claude Code, and Codex.
+Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payload needed by Qwen Code, Claude Code, and Codex.
 
 Stable releases publish three aligned outputs:
 

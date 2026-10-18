@@ -22,32 +22,43 @@ async function withServer(options, fn) {
 }
 
 /**
- * Runs `fn` against a server booted from every runtime bundle: the Gemini,
- * Claude and Codex entrypoints in the repo plus an isolated copy of the
- * installed Claude plugin. Each bundle names the `expectSkill` text its
- * delegation skill content must contain.
+ * Runs `fn` against a server booted from every runtime bundle: the Qwen
+ * (repo-root), Claude and Codex entrypoints in the repo plus an isolated copy
+ * of the installed Claude plugin. Each bundle names the `runtime` its
+ * entrypoint defaults MAESTRO_RUNTIME to and the `expectSkill` text its
+ * delegation skill content must contain. MAESTRO_RUNTIME is cleared so each
+ * entrypoint applies its own default.
  */
 async function forEachRuntimeBundle(fn) {
   await withIsolatedClaudePlugin(async (pluginRoot) => {
+    const env = { MAESTRO_RUNTIME: '' };
     const bundles = [
       {
         cwd: ROOT,
         relativePath: 'mcp/maestro-server.js',
+        env,
+        runtime: 'qwen',
         expectSkill: '# Delegation Skill',
       },
       {
         cwd: ROOT,
         relativePath: 'claude/mcp/maestro-server.js',
+        env,
+        runtime: 'claude',
         expectSkill: 'user-invocable: false',
       },
       {
         cwd: ROOT,
         relativePath: 'bin/maestro-mcp-server.js',
+        env,
+        runtime: 'codex',
         expectSkill: '# Delegation Skill',
       },
       {
         cwd: pluginRoot,
         relativePath: 'mcp/maestro-server.js',
+        env,
+        runtime: 'claude',
         expectSkill: 'user-invocable: false',
       },
     ];
@@ -82,6 +93,18 @@ describe('mcp server bundle behavior', () => {
         assert.equal(result.parsed.runtime, 'claude');
       }
     );
+  });
+
+  it('serves the runtime context each bundle entrypoint defaults to', async () => {
+    await forEachRuntimeBundle(async (client, bundle) => {
+      const result = await client.callTool('get_runtime_context');
+
+      assert.equal(
+        result.parsed.runtime,
+        bundle.runtime,
+        `Expected ${path.join(bundle.cwd, bundle.relativePath)} to serve the ${bundle.runtime} runtime`
+      );
+    });
   });
 
   it('serves updated get_skill_content metadata from every runtime bundle', async () => {

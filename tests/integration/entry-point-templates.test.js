@@ -13,14 +13,33 @@ const HOST_NAME_REMAPS = [
 ];
 
 describe('expandEntryPoints', () => {
-  it('produces gemini TOML for each registry entry', () => {
-    const results = expandEntryPoints('gemini');
+  it('produces qwen TOML for each registry entry', () => {
+    const results = expandEntryPoints('qwen');
     assert.ok(results.length >= 9, `Expected >= 9 entries, got ${results.length}`);
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review, 'Should produce review entry');
     assert.ok(review.outputPath === 'commands/maestro/review.toml');
     assert.ok(review.content.startsWith('description = '));
     assert.ok(review.content.includes('prompt = """'));
+    for (const { outputPath } of results) {
+      assert.match(outputPath, /^commands\/maestro\/[a-z0-9-]+\.toml$/);
+    }
+  });
+
+  it('qwen TOML commands keep the unremapped registry names (no reserved host names)', () => {
+    const outputPaths = [...expandEntryPoints('qwen'), ...expandCoreCommands('qwen')].map(
+      (r) => r.outputPath
+    );
+    for (const { reserved, remapped } of HOST_NAME_REMAPS) {
+      assert.ok(
+        outputPaths.includes(`commands/maestro/${reserved}.toml`),
+        `Expected qwen to emit commands/maestro/${reserved}.toml`
+      );
+      assert.ok(
+        !outputPaths.includes(`commands/maestro/${remapped}.toml`),
+        `Did not expect qwen to emit the remapped commands/maestro/${remapped}.toml`
+      );
+    }
   });
 
   for (const { runtime, root } of [
@@ -53,8 +72,8 @@ describe('expandEntryPoints', () => {
     });
   }
 
-  it('gemini preamble activates correct skills', () => {
-    const results = expandEntryPoints('gemini');
+  it('qwen preamble activates correct skills', () => {
+    const results = expandEntryPoints('qwen');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
@@ -95,8 +114,8 @@ describe('expandEntryPoints', () => {
     assert.ok(!status.content.includes('## Protocol'));
   });
 
-  it('gemini constraints appear in the prompt', () => {
-    const results = expandEntryPoints('gemini');
+  it('qwen constraints appear in the prompt', () => {
+    const results = expandEntryPoints('qwen');
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('Do not bury findings'));
   });
@@ -123,14 +142,71 @@ describe('expandEntryPoints', () => {
     }
   });
 
-  it('emits nothing for qwen and rejects unknown runtimes', () => {
-    assert.deepEqual(expandEntryPoints('qwen'), []);
-    assert.deepEqual(expandCoreCommands('qwen'), []);
-    assert.throws(() => expandEntryPoints('nope'), {
-      message: 'Unknown runtime for entry-point expansion: "nope"',
-    });
-    assert.throws(() => expandCoreCommands('nope'), {
-      message: 'Unknown runtime for core-command expansion: "nope"',
-    });
+  it('rejects unknown runtimes, including the removed gemini runtime', () => {
+    for (const runtime of ['nope', 'gemini']) {
+      assert.throws(() => expandEntryPoints(runtime), {
+        message: `Unknown runtime for entry-point expansion: "${runtime}"`,
+      });
+      assert.throws(() => expandCoreCommands(runtime), {
+        message: `Unknown runtime for core-command expansion: "${runtime}"`,
+      });
+    }
+  });
+});
+
+describe('expandCoreCommands for qwen', () => {
+  const QWEN_EXTENSION_FALLBACK = '$HOME/.qwen/extensions/maestro';
+
+  it('emits the orchestrate, execute and resume TOML commands at the repo root', () => {
+    const results = expandCoreCommands('qwen');
+    assert.deepEqual(
+      results.map((r) => r.outputPath).sort(),
+      [
+        'commands/maestro/execute.toml',
+        'commands/maestro/orchestrate.toml',
+        'commands/maestro/resume.toml',
+      ]
+    );
+    for (const { content } of results) {
+      assert.ok(content.startsWith('description = '));
+      assert.ok(content.includes('prompt = """'));
+    }
+  });
+
+  it('carries the Qwen Code runtime preamble and no Gemini wording', () => {
+    for (const { outputPath, content } of expandCoreCommands('qwen')) {
+      assert.ok(
+        content.includes('## Runtime: Qwen Code'),
+        `Expected ${outputPath} to carry the Qwen Code runtime preamble`
+      );
+      assert.ok(content.includes('| Load skill | `skill` with the skill name |'));
+      assert.ok(content.includes("| MCP tools | Maestro's MCP tools (such as `resolve_settings`) by the names Qwen Code lists for the `maestro` server |"));
+      assert.ok(content.includes('`plan_mode_native` is false'));
+      assert.ok(content.includes('`ask_user_question` with Approve and Revise options'));
+      assert.doesNotMatch(content, /gemini/i, `Did not expect Gemini wording in ${outputPath}`);
+    }
+  });
+
+  it('injects session state from the Qwen extension dir only into resume', () => {
+    const byPath = Object.fromEntries(
+      expandCoreCommands('qwen').map((r) => [r.outputPath, r.content])
+    );
+    const resume = byPath['commands/maestro/resume.toml'];
+    assert.ok(resume.includes('<session-state>'));
+    assert.ok(
+      resume.includes(`\${MAESTRO_EXTENSION_PATH:-${QWEN_EXTENSION_FALLBACK}}`),
+      'Expected resume.toml to fall back to the Qwen extension dir'
+    );
+    assert.match(
+      resume,
+      /<\/session-state>[\s\S]*## Runtime: Qwen Code/,
+      'Expected the session-state block ahead of the runtime preamble'
+    );
+    for (const name of ['orchestrate', 'execute']) {
+      assert.ok(
+        !byPath[`commands/maestro/${name}.toml`].includes('<session-state>'),
+        `Did not expect session-state injection in ${name}.toml`
+      );
+    }
   });
 });

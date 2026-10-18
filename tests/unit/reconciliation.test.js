@@ -81,8 +81,8 @@ describe('scan_phase_changes', () => {
   });
 
   it('scans nested directories when the server cwd is inside an extension cache', async () => {
-    // Claude and Gemini launch the MCP server with cwd set to the plugin/extension
-    // install dir (e.g. ~/.claude/plugins/...), which is itself a cache path.
+    // Claude Code launches the MCP server with cwd set to the plugin install dir
+    // (e.g. ~/.claude/plugins/...), which is itself a cache path.
     const root = makeTempDir('maestro-recon-cwd-');
     const pluginCwd = path.join(root, 'home', '.claude', 'plugins', 'cache', 'maestro');
     const workspace = path.join(root, 'workspace');
@@ -165,7 +165,7 @@ describe('scan_phase_changes', () => {
     await bootstrap(server, workspace);
 
     await waitForMtime();
-    for (const cacheDir of [['.codex', 'plugins'], ['.gemini', 'extensions']]) {
+    for (const cacheDir of [['.codex', 'plugins'], ['.claude', 'plugins']]) {
       fs.mkdirSync(path.join(workspace, ...cacheDir, 'x'), { recursive: true });
       fs.writeFileSync(path.join(workspace, ...cacheDir, 'x', 'cached.js'), '// hi\n');
     }
@@ -176,7 +176,7 @@ describe('scan_phase_changes', () => {
     assert.equal(outcome.ok, true);
     const created = outcome.result.candidates.created;
     assert.equal(created.includes(path.join('.codex', 'plugins', 'x', 'cached.js')), false);
-    assert.equal(created.includes(path.join('.gemini', 'extensions', 'x', 'cached.js')), false);
+    assert.equal(created.includes(path.join('.claude', 'plugins', 'x', 'cached.js')), false);
     assert.ok(created.includes(path.join('.codex', 'config', 'kept.toml')));
   });
 });

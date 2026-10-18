@@ -10,7 +10,7 @@ const { ROOT } = require('./helpers');
 describe('thin entrypoint design', () => {
   it('each MCP entrypoint sets its own MAESTRO_RUNTIME default without the canonical-source helper', () => {
     const expectations = [
-      { file: 'mcp/maestro-server.js', runtime: 'gemini' },
+      { file: 'mcp/maestro-server.js', runtime: 'qwen' },
       { file: 'claude/mcp/maestro-server.js', runtime: 'claude' },
       { file: 'bin/maestro-mcp-server.js', runtime: 'codex' },
     ];
@@ -40,15 +40,37 @@ describe('thin entrypoint design', () => {
     );
   });
 
-  it('Gemini entrypoint uses direct repo-local resolution only', () => {
+  it('repo-root (Qwen) entrypoint uses direct repo-local resolution only', () => {
     const content = fs.readFileSync(path.join(ROOT, 'mcp/maestro-server.js'), 'utf8');
     assert.ok(
       !content.includes('bundledEntry'),
-      'Expected Gemini entrypoint to NOT have bundled fallback'
+      'Expected repo-root Qwen entrypoint to NOT have bundled fallback'
     );
     assert.ok(
       content.includes("require('../src/mcp/maestro-server')"),
-      'Expected Gemini entrypoint to require directly from src/'
+      'Expected repo-root Qwen entrypoint to require directly from src/'
+    );
+  });
+
+  it('repo-root hook runner shim backs every qwen hook registration', () => {
+    const shim = fs.readFileSync(path.join(ROOT, 'hooks/hook-runner.js'), 'utf8');
+    assert.ok(
+      shim.includes("require('../src/platforms/shared/hook-runner')"),
+      'Expected hooks/hook-runner.js to require the shared hook runner directly from src/'
+    );
+
+    const { hooks } = JSON.parse(fs.readFileSync(path.join(ROOT, 'qwen/hooks.json'), 'utf8'));
+    const commands = Object.values(hooks).flatMap((groups) =>
+      groups.flatMap((group) => group.hooks.map((hook) => hook.command))
+    );
+    const hookNames = commands.map((command) => {
+      const match = command.match(/^node \$\{extensionPath\}\/hooks\/hook-runner\.js qwen ([a-z-]+)$/);
+      assert.ok(match, `Expected qwen hook command to run the repo-root shim: ${command}`);
+      return match[1];
+    });
+    assert.deepEqual(
+      hookNames.sort(),
+      Object.keys(require('../../src/generated/hook-registry.json')).sort()
     );
   });
 
@@ -79,10 +101,9 @@ describe('thin entrypoint design', () => {
       'claude/hooks/claude-hooks.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'plugins/maestro/.mcp.json',
-      'GEMINI.md',
-      'gemini-extension.json',
-      'hooks/hooks.json',
       'qwen-extension.json',
+      'qwen/hooks.json',
+      'policies/maestro.toml',
     ];
 
     for (const file of requiredFiles) {
@@ -90,6 +111,26 @@ describe('thin entrypoint design', () => {
         fs.existsSync(path.join(ROOT, file)),
         true,
         `Expected generated platform metadata ${file} to exist`
+      );
+    }
+  });
+
+  it('removed Gemini CLI runtime artifacts are gone', () => {
+    // Repo-root agents/ is not listed: it now holds the Qwen agent stubs.
+    const removedPaths = [
+      'src/platforms/gemini',
+      'GEMINI.md',
+      'gemini-extension.json',
+      '.geminiignore',
+      'hooks/hooks.json',
+      'docs/runtime-gemini.md',
+    ];
+
+    for (const file of removedPaths) {
+      assert.equal(
+        fs.existsSync(path.join(ROOT, file)),
+        false,
+        `Expected removed Gemini artifact ${file} to NOT exist`
       );
     }
   });

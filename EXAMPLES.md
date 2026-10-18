@@ -1,6 +1,6 @@
 # Maestro Examples
 
-This guide is a scenario catalog for Maestro public entry points across Gemini CLI, Claude Code, Codex, and Qwen Code. Use the command form for the runtime you are running.
+This guide is a scenario catalog for Maestro public entry points across Claude Code, Codex, and Qwen Code. Use the command form for the runtime you are running.
 
 Canonical sources for this page:
 
@@ -12,20 +12,20 @@ Canonical sources for this page:
 
 ## Runtime Command Forms
 
-| Capability | Gemini CLI | Claude Code | Codex | Qwen Code |
-|------------|------------|-------------|-------|-----------|
-| Full orchestration | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
-| Execute plan | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
-| Session status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
-| Resume session | `/maestro:resume` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
-| Archive session | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Code review | `/maestro:review` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
-| Debug workflow | `/maestro:debug` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
-| Security audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
-| Performance check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
-| Accessibility audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
-| SEO audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
-| Compliance check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
+| Capability | Claude Code | Codex | Qwen Code |
+|------------|-------------|-------|-----------|
+| Full orchestration | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
+| Execute plan | `/execute` | `$maestro:execute` | `/maestro:execute` |
+| Session status | `/status` | `$maestro:status` | `/maestro:status` |
+| Resume session | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
+| Archive session | `/archive` | `$maestro:archive` | `/maestro:archive` |
+| Code review | `/review-code` | `$maestro:review-code` | `/maestro:review` |
+| Debug workflow | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
+| Security audit | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
+| Performance check | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
+| Accessibility audit | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
+| SEO audit | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
+| Compliance check | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
 Claude Code and Codex reserve `/review`, `/debug`, and `/resume` for host behavior. Maestro remaps those public entry points to `review-code`, `debug-workflow`, and `resume-session` in those runtimes.
 
@@ -35,7 +35,6 @@ Use this when the task needs design, planning, specialist execution, and final r
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Claude Code | `/orchestrate Build a REST API for a task management system with user authentication` |
 | Codex | `$maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Qwen Code | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
@@ -50,7 +49,6 @@ Use this when an approved implementation plan already exists and you want Maestr
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:execute docs/maestro/plans/2024-03-15-auth-system-impl-plan.md` |
 | Claude Code | `/execute docs/maestro/plans/2024-03-15-auth-system-impl-plan.md` |
 | Codex | `$maestro:execute docs/maestro/plans/2024-03-15-auth-system-impl-plan.md` |
 | Qwen Code | `/maestro:execute docs/maestro/plans/2024-03-15-auth-system-impl-plan.md` |
@@ -65,7 +63,6 @@ Use this to inspect the active session without mutating state.
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:status` |
 | Claude Code | `/status` |
 | Codex | `$maestro:status` |
 | Qwen Code | `/maestro:status` |
@@ -80,7 +77,6 @@ Use this after a prior orchestration was paused, interrupted, or left with pendi
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:resume Continue from the first pending or failed phase` |
 | Claude Code | `/resume-session Continue from the first pending or failed phase` |
 | Codex | `$maestro:resume-session Continue from the first pending or failed phase` |
 | Qwen Code | `/maestro:resume Continue from the first pending or failed phase` |
@@ -95,7 +91,6 @@ Use this when the active session should be moved out of the active state directo
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:archive` |
 | Claude Code | `/archive` |
 | Codex | `$maestro:archive` |
 | Qwen Code | `/maestro:archive` |
@@ -110,7 +105,6 @@ Use this when you want findings ordered by severity without running the full orc
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:review Review the staged changes for correctness, regressions, security, maintainability risk, and missing tests` |
 | Claude Code | `/review-code Review the staged changes for correctness, regressions, security, maintainability risk, and missing tests` |
 | Codex | `$maestro:review-code Review the staged changes for correctness, regressions, security, maintainability risk, and missing tests` |
 | Qwen Code | `/maestro:review Review the staged changes for correctness, regressions, security, maintainability risk, and missing tests` |
@@ -125,7 +119,6 @@ Use this for investigation-heavy work where the root cause is not yet known.
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:debug Investigate the failing behavior, repro path, and expected behavior` |
 | Claude Code | `/debug-workflow Investigate the failing behavior, repro path, and expected behavior` |
 | Codex | `$maestro:debug-workflow Investigate the failing behavior, repro path, and expected behavior` |
 | Qwen Code | `/maestro:debug Investigate the failing behavior, repro path, and expected behavior` |
@@ -140,7 +133,6 @@ Use this for authentication, authorization, secret handling, dependency, and dat
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:security-audit Audit authentication, authorization, data exposure, secret handling, and exploitability risks` |
 | Claude Code | `/security-audit Audit authentication, authorization, data exposure, secret handling, and exploitability risks` |
 | Codex | `$maestro:security-audit Audit authentication, authorization, data exposure, secret handling, and exploitability risks` |
 | Qwen Code | `/maestro:security-audit Audit authentication, authorization, data exposure, secret handling, and exploitability risks` |
@@ -155,7 +147,6 @@ Use this when a feature or code path has latency, throughput, memory, or scaling
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:perf-check Assess hotspots, regressions, and optimization opportunities in the requested code path` |
 | Claude Code | `/perf-check Assess hotspots, regressions, and optimization opportunities in the requested code path` |
 | Codex | `$maestro:perf-check Assess hotspots, regressions, and optimization opportunities in the requested code path` |
 | Qwen Code | `/maestro:perf-check Assess hotspots, regressions, and optimization opportunities in the requested code path` |
@@ -170,7 +161,6 @@ Use this for WCAG, ARIA, keyboard navigation, focus management, and screen reade
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:a11y-audit Audit WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility` |
 | Claude Code | `/a11y-audit Audit WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility` |
 | Codex | `$maestro:a11y-audit Audit WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility` |
 | Qwen Code | `/maestro:a11y-audit Audit WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility` |
@@ -185,7 +175,6 @@ Use this for crawlability, meta tags, canonical URLs, structured data, and Core 
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:seo-audit Audit meta tags, structured data, crawlability, and Core Web Vitals` |
 | Claude Code | `/seo-audit Audit meta tags, structured data, crawlability, and Core Web Vitals` |
 | Codex | `$maestro:seo-audit Audit meta tags, structured data, crawlability, and Core Web Vitals` |
 | Qwen Code | `/maestro:seo-audit Audit meta tags, structured data, crawlability, and Core Web Vitals` |
@@ -200,7 +189,6 @@ Use this for GDPR, CCPA, cookie consent, retention, licensing, and third-party d
 
 | Runtime | Example |
 |---------|---------|
-| Gemini CLI | `/maestro:compliance-check Review GDPR/CCPA, cookie consent, data handling, and licensing risk` |
 | Claude Code | `/compliance-check Review GDPR/CCPA, cookie consent, data handling, and licensing risk` |
 | Codex | `$maestro:compliance-check Review GDPR/CCPA, cookie consent, data handling, and licensing risk` |
 | Qwen Code | `/maestro:compliance-check Review GDPR/CCPA, cookie consent, data handling, and licensing risk` |

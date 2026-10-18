@@ -1,10 +1,10 @@
 'use strict';
 
 module.exports = [
-  // ── Agent discovery stubs — Gemini, Claude, and Qwen ───────────────
+  // ── Agent discovery stubs — Claude and Qwen ────────────────────────
   { glob: 'agents/*.md',
     transforms: ['agent-stub'],
-    runtimes: ['gemini', 'claude', 'qwen'] },
+    runtimes: ['claude', 'qwen'] },
 
   // ── Shared skill discovery stubs — Claude + Codex only ─────────────
   { glob: 'skills/shared/**/SKILL.md',

@@ -23,7 +23,7 @@
   "interface": {
     "displayName": "Maestro",
     "shortDescription": "Multi-agent coding orchestration for Codex",
-    "longDescription": "Generated Codex runtime for Maestro. Shared methodology, templates, references, and agent personas stay aligned with the Gemini CLI and Claude Code runtimes while Codex-specific delegation and state handling stay isolated to this plugin.",
+    "longDescription": "Generated Codex runtime for Maestro. Shared methodology, templates, references, and agent personas stay aligned with the Claude Code and Qwen Code runtimes while Codex-specific delegation and state handling stay isolated to this plugin.",
     "developerName": "josstei",
     "category": "Coding",
     "capabilities": [

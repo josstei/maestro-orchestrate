@@ -14,7 +14,6 @@ describe('cache-path-rejector', () => {
     assert.deepEqual(CACHE_PATH_SEGMENTS, [
       path.join('.codex', 'plugins'),
       path.join('.claude', 'plugins'),
-      path.join('.gemini', 'extensions'),
     ]);
   });
 
@@ -32,10 +31,15 @@ describe('cache-path-rejector', () => {
     );
   });
 
-  it('rejects Gemini extension paths', () => {
+  it('rejects the cache directory itself, not only paths below it', () => {
+    assert.equal(isExtensionCachePath('/Users/me/.codex/plugins'), true);
+    assert.equal(isExtensionCachePath('/Users/me/.claude/plugins'), true);
+  });
+
+  it('no longer treats Gemini CLI extension directories as a cache', () => {
     assert.equal(
       isExtensionCachePath('/Users/me/.gemini/extensions/foo'),
-      true
+      false
     );
   });
 

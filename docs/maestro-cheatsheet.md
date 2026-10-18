@@ -6,35 +6,30 @@ This document summarizes the minimum commands and concepts for using Maestro acr
 
 | Runtime | Install | Entry Point |
 |---|---|---|
-| Gemini CLI | `gemini extensions install https://github.com/josstei/maestro-orchestrate` | `/maestro:*` |
 | Claude Code | `claude plugin marketplace add josstei/maestro-orchestrate` + `claude plugin install maestro@maestro-orchestrator --scope user` | `/orchestrate`, `/review-code`, `/status`, ... |
 | Codex CLI | `codex plugin marketplace add josstei/maestro-orchestrate`, then install Maestro inside Codex via `/plugins` | `$maestro:*` |
 | Qwen Code | `qwen extensions install https://github.com/josstei/maestro-orchestrate` | `/maestro:*` |
 
 ## 2. Most Common Commands
 
-| Capability | Gemini CLI | Claude Code | Codex CLI | Qwen Code |
-|---|---|---|---|---|
-| Start the full workflow | `/maestro:orchestrate <task>` | `/orchestrate <task>` | `$maestro:orchestrate <task>` | `/maestro:orchestrate <task>` |
-| Run an existing plan | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
-| Check status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
-| Resume a session | `/maestro:resume` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
-| Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Code review | `/maestro:review` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
-| Debug | `/maestro:debug` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
-| Security audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
-| Perf check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
-| SEO audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
-| A11y audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
-| Compliance check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
+| Capability | Claude Code | Codex CLI | Qwen Code |
+|---|---|---|---|
+| Start the full workflow | `/orchestrate <task>` | `$maestro:orchestrate <task>` | `/maestro:orchestrate <task>` |
+| Run an existing plan | `/execute` | `$maestro:execute` | `/maestro:execute` |
+| Check status | `/status` | `$maestro:status` | `/maestro:status` |
+| Resume a session | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
+| Archive | `/archive` | `$maestro:archive` | `/maestro:archive` |
+| Code review | `/review-code` | `$maestro:review-code` | `/maestro:review` |
+| Debug | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
+| Security audit | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
+| Perf check | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
+| SEO audit | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
+| A11y audit | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
+| Compliance check | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
 ## 3. Minimal Usage Examples
 
 ### Start a new task
-
-```text
-/maestro:orchestrate Build a REST API with authentication
-```
 
 Claude Code:
 
@@ -48,11 +43,13 @@ Codex CLI:
 $maestro:orchestrate Build a REST API with authentication
 ```
 
-### Check the current session
+Qwen Code:
 
 ```text
-/maestro:status
+/maestro:orchestrate Build a REST API with authentication
 ```
+
+### Check the current session
 
 Claude Code:
 
@@ -64,6 +61,12 @@ Codex CLI:
 
 ```text
 $maestro:status
+```
+
+Qwen Code:
+
+```text
+/maestro:status
 ```
 
 ## 4. Workflow Mental Model
@@ -114,13 +117,6 @@ Common paths:
 
 ## 6. Runtime Differences at a Glance
 
-### Gemini CLI
-
-- Command entry point: `/maestro:*`
-- Supports hooks
-- Uses TOML policy files
-- Agent naming: `snake_case`
-
 ### Claude Code
 
 - Command entry point: `/orchestrate`, `/review-code`, `/status`, ...
@@ -141,17 +137,11 @@ Common paths:
 ### Qwen Code
 
 - Command entry point: `/maestro:*`
-- Same command surface as Gemini CLI
-- Uses `qwen/agents/` and `qwen/hooks.json`; commands, policies, MCP, and hook runner are shared from the repository root
+- Uses TOML commands
+- Agent naming: `snake_case`
+- Agent stubs (`agents/`), commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), MCP server shim (`mcp/maestro-server.js`), and hook runner (`hooks/hook-runner.js`) live at the repository root, Qwen Code's extension directory; `qwen/` holds only the generated `qwen/hooks.json`
 
 ## 7. Hook Reference
-
-### Gemini CLI
-
-- `SessionStart`
-- `BeforeAgent`
-- `AfterAgent`
-- `SessionEnd`
 
 ### Claude Code
 
@@ -171,22 +161,7 @@ Common paths:
 - `SubagentStop`
 - `SessionEnd`
 
-## 8. Common Notes
-
-### Gemini / Qwen
-
-- Experimental subagents must be enabled
-- The config should include:
-
-```json
-{
-  "experimental": {
-    "enableAgents": true
-  }
-}
-```
-
-## 9. Suggested Reading Order
+## 8. Suggested Reading Order
 
 If you want to go deeper:
 
@@ -194,7 +169,6 @@ If you want to go deeper:
 2. `EXAMPLES.md`
 3. `docs/flow.md`
 4. `docs/architecture.md`
-5. `docs/runtime-gemini.md`
-6. `docs/runtime-claude.md`
-7. `docs/runtime-codex.md`
-8. `docs/runtime-qwen.md`
+5. `docs/runtime-claude.md`
+6. `docs/runtime-codex.md`
+7. `docs/runtime-qwen.md`

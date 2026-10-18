@@ -21,8 +21,9 @@ function makeDir(...segments) {
   return dir;
 }
 
-function makeCacheDir() {
-  return makeDir('.gemini', 'extensions', 'maestro');
+/** Creates a host plugin-cache directory, which must never be suggested as a workspace. */
+function makeCacheDir(host = 'claude') {
+  return makeDir(`.${host}`, 'plugins', 'cache', 'maestro');
 }
 
 function withCwd(dir, fn) {
@@ -124,7 +125,8 @@ describe('createProjectRootCache workspaceSuggestion', () => {
         'not a uri',
         { name: 'no-uri' },
         { uri: pathToFileURL(path.join(rootDir, 'missing')).href },
-        { uri: pathToFileURL(makeCacheDir()).href },
+        { uri: pathToFileURL(makeCacheDir('claude')).href },
+        { uri: pathToFileURL(makeCacheDir('codex')).href },
         pathToFileURL(rootDir).href,
         { uri: pathToFileURL(laterDir).href },
       ]);
@@ -142,10 +144,12 @@ describe('createProjectRootCache workspaceSuggestion', () => {
   });
 
   it('rejects extension-cache paths from env, client roots and cwd', async () => {
-    await withEnv({ [ENV_VAR]: makeCacheDir() }, async () => {
-      const cache = await createCacheWithRoots([{ uri: pathToFileURL(makeCacheDir()).href }]);
-      assert.equal(withCwd(makeCacheDir(), () => cache.workspaceSuggestion()), null);
-    });
+    for (const host of ['claude', 'codex']) {
+      await withEnv({ [ENV_VAR]: makeCacheDir(host) }, async () => {
+        const cache = await createCacheWithRoots([{ uri: pathToFileURL(makeCacheDir(host)).href }]);
+        assert.equal(withCwd(makeCacheDir(host), () => cache.workspaceSuggestion()), null, host);
+      });
+    }
   });
 });
 

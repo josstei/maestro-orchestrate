@@ -121,4 +121,4 @@ Consequence for Maestro: only the orchestrator agent can ask the user questions.
 
 ### Hooks
 
-Codex does not expose PreToolUse / BeforeAgent / AfterAgent hooks to plugins. Maestro does not rely on hooks under Codex; handoff-format enforcement, design-gate tracking, and reconciliation are all enforced by the MCP server.
+Codex does not expose PreToolUse or subagent lifecycle hooks to plugins. Maestro does not rely on hooks under Codex; handoff-format enforcement, design-gate tracking, and reconciliation are all enforced by the MCP server.

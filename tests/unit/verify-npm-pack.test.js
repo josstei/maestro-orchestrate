@@ -25,12 +25,21 @@ describe('verify npm pack', () => {
     assert.deepEqual(REQUIRED_PACKAGE_FILES, [
       'bin/maestro-mcp-server.js',
       'claude/.claude-plugin/plugin.json',
-      'gemini-extension.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'qwen-extension.json',
       'src/mcp/maestro-server.js',
     ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
+  });
+
+  it('rejects a package that is missing a runtime manifest', () => {
+    const [pack] = packWith();
+    const files = pack.files.filter((file) => file.path !== 'qwen-extension.json');
+
+    assert.throws(
+      () => verifyPackageEntries([{ ...pack, files }]),
+      { message: 'npm package missing required file: qwen-extension.json' }
+    );
   });
 
   it('rejects test-only package content', () => {

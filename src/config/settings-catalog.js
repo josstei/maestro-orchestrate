@@ -2,7 +2,7 @@
 
 /**
  * Maestro settings in canonical order. resolve_settings reports them in this
- * order, and the Gemini/Qwen extension manifests list them as `settings`.
+ * order, and the Qwen extension manifest lists them as `settings`.
  * @type {ReadonlyArray<{ name: string, description: string, envVar: string }>}
  */
 const MAESTRO_SETTINGS = Object.freeze([

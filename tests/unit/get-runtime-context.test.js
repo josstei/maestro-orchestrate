@@ -3,13 +3,12 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
 
 // The get_runtime_context response is a contract the runtime prompts rely on,
 // so the expected values are written out here instead of read from the configs.
 const SYNCHRONOUS_CONSTRAINTS = { result_surface: 'synchronous', child_cannot_prompt_user: false };
-const GEMINI_STYLE_PATTERN = '{{agent}}(query: "...")';
 
 const EXPECTED_CONTEXT = {
   claude: {
@@ -36,21 +35,21 @@ const EXPECTED_CONTEXT = {
     agents: AGENT_NAMES,
     tools: { read_file: 'direct file reads', run_shell_command: 'exec_command' },
   },
-  gemini: {
-    mcp_prefix: 'mcp_maestro_',
-    plan_mode_native: true,
-    agent_dispatch: { pattern: GEMINI_STYLE_PATTERN, naming: 'snake_case', prefix: '' },
-    constraints: SYNCHRONOUS_CONSTRAINTS,
-    agents: KNOWN_AGENTS,
-    tools: { read_file: 'read_file', run_shell_command: 'run_shell_command' },
-  },
   qwen: {
     mcp_prefix: '',
     plan_mode_native: false,
-    agent_dispatch: { pattern: GEMINI_STYLE_PATTERN, naming: 'snake_case', prefix: '' },
+    agent_dispatch: { pattern: '{{agent}}(query: "...")', naming: 'snake_case', prefix: '' },
     constraints: SYNCHRONOUS_CONSTRAINTS,
     agents: KNOWN_AGENTS,
-    tools: { read_file: 'read_file', replace: 'edit' },
+    tools: {
+      read_file: 'read_file',
+      replace: 'edit',
+      run_shell_command: 'run_shell_command',
+      ask_user: 'ask_user_question',
+      activate_skill: 'skill',
+      write_todos: 'todo_write',
+      google_web_search: 'web_search',
+    },
   },
 };
 
@@ -74,6 +73,10 @@ describe('get_runtime_context handler', () => {
       }
     });
   }
+
+  it('covers exactly the discovered runtimes', () => {
+    assert.deepEqual(Object.keys(EXPECTED_CONTEXT).sort(), RUNTIME_NAMES);
+  });
 
   it('reports agent capabilities from the agent registry', () => {
     const result = createHandler(getRuntimeConfig('claude'))({});

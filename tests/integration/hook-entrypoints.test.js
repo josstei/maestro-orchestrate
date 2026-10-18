@@ -40,12 +40,6 @@ const CLAUDE_HOOKS = ['session-start', 'before-agent', 'session-end'];
 
 const BOOT_CASES = [
   {
-    label: 'gemini',
-    runner: 'hooks/hook-runner.js',
-    runtime: 'gemini',
-    hooks: ['session-start', 'before-agent', 'after-agent', 'session-end'],
-  },
-  {
     label: 'claude',
     runner: 'claude/scripts/hook-runner.js',
     runtime: 'claude',
@@ -89,20 +83,22 @@ describe('hook entrypoints', () => {
     });
   });
 
-  it('rejects a runtime without a hook adapter in the repo install', () => {
-    const result = runHook('hooks/hook-runner.js', 'codex', 'session-start', {});
+  it('rejects a runtime without a hook adapter in the repo install, including the removed gemini runtime', () => {
+    for (const runtime of ['codex', 'gemini']) {
+      const result = runHook('hooks/hook-runner.js', runtime, 'session-start', {});
 
-    assert.equal(result.status, 1);
-    assert.equal(result.stderr, 'Unknown runtime: codex\n');
-    assert.equal(result.stdout, '');
+      assert.equal(result.status, 1, `exit code for ${runtime}`);
+      assert.equal(result.stderr, `Unknown runtime: ${runtime}\n`);
+      assert.equal(result.stdout, '');
+    }
   });
 
   it('rejects other runtimes from an isolated claude plugin bundle', async () => {
     await withIsolatedClaudePlugin(async (pluginRoot) => {
-      const result = runHook('scripts/hook-runner.js', 'gemini', 'session-start', {}, pluginRoot);
+      const result = runHook('scripts/hook-runner.js', 'qwen', 'session-start', {}, pluginRoot);
 
       assert.equal(result.status, 1);
-      assert.equal(result.stderr, 'Unknown runtime: gemini\n');
+      assert.equal(result.stderr, 'Unknown runtime: qwen\n');
       assert.equal(result.stdout, '');
     });
   });
@@ -111,8 +107,8 @@ describe('hook entrypoints', () => {
     const usage = 'Usage: node hook-runner.js <runtime> <hook-name>\n';
     const cases = [
       [[], usage],
-      [['gemini'], usage],
-      [['gemini', 'nope'], 'Unknown hook: nope\n'],
+      [['qwen'], usage],
+      [['qwen', 'nope'], 'Unknown hook: nope\n'],
       [['bogus', 'nope'], 'Unknown runtime: bogus\n'],
     ];
 
@@ -130,11 +126,11 @@ describe('hook entrypoints', () => {
   });
 
   it('answers with the adapter error fallback when stdin is not JSON', () => {
-    const result = runHook('hooks/hook-runner.js', 'gemini', 'session-start', 'not-json');
+    const result = runHook('hooks/hook-runner.js', 'qwen', 'session-start', 'not-json');
 
     assert.equal(result.status, 0);
     assert.match(result.stderr, /^Hook error: /);
-    assert.deepEqual(JSON.parse(result.stdout), { continue: false });
+    assert.deepEqual(JSON.parse(result.stdout), { continue: true, decision: 'allow' });
   });
 
   it('boots qwen hook adapters against canonical src hook logic', () => {
@@ -184,26 +180,6 @@ describe('hook entrypoints', () => {
     });
   });
 
-  it('gemini hooks always exit 0 even on deny (JSON carries decision)', () => {
-    const result = runHook('hooks/hook-runner.js', 'gemini', 'before-agent', {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-      hook_event_name: 'BeforeAgent',
-      prompt: 'agent: coder\n\nImplement the feature.',
-    });
-    assert.equal(result.status, 0, `before-agent exited non-zero: ${result.stderr}`);
-
-    const denyResult = runHook('hooks/hook-runner.js', 'gemini', 'after-agent', {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-      hook_event_name: 'AfterAgent',
-      prompt_response: 'Missing required sections',
-    });
-    assert.equal(denyResult.status, 0, `Expected exit 0 for gemini deny, got ${denyResult.status}`);
-    const parsed = JSON.parse(denyResult.stdout);
-    assert.equal(parsed.continue, false);
-  });
-
   it('keeps hook state under <os.tmpdir()>/maestro-hooks-<uid> when MAESTRO_HOOKS_DIR is unset', {
     skip: process.platform === 'win32' && 'os.tmpdir() ignores TMPDIR on Windows',
   }, () => {
@@ -213,10 +189,15 @@ describe('hook entrypoints', () => {
     const env = { ...process.env, TMPDIR: tmpRoot };
     delete env.MAESTRO_HOOKS_DIR;
 
-    const result = spawnSync(process.execPath, ['hooks/hook-runner.js', 'gemini', 'before-agent'], {
+    const result = spawnSync(process.execPath, ['hooks/hook-runner.js', 'qwen', 'before-agent'], {
       cwd: ROOT,
       env,
-      input: `${JSON.stringify({ cwd: ROOT, session_id: 'hook-default-dir', prompt: 'agent: coder' })}\n`,
+      input: `${JSON.stringify({
+        cwd: ROOT,
+        session_id: 'hook-default-dir',
+        hook_event_name: 'SubagentStart',
+        agent_type: 'coder',
+      })}\n`,
       encoding: 'utf8',
     });
 

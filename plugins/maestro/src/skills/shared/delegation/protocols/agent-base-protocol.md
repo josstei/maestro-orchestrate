@@ -106,7 +106,7 @@ Always include this section. Read-only agents populate it with findings structur
 
 ### Rules
 
-- Part 2 is always required — where a post-delegation hook runs (Gemini, Qwen) it rejects a response without the `## Downstream Context` heading, and `transition_phase` rejects a phase that produced files but has an empty Downstream Context
+- Part 2 is always required — where a post-delegation hook runs (Qwen) it rejects a response without the `## Downstream Context` heading, and `transition_phase` rejects a phase that produced files but has an empty Downstream Context
 - The orchestrator extracts Downstream Context from completed phases and includes relevant sections in subsequent delegation prompts, creating an information chain
 - Be specific in Downstream Context — reference exact file paths, function names, and type signatures rather than general descriptions
 

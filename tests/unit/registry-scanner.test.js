@@ -36,6 +36,28 @@ describe('collectRegistryOutputs', () => {
     }
   });
 
+  it('registers every committed hook handler with a remaining runtime hook config', () => {
+    const hookRegistry = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'src', 'generated', 'hook-registry.json'), 'utf8')
+    );
+    const hookConfigs = [
+      path.join('qwen', 'hooks.json'),
+      path.join('claude', 'hooks', 'claude-hooks.json'),
+    ];
+    assert.equal(fs.existsSync(path.join(ROOT, 'hooks', 'hooks.json')), false);
+
+    const registered = new Set();
+    for (const configPath of hookConfigs) {
+      const config = fs.readFileSync(path.join(ROOT, configPath), 'utf8');
+      for (const [, runtime, hookName] of config.matchAll(/hook-runner\.js (\w+) ([a-z-]+)/g)) {
+        assert.ok(['claude', 'qwen'].includes(runtime), `${configPath}: ${runtime}`);
+        registered.add(hookName);
+      }
+    }
+
+    assert.deepEqual([...registered].sort(), Object.keys(hookRegistry).sort());
+  });
+
   describe('on a fixture src tree', () => {
     let rootDir;
     let srcDir;

@@ -5,8 +5,6 @@ color: gold
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, read_many_files, google_web_search, write_todos, ask_user, web_fetch]
 tools.claude: [Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 15
-temperature: 0.3
-timeout_mins: 5
 ---
 <!-- @feature exampleBlocks -->
 <example>

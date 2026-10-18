@@ -87,7 +87,7 @@ function ensureDesignDocumentInPlans(projectRoot, sourcePath) {
  * mutually exclusive. The content variant is written atomically to
  * `<state_dir>/plans/<filename>` immediately. It exists for callers whose write
  * surface resolves paths against a different filesystem root than the MCP
- * server's workspace (e.g. Gemini Plan Mode writes to `~/.gemini/tmp/<uuid>/...`)
+ * server's workspace (e.g. a Plan Mode that writes to a host tmp directory)
  * and so cannot pass a path the server can find.
  *
  * @param {object} params - tool params holding the document keys

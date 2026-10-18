@@ -1,6 +1,6 @@
 # Qwen Runtime
 
-The Qwen Code extension lives in `qwen/` (the output directory declared in `src/platforms/qwen/runtime-config.js`). The manifest (`qwen-extension.json`) and context file (`QWEN.md`) remain at the repo root so Qwen Code can discover the extension; generated artifacts (`qwen/agents/`, `qwen/hooks.json`) live in the subdirectory. It mirrors the Gemini CLI extension structure with Qwen-specific manifest, context, and tool mappings.
+The repo root is Qwen Code's extension directory and the output directory (`./`) declared in `src/platforms/qwen/runtime-config.js`. The manifest (`qwen-extension.json`), context file (`QWEN.md`), generated agent stubs (`agents/`), TOML commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), and the MCP server and hook runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`) live at the repo root. The `qwen/` subdirectory holds only the generated hook registration (`qwen/hooks.json`).
 
 ## Configuration
 
@@ -22,13 +22,13 @@ The Qwen Code extension lives in `qwen/` (the output directory declared in `src/
 }
 ```
 
-Qwen reuses the repo-root public server at `mcp/maestro-server.js`. The Qwen manifest launches that shared adapter with `MAESTRO_RUNTIME=qwen`; without that env var the adapter defaults to Gemini. The adapter requires canonical `src/mcp/maestro-server.js` directly and runs the Qwen runtime against shared source in `src/`. Content tools read from the filesystem only.
+The public server at `mcp/maestro-server.js` is a thin adapter. The Qwen manifest launches it with `MAESTRO_RUNTIME=qwen`; the adapter also defaults to Qwen if that env var is absent. It requires canonical `src/mcp/maestro-server.js` directly and runs the Qwen runtime against shared source in `src/`. Content tools read from the filesystem only.
 
 ## Agent Naming
 
-Qwen uses **snake_case** for agent names (matching Gemini's convention): `code_reviewer`, `api_designer`, `accessibility_specialist`.
+Qwen uses **snake_case** for agent names: `code_reviewer`, `api_designer`, `accessibility_specialist`.
 
-Agent files are generated at `qwen/agents/*.md` with snake_case filenames (Qwen's own subdirectory, separate from Gemini's repo-root `agents/`).
+Agent files are generated at the repo-root `agents/*.md` with snake_case filenames, because Qwen Code loads an extension's subagents from `<extension>/agents/`.
 
 ## Delegation
 
@@ -41,11 +41,28 @@ architect(query: "Design the auth system...")
 
 ## Commands
 
-The Qwen runtime does not emit its own TOML command files. `src/generator/entry-point-expander.js` sets `qwen: null` in `RUNTIME_ENTRY_POINTS`, so `expandEntryPoints('qwen')` and `expandCoreCommands('qwen')` return empty arrays. This is intentional: Qwen Code is Gemini-CLI-compatible and consumes the 12 TOML commands generated for Gemini at repo-root `commands/maestro/` when both extensions coexist. See `docs/runtime-gemini.md` for the full command list.
+12 TOML commands in the repo-root `commands/maestro/`, generated for the Qwen runtime by `src/generator/entry-point-expander.js`:
+
+| Command | Source |
+|---------|--------|
+| `orchestrate.toml` | Core command registry |
+| `execute.toml` | Core command registry |
+| `resume.toml` | Core command registry |
+| `review.toml` | Entry-point registry |
+| `debug.toml` | Entry-point registry |
+| `archive.toml` | Entry-point registry |
+| `status.toml` | Entry-point registry |
+| `security-audit.toml` | Entry-point registry |
+| `perf-check.toml` | Entry-point registry |
+| `seo-audit.toml` | Entry-point registry |
+| `a11y-audit.toml` | Entry-point registry |
+| `compliance-check.toml` | Entry-point registry |
+
+The 3 core commands carry a `## Runtime: Qwen Code` preamble that maps step references to Qwen Code syntax: `skill` to load skills, Maestro's MCP tools by the names Qwen Code lists for the `maestro` server, direct agent calls, `exit_plan_mode` with `plan` set to the plan's markdown content (not a file path), and `ask_user_question` for prompts and approvals. `resume.toml` also injects the active session state by running `src/scripts/read-active-session.js` under `$MAESTRO_EXTENSION_PATH` (default `$HOME/.qwen/extensions/maestro`), or reports "No active session" when that script is missing.
 
 ## Hooks
 
-4 hook events in `qwen/hooks.json`:
+4 hook events in `qwen/hooks.json`, no matchers, timeouts in milliseconds (10000):
 
 | Event | Script | Purpose |
 |-------|--------|---------|
@@ -56,7 +73,7 @@ The Qwen runtime does not emit its own TOML command files. `src/generator/entry-
 
 ### SubagentStop Validation
 
-Qwen uses the same post-delegation validation as Gemini:
+Qwen validates each subagent's handoff report after delegation:
 
 - Checks for `## Task Report` (or `# Task Report`) and `## Downstream Context` headings
 - First failure: blocks and requests retry
@@ -79,7 +96,7 @@ Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string,
 
 ## Policies
 
-`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine (the same generated file Gemini uses, built from `src/core/policy-rules.js`):
+`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine. The Qwen builder in `src/platforms/metadata.js` generates the file from `src/core/policy-rules.js`, the same rules the Claude policy enforcer applies:
 
 **Deny (priority 950)**:
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
@@ -93,7 +110,7 @@ Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string,
 
 ## Tool Mapping
 
-Qwen tools use canonical names with Qwen-specific overrides declared in `src/platforms/qwen/runtime-config.js`:
+Qwen maps the canonical tool names to Qwen Code tools in `src/platforms/qwen/runtime-config.js`:
 
 | Canonical | Qwen |
 |-----------|------|
@@ -125,11 +142,11 @@ scriptBasedStateContract:  true
 codexStateContract:        false
 ```
 
-See `src/platforms/qwen/runtime-config.js` for the authoritative values. It extends `src/platforms/gemini/runtime-config.js` and overrides only `name`, `outputDir`, `mcpPrefix` (empty), `planModeNative` (false), `env.workspacePath`, six tool mappings, and `agentFrontmatter.fields`.
+See `src/platforms/qwen/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
-Qwen agent stubs carry the fields listed in Qwen's `agentFrontmatter.fields`, with `max_turns` before a block-list `tools` written in Qwen tool names, and no `temperature` or `timeout_mins`:
+Qwen agent stubs carry the fields listed in Qwen's `agentFrontmatter.fields`, with `max_turns` before a block-list `tools` written in Qwen tool names:
 
 ```yaml
 ---
@@ -153,13 +170,21 @@ Fields: `kind` (always "local"), `max_turns`.
 
 ```text
 qwen/
-├── agents/                [generated] 39 agent stubs (snake_case, Qwen tool names)
 └── hooks.json             [generated] hook registration (SubagentStart, SubagentStop, …)
 ```
 
-`qwen-extension.json` at the repo root is generated; `QWEN.md` is hand-maintained. The Qwen extension reuses Gemini's repo-root `commands/maestro/`, `hooks/hook-runner.js`, `mcp/`, and `policies/` artifacts when both runtimes coexist; no duplicates are written under `qwen/`.
+The Qwen extension also owns these repo-root artifacts:
+
+```text
+agents/                    [generated] 39 agent stubs (snake_case, Qwen tool names)
+commands/maestro/          [generated] 12 TOML commands
+policies/                  [generated] maestro.toml policy pack
+mcp/                       maestro-server.js shim (hand-maintained, defaults to MAESTRO_RUNTIME=qwen)
+hooks/                     hook-runner.js shim (hand-maintained)
+qwen-extension.json        [generated] extension manifest
+QWEN.md                    hand-maintained context file
+```
 
 ## Notes
 
-- Qwen writes its own agent stubs and hook config to `qwen/agents/` and `qwen/hooks.json` (separate from Gemini's repo-root outputs). For the `/maestro:*` command surface, Qwen reuses Gemini's repo-root `commands/maestro/` TOML files — the Qwen generator does not duplicate these.
 - `node scripts/generate.js` derives `qwen-extension.json` from `package.json` with the other runtime manifests so release metadata stays aligned.

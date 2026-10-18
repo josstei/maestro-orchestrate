@@ -3,8 +3,7 @@
 /**
  * Entry-point registry -- canonical workflow content for all 9 Maestro
  * entry points.  Each entry captures the shared intent, workflow steps,
- * and constraints extracted from the union of the Claude, Codex, and
- * Gemini runtime definitions.
+ * and constraints that the Claude, Codex, and Qwen runtimes render.
  *
  * Content lives here once; format-specific rendering (TOML commands,
  * SKILL.md files) is handled by templates + the generator. An optional

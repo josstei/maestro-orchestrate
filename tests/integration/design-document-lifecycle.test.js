@@ -308,7 +308,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     assert.equal(state.implementation_plan, planPath);
   });
 
-  it('content variant: record_design_approval + create_session materialize both docs without path resolution (Gemini Plan Mode flow)', async () => {
+  it('content variant: record_design_approval + create_session materialize both docs without path resolution (Plan Mode host tmp-dir flow)', async () => {
     const workspace = makeTempDir('maestro-ddl-content-');
     const designBody = '# Design (inline)\n\nPassed as content.\n';
     const planBody = '# Plan (inline)\n\nPassed as content.\n';
