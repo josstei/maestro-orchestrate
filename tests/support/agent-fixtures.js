@@ -3,6 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { writeTree } = require('./fs');
+
 const OUTPUT_CONTRACT_PATH = path.resolve(
   __dirname,
   '../../src/agents/shared/handoff-report.md'
@@ -16,10 +18,9 @@ const OUTPUT_CONTRACT_PATH = path.resolve(
  * @returns {string} The fragment content
  */
 function writeOutputContract(srcRoot) {
-  const sharedDir = path.join(srcRoot, 'agents', 'shared');
-  fs.mkdirSync(sharedDir, { recursive: true });
-  fs.copyFileSync(OUTPUT_CONTRACT_PATH, path.join(sharedDir, 'handoff-report.md'));
-  return fs.readFileSync(OUTPUT_CONTRACT_PATH, 'utf8');
+  const contract = fs.readFileSync(OUTPUT_CONTRACT_PATH, 'utf8');
+  writeTree(srcRoot, 'agents/shared/handoff-report.md', contract);
+  return contract;
 }
 
 /**
@@ -32,13 +33,10 @@ function writeOutputContract(srcRoot) {
  * @returns {string} The Output Contract fragment content
  */
 function writeAgentFixture(srcRoot, agentName, content) {
-  const agentsDir = path.join(srcRoot, 'agents');
-  fs.mkdirSync(agentsDir, { recursive: true });
-  fs.writeFileSync(path.join(agentsDir, `${agentName}.md`), content, 'utf8');
+  writeTree(srcRoot, `agents/${agentName}.md`, content);
   return writeOutputContract(srcRoot);
 }
 
 module.exports = {
   writeAgentFixture,
-  writeOutputContract,
 };

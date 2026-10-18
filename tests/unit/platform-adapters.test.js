@@ -28,7 +28,7 @@ describe('hook adapter contract', () => {
   }
 });
 
-describe('claude-adapter', () => {
+describe('claude hook-adapter', () => {
   describe('normalizeInput', () => {
     it('maps session_id and cwd', () => {
       const raw = {
@@ -127,7 +127,7 @@ describe('claude-adapter', () => {
   });
 });
 
-describe('gemini-adapter', () => {
+describe('gemini hook-adapter', () => {
   describe('normalizeInput', () => {
     it('maps session_id and cwd', () => {
       const raw = {
@@ -210,7 +210,7 @@ describe('gemini-adapter', () => {
   });
 });
 
-describe('qwen-adapter', () => {
+describe('qwen hook-adapter', () => {
   describe('normalizeInput', () => {
     it('maps session_id and cwd', () => {
       const raw = {

@@ -60,15 +60,15 @@ async function createCacheWithRoots(roots, options) {
 }
 
 describe('createProjectRootCache project root', () => {
-  it('is null until a workspace path is set explicitly', async () => {
+  it('is null until a workspace path is set explicitly', () => {
     const { cache } = createCache();
-    assert.equal(await cache.getProjectRoot(), null);
+    assert.equal(cache.getProjectRoot(), null);
 
     cache.setExplicitWorkspacePath('/ws/alpha');
-    assert.equal(await cache.getProjectRoot(), '/ws/alpha');
+    assert.equal(cache.getProjectRoot(), '/ws/alpha');
 
     cache.setExplicitWorkspacePath('');
-    assert.equal(await cache.getProjectRoot(), null);
+    assert.equal(cache.getProjectRoot(), null);
   });
 
   it('is not derived from the workspace suggestion', async () => {
@@ -76,7 +76,7 @@ describe('createProjectRootCache project root', () => {
     await withEnv({ [ENV_VAR]: workspace }, async () => {
       const cache = await createCacheWithRoots([pathToFileURL(workspace).href]);
       assert.equal(cache.workspaceSuggestion(), workspace);
-      assert.equal(await cache.getProjectRoot(), null);
+      assert.equal(cache.getProjectRoot(), null);
     });
   });
 });

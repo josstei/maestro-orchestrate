@@ -52,6 +52,17 @@ describe('stdin-reader.readText', () => {
     assert.equal(parsed.ok, false);
     assert.match(parsed.error, /Stdin payload too large/);
   });
+
+  it('counts the cap in raw UTF-8 bytes and decodes multi-byte input intact', () => {
+    // 'é' is 2 bytes: 512 KiB of them is exactly the cap, one more exceeds it.
+    const atCap = runWithStdin('readText', 'é'.repeat(512 * 1024));
+    assert.equal(atCap.parsed.ok, true);
+    assert.equal(atCap.parsed.result, 'é'.repeat(512 * 1024));
+
+    const overCap = runWithStdin('readText', 'é'.repeat(512 * 1024 + 1));
+    assert.equal(overCap.parsed.ok, false);
+    assert.match(overCap.parsed.error, /Stdin payload too large/);
+  });
 });
 
 describe('stdin-reader.readBoundedJson', () => {

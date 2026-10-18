@@ -16,7 +16,7 @@ describe('generator read-only modes', () => {
         const agentName = `registry-${flag.slice(2)}-test`;
         fs.writeFileSync(
           path.join(repoRoot, `src/agents/${agentName}.md`),
-          `---\nname: ${agentName}\ncapabilities: read_only\n---\nBody\n`,
+          `---\nname: ${agentName}\n---\nBody\n`,
           'utf8'
         );
 

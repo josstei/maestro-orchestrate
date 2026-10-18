@@ -18,7 +18,6 @@ describe('generator failure handling', () => {
         [
           '---',
           'name: broken-transform',
-          'capabilities: read_only',
           '---',
           '<example>',
           'Missing closing example tag',

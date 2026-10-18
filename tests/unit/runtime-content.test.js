@@ -200,9 +200,7 @@ describe('runtime-content filesystem reads', () => {
 
   it('reports a missing Output Contract fragment as an agent read error', () => {
     const root = makeTempDir('maestro-provider-nocontract-');
-    const agentPath = path.join(root, 'src', 'agents', 'coder.md');
-    fs.mkdirSync(path.dirname(agentPath), { recursive: true });
-    fs.writeFileSync(agentPath, '---\nname: coder\n---\nbody\n', 'utf8');
+    writeTree(root, 'src/agents/coder.md', '---\nname: coder\n---\nbody\n');
 
     const agentResult = readAgentFromFilesystem(
       'coder',

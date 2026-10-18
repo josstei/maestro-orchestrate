@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT } = require('./helpers');
 
 const SCRIPTS_DIR = path.join(ROOT, 'src', 'scripts');
@@ -146,9 +146,7 @@ describe('state scripts', () => {
 
     it('prints the active session file when one exists', () => {
       const sessionContent = '---\n{"session_id":"cli-test","status":"in_progress"}\n---\n# Session\n';
-      const sessionPath = path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md');
-      fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
-      fs.writeFileSync(sessionPath, sessionContent);
+      writeTree(workspace, 'docs/maestro/state/active-session.md', sessionContent);
 
       const result = runScript('read-active-session.js', [], { cwd: workspace });
       assert.equal(result.status, 0);
