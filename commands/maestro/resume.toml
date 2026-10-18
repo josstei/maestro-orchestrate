@@ -25,7 +25,7 @@ This preamble maps generic step references to Qwen Code tool syntax.
 | Load skill | `skill` with the skill name |
 | Load template/reference/protocol | `get_skill_content(resources: ["<name>"])` |
 | Delegate to agent | Call agent tool by name: `coder(query: "...")`, `tester(query: "...")`, `design_system_engineer(query: "...")` |
-| MCP tools | Bare tool names with no prefix, like `resolve_settings` |
+| MCP tools | Maestro's MCP tools (such as `resolve_settings`) by the names Qwen Code lists for the `maestro` server |
 | Enter Plan Mode | `enter_plan_mode` if available. Qwen Code does not report native Plan Mode (`plan_mode_native` is false), so the server-side design gate is the approval contract; without Plan Mode, use `ask_user_question` for approvals. |
 | Exit Plan Mode | `exit_plan_mode` with `plan` set to the plan's markdown content, not a file path |
 | User prompt (choose) | `ask_user_question` with a short `header` and one option per choice |

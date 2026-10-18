@@ -180,7 +180,7 @@ describe('expandCoreCommands for qwen', () => {
         `Expected ${outputPath} to carry the Qwen Code runtime preamble`
       );
       assert.ok(content.includes('| Load skill | `skill` with the skill name |'));
-      assert.ok(content.includes('Bare tool names with no prefix, like `resolve_settings`'));
+      assert.ok(content.includes("| MCP tools | Maestro's MCP tools (such as `resolve_settings`) by the names Qwen Code lists for the `maestro` server |"));
       assert.ok(content.includes('`plan_mode_native` is false'));
       assert.ok(content.includes('`ask_user_question` with Approve and Revise options'));
       assert.doesNotMatch(content, /gemini/i, `Did not expect Gemini wording in ${outputPath}`);
