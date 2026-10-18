@@ -18,14 +18,13 @@ The manifest holds only `name` (`maestro`), `displayName`, `version`, `descripti
   "mcpServers": {
     "maestro": {
       "command": "node",
-      "args": ["${PLUGIN_ROOT}/mcp/maestro-server.js"],
-      "env": { "MAESTRO_RUNTIME": "antigravity" }
+      "args": ["${PLUGIN_ROOT}/mcp/maestro-server.js"]
     }
   }
 }
 ```
 
-Antigravity substitutes `${PLUGIN_ROOT}` in `args` and starts the server with the plugin root as its `cwd`. The public server at `antigravity/mcp/maestro-server.js` is a thin adapter. It defaults `MAESTRO_RUNTIME` to `antigravity`, prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `antigravity/src/mcp/maestro-server.js` for installed copies. Content tools read from the filesystem only.
+Antigravity substitutes `${PLUGIN_ROOT}` in `args` and starts the server with the plugin root as its `cwd`. The public server at `antigravity/mcp/maestro-server.js` is a thin adapter. It prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `antigravity/src/mcp/maestro-server.js` for installed copies. Content tools read from the filesystem only. The server identifies the Antigravity runtime from the `clientInfo.name` Antigravity sends in `initialize` (`antigravity-client`); setting `MAESTRO_RUNTIME` overrides that.
 
 ### MCP Tool Naming
 

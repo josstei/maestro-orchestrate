@@ -112,7 +112,7 @@ function codexMarketplace(plugins) {
   };
 }
 
-function buildExtensionManifest(context, runtime, contextFileName) {
+function buildExtensionManifest(context, contextFileName) {
   return {
     name: 'maestro',
     version: context.version,
@@ -125,7 +125,6 @@ function buildExtensionManifest(context, runtime, contextFileName) {
         args: ['${extensionPath}/mcp/maestro-server.js'],
         cwd: '${extensionPath}',
         env: {
-          MAESTRO_RUNTIME: runtime,
           MAESTRO_WORKSPACE_PATH: '${workspacePath}',
         },
       },
@@ -268,9 +267,6 @@ const METADATA_BUILDERS = {
         maestro: {
           command: 'node',
           args: ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
-          env: {
-            MAESTRO_RUNTIME: 'antigravity',
-          },
         },
       },
     }],
@@ -358,16 +354,13 @@ const METADATA_BUILDERS = {
         maestro: {
           command: 'npx',
           args: ['-y', '-p', `${context.packageName}@${context.version}`, 'maestro-mcp-server'],
-          env: {
-            MAESTRO_RUNTIME: 'codex',
-          },
         },
       },
     }],
     [`plugins/maestro/${CODEX_APPS_PATH}`, { apps: {} }],
   ],
   qwen: (context) => [
-    ['qwen-extension.json', buildExtensionManifest(context, 'qwen', 'QWEN.md')],
+    ['qwen-extension.json', buildExtensionManifest(context, 'QWEN.md')],
     ['qwen/hooks.json', buildExtensionHooks('qwen', {
       SessionStart: 'session-start',
       SubagentStart: 'before-agent',

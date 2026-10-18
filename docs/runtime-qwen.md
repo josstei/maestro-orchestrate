@@ -16,13 +16,12 @@ The repo root is Qwen Code's extension directory and the output directory (`./`)
   "args": ["${extensionPath}/mcp/maestro-server.js"],
   "cwd": "${extensionPath}",
   "env": {
-    "MAESTRO_RUNTIME": "qwen",
     "MAESTRO_WORKSPACE_PATH": "${workspacePath}"
   }
 }
 ```
 
-The public server at `mcp/maestro-server.js` is a thin adapter. The Qwen manifest launches it with `MAESTRO_RUNTIME=qwen`; the adapter also defaults to Qwen if that env var is absent. It requires canonical `src/mcp/maestro-server.js` directly and runs the Qwen runtime against shared source in `src/`. Content tools read from the filesystem only.
+The public server at `mcp/maestro-server.js` is a thin adapter. It requires canonical `src/mcp/maestro-server.js` directly and runs against shared source in `src/`. Content tools read from the filesystem only. The server identifies the Qwen runtime from the `clientInfo.name` Qwen Code sends in `initialize` (`qwen-cli-mcp-client-<server key>`, which is `qwen-cli-mcp-client-maestro` for this extension's `maestro` server); setting `MAESTRO_RUNTIME` overrides that.
 
 ## Agent Naming
 
@@ -179,7 +178,7 @@ The Qwen extension also owns these repo-root artifacts:
 agents/                    [generated] 39 agent stubs (snake_case, Qwen tool names)
 commands/maestro/          [generated] 12 TOML commands
 policies/                  [generated] maestro.toml policy pack
-mcp/                       maestro-server.js shim (hand-maintained, defaults to MAESTRO_RUNTIME=qwen)
+mcp/                       maestro-server.js shim (hand-maintained)
 hooks/                     hook-runner.js shim (hand-maintained)
 qwen-extension.json        [generated] extension manifest
 QWEN.md                    hand-maintained context file

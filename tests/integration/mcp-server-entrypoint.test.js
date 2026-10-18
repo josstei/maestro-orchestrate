@@ -20,28 +20,28 @@ async function assertServerStarts(options) {
 
 const ENTRYPOINTS = [
   {
-    title: 'starts the qwen runtime server from the repo-root entrypoint without external SDK installation',
+    title: 'starts the server from the repo-root (Qwen) entrypoint without external SDK installation',
     relativePath: 'mcp/maestro-server.js',
   },
   {
-    title: 'starts the claude runtime server without external SDK installation',
+    title: 'starts the server from the Claude plugin shim without external SDK installation',
     relativePath: 'claude/mcp/maestro-server.js',
   },
   {
-    title: 'starts the installed claude runtime server from an isolated plugin bundle',
+    title: 'starts the server from an isolated installed Claude plugin bundle',
     relativePath: 'mcp/maestro-server.js',
     isolatedPlugin: withIsolatedClaudePlugin,
   },
   {
-    title: 'starts the codex runtime server via the maestro-mcp-server bin',
+    title: 'starts the server via the Codex maestro-mcp-server bin',
     relativePath: 'bin/maestro-mcp-server.js',
   },
   {
-    title: 'starts the antigravity runtime server from the repo plugin shim',
+    title: 'starts the server from the Antigravity repo plugin shim',
     relativePath: 'antigravity/mcp/maestro-server.js',
   },
   {
-    title: 'starts the installed antigravity runtime server from an isolated plugin install',
+    title: 'starts the server from an isolated installed Antigravity plugin',
     relativePath: 'mcp/maestro-server.js',
     isolatedPlugin: withIsolatedAntigravityPlugin,
   },

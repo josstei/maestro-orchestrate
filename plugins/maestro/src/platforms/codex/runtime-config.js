@@ -6,6 +6,10 @@ module.exports = {
 
   agentNaming: 'kebab-case',
 
+  // clientInfo.name Codex sends in MCP initialize; the server identifies its
+  // host runtime by it.
+  mcpClientNames: ['codex-mcp-client'],
+
   mcpPrefix: 'mcp__maestro_maestro__',
   planModeNative: false,
 

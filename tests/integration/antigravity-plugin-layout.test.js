@@ -110,7 +110,6 @@ describe('antigravity plugin layout', () => {
       maestro: {
         command: 'node',
         args: ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
-        env: { MAESTRO_RUNTIME: 'antigravity' },
       },
     });
 

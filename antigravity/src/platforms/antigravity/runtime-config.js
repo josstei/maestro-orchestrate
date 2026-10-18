@@ -9,6 +9,10 @@ module.exports = {
 
   agentNaming: 'kebab-case',
 
+  // clientInfo.name Antigravity's MCP client sends in initialize (observed
+  // from the agy 1.4.2 CLI); the server identifies its host runtime by it.
+  mcpClientNames: ['antigravity-client'],
+
   // Antigravity registers a plugin's MCP server as `<plugin dir>_<server>`
   // (maestro_maestro) and exposes each tool marked always-loaded (mcpToolMeta)
   // as a native tool named `mcp_<server>_<tool>`.

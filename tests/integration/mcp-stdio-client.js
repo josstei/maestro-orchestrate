@@ -13,6 +13,9 @@ function spawnMcpServer(options) {
   const cwd = options.cwd || ROOT;
   const relativePath = options.relativePath;
   const startupTimeoutMs = options.startupTimeoutMs || DEFAULT_STARTUP_TIMEOUT_MS;
+  // The server identifies its host runtime from this name unless
+  // MAESTRO_RUNTIME is set; 'maestro-test' is not a host it recognizes.
+  const clientInfo = options.clientInfo || { name: 'maestro-test', version: '0.0.0' };
   const roots = Array.isArray(options.roots)
     ? options.roots
     : [
@@ -25,6 +28,8 @@ function spawnMcpServer(options) {
     cwd,
     env: {
       ...process.env,
+      // Cleared so the runtime comes from clientInfo unless a test sets it.
+      MAESTRO_RUNTIME: '',
       ...(options.env || {}),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -184,10 +189,7 @@ function spawnMcpServer(options) {
           listChanged: false,
         },
       },
-      clientInfo: {
-        name: 'maestro-test',
-        version: '0.0.0',
-      },
+      clientInfo,
     });
 
     sendNotification('notifications/initialized');

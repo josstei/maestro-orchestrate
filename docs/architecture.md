@@ -82,6 +82,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `agentNaming` | `kebab-case` | `kebab-case` | `kebab-case` | `snake_case` |
 | `agentPrefix` | — | `maestro:` | — | — |
 | `mcpPrefix` | `mcp_maestro_maestro_` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |
+| `mcpClientNames` | `antigravity-client` | `claude-code` | `codex-mcp-client` | `qwen-cli-mcp-client-*` |
 | `mcpToolMeta` | `{ "antigravity/alwaysLoad": true }` | — | — | — |
 | `planModeNative` | `false` | `true` | `false` | `false` |
 | `delegation.pattern` | `invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
@@ -157,12 +158,14 @@ This makes the source-of-truth rules explicit:
 
 ### MCP Server Packaging
 
-Qwen uses the repo-root public entrypoint at `mcp/maestro-server.js`, Antigravity and Claude keep runtime-local public entrypoints at `antigravity/mcp/maestro-server.js` and `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js`:
+Qwen uses the repo-root public entrypoint at `mcp/maestro-server.js`, Antigravity and Claude keep runtime-local public entrypoints at `antigravity/mcp/maestro-server.js` and `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js` that only locate `src/`; none names a runtime:
 
-- **Qwen** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=qwen` from `qwen-extension.json` (and defaults to `qwen` when that variable is unset), directly requires `../src/mcp/maestro-server` and calls `.main()`
-- **Antigravity** (`antigravity/mcp/maestro-server.js`): launched as `node ${PLUGIN_ROOT}/mcp/maestro-server.js` with `MAESTRO_RUNTIME=antigravity` from `antigravity/mcp_config.json` (and defaults to `antigravity` when that variable is unset), uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
-- **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
-- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
+- **Qwen** (`mcp/maestro-server.js`): launched from `qwen-extension.json`, directly requires `../src/mcp/maestro-server` and calls `.main()`
+- **Antigravity** (`antigravity/mcp/maestro-server.js`): launched as `node ${PLUGIN_ROOT}/mcp/maestro-server.js` from `antigravity/mcp_config.json`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
+- **Claude** (`claude/mcp/maestro-server.js`): uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
+- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
+
+The server identifies its host runtime instead of assuming one. It takes `MAESTRO_RUNTIME` when that variable is set (an unknown value stops the server at startup); otherwise it takes the runtime whose config lists, in `mcpClientNames`, the `clientInfo.name` the MCP client sends in `initialize` (an entry ending in `*` matches any name with that prefix, since Qwen Code appends the server's key). There is no default runtime: when neither identifies one, the server still lists its tools, logs the reason, and fails every tool call with `RUNTIME_UNIDENTIFIED` and a recovery hint naming the valid `MAESTRO_RUNTIME` values. `findRuntimeConfigForClient()` in `src/mcp/runtime/runtime-config-map.js` does the lookup, and each client name may belong to one runtime only.
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 

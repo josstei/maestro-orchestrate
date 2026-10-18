@@ -15,12 +15,11 @@ The Codex plugin lives in `plugins/maestro/`.
 ```json
 {
   "command": "npx",
-  "args": ["-y", "-p", "@josstei/maestro@<package version>", "maestro-mcp-server"],
-  "env": { "MAESTRO_RUNTIME": "codex" }
+  "args": ["-y", "-p", "@josstei/maestro@<package version>", "maestro-mcp-server"]
 }
 ```
 
-Codex plugin manifests lack a plugin-root substitution variable (unlike Antigravity's `${PLUGIN_ROOT}`, Claude's `${CLAUDE_PLUGIN_ROOT}`, or Qwen's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
+Codex plugin manifests lack a plugin-root substitution variable (unlike Antigravity's `${PLUGIN_ROOT}`, Claude's `${CLAUDE_PLUGIN_ROOT}`, or Qwen's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_EXTENSION_PATH` to the package root and delegates to `src/mcp/maestro-server.js`. The server identifies the Codex runtime from the `clientInfo.name` Codex sends in `initialize` (`codex-mcp-client`); setting `MAESTRO_RUNTIME` overrides that.
 
 Workspace resolution follows the shared MCP contract: tools that need a workspace fail with `WORKSPACE_NOT_INITIALIZED` until the orchestrator calls `initialize_workspace(workspace_path)`. To suggest that path, `get_runtime_context` returns a `workspace_suggestion` taken from, in order:
 - `MAESTRO_WORKSPACE_PATH`, when the host exports it

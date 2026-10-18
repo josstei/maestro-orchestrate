@@ -8,23 +8,19 @@ const path = require('node:path');
 const { ROOT } = require('./helpers');
 
 describe('thin entrypoint design', () => {
-  it('each MCP entrypoint sets its own MAESTRO_RUNTIME default without the canonical-source helper', () => {
-    const expectations = [
-      { file: 'mcp/maestro-server.js', runtime: 'qwen' },
-      { file: 'claude/mcp/maestro-server.js', runtime: 'claude' },
-      { file: 'bin/maestro-mcp-server.js', runtime: 'codex' },
-      { file: 'antigravity/mcp/maestro-server.js', runtime: 'antigravity' },
-    ];
-
-    for (const { file, runtime } of expectations) {
+  it('no MCP entrypoint names a runtime or uses the canonical-source helper', () => {
+    // The server identifies its host runtime from the MCP client, so an
+    // entrypoint only locates src/.
+    for (const file of [
+      'mcp/maestro-server.js',
+      'claude/mcp/maestro-server.js',
+      'bin/maestro-mcp-server.js',
+      'antigravity/mcp/maestro-server.js',
+    ]) {
       const content = fs.readFileSync(path.join(ROOT, file), 'utf8');
       assert.ok(
-        content.includes('MAESTRO_RUNTIME'),
-        `Expected ${file} to set MAESTRO_RUNTIME`
-      );
-      assert.ok(
-        content.includes(`'${runtime}'`),
-        `Expected ${file} to default MAESTRO_RUNTIME to '${runtime}'`
+        !content.includes('MAESTRO_RUNTIME'),
+        `Expected ${file} to leave MAESTRO_RUNTIME to the host`
       );
       assert.ok(
         !content.includes("require('./canonical-source')"),

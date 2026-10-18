@@ -8,6 +8,10 @@ module.exports = {
 
   agentNaming: 'snake_case',
 
+  // Qwen Code sends clientInfo.name `qwen-cli-mcp-client-<server key>` in MCP
+  // initialize; the server identifies its host runtime by it.
+  mcpClientNames: ['qwen-cli-mcp-client-*'],
+
   mcpPrefix: '',
   planModeNative: false,
 

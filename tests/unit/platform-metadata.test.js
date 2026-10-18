@@ -83,15 +83,10 @@ describe('platform metadata generation', () => {
 
     assert.deepEqual([...outputs.keys()].sort(), expectedPaths);
     assert.equal(outputs.get('qwen-extension.json').version, PACKAGE_FIXTURE.version);
-    assert.equal(
-      outputs.get('qwen-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
-      'qwen'
-    );
+    assert.deepEqual(outputs.get('qwen-extension.json').mcpServers.maestro.env, {
+      MAESTRO_WORKSPACE_PATH: '${workspacePath}',
+    });
     assert.equal(outputs.get('antigravity/plugin.json').version, PACKAGE_FIXTURE.version);
-    assert.equal(
-      outputs.get('antigravity/mcp_config.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
-      'antigravity'
-    );
     assert.equal(outputs.get('claude/.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(
@@ -169,7 +164,6 @@ describe('platform metadata generation', () => {
         maestro: {
           command: 'node',
           args: ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
-          env: { MAESTRO_RUNTIME: 'antigravity' },
         },
       },
     });
@@ -207,6 +201,16 @@ describe('platform metadata generation', () => {
       const servers = JSON.parse(output.content).mcpServers || {};
       for (const server of Object.values(servers)) {
         assert.notEqual(server.env && server.env.MAESTRO_RUNTIME, 'gemini', output.outputPath);
+      }
+    }
+  });
+
+  it('leaves the runtime to the MCP server, which identifies its host', () => {
+    const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
+
+    for (const output of outputs.filter((entry) => entry.outputPath.endsWith('.json'))) {
+      for (const server of Object.values(JSON.parse(output.content).mcpServers || {})) {
+        assert.ok(!(server.env && 'MAESTRO_RUNTIME' in server.env), `${output.outputPath} names a runtime`);
       }
     }
   });

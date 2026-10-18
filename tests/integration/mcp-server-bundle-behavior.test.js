@@ -14,6 +14,16 @@ const { spawnMcpServer } = require('./mcp-stdio-client');
 
 const ROOTS_TIMEOUT_MS = 5000;
 
+// The clientInfo each host sends in `initialize`, from which the server
+// identifies its runtime.
+const HOST_CLIENTS = Object.freeze({
+  antigravity: { name: 'antigravity-client', version: 'v1.0.0' },
+  claude: { name: 'claude-code', version: '2.1.303' },
+  codex: { name: 'codex-mcp-client', title: 'Codex', version: '0.163.0' },
+  // Qwen Code suffixes the server's key in mcpServers.
+  qwen: { name: 'qwen-cli-mcp-client-maestro', version: '0.0.1' },
+});
+
 async function withServer(options, fn) {
   const client = spawnMcpServer(options);
   try {
@@ -121,61 +131,54 @@ function spawnAntigravityClient({ cwd, roots }) {
  * Runs `fn` against a server booted from every runtime bundle: the Qwen
  * (repo-root), Claude, Codex and Antigravity entrypoints in the repo plus
  * isolated copies of the installed Claude and Antigravity plugins. Each
- * bundle names the `runtime` its entrypoint defaults MAESTRO_RUNTIME to and
- * the `expectSkill` text its delegation skill content must contain.
- * MAESTRO_RUNTIME is cleared so each entrypoint applies its own default.
+ * bundle is driven by the host that launches it, named by `runtime` and
+ * identified from that host's clientInfo, and names the `expectSkill` text
+ * its delegation skill content must contain.
  */
 async function forEachRuntimeBundle(fn) {
   await withIsolatedClaudePlugin((pluginRoot) =>
     withIsolatedAntigravityPlugin(async (antigravityPluginRoot) => {
-      const env = { MAESTRO_RUNTIME: '' };
       const bundles = [
         {
           cwd: ROOT,
           relativePath: 'mcp/maestro-server.js',
-          env,
           runtime: 'qwen',
           expectSkill: '# Delegation Skill',
         },
         {
           cwd: ROOT,
           relativePath: 'claude/mcp/maestro-server.js',
-          env,
           runtime: 'claude',
           expectSkill: 'user-invocable: false',
         },
         {
           cwd: ROOT,
           relativePath: 'bin/maestro-mcp-server.js',
-          env,
           runtime: 'codex',
           expectSkill: '# Delegation Skill',
         },
         {
           cwd: pluginRoot,
           relativePath: 'mcp/maestro-server.js',
-          env,
           runtime: 'claude',
           expectSkill: 'user-invocable: false',
         },
         {
           cwd: ROOT,
           relativePath: 'antigravity/mcp/maestro-server.js',
-          env,
           runtime: 'antigravity',
           expectSkill: '# Delegation Skill',
         },
         {
           cwd: antigravityPluginRoot,
           relativePath: 'mcp/maestro-server.js',
-          env,
           runtime: 'antigravity',
           expectSkill: '# Delegation Skill',
         },
       ];
 
       for (const bundle of bundles) {
-        await withServer(bundle, (client) => fn(client, bundle));
+        await withServer({ ...bundle, clientInfo: HOST_CLIENTS[bundle.runtime] }, (client) => fn(client, bundle));
       }
     })
   );
@@ -183,7 +186,7 @@ async function forEachRuntimeBundle(fn) {
 
 describe('mcp server bundle behavior', () => {
   it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
-    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.qwen }, async (client) => {
       const result = await client.callTool('get_agent', { agents: [] });
 
       assert.equal(result.raw.isError, true);
@@ -196,19 +199,50 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
-  it('falls back to the claude runtime when MAESTRO_RUNTIME is empty', async () => {
-    // antigravity is the first discovered runtime, but the fallback is pinned.
-    await withServer(
-      { cwd: ROOT, relativePath: 'src/mcp/maestro-server.js', env: { MAESTRO_RUNTIME: '' } },
-      async (client) => {
-        const result = await client.callTool('get_runtime_context');
+  it('assumes no runtime for a client it does not recognize and fails every tool call', async () => {
+    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+      assert.ok((await client.listTools()).length > 0);
 
-        assert.equal(result.parsed.runtime, 'claude');
+      for (const name of ['get_runtime_context', 'get_skill_content']) {
+        const result = await client.callTool(name, { resources: ['delegation'] });
+
+        assert.equal(result.raw.isError, true, name);
+        assert.equal(result.parsed.code, 'RUNTIME_UNIDENTIFIED', name);
+        assert.match(result.parsed.error, /MCP client "maestro-test" is not one Maestro recognizes/);
+        assert.equal(
+          result.parsed.recovery_hint,
+          'Set MAESTRO_RUNTIME to one of: antigravity, claude, codex, qwen.'
+        );
+      }
+      assert.match(client.stderr, /\[error\] maestro: Maestro could not identify its host runtime/);
+    });
+  });
+
+  it('serves the runtime MAESTRO_RUNTIME names over the one the client identifies', async () => {
+    await withServer(
+      {
+        cwd: ROOT,
+        relativePath: 'mcp/maestro-server.js',
+        env: { MAESTRO_RUNTIME: 'codex' },
+        clientInfo: HOST_CLIENTS.claude,
+      },
+      async (client) => {
+        assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, 'codex');
+        assert.match(client.stderr, /Runtime codex, identified from MAESTRO_RUNTIME/);
       }
     );
   });
 
-  it('serves the runtime context each bundle entrypoint defaults to', async () => {
+  it('serves the runtime of whichever host connects, whatever bundle it launches', async () => {
+    for (const [runtime, clientInfo] of Object.entries(HOST_CLIENTS)) {
+      await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
+        assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, runtime);
+        assert.match(client.stderr, new RegExp(`Runtime ${runtime}, identified from MCP client "${clientInfo.name}"`));
+      });
+    }
+  });
+
+  it('serves the runtime of the host that launches each bundle', async () => {
     await forEachRuntimeBundle(async (client, bundle) => {
       const result = await client.callTool('get_runtime_context');
 
@@ -279,6 +313,7 @@ describe('mcp server bundle behavior', () => {
         cwd: spawnCwd,
         // Absolute, because the server is spawned from a cwd outside the repo.
         relativePath: path.join(ROOT, 'bin', 'maestro-mcp-server.js'),
+        clientInfo: HOST_CLIENTS.codex,
         roots: [{ uri: pathToFileURL(workspaceRoot).href, name: 'workspace' }],
       },
       async (client) => {
@@ -370,7 +405,7 @@ describe('mcp server bundle behavior', () => {
         await client.request('initialize', {
           protocolVersion: '2025-06-18',
           capabilities: { roots: { listChanged: true } },
-          clientInfo: { name: 'antigravity-test', version: '0.0.0' },
+          clientInfo: HOST_CLIENTS.antigravity,
         });
         assert.equal((await client.callTool('get_runtime_context')).workspace_suggestion, null);
 

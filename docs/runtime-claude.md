@@ -23,7 +23,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 }
 ```
 
-The public server at `claude/mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=claude`, prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `claude/src/mcp/maestro-server.js` for detached marketplace or copied installs. Content tools read from the filesystem only.
+The public server at `claude/mcp/maestro-server.js` is a thin adapter. It prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `claude/src/mcp/maestro-server.js` for detached marketplace or copied installs. Content tools read from the filesystem only. The server identifies the Claude runtime from the `clientInfo.name` Claude Code sends in `initialize` (`claude-code`); setting `MAESTRO_RUNTIME` overrides that.
 
 ## Agent Naming
 
