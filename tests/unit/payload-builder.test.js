@@ -72,7 +72,7 @@ describe('buildPayloadAllowlist', () => {
   });
 
   it('adds only one additional entry beyond the base', () => {
-    const result = buildPayloadAllowlist('gemini');
+    const result = buildPayloadAllowlist('qwen');
     assert.equal(result.length, DETACHED_PAYLOAD_BASE_ALLOWLIST.length + 1);
   });
 
@@ -176,8 +176,8 @@ describe('buildDetachedPayload', () => {
     writeTree(srcDir, 'platforms/claude/runtime-config.js', 'claude config');
     writeTree(srcDir, 'platforms/claude/hook-adapter.js', 'claude adapter');
     writeTree(srcDir, 'platforms/claude/policy-enforcer.js', 'claude enforcer');
-    writeTree(srcDir, 'platforms/gemini/runtime-config.js', 'gemini config');
-    writeTree(srcDir, 'platforms/gemini/hook-adapter.js', 'gemini adapter');
+    writeTree(srcDir, 'platforms/qwen/runtime-config.js', 'qwen config');
+    writeTree(srcDir, 'platforms/qwen/hook-adapter.js', 'qwen adapter');
     writeTree(srcDir, 'platforms/codex/runtime-config.js', 'codex config');
 
     buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
@@ -188,7 +188,7 @@ describe('buildDetachedPayload', () => {
     assert.ok(fs.existsSync(path.join(platformsDir, 'claude', 'hook-adapter.js')));
     assert.ok(fs.existsSync(path.join(platformsDir, 'claude', 'policy-enforcer.js')));
     assert.ok(!fs.existsSync(path.join(platformsDir, 'metadata.js')));
-    assert.ok(!fs.existsSync(path.join(platformsDir, 'gemini')));
+    assert.ok(!fs.existsSync(path.join(platformsDir, 'qwen')));
     assert.ok(!fs.existsSync(path.join(platformsDir, 'codex')));
   });
 

@@ -11,7 +11,7 @@ const { makeTempDir } = require('../support/fs');
 
 function createFullServer() {
   return createServer({
-    runtimeConfig: { name: 'gemini' },
+    runtimeConfig: { name: 'qwen' },
     services: {},
     toolPacks: DEFAULT_TOOL_PACKS,
   });
@@ -89,21 +89,23 @@ describe('workspace requirement contract', () => {
 });
 
 describe('initialize_workspace contract', () => {
-  it('rejects initialize_workspace with a path inside a plugin cache', async () => {
-    const cacheParent = makeTempDir('codex-cache-parent-');
-    const cache = path.join(cacheParent, '.codex', 'plugins', 'maestro');
-    fs.mkdirSync(cache, { recursive: true });
+  for (const host of ['codex', 'claude']) {
+    it(`rejects initialize_workspace with a path inside a ${host} plugin cache`, async () => {
+      const cacheParent = makeTempDir(`${host}-cache-parent-`);
+      const cache = path.join(cacheParent, `.${host}`, 'plugins', 'maestro');
+      fs.mkdirSync(cache, { recursive: true });
 
-    const server = createFullServer();
+      const server = createFullServer();
 
-    const outcome = await server.callTool(
-      'initialize_workspace',
-      { workspace_path: cache },
-      cache
-    );
-    assert.equal(outcome.ok, false);
-    assert.match(outcome.error || '', /extension cache/i);
-  });
+      const outcome = await server.callTool(
+        'initialize_workspace',
+        { workspace_path: cache },
+        cache
+      );
+      assert.equal(outcome.ok, false);
+      assert.match(outcome.error || '', /extension cache/i);
+    });
+  }
 
   it('rejects initialize_workspace with a missing workspace_path', async () => {
     const server = createFullServer();

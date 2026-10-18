@@ -6,7 +6,7 @@ const skillDiscoveryStub = require('../../src/transforms/skill-discovery-stub');
 
 describe('skill-discovery-stub transform', () => {
   const claudeRuntime = { name: 'claude' };
-  const geminiRuntime = { name: 'gemini' };
+  const codexRuntime = { name: 'codex' };
 
   const skillContent = [
     '---',
@@ -31,8 +31,8 @@ describe('skill-discovery-stub transform', () => {
     assert.ok(result.includes('user-invocable: false'));
   });
 
-  it('does not add user-invocable for gemini runtime', () => {
-    const result = skillDiscoveryStub(skillContent, geminiRuntime);
+  it('does not add user-invocable for codex runtime', () => {
+    const result = skillDiscoveryStub(skillContent, codexRuntime);
 
     assert.ok(!result.includes('user-invocable'));
   });

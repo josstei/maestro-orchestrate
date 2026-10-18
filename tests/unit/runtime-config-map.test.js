@@ -10,7 +10,7 @@ describe('runtime-config-map', () => {
   it('discovers runtimes from platforms/ directory', () => {
     const { getRuntimeConfig } = require(configMapPath);
 
-    const expected = ['claude', 'codex', 'gemini', 'qwen'];
+    const expected = ['claude', 'codex', 'qwen'];
     for (const name of expected) {
       const config = getRuntimeConfig(name);
       assert.equal(config.name, name, `Expected config.name to be '${name}'`);
@@ -19,7 +19,16 @@ describe('runtime-config-map', () => {
 
   it('lists runtime names alphabetically, so claude is the first discovered runtime', () => {
     const { RUNTIME_NAMES } = require(configMapPath);
-    assert.deepEqual(RUNTIME_NAMES, ['claude', 'codex', 'gemini', 'qwen']);
+    assert.deepEqual(RUNTIME_NAMES, ['claude', 'codex', 'qwen']);
+  });
+
+  it('no longer discovers a gemini runtime', () => {
+    const { RUNTIME_NAMES, getRuntimeConfig } = require(configMapPath);
+    assert.equal(RUNTIME_NAMES.includes('gemini'), false);
+    assert.throws(
+      () => getRuntimeConfig('gemini'),
+      /Unknown runtime config: gemini/
+    );
   });
 
   it('getRuntimeConfig returns the platform runtime-config module', () => {

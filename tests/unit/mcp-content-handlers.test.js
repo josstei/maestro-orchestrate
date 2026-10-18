@@ -40,7 +40,7 @@ describe('get_skill_content handler', () => {
       path.join(refDir, 'architecture.md'),
       [
         '<!-- @feature scriptBasedStateContract -->',
-        'Gemini uses ${extensionPath} and code-reviewer.',
+        'Qwen uses ${extensionPath} and code-reviewer.',
         '<!-- @end-feature -->',
         '<!-- @feature codexStateContract -->',
         'Codex keeps code-reviewer.',
@@ -50,15 +50,15 @@ describe('get_skill_content handler', () => {
     );
 
     const handler = createSkillContentHandler({
-      ...getRuntimeConfig('gemini'),
+      ...getRuntimeConfig('qwen'),
       env: { extensionPath: 'PLUGIN_ROOT' },
     }, path.join(root, 'src'));
 
     const result = handler({ resources: ['architecture'] });
     const content = result.contents.architecture;
 
-    assert.ok(content.includes('${PLUGIN_ROOT}'));
-    assert.ok(content.includes('code_reviewer'));
+    assert.ok(content.includes('Qwen uses ${PLUGIN_ROOT} and code_reviewer.'));
+    assert.ok(!content.includes('code-reviewer'));
     assert.ok(!content.includes('Codex keeps'));
   });
 
@@ -73,7 +73,7 @@ describe('get_skill_content handler', () => {
     );
 
     const handler = createSkillContentHandler(
-      getRuntimeConfig('gemini'),
+      getRuntimeConfig('qwen'),
       path.join(root, 'src')
     );
 
@@ -139,17 +139,17 @@ describe('get_agent handler', () => {
       ].join('\n')
     );
 
-    // Gemini runtime: agentNaming is 'snake_case'
-    const geminiHandler = createAgentHandler(
-      getRuntimeConfig('gemini'),
+    // Qwen runtime: agentNaming is 'snake_case'
+    const qwenHandler = createAgentHandler(
+      getRuntimeConfig('qwen'),
       path.join(root, 'src')
     );
-    const geminiResult = geminiHandler({ agents: ['code-reviewer'] });
+    const qwenResult = qwenHandler({ agents: ['code-reviewer'] });
 
     assert.equal(
-      geminiResult.agents['code-reviewer'].tool_name,
+      qwenResult.agents['code-reviewer'].tool_name,
       'code_reviewer',
-      'Gemini tool_name should be snake_case'
+      'Qwen tool_name should be snake_case'
     );
 
     // Claude runtime: agentNaming is 'kebab-case'
@@ -166,7 +166,7 @@ describe('get_agent handler', () => {
     );
   });
 
-  it('replays Gemini ux_designer delegation scenario end-to-end', () => {
+  it('replays a snake_case ux_designer delegation scenario end-to-end on qwen', () => {
     const root = makeTempDir('maestro-replay-');
     writeAgentFixture(
       path.join(root, 'src'),
@@ -182,11 +182,11 @@ describe('get_agent handler', () => {
     );
 
     const handler = createAgentHandler(
-      getRuntimeConfig('gemini'),
+      getRuntimeConfig('qwen'),
       path.join(root, 'src')
     );
 
-    // Simulate what the Gemini orchestrator did: called with snake_case from plan
+    // Simulate a snake_case orchestrator calling with the agent name from the plan
     const result = handler({ agents: ['ux_designer'] });
 
     // Should succeed (not error like the original bug)
@@ -197,10 +197,10 @@ describe('get_agent handler', () => {
     assert.ok(agent, 'agent should be returned keyed by ux_designer');
     assert.ok(agent.body.includes('UX Designer methodology.'));
 
-    // tool_name should be the Gemini dispatch name
+    // tool_name should be the Qwen dispatch name
     assert.equal(agent.tool_name, 'ux_designer');
 
-    // Tools should be runtime-mapped for Gemini
-    assert.deepEqual(agent.tools, ['read_file', 'write_file', 'replace']);
+    // Tools should be runtime-mapped for Qwen (replace -> edit)
+    assert.deepEqual(agent.tools, ['read_file', 'write_file', 'edit']);
   });
 });

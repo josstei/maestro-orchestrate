@@ -2,8 +2,9 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 
-const { withIsolatedClaudePlugin } = require('./helpers');
+const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
 const { spawnMcpServer } = require('./mcp-stdio-client');
 
 async function assertServerStarts(options) {
@@ -19,7 +20,7 @@ async function assertServerStarts(options) {
 
 const ENTRYPOINTS = [
   {
-    title: 'starts the gemini runtime server without external SDK installation',
+    title: 'starts the qwen runtime server from the repo-root entrypoint without external SDK installation',
     relativePath: 'mcp/maestro-server.js',
   },
   {
@@ -47,4 +48,17 @@ describe('mcp server entrypoint startup', () => {
         : assertServerStarts({ relativePath })
     );
   }
+
+  it('refuses to start for the removed gemini runtime', () => {
+    const result = spawnSync(process.execPath, ['mcp/maestro-server.js'], {
+      cwd: ROOT,
+      env: { ...process.env, MAESTRO_RUNTIME: 'gemini' },
+      input: '',
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Error: Unknown runtime config: gemini/);
+    assert.equal(result.stdout, '');
+  });
 });

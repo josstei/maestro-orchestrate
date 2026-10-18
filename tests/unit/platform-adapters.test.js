@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const claudeAdapter = require('../../src/platforms/claude/hook-adapter');
-const geminiAdapter = require('../../src/platforms/gemini/hook-adapter');
 const qwenAdapter = require('../../src/platforms/qwen/hook-adapter');
 
 const PLATFORMS_DIR = path.resolve(__dirname, '../../src/platforms');
@@ -14,8 +13,12 @@ const ADAPTER_RUNTIMES = fs.readdirSync(PLATFORMS_DIR)
   .sort();
 
 describe('hook adapter contract', () => {
-  it('ships hook adapters for claude, gemini and qwen only', () => {
-    assert.deepEqual(ADAPTER_RUNTIMES, ['claude', 'gemini', 'qwen']);
+  it('ships hook adapters for claude and qwen only', () => {
+    assert.deepEqual(ADAPTER_RUNTIMES, ['claude', 'qwen']);
+  });
+
+  it('no longer ships a gemini platform directory', () => {
+    assert.equal(fs.existsSync(path.join(PLATFORMS_DIR, 'gemini')), false);
   });
 
   for (const runtime of ADAPTER_RUNTIMES) {
@@ -127,89 +130,6 @@ describe('claude hook-adapter', () => {
   });
 });
 
-describe('gemini hook-adapter', () => {
-  describe('normalizeInput', () => {
-    it('maps session_id and cwd', () => {
-      const raw = {
-        session_id: 'xyz-789',
-        cwd: '/workspace/app',
-        hook_event_name: 'BeforeAgent',
-      };
-
-      const result = geminiAdapter.normalizeInput(raw);
-
-      assert.equal(result.sessionId, 'xyz-789');
-      assert.equal(result.cwd, '/workspace/app');
-    });
-
-    it('maps prompt to agentInput and prompt_response to agentResult', () => {
-      const raw = {
-        prompt: 'Write the implementation.',
-        prompt_response: 'Here is the implementation.',
-      };
-
-      const result = geminiAdapter.normalizeInput(raw);
-
-      assert.equal(result.agentInput, 'Write the implementation.');
-      assert.equal(result.agentResult, 'Here is the implementation.');
-    });
-
-    it('maps stop_hook_active boolean true to stopHookActive true', () => {
-      const result = geminiAdapter.normalizeInput({ stop_hook_active: true });
-
-      assert.equal(result.stopHookActive, true);
-    });
-
-    it('maps stop_hook_active string "true" to stopHookActive true', () => {
-      const result = geminiAdapter.normalizeInput({ stop_hook_active: 'true' });
-
-      assert.equal(result.stopHookActive, true);
-    });
-
-    it('sets agentName to null always', () => {
-      const result = geminiAdapter.normalizeInput({ tool_input: { subagent_type: 'anything' } });
-
-      assert.equal(result.agentName, null);
-    });
-  });
-
-  describe('formatOutput', () => {
-    it('maps deny action to { continue: false }', () => {
-      const result = geminiAdapter.formatOutput({ action: 'deny' });
-
-      assert.equal(result.continue, false);
-    });
-
-    it('maps allow action to { continue: true }', () => {
-      const result = geminiAdapter.formatOutput({ action: 'allow' });
-
-      assert.equal(result.continue, true);
-    });
-
-    it('includes systemMessage from result.message or result.reason', () => {
-      const withMessage = geminiAdapter.formatOutput({ action: 'allow', message: 'OK.' });
-      const withReason = geminiAdapter.formatOutput({ action: 'deny', reason: 'Not allowed.' });
-
-      assert.equal(withMessage.systemMessage, 'OK.');
-      assert.equal(withReason.systemMessage, 'Not allowed.');
-    });
-  });
-
-  describe('errorFallback', () => {
-    it('returns { continue: false }', () => {
-      const result = geminiAdapter.errorFallback();
-
-      assert.deepEqual(result, { continue: false });
-    });
-  });
-
-  describe('getExitCode', () => {
-    it('is not defined, so the hook runner exits 0 for allow and deny results', () => {
-      assert.equal(geminiAdapter.getExitCode, undefined);
-    });
-  });
-});
-
 describe('qwen hook-adapter', () => {
   describe('normalizeInput', () => {
     it('maps session_id and cwd', () => {
@@ -246,6 +166,12 @@ describe('qwen hook-adapter', () => {
       assert.equal(result.agentName, 'coder');
       assert.equal(result.agentInput, null);
       assert.equal(result.agentResult, '## Task Report\nDone.\n\n## Downstream Context\nNext steps.');
+    });
+
+    it('maps stop_hook_active boolean true to stopHookActive true', () => {
+      const result = qwenAdapter.normalizeInput({ stop_hook_active: true });
+
+      assert.equal(result.stopHookActive, true);
     });
 
     it('maps stop_hook_active string "true" to stopHookActive true', () => {

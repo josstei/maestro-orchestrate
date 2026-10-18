@@ -20,8 +20,13 @@ const { ROOT } = require('../support/paths');
 describe('release artifact manifest', () => {
   it('uses an explicit allowlist for required release surfaces', () => {
     const expectedPaths = [
-      'gemini-extension.json',
       'qwen-extension.json',
+      'QWEN.md',
+      'qwen',
+      'commands',
+      'policies',
+      'mcp',
+      'hooks',
       '.claude-plugin/marketplace.json',
       '.agents/plugins/marketplace.json',
       'claude',
@@ -35,6 +40,37 @@ describe('release artifact manifest', () => {
         RELEASE_ARTIFACT_PATHS.includes(expectedPath),
         `Expected release allowlist to include ${expectedPath}`
       );
+    }
+  });
+
+  it('ships no Gemini CLI surfaces', () => {
+    const removedPaths = [
+      'gemini-extension.json',
+      'GEMINI.md',
+      'agents',
+      'agents/coder.md',
+      'docs/runtime-gemini.md',
+    ];
+
+    for (const removedPath of removedPaths) {
+      assert.equal(
+        isReleaseArtifactPathAllowed(removedPath),
+        false,
+        `${removedPath} must not be allowlisted`
+      );
+    }
+    for (const releasePath of RELEASE_ARTIFACT_PATHS) {
+      assert.doesNotMatch(releasePath, /gemini/i);
+    }
+    for (const removedPath of ['gemini-extension.json', 'GEMINI.md', 'agents', 'hooks/hooks.json', '.geminiignore']) {
+      assert.equal(fs.existsSync(path.join(ROOT, removedPath)), false, `${removedPath} must not exist`);
+    }
+  });
+
+  it('keeps denying local .gemini tool directories', () => {
+    for (const deniedPath of ['.gemini', '.gemini_security']) {
+      assert.ok(DENIED_ARTIFACT_PATHS.includes(deniedPath), `${deniedPath} must stay denied`);
+      assert.equal(isDeniedPath(`${deniedPath}/settings.json`), true);
     }
   });
 

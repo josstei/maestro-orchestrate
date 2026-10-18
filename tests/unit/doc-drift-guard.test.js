@@ -24,8 +24,15 @@ const agentsWithCapabilities = (...capabilities) => AGENT_REGISTRY
   .map((agent) => agent.name)
   .sort();
 const packToolNames = (pack) => require(`../../src/mcp/tool-packs/${pack}`)
-  .createToolPack({ runtimeConfig: getRuntimeConfig('gemini'), services: {} })
+  .createToolPack({ runtimeConfig: getRuntimeConfig('qwen'), services: {} })
   .tools.map((tool) => tool.name);
+/** Every `.md` file under `dir` (repo-relative), walking subdirectories. */
+const listMdRecursive = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })
+  .flatMap((entry) => {
+    const rel = path.posix.join(dir, entry.name);
+    if (entry.isDirectory()) return listMdRecursive(rel);
+    return entry.isFile() && entry.name.endsWith('.md') ? [rel] : [];
+  });
 
 /** The body of `heading` in `surface`, up to the next heading of the same or a higher level. */
 function markdownSection(surface, heading) {
@@ -44,9 +51,7 @@ test('doc-drift: agent-count claim phrase present in user-facing surfaces', () =
     'docs/overview.md',
     'README.md',
     'claude/README.md',
-    'GEMINI.md',
     'QWEN.md',
-    'docs/runtime-gemini.md',
     'docs/runtime-claude.md',
     'docs/runtime-qwen.md',
     'src/references/architecture.md',
@@ -85,12 +90,11 @@ test('doc-drift: GitHub templates include Qwen runtime impact choices', () => {
   }
 });
 
-test('doc-drift: Gemini and Qwen context rosters list every src agent', () => {
-  for (const surface of ['GEMINI.md', 'QWEN.md']) {
-    const body = read(surface);
-    for (const agent of canonicalAgents()) {
-      assert.ok(body.includes(`| \`${toSnake(agent)}\` |`), `${surface}: Agent Roster missing ${toSnake(agent)}`);
-    }
+test('doc-drift: Qwen context roster lists every src agent', () => {
+  const surface = 'QWEN.md';
+  const body = read(surface);
+  for (const agent of canonicalAgents()) {
+    assert.ok(body.includes(`| \`${toSnake(agent)}\` |`), `${surface}: Agent Roster missing ${toSnake(agent)}`);
   }
 });
 
@@ -233,7 +237,7 @@ test('doc-drift: runtime-docs Feature Flags list exactly src/platforms/*/runtime
 });
 
 test('doc-drift: runtime docs use generated-version placeholders', () => {
-  for (const runtime of ['gemini', 'claude', 'codex', 'qwen']) {
+  for (const runtime of RUNTIME_NAMES) {
     const surface = `docs/runtime-${runtime}.md`;
     const body = read(surface);
     assert.ok(
@@ -286,14 +290,11 @@ test('doc-drift: claude/README.md commands use runtime-remapped names', () => {
   }
 });
 
-test('doc-drift: docs/runtime-qwen.md tool mapping has correct Qwen overrides', () => {
+test('doc-drift: docs/runtime-qwen.md tool mapping lists every Qwen runtime-config tool', () => {
   const body = read('docs/runtime-qwen.md');
-  const geminiTools = getRuntimeConfig('gemini').tools;
-  const qwenTools = getRuntimeConfig('qwen').tools;
-  const overrides = Object.keys(qwenTools).filter((canonical) => qwenTools[canonical] !== geminiTools[canonical]);
-  assert.ok(overrides.length > 0, 'src/platforms/qwen/runtime-config.js overrides no Gemini tool mapping');
-  for (const canonical of overrides) {
-    const qwen = qwenTools[canonical];
+  const qwenTools = Object.entries(getRuntimeConfig('qwen').tools);
+  assert.ok(qwenTools.length > 0, 'src/platforms/qwen/runtime-config.js declares no tool mappings');
+  for (const [canonical, qwen] of qwenTools) {
     assert.ok(
       body.includes(`| \`${canonical}\` | \`${qwen}\` |`),
       `docs/runtime-qwen.md: mapping row missing: ${canonical} → ${qwen}`
@@ -301,14 +302,34 @@ test('doc-drift: docs/runtime-qwen.md tool mapping has correct Qwen overrides', 
   }
 });
 
-test('doc-drift: docs/runtime-gemini.md tool mapping lists every Gemini runtime-config tool', () => {
-  const body = read('docs/runtime-gemini.md');
-  for (const [canonical, gemini] of Object.entries(getRuntimeConfig('gemini').tools)) {
-    assert.ok(
-      body.includes(`| \`${canonical}\` | \`${gemini}\` |`),
-      `docs/runtime-gemini.md: mapping row missing: ${canonical} → ${gemini}`
-    );
+test('doc-drift: hand-maintained docs do not advertise the removed Gemini CLI runtime', () => {
+  for (const removed of ['GEMINI.md', 'docs/runtime-gemini.md']) {
+    assert.equal(fs.existsSync(path.join(ROOT, removed)), false, `${removed} should be deleted with the Gemini CLI runtime`);
   }
+  assert.ok(!RUNTIME_NAMES.includes('gemini'), 'src/platforms/gemini/runtime-config.js should not exist');
+
+  // CHANGELOG.md is intentionally excluded: released sections are history.
+  const surfaces = [
+    'README.md',
+    'EXAMPLES.md',
+    'CONTRIBUTING.md',
+    'SECURITY.md',
+    'ARCHITECTURE.md',
+    'OVERVIEW.md',
+    'USAGE.md',
+    'QWEN.md',
+    'claude/README.md',
+    'plugins/maestro/README.md',
+    ...listDir('docs').filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`),
+    ...listDir('.github/ISSUE_TEMPLATE').map((f) => `.github/ISSUE_TEMPLATE/${f}`),
+    '.github/PULL_REQUEST_TEMPLATE.md',
+    ...listMdRecursive('src'),
+  ];
+  assert.ok(surfaces.some((surface) => surface.startsWith('src/')), 'src/ walk found no .md files');
+  const hits = surfaces.flatMap((surface) => read(surface)
+    .split('\n')
+    .flatMap((line, index) => (/gemini/i.test(line) ? [`${surface}:${index + 1}: ${line.trim()}`] : [])));
+  assert.deepEqual(hits, [], `Gemini CLI is no longer supported; remove these mentions:\n${hits.join('\n')}`);
 });
 
 test('doc-drift: served skill and reference agent tables name every src agent', () => {

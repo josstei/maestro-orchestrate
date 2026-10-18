@@ -2,8 +2,13 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const agentStub = require('../../src/transforms/agent-stub');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { parse } = require('../../src/lib/frontmatter');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+
+const SRC_AGENTS_DIR = path.resolve(__dirname, '../../src/agents');
 
 describe('agent-stub transform', () => {
   const canonicalAgent = [
@@ -13,8 +18,6 @@ describe('agent-stub transform', () => {
     'color: blue',
     'tools: [read_file, glob, grep_search]',
     'max_turns: 15',
-    'temperature: 0.2',
-    'timeout_mins: 5',
     '---',
     '',
     '## Methodology',
@@ -28,8 +31,6 @@ describe('agent-stub transform', () => {
     'color: blue',
     'tools: [read_file, glob, grep_search]',
     'max_turns: 15',
-    'temperature: 0.2',
-    'timeout_mins: 5',
     '---',
     '',
     '<example>',
@@ -40,7 +41,6 @@ describe('agent-stub transform', () => {
     'Review code carefully.',
   ].join('\n');
 
-  const geminiRuntime = getRuntimeConfig('gemini');
   const claudeRuntime = getRuntimeConfig('claude');
   const qwenRuntime = getRuntimeConfig('qwen');
 
@@ -70,26 +70,6 @@ describe('agent-stub transform', () => {
     assert.equal(body, expectedBody);
   }
 
-  it('produces gemini frontmatter with kind, temperature, timeout and a kebab-case stub name', () => {
-    const result = agentStub(canonicalAgent, geminiRuntime);
-    assertDocument(
-      result,
-      [
-        'name: code_reviewer',
-        'kind: local',
-        'description: "Code review specialist."',
-        'tools:',
-        '  - read_file',
-        '  - glob',
-        '  - grep_search',
-        'temperature: 0.2',
-        'max_turns: 15',
-        'timeout_mins: 5',
-      ],
-      stubBody('code-reviewer')
-    );
-  });
-
   it('produces claude frontmatter with model, color, maxTurns', () => {
     const result = agentStub(canonicalAgent, claudeRuntime);
     assertDocument(
@@ -109,7 +89,7 @@ describe('agent-stub transform', () => {
     );
   });
 
-  it('produces qwen frontmatter without temperature or timeout, with max_turns before tools', () => {
+  it('produces qwen frontmatter with kind, max_turns before tools and a snake_case stub name', () => {
     const result = agentStub(canonicalAgent, qwenRuntime);
     assertDocument(
       result,
@@ -136,8 +116,6 @@ describe('agent-stub transform', () => {
       'tools: [read_file, glob]',
       'tools.claude: [Read, Glob, Grep, WebSearch, WebFetch]',
       'max_turns: 15',
-      'temperature: 0.3',
-      'timeout_mins: 5',
       '---',
       '',
       'Body.',
@@ -171,21 +149,19 @@ describe('agent-stub transform', () => {
     );
   });
 
-  it('does not embed example blocks for gemini', () => {
-    const result = agentStub(agentWithExamples, geminiRuntime);
+  it('does not embed example blocks for qwen', () => {
+    const result = agentStub(agentWithExamples, qwenRuntime);
     assertDocument(
       result,
       [
         'name: code_reviewer',
         'kind: local',
         'description: "Code review specialist."',
+        'max_turns: 15',
         'tools:',
         '  - read_file',
         '  - glob',
         '  - grep_search',
-        'temperature: 0.2',
-        'max_turns: 15',
-        'timeout_mins: 5',
       ],
       stubBody('code-reviewer')
     );
@@ -204,7 +180,7 @@ describe('agent-stub transform', () => {
     assert.throws(() => agentStub(unclosedExample, claudeRuntime), {
       message: 'Unclosed <example> tag in agent body',
     });
-    assert.doesNotThrow(() => agentStub(unclosedExample, geminiRuntime));
+    assert.doesNotThrow(() => agentStub(unclosedExample, qwenRuntime));
   });
 
   it('flattens array tool mappings when no per-runtime override', () => {
@@ -215,8 +191,6 @@ describe('agent-stub transform', () => {
       'color: green',
       'tools: [read_file, write_todos]',
       'max_turns: 25',
-      'temperature: 0.2',
-      'timeout_mins: 10',
       '---',
       '',
       'Body.',
@@ -236,8 +210,6 @@ describe('agent-stub transform', () => {
       'color: purple',
       'tools: []',
       'max_turns: 10',
-      'temperature: 0.5',
-      'timeout_mins: 5',
       '---',
       '',
       'Body.',
@@ -254,8 +226,6 @@ describe('agent-stub transform', () => {
       'description: "Tester."',
       'tools: [read_file]',
       'max_turns: 10',
-      'temperature: 0.3',
-      'timeout_mins: 5',
       '---',
       '',
       'Body.',
@@ -342,7 +312,6 @@ describe('agent-stub transform', () => {
       'description: "Tester."',
       'color: green',
       'tools: [read_file]',
-      'temperature: 0.3',
       '---',
       '',
       'Body.',
@@ -351,35 +320,55 @@ describe('agent-stub transform', () => {
     assert.ok(!result.includes('maxTurns:'));
   });
 
-  it('should handle agent with no temperature (gemini)', () => {
-    const noTempAgent = [
-      '---',
-      'name: tester',
-      'description: "Tester."',
-      'tools: [read_file]',
-      'max_turns: 10',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
-    const result = agentStub(noTempAgent, geminiRuntime);
-    assert.ok(!result.includes('temperature:'));
-  });
+  describe('legacy temperature and timeout_mins frontmatter', () => {
+    const STUB_RUNTIME_NAMES = RUNTIME_NAMES.filter(
+      (name) => getRuntimeConfig(name).agentFrontmatter
+    );
 
-  it('should handle agent with no timeout_mins (gemini)', () => {
-    const noTimeoutAgent = [
-      '---',
-      'name: tester',
-      'description: "Tester."',
-      'tools: [read_file]',
-      'max_turns: 10',
-      'temperature: 0.3',
-      '---',
-      '',
-      'Body.',
-    ].join('\n');
-    const result = agentStub(noTimeoutAgent, geminiRuntime);
-    assert.ok(!result.includes('timeout_mins:'));
+    it('is only stubbed for the claude and qwen runtimes', () => {
+      assert.deepEqual(STUB_RUNTIME_NAMES, ['claude', 'qwen']);
+    });
+
+    it('is never emitted into a stub, even when the source still declares it', () => {
+      const legacyAgent = [
+        '---',
+        'name: tester',
+        'description: "Tester."',
+        'tools: [read_file]',
+        'max_turns: 10',
+        'temperature: 0.3',
+        'timeout_mins: 5',
+        '---',
+        '',
+        'Body.',
+      ].join('\n');
+
+      for (const runtimeName of STUB_RUNTIME_NAMES) {
+        const { frontmatter } = parseDocument(agentStub(legacyAgent, getRuntimeConfig(runtimeName)));
+        assert.deepEqual(
+          frontmatter.filter((line) => /^(temperature|timeout_mins|timeout):/.test(line)),
+          [],
+          runtimeName
+        );
+      }
+    });
+
+    it('is no longer declared by any canonical agent, nor emitted into its stubs', () => {
+      const agentFiles = fs.readdirSync(SRC_AGENTS_DIR).filter((file) => file.endsWith('.md'));
+      assert.equal(agentFiles.length, 39);
+
+      for (const file of agentFiles) {
+        const content = fs.readFileSync(path.join(SRC_AGENTS_DIR, file), 'utf8');
+        const { frontmatter } = parse(content);
+        assert.equal(frontmatter.temperature, undefined, `${file}: temperature`);
+        assert.equal(frontmatter.timeout_mins, undefined, `${file}: timeout_mins`);
+
+        for (const runtimeName of STUB_RUNTIME_NAMES) {
+          const stub = agentStub(content, getRuntimeConfig(runtimeName));
+          assert.doesNotMatch(stub, /^(temperature|timeout_mins):/m, `${runtimeName} ${file}`);
+        }
+      }
+    });
   });
 
   it('should handle tool that is not in runtime.tools mapping', () => {
@@ -410,50 +399,54 @@ describe('agent-stub transform', () => {
       '',
       'Body.',
     ].join('\n');
-    const result = agentStub(escapedDesc, geminiRuntime);
+    const result = agentStub(escapedDesc, qwenRuntime);
     assert.ok(result.includes('description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"'));
   });
 
-  it('lists canonical tools verbatim for gemini instead of mapping them through runtime.tools', () => {
-    const agentWithProseMappedTools = [
+  it('maps canonical tools through runtime.tools for qwen', () => {
+    const agentWithMappedTools = [
       '---',
       'name: planner',
       'description: "Planner."',
-      'tools: [read_file, read_many_files, write_todos]',
+      'tools: [read_file, read_many_files, replace, write_todos, google_web_search, ask_user, activate_skill]',
       'max_turns: 10',
       '---',
       '',
       'Body.',
     ].join('\n');
-    // gemini's runtime.tools maps these two to prose for the model
-    assert.equal(geminiRuntime.tools.read_many_files, 'read_file (called per-file)');
-    assert.match(geminiRuntime.tools.write_todos, /^not available/);
 
-    const { frontmatter } = parseDocument(agentStub(agentWithProseMappedTools, geminiRuntime));
+    const { frontmatter } = parseDocument(agentStub(agentWithMappedTools, qwenRuntime));
     assert.deepEqual(
       frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
-      ['tools:', '  - read_file', '  - read_many_files', '  - write_todos']
+      [
+        'tools:',
+        '  - read_file',
+        '  - read_many_files',
+        '  - edit',
+        '  - todo_write',
+        '  - web_search',
+        '  - ask_user_question',
+        '  - skill',
+      ]
     );
   });
 
-  it('explicit tools.<runtime> override beats the native rule', () => {
-    const agentWithGeminiOverride = [
+  it('explicit tools.<runtime> override replaces the mapped canonical list', () => {
+    const agentWithQwenOverride = [
       '---',
       'name: architect',
       'description: "Architect."',
-      'tools: [read_file]',
-      'tools.gemini: [read_file, glob, grep_search, google_web_search]',
+      'tools: [read_file, replace]',
+      'tools.qwen: [read_file, glob, grep_search, web_search]',
       'max_turns: 15',
-      'temperature: 0.3',
-      'timeout_mins: 5',
       '---',
       '',
       'Body.',
     ].join('\n');
-    const { frontmatter } = parseDocument(agentStub(agentWithGeminiOverride, geminiRuntime));
+    const { frontmatter } = parseDocument(agentStub(agentWithQwenOverride, qwenRuntime));
     assert.deepEqual(
       frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
-      ['tools:', '  - read_file', '  - glob', '  - grep_search', '  - google_web_search']
+      ['tools:', '  - read_file', '  - glob', '  - grep_search', '  - web_search']
     );
   });
 });
