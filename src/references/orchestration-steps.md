@@ -166,7 +166,7 @@ EXPRESS MCP FALLBACK: If MCP state tools (create_session, transition_phase, arch
     </HARD-GATE>
 34. On approval, create session with workflow_mode: "express", exactly 1 phase.
     On rejection, revise. On second rejection, escalate to Standard → step 10.
-35. Call `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"] and prepend them to the delegation prompt.
+35. Call `get_skill_content` with resources: ["agent-base-protocol", "filesystem-safety-protocol"] and place them right after the required `Agent` / `Phase` / `Batch` / `Session` header of the delegation prompt, before the task content.
 36. Delegate to the assigned agent.
     <HARD-GATE>
     Same dispatch rule as step 23: call agent by registered tool name, not generalist.
