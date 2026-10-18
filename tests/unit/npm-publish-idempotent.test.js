@@ -3,7 +3,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -13,15 +12,18 @@ const {
   parseDistTagOutput,
   publishIfNeeded,
 } = require('../../scripts/npm-publish-idempotent');
+const { makeTempDir } = require('../support/fs');
 
-function createPackageRoot(version = '1.2.3') {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-publish-'));
+const SILENT_LOGGER = { log() {}, warn() {} };
+
+function withPackageRoot(version, fn) {
+  const root = makeTempDir('maestro-publish-');
   fs.writeFileSync(
     path.join(root, 'package.json'),
     `${JSON.stringify({ name: '@josstei/maestro', version }, null, 2)}\n`,
     'utf8'
   );
-  return root;
+  return fn(root);
 }
 
 function npmError(stderr) {
@@ -32,13 +34,11 @@ function npmError(stderr) {
 
 describe('idempotent npm publish', () => {
   it('skips publish when the exact version already exists', () => {
-    const root = createPackageRoot('1.2.3-rc.1');
-    const calls = [];
-
-    try {
+    withPackageRoot('1.2.3-rc.1', (root) => {
+      const calls = [];
       const result = publishIfNeeded({
         root,
-        logger: { log: () => {}, warn: () => {} },
+        logger: SILENT_LOGGER,
         tag: 'rc',
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
@@ -56,19 +56,15 @@ describe('idempotent npm publish', () => {
         ['npm', ['view', '@josstei/maestro@1.2.3-rc.1', 'version']],
         ['npm', ['dist-tag', 'ls', '@josstei/maestro']],
       ]);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('publishes when npm reports the exact version missing', () => {
-    const root = createPackageRoot('1.2.3-preview.abcdef0');
-    const calls = [];
-
-    try {
+    withPackageRoot('1.2.3-preview.abcdef0', (root) => {
+      const calls = [];
       const result = publishIfNeeded({
         root,
-        logger: { log: () => {}, warn: () => {} },
+        logger: SILENT_LOGGER,
         tag: 'preview',
         access: 'public',
         execFileSync: (cmd, args) => {
@@ -87,19 +83,15 @@ describe('idempotent npm publish', () => {
       assert.equal(result.published, true);
       assert.equal(result.latestPolicy.status, 'ok');
       assert.deepEqual(calls[1], ['npm', ['publish', '--tag', 'preview', '--access', 'public']]);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('publishes stable versions without an explicit tag and ensures latest', () => {
-    const root = createPackageRoot('1.2.3');
-    const calls = [];
-
-    try {
+    withPackageRoot('1.2.3', (root) => {
+      const calls = [];
       const result = publishIfNeeded({
         root,
-        logger: { log: () => {}, warn: () => {} },
+        logger: SILENT_LOGGER,
         access: 'public',
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
@@ -123,19 +115,15 @@ describe('idempotent npm publish', () => {
         'npm',
         ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
       ]);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('moves latest from a prerelease to stable when stable already exists', () => {
-    const root = createPackageRoot('1.2.3');
-    const calls = [];
-
-    try {
+    withPackageRoot('1.2.3', (root) => {
+      const calls = [];
       const result = publishIfNeeded({
         root,
-        logger: { log: () => {}, warn: () => {} },
+        logger: SILENT_LOGGER,
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
           if (args[0] === 'view') {
@@ -157,56 +145,40 @@ describe('idempotent npm publish', () => {
         'npm',
         ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
       ]);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    });
   });
 
-  it('rejects prerelease versions published without a prerelease tag', () => {
-    const root = createPackageRoot('1.2.3-rc.1');
-
-    try {
-      assert.throws(
-        () => publishIfNeeded({ root, execFileSync: () => '' }),
-        /Refusing to publish prerelease @josstei\/maestro@1\.2\.3-rc\.1 with the latest tag/
-      );
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  it('rejects prerelease versions published with latest', () => {
-    const root = createPackageRoot('1.2.3-rc.1');
-
-    try {
-      assert.throws(
-        () => publishIfNeeded({ root, tag: 'latest', execFileSync: () => '' }),
-        /Refusing to publish prerelease @josstei\/maestro@1\.2\.3-rc\.1 with the latest tag/
-      );
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  it('rejects stable versions published with prerelease tags', () => {
-    const root = createPackageRoot('1.2.3');
-
-    try {
-      assert.throws(
-        () => publishIfNeeded({ root, tag: 'rc', execFileSync: () => '' }),
-        /Refusing to publish stable @josstei\/maestro@1\.2\.3 with prerelease tag "rc"/
-      );
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
-  });
+  for (const [name, version, tag, pattern] of [
+    [
+      'rejects prerelease versions published without a prerelease tag',
+      '1.2.3-rc.1',
+      undefined,
+      /Refusing to publish prerelease @josstei\/maestro@1\.2\.3-rc\.1 with the latest tag/,
+    ],
+    [
+      'rejects prerelease versions published with latest',
+      '1.2.3-rc.1',
+      'latest',
+      /Refusing to publish prerelease @josstei\/maestro@1\.2\.3-rc\.1 with the latest tag/,
+    ],
+    [
+      'rejects stable versions published with prerelease tags',
+      '1.2.3',
+      'rc',
+      /Refusing to publish stable @josstei\/maestro@1\.2\.3 with prerelease tag "rc"/,
+    ],
+  ]) {
+    it(name, () => {
+      withPackageRoot(version, (root) => {
+        assert.throws(() => publishIfNeeded({ root, tag, execFileSync: () => '' }), pattern);
+      });
+    });
+  }
 
   it('defers latest repair when it points to a prerelease and no stable exists', () => {
-    const root = createPackageRoot('1.2.3-rc.1');
-    const calls = [];
-    const warnings = [];
-
-    try {
+    withPackageRoot('1.2.3-rc.1', (root) => {
+      const calls = [];
+      const warnings = [];
       const result = publishIfNeeded({
         root,
         logger: { log: () => {}, warn: (message) => warnings.push(message) },
@@ -235,19 +207,15 @@ describe('idempotent npm publish', () => {
         calls.some(([, args]) => args[0] === 'dist-tag' && args[1] === 'rm'),
         false
       );
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('moves latest back to the highest stable version when a prerelease owns it', () => {
-    const root = createPackageRoot('1.3.0-rc.1');
-    const calls = [];
-
-    try {
+    withPackageRoot('1.3.0-rc.1', (root) => {
+      const calls = [];
       const result = publishIfNeeded({
         root,
-        logger: { log: () => {}, warn: () => {} },
+        logger: SILENT_LOGGER,
         tag: 'rc',
         execFileSync: (cmd, args) => {
           calls.push([cmd, args]);
@@ -271,15 +239,11 @@ describe('idempotent npm publish', () => {
         'npm',
         ['dist-tag', 'add', '@josstei/maestro@1.2.0', 'latest'],
       ]);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('fails on npm errors other than a missing version', () => {
-    const root = createPackageRoot();
-
-    try {
+    withPackageRoot('1.2.3', (root) => {
       assert.throws(
         () => publishIfNeeded({
           root,
@@ -289,9 +253,7 @@ describe('idempotent npm publish', () => {
         }),
         /Command failed/
       );
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('parses optional tag and access arguments', () => {
@@ -299,6 +261,12 @@ describe('idempotent npm publish', () => {
       access: 'public',
       tag: 'nightly',
     });
+  });
+
+  it('rejects a flag without a value and an explicitly empty access', () => {
+    assert.throws(() => parseArgs(['--tag']), { message: 'Missing value for --tag' });
+    assert.throws(() => parseArgs(['--tag', 'rc', '--access']), { message: 'Missing value for --access' });
+    assert.throws(() => parseArgs(['--access', '']), { message: 'Missing value for --access' });
   });
 
   it('detects npm not-found errors', () => {

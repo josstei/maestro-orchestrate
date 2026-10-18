@@ -3,12 +3,10 @@ name: code-reviewer
 description: "Code review specialist for identifying bugs, security vulnerabilities, and code quality issues. Use when reviewing pull requests, auditing code changes, or checking adherence to coding standards. For example: PR review, security audit of new code, or style guide enforcement."
 color: blue
 tools: [read_file, list_directory, glob, grep_search, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, read_many_files, ask_user]
 tools.claude: [Read, Glob, Grep]
 max_turns: 15
 temperature: 0.2
 timeout_mins: 5
-capabilities: read_only
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -98,26 +96,3 @@ Calibrate review depth based on what changed:
 
 - `coder`: Needs findings formatted as specific file:line locations with concrete fix recommendations, not abstract suggestions
 - `refactor`: Needs structural improvement suggestions clearly separated from behavioral bug reports
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

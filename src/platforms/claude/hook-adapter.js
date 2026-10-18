@@ -1,7 +1,5 @@
 'use strict';
 
-const { defineAdapter } = require('./factory');
-
 /**
  * Claude Code hook I/O adapter.
  * Normalizes Claude Code stdin JSON to the internal context contract
@@ -32,4 +30,4 @@ function errorFallback() {
   return { continue: false, decision: 'block' };
 }
 
-module.exports = defineAdapter({ normalizeInput, formatOutput, errorFallback });
+module.exports = { normalizeInput, formatOutput, errorFallback };

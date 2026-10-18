@@ -137,6 +137,7 @@ Defaults work; these settings tune behavior:
 |---------|---------|---------|
 | `MAESTRO_STATE_DIR` | `docs/maestro` | Session, plan, and archive output path |
 | `MAESTRO_EXECUTION_MODE` | `ask` | Choose `parallel`, `sequential`, or prompt |
+| `MAESTRO_VALIDATION_STRICTNESS` | `normal` | Post-phase validation strictness (`strict`, `normal`, or `lenient`) |
 | `MAESTRO_AUTO_ARCHIVE` | `true` | Archive successful sessions automatically |
 | `MAESTRO_MAX_RETRIES` | `2` | Retry limit for failed phases |
 | `MAESTRO_MAX_CONCURRENT` | `0` | Parallel-agent cap, where `0` means no Maestro cap |
@@ -185,6 +186,7 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [docs/architecture.md](docs/architecture.md) for orchestration internals and architecture layout
 - [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
+- [docs/maestro-cheatsheet.md](docs/maestro-cheatsheet.md) for a one-page command and runtime quick reference
 - [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
 - [docs/runtime-gemini.md](docs/runtime-gemini.md) for Gemini runtime specifics
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
@@ -193,13 +195,13 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 
 ## Development and Release Validation
 
-Canonical source lives under `src/`. Runtime files in `agents/`, `commands/`, `hooks/`, `mcp/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/` are generated; update `src/` first, then regenerate.
+Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `hooks/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `GEMINI.md`/`QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
 
 ```bash
 npm ci
 node scripts/generate.js
 git diff --exit-code --name-only
-node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
+npm test
 npm run pack:verify
 npm run release:artifacts
 npm run release:verify-artifacts

@@ -7,7 +7,8 @@
  * Gemini runtime definitions.
  *
  * Content lives here once; format-specific rendering (TOML commands,
- * SKILL.md files) is handled by templates + the generator.
+ * SKILL.md files) is handled by templates + the generator. An optional
+ * `title` replaces the display title otherwise derived from the name.
  */
 
 module.exports = [
@@ -133,6 +134,7 @@ module.exports = [
 
   {
     name: 'seo-audit',
+    title: 'SEO Audit',
     description:
       'Run a Maestro-style SEO assessment for meta tags, structured data, crawlability, and Core Web Vitals',
     agents: ['seo-specialist'],
@@ -152,6 +154,7 @@ module.exports = [
 
   {
     name: 'a11y-audit',
+    title: 'Accessibility Audit',
     description:
       'Run a Maestro-style accessibility audit for WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility',
     agents: ['accessibility-specialist'],

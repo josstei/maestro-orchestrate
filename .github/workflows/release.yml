@@ -48,10 +48,8 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "is_release=true" >> "$GITHUB_OUTPUT"
-            echo "pr_number=" >> "$GITHUB_OUTPUT"
             echo "pr_title=release: v${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
             echo "pr_head_ref=release/v${INPUT_VERSION}" >> "$GITHUB_OUTPUT"
-            echo "recovery=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -66,10 +64,8 @@ jobs:
           fi
 
           echo "is_release=true" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$(echo "$PR_JSON" | jq -r '.number')" >> "$GITHUB_OUTPUT"
           echo "pr_title=$(echo "$PR_JSON" | jq -r '.title')" >> "$GITHUB_OUTPUT"
           echo "pr_head_ref=$(echo "$PR_JSON" | jq -r '.head.ref')" >> "$GITHUB_OUTPUT"
-          echo "recovery=false" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         if: steps.detect.outputs.is_release == 'true'

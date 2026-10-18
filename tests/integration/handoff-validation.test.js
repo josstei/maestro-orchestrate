@@ -2,17 +2,15 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 
+const { makeTempDir } = require('../support/fs');
 const {
   createInitializedSessionServer,
   readSessionState,
 } = require('../support/session-server');
 
 async function prepareSession(phaseId = 1) {
-  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hv-'));
+  const workspace = makeTempDir('maestro-hv-');
   const server = await createInitializedSessionServer(workspace);
   await server.callTool(
     'create_session',

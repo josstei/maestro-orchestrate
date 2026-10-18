@@ -31,54 +31,43 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Infer version from commits
-        if: inputs.version == ''
-        id: infer
-        run: |
-          CURRENT=$(node -p "require('./package.json').version")
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-          LOGS=$(git log "v${CURRENT}..HEAD" --oneline 2>/dev/null || git log --oneline -50)
-          BUMP="patch"
-
-          if echo "$LOGS" | grep -qiE 'BREAKING CHANGE|!:'; then
-            BUMP="major"
-          elif echo "$LOGS" | grep -qiE '^[a-f0-9]+ feat'; then
-            BUMP="minor"
-          fi
-
-          case "$BUMP" in
-            major) NEXT="$((MAJOR + 1)).0.0" ;;
-            minor) NEXT="${MAJOR}.$((MINOR + 1)).0" ;;
-            patch) NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
-          esac
-
-          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Inferred version: $NEXT (bump: $BUMP)"
-
-      - name: Resolve target version
-        id: version
+      - name: Resolve and validate target version
         env:
           INPUT_VERSION: ${{ inputs.version }}
-          INFERRED_VERSION: ${{ steps.infer.outputs.version }}
         run: |
           if [ -n "$INPUT_VERSION" ]; then
-            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+            NEXT="$INPUT_VERSION"
           else
-            echo "version=$INFERRED_VERSION" >> "$GITHUB_OUTPUT"
+            CURRENT=$(node -p "require('./package.json').version")
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+            LOGS=$(git log "v${CURRENT}..HEAD" --oneline 2>/dev/null || git log --oneline -50)
+            BUMP="patch"
+
+            if echo "$LOGS" | grep -qiE 'BREAKING CHANGE|!:'; then
+              BUMP="major"
+            elif echo "$LOGS" | grep -qiE '^[a-f0-9]+ feat'; then
+              BUMP="minor"
+            fi
+
+            case "$BUMP" in
+              major) NEXT="$((MAJOR + 1)).0.0" ;;
+              minor) NEXT="${MAJOR}.$((MINOR + 1)).0" ;;
+              patch) NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+            esac
+
+            echo "Inferred version: $NEXT (bump: $BUMP)"
           fi
 
-      - name: Validate target version
-        env:
-          TARGET_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          if [[ ! "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Version must match major.minor.patch; received '$TARGET_VERSION'"
+          if [[ ! "$NEXT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must match major.minor.patch; received '$NEXT'"
             exit 1
           fi
 
+          echo "VERSION=$NEXT" >> "$GITHUB_ENV"
+
       - name: Validate CHANGELOG has unreleased content
         run: |
-          if ! awk '/^## \[Unreleased\]/{found=1; next} /^## \[/{exit} found && /\S/{has=1} END{exit !has}' CHANGELOG.md; then
+          if ! awk '/^## \[Unreleased\]/{found=1; next} /^## \[/{exit} found && NF{has=1} END{exit !has}' CHANGELOG.md; then
             echo "::error::CHANGELOG [Unreleased] section has no content"
             exit 1
           fi
@@ -96,14 +85,10 @@ jobs:
         run: npm test
 
       - name: Create release branch
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           git checkout -b "release/v${VERSION}"
 
       - name: Update canonical release inputs
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: node scripts/update-versions.js "$VERSION"
 
       - name: Regenerate with new version
@@ -112,8 +97,6 @@ jobs:
           npm install --package-lock-only
 
       - name: Commit release
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -121,8 +104,6 @@ jobs:
           git commit -m "release: v${VERSION}"
 
       - name: Push release branch
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           git push origin "release/v${VERSION}"
 
@@ -130,7 +111,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           REPOSITORY: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           CHANGELOG_EXCERPT=$(awk -v version="$VERSION" '
             index($0, "## [" version "]") == 1 { found=1; next }
@@ -153,7 +133,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           REPOSITORY: ${{ github.repository }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           PR_NUMBER=$(gh pr list \
             --repo "$REPOSITORY" \

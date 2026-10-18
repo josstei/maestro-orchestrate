@@ -17,15 +17,19 @@ Express always dispatches sequentially. Return to the Express Workflow and conti
 from the delegation step.
 
 <HARD-GATE>
-This gate MUST resolve before ANY delegation proceeds. Do not skip it. Do not defer it. Do not begin delegating to subagents until execution_mode is recorded in session state. If you reach a delegation step and execution_mode is not set, STOP and return here.
+This gate MUST resolve before ANY delegation proceeds. Do not skip it. Do not defer it. Do not begin delegating to subagents until execution_mode is recorded in session state. If you reach a delegation step and execution_mode is not set, STOP and return here. Do not default to sequential.
 </HARD-GATE>
+
+### Recording the mode
+
+If no session exists yet (orchestrate step 21, or `/maestro:execute` before session creation), pass `execution_mode` to `create_session`, which sets `execution_backend: 'native'` itself. If a session already exists (resume), call `update_session` with `{ execution_mode, execution_backend: 'native' }`.
 
 ### Step 1 — Read the configured mode
 
 Read `MAESTRO_EXECUTION_MODE` (default: `ask`).
 
-- If `parallel`: call `update_session` with `{ execution_mode: 'parallel', execution_backend: 'native' }` to record in session state. Skip to delegation.
-- If `sequential`: call `update_session` with `{ execution_mode: 'sequential', execution_backend: 'native' }` to record in session state. Skip to delegation.
+- If `parallel`: record `parallel` (see Recording the mode). Skip to delegation.
+- If `sequential`: record `sequential` (see Recording the mode). Skip to delegation.
 - If `ask`: proceed to Step 2.
 
 ### Step 2 — Analyze the implementation plan
@@ -36,15 +40,14 @@ Before prompting the user, analyze the approved plan to generate a recommendatio
 2. Count phases marked `parallel: true` (parallelizable phases)
 3. Count distinct parallel batches (groups of parallelizable phases at the same dependency depth)
 4. Count sequential-only phases (phases with `blocked_by` dependencies that prevent parallelization)
-5. Cross-check file ownership across all phases. If any two phases share a file in their `files` arrays, those phases CANNOT be parallel-eligible — subtract them from the parallelizable count. Report each overlap as an Overlapping-file Warning in the prompt.
-
+5. Cross-check file ownership across all phases. If any two phases share a file in their `files` arrays, those phases CANNOT be parallel-eligible — subtract them from the parallelizable count. Report each overlap as an overlapping-file warning in the Step 4 question.
 6. If `validate_plan` was called during planning and returned a `parallelization_profile`, use its `parallel_eligible` and `effective_batches` counts as the authoritative source for items 1-5 above. These are computed from actual dependency depths and override any manual flag-based counts. If `parallelization_profile` is not available, use the counts from items 1-5 as-is.
 
 Record these counts — they feed into the prompt.
 
 ### Step 3 — Determine the recommendation
 
-- If parallelizable phases ≤ 1 → auto-select **sequential**. Call `update_session` with `{ execution_mode: 'sequential', execution_backend: 'native' }`. Inform the user: "All phases are sequential — no parallel batches available." Skip to delegation. Do NOT prompt with a choice. Do NOT call `ask_user`. Do NOT present options. (Parallelism requires at least 2 phases at the same dependency depth; a single parallel-eligible phase has nothing to batch with.)
+- If parallelizable phases ≤ 1 → auto-select **sequential**. Record `sequential` (see Recording the mode). Inform the user: "All phases are sequential — no parallel batches available." Skip to delegation. Do NOT prompt with a choice. Do NOT call `ask_user`. Do NOT present options. (Parallelism requires at least 2 phases at the same dependency depth; a single parallel-eligible phase has nothing to batch with.)
 
 <ANTI-PATTERN>
 WRONG — 1 parallel-eligible phase but user still prompted:
@@ -86,42 +89,17 @@ WRONG — Both options labeled "(Recommended)":
 Only ONE option receives the "(Recommended)" suffix. Never both.
 </ANTI-PATTERN>
 
-Prompt the user for a choice using the user-prompt tool from runtime context. Replace `[N]`, `[M]`, and `[B]` with actual counts from Step 2. The prompt should convey the execution mode analysis and offer two options as described above.
+Prompt using the user-prompt tool from runtime context; in the question text, state the Step 2 counts (parallelizable phases out of total, number of batches) and any overlapping-file warnings.
+
 ### Step 5 — Record and proceed
 
-1. Call `update_session` with the selected `execution_mode` and `execution_backend: native`
-2. The tool atomically persists both fields
-3. Use the selected mode for the remainder of the session unless the user changes it
+1. Record the selected `execution_mode` (see Recording the mode)
+2. Use the selected mode for the remainder of the session unless the user changes it
 
 ### Mode-specific behavior
 
 - If `parallel` is selected and a ready batch has only one phase, execute it sequentially
 - If `sequential` is selected, preserve plan order even when phases are parallel-safe
-
-### Safety fallback
-
-If `execution_mode` is not present in session state at the point where delegation is about to begin, STOP. Do not default to sequential. Return to this gate and resolve it. This catches any edge case where the gate was skipped.
-
-## State File Access
-
-When MCP state tools (`get_session_status`, `update_session`, `transition_phase`) are available, prefer them for state operations. They provide structured I/O and atomic transitions.
-
-When MCP tools are not available, state lives inside `<MAESTRO_STATE_DIR>` and is accessible through `read_file` and `write_file`.
-
-Helper scripts remain available for shell-injected command prompts:
-
-```bash
-node <runtime-script-root>/read-state.js <relative-path>
-node <runtime-script-root>/read-active-session.js
-```
-
-## Hook Lifecycle During Execution
-
-Hooks fire automatically at agent boundaries. The orchestrator does not invoke them directly.
-
-The hooks system tracks which agent is currently executing. Before each agent dispatch, a hook resolves the active agent identity from the required `Agent:` header first, then falls back to legacy env/regex detection, and injects compact session context. After completion, a hook validates that the response contains both `Task Report` and `Downstream Context`; it requests one retry on the first malformed response.
-
-The hook state directory under `${MAESTRO_HOOKS_DIR:-<os.tmpdir()>/maestro-hooks-<uid>}/<session-id>/` is transient and separate from orchestration state.
 
 ## Sequential Execution Protocol
 
@@ -160,33 +138,9 @@ Use native parallel execution only for sibling phases at the same dependency dep
 - `ask_user` remains available; a batch may pause while waiting for user input
 - If execution is interrupted, restart unfinished `in_progress` phases on resume instead of attempting to restore in-flight subagent interactions
 
-## Progress Context
-
-Include the following in every delegation query body:
-
-```text
-Progress: Phase [N] of [M]: [Phase Name]
-Session: [session_id]
-```
-
-For native parallel batches, also include the batch identifier in the required header:
-
-```text
-Agent: <agent_name>
-Phase: <id>/<total>
-Batch: <batch_id>
-Session: <session_id>
-```
-
 ## Error Handling Protocol
 
-Record all errors in session state with:
-
-- `agent`
-- `timestamp`
-- `type`
-- `message`
-- `resolution`
+Record all errors in session state using the session-management Error Recording Format.
 
 ### Retry Logic
 
@@ -194,8 +148,6 @@ Record all errors in session state with:
 - First failure: analyze, adjust context/scope, retry automatically
 - Subsequent failures up to the limit: continue retrying with clearer constraints
 - Limit exceeded: mark the phase `failed` and escalate to the user
-
-Increment `retry_count` on each retry.
 
 ### Recovery Protocol
 

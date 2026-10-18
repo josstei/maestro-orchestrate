@@ -1,8 +1,13 @@
+'use strict';
+
 module.exports = {
   name: 'gemini',
   outputDir: './',
 
   agentNaming: 'snake_case',
+
+  mcpPrefix: 'mcp_maestro_',
+  planModeNative: true,
 
   env: {
     extensionPath: 'extensionPath',
@@ -31,8 +36,7 @@ module.exports = {
   agentFrontmatter: {
     kind: 'local',
     turnsField: 'max_turns',
-    hasTemperature: true,
-    hasTimeout: true,
+    fields: ['name', 'kind', 'description', 'tools', 'temperature', 'turns', 'timeout'],
   },
 
   delegation: {

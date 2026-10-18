@@ -1,8 +1,14 @@
+'use strict';
+
 module.exports = {
   name: 'claude',
   outputDir: 'claude/',
 
   agentNaming: 'kebab-case',
+  agentPrefix: 'maestro:',
+
+  mcpPrefix: 'mcp__plugin_maestro_maestro__',
+  planModeNative: true,
 
   env: {
     extensionPath: 'CLAUDE_PLUGIN_ROOT',
@@ -31,6 +37,7 @@ module.exports = {
   agentFrontmatter: {
     model: 'inherit',
     turnsField: 'maxTurns',
+    fields: ['name', 'description', 'model', 'color', 'turns', 'tools'],
   },
 
   delegation: {

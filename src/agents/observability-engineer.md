@@ -3,12 +3,10 @@ name: observability-engineer
 description: "Observability engineering specialist for metrics, logs, traces, OpenTelemetry instrumentation, dashboards, and alert tuning. Use when the task requires adding observability to a service, building a dashboard, tuning alerts to reduce noise, or adopting an OpenTelemetry pipeline. For example: instrumenting a service with OTel, designing a SLO dashboard, or investigating an alert-storm root cause."
 color: turquoise
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user, google_web_search, web_fetch]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 25
 temperature: 0.2
 timeout_mins: 10
-capabilities: full
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -108,26 +106,3 @@ Alert when cardinality growth exceeds 10%/week — it usually means a code chang
 - `site-reliability-engineer`: Needs the SLI/SLO wiring, burn-rate alerts, and dashboards to enforce the reliability contract
 - `devops-engineer`: Needs the collector and agent deployment topology to wire infrastructure
 - `incident-responder` / on-call: Needs the runbook-linked alerts and trace-exemplar drill-downs
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

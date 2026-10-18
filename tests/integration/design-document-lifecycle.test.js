@@ -3,9 +3,9 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
+const { makeTempDir } = require('../support/fs');
 const {
   createInitializedSessionServer,
   readSessionState,
@@ -18,8 +18,8 @@ function writeFile(filePath, content) {
 
 describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive', () => {
   it('record_design_approval records the path without requiring the file to exist (Plan Mode parallel-dispatch tolerance)', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-ws-'));
-    const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-tmp-'));
+    const workspace = makeTempDir('maestro-ddl-ws-');
+    const planModeTmp = makeTempDir('maestro-ddl-tmp-');
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
 
     const server = await createInitializedSessionServer(workspace);
@@ -45,8 +45,8 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session materializes the design doc from the gate path once it exists on disk', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-latewrite-'));
-    const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-latewrite-tmp-'));
+    const workspace = makeTempDir('maestro-ddl-latewrite-');
+    const planModeTmp = makeTempDir('maestro-ddl-latewrite-tmp-');
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
 
     const server = await createInitializedSessionServer(workspace);
@@ -79,9 +79,9 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session surfaces a sequenced NOT_FOUND error when the approved design doc never materialized', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-missing-'));
+    const workspace = makeTempDir('maestro-ddl-missing-');
     const phantomPath = path.join(
-      fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-missing-tmp-')),
+      makeTempDir('maestro-ddl-missing-tmp-'),
       'plans',
       'never-written.md'
     );
@@ -118,8 +118,8 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session auto-populates state.design_document from the design gate when the param is omitted', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-auto-'));
-    const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-auto-tmp-'));
+    const workspace = makeTempDir('maestro-ddl-auto-');
+    const planModeTmp = makeTempDir('maestro-ddl-auto-tmp-');
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'auto-design.md');
     writeFile(tmpDesignPath, '# Auto Design\n');
 
@@ -158,8 +158,8 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('archive_session moves both the auto-populated design doc and the implementation plan to plans/archive/', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-archive-'));
-    const planModeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-archive-tmp-'));
+    const workspace = makeTempDir('maestro-ddl-archive-');
+    const planModeTmp = makeTempDir('maestro-ddl-archive-tmp-');
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
     const tmpPlanPath = path.join(planModeTmp, 'plans', 'impl-plan.md');
     writeFile(tmpDesignPath, '# Design\n');
@@ -217,7 +217,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('archive_session removes the design-gate artifact so reused session IDs start with a fresh gate', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-gate-cleanup-'));
+    const workspace = makeTempDir('maestro-ddl-gate-cleanup-');
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
     writeFile(designPath, '# Design\n');
 
@@ -283,7 +283,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('persists explicit implementation_plan params that already live in plans/ without copying', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-inplace-'));
+    const workspace = makeTempDir('maestro-ddl-inplace-');
     const plansDir = path.join(workspace, 'docs', 'maestro', 'plans');
     const planPath = path.join(plansDir, 'inplace-plan.md');
     writeFile(planPath, '# Inplace Plan\n');
@@ -309,7 +309,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('content variant: record_design_approval + create_session materialize both docs without path resolution (Gemini Plan Mode flow)', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-content-'));
+    const workspace = makeTempDir('maestro-ddl-content-');
     const designBody = '# Design (inline)\n\nPassed as content.\n';
     const planBody = '# Plan (inline)\n\nPassed as content.\n';
 
@@ -393,7 +393,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session rejects both implementation_plan variants supplied together', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-planmutex-'));
+    const workspace = makeTempDir('maestro-ddl-planmutex-');
     const plansDir = path.join(workspace, 'docs', 'maestro', 'plans');
     const planPath = path.join(plansDir, 'plan.md');
     writeFile(planPath, '# Plan\n');
@@ -420,7 +420,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session rejects incomplete implementation_plan content variant (missing filename)', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-planincomplete-'));
+    const workspace = makeTempDir('maestro-ddl-planincomplete-');
     const server = await createInitializedSessionServer(workspace);
 
     const create = await server.callTool(
@@ -441,7 +441,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session accepts no implementation plan (at-most-one-of semantics permits neither)', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-ddl-noplan-'));
+    const workspace = makeTempDir('maestro-ddl-noplan-');
     const server = await createInitializedSessionServer(workspace);
 
     const create = await server.callTool(

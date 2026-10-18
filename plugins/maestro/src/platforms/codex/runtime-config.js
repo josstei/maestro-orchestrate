@@ -1,8 +1,13 @@
+'use strict';
+
 module.exports = {
   name: 'codex',
   outputDir: 'plugins/maestro/',
 
   agentNaming: 'kebab-case',
+
+  mcpPrefix: 'mcp__maestro_maestro__',
+  planModeNative: false,
 
   env: {
     extensionPath: '.',

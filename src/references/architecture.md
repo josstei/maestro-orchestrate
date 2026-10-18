@@ -55,7 +55,7 @@ The TechLead orchestrator does not implement code directly. It designs, plans, d
 | `ux-designer` | User experience design |
 | `zos-sysprog` | z/OS systems programming, JCL, USS, RACF |
 
-Agent names use the format specified by the runtime's Agent Naming Convention section. When delegating, use the exact name from the roster.
+Agent names use the runtime's naming convention (`agent_dispatch.naming` from `get_runtime_context`). When delegating, use the exact name from the roster.
 
 ## State Contract
 
@@ -122,7 +122,8 @@ Session lifecycle: create -> active -> (resume if interrupted) -> archive on com
 
 - **parallel**: Dispatch multiple child agents for phases at the same dependency depth with non-overlapping file ownership
 - **sequential**: Dispatch one child agent at a time in dependency order
-- **ask**: Prompt the user for mode selection after plan approval (default)
+
+`MAESTRO_EXECUTION_MODE` defaults to `ask`, which prompts the user to choose parallel or sequential after plan approval.
 
 The execution mode gate must resolve before any implementation delegation begins.
 

@@ -27,8 +27,8 @@ const SESSION_ONLY_INPUT = {
   required: ['session_id'],
 };
 
-function workspaceTool(name, description, inputSchema) {
-  return { name, description, requiresWorkspace: true, inputSchema };
+function workspaceTool(name, description, inputSchema, handler) {
+  return { name, description, requiresWorkspace: true, inputSchema, handler };
 }
 
 function createToolPack() {
@@ -72,7 +72,8 @@ function createToolPack() {
             },
           },
           required: ['session_id', 'task', 'phases'],
-        }
+        },
+        handleCreateSession
       ),
       workspaceTool(
         'get_session_status',
@@ -80,7 +81,8 @@ function createToolPack() {
         {
           type: 'object',
           properties: { session_id: SESSION_ID },
-        }
+        },
+        handleGetSessionStatus
       ),
       workspaceTool(
         'update_session',
@@ -97,7 +99,8 @@ function createToolPack() {
             current_batch: { type: ['string', 'null'] },
           },
           required: ['session_id'],
-        }
+        },
+        handleUpdateSession
       ),
       workspaceTool(
         'transition_phase',
@@ -126,17 +129,20 @@ function createToolPack() {
             token_usage: { type: 'object' },
           },
           required: ['session_id'],
-        }
+        },
+        handleTransitionPhase
       ),
       workspaceTool(
         'archive_session',
         'Move active session to archive. Also moves associated design document and implementation plan to plans/archive/ if they exist.',
-        SESSION_ONLY_INPUT
+        SESSION_ONLY_INPUT,
+        handleArchiveSession
       ),
       workspaceTool(
         'enter_design_gate',
         'Mark a session as having entered the design phase. Idempotent. Blocks create_session until record_design_approval is called.',
-        SESSION_ONLY_INPUT
+        SESSION_ONLY_INPUT,
+        handleEnterDesignGate
       ),
       workspaceTool(
         'record_design_approval',
@@ -162,12 +168,14 @@ function createToolPack() {
             },
           },
           required: ['session_id'],
-        }
+        },
+        handleRecordDesignApproval
       ),
       workspaceTool(
         'get_design_gate_status',
         'Read the design gate status for a session. Returns entered_at, approved_at, and design_document_path (all nullable).',
-        SESSION_ONLY_INPUT
+        SESSION_ONLY_INPUT,
+        handleGetDesignGateStatus
       ),
       workspaceTool(
         'scan_phase_changes',
@@ -179,7 +187,8 @@ function createToolPack() {
             phase_id: PHASE_ID,
           },
           required: ['session_id', 'phase_id'],
-        }
+        },
+        handleScanPhaseChanges
       ),
       workspaceTool(
         'reconcile_phase',
@@ -196,21 +205,10 @@ function createToolPack() {
             reason: { type: 'string' },
           },
           required: ['session_id', 'phase_id'],
-        }
+        },
+        handleReconcilePhase
       ),
     ],
-    handlers: {
-      create_session: handleCreateSession,
-      get_session_status: handleGetSessionStatus,
-      update_session: handleUpdateSession,
-      transition_phase: handleTransitionPhase,
-      archive_session: handleArchiveSession,
-      enter_design_gate: handleEnterDesignGate,
-      record_design_approval: handleRecordDesignApproval,
-      get_design_gate_status: handleGetDesignGateStatus,
-      scan_phase_changes: handleScanPhaseChanges,
-      reconcile_phase: handleReconcilePhase,
-    },
   };
 }
 

@@ -33,10 +33,9 @@ describe('MaestroError', () => {
     assert.equal(err.code, 'MAESTRO_ERROR');
   });
 
-  it('defaults details and context to null', () => {
+  it('defaults details to null', () => {
     const err = new MaestroError('base');
     assert.equal(err.details, null);
-    assert.equal(err.context, null);
   });
 
   it('preserves message', () => {
@@ -51,27 +50,21 @@ describe('MaestroError', () => {
     assert.ok(err.stack.includes('lib-errors.test.js'));
   });
 
-  it('accepts custom code, details, and context', () => {
+  it('accepts custom code and details', () => {
     const details = { field: 'name', constraint: 'required' };
-    const context = { handler: 'create_session' };
     const err = new MaestroError('custom', {
       code: 'CUSTOM_CODE',
       details,
-      context,
     });
     assert.equal(err.code, 'CUSTOM_CODE');
     assert.deepEqual(err.details, details);
-    assert.deepEqual(err.context, context);
   });
 
-  it('can be caught as Error', () => {
-    let caught = false;
-    try {
-      throw new MaestroError('thrown');
-    } catch (e) {
-      if (e instanceof Error) caught = true;
+  it('is not instanceof any subclass', () => {
+    const err = new MaestroError('base only');
+    for (const { Class } of SUBCLASS_SPECS) {
+      assert.ok(!(err instanceof Class));
     }
-    assert.ok(caught);
   });
 });
 
@@ -85,20 +78,14 @@ describe('Subclass contracts', () => {
         assert.ok(err instanceof Class);
       });
 
-      it(`has code "${code}"`, () => {
-        const err = new Class('test');
-        assert.equal(err.code, code);
-      });
-
       it(`has name "${name}"`, () => {
         const err = new Class('test');
         assert.equal(err.name, name);
       });
 
-      it('defaults details and context to null', () => {
+      it('defaults details to null', () => {
         const err = new Class('test');
         assert.equal(err.details, null);
-        assert.equal(err.context, null);
       });
 
       it('preserves message', () => {
@@ -112,12 +99,10 @@ describe('Subclass contracts', () => {
         assert.ok(err.stack.includes('lib-errors.test.js'));
       });
 
-      it('accepts details and context options', () => {
+      it('accepts the details option', () => {
         const details = { reason: 'missing field' };
-        const context = { tool: 'get_agent' };
-        const err = new Class('opts', { details, context });
+        const err = new Class('opts', { details });
         assert.deepEqual(err.details, details);
-        assert.deepEqual(err.context, context);
       });
 
       it(`defaults to code "${code}" and allows caller to set a more specific subtype code`, () => {
@@ -144,52 +129,4 @@ describe('Subclass contracts', () => {
       });
     });
   }
-});
-
-describe('Cross-hierarchy instanceof checks', () => {
-  it('MaestroError is not instanceof any subclass', () => {
-    const err = new MaestroError('base only');
-    for (const { Class } of SUBCLASS_SPECS) {
-      assert.ok(!(err instanceof Class));
-    }
-  });
-
-  it('all subclass instances are instanceof MaestroError', () => {
-    for (const { Class } of SUBCLASS_SPECS) {
-      const err = new Class('check');
-      assert.ok(err instanceof MaestroError);
-    }
-  });
-});
-
-describe('Serialization', () => {
-  it('MaestroError serializes details through JSON round-trip', () => {
-    const details = { fields: ['name', 'id'], counts: { a: 1 } };
-    const err = new MaestroError('serial', { details });
-    const serialized = JSON.parse(JSON.stringify({
-      message: err.message,
-      code: err.code,
-      details: err.details,
-      context: err.context,
-    }));
-    assert.equal(serialized.message, 'serial');
-    assert.equal(serialized.code, 'MAESTRO_ERROR');
-    assert.deepEqual(serialized.details, details);
-    assert.equal(serialized.context, null);
-  });
-
-  it('subclass details survive JSON round-trip', () => {
-    const details = { missing: 'agent-xyz' };
-    const context = { operation: 'lookup' };
-    const err = new NotFoundError('not found', { details, context });
-    const serialized = JSON.parse(JSON.stringify({
-      message: err.message,
-      code: err.code,
-      details: err.details,
-      context: err.context,
-    }));
-    assert.equal(serialized.code, 'NOT_FOUND');
-    assert.deepEqual(serialized.details, details);
-    assert.deepEqual(serialized.context, context);
-  });
 });

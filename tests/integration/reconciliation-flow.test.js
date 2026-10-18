@@ -3,14 +3,14 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
+const { makeTempDir } = require('../support/fs');
 const { createInitializedSessionServer } = require('../support/session-server');
 
 describe('reconciliation flow', () => {
   it('covers the hung-worker postmortem scenario end to end', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-rec-flow-'));
+    const workspace = makeTempDir('maestro-rec-flow-');
     const server = await createInitializedSessionServer(workspace);
 
     await server.callTool(

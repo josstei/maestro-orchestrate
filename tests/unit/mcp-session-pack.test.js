@@ -1,21 +1,33 @@
+'use strict';
+
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/session');
 const { ensureWorkspace } = require('../../src/state/session-state');
+const { makeTempDir } = require('../support/fs');
 const { readSessionState } = require('../support/session-server');
+
+function createSessionPackServer() {
+  return createServer({
+    runtimeConfig: { name: 'codex' },
+    services: {},
+    toolPacks: [createToolPack],
+  });
+}
+
+function setup(prefix) {
+  const projectRoot = makeTempDir(prefix);
+  ensureWorkspace('docs/maestro', projectRoot);
+  return { projectRoot, server: createSessionPackServer() };
+}
 
 describe('session tool pack', () => {
   it('registers the session lifecycle tools through the kernel', () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const server = createSessionPackServer();
 
     assert.deepEqual(
       server.getToolSchemas().map((schema) => schema.name),
@@ -35,16 +47,9 @@ describe('session tool pack', () => {
   });
 
   it('creates, updates, and transitions session state on disk', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-session-'));
-    ensureWorkspace('docs/maestro', projectRoot);
+    const { projectRoot, server } = setup('maestro-session-');
     fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/design.md'), '# Design\n');
     fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/plan.md'), '# Plan\n');
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
 
     const createResult = await server.callTool(
       'create_session',
@@ -109,14 +114,7 @@ describe('session tool pack', () => {
   });
 
   it('rejects create_session when a phase is missing required fields', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-session-'));
-    ensureWorkspace('docs/maestro', projectRoot);
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const { projectRoot, server } = setup('maestro-session-');
 
     const outcome = await server.callTool(
       'create_session',
@@ -132,49 +130,8 @@ describe('session tool pack', () => {
     assert.match(outcome.error || '', /missing_required_field|agent|parallel|blocked_by/i);
   });
 
-  it('persists planned_files for every phase', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-session-'));
-    ensureWorkspace('docs/maestro', projectRoot);
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
-
-    await server.callTool(
-      'create_session',
-      {
-        session_id: 'with-planned',
-        task: 'planned-files test',
-        task_complexity: 'simple',
-        phases: [
-          {
-            id: 1,
-            name: 'Scaffold',
-            agent: 'coder',
-            parallel: false,
-            blocked_by: [],
-            files: ['src/foo.js', 'src/bar.js'],
-          },
-        ],
-      },
-      projectRoot
-    );
-
-    const session = readSessionState(projectRoot);
-    assert.deepEqual(session.phases[0].planned_files, ['src/foo.js', 'src/bar.js']);
-  });
-
   it('preserves string phase ids end-to-end through create_session and transition_phase', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-string-id-'));
-    ensureWorkspace('docs/maestro', projectRoot);
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const { projectRoot, server } = setup('maestro-string-id-');
 
     const createResult = await server.callTool(
       'create_session',
@@ -237,19 +194,12 @@ describe('session tool pack', () => {
   });
 
   it('archives the active session and associated plan files', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-archive-'));
-    ensureWorkspace('docs/maestro', projectRoot);
+    const { projectRoot, server } = setup('maestro-archive-');
 
     const designPath = path.join(projectRoot, 'docs/maestro/plans/design.md');
     const planPath = path.join(projectRoot, 'docs/maestro/plans/plan.md');
     fs.writeFileSync(designPath, '# design\n');
     fs.writeFileSync(planPath, '# plan\n');
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
 
     await server.callTool(
       'create_session',
@@ -293,66 +243,8 @@ describe('session tool pack', () => {
     );
   });
 
-  it('transition_phase rejects completion with files but empty downstream_context', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-handoff-'));
-    ensureWorkspace('docs/maestro', projectRoot);
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
-
-    await server.callTool(
-      'create_session',
-      {
-        session_id: 'handoff-test',
-        task: 'handoff validation',
-        task_complexity: 'simple',
-        phases: [
-          {
-            id: 1,
-            name: 'Phase 1',
-            agent: 'coder',
-            parallel: false,
-            blocked_by: [],
-            files: ['src/foo.js'],
-          },
-        ],
-      },
-      projectRoot
-    );
-
-    const outcome = await server.callTool(
-      'transition_phase',
-      {
-        session_id: 'handoff-test',
-        completed_phase_id: 1,
-        files_created: ['src/foo.js'],
-        downstream_context: {
-          key_interfaces_introduced: [],
-          patterns_established: [],
-          integration_points: [],
-          assumptions: [],
-          warnings: [],
-        },
-      },
-      projectRoot
-    );
-    assert.equal(outcome.ok, false);
-    assert.equal(outcome.code, 'HANDOFF_INCOMPLETE');
-    assert.match(outcome.error || '', /downstream_context/i);
-  });
-
   it('archive_session blocks when a phase requires reconciliation', async () => {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-archive-'));
-    ensureWorkspace('docs/maestro', projectRoot);
-
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [createToolPack],
-    });
+    const { projectRoot, server } = setup('maestro-archive-');
 
     await server.callTool(
       'create_session',

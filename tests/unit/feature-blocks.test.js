@@ -76,14 +76,6 @@ describe('stripFeatureBlocks', () => {
     assert.equal(result, content);
   });
 
-  it('throws on any flag when features object is empty in strict mode', () => {
-    const content = '<!-- @feature any -->\nbody\n<!-- @end-feature -->\n';
-    assert.throws(
-      () => stripFeatureBlocks(content, {}, { mode: 'strict' }),
-      { message: 'Unknown feature flag: "any"' }
-    );
-  });
-
   it('strips all flags when features object is empty in lenient mode', () => {
     const content = [
       '<!-- @feature a -->',

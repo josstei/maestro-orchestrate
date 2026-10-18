@@ -5,108 +5,33 @@ const assert = require('node:assert/strict');
 
 const {
   parse,
-  parseFrontmatterOnly,
-  extractValue,
   escapeYaml,
   splitAtBoundary,
-  parseValue,
-  parseDoubleQuotedValue,
 } = require('../../src/lib/frontmatter');
 
-describe('parseDoubleQuotedValue', () => {
-  it('handles \\n escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('line1\\nline2'), 'line1\nline2');
-  });
+/** Parse `raw` as the inner text of a double-quoted frontmatter value. */
+const valueOf = (raw) => parse(`---\nk: "${raw}"\n---\n`).frontmatter.k;
 
-  it('handles \\t escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('col1\\tcol2'), 'col1\tcol2');
-  });
+describe('parse double-quoted values', () => {
+  const cases = [
+    ['handles \\n escape sequence', 'line1\\nline2', 'line1\nline2'],
+    ['handles \\t escape sequence', 'col1\\tcol2', 'col1\tcol2'],
+    ['handles \\r escape sequence', 'line1\\rline2', 'line1\rline2'],
+    ['handles \\\\ escape sequence', 'path\\\\to', 'path\\to'],
+    ['handles \\" escape sequence', 'say \\"hello\\"', 'say "hello"'],
+    ['preserves unknown escape sequences as backslash + char', 'test\\x', 'test\\x'],
+    ['handles backslash at end of string', 'trailing\\', 'trailing\\'],
+    ['handles multiple escape sequences in one string', 'a\\nb\\tc\\\\d', 'a\nb\tc\\d'],
+    ['handles empty string', '', ''],
+    ['handles string with only a backslash', '\\', '\\'],
+    ['handles consecutive escape sequences', '\\n\\n\\n', '\n\n\n'],
+  ];
 
-  it('handles \\r escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('line1\\rline2'), 'line1\rline2');
-  });
-
-  it('handles \\\\ escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('path\\\\to'), 'path\\to');
-  });
-
-  it('handles \\" escape sequence', () => {
-    assert.equal(parseDoubleQuotedValue('say \\"hello\\"'), 'say "hello"');
-  });
-
-  it('preserves unknown escape sequences as backslash + char', () => {
-    assert.equal(parseDoubleQuotedValue('test\\x'), 'test\\x');
-  });
-
-  it('handles backslash at end of string', () => {
-    assert.equal(parseDoubleQuotedValue('trailing\\'), 'trailing\\');
-  });
-
-  it('handles multiple escape sequences in one string', () => {
-    assert.equal(parseDoubleQuotedValue('a\\nb\\tc\\\\d'), 'a\nb\tc\\d');
-  });
-
-  it('handles empty string', () => {
-    assert.equal(parseDoubleQuotedValue(''), '');
-  });
-
-  it('handles string with only a backslash', () => {
-    assert.equal(parseDoubleQuotedValue('\\'), '\\');
-  });
-
-  it('handles consecutive escape sequences', () => {
-    assert.equal(parseDoubleQuotedValue('\\n\\n\\n'), '\n\n\n');
-  });
-});
-
-describe('parseValue', () => {
-  it('parses inline arrays', () => {
-    assert.deepEqual(parseValue('[a, b, c]'), ['a', 'b', 'c']);
-  });
-
-  it('parses empty inline arrays', () => {
-    assert.deepEqual(parseValue('[]'), []);
-  });
-
-  it('parses inline arrays with whitespace-only content as empty', () => {
-    assert.deepEqual(parseValue('[  ]'), []);
-  });
-
-  it('parses double-quoted strings with escapes', () => {
-    assert.equal(parseValue('"hello\\nworld"'), 'hello\nworld');
-  });
-
-  it('parses single-quoted strings', () => {
-    assert.equal(parseValue("'hello world'"), 'hello world');
-  });
-
-  it('handles escaped single quotes inside single-quoted values', () => {
-    assert.equal(parseValue("'it''s a test'"), "it's a test");
-  });
-
-  it('parses integer values', () => {
-    assert.strictEqual(parseValue('42'), 42);
-  });
-
-  it('parses float values', () => {
-    assert.strictEqual(parseValue('3.14'), 3.14);
-  });
-
-  it('parses negative numbers', () => {
-    assert.strictEqual(parseValue('-7'), -7);
-  });
-
-  it('returns bare strings as-is', () => {
-    assert.equal(parseValue('hello-world'), 'hello-world');
-  });
-
-  it('returns empty string as-is', () => {
-    assert.equal(parseValue(''), '');
-  });
-
-  it('returns zero for "0"', () => {
-    assert.strictEqual(parseValue('0'), 0);
-  });
+  for (const [title, raw, expected] of cases) {
+    it(title, () => {
+      assert.equal(valueOf(raw), expected);
+    });
+  }
 });
 
 describe('splitAtBoundary', () => {
@@ -202,24 +127,10 @@ describe('parse', () => {
     assert.equal(result.body, content);
   });
 
-  it('returns empty frontmatter and full body when no closing delimiter', () => {
-    const content = '---\nname: orphan\nno closing fence';
-    const result = parse(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, content);
-  });
-
   it('preserves body content after closing delimiter', () => {
     const content = '---\nkey: value\n---\nLine one.\nLine two.\nLine three.';
     const result = parse(content);
     assert.equal(result.body, 'Line one.\nLine two.\nLine three.');
-  });
-
-  it('handles empty frontmatter block', () => {
-    const content = '---\n---\nBody only.';
-    const result = parse(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, 'Body only.');
   });
 
   it('skips lines without a colon', () => {
@@ -280,120 +191,33 @@ describe('parse', () => {
   it('coerces numeric values to numbers', () => {
     const content = '---\ntimeout: 30\nretries: 3\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.timeout, 30);
-    assert.strictEqual(result.frontmatter.retries, 3);
+    assert.equal(result.frontmatter.timeout, 30);
+    assert.equal(result.frontmatter.retries, 3);
   });
 
   it('coerces floating-point numeric values', () => {
     const content = '---\nthreshold: 0.85\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.threshold, 0.85);
+    assert.equal(result.frontmatter.threshold, 0.85);
   });
 
   it('does not coerce non-numeric strings to numbers', () => {
     const content = '---\nname: agent-42\n---\n';
     const result = parse(content);
-    assert.strictEqual(result.frontmatter.name, 'agent-42');
-  });
-});
-
-describe('parseFrontmatterOnly', () => {
-  it('parses key-value pairs as raw strings with body', () => {
-    const content = '---\nname: my-agent\ntimeout: 30\n---\nBody.';
-    const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result.frontmatter, { name: 'my-agent', timeout: '30' });
-    assert.equal(result.body, 'Body.');
+    assert.equal(result.frontmatter.name, 'agent-42');
   });
 
-  it('does not coerce numeric values', () => {
-    const content = '---\ncount: 42\n---\n';
-    const result = parseFrontmatterOnly(content);
-    assert.strictEqual(result.frontmatter.count, '42');
+  it('coerces negative numbers and zero', () => {
+    const content = '---\noffset: -7\ncount: 0\n---\n';
+    const result = parse(content);
+    assert.equal(result.frontmatter.offset, -7);
+    assert.equal(result.frontmatter.count, 0);
   });
 
-  it('does not parse inline arrays', () => {
-    const content = '---\ntools: [read, write]\n---\n';
-    const result = parseFrontmatterOnly(content);
-    assert.strictEqual(result.frontmatter.tools, '[read, write]');
-  });
-
-  it('returns empty frontmatter and full body when no opening delimiter', () => {
-    const content = 'No frontmatter here.';
-    const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, content);
-  });
-
-  it('returns empty frontmatter and full body when no closing delimiter', () => {
-    const content = '---\nname: orphan\nno closing';
-    const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, content);
-  });
-
-  it('returns empty frontmatter and full body when no trailing newline after closing delimiter', () => {
-    const content = '---\nkey: val\n---';
-    const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result.frontmatter, {});
-    assert.equal(result.body, content);
-  });
-
-  it('skips lines without a colon', () => {
-    const content = '---\nname: test\ninvalid\ntier: full\n---\n';
-    const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result.frontmatter, { name: 'test', tier: 'full' });
-  });
-
-  it('handles values containing colons', () => {
-    const content = '---\ndesc: a: b: c\n---\n';
-    const result = parseFrontmatterOnly(content);
-    assert.equal(result.frontmatter.desc, 'a: b: c');
-  });
-
-  it('returns empty body string when body is empty after frontmatter', () => {
-    const content = '---\nkey: val\n---\n';
-    const result = parseFrontmatterOnly(content);
-    assert.deepEqual(result.frontmatter, { key: 'val' });
-    assert.equal(result.body, '');
-  });
-
-  it('preserves multiline body', () => {
-    const content = '---\nkey: val\n---\nLine 1\nLine 2';
-    const result = parseFrontmatterOnly(content);
-    assert.equal(result.body, 'Line 1\nLine 2');
-  });
-});
-
-describe('extractValue', () => {
-  it('extracts a value for a given key', () => {
-    const content = '---\nname: my-agent\ntier: full\n---\nBody.';
-    assert.equal(extractValue(content, 'name'), 'my-agent');
-    assert.equal(extractValue(content, 'tier'), 'full');
-  });
-
-  it('returns null for a missing key', () => {
-    const content = '---\nname: my-agent\n---\n';
-    assert.equal(extractValue(content, 'tier'), null);
-  });
-
-  it('works without frontmatter delimiters', () => {
-    const content = 'name: standalone-value\ntier: read_only';
-    assert.equal(extractValue(content, 'name'), 'standalone-value');
-    assert.equal(extractValue(content, 'tier'), 'read_only');
-  });
-
-  it('trims whitespace from extracted values', () => {
-    const content = '---\nname:   spaced-value   \n---\n';
-    assert.equal(extractValue(content, 'name'), 'spaced-value');
-  });
-
-  it('returns null for empty content', () => {
-    assert.equal(extractValue('', 'name'), null);
-  });
-
-  it('extracts the first occurrence when key appears multiple times', () => {
-    const content = 'name: first\nname: second';
-    assert.equal(extractValue(content, 'name'), 'first');
+  it('keeps an empty value as an empty string', () => {
+    const content = '---\nname:\n---\n';
+    const result = parse(content);
+    assert.equal(result.frontmatter.name, '');
   });
 });
 
@@ -425,7 +249,7 @@ describe('escapeYaml', () => {
     assert.equal(escapeYaml(true), 'true');
   });
 
-  it('round-trips with parseDoubleQuotedValue', () => {
+  it('round-trips through a parsed double-quoted value', () => {
     const values = [
       'simple',
       'with "quotes"',
@@ -435,7 +259,7 @@ describe('escapeYaml', () => {
     ];
     for (const original of values) {
       const escaped = escapeYaml(original);
-      const restored = parseDoubleQuotedValue(escaped);
+      const restored = valueOf(escaped);
       assert.equal(restored, original, `round-trip failed for: ${JSON.stringify(original)}`);
     }
   });

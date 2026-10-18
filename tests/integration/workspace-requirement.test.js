@@ -3,25 +3,17 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-const {
-  createToolPack: createContentPack,
-} = require('../../src/mcp/tool-packs/content');
+const { DEFAULT_TOOL_PACKS } = require('../../src/mcp/maestro-server');
+const { makeTempDir } = require('../support/fs');
 
 function createFullServer() {
   return createServer({
     runtimeConfig: { name: 'gemini' },
     services: {},
-    toolPacks: [createWorkspacePack, createSessionPack, createContentPack],
+    toolPacks: DEFAULT_TOOL_PACKS,
   });
 }
 
@@ -80,7 +72,7 @@ describe('workspace requirement contract', () => {
   });
 
   it('workspace-dependent tools succeed after initialize_workspace provides a workspace', async () => {
-    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-wr-'));
+    const workspace = makeTempDir('maestro-wr-');
     const server = createFullServer();
 
     const init = await server.callTool(
@@ -93,5 +85,35 @@ describe('workspace requirement contract', () => {
     const status = await server.callTool('get_session_status', {}, workspace);
     assert.equal(status.ok, true);
     assert.equal(status.result.exists, false);
+  });
+});
+
+describe('initialize_workspace contract', () => {
+  it('rejects initialize_workspace with a path inside a plugin cache', async () => {
+    const cacheParent = makeTempDir('codex-cache-parent-');
+    const cache = path.join(cacheParent, '.codex', 'plugins', 'maestro');
+    fs.mkdirSync(cache, { recursive: true });
+
+    const server = createFullServer();
+
+    const outcome = await server.callTool(
+      'initialize_workspace',
+      { workspace_path: cache },
+      cache
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /extension cache/i);
+  });
+
+  it('rejects initialize_workspace with a missing workspace_path', async () => {
+    const server = createFullServer();
+
+    const outcome = await server.callTool(
+      'initialize_workspace',
+      {},
+      null
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.error || '', /workspace|required|initialize/i);
   });
 });

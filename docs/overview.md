@@ -2,7 +2,7 @@
 
 Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as four runtime targets from a single canonical source tree:
 
-- **Gemini CLI extension** (root directory — `GEMINI.md`, `gemini-extension.json`, shared `agents/`, `commands/maestro/`)
+- **Gemini CLI extension** (root directory — `GEMINI.md`, `gemini-extension.json`, `agents/`, and `commands/maestro/`, whose commands Qwen also uses)
 - **Claude Code plugin** (`claude/` subdirectory)
 - **Codex plugin** (`plugins/maestro/` subdirectory)
 - **Qwen Code extension** (`qwen/` subdirectory — `qwen-extension.json` manifest + `QWEN.md` context file live at repo root; generated `qwen/agents/` and `qwen/hooks.json` live in the subdirectory)
@@ -32,61 +32,68 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 4 |
-| Source transforms | 3 |
-| Test files | 81 files across unit, transforms, and integration |
+| Source transforms | 2 |
 
 ## Project Structure
 
 ```
 maestro-orchestrate/
 ├── src/                          # Canonical source (edit here)
-│   ├── agents/                   # 39 agent definitions
+│   ├── agents/                   # 39 agent definitions + shared/ Output Contract
 │   ├── skills/shared/            # 7 shared methodology modules + protocols
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
-│   ├── transforms/               # Generator transform library
+│   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
+│   ├── generator/                # Generator modules (manifest and entry-point expansion, registries, pruning, payloads)
+│   ├── generated/                # [generated] Agent, resource, and hook registries
 │   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 6 templates
+│   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
 │   ├── state/                    # Session-state helpers
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime adapters, manifests, and public shells
+│   ├── platforms/                # Runtime configs, hook adapters, shared hook runner, Claude policy enforcer, metadata.js builders
 │   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
 │   └── manifest.js               # Declarative file mapping rules
-├── scripts/
-│   └── generate.js               # Generator (manifest → output)
-├── tests/                        # 81 test files across unit, transforms, and integration
+├── scripts/                      # Generator (generate.js), layer check, release and install tooling
+├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)
+├── tests/                        # Unit, transform, and integration suites + shared helpers
 │
 ├── agents/                       # [generated] Gemini agent stubs
-├── commands/maestro/             # [generated] Gemini TOML commands
-├── hooks/                        # [generated] Gemini hook adapters
-├── mcp/                          # [generated] Gemini MCP adapter
-├── policies/                     # [generated] Gemini shell policies
+├── commands/maestro/             # [generated] Gemini TOML commands (also used by Qwen)
+├── hooks/                        # Hook-runner shim + [generated] hooks.json
+├── mcp/                          # MCP server shim (Gemini and Qwen)
+├── policies/                     # [generated] Shell policy pack (Gemini and Qwen)
+├── .claude-plugin/               # [generated] Claude marketplace
+├── .agents/plugins/              # [generated] Codex marketplace
 │
-├── claude/                       # [generated] Claude Code plugin
-│   ├── agents/                   # Claude agent stubs
-│   ├── skills/                   # Claude skills (19)
-│   ├── hooks/                    # Hook config (claude-hooks.json)
-│   ├── scripts/                  # Claude hook scripts
-│   ├── mcp/                      # Claude MCP adapter
-│   ├── .claude-plugin/           # Plugin manifest
-│   └── .mcp.json                 # MCP server config
+├── claude/                       # Claude Code plugin
+│   ├── agents/                   # [generated] Claude agent stubs
+│   ├── skills/                   # [generated] Claude skills (19)
+│   ├── hooks/                    # [generated] Hook config (claude-hooks.json)
+│   ├── scripts/                  # Hook-runner and policy-enforcer shims
+│   ├── mcp/                      # MCP server shim
+│   ├── src/                      # [generated] Detached runtime payload
+│   ├── .claude-plugin/           # [generated] Plugin manifest
+│   └── .mcp.json                 # [generated] MCP server config
 │
-├── plugins/maestro/              # [generated] Codex plugin
-│   ├── skills/                   # Codex skills (19)
-│   ├── src/                      # generated detached runtime payload
+├── plugins/maestro/              # Codex plugin
+│   ├── skills/                   # [generated] Codex skills (19)
+│   ├── src/                      # [generated] Detached runtime payload
 │   ├── references/               # Runtime guide
-│   ├── .codex-plugin/            # Plugin manifest
-│   ├── .mcp.json                 # MCP server config (spawns bin via npx)
-│   ├── .app.json                 # App config
+│   ├── .codex-plugin/            # [generated] Plugin manifest
+│   ├── .mcp.json                 # [generated] MCP server config (spawns bin via npx)
+│   ├── .app.json                 # [generated] App config
 │   └── README.md
 │
 └── qwen/                         # [generated] Qwen Code extension
     ├── agents/                   # Qwen agent stubs (39, snake_case, Qwen tool names)
     └── hooks.json                # Qwen hook registration
 ```
+
+`[generated]` marks generator output; a tag on a directory covers everything in it. The untagged runtime files (the shims, READMEs, and the Codex runtime guide) are maintained by hand; [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) has the full list.
 
 ## Core Concepts
 
@@ -123,7 +130,7 @@ A bundled Model Context Protocol server providing 17 tools across 3 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) transforms canonical source into runtime-specific adapter output. It applies frontmatter and stub transforms, emits only the public files each runtime needs, and maintains a zero-drift guarantee enforced by CI.
+A manifest-driven code generator (`scripts/generate.js`) turns canonical source into runtime-specific output. It writes agent and shared-skill discovery stubs, expands the entry-point registries into commands and skills, builds the manifests, hook registrations, and policy pack, and mirrors `src/` into the detached payloads. CI enforces a zero-drift guarantee. See [Generator Pipeline](architecture.md#generator-pipeline) for the steps.
 
 ### State Management
 
@@ -132,7 +139,7 @@ Session state lives in `docs/maestro/` (configurable via `MAESTRO_STATE_DIR`):
 ```
 docs/maestro/
 ├── state/
-│   ├── active-session.md          # Current session (YAML frontmatter + log)
+│   ├── active-session.md          # Current session (frontmatter + log)
 │   └── archive/                   # Completed sessions
 └── plans/
     ├── *-design.md                # Design documents

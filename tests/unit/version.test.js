@@ -1,28 +1,15 @@
 'use strict';
 
-const { afterEach, describe, it } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
-const ROOT = path.resolve(__dirname, '..', '..');
 const { resolveVersion } = require('../../src/core/version');
-
-function cleanupTempDir(dirPath) {
-  if (dirPath) {
-    fs.rmSync(dirPath, { recursive: true, force: true });
-  }
-}
+const { makeTempDir } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 
 describe('resolveVersion', () => {
-  let tempDir = null;
-
-  afterEach(() => {
-    cleanupTempDir(tempDir);
-    tempDir = null;
-  });
-
   it('resolves version from package.json when called from the repo', () => {
     const pkg = require('../../package.json');
     assert.equal(resolveVersion(__dirname), pkg.version);
@@ -38,7 +25,7 @@ describe('resolveVersion', () => {
   });
 
   it('reads version.json when package.json lookup fails', () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-version-'));
+    const tempDir = makeTempDir('maestro-version-');
 
     const srcDir = path.join(tempDir, 'src');
     const coreDir = path.join(srcDir, 'core');

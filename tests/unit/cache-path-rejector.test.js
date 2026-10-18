@@ -7,7 +7,7 @@ const path = require('node:path');
 const {
   CACHE_PATH_SEGMENTS,
   isExtensionCachePath,
-} = require('../../src/mcp/contracts/cache-path-rejector');
+} = require('../../src/core/cache-path-rejector');
 
 describe('cache-path-rejector', () => {
   it('exposes the canonical segment set', () => {

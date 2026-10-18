@@ -68,6 +68,12 @@ const REQUIRED_PACKAGE_FILES = [
   'src/mcp/maestro-server.js',
 ];
 
+const RELEASE_OUT_DIR = 'dist/release';
+
+function releaseArchiveName(version) {
+  return `maestro-v${version}-extension.tar.gz`;
+}
+
 function toPosixPath(filePath) {
   return filePath.split(path.sep).join('/');
 }
@@ -317,6 +323,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 module.exports = {
   DENIED_ARTIFACT_PATHS,
   RELEASE_ARTIFACT_PATHS,
+  RELEASE_OUT_DIR,
   REQUIRED_PACKAGE_FILES,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
@@ -324,5 +331,6 @@ module.exports = {
   isDeniedPath,
   isReleaseArtifactPathAllowed,
   readJson,
+  releaseArchiveName,
   toPosixPath,
 };

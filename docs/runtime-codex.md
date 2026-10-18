@@ -22,12 +22,12 @@ The Codex plugin lives in `plugins/maestro/`.
 
 Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
 
-For workspace resolution, Codex follows the shared runtime contract:
-- use `MAESTRO_WORKSPACE_PATH` when the host exports it explicitly
-- otherwise fall back to the MCP client `roots/list` response
-- only then fall back to inherited env and `cwd` heuristics
+Workspace resolution follows the shared MCP contract: tools that need a workspace fail with `WORKSPACE_NOT_INITIALIZED` until the orchestrator calls `initialize_workspace(workspace_path)`. To suggest that path, `get_runtime_context` returns a `workspace_suggestion` taken from, in order:
+- `MAESTRO_WORKSPACE_PATH`, when the host exports it
+- the first valid local `file://` root in the MCP client `roots/list` response
+- the server's `cwd`
 
-That keeps Maestro state rooted under the actual workspace `docs/maestro` path regardless of where `npx` materializes the package cache.
+Candidates inside a host extension cache (`.codex/plugins`, `.claude/plugins`, `.gemini/extensions`) are skipped. Because session state is anchored to the path passed to `initialize_workspace`, it stays under the workspace's `docs/maestro` regardless of where `npx` materializes the package.
 
 ### Plugin Manifest
 
@@ -111,7 +111,7 @@ The runtime guide states:
 
 > If Maestro MCP tools are available, prefer them for stateful operations. If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
 
-This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are resolved from generated local `plugins/maestro/src/`, which is produced from canonical root `src/`; there is no hand-maintained packaged registry copy and no plugin-level `agents/` directory.
+This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are served from the `src/` directory of the `@josstei/maestro` npm package that `npx` runs: `bin/maestro-mcp-server.js` sets `MAESTRO_EXTENSION_PATH` to the package root, and the server resolves canonical `src/` from there. There is no hand-maintained packaged registry copy and no plugin-level `agents/` directory.
 
 ## Tool Mapping
 
@@ -151,12 +151,11 @@ See `src/platforms/codex/runtime-config.js` for the authoritative values.
 Codex uses relative paths:
 
 - `env.extensionPath`: `.` (plugin root)
-- `env.workspacePath`: `MAESTRO_WORKSPACE_PATH` when available
-- Path references in generated content are computed relative to the output file's location
+- `env.workspacePath`: `MAESTRO_WORKSPACE_PATH`, the first source of `workspace_suggestion` when the host exports it
 
 This differs from Gemini (passthrough variables) and Claude (environment variable references).
 
-When `MAESTRO_WORKSPACE_PATH` is not set, the MCP server uses the first valid local `file://` root from the client `roots/list` response before falling back to legacy env and `cwd` detection.
+When `MAESTRO_WORKSPACE_PATH` is not set, the suggestion comes from the first valid local `file://` root in the client `roots/list` response, then from the server's `cwd`. The orchestrator still passes the chosen path to `initialize_workspace`; the server never falls back to the suggestion on its own.
 
 ## Canonical Filesystem Content
 
@@ -168,20 +167,20 @@ Codex follows the same source-of-truth model as the other runtimes:
 - Codex does not consume plugin agent files; `get_agent` serves the canonical methodology bodies
 - no tracked `plugins/maestro/lib/` mirror or bundled content registry is part of the runtime
 
-## Generated Files
+## Runtime Files
 
 ```
 plugins/maestro/
-├── skills/                19 skill directories
-├── src/                   generated detached runtime payload
-├── references/            1 runtime guide
-├── .codex-plugin/         1 plugin manifest
-├── .mcp.json              npx-based spawn (no local wrapper)
-├── .app.json
-└── README.md
+├── skills/                [generated] 19 skill directories
+├── src/                   [generated] detached runtime payload
+├── references/            runtime-guide.md (hand-maintained)
+├── .codex-plugin/         [generated] plugin.json manifest
+├── .mcp.json              [generated] npx-based spawn (no local wrapper)
+├── .app.json              [generated]
+└── README.md              hand-maintained
 ```
 
-The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`; `node scripts/generate.js` derives `plugins/maestro/.mcp.json` from `package.json` so the plugin manifest and MCP package spec stay on the same version.
+The repo-root `.agents/plugins/marketplace.json` is generated too. The runtime server is invoked via `npx` rather than a local wrapper file, so the plugin ships no local `mcp/` directory under `plugins/maestro/`. The bin entrypoint lives in the repo root `bin/maestro-mcp-server.js`; `node scripts/generate.js` derives `plugins/maestro/.mcp.json` from `package.json` so the plugin manifest and MCP package spec stay on the same version.
 
 ## Differences from Other Runtimes
 

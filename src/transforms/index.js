@@ -1,21 +1,14 @@
 'use strict';
 
-const path = require('node:path');
-const { discover } = require('../lib/discovery');
-
-const TRANSFORMS_DIR = path.resolve(__dirname);
-
-const entries = discover({
-  dir: TRANSFORMS_DIR,
-  pattern: '*.js',
-  identity: (filepath) => path.basename(filepath, '.js'),
-  validate: (entry) => entry.id !== 'index',
+/**
+ * Transforms by the name manifest rules use. Each is a
+ * (content, runtime) => content function. The map has no prototype, so only
+ * these names resolve.
+ */
+const transforms = Object.assign(Object.create(null), {
+  'agent-stub': require('./agent-stub'),
+  'skill-discovery-stub': require('./skill-discovery-stub'),
 });
-
-const transforms = Object.create(null);
-for (const entry of entries) {
-  transforms[entry.id] = require(path.join(TRANSFORMS_DIR, `${entry.id}.js`));
-}
 
 /**
  * Resolve a transform name to its function.
@@ -30,4 +23,4 @@ function resolve(name) {
   return fn;
 }
 
-module.exports = { resolve, transforms };
+module.exports = { resolve };

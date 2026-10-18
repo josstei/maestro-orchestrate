@@ -1,20 +1,16 @@
 'use strict';
 
-const { getDefaultRuntimeConfig } = require('../runtime/runtime-config-map');
 const { AGENT_ALLOWLIST, readAgentFromFilesystem } = require('../content/runtime-content');
-const { resolveCanonicalSrcFromExtensionRoot } = require('../utils/extension-root');
 const { ValidationError } = require('../../lib/errors');
 const { toSnakeCase, toKebabCase } = require('../../lib/naming');
 
-function createHandler(runtimeConfig = getDefaultRuntimeConfig(), canonicalSrcRoot) {
+function createHandler(runtimeConfig, srcRoot) {
   return function handleGetAgent(params) {
     const requestedAgents = params.agents;
     if (!Array.isArray(requestedAgents) || requestedAgents.length === 0) {
       throw new ValidationError('agents must be a non-empty array of agent identifiers');
     }
 
-    const srcRoot =
-      canonicalSrcRoot === undefined ? resolveCanonicalSrcFromExtensionRoot() : canonicalSrcRoot;
     const agents = {};
     const errors = {};
 

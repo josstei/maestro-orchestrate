@@ -46,17 +46,8 @@ jobs:
       - name: Run full test suite
         run: npm test
 
-      - name: Determine publish eligibility
-        id: publish_gate
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Determine RC version
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         id: rc
         run: |
           BASE=$(node -p "require('./package.json').version")
@@ -72,21 +63,21 @@ jobs:
           npm version "$RC_VERSION" --no-git-tag-version
 
       - name: Regenerate runtime metadata
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         run: node scripts/generate.js
 
       - name: Verify npm package contents
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         run: npm run pack:verify
 
       - name: Publish RC
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         run: node scripts/npm-publish-idempotent.js --tag rc --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
       - name: Upsert PR comment
-        if: steps.publish_gate.outputs.enabled == 'true'
+        if: env.NPM_TOKEN != ''
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -94,8 +85,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           VERSION: ${{ steps.rc.outputs.version }}
         run: |
-          SHA="$HEAD_SHA"
-          SHORT_SHA=$(echo "$SHA" | cut -c1-7)
+          SHORT_SHA="${HEAD_SHA:0:7}"
           BODY="Release candidate published: \`npm install @josstei/maestro@${VERSION}\`
 
           Built from \`${SHORT_SHA}\`"

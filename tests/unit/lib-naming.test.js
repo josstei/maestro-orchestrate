@@ -4,7 +4,6 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  TITLE_SPECIAL_CASES,
   toSnakeCase,
   toKebabCase,
   toPascalCase,
@@ -13,37 +12,12 @@ const {
   replaceInContent,
 } = require('../../src/lib/naming');
 
-const HOOK_NAMES = [
-  'after-agent',
-  'before-agent',
-  'session-end',
-  'session-start',
-];
-
 const HOOK_PASCAL_EXPECTED = {
   'after-agent': 'AfterAgent',
   'before-agent': 'BeforeAgent',
   'session-end': 'SessionEnd',
   'session-start': 'SessionStart',
 };
-
-const ENTRY_POINT_NAMES = [
-  'review',
-  'review-code',
-  'debug',
-  'debug-workflow',
-  'archive',
-  'status',
-  'security-audit',
-  'perf-check',
-  'seo-audit',
-  'a11y-audit',
-  'compliance-check',
-  'orchestrate',
-  'execute',
-  'resume',
-  'resume-session',
-];
 
 const ENTRY_POINT_TITLE_EXPECTED = {
   'review': 'Review',
@@ -54,8 +28,6 @@ const ENTRY_POINT_TITLE_EXPECTED = {
   'status': 'Status',
   'security-audit': 'Security Audit',
   'perf-check': 'Perf Check',
-  'seo-audit': 'SEO Audit',
-  'a11y-audit': 'Accessibility Audit',
   'compliance-check': 'Compliance Check',
   'orchestrate': 'Orchestrate',
   'execute': 'Execute',
@@ -127,6 +99,13 @@ describe('toPascalCase', () => {
   it('preserves existing capitalization within parts', () => {
     assert.equal(toPascalCase('i18n-specialist'), 'I18nSpecialist');
   });
+
+  // Hook names, which registry-scanner prefixes with `handle`.
+  for (const [hookName, expected] of Object.entries(HOOK_PASCAL_EXPECTED)) {
+    it(`toPascalCase('${hookName}') === '${expected}'`, () => {
+      assert.equal(toPascalCase(hookName), expected);
+    });
+  }
 });
 
 describe('toTitleCase', () => {
@@ -138,23 +117,16 @@ describe('toTitleCase', () => {
     assert.equal(toTitleCase('security-audit'), 'Security Audit');
   });
 
-  it('applies special-case mapping for a11y-audit', () => {
-    assert.equal(toTitleCase('a11y-audit'), 'Accessibility Audit');
-  });
-
-  it('applies special-case mapping for seo-audit', () => {
-    assert.equal(toTitleCase('seo-audit'), 'SEO Audit');
-  });
-
   it('returns empty string for empty input', () => {
     assert.equal(toTitleCase(''), '');
   });
 
-  it('exposes TITLE_SPECIAL_CASES map', () => {
-    assert.equal(typeof TITLE_SPECIAL_CASES, 'object');
-    assert.equal(TITLE_SPECIAL_CASES['a11y-audit'], 'Accessibility Audit');
-    assert.equal(TITLE_SPECIAL_CASES['seo-audit'], 'SEO Audit');
-  });
+  // Entry-point names that have no registry title.
+  for (const [epName, expected] of Object.entries(ENTRY_POINT_TITLE_EXPECTED)) {
+    it(`toTitleCase('${epName}') === '${expected}'`, () => {
+      assert.equal(toTitleCase(epName), expected);
+    });
+  }
 });
 
 describe('escapeRegExp', () => {
@@ -200,21 +172,21 @@ describe('replaceInContent', () => {
   });
 
   it('replaces all occurrences of the same name', () => {
-    const content = 'Use coder first, then coder again.';
-    const result = replaceInContent(content, ['coder'], 'snake_case');
-    assert.equal(result, 'Use coder first, then coder again.');
+    const content = 'Use code-reviewer first, then code-reviewer again.';
+    const result = replaceInContent(content, ['code-reviewer'], 'snake_case');
+    assert.equal(result, 'Use code_reviewer first, then code_reviewer again.');
   });
 
   it('respects word boundaries and does not replace partial matches', () => {
-    const content = 'The debugger-tool is not debugger.';
-    const result = replaceInContent(content, ['debugger'], 'snake_case');
-    assert.equal(result, 'The debugger-tool is not debugger.');
+    const content = 'The xcode-reviewer and code-reviewers are not code-reviewer.';
+    const result = replaceInContent(content, ['code-reviewer'], 'snake_case');
+    assert.equal(result, 'The xcode-reviewer and code-reviewers are not code_reviewer.');
   });
 
   it('handles regex special characters in names safely', () => {
-    const content = 'test name.with.dots here';
-    const result = replaceInContent(content, ['name.with.dots'], 'snake_case');
-    assert.equal(result, 'test name.with.dots here');
+    const content = 'test namexwith-dots and name.with-dots here';
+    const result = replaceInContent(content, ['name.with-dots'], 'snake_case');
+    assert.equal(result, 'test namexwith-dots and name.with_dots here');
   });
 
   it('returns content unchanged for unknown target case', () => {
@@ -222,20 +194,4 @@ describe('replaceInContent', () => {
     const result = replaceInContent(content, ['api-designer'], 'camelCase');
     assert.equal(result, content);
   });
-});
-
-describe('toPascalCase matches registry-scanner hookNameToFunctionName (minus handle prefix)', () => {
-  for (const hookName of HOOK_NAMES) {
-    it(`toPascalCase('${hookName}') === '${HOOK_PASCAL_EXPECTED[hookName]}'`, () => {
-      assert.equal(toPascalCase(hookName), HOOK_PASCAL_EXPECTED[hookName]);
-    });
-  }
-});
-
-describe('toTitleCase matches entry-point-expander toTitle', () => {
-  for (const epName of ENTRY_POINT_NAMES) {
-    it(`toTitleCase('${epName}') === '${ENTRY_POINT_TITLE_EXPECTED[epName]}'`, () => {
-      assert.equal(toTitleCase(epName), ENTRY_POINT_TITLE_EXPECTED[epName]);
-    });
-  }
 });

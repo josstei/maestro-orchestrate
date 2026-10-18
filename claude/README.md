@@ -1,7 +1,7 @@
 # Maestro — Claude Code Plugin
 
 [![Version](https://img.shields.io/badge/version-1.6.4-blue)](https://github.com/josstei/maestro-orchestrate/releases)
-[![License](https://img.shields.io/badge/license-Apache-2.0-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](../LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-orange)](https://docs.anthropic.com/en/docs/claude-code)
 
 Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands
@@ -35,20 +35,14 @@ claude plugin uninstall maestro       # Remove the plugin entirely
 
 ### Development / Testing
 
-Load the plugin for a single session without persistent registration:
-
-```bash
-claude --plugin-dir /path/to/maestro-orchestrate/claude
-```
-
-Use `/reload-plugins` inside the session to pick up file changes without restarting.
-
-For local development, clone the repo first:
+Clone the repo, then load the plugin for a single session without persistent registration:
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
 claude --plugin-dir /path/to/maestro-orchestrate/claude
 ```
+
+Use `/reload-plugins` inside the session to pick up file changes without restarting.
 
 ### Verify Installation
 
@@ -119,7 +113,7 @@ These Claude entrypoints come from the public top-level skills in `skills/`. Int
 
 All agents are registered with a `maestro:` namespace prefix. When the orchestrator delegates work, it dispatches agents as `maestro:coder`, `maestro:architect`, etc. Claude Code agents use **kebab-case** naming (e.g., `code-reviewer`, `api-designer`), contrasting with Gemini CLI's snake_case convention (e.g., `code_reviewer`, `api_designer`). The `maestro:` prefix is always required when dispatching.
 
-All agents share a baseline tool set: `Read`, `Glob`, `Grep`, `Skill`. Tool tiers reflect additional capabilities beyond that baseline.
+All agents share a baseline tool set: `Read`, `Glob`, `Grep`. Tool tiers reflect additional capabilities beyond that baseline.
 
 | Agent | Domain | Specialization | Tool Tier |
 |-------|--------|----------------|-----------|

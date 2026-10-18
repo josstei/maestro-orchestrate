@@ -5,7 +5,7 @@ description: Guides structured design conversations for complex engineering task
 
 # Design Dialogue Skill
 
-**Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate design-dialogue. Return to the Express Workflow section.
+**Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate design-dialogue. Return to the EXPRESS WORKFLOW in `orchestration-steps`.
 
 Activate this skill when beginning Phase 1 of Maestro orchestration. Use the plan mode tool from `get_runtime_context` (loaded at session start, step 0). If your runtime provides a Plan Mode surface, enter it now by calling `enter_plan_mode`. If Plan Mode is unavailable or the transition fails, continue without it and use the user-prompt tool from runtime context with `type: 'yesno'` for design approvals and `type: 'choice'` for approach selection. This skill provides the structured methodology for conducting design conversations that converge on approved architectural designs.
 
@@ -17,7 +17,7 @@ Before asking any design questions, present the user with a depth selector to co
 
 **Modes:**
 
-- **Quick** — Current reasoning behavior. One question per topic, pros/cons on approaches, standard design sections. No enrichment steps, no decision matrix, no reasoning annotations. Choose this when you already have clarity and want to move fast. (The depth selector prompt itself is the only new conversational step — once Quick is selected, all subsequent behavior matches pre-change behavior exactly.)
+- **Quick** — One question per topic, pros/cons on approaches, standard design sections. No enrichment steps, no decision matrix, no reasoning annotations. Choose this when you already have clarity and want to move fast.
 - **Standard** (Recommended) — Adds assumption surfacing after each answer and a decision matrix during approach evaluation. Design sections gain rationale annotations tying decisions to project context. The default for most work.
 - **Deep** — Full treatment. Follow-up probing into implications, assumption surfacing with confirmation, trade-off narration on each choice, decision matrix with scoring, rationale annotations, per-decision alternatives, and full requirement traceability. Choose this for high-stakes or ambiguous tasks.
 
@@ -101,11 +101,12 @@ Ask questions in this order to progressively narrow the design space:
 Scale question coverage based on `task_complexity`:
 - **simple**: Ask questions from Area 1 (Problem Scope & Boundaries) only. Skip Areas 2-5.
 - **medium**: Ask questions from Areas 1-3 (Scope, Constraints, Tech Preferences). Skip Areas 4-5.
-- **complex**: Ask questions from all 5 areas (current behavior).
+- **complex**: Ask questions from all 5 areas.
 
 ### Question Format
 
 Prompt the user for a choice using the user-prompt tool from runtime context. Use `type: 'choice'` for structured selections with 2-4 options. Each option should have a short label (1-5 words) and a description explaining when it makes sense and its trade-offs. Include your recommendation rationale in the question text so the user has context before choosing.
+
 ### Enrichment Protocol
 
 After the user answers each question, apply depth-gated enrichment steps before advancing to the next topic:
@@ -118,7 +119,7 @@ After the user answers each question, apply depth-gated enrichment steps before 
 | Probe implications with a follow-up question | No | No | Yes |
 | Narrate trade-offs of the choice before moving on | No | No | Yes |
 
-**Quick mode**: No enrichment steps. Accept the answer and proceed to the next question. Current behavior preserved.
+**Quick mode**: No enrichment steps. Accept the answer and proceed to the next question.
 
 **Standard mode**: After each user answer, state the assumptions you are making based on their response in 1-2 sentences, then ask the user to confirm or correct before proceeding. Example flow: question → answer → "Based on your answer, I'm assuming X and Y — correct?" → confirmation → next question.
 
@@ -241,7 +242,7 @@ Apply depth-gated reasoning enrichment to design section content during the conv
 | Per-decision alternatives considered | No | No | Yes |
 | Requirement traceability (`Traces To`) | No | No | Yes |
 
-**Quick mode**: No reasoning annotations. Present sections as-is — current behavior preserved.
+**Quick mode**: No reasoning annotations. Present sections as-is.
 
 **Rationale annotations (Standard + Deep)**: For each key design decision within a section, include an inline explanation of why it was chosen, tied to specific project context from the question phase. A key decision is one that, if changed, would require reworking other parts of the design — routine or cosmetic choices (naming, formatting) are not key. Format: `[decision] — *[rationale referencing specific requirements, constraints, or user-stated preferences]*`
 

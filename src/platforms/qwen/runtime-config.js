@@ -7,8 +7,13 @@ module.exports = {
   name: 'qwen',
   outputDir: 'qwen/',
 
+  // Deliberate overrides: spreading gemini would otherwise report Gemini's
+  // MCP tool prefix and native plan mode for Qwen Code.
+  mcpPrefix: '',
+  planModeNative: false,
+
   env: {
-    extensionPath: 'extensionPath',
+    ...gemini.env,
     workspacePath: 'workspacePath',
   },
 
@@ -20,5 +25,10 @@ module.exports = {
     read_many_files: 'read_many_files',
     write_todos: 'todo_write',
     activate_skill: 'skill',
+  },
+
+  agentFrontmatter: {
+    ...gemini.agentFrontmatter,
+    fields: ['name', 'kind', 'description', 'turns', 'tools'],
   },
 };

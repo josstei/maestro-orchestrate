@@ -1,92 +1,79 @@
+'use strict';
+
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+const { makeTempDir } = require('../support/fs');
 const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
 
-function runHook(relativePath, runtime, hookName, payload, cwd = ROOT) {
-  return spawnSync('node', [relativePath, runtime, hookName], {
+// Hooks keep per-session state under MAESTRO_HOOKS_DIR; give them a private
+// one instead of the shared default under os.tmpdir().
+const HOOKS_DIR = makeTempDir('maestro-hooks-test-');
+
+function runHook(relativePath, runtime, hookName, input, cwd = ROOT) {
+  return spawnSync(process.execPath, [relativePath, runtime, hookName], {
     cwd,
-    input: `${JSON.stringify(payload)}\n`,
+    env: { ...process.env, MAESTRO_HOOKS_DIR: HOOKS_DIR },
+    input: typeof input === 'string' ? input : `${JSON.stringify(input)}\n`,
     encoding: 'utf8',
   });
 }
 
-function runHookRaw(relativePath, runtime, hookName, input, cwd = ROOT) {
-  return spawnSync('node', [relativePath, runtime, hookName], {
+function assertHooksBoot({ runner, runtime, hooks, cwd = ROOT }) {
+  const payload = {
     cwd,
-    input,
-    encoding: 'utf8',
-  });
+    session_id: 'hook-test-session',
+  };
+
+  for (const hookName of hooks) {
+    const result = runHook(runner, runtime, hookName, payload, cwd);
+
+    assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+    assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
+  }
 }
+
+const CLAUDE_HOOKS = ['session-start', 'before-agent', 'session-end'];
+
+const BOOT_CASES = [
+  {
+    label: 'gemini',
+    runner: 'hooks/hook-runner.js',
+    runtime: 'gemini',
+    hooks: ['session-start', 'before-agent', 'after-agent', 'session-end'],
+  },
+  {
+    label: 'claude',
+    runner: 'claude/scripts/hook-runner.js',
+    runtime: 'claude',
+    hooks: CLAUDE_HOOKS,
+  },
+];
 
 describe('hook entrypoints', () => {
-  it('boots gemini hook adapters against canonical src hook logic', () => {
-    const payload = {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-    };
-
-    const hookNames = [
-      'session-start',
-      'before-agent',
-      'after-agent',
-      'session-end',
-    ];
-
-    for (const hookName of hookNames) {
-      const result = runHook('hooks/hook-runner.js', 'gemini', hookName, payload);
-
-      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
-    }
-  });
-
-  it('boots claude hook adapters against canonical src hook logic', () => {
-    const payload = {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-    };
-
-    const hookNames = [
-      'session-start',
-      'before-agent',
-      'session-end',
-    ];
-
-    for (const hookName of hookNames) {
-      const result = runHook('claude/scripts/hook-runner.js', 'claude', hookName, payload);
-
-      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
-    }
-  });
+  for (const bootCase of BOOT_CASES) {
+    it(`boots ${bootCase.label} hook adapters against canonical src hook logic`, () => {
+      assertHooksBoot(bootCase);
+    });
+  }
 
   it('boots installed claude hook adapters from an isolated plugin bundle', async () => {
     await withIsolatedClaudePlugin(async (pluginRoot) => {
-      const payload = {
+      assertHooksBoot({
+        runner: 'scripts/hook-runner.js',
+        runtime: 'claude',
+        hooks: CLAUDE_HOOKS,
         cwd: pluginRoot,
-        session_id: 'hook-test-session',
-      };
-
-      const hookNames = [
-        'session-start',
-        'before-agent',
-        'session-end',
-      ];
-
-      for (const hookName of hookNames) {
-        const result = runHook('scripts/hook-runner.js', 'claude', hookName, payload, pluginRoot);
-
-        assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-        assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
-      }
+      });
     });
   });
 
   it('installed claude hook fallback blocks on invalid stdin', async () => {
     await withIsolatedClaudePlugin(async (pluginRoot) => {
-      const result = runHookRaw(
+      const result = runHook(
         'scripts/hook-runner.js',
         'claude',
         'session-start',
@@ -100,6 +87,54 @@ describe('hook entrypoints', () => {
         decision: 'block',
       });
     });
+  });
+
+  it('rejects a runtime without a hook adapter in the repo install', () => {
+    const result = runHook('hooks/hook-runner.js', 'codex', 'session-start', {});
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, 'Unknown runtime: codex\n');
+    assert.equal(result.stdout, '');
+  });
+
+  it('rejects other runtimes from an isolated claude plugin bundle', async () => {
+    await withIsolatedClaudePlugin(async (pluginRoot) => {
+      const result = runHook('scripts/hook-runner.js', 'gemini', 'session-start', {}, pluginRoot);
+
+      assert.equal(result.status, 1);
+      assert.equal(result.stderr, 'Unknown runtime: gemini\n');
+      assert.equal(result.stdout, '');
+    });
+  });
+
+  it('rejects bad invocations, checking the runtime before the hook name', () => {
+    const usage = 'Usage: node hook-runner.js <runtime> <hook-name>\n';
+    const cases = [
+      [[], usage],
+      [['gemini'], usage],
+      [['gemini', 'nope'], 'Unknown hook: nope\n'],
+      [['bogus', 'nope'], 'Unknown runtime: bogus\n'],
+    ];
+
+    for (const [args, stderr] of cases) {
+      const result = spawnSync(process.execPath, ['hooks/hook-runner.js', ...args], {
+        cwd: ROOT,
+        input: '{}\n',
+        encoding: 'utf8',
+      });
+
+      assert.equal(result.status, 1, `exit code for [${args.join(' ')}]`);
+      assert.equal(result.stderr, stderr);
+      assert.equal(result.stdout, '');
+    }
+  });
+
+  it('answers with the adapter error fallback when stdin is not JSON', () => {
+    const result = runHook('hooks/hook-runner.js', 'gemini', 'session-start', 'not-json');
+
+    assert.equal(result.status, 0);
+    assert.match(result.stderr, /^Hook error: /);
+    assert.deepEqual(JSON.parse(result.stdout), { continue: false });
   });
 
   it('boots qwen hook adapters against canonical src hook logic', () => {
@@ -167,5 +202,27 @@ describe('hook entrypoints', () => {
     assert.equal(denyResult.status, 0, `Expected exit 0 for gemini deny, got ${denyResult.status}`);
     const parsed = JSON.parse(denyResult.stdout);
     assert.equal(parsed.continue, false);
+  });
+
+  it('keeps hook state under <os.tmpdir()>/maestro-hooks-<uid> when MAESTRO_HOOKS_DIR is unset', {
+    skip: process.platform === 'win32' && 'os.tmpdir() ignores TMPDIR on Windows',
+  }, () => {
+    // Hosts never set MAESTRO_HOOKS_DIR; point os.tmpdir() at a private dir to
+    // exercise the production default without touching the shared one.
+    const tmpRoot = makeTempDir('maestro-hooks-default-');
+    const env = { ...process.env, TMPDIR: tmpRoot };
+    delete env.MAESTRO_HOOKS_DIR;
+
+    const result = spawnSync(process.execPath, ['hooks/hook-runner.js', 'gemini', 'before-agent'], {
+      cwd: ROOT,
+      env,
+      input: `${JSON.stringify({ cwd: ROOT, session_id: 'hook-default-dir', prompt: 'agent: coder' })}\n`,
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const uid = process.getuid ? process.getuid() : 'default';
+    const activeAgentFile = path.join(tmpRoot, `maestro-hooks-${uid}`, 'hook-default-dir', 'active-agent');
+    assert.equal(fs.readFileSync(activeAgentFile, 'utf8').trim(), 'coder');
   });
 });

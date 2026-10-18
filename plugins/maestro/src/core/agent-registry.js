@@ -3,9 +3,11 @@
 const { toSnakeCase, escapeRegExp } = require('../lib/naming');
 const agentRegistryData = require('../generated/agent-registry.json');
 
-const KNOWN_AGENTS = Object.freeze(
-  agentRegistryData.map((entry) => toSnakeCase(entry.name))
-);
+/** Canonical kebab-case agent names, in registry order. */
+const AGENT_NAMES = Object.freeze(agentRegistryData.map((entry) => entry.name));
+
+/** The same names in snake_case. */
+const KNOWN_AGENTS = Object.freeze(AGENT_NAMES.map((name) => toSnakeCase(name)));
 
 const AGENT_CAPABILITIES = Object.freeze(
   Object.fromEntries(
@@ -67,4 +69,4 @@ function canCreateFiles(name) {
   return cap === 'read_write' || cap === 'full';
 }
 
-module.exports = { KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability, canCreateFiles };
+module.exports = { AGENT_NAMES, KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability, canCreateFiles };

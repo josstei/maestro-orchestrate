@@ -50,7 +50,7 @@ Before producing any output:
 Before starting work, confirm:
 
 - Files listed for modification in the delegation prompt exist
-- Files listed for creation have existing parent directories
+- Parent directories for files listed for creation exist — if not, create them per the Filesystem Safety Protocol (Rule 1) and continue; do not stop and report this as a verification failure
 - The task objective is achievable within your tool permissions — if not, report the limitation immediately rather than attempting workarounds
 - The task does not duplicate or conflict with work described as completed in the progress context
 - No files outside the delegation prompt's explicit file list will be touched
@@ -73,7 +73,7 @@ If any convention is ambiguous or no precedent exists, default to the most commo
 
 ## Output Handoff Contract
 
-Every agent must conclude with a **Handoff Report** containing two parts. This replaces the basic Task Report with a format designed for downstream consumption.
+Every agent must conclude with a **Handoff Report** containing two parts.
 
 ### Part 1 — Task Report
 
@@ -93,7 +93,7 @@ Every agent must conclude with a **Handoff Report** containing two parts. This r
 
 ### Part 2 — Downstream Context
 
-Populate this section when your output feeds into subsequent phases. Read-only agents populate this with findings structured as actionable items.
+Always include this section. Read-only agents populate it with findings structured as actionable items.
 
 ```
 ## Downstream Context
@@ -106,8 +106,7 @@ Populate this section when your output feeds into subsequent phases. Read-only a
 
 ### Rules
 
-- Part 2 is mandatory when the phase has downstream dependencies (phases that list this phase in their `blocked_by`)
-- Part 2 may be omitted only when the phase has no downstream dependencies AND is the final phase
+- Part 2 is always required — where a post-delegation hook runs (Gemini, Qwen) it rejects a response without the `## Downstream Context` heading, and `transition_phase` rejects a phase that produced files but has an empty Downstream Context
 - The orchestrator extracts Downstream Context from completed phases and includes relevant sections in subsequent delegation prompts, creating an information chain
 - Be specific in Downstream Context — reference exact file paths, function names, and type signatures rather than general descriptions
 

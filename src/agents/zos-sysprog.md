@@ -3,12 +3,10 @@ name: zos-sysprog
 description: "z/OS systems programming specialist for JCL, USS, SMP/E, RACF, subsystem diagnostics, and batch scheduling. Use when the task requires JCL authoring or review, z/OS Unix System Services setup, SMP/E maintenance, RACF profile review, or diagnosing SYSLOG/OPERLOG issues. For example: writing a JCL restart procedure, planning an SMP/E PTF install, or reviewing RACF dataset profiles for least privilege."
 color: slate
 tools: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
-tools.gemini: [read_file, list_directory, glob, grep_search, run_shell_command, google_web_search, read_many_files, write_todos, ask_user, web_fetch]
 tools.claude: [Read, Bash, Glob, Grep, WebSearch, WebFetch, TaskCreate, TaskUpdate, TaskList]
 max_turns: 20
 temperature: 0.2
 timeout_mins: 8
-capabilities: read_shell
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -109,26 +107,3 @@ For every resource:
 - `cobol-engineer`: Needs region size, dataset allocation, and JCL template for new batch programs
 - `db2-dba`: Needs STC identity, resource-class profiles, and subsystem parm library pointers
 - `security-engineer`: Needs RACF audit evidence and SMF record availability for external review
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

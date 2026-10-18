@@ -1,7 +1,5 @@
 'use strict';
 
-const { defineAdapter } = require('./factory');
-
 /**
  * Gemini hook I/O adapter.
  * Normalizes Gemini stdin JSON to the internal context contract
@@ -30,4 +28,4 @@ function errorFallback() {
   return { continue: false };
 }
 
-module.exports = defineAdapter({ normalizeInput, formatOutput, errorFallback });
+module.exports = { normalizeInput, formatOutput, errorFallback };

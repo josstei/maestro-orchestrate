@@ -2,28 +2,10 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { extractRuntime } = require('../platforms/shared/adapters/conventions');
 const { VERSION_JSON_FILENAME } = require('../core/version');
+const { collectFiles } = require('../lib/discovery');
 const { writeIfChanged } = require('../lib/io');
 const { pruneStaleFiles } = require('./stale-pruner');
-
-const ADAPTER_PATH_PREFIX = 'platforms/shared/adapters/';
-
-/**
- * Determine whether a relative path is an adapter file belonging to a
- * different runtime. Returns true when the file is a foreign adapter that
- * should be excluded from the payload.
- * @param {string} relativePath - Posix-style relative path from src/
- * @param {string} runtimeName - Target runtime name
- * @returns {boolean}
- */
-function isForeignAdapter(relativePath, runtimeName) {
-  if (!relativePath.startsWith(ADAPTER_PATH_PREFIX)) {
-    return false;
-  }
-  const runtime = extractRuntime(relativePath.slice(ADAPTER_PATH_PREFIX.length));
-  return runtime !== null && runtime !== runtimeName;
-}
 
 /**
  * Base allowlist of src/ prefixes included in detached payloads.
@@ -48,14 +30,15 @@ const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
 
 /**
  * Build a payload allowlist for a specific runtime by extending the base
- * allowlist with the runtime-specific config file entry.
+ * allowlist with that runtime's platform dir (its runtime config plus any
+ * runtime-specific modules such as a hook adapter).
  * @param {string} runtimeName
  * @returns {string[]}
  */
 function buildPayloadAllowlist(runtimeName) {
   return [
     ...DETACHED_PAYLOAD_BASE_ALLOWLIST,
-    `platforms/${runtimeName}/runtime-config.js`,
+    `platforms/${runtimeName}/`,
   ];
 }
 
@@ -63,121 +46,58 @@ function buildPayloadAllowlist(runtimeName) {
  * Determine whether a file at the given relative path should be included
  * in a detached payload based on the provided allowlist.
  * @param {string} relativePath - Posix-style relative path from src/
- * @param {string[]} [allowlist] - Allowlist to check against; defaults to base
+ * @param {string[]} allowlist - Allowlist to check against
  * @returns {boolean}
  */
 function shouldIncludeInPayload(relativePath, allowlist) {
-  const list = allowlist || DETACHED_PAYLOAD_BASE_ALLOWLIST;
-  return list.some((prefix) => relativePath.startsWith(prefix));
+  return allowlist.some((prefix) => relativePath.startsWith(prefix));
 }
 
 /**
- * Determine whether a directory walk should descend into the given directory.
- * Returns true when the directory is either a parent of an allowlisted prefix
- * or a child within an allowlisted prefix.
- * @param {string} relativeDir - Posix-style relative directory path from src/
- * @param {string[]} [allowlist] - Allowlist to check against; defaults to base
- * @returns {boolean}
- */
-function shouldDescendInto(relativeDir, allowlist) {
-  const dir = relativeDir.endsWith('/') ? relativeDir : `${relativeDir}/`;
-  const list = allowlist || DETACHED_PAYLOAD_BASE_ALLOWLIST;
-  return list.some(
-    (prefix) => prefix.startsWith(dir) || dir.startsWith(prefix)
-  );
-}
-
-/**
- * Walk srcDir, copy allowed files into outputDir, then remove stale files
- * from outputDir that are no longer present in the source.
+ * Copy the allowlisted files of srcDir for one runtime into outputDir, stamp
+ * version.json, then remove stale files from outputDir that are no longer
+ * present in the source.
  * @param {string} srcDir - Absolute path to the source directory
  * @param {string} outputDir - Absolute path to the output payload directory
- * @param {string} [runtimeName] - Runtime name for allowlist extension
- * @returns {{ copied: number, removed: number, skipped: number }}
+ * @param {string} runtimeName - Runtime whose platform dir the payload carries
+ * @param {string} version - Package version to stamp into version.json
+ * @returns {{ copied: number, removed: number }} copied counts updated source
+ *   files only; version.json is not counted
  */
-function buildDetachedPayload(srcDir, outputDir, runtimeName) {
-  const allowlist = runtimeName
-    ? buildPayloadAllowlist(runtimeName)
-    : [...DETACHED_PAYLOAD_BASE_ALLOWLIST];
-  const stats = { copied: 0, removed: 0, skipped: 0 };
-  const keptOutputs = new Set();
+function buildDetachedPayload(srcDir, outputDir, runtimeName, version) {
+  const allowlist = buildPayloadAllowlist(runtimeName);
+  const keptOutputs = new Set([VERSION_JSON_FILENAME]);
+  let copied = 0;
 
-  function walkAndCopy(dir, relDir = '') {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const relativePath = relDir ? `${relDir}/${entry.name}` : entry.name;
+  for (const filePath of collectFiles(srcDir, true)) {
+    const relativePath = path.relative(srcDir, filePath).split(path.sep).join('/');
+    if (!shouldIncludeInPayload(relativePath, allowlist)) {
+      continue;
+    }
 
-      if (entry.isDirectory()) {
-        if (shouldDescendInto(relativePath, allowlist)) {
-          walkAndCopy(fullPath, relativePath);
-        } else {
-          stats.skipped++;
-        }
-        continue;
-      }
-
-      if (!entry.isFile()) {
-        continue;
-      }
-
-      if (!shouldIncludeInPayload(relativePath, allowlist)) {
-        stats.skipped++;
-        continue;
-      }
-
-      if (runtimeName && isForeignAdapter(relativePath, runtimeName)) {
-        stats.skipped++;
-        continue;
-      }
-
-      keptOutputs.add(relativePath);
-      const content = fs.readFileSync(fullPath, 'utf8');
-      if (writeIfChanged(path.join(outputDir, relativePath), content)) {
-        stats.copied++;
-      }
+    keptOutputs.add(relativePath);
+    const content = fs.readFileSync(filePath, 'utf8');
+    if (writeIfChanged(path.join(outputDir, relativePath), content)) {
+      copied++;
     }
   }
 
-  walkAndCopy(srcDir);
-  if (runtimeName) {
-    keptOutputs.add(VERSION_JSON_FILENAME);
-  }
-  stats.removed = pruneStaleFiles({
+  writeIfChanged(
+    path.join(outputDir, VERSION_JSON_FILENAME),
+    JSON.stringify({ version }, null, 2) + '\n'
+  );
+
+  const removed = pruneStaleFiles({
     rootDir: outputDir,
     manifestPaths: keptOutputs,
     ownedDirs: [''],
   }).pruned.length;
-  return stats;
-}
-
-/**
- * Write a version.json file to each payload directory.
- * Only writes when the content has changed (avoids unnecessary churn).
- * @param {string[]} payloadDirs - Absolute paths to payload output directories
- * @param {string} version - Semantic version string to stamp
- */
-function stampVersion(payloadDirs, version) {
-  const versionContent = JSON.stringify({ version }, null, 2) + '\n';
-
-  for (const payloadDir of payloadDirs) {
-    const versionPath = path.join(payloadDir, VERSION_JSON_FILENAME);
-    const existingContent = fs.existsSync(versionPath)
-      ? fs.readFileSync(versionPath, 'utf8')
-      : null;
-
-    if (existingContent !== versionContent) {
-      fs.writeFileSync(versionPath, versionContent, 'utf8');
-    }
-  }
+  return { copied, removed };
 }
 
 module.exports = {
   DETACHED_PAYLOAD_BASE_ALLOWLIST,
   buildPayloadAllowlist,
   shouldIncludeInPayload,
-  isForeignAdapter,
-  shouldDescendInto,
   buildDetachedPayload,
-  stampVersion,
 };

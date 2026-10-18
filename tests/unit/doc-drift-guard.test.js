@@ -1,16 +1,42 @@
+'use strict';
+
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const REPO = path.resolve(__dirname, '../..');
-const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8');
-const listDir = (d) => fs.readdirSync(path.join(REPO, d));
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const AGENT_REGISTRY = require('../../src/generated/agent-registry.json');
+const { ROOT } = require('../support/paths');
+
+const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const listDir = (d) => fs.readdirSync(path.join(ROOT, d));
+const listSubdirs = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;
 const canonicalAgents = () => listDir('src/agents')
   .filter((f) => f.endsWith('.md'))
   .map((f) => f.replace(/\.md$/, ''));
 const toSnake = (name) => name.replace(/-/g, '_');
+const agentsWithCapabilities = (...capabilities) => AGENT_REGISTRY
+  .filter((agent) => capabilities.includes(agent.capabilities))
+  .map((agent) => agent.name)
+  .sort();
+const packToolNames = (pack) => require(`../../src/mcp/tool-packs/${pack}`)
+  .createToolPack({ runtimeConfig: getRuntimeConfig('gemini'), services: {} })
+  .tools.map((tool) => tool.name);
+
+/** The body of `heading` in `surface`, up to the next heading of the same or a higher level. */
+function markdownSection(surface, heading) {
+  const body = read(surface);
+  const start = body.indexOf(`\n${heading}\n`);
+  assert.ok(start >= 0, `${surface}: missing "${heading}" section`);
+  const rest = body.slice(start + heading.length + 2);
+  const level = heading.indexOf(' ');
+  const end = rest.search(new RegExp(`^#{1,${level}} `, 'm'));
+  return end === -1 ? rest : rest.slice(0, end);
+}
 
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
   const canonicalCount = countMd('src/agents');
@@ -99,7 +125,7 @@ test('doc-drift: Claude surfaces do not advertise host-reserved command names', 
 });
 
 test('doc-drift: examples guide is linked and included in npm package files', () => {
-  assert.equal(fs.existsSync(path.join(REPO, 'EXAMPLES.md')), true, 'EXAMPLES.md is missing');
+  assert.equal(fs.existsSync(path.join(ROOT, 'EXAMPLES.md')), true, 'EXAMPLES.md is missing');
 
   const readme = read('README.md');
   assert.ok(readme.includes('[EXAMPLES.md](EXAMPLES.md)'), 'README.md does not link EXAMPLES.md');
@@ -172,77 +198,36 @@ test('doc-drift: Qwen location documented as qwen/ in all surfaces', () => {
   assert.ok(architecture.includes('| `qwen/` |'), 'docs/architecture.md: outputDir row missing `qwen/` for Qwen');
 });
 
-test('doc-drift: docs/usage.md MCP Quick Reference includes all 10 session tools', () => {
+test('doc-drift: docs/usage.md MCP Quick Reference includes every session-pack tool', () => {
   const body = read('docs/usage.md');
-  const sessionTools = [
-    'create_session',
-    'get_session_status',
-    'update_session',
-    'transition_phase',
-    'archive_session',
-    'enter_design_gate',
-    'record_design_approval',
-    'get_design_gate_status',
-    'scan_phase_changes',
-    'reconcile_phase',
-  ];
+  const sessionTools = packToolNames('session');
+  assert.ok(sessionTools.length > 0, 'session tool pack declares no tools');
   for (const tool of sessionTools) {
     assert.ok(body.includes(`\`${tool}\``), `docs/usage.md Quick Reference missing \`${tool}\``);
   }
 });
 
-test('doc-drift: runtime docs reference only the 4 canonical feature flags', () => {
-  const canonical = [
-    'exampleBlocks',
-    'claudeStateContract',
-    'scriptBasedStateContract',
-    'codexStateContract',
-  ];
-  const removed = [
-    'mcpSkillContentHandler',
-    'policyEnforcer',
-    'geminiHookModel',
-    'geminiDelegation',
-    'geminiToolExamples',
-    'geminiAskFormat',
-    'geminiStateContract',
-    'geminiRuntimeConfig',
-    'claudeHookModel',
-    'claudeDelegation',
-    'claudeToolExamples',
-    'claudeRuntimeConfig',
-    'codexDelegation',
-    'codexRuntimeConfig',
-    'qwenStateContract',
-    'qwenRuntimeConfig',
-  ];
-  for (const runtime of ['gemini', 'claude', 'codex', 'qwen']) {
-    const body = read(`docs/runtime-${runtime}.md`);
-    const flagsMatch = body.match(/## Feature Flags[\s\S]*?(?=\n## |\n# |$)/);
-    assert.ok(flagsMatch, `docs/runtime-${runtime}.md: missing Feature Flags section`);
-    const section = flagsMatch[0];
-    for (const flag of canonical) {
-      assert.ok(section.includes(flag), `docs/runtime-${runtime}.md Feature Flags: missing canonical flag ${flag}`);
-    }
-    for (const flag of removed) {
-      assert.ok(!section.includes(flag + ':'), `docs/runtime-${runtime}.md Feature Flags: still lists removed flag ${flag}`);
-    }
-  }
-});
-
-test('doc-drift: runtime-docs feature-flag booleans match src/platforms/*/runtime-config.js', () => {
-  const expected = {
-    gemini: { exampleBlocks: false, claudeStateContract: false, scriptBasedStateContract: true, codexStateContract: false },
-    claude: { exampleBlocks: true, claudeStateContract: true, scriptBasedStateContract: false, codexStateContract: false },
-    codex: { exampleBlocks: false, claudeStateContract: false, scriptBasedStateContract: false, codexStateContract: true },
-    qwen: { exampleBlocks: false, claudeStateContract: false, scriptBasedStateContract: true, codexStateContract: false },
-  };
-  for (const [runtime, flags] of Object.entries(expected)) {
-    const body = read(`docs/runtime-${runtime}.md`);
-    const section = body.match(/## Feature Flags[\s\S]*?(?=\n## |\n# |$)/)[0];
-    for (const [flag, value] of Object.entries(flags)) {
-      const pattern = new RegExp(`${flag}:\\s*${value}\\b`);
-      assert.ok(pattern.test(section), `docs/runtime-${runtime}.md: flag ${flag} should be ${value}`);
+test('doc-drift: runtime-docs Feature Flags list exactly src/platforms/*/runtime-config.js features', () => {
+  for (const runtime of RUNTIME_NAMES) {
+    const surface = `docs/runtime-${runtime}.md`;
+    const section = read(surface).match(/## Feature Flags[\s\S]*?(?=\n## |\n# |$)/);
+    assert.ok(section, `${surface}: missing Feature Flags section`);
+    const block = section[0].match(/```\n([\s\S]*?)```/);
+    assert.ok(block, `${surface}: Feature Flags section has no code block`);
+    const features = getRuntimeConfig(runtime).features;
+    const documented = Object.fromEntries(
+      [...block[1].matchAll(/^[ \t]*(\w+):\s*(\S+)/gm)].map(([, flag, value]) => [
+        flag,
+        value === 'true' ? true : value === 'false' ? false : value,
+      ])
+    );
+    assert.deepEqual(
+      documented,
+      features,
+      `${surface}: Feature Flags must list exactly the runtime-config features with their values`
+    );
+    for (const [, flag] of section[0].matchAll(/(\w+):/g)) {
+      assert.ok(Object.hasOwn(features, flag), `${surface} Feature Flags: names unknown flag ${flag}`);
     }
   }
 });
@@ -266,40 +251,29 @@ test('doc-drift: runtime docs use generated-version placeholders', () => {
   }
 });
 
-test('doc-drift: docs/architecture.md module tree shows correct handler + session tool counts', () => {
+test('doc-drift: docs/architecture.md module tree shows correct handler + tool-pack counts', () => {
   const body = read('docs/architecture.md');
-  assert.ok(!body.includes('# 8 handler implementations'), 'docs/architecture.md: still says 8 handler implementations');
-  assert.ok(!body.includes('# 12 handler implementations'), 'docs/architecture.md: still says 12 handler implementations');
-  assert.ok(body.includes('# 10 handler implementations'), 'docs/architecture.md: does not report 10 handlers');
-  assert.ok(!body.includes('session/index.js        # 5 tools'), 'docs/architecture.md: still says session pack has 5 tools');
-  assert.ok(body.includes('session/index.js        # 10 tools'), 'docs/architecture.md: does not report 10 session tools');
-});
-
-test('doc-drift: docs/architecture.md content-tools list includes Qwen', () => {
-  const body = read('docs/architecture.md');
-  const idx = body.indexOf('The content tools');
-  assert.ok(idx >= 0, 'docs/architecture.md: Content Serving section not found');
-  const section = body.slice(idx, idx + 500);
-  assert.ok(section.includes('Qwen'), 'docs/architecture.md content-tools list: does not include Qwen');
-});
-
-test('doc-drift: claude/README.md agents table lists every src/agents/*.md agent', () => {
-  const body = read('claude/README.md');
-  const canonicalAgents = listDir('src/agents')
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => f.replace(/\.md$/, ''));
-  for (const agent of canonicalAgents) {
-    assert.ok(body.includes(`| ${agent} |`), `claude/README.md: Agents table missing row for ${agent}`);
+  const claims = (pattern) => [...body.matchAll(pattern)].map((match) => Number(match[1]));
+  const handlerCount = listDir('src/mcp/handlers').filter((f) => f.endsWith('.js')).length;
+  assert.deepEqual(
+    claims(/# (\d+) handler implementations/g),
+    [handlerCount],
+    `docs/architecture.md: module tree should report ${handlerCount} handler implementations`
+  );
+  for (const pack of listSubdirs('src/mcp/tool-packs')) {
+    const toolCount = packToolNames(pack).length;
+    assert.deepEqual(
+      claims(new RegExp(`${pack}/index\\.js\\s+# (\\d+) tools`, 'g')),
+      [toolCount],
+      `docs/architecture.md: module tree should report ${toolCount} tools for ${pack}/index.js`
+    );
   }
 });
 
 test('doc-drift: claude/README.md agent rows carry a valid Tool Tier value', () => {
   const body = read('claude/README.md');
-  const canonicalAgents = listDir('src/agents')
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => f.replace(/\.md$/, ''));
   const validTiers = ['Read-Only', 'Read \\+ Shell', 'Read \\+ Write', 'Full Access'];
-  for (const agent of canonicalAgents) {
+  for (const agent of canonicalAgents()) {
     const rowRegex = new RegExp(`\\| ${agent} \\|[^\\n]*\\| (?:${validTiers.join('|')}) \\|`);
     assert.ok(rowRegex.test(body), `claude/README.md: row for ${agent} missing valid Tool Tier`);
   }
@@ -314,18 +288,66 @@ test('doc-drift: claude/README.md commands use runtime-remapped names', () => {
 
 test('doc-drift: docs/runtime-qwen.md tool mapping has correct Qwen overrides', () => {
   const body = read('docs/runtime-qwen.md');
-  const expectedMappings = {
-    google_web_search: 'web_search',
-    replace: 'edit',
-    ask_user: 'ask_user_question',
-    write_todos: 'todo_write',
-    activate_skill: 'skill',
-    read_many_files: 'read_many_files',
-  };
-  for (const [canonical, qwen] of Object.entries(expectedMappings)) {
-    const pattern = new RegExp(`\\| \`${canonical}\` \\| \`${qwen}\` \\|`);
-    assert.ok(pattern.test(body), `docs/runtime-qwen.md: mapping row missing: ${canonical} → ${qwen}`);
+  const geminiTools = getRuntimeConfig('gemini').tools;
+  const qwenTools = getRuntimeConfig('qwen').tools;
+  const overrides = Object.keys(qwenTools).filter((canonical) => qwenTools[canonical] !== geminiTools[canonical]);
+  assert.ok(overrides.length > 0, 'src/platforms/qwen/runtime-config.js overrides no Gemini tool mapping');
+  for (const canonical of overrides) {
+    const qwen = qwenTools[canonical];
+    assert.ok(
+      body.includes(`| \`${canonical}\` | \`${qwen}\` |`),
+      `docs/runtime-qwen.md: mapping row missing: ${canonical} → ${qwen}`
+    );
   }
+});
+
+test('doc-drift: docs/runtime-gemini.md tool mapping lists every Gemini runtime-config tool', () => {
+  const body = read('docs/runtime-gemini.md');
+  for (const [canonical, gemini] of Object.entries(getRuntimeConfig('gemini').tools)) {
+    assert.ok(
+      body.includes(`| \`${canonical}\` | \`${gemini}\` |`),
+      `docs/runtime-gemini.md: mapping row missing: ${canonical} → ${gemini}`
+    );
+  }
+});
+
+test('doc-drift: served skill and reference agent tables name every src agent', () => {
+  const tables = [
+    ['src/skills/shared/delegation/SKILL.md', '## Agent Selection Guide'],
+    ['src/skills/shared/implementation-planning/SKILL.md', '### Matching Tasks to Agents'],
+    ['src/references/architecture.md', '## Agent Roster'],
+  ];
+  for (const [surface, heading] of tables) {
+    const section = markdownSection(surface, heading);
+    for (const agent of canonicalAgents()) {
+      assert.ok(section.includes(`\`${agent}\``), `${surface} "${heading}": missing \`${agent}\``);
+    }
+  }
+});
+
+test('doc-drift: implementation-planning compatibility rows match agent-registry capabilities', () => {
+  const surface = 'src/skills/shared/implementation-planning/SKILL.md';
+  const body = read(surface);
+  const listedAgents = (pattern, what) => {
+    const match = body.match(pattern);
+    assert.ok(match, `${surface}: missing ${what}`);
+    return match[1].split(',').map((name) => name.trim()).sort();
+  };
+  assert.deepEqual(
+    listedAgents(/^\| Creates\/modifies files \|[^|\n]*\| ([^|\n]+) \|$/m, 'the "Creates/modifies files" row'),
+    agentsWithCapabilities('full', 'read_write'),
+    `${surface}: "Creates/modifies files" must list exactly the full and read_write agents`
+  );
+  assert.deepEqual(
+    listedAgents(/^\| Runs shell commands \|[^|\n]*\| ([^|\n]+) \|$/m, 'the "Runs shell commands" row'),
+    agentsWithCapabilities('full', 'read_shell'),
+    `${surface}: "Runs shell commands" must list exactly the full and read_shell agents`
+  );
+  assert.deepEqual(
+    listedAgents(/Read-Only agents \(([^)]+)\)/, 'the Read-Only agents HARD-GATE list'),
+    agentsWithCapabilities('read_only'),
+    `${surface}: the Read-Only HARD-GATE must list exactly the read_only agents`
+  );
 });
 
 test('doc-drift: Qwen docs use Qwen hook event names', () => {

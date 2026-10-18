@@ -130,7 +130,7 @@ Common paths:
 
 ### Codex CLI
 
-- Command entry point: `$maestro:*`
+- Command entry point: `$maestro:*` (use `$maestro:...`, not `/maestro:...`)
 - **No runtime hooks**
 - Uses plugin skills + `spawn_agent`
 - Built-in `/review`, `/debug`, and `/resume` conflict with the host, so Maestro uses:
@@ -173,14 +173,6 @@ Common paths:
 
 ## 8. Common Notes
 
-### Codex CLI
-
-- Use `$maestro:...`, not `/maestro:...`
-- Because `review/debug/resume` names conflict with built-in host commands, use:
-  - `$maestro:review-code`
-  - `$maestro:debug-workflow`
-  - `$maestro:resume-session`
-
 ### Gemini / Qwen
 
 - Experimental subagents must be enabled
@@ -205,3 +197,4 @@ If you want to go deeper:
 5. `docs/runtime-gemini.md`
 6. `docs/runtime-claude.md`
 7. `docs/runtime-codex.md`
+8. `docs/runtime-qwen.md`

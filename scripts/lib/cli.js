@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * Shared argv parsing and failure handling for the release scripts' CLIs.
+ * Shared argv parsing and failure handling for the release and installer
+ * scripts' CLIs.
  */
 
 function parseFlagArgs(argv, { defaults, flags, printHelp }) {
@@ -17,6 +18,10 @@ function parseFlagArgs(argv, { defaults, flags, printHelp }) {
 
     if (!Object.hasOwn(flags, arg)) {
       throw new Error(`Unknown argument: ${arg}`);
+    }
+
+    if (index + 1 >= argv.length) {
+      throw new Error(`Missing value for ${arg}`);
     }
 
     options[flags[arg]] = argv[index + 1];

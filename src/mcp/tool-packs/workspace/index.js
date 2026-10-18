@@ -9,7 +9,7 @@ const {
 const { handleValidatePlan } = require('../../handlers/validate-plan');
 const { handleResolveSettings } = require('../../handlers/resolve-settings');
 
-function createToolPack({ services = {} } = {}) {
+function createToolPack({ services }) {
   return {
     name: 'workspace',
     tools: [
@@ -33,6 +33,13 @@ function createToolPack({ services = {} } = {}) {
           },
           required: ['workspace_path'],
         },
+        async handler(params, projectRoot) {
+          const result = await handleInitializeWorkspace(params, projectRoot);
+          if (typeof services.setWorkspacePath === 'function') {
+            services.setWorkspacePath(result.workspace_path);
+          }
+          return result;
+        },
       },
       {
         name: 'assess_task_complexity',
@@ -49,6 +56,7 @@ function createToolPack({ services = {} } = {}) {
             },
           },
         },
+        handler: handleAssessTaskComplexity,
       },
       {
         name: 'validate_plan',
@@ -65,6 +73,7 @@ function createToolPack({ services = {} } = {}) {
           },
           required: ['plan', 'task_complexity'],
         },
+        handler: handleValidatePlan,
       },
       {
         name: 'resolve_settings',
@@ -81,20 +90,9 @@ function createToolPack({ services = {} } = {}) {
             },
           },
         },
+        handler: handleResolveSettings,
       },
     ],
-    handlers: {
-      async initialize_workspace(params, projectRoot) {
-        const result = await handleInitializeWorkspace(params, projectRoot);
-        if (typeof services.setWorkspacePath === 'function') {
-          services.setWorkspacePath(result.workspace_path);
-        }
-        return result;
-      },
-      assess_task_complexity: handleAssessTaskComplexity,
-      validate_plan: handleValidatePlan,
-      resolve_settings: handleResolveSettings,
-    },
   };
 }
 

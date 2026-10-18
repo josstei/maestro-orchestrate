@@ -1,6 +1,7 @@
 'use strict';
 
 const { validatePhases } = require('../contracts/plan-schema');
+const { violation } = require('./violation');
 
 const PHASE_LIMITS = {
   simple: 3,
@@ -15,13 +16,7 @@ const PHASE_LIMITS = {
  */
 function checkPlanShape(plan) {
   if (!plan || typeof plan !== 'object' || !Array.isArray(plan.phases)) {
-    return [
-      {
-        rule: 'invalid_plan',
-        detail: 'plan must be an object with a phases array',
-        severity: 'error',
-      },
-    ];
+    return [violation('invalid_plan', 'plan must be an object with a phases array')];
   }
   return [];
 }
@@ -33,11 +28,7 @@ function checkPhaseCount(phases, taskComplexity) {
   const limit = PHASE_LIMITS[taskComplexity] || Infinity;
   if (phases.length > limit) {
     return [
-      {
-        rule: 'phase_count',
-        detail: `${taskComplexity} tasks allow max ${limit} phases, got ${phases.length}`,
-        severity: 'error',
-      },
+      violation('phase_count', `${taskComplexity} tasks allow max ${limit} phases, got ${phases.length}`),
     ];
   }
   return [];
@@ -52,11 +43,7 @@ function checkDuplicateIds(phases) {
   const seenIds = new Set();
   for (const phase of phases) {
     if (seenIds.has(phase.id)) {
-      violations.push({
-        rule: 'duplicate_id',
-        detail: `Duplicate phase ID: ${phase.id}`,
-        severity: 'error',
-      });
+      violations.push(violation('duplicate_id', `Duplicate phase ID: ${phase.id}`));
     }
     seenIds.add(phase.id);
   }
@@ -72,11 +59,12 @@ function checkDanglingDependencies(phases) {
   for (const phase of phases) {
     for (const dependencyId of phase.blocked_by || []) {
       if (!allIds.has(dependencyId)) {
-        violations.push({
-          rule: 'dangling_dependency',
-          detail: `Phase ${phase.id} references non-existent dependency: ${dependencyId}`,
-          severity: 'error',
-        });
+        violations.push(
+          violation(
+            'dangling_dependency',
+            `Phase ${phase.id} references non-existent dependency: ${dependencyId}`
+          )
+        );
       }
     }
   }
@@ -90,12 +78,12 @@ function checkDanglingDependencies(phases) {
 function checkPhaseFieldSchema(phases) {
   const result = validatePhases(phases);
   if (result.valid) return [];
-  return result.violations.map((violation) => ({
-    rule: violation.rule,
-    detail: `Phase ${violation.phase_id ?? '?'} field "${violation.field}" ${violation.rule.replace('_', ' ')}`,
+  return result.violations.map((contractViolation) => ({
+    rule: contractViolation.rule,
+    detail: `Phase ${contractViolation.phase_id ?? '?'} field "${contractViolation.field}" ${contractViolation.rule.replace('_', ' ')}`,
     severity: 'error',
-    phase_id: violation.phase_id,
-    field: violation.field,
+    phase_id: contractViolation.phase_id,
+    field: contractViolation.field,
   }));
 }
 

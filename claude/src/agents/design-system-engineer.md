@@ -3,12 +3,10 @@ name: design-system-engineer
 description: "Design system engineering specialist for design tokens, component API contracts, theming architecture, CSS architecture, style consistency, and visual regression strategy. Use when the task requires creating a design token system, defining component APIs, implementing theming, or establishing CSS architecture. For example: setting up a token hierarchy with light/dark themes, designing the prop interface for a component library, or implementing a token-to-CSS pipeline."
 color: pink
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, activate_skill, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, activate_skill, read_many_files, ask_user]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, TaskCreate, TaskUpdate, TaskList, Skill]
 max_turns: 25
 temperature: 0.2
 timeout_mins: 10
-capabilities: full
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -233,26 +231,3 @@ You have access to `activate_skill` for loading methodology modules when needed:
 
 - `coder`: Needs token import paths (how to reference tokens in code), component API contracts (full prop interfaces with types and defaults), theming integration instructions (provider setup, theme switching code), and migration guides if replacing existing ad-hoc styling
 - `tester`: Needs visual regression test setup instructions (tooling configuration, CI integration), component state matrices (every combination of variant, size, and state that requires a visual snapshot), and theme variation coverage (which components need snapshots in every theme)
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

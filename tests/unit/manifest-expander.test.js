@@ -1,10 +1,8 @@
 'use strict';
 
-const { describe, it, before, after } = require('node:test');
+const { describe, it, before } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const fs = require('node:fs');
-const os = require('node:os');
 
 const {
   expandGlob,
@@ -12,31 +10,24 @@ const {
   assertNoMirroredSharedOutputs,
   expandManifest,
 } = require('../../src/generator/manifest-expander');
+const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('manifest-expander', () => {
   let tmpDir;
 
   before(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'manifest-expander-'));
-
-    fs.mkdirSync(path.join(tmpDir, 'agents'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'agents', 'foo-bar.md'), '');
-    fs.writeFileSync(path.join(tmpDir, 'agents', 'baz.md'), '');
-    fs.writeFileSync(path.join(tmpDir, 'agents', 'qux-thing.md'), '');
-
-    fs.mkdirSync(path.join(tmpDir, 'skills', 'shared', 'delegation'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'skills', 'shared', 'delegation', 'SKILL.md'), '');
-
-    fs.mkdirSync(path.join(tmpDir, 'skills', 'shared', 'execution'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'skills', 'shared', 'execution', 'SKILL.md'), '');
-
-    fs.mkdirSync(path.join(tmpDir, 'docs'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'docs', 'readme.txt'), '');
-    fs.writeFileSync(path.join(tmpDir, 'docs', 'guide.md'), '');
-  });
-
-  after(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = makeTempDir('manifest-expander-');
+    for (const relPath of [
+      'agents/foo-bar.md',
+      'agents/baz.md',
+      'agents/qux-thing.md',
+      'skills/shared/delegation/SKILL.md',
+      'skills/shared/execution/SKILL.md',
+      'docs/readme.txt',
+      'docs/guide.md',
+    ]) {
+      writeTree(tmpDir, relPath);
+    }
   });
 
   describe('expandGlob', () => {
@@ -61,19 +52,19 @@ describe('manifest-expander', () => {
       const results = expandGlob('agents/*.md', tmpDir);
 
       const sorted = [...results].sort();
-      assert.deepStrictEqual(results, sorted);
+      assert.deepEqual(results, sorted);
     });
 
     it('returns empty array when no files match', () => {
       const results = expandGlob('nonexistent/*.js', tmpDir);
 
-      assert.deepStrictEqual(results, []);
+      assert.deepEqual(results, []);
     });
 
     it('does not match directories as final segment', () => {
       const results = expandGlob('skills/*', tmpDir);
 
-      assert.deepStrictEqual(results, []);
+      assert.deepEqual(results, []);
     });
 
     it('filters by extension when wildcard is scoped', () => {
@@ -161,81 +152,23 @@ describe('manifest-expander', () => {
       assert.doesNotThrow(() => assertNoMirroredSharedOutputs(manifest));
     });
 
-    it('throws for mcp/maestro-server-core.js', () => {
-      const manifest = [
-        { outputs: { gemini: 'mcp/maestro-server-core.js' } },
+    it('throws for outputs that mirror shared code', () => {
+      const forbiddenOutputs = [
+        ['gemini', 'mcp/maestro-server-core.js'],
+        ['claude', 'claude/mcp/maestro-server-core.js'],
+        ['codex', 'plugins/maestro/mcp/maestro-server-core.js'],
+        ['gemini', 'lib/something.js'],
+        ['claude', 'claude/lib/registry.js'],
+        ['codex', 'plugins/maestro/lib/agent-registry.js'],
+        ['gemini', 'lib/mcp/generated/resource-registry.js'],
       ];
 
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for claude/mcp/maestro-server-core.js', () => {
-      const manifest = [
-        { outputs: { claude: 'claude/mcp/maestro-server-core.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for paths starting with lib/', () => {
-      const manifest = [
-        { outputs: { gemini: 'lib/something.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for paths starting with claude/lib/', () => {
-      const manifest = [
-        { outputs: { claude: 'claude/lib/registry.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for paths starting with plugins/maestro/lib/', () => {
-      const manifest = [
-        { outputs: { codex: 'plugins/maestro/lib/agent-registry.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for plugins/maestro/mcp/maestro-server-core.js', () => {
-      const manifest = [
-        { outputs: { codex: 'plugins/maestro/mcp/maestro-server-core.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
-    });
-
-    it('throws for lib/mcp/generated/resource-registry.js', () => {
-      const manifest = [
-        { outputs: { gemini: 'lib/mcp/generated/resource-registry.js' } },
-      ];
-
-      assert.throws(
-        () => assertNoMirroredSharedOutputs(manifest),
-        /not allowed in src-first mode/
-      );
+      for (const [runtime, outputPath] of forbiddenOutputs) {
+        assert.throws(
+          () => assertNoMirroredSharedOutputs([{ outputs: { [runtime]: outputPath } }]),
+          { message: `Manifest output is not allowed in src-first mode: "${outputPath}"` }
+        );
+      }
     });
   });
 
@@ -249,7 +182,7 @@ describe('manifest-expander', () => {
     it('expands glob rules into per-file entries', () => {
       const rule = {
         glob: 'agents/*.md',
-        transforms: ['inject-frontmatter'],
+        transforms: ['agent-stub'],
         runtimes: ['gemini', 'claude'],
       };
 
@@ -258,7 +191,7 @@ describe('manifest-expander', () => {
       assert.equal(result.length, 3);
 
       const srcs = result.map((e) => e.src).sort();
-      assert.deepStrictEqual(srcs, ['agents/baz.md', 'agents/foo-bar.md', 'agents/qux-thing.md']);
+      assert.deepEqual(srcs, ['agents/baz.md', 'agents/foo-bar.md', 'agents/qux-thing.md']);
 
       const fooEntry = result.find((e) => e.src === 'agents/foo-bar.md');
       assert.equal(fooEntry.outputs.gemini, 'agents/foo_bar.md');
@@ -280,8 +213,28 @@ describe('manifest-expander', () => {
       assert.equal(result[0].outputs.codex, 'plugins/maestro/skills/delegation/SKILL.md');
     });
 
+    it('produces separate entries for same source with different transforms', () => {
+      const rules = [
+        { glob: 'agents/*.md', transforms: ['agent-stub'], runtimes: ['gemini', 'claude'] },
+        { glob: 'agents/*.md', transforms: ['skill-discovery-stub'], runtimes: ['codex'] },
+      ];
+
+      const result = expandManifest(rules, runtimes, tmpDir);
+
+      const fooEntries = result.filter((e) => e.src === 'agents/foo-bar.md');
+      assert.equal(fooEntries.length, 2, 'foo-bar.md appears in both rules');
+
+      const geminiClaudeEntry = fooEntries.find((e) => e.outputs.gemini);
+      assert.deepEqual(geminiClaudeEntry.transforms, ['agent-stub']);
+      assert.deepEqual(Object.keys(geminiClaudeEntry.outputs), ['gemini', 'claude']);
+
+      const codexEntry = fooEntries.find((e) => e.outputs.codex);
+      assert.deepEqual(codexEntry.transforms, ['skill-discovery-stub']);
+      assert.deepEqual(codexEntry.outputs, { codex: 'plugins/maestro/agents/foo-bar.md' });
+    });
+
     it('throws when rule is missing runtimes', () => {
-      const rule = { glob: 'agents/*.md', transforms: ['copy'] };
+      const rule = { glob: 'agents/*.md', transforms: ['agent-stub'] };
 
       assert.throws(
         () => expandManifest([rule], runtimes, tmpDir),
@@ -290,7 +243,7 @@ describe('manifest-expander', () => {
     });
 
     it('throws when rule has neither glob nor src', () => {
-      const rule = { transforms: ['copy'], runtimes: ['gemini'] };
+      const rule = { transforms: ['agent-stub'], runtimes: ['gemini'] };
 
       assert.throws(
         () => expandManifest([rule], runtimes, tmpDir),
@@ -301,14 +254,14 @@ describe('manifest-expander', () => {
     it('preserves transforms array on expanded entries', () => {
       const rule = {
         glob: 'agents/*.md',
-        transforms: ['inject-frontmatter', 'agent-stub'],
+        transforms: ['agent-stub', 'skill-discovery-stub'],
         runtimes: ['gemini'],
       };
 
       const result = expandManifest([rule], runtimes, tmpDir);
 
       for (const entry of result) {
-        assert.deepStrictEqual(entry.transforms, ['inject-frontmatter', 'agent-stub']);
+        assert.deepEqual(entry.transforms, ['agent-stub', 'skill-discovery-stub']);
       }
     });
 
@@ -326,6 +279,29 @@ describe('manifest-expander', () => {
       const delegationEntry = result.find((e) => e.src.includes('delegation'));
       assert.equal(delegationEntry.outputs.claude, 'claude/skills/delegation/SKILL.md');
       assert.equal(delegationEntry.outputs.codex, 'plugins/maestro/skills/delegation/SKILL.md');
+    });
+
+    describe('against src/', () => {
+      const SRC = path.resolve(__dirname, '../../src');
+
+      it('expands the agents glob into one entry per agent with per-runtime outputs', () => {
+        const rule = { glob: 'agents/*.md', transforms: ['agent-stub'], runtimes: ['gemini', 'claude'] };
+
+        const result = expandManifest([rule], runtimes, SRC);
+
+        assert.equal(result.length, 39);
+
+        const coderEntries = result.filter((e) => e.src === 'agents/coder.md');
+        assert.equal(coderEntries.length, 1, 'coder.md should appear once for this rule');
+        assert.equal(coderEntries[0].outputs.gemini, 'agents/coder.md');
+        assert.equal(coderEntries[0].outputs.claude, 'claude/agents/coder.md');
+        assert.deepEqual(coderEntries[0].transforms, ['agent-stub']);
+
+        const codeReviewerEntry = result.find((e) => e.src === 'agents/code-reviewer.md');
+        assert.ok(codeReviewerEntry, 'code-reviewer.md should be in entries');
+        assert.equal(codeReviewerEntry.outputs.gemini, 'agents/code_reviewer.md');
+        assert.equal(codeReviewerEntry.outputs.claude, 'claude/agents/code-reviewer.md');
+      });
     });
   });
 });

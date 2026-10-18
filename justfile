@@ -8,16 +8,18 @@ help:
     @echo "  just generate         Generate all runtime files from src/"
     @echo "  just dry-run          Preview what would change without writing"
     @echo "  just diff             Show unified diff of what would change"
-    @echo "  just clean            Delete all generated files and regenerate"
+    @echo "  just clean            Delete generated agent and shared-skill stubs, then regenerate"
     @echo ""
     @echo "Testing:"
     @echo "  just test             Run all tests"
+    @echo "  just test-unit        Run only unit tests"
     @echo "  just test-transforms  Run only transform unit tests"
     @echo "  just test-integration Run only integration tests"
     @echo ""
     @echo "CI:"
     @echo "  just check            Generate + verify zero drift"
-    @echo "  just ci               Full CI equivalent (check + test)"
+    @echo "  just check-layers     Verify lib/ layer boundary"
+    @echo "  just ci               Full CI equivalent (check + check-layers + test)"
     @echo ""
     @echo "Maintenance:"
     @echo "  just cleanup-branches Delete local branches whose remote is gone"
@@ -34,7 +36,7 @@ dry-run:
 diff:
     node scripts/generate.js --diff
 
-# Clean all generated files and regenerate from scratch
+# Delete the generated agent and shared-skill stubs, then regenerate
 clean:
     node scripts/generate.js --clean
 

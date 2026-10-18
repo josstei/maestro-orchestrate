@@ -7,6 +7,12 @@ const {
   parsePackJson,
   verifyPackageEntries,
 } = require('../../scripts/verify-npm-pack');
+const { REQUIRED_PACKAGE_FILES } = require('../../scripts/release-artifact-manifest');
+
+function packWith(...extraPaths) {
+  const files = [...REQUIRED_PACKAGE_FILES, ...extraPaths].map((filePath) => ({ path: filePath }));
+  return [{ filename: 'pkg.tgz', files }];
+}
 
 describe('verify npm pack', () => {
   it('parses npm pack JSON after lifecycle output', () => {
@@ -16,58 +22,33 @@ describe('verify npm pack', () => {
   });
 
   it('requires release-critical files in the package', () => {
-    const files = [
+    assert.deepEqual(REQUIRED_PACKAGE_FILES, [
       'bin/maestro-mcp-server.js',
       'claude/.claude-plugin/plugin.json',
       'gemini-extension.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'qwen-extension.json',
       'src/mcp/maestro-server.js',
-    ].map((filePath) => ({ path: filePath }));
-
-    assert.doesNotThrow(() => verifyPackageEntries([{ filename: 'pkg.tgz', files }]));
+    ]);
+    assert.doesNotThrow(() => verifyPackageEntries(packWith()));
   });
 
   it('rejects test-only package content', () => {
-    const files = [
-      'bin/maestro-mcp-server.js',
-      'claude/.claude-plugin/plugin.json',
-      'gemini-extension.json',
-      'plugins/maestro/.codex-plugin/plugin.json',
-      'qwen-extension.json',
-      'src/mcp/maestro-server.js',
-      'tests/unit/example.test.js',
-    ].map((filePath) => ({ path: filePath }));
-
     assert.throws(
-      () => verifyPackageEntries([{ filename: 'pkg.tgz', files }]),
-      /npm package contains forbidden path: tests\/unit\/example\.test\.js/
+      () => verifyPackageEntries(packWith('tests/unit/example.test.js')),
+      { message: 'npm package contains forbidden path: tests/unit/example.test.js' }
     );
   });
 
   it('rejects nested test-only files inside runtime package roots', () => {
-    const requiredFiles = [
-      'bin/maestro-mcp-server.js',
-      'claude/.claude-plugin/plugin.json',
-      'gemini-extension.json',
-      'plugins/maestro/.codex-plugin/plugin.json',
-      'qwen-extension.json',
-      'src/mcp/maestro-server.js',
-    ];
-
     for (const forbiddenPath of [
       'claude/scripts/policy-enforcer.test.js',
       'plugins/maestro/src/mcp/server.spec.js',
       'claude/scripts/__tests__/fixture.js',
     ]) {
-      const files = [
-        ...requiredFiles,
-        forbiddenPath,
-      ].map((filePath) => ({ path: filePath }));
-
       assert.throws(
-        () => verifyPackageEntries([{ filename: 'pkg.tgz', files }]),
-        new RegExp(`npm package contains forbidden path: ${forbiddenPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+        () => verifyPackageEntries(packWith(forbiddenPath)),
+        { message: `npm package contains forbidden path: ${forbiddenPath}` }
       );
     }
   });

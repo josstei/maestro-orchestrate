@@ -3,12 +3,10 @@ name: i18n-specialist
 description: "Internationalization specialist for i18n architecture, string extraction, locale management, pluralization rules, RTL support, and date/number/currency formatting. Use when the task requires internationalizing an application, setting up locale file structures, extracting hardcoded strings, or adding right-to-left language support. For example: adding multi-language support to a React app, extracting strings for translator handoff, or implementing RTL layout for Arabic."
 color: indigo
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user]
-tools.gemini: [read_file, list_directory, glob, grep_search, write_file, replace, run_shell_command, write_todos, read_many_files, ask_user]
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, TaskCreate, TaskUpdate, TaskList]
 max_turns: 20
 temperature: 0.2
 timeout_mins: 8
-capabilities: full
 ---
 <!-- @feature exampleBlocks -->
 <example>
@@ -216,26 +214,3 @@ Rule: **Never split a sentence across multiple translation keys.** Each complete
 
 - `coder`: Needs i18n architecture changes — library installation and initialization code, translation wrapper function signatures, locale file import patterns, lazy-loading configuration for locale bundles, and specific instructions for how to use translation functions in components
 - `tester`: Needs i18n-specific test cases — locale switching verification, RTL rendering screenshots, pluralization edge cases (0, 1, 2, 5, 21 for languages with complex plural rules), date/number formatting per locale, pseudo-localization tests for text overflow, and missing translation key fallback behavior
-
-## Output Contract
-
-When completing your task, conclude with a **Handoff Report** containing two parts:
-
-## Task Report
-- **Status**: success | partial | failure
-- **Objective Achieved**: [One sentence restating the task objective and whether it was fully met]
-- **Files Created**: [Absolute paths with one-line purpose each, or "none"]
-- **Files Modified**: [Absolute paths with one-line summary of what changed and why, or "none"]
-- **Files Deleted**: [Absolute paths with rationale, or "none"]
-- **Decisions Made**: [Choices made that were not explicitly specified in the delegation prompt, with rationale for each, or "none"]
-- **Validation**: pass | fail | skipped
-- **Validation Output**: [Command output or "N/A"]
-- **Errors**: [List with type, description, and resolution status, or "none"]
-- **Scope Deviations**: [Anything asked but not completed, or additional necessary work discovered but not performed, or "none"]
-
-## Downstream Context
-- **Key Interfaces Introduced**: [Type signatures and file locations, or "none"]
-- **Patterns Established**: [New patterns that downstream agents must follow for consistency, or "none"]
-- **Integration Points**: [Where and how downstream work should connect to this output, or "none"]
-- **Assumptions**: [Anything assumed that downstream agents should verify, or "none"]
-- **Warnings**: [Gotchas, edge cases, or fragile areas downstream agents should be aware of, or "none"]

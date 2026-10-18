@@ -2,8 +2,11 @@
 #
 # Shared semantic git convention checks for repo-local hooks.
 
-SEMANTIC_COMMIT_PATTERN='^(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert|release)(\([a-z0-9_./-]+\))?!?: .+'
-SEMANTIC_BRANCH_PATTERN='^([a-z0-9][a-z0-9._-]*/)?(feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert)/[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*$'
+# Change types shared by commit subjects and branch names; commit subjects
+# additionally accept `release`.
+SEMANTIC_TYPES='feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert'
+SEMANTIC_COMMIT_PATTERN="^(${SEMANTIC_TYPES}|release)(\\([a-z0-9_./-]+\\))?!?: .+"
+SEMANTIC_BRANCH_PATTERN="^([a-z0-9][a-z0-9._-]*/)?(${SEMANTIC_TYPES})/[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*\$"
 SEMANTIC_RELEASE_BRANCH_PATTERN='^release/v[0-9]+\.[0-9]+\.[0-9]+$'
 SEMANTIC_ZERO_SHA_PATTERN='^0{40}$'
 

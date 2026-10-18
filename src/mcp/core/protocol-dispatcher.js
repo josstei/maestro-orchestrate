@@ -9,31 +9,21 @@ function writeMessage(output, message) {
   output.write(JSON.stringify(message) + '\n');
 }
 
-function buildInitializeResult(protocolVersion, serverInfo) {
-  return {
-    protocolVersion: protocolVersion || DEFAULT_PROTOCOL_VERSION,
-    capabilities: {
-      tools: {},
-    },
-    serverInfo,
-  };
-}
-
-// `outcome` is a createServer failure, already shaped as the wire payload plus `ok`.
-function createToolErrorResult(outcome) {
-  const { ok: _ok, ...payload } = outcome;
-  return { ...createToolSuccessResult(payload), isError: true };
-}
-
-function createToolSuccessResult(result) {
-  return {
+function toolResult(payload, isError = false) {
+  const result = {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(result),
+        text: JSON.stringify(payload),
       },
     ],
   };
+
+  if (isError) {
+    result.isError = true;
+  }
+
+  return result;
 }
 
 /**
@@ -119,7 +109,13 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
         if (typeof callbacks.onInitialize === 'function') {
           await callbacks.onInitialize(params || {});
         }
-        reply(buildInitializeResult(params && params.protocolVersion, serverInfo));
+        reply({
+          protocolVersion: (params && params.protocolVersion) || DEFAULT_PROTOCOL_VERSION,
+          capabilities: {
+            tools: {},
+          },
+          serverInfo,
+        });
         return;
 
       case 'notifications/initialized':
@@ -153,12 +149,13 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
             ? params.arguments
             : {};
         const projectRoot = await getProjectRoot();
-        const outcome = await server.callTool(name, args, projectRoot);
+        // A failure outcome is already the wire payload plus `ok`.
+        const { ok, result, ...failure } = await server.callTool(name, args, projectRoot);
 
-        if (!outcome.ok) {
-          log('error', `Tool ${name || '(unknown)'} failed: ${outcome.error}`);
+        if (!ok) {
+          log('error', `Tool ${name || '(unknown)'} failed: ${failure.error}`);
         }
-        reply(outcome.ok ? createToolSuccessResult(outcome.result) : createToolErrorResult(outcome));
+        reply(ok ? toolResult(result) : toolResult(failure, true));
         return;
       }
 
@@ -180,10 +177,5 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
 }
 
 module.exports = {
-  DEFAULT_PROTOCOL_VERSION,
-  writeMessage,
-  buildInitializeResult,
-  createToolErrorResult,
-  createToolSuccessResult,
   createProtocolHandlers,
 };

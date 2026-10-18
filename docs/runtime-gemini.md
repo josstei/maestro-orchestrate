@@ -60,7 +60,7 @@ architect(query: "Design the auth system...")
 
 ## Hooks
 
-4 hook events, no matchers, 10-second timeout:
+4 hook events in `hooks/hooks.json`, no matchers, 10-second timeout:
 
 | Event | Script | Purpose |
 |-------|--------|---------|
@@ -79,7 +79,7 @@ Gemini has a post-delegation validation hook that Claude lacks:
 
 ### Hook Adapter
 
-`src/platforms/shared/adapters/gemini-adapter.js` normalizes Gemini CLI JSON input:
+`src/platforms/gemini/hook-adapter.js` normalizes Gemini CLI JSON input:
 
 | Gemini Field | Internal Field |
 |-------------|----------------|
@@ -94,7 +94,7 @@ Output format: `{ continue: boolean, systemMessage?: string }`
 
 ## Policies
 
-`policies/maestro.toml` — TOML-based shell guardrails evaluated by Gemini's native policy engine:
+`policies/maestro.toml` — TOML-based shell guardrails evaluated by Gemini's native policy engine. `src/platforms/metadata.js` generates the file from `src/core/policy-rules.js`, the same rules the Claude policy enforcer applies:
 
 **Deny (priority 950)**:
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
@@ -144,14 +144,17 @@ See `src/platforms/gemini/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
-Gemini agent stubs include:
+Gemini agent stubs include the fields listed in `agentFrontmatter.fields` (`src/platforms/gemini/runtime-config.js`), with the canonical `tools` list copied verbatim:
 
 ```yaml
 ---
 name: coder
 kind: local
 description: "..."
-tools: [read_file, write_file, ...]
+tools:
+  - read_file
+  - write_file
+  - ...
 temperature: 0.2
 max_turns: 25
 timeout_mins: 10
@@ -160,13 +163,14 @@ timeout_mins: 10
 
 Fields: `kind` (always "local"), `temperature`, `max_turns`, `timeout_mins`.
 
-## Generated Files
+## Runtime Files
 
 ```
-agents/                    39 agent stubs (snake_case)
-commands/maestro/          12 TOML commands
-hooks/                     thin hook runner, adapter wrapper, hooks.json
-mcp/                       thin MCP entrypoint
-policies/                  1 TOML policy file
-README.md, GEMINI.md, gemini-extension.json, .geminiignore
+agents/                    [generated] 39 agent stubs (snake_case)
+commands/maestro/          [generated] 12 TOML commands
+hooks/                     hook-runner.js shim (hand-maintained) + [generated] hooks.json
+mcp/                       maestro-server.js shim (hand-maintained)
+policies/                  [generated] maestro.toml policy pack
+gemini-extension.json      [generated] extension manifest
+README.md, GEMINI.md, .geminiignore   hand-maintained
 ```

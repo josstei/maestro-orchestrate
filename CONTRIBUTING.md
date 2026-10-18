@@ -28,7 +28,7 @@ The hooks are best-effort — CI re-validates everything on PR submission and on
 
 ## Key Commands
 
-All commands are available via `just` or `npm`:
+All commands are available via `just`:
 
 | Command | Description |
 |---------|-------------|
@@ -38,26 +38,42 @@ All commands are available via `just` or `npm`:
 | `just test-transforms` | Run only transform unit tests |
 | `just test-integration` | Run only integration tests |
 | `just check` | Generate + verify zero drift (`git diff --exit-code`) |
+| `just check-layers` | Verify that `src/lib/` imports only `src/lib/` and `node:` builtins |
 | `just ci` | Full CI equivalent: check + check-layers + test |
 | `just dry-run` | Preview changes without writing |
 | `just diff` | Show unified diff of pending changes |
+| `just clean` | Delete the generated agent and shared-skill stubs, then regenerate |
+| `just cleanup-branches` | Delete local branches whose remote is gone |
 
-Equivalent npm scripts: `npm run generate` or `npm run build`.
+npm equivalents: `npm run generate` or `npm run build` for `just generate`, and `npm test` for `just test`.
 
 ## Architecture: Canonical Source and Generated Runtimes
 
-All hand-maintained code lives in `src/`. Everything outside `src/` at the runtime output locations is **generated** by the build pipeline.
+Shared code and content live in `src/`. The generator (`just generate`) builds most of each runtime's files from it; a few runtime files are thin shims or docs maintained by hand.
 
 **Never hand-edit generated files.** They will be overwritten on the next `just generate`.
 
-| Generated Location | Runtime |
-|--------------------|---------|
-| `agents/`, `commands/`, `hooks/`, `mcp/`, `policies/` (repo root) | Gemini CLI |
-| `claude/` | Claude Code |
-| `plugins/maestro/` | Codex |
-| `qwen/` plus root `qwen-extension.json` and `QWEN.md` | Qwen Code |
+| Generated (edit the source in `src/` instead) | Runtime |
+|-----------------------------------------------|---------|
+| `agents/`, `commands/maestro/`, `gemini-extension.json`, `hooks/hooks.json`, `policies/maestro.toml` | Gemini CLI (Qwen Code also uses `commands/maestro/` and `policies/maestro.toml`) |
+| `claude/agents/`, `claude/skills/`, `claude/hooks/claude-hooks.json`, `claude/.claude-plugin/plugin.json`, `claude/.mcp.json`, `claude/src/`, `.claude-plugin/marketplace.json` | Claude Code |
+| `plugins/maestro/skills/`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `plugins/maestro/src/`, `.agents/plugins/marketplace.json` | Codex |
+| `qwen/agents/`, `qwen/hooks.json`, `qwen-extension.json` | Qwen Code |
+| `src/generated/*.json` (agent, resource, and hook registries) | All |
 
-The generator pipeline reads `src/manifest.js` and applies transforms from `src/transforms/` to produce runtime-specific output.
+`claude/src/` and `plugins/maestro/src/` are detached copies of `src/`, stamped with `version.json`, for installs outside the repo.
+
+| Hand-maintained (edit in place) | Purpose |
+|---------------------------------|---------|
+| `hooks/hook-runner.js`, `mcp/maestro-server.js` | Gemini CLI and Qwen Code shims that load the hook runner and MCP server from `src/` |
+| `claude/scripts/hook-runner.js`, `claude/scripts/policy-enforcer.js`, `claude/mcp/maestro-server.js` | Claude Code shims that load the repo `src/`, or the bundled `claude/src/` outside the repo |
+| `bin/maestro-mcp-server.js` | Codex MCP server bin, run via `npx` from `plugins/maestro/.mcp.json` |
+| `claude/mcp-config.example.json` | Example MCP server entry for manual Claude setups |
+| `plugins/maestro/references/runtime-guide.md` | Codex runtime guide, read by the Codex skills |
+| `GEMINI.md`, `QWEN.md`, `.geminiignore` | Gemini CLI and Qwen Code context files, and the Gemini ignore list |
+| `README.md`, `claude/README.md`, `plugins/maestro/README.md` | READMEs; `scripts/update-versions.js` stamps the version badge in `README.md` and `claude/README.md` |
+
+The generator reads `src/manifest.js`, applies the transforms in `src/transforms/`, expands the entry-point registries, and builds the manifests, hook registrations, and policy pack in `src/platforms/metadata.js`. [docs/architecture.md](docs/architecture.md#generator-pipeline) lists every step.
 
 ## Making Changes
 
@@ -66,7 +82,7 @@ The generator pipeline reads `src/manifest.js` and applies transforms from `src/
    git checkout -b feat/short-description main
    ```
 
-2. **Make your changes in `src/`** — edit only canonical source files.
+2. **Make your changes in `src/`** — edit canonical source files, plus the hand-maintained files listed above when needed.
 
 3. **Regenerate runtime output**:
    ```bash
@@ -160,7 +176,7 @@ This project uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) forma
 ## Pull Request Process
 
 1. Fill out the [pull request template](.github/PULL_REQUEST_TEMPLATE.md).
-2. Ensure CI passes — the `generator-check` workflow verifies zero drift and runs the full test suite.
+2. Ensure CI passes — the Source Of Truth Check workflow (`.github/workflows/generator-check.yml`) verifies zero drift and runs the full test suite, and the Commit Message Check workflow validates the branch name, PR title, and commit subjects.
 3. Link any related issues.
 4. A maintainer will review your PR. Address feedback and keep the branch up to date with `main`.
 

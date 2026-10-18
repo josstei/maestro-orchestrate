@@ -1,32 +1,20 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { createFileWriter, safeResolve } = require('../../src/generator/file-writer');
+const { makeTempDir } = require('../support/fs');
 
-function createTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-fw-'));
-}
+let tempRoot;
 
-function removeTempRoot(dir) {
-  fs.rmSync(dir, { recursive: true, force: true });
-}
+beforeEach(() => {
+  tempRoot = makeTempDir('maestro-fw-');
+});
 
 describe('safeResolve', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('resolves a relative path within the root directory', () => {
     const resolved = safeResolve('sub/file.txt', tempRoot);
     assert.equal(resolved, path.join(tempRoot, 'sub', 'file.txt'));
@@ -53,16 +41,6 @@ describe('safeResolve', () => {
 });
 
 describe('FileWriter write', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('creates a new file in the correct directory', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
 
@@ -126,16 +104,6 @@ describe('FileWriter write', () => {
 });
 
 describe('FileWriter getStats', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('tracks written and unchanged counts across multiple writes', () => {
     const existingPath = path.join(tempRoot, 'existing.txt');
     fs.writeFileSync(existingPath, 'unchanged', 'utf8');
@@ -168,16 +136,6 @@ describe('FileWriter getStats', () => {
 });
 
 describe('FileWriter reportError', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('aggregates reported errors with write errors', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
     const logged = [];
@@ -200,16 +158,6 @@ describe('FileWriter reportError', () => {
 });
 
 describe('FileWriter writeAll', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('writes every output in order', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
     writer.writeAll([
@@ -224,16 +172,6 @@ describe('FileWriter writeAll', () => {
 });
 
 describe('FileWriter dryRun mode', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('does not write files in dryRun mode', () => {
     const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
     writer.write('should-not-exist.txt', 'content');
@@ -263,16 +201,6 @@ describe('FileWriter dryRun mode', () => {
 });
 
 describe('FileWriter diffMode', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('does not write to the actual output path in diffMode', () => {
     const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
     writer.write('diff-target.txt', 'content');
@@ -303,16 +231,6 @@ describe('FileWriter diffMode', () => {
 });
 
 describe('FileWriter clean', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('removes specified files that exist', () => {
     const filePath = path.join(tempRoot, 'to-delete.txt');
     fs.writeFileSync(filePath, 'doomed', 'utf8');

@@ -1,6 +1,7 @@
 'use strict';
 
 const { StateError } = require('../../lib/errors');
+const { violation } = require('./violation');
 
 /**
  * Compute the topological depth (longest incoming dependency chain) for
@@ -110,13 +111,7 @@ function checkCycles(phases, phaseById) {
 
   for (const phase of phases) {
     if (hasCycle(phase.id)) {
-      return [
-        {
-          rule: 'cyclic_dependency',
-          detail: `Cycle detected involving phase ${phase.id}`,
-          severity: 'error',
-        },
-      ];
+      return [violation('cyclic_dependency', `Cycle detected involving phase ${phase.id}`)];
     }
   }
 
@@ -145,11 +140,13 @@ function checkRedundantDependencies(phases, phaseById) {
           memo
         );
         if (transitiveDependencies.has(dependencyId)) {
-          violations.push({
-            rule: 'redundant_dependency',
-            detail: `Phase ${phase.id}: dependency on phase ${dependencyId} is redundant (already reachable via phase ${otherDependencyId})`,
-            severity: 'warning',
-          });
+          violations.push(
+            violation(
+              'redundant_dependency',
+              `Phase ${phase.id}: dependency on phase ${dependencyId} is redundant (already reachable via phase ${otherDependencyId})`,
+              'warning'
+            )
+          );
           break phaseScan;
         }
       }
@@ -205,11 +202,12 @@ function checkFileOverlap(phases, depths) {
 
       for (const file of files) {
         if (fileOwners[file]) {
-          violations.push({
-            rule: 'file_overlap',
-            detail: `Parallel phases ${fileOwners[file]} and ${phase.id} both touch "${file}"`,
-            severity: 'error',
-          });
+          violations.push(
+            violation(
+              'file_overlap',
+              `Parallel phases ${fileOwners[file]} and ${phase.id} both touch "${file}"`
+            )
+          );
         } else {
           fileOwners[file] = phase.id;
         }

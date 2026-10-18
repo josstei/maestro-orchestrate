@@ -1,16 +1,19 @@
+'use strict';
+
 const fs = require('node:fs');
-const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
-const ROOT = path.resolve(__dirname, '../..');
+const { makeTempDir, removeDir } = require('../support/fs');
+const { ROOT } = require('../support/paths');
+
 const DRY_RUN_MARKER = '(dry-run — no files written)';
 const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
 
 function runGenerator(args = [], options = {}) {
   const cwd = options.cwd || ROOT;
 
-  return execFileSync('node', ['scripts/generate.js', ...args], {
+  return execFileSync(process.execPath, ['scripts/generate.js', ...args], {
     cwd,
     encoding: 'utf8',
   });
@@ -56,7 +59,7 @@ function parseDryRunReport(output) {
 }
 
 async function withIsolatedClaudePlugin(fn) {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-claude-plugin-'));
+  const tempRoot = makeTempDir('maestro-claude-plugin-');
   const pluginRoot = path.join(tempRoot, 'maestro');
 
   fs.cpSync(path.join(ROOT, 'claude'), pluginRoot, { recursive: true });
@@ -64,12 +67,12 @@ async function withIsolatedClaudePlugin(fn) {
   try {
     return await fn(pluginRoot);
   } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
+    removeDir(tempRoot);
   }
 }
 
 function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const tempRoot = makeTempDir(prefix);
   const repoRoot = path.join(tempRoot, 'repo');
 
   fs.cpSync(ROOT, repoRoot, {
@@ -104,7 +107,7 @@ function withTempRepoCopy(prefix, fn) {
   try {
     return fn(repoRoot);
   } finally {
-    fs.rmSync(path.dirname(repoRoot), { recursive: true, force: true });
+    removeDir(path.dirname(repoRoot));
   }
 }
 

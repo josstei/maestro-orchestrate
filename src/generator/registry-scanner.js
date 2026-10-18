@@ -5,6 +5,21 @@ const { discover, serializeRegistry } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
 const { toPascalCase } = require('../lib/naming');
 
+/**
+ * Derive an agent's tool tier from its canonical `tools` list, so the tier
+ * cannot disagree with the tools the agent actually has.
+ * @param {string[]} tools - Canonical tool names
+ * @returns {'read_only'|'read_shell'|'read_write'|'full'}
+ */
+function capabilityTier(tools) {
+  const canWrite = tools.includes('write_file') || tools.includes('replace');
+  const canShell = tools.includes('run_shell_command');
+  if (canWrite && canShell) return 'full';
+  if (canWrite) return 'read_write';
+  if (canShell) return 'read_shell';
+  return 'read_only';
+}
+
 function buildAgentRegistry(srcDir) {
   const agentEntries = discover({
     dir: path.join(srcDir, 'agents'),
@@ -13,56 +28,46 @@ function buildAgentRegistry(srcDir) {
     metadata: (filepath, content) => {
       const { frontmatter } = parse(content);
       const name = frontmatter.name || path.basename(filepath, '.md');
-      const capabilities = frontmatter.capabilities || 'read_only';
       const rawTools = frontmatter.tools || [];
       const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-      return { name, capabilities, tools };
+      return { name, capabilities: capabilityTier(tools) };
     },
   });
 
-  return agentEntries.map(({ name, capabilities, tools }) => ({ name, capabilities, tools }));
+  return agentEntries.map(({ name, capabilities }) => ({ name, capabilities }));
 }
 
-function flatMarkdownEntries(srcDir, subdir) {
+function markdownEntries(
+  srcDir,
+  subdir,
+  pattern = '*.md',
+  identity = (filepath) => path.basename(filepath, '.md')
+) {
   return discover({
     dir: path.join(srcDir, subdir),
-    pattern: '*.md',
-    identity: (filepath) => path.basename(filepath, '.md'),
+    pattern,
+    identity,
     metadata: (filepath) => ({
-      relativePath: `${subdir}/${path.basename(filepath)}`,
+      relativePath: path.relative(srcDir, filepath).split(path.sep).join('/'),
     }),
   });
 }
 
-function buildResourceRegistry(srcDir) {
-  const skillsParentDir = path.join(srcDir, 'skills');
-  const skillEntries = discover({
-    dir: path.join(srcDir, 'skills', 'shared'),
-    pattern: '**/*.md',
-    identity: (filepath) => {
-      if (path.basename(filepath) === 'SKILL.md') {
-        return path.basename(path.dirname(filepath));
-      }
-      return path.basename(filepath, '.md');
-    },
-    metadata: (filepath) => {
-      const relativePath = 'skills/' + path.relative(skillsParentDir, filepath)
-        .split(path.sep)
-        .join('/');
-      return { relativePath };
-    },
-  });
-
-  const resources = {};
-  for (const entry of [
-    ...skillEntries,
-    ...flatMarkdownEntries(srcDir, 'templates'),
-    ...flatMarkdownEntries(srcDir, 'references'),
-  ]) {
-    resources[entry.id] = entry.relativePath;
+function skillIdentity(filepath) {
+  if (path.basename(filepath) === 'SKILL.md') {
+    return path.basename(path.dirname(filepath));
   }
+  return path.basename(filepath, '.md');
+}
 
-  return resources;
+function buildResourceRegistry(srcDir) {
+  return Object.fromEntries(
+    [
+      ...markdownEntries(srcDir, path.join('skills', 'shared'), '**/*.md', skillIdentity),
+      ...markdownEntries(srcDir, 'templates'),
+      ...markdownEntries(srcDir, 'references'),
+    ].map((entry) => [entry.id, entry.relativePath])
+  );
 }
 
 function buildHookRegistry(srcDir) {
@@ -72,12 +77,12 @@ function buildHookRegistry(srcDir) {
     identity: (filepath) => path.basename(filepath).replace(/-logic\.js$/, ''),
   });
 
-  const hooks = {};
-  for (const { id } of hookEntries) {
-    hooks[id] = { module: `hooks/logic/${id}-logic.js`, fn: `handle${toPascalCase(id)}` };
-  }
-
-  return hooks;
+  return Object.fromEntries(
+    hookEntries.map(({ id }) => [
+      id,
+      { module: `hooks/logic/${id}-logic.js`, fn: `handle${toPascalCase(id)}` },
+    ])
+  );
 }
 
 function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {

@@ -3,17 +3,13 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
   MARKER_FILENAME,
   writeWorkspaceMarker,
 } = require('../../src/mcp/contracts/workspace-marker');
-
-function makeTempWorkspace() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-marker-'));
-}
+const { makeTempDir } = require('../support/fs');
 
 describe('workspace-marker', () => {
   it('exposes the marker filename', () => {
@@ -21,7 +17,7 @@ describe('workspace-marker', () => {
   });
 
   it('writeWorkspaceMarker creates the marker with the expected JSON shape', () => {
-    const workspace = makeTempWorkspace();
+    const workspace = makeTempDir('maestro-marker-');
     const stateDir = path.join(workspace, 'docs', 'maestro');
     fs.mkdirSync(stateDir, { recursive: true });
 

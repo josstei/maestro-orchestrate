@@ -5,10 +5,11 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const STDIN_READER = path.join(REPO_ROOT, 'src', 'core', 'stdin-reader.js');
+const { ROOT } = require('../support/paths');
 
-function runWithStdin(fnName, stdin, { buffer = false } = {}) {
+const STDIN_READER = path.join(ROOT, 'src', 'core', 'stdin-reader.js');
+
+function runWithStdin(fnName, stdin) {
   const script = `
     const reader = require(${JSON.stringify(STDIN_READER)});
     (async () => {
@@ -20,9 +21,8 @@ function runWithStdin(fnName, stdin, { buffer = false } = {}) {
       }
     })();
   `;
-  const input = buffer ? stdin : Buffer.from(stdin, 'utf8');
   const out = spawnSync(process.execPath, ['-e', script], {
-    input,
+    input: Buffer.from(stdin, 'utf8'),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   return {
@@ -51,6 +51,17 @@ describe('stdin-reader.readText', () => {
     const { parsed } = runWithStdin('readText', oversize);
     assert.equal(parsed.ok, false);
     assert.match(parsed.error, /Stdin payload too large/);
+  });
+
+  it('counts the cap in raw UTF-8 bytes and decodes multi-byte input intact', () => {
+    // 'é' is 2 bytes: 512 KiB of them is exactly the cap, one more exceeds it.
+    const atCap = runWithStdin('readText', 'é'.repeat(512 * 1024));
+    assert.equal(atCap.parsed.ok, true);
+    assert.equal(atCap.parsed.result, 'é'.repeat(512 * 1024));
+
+    const overCap = runWithStdin('readText', 'é'.repeat(512 * 1024 + 1));
+    assert.equal(overCap.parsed.ok, false);
+    assert.match(overCap.parsed.error, /Stdin payload too large/);
   });
 });
 

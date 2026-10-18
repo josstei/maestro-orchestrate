@@ -1,3 +1,5 @@
+'use strict';
+
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -6,7 +8,7 @@ const path = require('node:path');
 const { ROOT } = require('./helpers');
 
 describe('thin entrypoint design', () => {
-  it('each MCP entrypoint sets its own MAESTRO_RUNTIME default', () => {
+  it('each MCP entrypoint sets its own MAESTRO_RUNTIME default without the canonical-source helper', () => {
     const expectations = [
       { file: 'mcp/maestro-server.js', runtime: 'gemini' },
       { file: 'claude/mcp/maestro-server.js', runtime: 'claude' },
@@ -16,8 +18,16 @@ describe('thin entrypoint design', () => {
     for (const { file, runtime } of expectations) {
       const content = fs.readFileSync(path.join(ROOT, file), 'utf8');
       assert.ok(
+        content.includes('MAESTRO_RUNTIME'),
+        `Expected ${file} to set MAESTRO_RUNTIME`
+      );
+      assert.ok(
         content.includes(`'${runtime}'`),
         `Expected ${file} to default MAESTRO_RUNTIME to '${runtime}'`
+      );
+      assert.ok(
+        !content.includes("require('./canonical-source')"),
+        `Expected ${file} to NOT use canonical-source helper`
       );
     }
   });

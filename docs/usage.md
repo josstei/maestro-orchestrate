@@ -5,23 +5,26 @@ For detailed CI/CD pipeline documentation including workflow diagrams, the relea
 ## Development Commands
 
 ```bash
-# Regenerate runtime files from source
+# Regenerate runtime files from source (same as npm run generate, npm run build, or just generate)
 node scripts/generate.js
 
-# Generate runtime adapters using package scripts
-npm run build
+# Preview what the generator would change, without writing (just dry-run)
+node scripts/generate.js --dry-run
 
-# Run all tests across unit, transform, and integration suites
-node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js
-
-# Show unified diff of changes
+# Show a unified diff of pending generator changes (just diff)
 node scripts/generate.js --diff
 
-# Delete all generated files and regenerate
+# Delete the generated agent and shared-skill stubs, then regenerate (just clean)
 node scripts/generate.js --clean
 
-# Run CI test subset (see justfile for current file list)
+# Run all tests across unit, transform, and integration suites
+npm test
+
+# Run all tests through just (same globs as npm test)
 just test
+
+# Run only unit tests
+just test-unit
 
 # Run only transform unit tests
 just test-transforms
@@ -32,11 +35,11 @@ just test-integration
 # Generate + verify zero drift in a clean worktree/CI checkout
 just check
 
-# Full CI equivalent in a clean worktree/CI checkout (check + check-layers + test)
-just ci
-
 # Verify lib/ import-boundary rules
 just check-layers
+
+# Full CI equivalent in a clean worktree/CI checkout (check + check-layers + test)
+just ci
 
 # Delete local branches whose remotes are gone
 just cleanup-branches
@@ -44,12 +47,12 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`) directly. Do not edit generated runtime stubs, command files, hook adapters, detached payloads, or generated skill copies directly.
-2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime adapters
+1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the context files (`GEMINI.md`, `QWEN.md`), and the thin MCP-server and hook-runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `claude/mcp/maestro-server.js`, `claude/scripts/`, `bin/maestro-mcp-server.js`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `claude/src/` and `plugins/maestro/src/` payloads.
+2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime outputs
 3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
-4. Run `node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js` (or `just test`) before committing
-5. Commit canonical source, directly owned root docs, and generated adapter output together
-6. CI will fail if runtime adapters drift from canonical `src/`; `just check` and `just ci` are designed for clean worktrees because they end with `git diff --exit-code`
+4. Run `npm test` (or `just test`) before committing
+5. Commit canonical source, directly owned files, and generated output together
+6. CI will fail if runtime outputs drift from canonical `src/`; `just check` and `just ci` are designed for clean worktrees because they end with `git diff --exit-code`
 
 ## Configuration
 
@@ -75,70 +78,30 @@ All settings are resolved with precedence: environment variable > workspace `.en
 | `MAESTRO_WORKSPACE_PATH` | Gemini | Workspace root (set by Gemini CLI) |
 | `MAESTRO_EXTENSION_PATH` | Qwen | Override extension root path |
 | `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
-| `MAESTRO_WORKSPACE_PATH` | Codex | Optional workspace root override; otherwise Codex uses MCP `roots/list` |
+| `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
 | `CLAUDE_PROJECT_DIR` | Claude | Project directory (set by Claude Code) |
 
 ## Invoking Maestro
 
-### Gemini CLI
+Gemini CLI and Qwen Code run TOML slash commands from `commands/maestro/`, Claude Code runs Markdown skills as slash commands, and Codex invokes skills through the plugin namespace:
 
-Commands are TOML-based slash commands:
+| Capability | Gemini CLI | Claude Code | Codex | Qwen Code | Purpose |
+|------------|------------|-------------|-------|-----------|---------|
+| Orchestrate | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` | Full orchestration workflow |
+| Execute | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` | Execute an approved plan |
+| Resume | `/maestro:resume` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` | Resume interrupted session |
+| Review | `/maestro:review` | `/review-code` | `$maestro:review-code` | `/maestro:review` | Code review |
+| Debug | `/maestro:debug` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` | Debugging workflow |
+| Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` | Archive active session |
+| Status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` | Show session status |
+| Security Audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` | Security assessment |
+| Performance Check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` | Performance assessment |
+| SEO Audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` | SEO audit |
+| Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` | Accessibility audit |
+| Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` | Compliance review |
 
-| Command | Purpose |
-|---------|---------|
-| `/maestro:orchestrate` | Full orchestration workflow |
-| `/maestro:execute` | Execute an approved plan |
-| `/maestro:resume` | Resume interrupted session |
-| `/maestro:review` | Code review |
-| `/maestro:debug` | Debugging workflow |
-| `/maestro:archive` | Archive active session |
-| `/maestro:status` | Show session status |
-| `/maestro:security-audit` | Security assessment |
-| `/maestro:perf-check` | Performance assessment |
-| `/maestro:seo-audit` | SEO audit |
-| `/maestro:a11y-audit` | Accessibility audit |
-| `/maestro:compliance-check` | Compliance review |
-
-### Claude Code
-
-Skills are Markdown-based slash commands:
-
-| Command | Purpose |
-|---------|---------|
-| `/orchestrate` | Full orchestration workflow |
-| `/execute` | Execute an approved plan |
-| `/resume-session` | Resume interrupted session |
-| `/review-code` | Code review |
-| `/debug-workflow` | Debugging workflow |
-| `/archive` | Archive active session |
-| `/status` | Show session status |
-| `/security-audit` | Security assessment |
-| `/perf-check` | Performance assessment |
-| `/seo-audit` | SEO audit |
-| `/a11y-audit` | Accessibility audit |
-| `/compliance-check` | Compliance review |
-
-### Codex
-
-Skills are invoked through the plugin namespace:
-
-| Command | Purpose |
-|---------|---------|
-| `$maestro:orchestrate` | Full orchestration workflow |
-| `$maestro:execute` | Execute an approved plan |
-| `$maestro:resume-session` | Resume interrupted session |
-| `$maestro:review-code` | Code review |
-| `$maestro:debug-workflow` | Debugging workflow |
-| `$maestro:archive` | Archive active session |
-| `$maestro:status` | Show session status |
-| `$maestro:security-audit` | Security assessment |
-| `$maestro:perf-check` | Performance assessment |
-| `$maestro:seo-audit` | SEO audit |
-| `$maestro:a11y-audit` | Accessibility audit |
-| `$maestro:compliance-check` | Compliance review |
-
-Codex keeps its built-in `/review`, `/debug`, and `/resume` commands. Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` to avoid colliding with those host commands.
+Claude Code and Codex keep their built-in `/review`, `/debug`, and `/resume` commands. Maestro exposes `review-code`, `debug-workflow`, and `resume-session` in those runtimes (`/review-code` in Claude Code, `$maestro:review-code` in Codex, and so on) to avoid colliding with those host commands.
 
 ## State Directory Structure
 
@@ -159,7 +122,7 @@ docs/maestro/
 
 ### Session State Format
 
-Active sessions use YAML frontmatter + Markdown body:
+Active sessions are a frontmatter block followed by a Markdown log. MCP `create_session` writes the frontmatter as JSON (`src/core/markdown-state.js`), and the MCP session tools read it back as JSON. The example below uses the YAML layout of the session-state template (`src/templates/session-state.md`), which direct-write fallbacks follow:
 
 ```yaml
 ---
@@ -294,22 +257,22 @@ phases:
 
 ## MCP Tools Quick Reference
 
-| Tool | Pack | Purpose |
-|------|------|---------|
-| `initialize_workspace` | Workspace | Create state directories |
-| `assess_task_complexity` | Workspace | Repo analysis signals |
-| `validate_plan` | Workspace | Plan validation + dependency DAG |
-| `resolve_settings` | Workspace | Setting resolution with precedence |
-| `create_session` | Session | Create active session |
-| `get_session_status` | Session | Read session state |
-| `update_session` | Session | Update execution metadata |
-| `transition_phase` | Session | Complete phase + start next |
-| `archive_session` | Session | Move to archive |
-| `enter_design_gate` | Session | Mark session as entering design phase (idempotent) |
-| `record_design_approval` | Session | Record user approval of design document |
-| `get_design_gate_status` | Session | Read design gate status for a session |
-| `scan_phase_changes` | Session | Scan workspace for files changed since phase start |
-| `reconcile_phase` | Session | Record file manifests for un-handed-off phase |
-| `get_skill_content` | Content | Serve skills/templates/references |
-| `get_agent` | Content | Serve agent methodologies |
-| `get_runtime_context` | Content | Runtime config snapshot |
+| Tool | Pack | Required Params | Purpose |
+|------|------|-----------------|---------|
+| `initialize_workspace` | Workspace | `workspace_path` | Create state/plans directories (idempotent) and record the workspace root |
+| `assess_task_complexity` | Workspace | — | Return repo signals for complexity classification |
+| `validate_plan` | Workspace | `plan`, `task_complexity` | Validate dependencies, file ownership, and agent capabilities |
+| `resolve_settings` | Workspace | — | Resolve `MAESTRO_*` settings with precedence |
+| `create_session` | Session | `session_id`, `task`, `phases` | Create the active session document |
+| `get_session_status` | Session | — | Read session state |
+| `update_session` | Session | `session_id` | Update execution metadata (mode, backend, batch) |
+| `transition_phase` | Session | `session_id` | Atomically complete a phase and start the next |
+| `archive_session` | Session | `session_id` | Move the session and its plans to archive |
+| `enter_design_gate` | Session | `session_id` | Mark the session as entering the design phase (idempotent); blocks `create_session` until approval |
+| `record_design_approval` | Session | `session_id`, plus the design document path or inline content | Record user approval of the design document, clearing the design gate |
+| `get_design_gate_status` | Session | `session_id` | Read design gate status (`entered_at`, `approved_at`) |
+| `scan_phase_changes` | Session | `session_id`, `phase_id` | Scan the workspace for files created or modified since phase start |
+| `reconcile_phase` | Session | `session_id`, `phase_id` | Record file manifests and downstream context for a phase that was not handed off cleanly |
+| `get_skill_content` | Content | `resources` | Serve skills, templates, and references with runtime transforms |
+| `get_agent` | Content | `agents` | Serve agent methodologies with tool mappings |
+| `get_runtime_context` | Content | — | Return runtime tool mappings, dispatch syntax, MCP prefix, and `workspace_suggestion` |

@@ -6,8 +6,7 @@ This guide explains how the shared Maestro methodology maps onto Codex.
 
 - Shared skills, references, templates, and agent bodies are authored in repository `src/`.
 - Published Codex bundles carry a generated local `src/` payload derived from that canonical source tree, so installs remain self-contained.
-- Codex content loading is filesystem-only and should resolve against the generated local `src/` in the plugin bundle.
-- Generated agent role references under `../agents/` are registration stubs only.
+- The MCP server runs from the versioned `@josstei/maestro` npm package via `npx` and serves shared content from that package's `src/`.
 
 Public Codex skills should load shared assets through MCP instead of duplicating methodology. Codex adds the plugin namespace at invocation time, so these surface as `$maestro:<skill>`.
 
@@ -21,11 +20,11 @@ Maestro state lives in `docs/maestro` in the workspace root:
 - plans: `docs/maestro/plans/`
 - archives: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
 
-Resolve that workspace root in this order:
+The workspace root is the path passed to `initialize_workspace`. To suggest it, `get_runtime_context` reports, in order:
 
 1. `MAESTRO_WORKSPACE_PATH`, when the host exports it and it points to a real path
 2. the first valid local `file://` root returned by the MCP client `roots/list` request
-3. inherited env or `cwd` fallback heuristics from the shared resolver
+3. the MCP server's `cwd`
 
 If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root.
 

@@ -1,16 +1,21 @@
 'use strict';
 
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+const os = require('node:os');
+const fs = require('node:fs');
+const path = require('node:path');
 
-const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-hooks-test-'));
+const { makeTempDir } = require('../support/fs');
+
+const hooksDir = makeTempDir('maestro-hooks-test-');
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
 // Hooks resolve the git toplevel of their cwd; keep fixture dirs from resolving
 // to an enclosing checkout when the temp dir happens to live inside one.
 process.env.GIT_CEILING_DIRECTORIES = fs.realpathSync(os.tmpdir());
+// Agent detection falls back to MAESTRO_CURRENT_AGENT; keep an inherited value
+// out of the detection tests.
+delete process.env.MAESTRO_CURRENT_AGENT;
 
-const { execFileSync } = require('child_process');
+const { execFileSync } = require('node:child_process');
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -25,7 +30,7 @@ const { withEnv } = require('../support/env');
 const SESSION_ID = 'test-session-abc123';
 
 function makeGitWorkspace(prefix) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+  const root = fs.realpathSync(makeTempDir(prefix));
   execFileSync('git', ['init', '-q'], { cwd: root });
   const subdir = path.join(root, 'pkg', 'sub');
   fs.mkdirSync(subdir, { recursive: true });
@@ -126,34 +131,25 @@ describe('handleBeforeAgent', () => {
   let fakeCwd;
 
   before(() => {
-    fakeCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-cwd-test-'));
+    fakeCwd = makeTempDir('maestro-cwd-test-');
   });
 
   after(() => {
-    fs.rmSync(fakeCwd, { recursive: true, force: true });
     hookState.removeSessionDir(SESSION_ID);
-    delete process.env.MAESTRO_CURRENT_AGENT;
   });
 
   it('returns allow with null message when no session file exists', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
-    const cwdWithNoSession = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-nosession-'));
-    try {
-      const result = handleBeforeAgent({
-        sessionId: SESSION_ID,
-        cwd: cwdWithNoSession,
-        agentInput: null,
-        event: 'BeforeAgent',
-      });
-      assert.equal(result.action, 'allow');
-      assert.equal(result.message, null);
-    } finally {
-      fs.rmSync(cwdWithNoSession, { recursive: true, force: true });
-    }
+    const cwdWithNoSession = makeTempDir('maestro-nosession-');
+    const result = handleBeforeAgent({
+      sessionId: SESSION_ID,
+      cwd: cwdWithNoSession,
+      agentInput: null,
+    });
+    assert.equal(result.action, 'allow');
+    assert.equal(result.message, null);
   });
 
   it('returns allow with context message when session file has phase/status info', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
     const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
     fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
     fs.writeFileSync(sessionFilePath, '---\ncurrent_phase: implementation\nstatus: active\n---\n', 'utf8');
@@ -162,7 +158,6 @@ describe('handleBeforeAgent', () => {
       sessionId: SESSION_ID,
       cwd: fakeCwd,
       agentInput: null,
-      event: 'BeforeAgent',
     });
 
     assert.equal(result.action, 'allow');
@@ -172,56 +167,40 @@ describe('handleBeforeAgent', () => {
   });
 
   it('reads phase/status from the JSON frontmatter that create_session writes', () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-json-session-'));
-    try {
-      writeMcpSession(path.join(cwd, 'docs', 'maestro'), {
-        session_id: 's1',
-        status: 'in_progress',
-        current_phase: 1,
-        phases: [{ id: 1, status: 'pending' }],
-      });
-      const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
-      assert.equal(result.action, 'allow');
-      assert.equal(result.message, 'Active session: current_phase=1, status=in_progress');
-    } finally {
-      fs.rmSync(cwd, { recursive: true, force: true });
-    }
+    const cwd = makeTempDir('maestro-json-session-');
+    writeMcpSession(path.join(cwd, 'docs', 'maestro'), {
+      session_id: 's1',
+      status: 'in_progress',
+      current_phase: 1,
+      phases: [{ id: 1, status: 'pending' }],
+    });
+    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
+    assert.equal(result.action, 'allow');
+    assert.equal(result.message, 'Active session: current_phase=1, status=in_progress');
   });
 
   it('omits a null current_phase from JSON frontmatter', () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-json-null-'));
-    try {
-      writeMcpSession(path.join(cwd, 'docs', 'maestro'), { status: 'in_progress', current_phase: null });
-      const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
-      assert.equal(result.message, 'Active session: status=in_progress');
-    } finally {
-      fs.rmSync(cwd, { recursive: true, force: true });
-    }
+    const cwd = makeTempDir('maestro-json-null-');
+    writeMcpSession(path.join(cwd, 'docs', 'maestro'), { status: 'in_progress', current_phase: null });
+    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
+    assert.equal(result.message, 'Active session: status=in_progress');
   });
 
   it('finds the session at the git root when fired from a subdirectory', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-subdir-');
-    try {
-      writeMcpSession(path.join(root, 'docs', 'maestro'), { status: 'in_progress', current_phase: 2 });
-      const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null });
-      assert.equal(result.message, 'Active session: current_phase=2, status=in_progress');
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    writeMcpSession(path.join(root, 'docs', 'maestro'), { status: 'in_progress', current_phase: 2 });
+    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null });
+    assert.equal(result.message, 'Active session: current_phase=2, status=in_progress');
   });
 
   it('resolves an absolute MAESTRO_STATE_DIR from a subdirectory without throwing', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-absstate-');
-    try {
-      writeMcpSession(path.join(root, '.maestro'), { status: 'in_progress', current_phase: 3 });
-      const result = withEnv({ MAESTRO_STATE_DIR: path.join(root, '.maestro') }, () =>
-        handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
-      );
-      assert.equal(result.action, 'allow');
-      assert.equal(result.message, 'Active session: current_phase=3, status=in_progress');
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    writeMcpSession(path.join(root, '.maestro'), { status: 'in_progress', current_phase: 3 });
+    const result = withEnv({ MAESTRO_STATE_DIR: path.join(root, '.maestro') }, () =>
+      handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
+    );
+    assert.equal(result.action, 'allow');
+    assert.equal(result.message, 'Active session: current_phase=3, status=in_progress');
   });
 
   it('resolves the git root from the process cwd when the payload has no cwd', () => {
@@ -234,33 +213,25 @@ describe('handleBeforeAgent', () => {
       assert.equal(result.message, 'Active session: current_phase=4, status=in_progress');
     } finally {
       process.chdir(originalCwd);
-      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
   it('allows with no context when the state dir cannot be resolved', () => {
-    const { root, subdir } = makeGitWorkspace('maestro-git-badstate-');
-    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-outside-'));
-    try {
-      const result = withEnv({ MAESTRO_STATE_DIR: outside }, () =>
-        handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
-      );
-      assert.deepEqual(result, { action: 'allow', message: null, reason: null });
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-      fs.rmSync(outside, { recursive: true, force: true });
-    }
+    const { subdir } = makeGitWorkspace('maestro-git-badstate-');
+    const outside = makeTempDir('maestro-outside-');
+    const result = withEnv({ MAESTRO_STATE_DIR: outside }, () =>
+      handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
+    );
+    assert.deepEqual(result, { action: 'allow', message: null, reason: null });
   });
 
   it('detects agent from prompt and sets active agent', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
     hookState.clearActiveAgent(SESSION_ID);
 
     handleBeforeAgent({
       sessionId: SESSION_ID,
       cwd: fakeCwd,
       agentInput: 'agent: coder\nPlease implement the feature.',
-      event: 'BeforeAgent',
     });
 
     const activeAgent = hookState.getActiveAgent(SESSION_ID);
@@ -268,7 +239,6 @@ describe('handleBeforeAgent', () => {
   });
 
   it('uses normalized agentName when no prompt is available', () => {
-    delete process.env.MAESTRO_CURRENT_AGENT;
     hookState.clearActiveAgent(SESSION_ID);
 
     handleBeforeAgent({
@@ -276,7 +246,6 @@ describe('handleBeforeAgent', () => {
       cwd: fakeCwd,
       agentName: 'code-reviewer',
       agentInput: null,
-      event: 'SubagentStart',
     });
 
     const activeAgent = hookState.getActiveAgent(SESSION_ID);
@@ -288,11 +257,10 @@ describe('handleSessionStart', () => {
   let fakeCwd;
 
   before(() => {
-    fakeCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-sessionstart-'));
+    fakeCwd = makeTempDir('maestro-sessionstart-');
   });
 
   after(() => {
-    fs.rmSync(fakeCwd, { recursive: true, force: true });
     hookState.removeSessionDir(SESSION_ID);
   });
 
@@ -328,7 +296,6 @@ describe('handleSessionStart', () => {
       assert.ok(fs.existsSync(path.join(hooksDir, sessionId)));
     } finally {
       hookState.removeSessionDir(sessionId);
-      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 });

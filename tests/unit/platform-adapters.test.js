@@ -2,11 +2,33 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const claudeAdapter = require('../../src/platforms/shared/adapters/claude-adapter');
-const geminiAdapter = require('../../src/platforms/shared/adapters/gemini-adapter');
-const qwenAdapter = require('../../src/platforms/shared/adapters/qwen-adapter');
+const fs = require('node:fs');
+const path = require('node:path');
+const claudeAdapter = require('../../src/platforms/claude/hook-adapter');
+const geminiAdapter = require('../../src/platforms/gemini/hook-adapter');
+const qwenAdapter = require('../../src/platforms/qwen/hook-adapter');
 
-describe('claude-adapter', () => {
+const PLATFORMS_DIR = path.resolve(__dirname, '../../src/platforms');
+const ADAPTER_RUNTIMES = fs.readdirSync(PLATFORMS_DIR)
+  .filter((name) => fs.existsSync(path.join(PLATFORMS_DIR, name, 'hook-adapter.js')))
+  .sort();
+
+describe('hook adapter contract', () => {
+  it('ships hook adapters for claude, gemini and qwen only', () => {
+    assert.deepEqual(ADAPTER_RUNTIMES, ['claude', 'gemini', 'qwen']);
+  });
+
+  for (const runtime of ADAPTER_RUNTIMES) {
+    it(`${runtime} exports normalizeInput, formatOutput and errorFallback`, () => {
+      const adapter = require(path.join(PLATFORMS_DIR, runtime, 'hook-adapter.js'));
+      for (const fn of ['normalizeInput', 'formatOutput', 'errorFallback']) {
+        assert.equal(typeof adapter[fn], 'function', `${runtime} adapter must export ${fn}`);
+      }
+    });
+  }
+});
+
+describe('claude hook-adapter', () => {
   describe('normalizeInput', () => {
     it('maps session_id and cwd', () => {
       const raw = {
@@ -99,17 +121,13 @@ describe('claude-adapter', () => {
   });
 
   describe('getExitCode', () => {
-    it('returns 0 for allow results', () => {
-      assert.equal(claudeAdapter.getExitCode({ action: 'allow' }), 0);
-    });
-
-    it('returns 0 for deny results', () => {
-      assert.equal(claudeAdapter.getExitCode({ action: 'deny' }), 0);
+    it('is not defined, so the hook runner exits 0 for allow and deny results', () => {
+      assert.equal(claudeAdapter.getExitCode, undefined);
     });
   });
 });
 
-describe('gemini-adapter', () => {
+describe('gemini hook-adapter', () => {
   describe('normalizeInput', () => {
     it('maps session_id and cwd', () => {
       const raw = {
@@ -186,17 +204,13 @@ describe('gemini-adapter', () => {
   });
 
   describe('getExitCode', () => {
-    it('returns 0 for allow results', () => {
-      assert.equal(geminiAdapter.getExitCode({ action: 'allow' }), 0);
-    });
-
-    it('returns 0 for deny results', () => {
-      assert.equal(geminiAdapter.getExitCode({ action: 'deny' }), 0);
+    it('is not defined, so the hook runner exits 0 for allow and deny results', () => {
+      assert.equal(geminiAdapter.getExitCode, undefined);
     });
   });
 });
 
-describe('qwen-adapter', () => {
+describe('qwen hook-adapter', () => {
   describe('normalizeInput', () => {
     it('maps session_id and cwd', () => {
       const raw = {
@@ -262,6 +276,16 @@ describe('qwen-adapter', () => {
       const result = qwenAdapter.errorFallback();
 
       assert.deepEqual(result, { continue: true, decision: 'allow' });
+    });
+  });
+
+  describe('getExitCode', () => {
+    it('returns 0 for allow results', () => {
+      assert.equal(qwenAdapter.getExitCode({ action: 'allow' }), 0);
+    });
+
+    it('returns 2 for deny results', () => {
+      assert.equal(qwenAdapter.getExitCode({ action: 'deny' }), 2);
     });
   });
 });

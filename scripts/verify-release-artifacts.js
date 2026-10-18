@@ -6,10 +6,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
+  RELEASE_OUT_DIR,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   readJson,
+  releaseArchiveName,
 } = require('./release-artifact-manifest');
 const { runCli } = require('./lib/cli');
 
@@ -43,11 +45,10 @@ function parseArgs(argv) {
 
 function defaultArchivePath(root) {
   const version = readJson(root, 'package.json').version;
-  return path.join(root, 'dist', 'release', `maestro-v${version}-extension.tar.gz`);
+  return path.join(root, RELEASE_OUT_DIR, releaseArchiveName(version));
 }
 
 function extractArchive(archivePath, targetRoot) {
-  fs.mkdirSync(targetRoot, { recursive: true });
   execFileSync('tar', ['-xzf', archivePath, '-C', targetRoot], {
     stdio: 'inherit',
   });

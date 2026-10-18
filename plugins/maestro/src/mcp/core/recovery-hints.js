@@ -12,13 +12,8 @@ const RECOVERY_TABLE = [
     hint: 'Call get_session_status to verify the current session and phase IDs.',
   },
   {
-    tool: 'archive_session',
-    pattern: /no active session/i,
-    hint: 'Call get_session_status first to verify a session exists.',
-  },
-  {
     tool: 'update_session',
-    pattern: /no active session|ENOENT/i,
+    pattern: /ENOENT/i,
     hint: 'Call get_session_status to verify a session exists before updating.',
   },
   {

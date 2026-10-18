@@ -1,15 +1,15 @@
 'use strict';
 
-const { afterEach, beforeEach, describe, it } = require('node:test');
+const { beforeEach, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const { updateVersions } = require('../../scripts/update-versions');
+const { makeTempDir, writeTree } = require('../support/fs');
 
 function createTempProject(version) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-update-versions-'));
+  const root = makeTempDir('maestro-update-versions-');
   const files = {
     'package.json': { name: '@josstei/maestro', version, license: 'Apache-2.0' },
     'gemini-extension.json': { name: 'maestro', version },
@@ -50,10 +50,8 @@ function createTempProject(version) {
   };
 
   for (const [relativePath, value] of Object.entries(files)) {
-    const filePath = path.join(root, relativePath);
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     const content = typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n';
-    fs.writeFileSync(filePath, content, 'utf8');
+    writeTree(root, relativePath, content);
   }
 
   return root;
@@ -64,17 +62,10 @@ function readJson(root, relativePath) {
 }
 
 describe('updateVersions', () => {
-  let tempRoot = null;
+  let tempRoot;
 
   beforeEach(() => {
     tempRoot = createTempProject('1.6.1');
-  });
-
-  afterEach(() => {
-    if (tempRoot) {
-      fs.rmSync(tempRoot, { recursive: true, force: true });
-      tempRoot = null;
-    }
   });
 
   it('updates only canonical stable release inputs', () => {

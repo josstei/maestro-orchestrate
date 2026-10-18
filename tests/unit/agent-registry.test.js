@@ -4,6 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  AGENT_NAMES,
   KNOWN_AGENTS,
   AGENT_CAPABILITIES,
   normalizeAgentName,
@@ -28,6 +29,22 @@ describe('KNOWN_AGENTS', () => {
     for (const entry of KNOWN_AGENTS) {
       assert.equal(typeof entry, 'string');
     }
+  });
+});
+
+describe('AGENT_NAMES', () => {
+  it('is frozen and lists the canonical kebab-case names', () => {
+    assert.equal(Object.isFrozen(AGENT_NAMES), true);
+    for (const name of AGENT_NAMES) {
+      assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+    }
+  });
+
+  it('is KNOWN_AGENTS in kebab-case, in the same order', () => {
+    assert.deepEqual(
+      AGENT_NAMES,
+      KNOWN_AGENTS.map((name) => name.replace(/_/g, '-'))
+    );
   });
 });
 

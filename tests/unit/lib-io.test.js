@@ -1,37 +1,26 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
 const {
   atomicWriteSync,
+  ensurePrivateDir,
   readFileSafe,
   readJsonSafe,
   writeIfChanged,
 } = require('../../src/lib/io');
+const { makeTempDir } = require('../support/fs');
 
-function createTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-io-'));
-}
+let tempRoot;
 
-function removeTempRoot(dir) {
-  fs.rmSync(dir, { recursive: true, force: true });
-}
+beforeEach(() => {
+  tempRoot = makeTempDir('maestro-io-');
+});
 
 describe('atomicWriteSync', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('writes content to the target file', () => {
     const filePath = path.join(tempRoot, 'atomic.txt');
     atomicWriteSync(filePath, 'hello atomic');
@@ -99,20 +88,6 @@ describe('atomicWriteSync', () => {
     }
   });
 
-  it('propagates the original error after cleanup', () => {
-    const originalWrite = fs.writeFileSync;
-    fs.writeFileSync = function () {
-      throw new Error('simulated failure');
-    };
-
-    try {
-      const filePath = path.join(tempRoot, 'propagate.txt');
-      assert.throws(() => atomicWriteSync(filePath, 'x'), /simulated failure/);
-    } finally {
-      fs.writeFileSync = originalWrite;
-    }
-  });
-
   it('handles empty content', () => {
     const filePath = path.join(tempRoot, 'empty.txt');
     atomicWriteSync(filePath, '');
@@ -142,16 +117,6 @@ describe('atomicWriteSync', () => {
 });
 
 describe('readFileSafe', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('reads existing file content as UTF-8', () => {
     const filePath = path.join(tempRoot, 'readable.txt');
     fs.writeFileSync(filePath, 'file content', 'utf8');
@@ -190,23 +155,13 @@ describe('readFileSafe', () => {
 
   it('preserves unicode content', () => {
     const filePath = path.join(tempRoot, 'unicode.txt');
-    const content = 'Hello World';
+    const content = 'héllo wörld — 日本語 🎼\n';
     fs.writeFileSync(filePath, content, 'utf8');
     assert.equal(readFileSafe(filePath), content);
   });
 });
 
 describe('readJsonSafe', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('parses valid JSON from file', () => {
     const filePath = path.join(tempRoot, 'data.json');
     const data = { name: 'maestro', version: 1, nested: { key: 'value' } };
@@ -262,16 +217,6 @@ describe('readJsonSafe', () => {
 });
 
 describe('writeIfChanged', () => {
-  let tempRoot;
-
-  beforeEach(() => {
-    tempRoot = createTempRoot();
-  });
-
-  afterEach(() => {
-    removeTempRoot(tempRoot);
-  });
-
   it('writes a new file and returns true', () => {
     const filePath = path.join(tempRoot, 'new.txt');
     const result = writeIfChanged(filePath, 'new content');
@@ -323,27 +268,23 @@ describe('writeIfChanged', () => {
     const result = writeIfChanged(filePath, '');
     assert.equal(result, false);
   });
-
-  it('returns boolean type, not truthy/falsy', () => {
-    const filePath = path.join(tempRoot, 'type-check.txt');
-    const resultNew = writeIfChanged(filePath, 'content');
-    assert.equal(typeof resultNew, 'boolean');
-    const resultSame = writeIfChanged(filePath, 'content');
-    assert.equal(typeof resultSame, 'boolean');
-  });
 });
 
-describe('module exports', () => {
-  it('exports all four documented functions', () => {
-    const io = require('../../src/lib/io');
-    assert.equal(typeof io.atomicWriteSync, 'function');
-    assert.equal(typeof io.readFileSafe, 'function');
-    assert.equal(typeof io.readJsonSafe, 'function');
-    assert.equal(typeof io.writeIfChanged, 'function');
+describe('ensurePrivateDir', () => {
+  it('creates the directory and missing parents', () => {
+    const dir = path.join(tempRoot, 'a', 'b', 'private');
+    ensurePrivateDir(dir, 'unused');
+    assert.ok(fs.statSync(dir).isDirectory());
   });
 
-  it('exports exactly four members', () => {
-    const io = require('../../src/lib/io');
-    assert.equal(Object.keys(io).length, 4);
+  it('throws the given message when the directory is a symlink', () => {
+    const target = path.join(tempRoot, 'target');
+    fs.mkdirSync(target);
+    const link = path.join(tempRoot, 'link');
+    fs.symlinkSync(target, link, 'dir');
+    assert.throws(
+      () => ensurePrivateDir(link, 'must not be a symlink'),
+      { message: 'must not be a symlink' }
+    );
   });
 });

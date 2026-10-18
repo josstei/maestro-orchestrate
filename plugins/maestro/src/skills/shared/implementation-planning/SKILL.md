@@ -5,7 +5,7 @@ description: Generates detailed implementation plans from finalized designs
 
 # Implementation Planning Skill
 
-**Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate implementation-planning. Return to the Express Workflow section.
+**Standard workflow only.** If `task_complexity` is `simple` and workflow mode is Express, do not activate this skill. Simple tasks use the Express workflow, which does not activate implementation-planning. Return to the EXPRESS WORKFLOW in `orchestration-steps`.
 
 Activate this skill during Phase 2 of Maestro orchestration, after the design document has been approved. This skill provides the methodology for generating detailed, actionable implementation plans that map directly to subagent assignments.
 
@@ -271,18 +271,7 @@ Use the `implementation-plan` template loaded via `get_skill_content`.
 4. **Phase Details**: Full specification for each phase (objective, agent, files, details, validation, dependencies)
 5. **File Inventory**: Complete table mapping every file to its phase and purpose
 6. **Risk Classification**: Per-phase risk assessment (LOW/MEDIUM/HIGH) with rationale
-7. **Execution Profile**: Summary of parallel vs sequential characteristics to inform mode selection:
-   ```
-   Execution Profile:
-   - Total phases: [N]
-   - Parallelizable phases: [M] (in [B] batches)
-   - Sequential-only phases: [S]
-   - Estimated parallel wall time: [time estimate based on batch execution]
-   - Estimated sequential wall time: [time estimate based on serial execution]
-
-   Note: Native parallel execution currently runs agents in autonomous mode.
-   All tool calls are auto-approved without user confirmation.
-   ```
+7. **Execution Profile**: Summary of parallel vs sequential characteristics to inform mode selection — use the Execution Profile block from the `implementation-plan` template
 
 ### Completion Criteria
 The implementation plan is complete when:
@@ -304,4 +293,4 @@ After writing the implementation plan:
 5. If your runtime provides Plan Mode, call `exit_plan_mode` with the plan path to present the plan for user approval. If Plan Mode is not available, present the completed plan for user approval using the user-prompt tool from runtime context.
 6. Ensure the approved plan is at `<state_dir>/plans/YYYY-MM-DD-<slug>-impl-plan.md` as the permanent project reference (copy from the staging directory if Plan Mode was used)
 7. Ask if the user is ready to proceed to execution (Phase 3)
-8. Upon approval, create the session state file via the session-management skill
+8. Session state is created later, at execution setup, after the execution mode gate resolves (session-management → When to Create).
