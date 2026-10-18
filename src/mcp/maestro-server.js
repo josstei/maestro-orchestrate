@@ -48,8 +48,11 @@ function main() {
       async onInitialized() {
         await cache.refreshClientRoots();
       },
-      onRootsListChanged() {
-        cache.invalidateClientRoots();
+      // Re-read the roots instead of only forgetting them: Antigravity sends
+      // list_changed again right after answering roots/list, which would
+      // otherwise leave the suggestion on the server cwd (the plugin dir).
+      async onRootsListChanged() {
+        await cache.refreshClientRoots();
       },
     },
   });

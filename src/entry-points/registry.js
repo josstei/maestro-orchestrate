@@ -3,7 +3,8 @@
 /**
  * Entry-point registry -- canonical workflow content for all 9 Maestro
  * entry points.  Each entry captures the shared intent, workflow steps,
- * and constraints that the Claude, Codex, and Qwen runtimes render.
+ * and constraints that the Antigravity, Claude, Codex, and Qwen runtimes
+ * render.
  *
  * Content lives here once; format-specific rendering (TOML commands,
  * SKILL.md files) is handled by templates + the generator. An optional
@@ -13,7 +14,7 @@
 module.exports = [
   {
     name: 'review',
-    runtimeNames: { codex: 'review-code', claude: 'review-code' },
+    runtimeNames: { antigravity: 'review-code', codex: 'review-code', claude: 'review-code' },
     description:
       'Perform a Maestro-style code review with findings ordered by severity and concrete file references',
     agents: ['code-reviewer'],
@@ -34,7 +35,7 @@ module.exports = [
 
   {
     name: 'debug',
-    runtimeNames: { codex: 'debug-workflow', claude: 'debug-workflow' },
+    runtimeNames: { antigravity: 'debug-workflow', codex: 'debug-workflow', claude: 'debug-workflow' },
     description:
       'Run the Maestro debugging workflow for investigation-heavy tasks',
     agents: ['debugger'],

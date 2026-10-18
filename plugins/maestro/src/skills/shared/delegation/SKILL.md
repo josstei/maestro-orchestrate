@@ -287,7 +287,7 @@ When an active orchestration session exists, the pre-delegation hook parses `<MA
 Active session: current_phase=3, status=in_progress
 ```
 
-This gives delegated agents awareness of where they sit in the orchestration workflow without requiring explicit context in every delegation prompt. The injection is automatic and requires no action from the orchestrator.
+This gives delegated agents awareness of where they sit in the orchestration workflow without requiring explicit context in every delegation prompt. The injection is automatic and requires no action from the orchestrator. Antigravity has no pre-delegation hook; it injects the same line when each subagent conversation starts.
 
 ### Handoff Format Enforcement
 
@@ -303,6 +303,8 @@ If either heading is missing:
 
 This enforcement is the runtime complement to the Output Handoff Contract defined in the agent-base-protocol. Delegation prompts do not need to re-state the retry mechanism — the hook handles it transparently.
 
+Antigravity runs no post-delegation hook, so the orchestrator applies the same check itself: when a child's reported response lacks either heading, send that child (its conversation ID) one message asking for the complete handoff report, and accept the second response as-is.
+
 **Exception**: The TechLead/orchestrator agent is excluded from validation. Only delegated subagents are subject to format enforcement.
 
 ## Delegation Constraints (per runtime)
@@ -312,6 +314,7 @@ Read `delegation.constraints` from `get_runtime_context` before constructing any
 - `fork_full_context_incompatible_with`: list of field names. If the runtime is invoking a fork-style delegation with full-history inheritance, do NOT pass any of these fields. For Codex, this means omitting `agent_type`, `model`, and `reasoning_effort` whenever `fork_context: true` or `fork_turns: "all"` is used.
 - `result_surface: "synchronous"`: the parent receives the child's full text response in the dispatch return value. Parse the Task Report and Downstream Context directly from that text.
 - `result_surface: "deferred"`: the parent receives only identifiers. The parent MUST poll for completion (`wait_agent` or equivalent) with a bounded timeout. On timeout or empty return, invoke the Recovery Protocol in the execution skill.
+- `result_surface: "notified"`: the parent receives only identifiers, and each child's final response arrives later as a message (Antigravity: a system message reading "Subagent <id> has gone idle. This was the subagent's most recent response: ..."). After dispatching, end the turn without further tool calls instead of polling, then parse the Task Report and Downstream Context from each arriving message. Do not transition a batch until every child in it has reported. If a child never reports or its message carries no handoff, invoke the Recovery Protocol in the execution skill.
 - `child_cannot_prompt_user: true`: child agents cannot call the user-prompt tool. All user questions must surface through the Blocker Protocol below.
 
 ## Blocker Protocol (child-agent question surfacing)

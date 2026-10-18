@@ -1,0 +1,158 @@
+[
+  {
+    "name": "accessibility-specialist",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "analytics-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "api-designer",
+    "capabilities": "read_only"
+  },
+  {
+    "name": "architect",
+    "capabilities": "read_only"
+  },
+  {
+    "name": "cloud-architect",
+    "capabilities": "read_only"
+  },
+  {
+    "name": "cobol-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "code-reviewer",
+    "capabilities": "read_only"
+  },
+  {
+    "name": "coder",
+    "capabilities": "full"
+  },
+  {
+    "name": "compliance-reviewer",
+    "capabilities": "read_only"
+  },
+  {
+    "name": "content-strategist",
+    "capabilities": "read_only"
+  },
+  {
+    "name": "copywriter",
+    "capabilities": "read_write"
+  },
+  {
+    "name": "data-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "database-administrator",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "db2-dba",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "debugger",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "design-system-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "devops-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "hlasm-assembler-specialist",
+    "capabilities": "full"
+  },
+  {
+    "name": "i18n-specialist",
+    "capabilities": "full"
+  },
+  {
+    "name": "ibm-i-specialist",
+    "capabilities": "full"
+  },
+  {
+    "name": "integration-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "ml-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "mlops-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "mobile-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "observability-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "performance-engineer",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "platform-engineer",
+    "capabilities": "full"
+  },
+  {
+    "name": "product-manager",
+    "capabilities": "read_write"
+  },
+  {
+    "name": "prompt-engineer",
+    "capabilities": "read_write"
+  },
+  {
+    "name": "refactor",
+    "capabilities": "full"
+  },
+  {
+    "name": "release-manager",
+    "capabilities": "read_write"
+  },
+  {
+    "name": "security-engineer",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "seo-specialist",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "site-reliability-engineer",
+    "capabilities": "read_shell"
+  },
+  {
+    "name": "solutions-architect",
+    "capabilities": "read_only"
+  },
+  {
+    "name": "technical-writer",
+    "capabilities": "read_write"
+  },
+  {
+    "name": "tester",
+    "capabilities": "full"
+  },
+  {
+    "name": "ux-designer",
+    "capabilities": "read_write"
+  },
+  {
+    "name": "zos-sysprog",
+    "capabilities": "read_shell"
+  }
+]

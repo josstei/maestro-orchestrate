@@ -1,0 +1,11 @@
+{
+  "name": "maestro",
+  "displayName": "Maestro",
+  "version": "1.6.4",
+  "description": "Multi-agent development orchestration: 39 specialist subagents, design-plan-execute workflows with persistent sessions, and review, debug and audit skills",
+  "suggestedPrompts": [
+    "Use Maestro to orchestrate a feature from design through implementation and review.",
+    "Use Maestro to review my changes and block on critical or major findings.",
+    "Use Maestro to debug a failing workflow and route investigation to the right specialist."
+  ]
+}

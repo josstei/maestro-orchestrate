@@ -38,7 +38,7 @@ DESIGN GATE (Phase 1 pre-entry)
     </HARD-GATE>
 
 DESIGN (Phase 1)
-10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Codex, Qwen), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
+10. Enter Plan Mode. If `plan_mode_native` from `get_runtime_context` is false (Antigravity, Codex, Qwen), the server-side Design Gate (9a + step 13) is the authoritative contract; runtime-native plan mode is a UI affordance only.
 11. Using the `design-dialogue` protocol already loaded in step 7, run the design conversation:
     - Design depth selector (first design question)
     - Repository grounding (for existing codebases, skip for greenfield)
@@ -66,7 +66,7 @@ DESIGN (Phase 1)
 14. If Plan Mode is active, exit Plan Mode with the plan path. MCP tools become available again at this point.
 14a. Call `record_design_approval` to clear the design gate. Choose the variant by runtime:
      - **Content variant**: pass `design_document_content` + `design_document_filename`. The MCP server materializes the canonical copy inside `<state_dir>/plans/` atomically. Required whenever the runtime's write surface resolves relative paths against a root the MCP server cannot reach (for example, a Plan Mode that writes to a host tmp directory), because a path handed back to the server never resolves to the same file.
-     - **Path variant (Claude, Codex, and Qwen direct writes)**: pass `design_document_path` (absolute or workspace-relative). The approval handler records the path without requiring the file to already be on disk; `create_session` in step 21 materializes the file into `<state_dir>/plans/` and will reject if the file is still missing at that point.
+     - **Path variant (Antigravity, Claude, Codex, and Qwen direct writes)**: pass `design_document_path` (absolute or workspace-relative). The approval handler records the path without requiring the file to already be on disk; `create_session` in step 21 materializes the file into `<state_dir>/plans/` and will reject if the file is still missing at that point.
      <HARD-GATE>
      The two variants are mutually exclusive. Supplying both, or neither, fails with VALIDATION_ERROR.
      </HARD-GATE>
@@ -96,7 +96,7 @@ EXECUTION SETUP (Phase 3 — pre-delegation)
 20. Call `get_skill_content` with resources: ["session-management", "session-state"].
 21. Pass the exact plan object returned by `validate_plan` to `create_session`. Do not reshape phases — `create_session` rejects plans whose phases are missing required fields ({id, name, agent, parallel, blocked_by}). Set `execution_mode` to the value resolved in step 19. Attach the implementation plan document by runtime:
     - **Content variant**: pass `implementation_plan_content` + `implementation_plan_filename`. Mirrors the design-document content path in step 14a and closes the same resolution gap when the plan was written to a Plan Mode location the MCP server cannot reach.
-    - **Path variant (Claude, Codex, and Qwen direct writes)**: pass `implementation_plan` as an absolute or workspace-relative path. Requires the file to exist on disk at the workspace-resolved path when `create_session` runs.
+    - **Path variant (Antigravity, Claude, Codex, and Qwen direct writes)**: pass `implementation_plan` as an absolute or workspace-relative path. Requires the file to exist on disk at the workspace-resolved path when `create_session` runs.
     <HARD-GATE>
     The two variants are mutually exclusive. Supplying both fails with VALIDATION_ERROR. Supplying neither is valid — the session records no implementation plan.
     </HARD-GATE>
