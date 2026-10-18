@@ -37,8 +37,8 @@ async function readText() {
 }
 
 /**
- * Read stdin as a raw Buffer and parse as JSON. No TTY guard — intended for
- * hook adapters that always receive piped input.
+ * Read stdin (bounded) and parse it as JSON. No TTY guard — intended for
+ * hook-runner.js, which always receives piped input.
  *
  * Rejects with `Stdin payload too large` if the payload exceeds the cap, and
  * with the underlying `SyntaxError` if the payload is not valid JSON. Callers

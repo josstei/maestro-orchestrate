@@ -256,4 +256,4 @@ function main() {
   });
 }
 
-module.exports = { checkCommand, main };
+module.exports = { main };
