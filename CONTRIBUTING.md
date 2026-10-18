@@ -67,6 +67,7 @@ Shared code and content live in `src/`. The generator (`just generate`) builds m
 |---------------------------------|---------|
 | `hooks/hook-runner.js`, `mcp/maestro-server.js` | Gemini CLI and Qwen Code shims that load the hook runner and MCP server from `src/` |
 | `claude/scripts/hook-runner.js`, `claude/scripts/policy-enforcer.js`, `claude/mcp/maestro-server.js` | Claude Code shims that load the repo `src/`, or the bundled `claude/src/` outside the repo |
+| `bin/maestro-mcp-server.js` | Codex MCP server bin, run via `npx` from `plugins/maestro/.mcp.json` |
 | `claude/mcp-config.example.json` | Example MCP server entry for manual Claude setups |
 | `plugins/maestro/references/runtime-guide.md` | Codex runtime guide, read by the Codex skills |
 | `GEMINI.md`, `QWEN.md`, `.geminiignore` | Gemini CLI and Qwen Code context files, and the Gemini ignore list |

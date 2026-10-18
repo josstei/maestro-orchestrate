@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest and context file) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server and hook-runner entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest and context file) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
                     ┌─────────────┐
@@ -168,7 +168,7 @@ There is no tracked generated MCP core artifact, no tracked runtime-local `lib/`
 
 ### Workspace Resolution
 
-The MCP server does not guess the workspace. Its project root is `null` until the orchestrator calls `initialize_workspace(workspace_path)`, which rejects an absent or nonexistent path and any path inside an extension cache, then records the path's git toplevel (or the path itself outside a git repository). Until then, every tool that needs a workspace fails with `WORKSPACE_NOT_INITIALIZED`.
+The MCP server does not guess the workspace. Its project root is `null` until the orchestrator calls `initialize_workspace(workspace_path)`, which rejects a nonexistent path and any path inside an extension cache, then records the path's git toplevel (or the path itself outside a git repository). An absent `workspace_path` is rejected until a workspace has been initialized; after that, the call re-initializes the current root. Until then, every tool that needs a workspace fails with `WORKSPACE_NOT_INITIALIZED`.
 
 To help the orchestrator choose that path, `get_runtime_context` returns a `workspace_suggestion` taken from, in order:
 

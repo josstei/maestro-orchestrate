@@ -47,7 +47,7 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the context files (`GEMINI.md`, `QWEN.md`), and the thin MCP-server and hook-runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `claude/mcp/maestro-server.js`, `claude/scripts/`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `claude/src/` and `plugins/maestro/src/` payloads.
+1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the context files (`GEMINI.md`, `QWEN.md`), and the thin MCP-server and hook-runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `claude/mcp/maestro-server.js`, `claude/scripts/`, `bin/maestro-mcp-server.js`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `claude/src/` and `plugins/maestro/src/` payloads.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime outputs
 3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
 4. Run `npm test` (or `just test`) before committing
