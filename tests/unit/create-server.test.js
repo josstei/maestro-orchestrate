@@ -54,6 +54,13 @@ describe('createServer tool packs', () => {
       /Tool pack at index 2 must resolve to an object/
     );
   });
+
+  it('throws when a pack does not declare a tools array', () => {
+    assert.throws(
+      () => createServer({ toolPacks: [makePack('a', 'a1'), { name: 'b' }] }),
+      /^TypeError: Tool pack at index 1 must declare a tools array\.$/
+    );
+  });
 });
 
 describe('createServer tool composition', () => {
@@ -122,6 +129,13 @@ describe('createServer tool composition', () => {
           ],
         }),
       /Duplicate tool name "validate_plan" found in packs "first-codex" and "second-pack"\./
+    );
+  });
+
+  it('rejects duplicate tool names across unnamed packs, naming them by position', () => {
+    assert.throws(
+      () => createServer({ toolPacks: [makePack(undefined, 'dup'), makePack('', 'dup')] }),
+      /^Error: Duplicate tool name "dup" found in packs "tool-pack-1" and "tool-pack-2"\.$/
     );
   });
 

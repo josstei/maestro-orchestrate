@@ -11,7 +11,11 @@ function resolveToolPack(entry, context, index) {
     throw new TypeError(`Tool pack at index ${index} must resolve to an object.`);
   }
 
-  return pack;
+  if (!Array.isArray(pack.tools)) {
+    throw new TypeError(`Tool pack at index ${index} must declare a tools array.`);
+  }
+
+  return { name: pack.name || `tool-pack-${index + 1}`, tools: pack.tools };
 }
 
 function sanitizeErrorMessage(error) {
@@ -48,7 +52,8 @@ function normalizeToolError(toolName, error) {
  * tool calls. A pack is `{ name, tools }` (or a factory receiving the frozen
  * `{ runtimeConfig, services }` context), where each tool is its schema plus a
  * `handler` function; the handler is not part of the listed schema. Packs are
- * mounted in order; tool names must be unique.
+ * mounted in order (an unnamed pack is reported as `tool-pack-<n>`); tool
+ * names must be unique.
  */
 function createServer(options = {}) {
   const { runtimeConfig = {}, services = {}, toolPacks = [] } = options;
@@ -71,7 +76,7 @@ function createServer(options = {}) {
         throw new Error(`Tool schema in pack "${pack.name}" is missing a valid name.`);
       }
 
-      if (toolSources[schema.name]) {
+      if (schema.name in toolSources) {
         throw new Error(
           `Duplicate tool name "${schema.name}" found in packs "${toolSources[schema.name]}" and "${pack.name}".`
         );
