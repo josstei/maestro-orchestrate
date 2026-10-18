@@ -116,13 +116,13 @@ describe('thin entrypoint design', () => {
   });
 
   it('removed Gemini CLI runtime artifacts are gone', () => {
+    // Repo-root agents/ is not listed: it now holds the Qwen agent stubs.
     const removedPaths = [
       'src/platforms/gemini',
       'GEMINI.md',
       'gemini-extension.json',
       '.geminiignore',
       'hooks/hooks.json',
-      'agents',
       'docs/runtime-gemini.md',
     ];
 

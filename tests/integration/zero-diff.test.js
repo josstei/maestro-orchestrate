@@ -14,8 +14,13 @@ describe('zero-diff validation', () => {
     assert.ok(report.statusLines.length > 0, 'Expected generator to inspect manifest outputs');
     const { outputPaths } = report;
     assert.ok(
-      outputPaths.includes('qwen/agents/architect.md'),
-      'Expected qwen agent stubs in generator output'
+      outputPaths.includes('agents/architect.md'),
+      'Expected qwen agent stubs (repo-root agents/) in generator output'
+    );
+    assert.deepEqual(
+      outputPaths.filter((outputPath) => outputPath.startsWith('qwen/agents/')),
+      [],
+      'Did not expect qwen agent stubs under qwen/agents/ (Qwen Code never reads it)'
     );
     assert.ok(
       outputPaths.includes('claude/agents/architect.md'),
@@ -51,13 +56,10 @@ describe('zero-diff validation', () => {
     );
     assert.deepEqual(
       outputPaths.filter(
-        (outputPath) =>
-          /gemini/i.test(outputPath) ||
-          outputPath === 'hooks/hooks.json' ||
-          outputPath.startsWith('agents/')
+        (outputPath) => /gemini/i.test(outputPath) || outputPath === 'hooks/hooks.json'
       ),
       [],
-      'Did not expect removed Gemini outputs (gemini-extension.json, GEMINI.md, hooks/hooks.json, root agents/) in generator output'
+      'Did not expect removed Gemini outputs (gemini-extension.json, GEMINI.md, hooks/hooks.json) in generator output'
     );
     assert.deepEqual(
       report.driftLines,

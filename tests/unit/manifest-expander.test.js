@@ -148,7 +148,7 @@ describe('manifest-expander', () => {
   describe('assertNoMirroredSharedOutputs', () => {
     it('does not throw for valid output paths', () => {
       const manifest = [
-        { outputs: { qwen: 'qwen/agents/foo.md', claude: 'claude/agents/foo.md' } },
+        { outputs: { qwen: 'agents/foo.md', claude: 'claude/agents/foo.md' } },
       ];
 
       assert.doesNotThrow(() => assertNoMirroredSharedOutputs(manifest));
@@ -176,7 +176,7 @@ describe('manifest-expander', () => {
 
   describe('expandManifest', () => {
     const runtimes = {
-      qwen: { name: 'qwen', agentNaming: 'snake_case', outputDir: 'qwen/' },
+      qwen: { name: 'qwen', agentNaming: 'snake_case', outputDir: './' },
       claude: { name: 'claude', agentNaming: 'kebab-case', outputDir: 'claude/' },
       codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
     };
@@ -196,7 +196,7 @@ describe('manifest-expander', () => {
       assert.deepEqual(srcs, ['agents/baz.md', 'agents/foo-bar.md', 'agents/qux-thing.md']);
 
       const fooEntry = result.find((e) => e.src === 'agents/foo-bar.md');
-      assert.equal(fooEntry.outputs.qwen, 'qwen/agents/foo_bar.md');
+      assert.equal(fooEntry.outputs.qwen, 'agents/foo_bar.md');
       assert.equal(fooEntry.outputs.claude, 'claude/agents/foo-bar.md');
     });
 
@@ -229,7 +229,7 @@ describe('manifest-expander', () => {
       const qwenClaudeEntry = fooEntries.find((e) => e.outputs.qwen);
       assert.deepEqual(qwenClaudeEntry.transforms, ['agent-stub']);
       assert.deepEqual(qwenClaudeEntry.outputs, {
-        qwen: 'qwen/agents/foo_bar.md',
+        qwen: 'agents/foo_bar.md',
         claude: 'claude/agents/foo-bar.md',
       });
 
@@ -301,17 +301,17 @@ describe('manifest-expander', () => {
 
         const coderEntries = result.filter((e) => e.src === 'agents/coder.md');
         assert.equal(coderEntries.length, 1, 'coder.md should appear once for this rule');
-        assert.equal(coderEntries[0].outputs.qwen, 'qwen/agents/coder.md');
+        assert.equal(coderEntries[0].outputs.qwen, 'agents/coder.md');
         assert.equal(coderEntries[0].outputs.claude, 'claude/agents/coder.md');
         assert.deepEqual(coderEntries[0].transforms, ['agent-stub']);
 
         const codeReviewerEntry = result.find((e) => e.src === 'agents/code-reviewer.md');
         assert.ok(codeReviewerEntry, 'code-reviewer.md should be in entries');
-        assert.equal(codeReviewerEntry.outputs.qwen, 'qwen/agents/code_reviewer.md');
+        assert.equal(codeReviewerEntry.outputs.qwen, 'agents/code_reviewer.md');
         assert.equal(codeReviewerEntry.outputs.claude, 'claude/agents/code-reviewer.md');
       });
 
-      it('stubs agents for claude and qwen only, never into the repo-root agents/ directory', () => {
+      it('stubs agents for claude and qwen only, with the qwen stubs in the repo-root agents/ directory', () => {
         const result = expandManifest(manifestRules, realRuntimes, SRC);
 
         assert.doesNotThrow(() => assertNoMirroredSharedOutputs(result));
@@ -320,10 +320,21 @@ describe('manifest-expander', () => {
         assert.equal(agentEntries.length, 39);
         for (const entry of agentEntries) {
           assert.deepEqual(Object.keys(entry.outputs), ['claude', 'qwen'], entry.src);
+          assert.equal(
+            entry.outputs.qwen,
+            `agents/${path.basename(entry.src, '.md').replace(/-/g, '_')}.md`,
+            entry.src
+          );
         }
 
+        // Qwen Code loads an extension's subagents only from <extension>/agents/,
+        // and the repo root is the Qwen extension directory.
         const outputPaths = result.flatMap((e) => Object.values(e.outputs));
-        assert.deepEqual(outputPaths.filter((p) => p.startsWith('agents/')), []);
+        assert.deepEqual(
+          outputPaths.filter((p) => p.startsWith('agents/')).sort(),
+          agentEntries.map((e) => e.outputs.qwen).sort()
+        );
+        assert.deepEqual(outputPaths.filter((p) => p.startsWith('qwen/')), []);
       });
     });
   });

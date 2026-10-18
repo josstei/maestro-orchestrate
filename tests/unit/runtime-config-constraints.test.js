@@ -42,4 +42,21 @@ describe('runtime-config delegation.constraints', () => {
       }
     );
   });
+
+  it('every runtime-config roots its generated output in the directory its host loads', () => {
+    // Qwen Code loads subagents from <extension>/agents/, and the repo root
+    // (where qwen-extension.json lives) is Qwen's extension dir.
+    assert.deepEqual(
+      {
+        claude: claude.outputDir,
+        codex: codex.outputDir,
+        qwen: qwen.outputDir,
+      },
+      {
+        claude: 'claude/',
+        codex: 'plugins/maestro/',
+        qwen: './',
+      }
+    );
+  });
 });

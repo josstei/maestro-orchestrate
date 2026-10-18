@@ -191,15 +191,36 @@ test('doc-drift: claude/README.md autocomplete bullet uses remapped names', () =
   }
 });
 
-test('doc-drift: Qwen location documented as qwen/ in all surfaces', () => {
+test('doc-drift: Qwen extension layout documented as the repo root with agent stubs in agents/', () => {
+  // Qwen Code loads an extension's subagents only from <extension>/agents/, and
+  // the repo root (where qwen-extension.json lives) is Qwen's extension dir.
+  const qwenOutputDir = getRuntimeConfig('qwen').outputDir;
   const runtimeQwen = read('docs/runtime-qwen.md');
-  assert.ok(!runtimeQwen.includes('lives at the repository root'), 'docs/runtime-qwen.md: still claims repo root');
-  assert.ok(runtimeQwen.includes('`qwen/`'), 'docs/runtime-qwen.md: does not mention qwen/ subdirectory');
-  assert.ok(!runtimeQwen.match(/generated at `agents\/\*\.md`/), 'docs/runtime-qwen.md: still says agents/*.md (should reference qwen/agents/)');
+  assert.ok(runtimeQwen.includes(`\`${qwenOutputDir}\``), `docs/runtime-qwen.md: does not name the Qwen outputDir \`${qwenOutputDir}\``);
+  assert.ok(/repo root\b[^\n.]{0,20}Qwen Code's extension directory/.test(runtimeQwen), 'docs/runtime-qwen.md: does not say the repo root is Qwen Code\'s extension directory');
+  assert.ok(runtimeQwen.match(/generated at (?:the repo-root )?`agents\/\*\.md`/), 'docs/runtime-qwen.md: does not say agent files are generated at agents/*.md');
+  for (const file of listDir('qwen')) {
+    assert.ok(runtimeQwen.includes(`\`qwen/${file}\``), `docs/runtime-qwen.md: does not mention generated qwen/${file}`);
+  }
   const overview = read('docs/overview.md');
-  assert.ok(!overview.includes('root directory — `QWEN.md`, `qwen-extension.json`, shared'), 'docs/overview.md: still claims Qwen shares root directory');
+  assert.ok(/repo root\b[^\n.]{0,20}Qwen Code's extension directory/.test(overview), 'docs/overview.md: does not say the repo root is Qwen Code\'s extension directory');
   const architecture = read('docs/architecture.md');
-  assert.ok(architecture.includes('| `qwen/` |'), 'docs/architecture.md: outputDir row missing `qwen/` for Qwen');
+  const table = markdownSection('docs/architecture.md', '### Runtime Definitions');
+  const cells = (row) => row.split('|').slice(1, -1).map((cell) => cell.trim());
+  const header = table.split('\n').find((line) => line.startsWith('| Field |'));
+  const outputDirRow = table.split('\n').find((line) => line.startsWith('| `outputDir` |'));
+  assert.ok(header && outputDirRow, 'docs/architecture.md Runtime Definitions: missing header or outputDir row');
+  const outputDirs = Object.fromEntries(cells(header).map((name, i) => [name.toLowerCase(), cells(outputDirRow)[i]]));
+  for (const runtime of RUNTIME_NAMES) {
+    const { outputDir } = getRuntimeConfig(runtime);
+    assert.ok(
+      outputDirs[runtime] && outputDirs[runtime].startsWith(`\`${outputDir}\``),
+      `docs/architecture.md: outputDir row should show \`${outputDir}\` for ${runtime}, got ${outputDirs[runtime]}`
+    );
+  }
+  for (const [surface, body] of [['docs/runtime-qwen.md', runtimeQwen], ['docs/architecture.md', architecture]]) {
+    assert.ok(!body.includes('qwen/agents'), `${surface}: still claims a qwen/agents directory (Qwen agent stubs live in agents/)`);
+  }
 });
 
 test('doc-drift: docs/usage.md MCP Quick Reference includes every session-pack tool', () => {
@@ -302,13 +323,11 @@ test('doc-drift: docs/runtime-qwen.md tool mapping lists every Qwen runtime-conf
   }
 });
 
-test('doc-drift: hand-maintained docs do not advertise the removed Gemini CLI runtime', () => {
-  for (const removed of ['GEMINI.md', 'docs/runtime-gemini.md']) {
-    assert.equal(fs.existsSync(path.join(ROOT, removed)), false, `${removed} should be deleted with the Gemini CLI runtime`);
-  }
-  assert.ok(!RUNTIME_NAMES.includes('gemini'), 'src/platforms/gemini/runtime-config.js should not exist');
-
-  // CHANGELOG.md is intentionally excluded: released sections are history.
+/**
+ * Hand-maintained doc surfaces, including every served `.md` under `src/`.
+ * CHANGELOG.md is intentionally excluded: released sections are history.
+ */
+function handMaintainedDocSurfaces() {
   const surfaces = [
     'README.md',
     'EXAMPLES.md',
@@ -326,10 +345,29 @@ test('doc-drift: hand-maintained docs do not advertise the removed Gemini CLI ru
     ...listMdRecursive('src'),
   ];
   assert.ok(surfaces.some((surface) => surface.startsWith('src/')), 'src/ walk found no .md files');
-  const hits = surfaces.flatMap((surface) => read(surface)
-    .split('\n')
-    .flatMap((line, index) => (/gemini/i.test(line) ? [`${surface}:${index + 1}: ${line.trim()}`] : [])));
+  return surfaces;
+}
+
+/** `surface:line: text` for every line of the hand-maintained doc surfaces that matches `pattern`. */
+const docSurfaceHits = (pattern) => handMaintainedDocSurfaces().flatMap((surface) => read(surface)
+  .split('\n')
+  .flatMap((line, index) => (pattern.test(line) ? [`${surface}:${index + 1}: ${line.trim()}`] : [])));
+
+test('doc-drift: hand-maintained docs do not advertise the removed Gemini CLI runtime', () => {
+  for (const removed of ['GEMINI.md', 'docs/runtime-gemini.md']) {
+    assert.equal(fs.existsSync(path.join(ROOT, removed)), false, `${removed} should be deleted with the Gemini CLI runtime`);
+  }
+  assert.ok(!RUNTIME_NAMES.includes('gemini'), 'src/platforms/gemini/runtime-config.js should not exist');
+
+  const hits = docSurfaceHits(/gemini/i);
   assert.deepEqual(hits, [], `Gemini CLI is no longer supported; remove these mentions:\n${hits.join('\n')}`);
+});
+
+test('doc-drift: hand-maintained docs do not mention a qwen/agents directory', () => {
+  // Qwen Code loads extension subagents only from <extension>/agents/, so the
+  // Qwen agent stubs are generated at the repo-root agents/, never qwen/agents/.
+  const hits = docSurfaceHits(/qwen\/agents/);
+  assert.deepEqual(hits, [], `Qwen agent stubs live in the repo-root agents/; remove these qwen/agents mentions:\n${hits.join('\n')}`);
 });
 
 test('doc-drift: served skill and reference agent tables name every src agent', () => {

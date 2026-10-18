@@ -23,6 +23,7 @@ describe('release artifact manifest', () => {
       'qwen-extension.json',
       'QWEN.md',
       'qwen',
+      'agents',
       'commands',
       'policies',
       'mcp',
@@ -41,14 +42,15 @@ describe('release artifact manifest', () => {
         `Expected release allowlist to include ${expectedPath}`
       );
     }
+    // Repo-root agents/ holds the Qwen agent stubs (Qwen loads <extension>/agents/).
+    assert.equal(isReleaseArtifactPathAllowed('agents/coder.md'), true);
   });
 
   it('ships no Gemini CLI surfaces', () => {
     const removedPaths = [
       'gemini-extension.json',
       'GEMINI.md',
-      'agents',
-      'agents/coder.md',
+      '.geminiignore',
       'docs/runtime-gemini.md',
     ];
 
@@ -62,7 +64,7 @@ describe('release artifact manifest', () => {
     for (const releasePath of RELEASE_ARTIFACT_PATHS) {
       assert.doesNotMatch(releasePath, /gemini/i);
     }
-    for (const removedPath of ['gemini-extension.json', 'GEMINI.md', 'agents', 'hooks/hooks.json', '.geminiignore']) {
+    for (const removedPath of ['gemini-extension.json', 'GEMINI.md', 'hooks/hooks.json', '.geminiignore']) {
       assert.equal(fs.existsSync(path.join(ROOT, removedPath)), false, `${removedPath} must not exist`);
     }
   });
