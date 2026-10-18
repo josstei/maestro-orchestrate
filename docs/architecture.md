@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`./`, `claude/`, `plugins/maestro/`, and `qwen/`, plus the repo-root Qwen manifest and context file) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`claude/`, `plugins/maestro/`, and `qwen/`, plus the repo root, which is Qwen Code's extension directory) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
                     ┌─────────────┐
@@ -16,13 +16,13 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
                     │ + manifest  │
                     │ + transforms│
                     └──────┬──────┘
-           ┌───────────────┼───────────────┬───────────────┐
-           ▼               ▼               ▼               ▼
-    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
-    │   Gemini    │ │   Claude    │ │    Codex    │ │    Qwen     │
-    │   (root)    │ │  (claude/)  │ │(plugins/    │ │   (qwen/)   │
-    │             │ │             │ │  maestro/)  │ │             │
-    └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+           ┌───────────────┼───────────────┐
+           ▼               ▼               ▼
+    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+    │   Claude    │ │    Codex    │ │    Qwen     │
+    │  (claude/)  │ │(plugins/    │ │  (qwen/ +   │
+    │             │ │  maestro/)  │ │  repo root) │
+    └─────────────┘ └─────────────┘ └─────────────┘
 ```
 
 ## Generator Pipeline
@@ -31,10 +31,10 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads every runtime config (`src/platforms/<runtime>/runtime-config.js`, discovered by `src/mcp/runtime/runtime-config-map.js`)
 2. Scans `src/agents/`, `src/skills/shared/`, `src/templates/`, `src/references/`, and `src/hooks/logic/` into `src/generated/agent-registry.json`, `resource-registry.json`, and `hook-registry.json` (`src/generator/registry-scanner.js`)
-3. Expands the rules in `src/manifest.js` and runs their transforms: agent stubs into `agents/`, `claude/agents/`, and `qwen/agents/`; shared-skill discovery stubs into `claude/skills/` and `plugins/maestro/skills/`
-4. Expands the entry-point and core-command registries into Gemini TOML commands (`commands/maestro/`) and Claude and Codex skills (`src/generator/entry-point-expander.js`)
-5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`): `gemini-extension.json`, `hooks/hooks.json`, `policies/maestro.toml`, `qwen-extension.json`, `qwen/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, and `plugins/maestro/.app.json`
-6. Prunes stale files from the directories it owns (`agents/`, `claude/agents/`, `qwen/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
+3. Expands the rules in `src/manifest.js` and runs their transforms: agent stubs into `claude/agents/` and `qwen/agents/`; shared-skill discovery stubs into `claude/skills/` and `plugins/maestro/skills/`
+4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Claude and Codex skills and Qwen TOML commands (`commands/maestro/`)
+5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`): `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
+6. Prunes stale files from the directories it owns (`claude/agents/`, `qwen/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
 7. Rebuilds the detached payloads `claude/src/` and `plugins/maestro/src/` (an allowlisted copy of `src/` plus that runtime's `src/platforms/<runtime>/` directory) and stamps each with `version.json`
 
 `--dry-run` and `--diff` write nothing and skip steps 6 and 7. `--clean` deletes the manifest outputs before regenerating them.
@@ -47,7 +47,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 {
   src: 'agents/architect.md',           // Source file
   transforms: ['agent-stub'],           // Transform pipeline
-  runtimes: ['gemini', 'claude', 'qwen'],       // Target runtimes
+  runtimes: ['claude', 'qwen'],         // Target runtimes
 }
 ```
 
@@ -57,7 +57,7 @@ Or with glob patterns:
 {
   glob: 'agents/*.md',
   transforms: ['agent-stub'],
-  runtimes: ['gemini', 'claude', 'qwen'],
+  runtimes: ['claude', 'qwen'],
 }
 ```
 
@@ -76,28 +76,25 @@ The generator exposes 2 transforms, registered by name in `src/transforms/index.
 
 Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
-| Field | Gemini | Claude | Codex | Qwen |
-|-------|--------|--------|-------|------|
-| `outputDir` | `./` | `claude/` | `plugins/maestro/` | `qwen/` |
-| `agentNaming` | `snake_case` | `kebab-case` | `kebab-case` | `snake_case` |
-| `agentPrefix` | — | `maestro:` | — | — |
-| `mcpPrefix` | `mcp_maestro_` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |
-| `planModeNative` | `true` | `true` | `false` | `false` |
-| `delegation.pattern` | `{{agent}}(query: "...")` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
-| `env.extensionPath` | `extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
-| `env.workspacePath` | `null` (manifest injects `MAESTRO_WORKSPACE_PATH=${workspacePath}`) | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
-| `agentFrontmatter.fields` | name, kind, description, tools, temperature, turns, timeout | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
-
-The Qwen config spreads the Gemini config and overrides only what differs.
+| Field | Claude | Codex | Qwen |
+|-------|--------|-------|------|
+| `outputDir` | `claude/` | `plugins/maestro/` | `qwen/` |
+| `agentNaming` | `kebab-case` | `kebab-case` | `snake_case` |
+| `agentPrefix` | `maestro:` | — | — |
+| `mcpPrefix` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |
+| `planModeNative` | `true` | `false` | `false` |
+| `delegation.pattern` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
+| `env.extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
+| `env.workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
+| `agentFrontmatter.fields` | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
 
 ### Entry-Point Registry
 
 9 entry-points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
 
-- Gemini: TOML commands in `commands/maestro/`
 - Claude: Markdown skills in `claude/skills/`
 - Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
-- Qwen: reuses Gemini's repo-root `commands/maestro/` TOML commands at runtime — `src/generator/entry-point-expander.js` sets `qwen: null` for both entry-point and core-command expansion, so the Qwen generator emits no command files of its own
+- Qwen: TOML commands in repo-root `commands/maestro/` (the repo root is Qwen Code's extension directory)
 
 Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
@@ -157,10 +154,9 @@ This makes the source-of-truth rules explicit:
 
 ### MCP Server Packaging
 
-Gemini and Qwen share the repo-root public entrypoint at `mcp/maestro-server.js`, Claude keeps a runtime-local public entrypoint at `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js`:
+Qwen uses the repo-root public entrypoint at `mcp/maestro-server.js`, Claude keeps a runtime-local public entrypoint at `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js`:
 
-- **Gemini** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=gemini`, directly requires `../src/mcp/maestro-server` and calls `.main()`
-- **Qwen** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=qwen` from `qwen-extension.json`, using the same shared entrypoint as Gemini
+- **Qwen** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=qwen` from `qwen-extension.json` (and defaults to `qwen` when that variable is unset), directly requires `../src/mcp/maestro-server` and calls `.main()`
 - **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
 - **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
 
@@ -172,7 +168,7 @@ The MCP server does not guess the workspace. Its project root is `null` until th
 
 To help the orchestrator choose that path, `get_runtime_context` returns a `workspace_suggestion` taken from, in order:
 
-1. the environment variable named by the runtime config's `env.workspacePath` (see [Runtime Definitions](#runtime-definitions); Gemini declares `null`, so its suggestion starts at step 2)
+1. the environment variable named by the runtime config's `env.workspacePath` (see [Runtime Definitions](#runtime-definitions))
 2. the first existing `file://` root in the MCP client's `roots/list` response
 3. the server's `cwd`
 
@@ -188,7 +184,7 @@ The 17 tools (4 workspace, 10 session, 3 content) and their required parameters 
 
 Each agent in `src/agents/` has:
 
-- **YAML frontmatter**: `name`, `description`, `color`, `tools`, `max_turns`, `temperature`, `timeout_mins`. `tools` is the one canonical tool list, written in Gemini CLI tool names; an optional `tools.<runtime>` key (every agent sets `tools.claude`) replaces it for that runtime
+- **YAML frontmatter**: `name`, `description`, `color`, `tools`, `max_turns`. `tools` is the one canonical tool list, written in canonical tool names that each runtime maps through its runtime config's `tools` table; an optional `tools.<runtime>` key (every agent sets `tools.claude`) replaces it for that runtime
 - **Methodology body**: role description, assessment areas, decision frameworks, anti-patterns
 - **Downstream consumer contracts**: what other agents need from this agent's output
 
@@ -221,19 +217,18 @@ Hooks fire at session and agent boundaries to inject context and validate output
 
 | Runtime | Registration file | Events | Command |
 |---------|-------------------|--------|---------|
-| Gemini CLI | `hooks/hooks.json` | `SessionStart`, `BeforeAgent`, `AfterAgent`, `SessionEnd`; no matchers; timeouts in milliseconds (10000) | `node ${extensionPath}/hooks/hook-runner.js gemini <hook>` |
 | Claude Code | `claude/hooks/claude-hooks.json` | `SessionStart`, `PreToolUse` (`Agent` matcher), `SessionEnd`; timeouts in seconds (10) | `node ${CLAUDE_PLUGIN_ROOT}/scripts/hook-runner.js claude <hook>` |
 | Claude Code | `claude/hooks/claude-hooks.json` | `PreToolUse` (`Bash` matcher); 5-second timeout | `node ${CLAUDE_PLUGIN_ROOT}/scripts/policy-enforcer.js` |
 | Qwen Code | `qwen/hooks.json` | `SessionStart`, `SubagentStart`, `SubagentStop`, `SessionEnd`; timeouts in milliseconds (10000) | `node ${extensionPath}/hooks/hook-runner.js qwen <hook>` |
 | Codex | — | none | — |
 
-`src/platforms/metadata.js` generates all three registration files. Both hook runners load `src/platforms/shared/hook-runner.js`: `hooks/hook-runner.js` directly, and `claude/scripts/hook-runner.js` from the repo `src/` when present, otherwise from the bundled `claude/src/`. The shared runner looks `<hook>` up in `src/generated/hook-registry.json`, normalizes stdin through `src/platforms/<runtime>/hook-adapter.js`, runs the matching `src/hooks/logic/<hook>-logic.js` handler, and formats the result for the host. Per-event behavior and the adapter field mappings are in [runtime-gemini.md](runtime-gemini.md#hooks), [runtime-claude.md](runtime-claude.md#hooks), and [runtime-qwen.md](runtime-qwen.md#hooks).
+`src/platforms/metadata.js` generates both registration files. Both hook runners load `src/platforms/shared/hook-runner.js`: Qwen's repo-root `hooks/hook-runner.js` directly, and `claude/scripts/hook-runner.js` from the repo `src/` when present, otherwise from the bundled `claude/src/`. The shared runner looks `<hook>` up in `src/generated/hook-registry.json`, normalizes stdin through `src/platforms/<runtime>/hook-adapter.js`, runs the matching `src/hooks/logic/<hook>-logic.js` handler, and formats the result for the host. Per-event behavior and the adapter field mappings are in [runtime-claude.md](runtime-claude.md#hooks) and [runtime-qwen.md](runtime-qwen.md#hooks).
 
 ### Policy Enforcement
 
-Gemini, Qwen, and Claude apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
+Qwen and Claude apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
 
-- **Gemini** and **Qwen**: the TOML policy pack `policies/maestro.toml`, generated from those rules by `src/platforms/metadata.js`
+- **Qwen**: the TOML policy pack `policies/maestro.toml`, generated from those rules by the Qwen builder in `src/platforms/metadata.js`
 - **Claude**: `src/platforms/claude/policy-enforcer.js`, run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
 
 ### Hook State

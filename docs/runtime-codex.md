@@ -20,14 +20,14 @@ The Codex plugin lives in `plugins/maestro/`.
 }
 ```
 
-Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Gemini's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
+Codex plugin manifests lack a plugin-root substitution variable (unlike Claude's `${CLAUDE_PLUGIN_ROOT}` or Qwen's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory. Maestro invokes the server via `npx` using the versioned npm package for the current release. The `maestro-mcp-server` bin lives in `bin/maestro-mcp-server.js` and is declared in `package.json`; it sets `MAESTRO_RUNTIME=codex` and delegates to `src/mcp/maestro-server.js`.
 
 Workspace resolution follows the shared MCP contract: tools that need a workspace fail with `WORKSPACE_NOT_INITIALIZED` until the orchestrator calls `initialize_workspace(workspace_path)`. To suggest that path, `get_runtime_context` returns a `workspace_suggestion` taken from, in order:
 - `MAESTRO_WORKSPACE_PATH`, when the host exports it
 - the first valid local `file://` root in the MCP client `roots/list` response
 - the server's `cwd`
 
-Candidates inside a host extension cache (`.codex/plugins`, `.claude/plugins`, `.gemini/extensions`) are skipped. Because session state is anchored to the path passed to `initialize_workspace`, it stays under the workspace's `docs/maestro` regardless of where `npx` materializes the package.
+Candidates inside a host extension cache (`.codex/plugins`, `.claude/plugins`) are skipped. Because session state is anchored to the path passed to `initialize_workspace`, it stays under the workspace's `docs/maestro` regardless of where `npx` materializes the package.
 
 ### Plugin Manifest
 
@@ -153,7 +153,7 @@ Codex uses relative paths:
 - `env.extensionPath`: `.` (plugin root)
 - `env.workspacePath`: `MAESTRO_WORKSPACE_PATH`, the first source of `workspace_suggestion` when the host exports it
 
-This differs from Gemini (passthrough variables) and Claude (environment variable references).
+This differs from Qwen (passthrough variables) and Claude (environment variable references).
 
 When `MAESTRO_WORKSPACE_PATH` is not set, the suggestion comes from the first valid local `file://` root in the client `roots/list` response, then from the server's `cwd`. The orchestrator still passes the chosen path to `initialize_workspace`; the server never falls back to the suggestion on its own.
 
@@ -184,13 +184,13 @@ The repo-root `.agents/plugins/marketplace.json` is generated too. The runtime s
 
 ## Differences from Other Runtimes
 
-| Aspect | Gemini | Claude | Qwen | Codex |
-|--------|--------|--------|------|-------|
-| Agent names | snake_case | kebab-case | snake_case | kebab-case |
-| Delegation | Direct function call | Agent subagent | Direct function call | spawn_agent |
-| Hooks | 4 events, no matchers | SessionStart, SessionEnd, PreToolUse + matchers | 4 events in `qwen/hooks.json` | None |
-| Policies | TOML rules | JS hook enforcer | TOML rules | None |
-| Skill surface | N/A (commands) | 19 skills | N/A (Gemini-compatible commands) | plugin namespace `$maestro:*` |
-| Path style | Variable passthrough | Env var refs | Variable passthrough | `npx` bin |
-| Extra files | TOML policy rules | policy-enforcer | Qwen manifest, context, agents, hooks config | runtime guide |
-| Runtime payload | thin entrypoint only | thin entrypoint + detached `src/` payload | shared root entrypoint + `qwen/` stubs | npx bin + detached `src/` payload |
+| Aspect | Claude | Qwen | Codex |
+|--------|--------|------|-------|
+| Agent names | kebab-case | snake_case | kebab-case |
+| Delegation | Agent subagent | Direct function call | spawn_agent |
+| Hooks | SessionStart, SessionEnd, PreToolUse + matchers | 4 events in `qwen/hooks.json`, no matchers | None |
+| Policies | JS hook enforcer | TOML rules | None |
+| Skill surface | 19 skills | N/A (12 TOML commands) | plugin namespace `$maestro:*` |
+| Path style | Env var refs | Variable passthrough | `npx` bin |
+| Extra files | policy-enforcer | Qwen manifest, context, TOML commands, policy rules | runtime guide |
+| Runtime payload | thin entrypoint + detached `src/` payload | repo-root thin entrypoint + `qwen/` stubs | npx bin + detached `src/` payload |

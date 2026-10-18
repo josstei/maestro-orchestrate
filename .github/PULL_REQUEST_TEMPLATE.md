@@ -27,7 +27,6 @@
 
 <!-- Which runtimes are affected? Check all that apply. -->
 
-- [ ] Gemini CLI
 - [ ] Claude Code
 - [ ] Codex
 - [ ] Qwen Code

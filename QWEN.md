@@ -81,7 +81,7 @@ This extension was authored for Qwen Code. When following agent methodology file
 | Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Native parallel batch chunk size (`0` means dispatch the entire ready batch) |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
 
-**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent model, temperature, turn, and timeout tuning come from agent frontmatter and Qwen Code `agents.overrides`, not Maestro process flags.
+**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent tuning comes from agent frontmatter (`max_turns`) and Qwen Code `agents.overrides`, not Maestro process flags.
 
 Additional controls:
 
@@ -148,21 +148,21 @@ Constraints:
 ## Delegation Rules
 
 <HARD-GATE>
-Dispatch every Maestro subagent by calling its registered tool name directly — for example, `coder(query: "...")`, `design_system_engineer(query: "...")`, `tester(query: "...")`. Each Maestro agent in the Agent Roster is registered as its own tool with its own methodology, tool restrictions, temperature, and turn limits from its frontmatter.
+Dispatch every Maestro subagent by calling its registered tool name directly — for example, `coder(query: "...")`, `design_system_engineer(query: "...")`, `tester(query: "...")`. Each Maestro agent in the Agent Roster is registered as its own tool with its own methodology, tool restrictions, and turn limits from its frontmatter.
 
-Do NOT use the built-in `generalist` tool for Maestro phase delegations. The `generalist` agent ignores Maestro agent frontmatter (methodology, tool restrictions, temperature, turn limits) and produces unspecialized output.
+Do NOT use the built-in `generalist` tool for Maestro phase delegations. The `generalist` agent ignores Maestro agent frontmatter (methodology, tool restrictions, turn limits) and produces unspecialized output.
 </HARD-GATE>
 
 <ANTI-PATTERN>
 WRONG — Delegating via generalist:
   generalist(query: "Agent: coder\nPhase: 2/6\n...")
-  The generalist ignores the coder's frontmatter. It uses default temperature,
-  has no turn limit, no tool restrictions, and no specialized methodology.
+  The generalist ignores the coder's frontmatter. It has no turn limit,
+  no tool restrictions, and no specialized methodology.
 
 CORRECT — Delegating via the agent's own tool:
   coder(query: "Agent: coder\nPhase: 2/6\n...")
-  The coder tool applies its frontmatter: temperature 0.2, max_turns 25,
-  restricted tool set, and implementation methodology.
+  The coder tool applies its frontmatter: max_turns 25, restricted tool set,
+  and implementation methodology.
 </ANTI-PATTERN>
 
 When building delegation prompts:

@@ -1,11 +1,10 @@
 # Maestro Overview
 
-Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as four runtime targets from a single canonical source tree:
+Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as three runtime targets from a single canonical source tree:
 
-- **Gemini CLI extension** (root directory — `GEMINI.md`, `gemini-extension.json`, `agents/`, and `commands/maestro/`, whose commands Qwen also uses)
 - **Claude Code plugin** (`claude/` subdirectory)
 - **Codex plugin** (`plugins/maestro/` subdirectory)
-- **Qwen Code extension** (`qwen/` subdirectory — `qwen-extension.json` manifest + `QWEN.md` context file live at repo root; generated `qwen/agents/` and `qwen/hooks.json` live in the subdirectory)
+- **Qwen Code extension** (`qwen/` subdirectory — the `qwen-extension.json` manifest, `QWEN.md` context file, and the `commands/maestro/`, `policies/`, `mcp/`, and `hooks/` artifacts live at repo root; generated `qwen/agents/` and `qwen/hooks.json` live in the subdirectory)
 
 The orchestrator adopts a TechLead persona that designs, plans, delegates to agents, validates, and reports.
 
@@ -31,7 +30,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | MCP tools | 17 |
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
-| Runtime targets | 4 |
+| Runtime targets | 3 |
 | Source transforms | 2 |
 
 ## Project Structure
@@ -61,11 +60,10 @@ maestro-orchestrate/
 ├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)
 ├── tests/                        # Unit, transform, and integration suites + shared helpers
 │
-├── agents/                       # [generated] Gemini agent stubs
-├── commands/maestro/             # [generated] Gemini TOML commands (also used by Qwen)
-├── hooks/                        # Hook-runner shim + [generated] hooks.json
-├── mcp/                          # MCP server shim (Gemini and Qwen)
-├── policies/                     # [generated] Shell policy pack (Gemini and Qwen)
+├── commands/maestro/             # [generated] Qwen TOML commands
+├── hooks/                        # Hook-runner shim (used by qwen/hooks.json)
+├── mcp/                          # MCP server shim (Qwen)
+├── policies/                     # [generated] Shell policy pack (Qwen)
 ├── .claude-plugin/               # [generated] Claude marketplace
 ├── .agents/plugins/              # [generated] Codex marketplace
 │
