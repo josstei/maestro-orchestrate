@@ -21,8 +21,10 @@ module.exports = {
     workspacePath: 'MAESTRO_WORKSPACE_PATH',
   },
 
-  // Agent stubs list these names as each subagent's tool allowlist, so every
-  // value must be a real Antigravity tool name; [] means no equivalent.
+  // Agent stubs list the mapped names of the tools an agent declares as that
+  // subagent's tool allowlist, so every tool an agent can declare must map to
+  // real Antigravity tool names; [] means no equivalent. codebase_investigator
+  // is never declared by an agent and only guides the orchestrator.
   tools: {
     read_file: 'view_file',
     list_directory: 'list_dir',

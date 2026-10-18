@@ -10,16 +10,16 @@ describe('runtime-config-map', () => {
   it('discovers runtimes from platforms/ directory', () => {
     const { getRuntimeConfig } = require(configMapPath);
 
-    const expected = ['claude', 'codex', 'qwen'];
+    const expected = ['antigravity', 'claude', 'codex', 'qwen'];
     for (const name of expected) {
       const config = getRuntimeConfig(name);
       assert.equal(config.name, name, `Expected config.name to be '${name}'`);
     }
   });
 
-  it('lists runtime names alphabetically, so claude is the first discovered runtime', () => {
+  it('lists runtime names alphabetically, so antigravity is the first discovered runtime', () => {
     const { RUNTIME_NAMES } = require(configMapPath);
-    assert.deepEqual(RUNTIME_NAMES, ['claude', 'codex', 'qwen']);
+    assert.deepEqual(RUNTIME_NAMES, ['antigravity', 'claude', 'codex', 'qwen']);
   });
 
   it('no longer discovers a gemini runtime', () => {

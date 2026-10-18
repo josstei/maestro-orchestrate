@@ -165,6 +165,37 @@ describe('createServer tool composition', () => {
     );
   });
 
+  it("lists the runtime config's mcpToolMeta as every tool schema's _meta", () => {
+    const mcpToolMeta = { 'antigravity/alwaysLoad': true };
+    const tool = { name: 'a1', description: 'd', handler: () => ({}) };
+    const server = createServer({
+      runtimeConfig: { name: 'antigravity', mcpToolMeta },
+      toolPacks: [{ name: 'a', tools: [tool] }, makePack('b', 'b1')],
+    });
+
+    const schemas = server.getToolSchemas();
+    assert.deepEqual(schemas, [
+      { name: 'a1', description: 'd', _meta: { 'antigravity/alwaysLoad': true } },
+      { name: 'b1', _meta: { 'antigravity/alwaysLoad': true } },
+    ]);
+    assert.equal('_meta' in tool, false, 'the pack schema itself is not modified');
+
+    // Each schema gets its own copy, so no listing can change the config or
+    // another schema.
+    assert.notEqual(schemas[0]._meta, mcpToolMeta);
+    assert.notEqual(schemas[0]._meta, schemas[1]._meta);
+    schemas[0]._meta.extra = true;
+    assert.deepEqual(mcpToolMeta, { 'antigravity/alwaysLoad': true });
+    assert.deepEqual(schemas[1]._meta, { 'antigravity/alwaysLoad': true });
+  });
+
+  it('lists no _meta when the runtime config declares no mcpToolMeta', () => {
+    for (const runtimeConfig of [{ name: 'claude' }, { name: 'claude', mcpToolMeta: null }]) {
+      const server = createServer({ runtimeConfig, toolPacks: [makePack('p', 't1')] });
+      assert.deepEqual(server.getToolSchemas(), [{ name: 't1' }]);
+    }
+  });
+
   it('enforces an initialized workspace when the schema sets requiresWorkspace=true', async () => {
     const server = createServer({
       runtimeConfig: { name: 'codex' },

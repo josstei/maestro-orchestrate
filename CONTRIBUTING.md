@@ -5,7 +5,7 @@ Thank you for your interest in contributing to Maestro. This guide covers everyt
 ## Prerequisites
 
 - **Node.js 20+**
-- **One supported runtime**: [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), or [Qwen Code](https://github.com/QwenLM/qwen-code)
+- **One supported runtime**: [Antigravity](antigravity/README.md), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), or [Qwen Code](https://github.com/QwenLM/qwen-code)
 - [Just](https://github.com/casey/just) command runner (optional but recommended)
 
 ## Development Setup
@@ -55,22 +55,24 @@ Shared code and content live in `src/`. The generator (`just generate`) builds m
 
 | Generated (edit the source in `src/` instead) | Runtime |
 |-----------------------------------------------|---------|
+| `antigravity/agents/`, `antigravity/skills/`, `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `antigravity/src/` | Antigravity |
 | `claude/agents/`, `claude/skills/`, `claude/hooks/claude-hooks.json`, `claude/.claude-plugin/plugin.json`, `claude/.mcp.json`, `claude/src/`, `.claude-plugin/marketplace.json` | Claude Code |
 | `plugins/maestro/skills/`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `plugins/maestro/src/`, `.agents/plugins/marketplace.json` | Codex |
 | `agents/`, `qwen/hooks.json`, `qwen-extension.json`, `commands/maestro/`, `policies/maestro.toml` | Qwen Code |
 | `src/generated/*.json` (agent, resource, and hook registries) | All |
 
-`claude/src/` and `plugins/maestro/src/` are detached copies of `src/`, stamped with `version.json`, for installs outside the repo.
+`antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` are detached copies of `src/`, stamped with `version.json`, for installs outside the repo.
 
 | Hand-maintained (edit in place) | Purpose |
 |---------------------------------|---------|
 | `hooks/hook-runner.js`, `mcp/maestro-server.js` | Qwen Code shims that load the hook runner and MCP server from `src/` |
+| `antigravity/mcp/maestro-server.js`, `antigravity/hooks/hook-runner.js`, `antigravity/hooks/policy-enforcer.js` | Antigravity shims that load the repo `src/`, or the bundled `antigravity/src/` outside the repo |
 | `claude/scripts/hook-runner.js`, `claude/scripts/policy-enforcer.js`, `claude/mcp/maestro-server.js` | Claude Code shims that load the repo `src/`, or the bundled `claude/src/` outside the repo |
 | `bin/maestro-mcp-server.js` | Codex MCP server bin, run via `npx` from `plugins/maestro/.mcp.json` |
 | `claude/mcp-config.example.json` | Example MCP server entry for manual Claude setups |
 | `plugins/maestro/references/runtime-guide.md` | Codex runtime guide, read by the Codex skills |
 | `QWEN.md` | Qwen Code context file |
-| `README.md`, `claude/README.md`, `plugins/maestro/README.md` | READMEs; `scripts/update-versions.js` stamps the version badge in `README.md` and `claude/README.md` |
+| `README.md`, `antigravity/README.md`, `claude/README.md`, `plugins/maestro/README.md` | READMEs; `scripts/update-versions.js` stamps the version badge in `README.md` and `claude/README.md` |
 
 The generator reads `src/manifest.js`, applies the transforms in `src/transforms/`, expands the entry-point registries, and builds the manifests, hook registrations, and policy pack in `src/platforms/metadata.js`. [docs/architecture.md](docs/architecture.md#generator-pipeline) lists every step.
 
@@ -181,7 +183,7 @@ This project uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) forma
 
 ## Reporting Bugs and Requesting Features
 
-Use the [issue templates](.github/ISSUE_TEMPLATE/) to file bug reports or feature requests. Include your runtime (Claude Code, Codex, or Qwen Code), Node.js version, and steps to reproduce.
+Use the [issue templates](.github/ISSUE_TEMPLATE/) to file bug reports or feature requests. Include your runtime (Antigravity, Claude Code, Codex, or Qwen Code), Node.js version, and steps to reproduce.
 
 ## Code Review
 

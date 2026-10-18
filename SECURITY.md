@@ -17,7 +17,7 @@ Include as much of the following as possible:
 
 - Description of the vulnerability
 - Steps to reproduce or proof of concept
-- Affected versions and runtimes (Claude Code, Codex, Qwen Code)
+- Affected versions and runtimes (Antigravity, Claude Code, Codex, Qwen Code)
 - Potential impact
 
 ## Response Timeline
@@ -38,7 +38,7 @@ The following areas are in scope for security reports:
 
 Out of scope:
 
-- Vulnerabilities in upstream runtimes (Claude Code, Codex, Qwen Code) themselves
+- Vulnerabilities in upstream runtimes (Antigravity, Claude Code, Codex, Qwen Code) themselves
 - Social engineering
 - Denial of service against local development environments
 

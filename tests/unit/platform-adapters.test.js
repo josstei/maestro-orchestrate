@@ -4,6 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const antigravityAdapter = require('../../src/platforms/antigravity/hook-adapter');
 const claudeAdapter = require('../../src/platforms/claude/hook-adapter');
 const qwenAdapter = require('../../src/platforms/qwen/hook-adapter');
 
@@ -13,8 +14,8 @@ const ADAPTER_RUNTIMES = fs.readdirSync(PLATFORMS_DIR)
   .sort();
 
 describe('hook adapter contract', () => {
-  it('ships hook adapters for claude and qwen only', () => {
-    assert.deepEqual(ADAPTER_RUNTIMES, ['claude', 'qwen']);
+  it('ships hook adapters for antigravity, claude and qwen only', () => {
+    assert.deepEqual(ADAPTER_RUNTIMES, ['antigravity', 'claude', 'qwen']);
   });
 
   it('no longer ships a gemini platform directory', () => {
@@ -29,6 +30,83 @@ describe('hook adapter contract', () => {
       }
     });
   }
+});
+
+describe('antigravity hook-adapter', () => {
+  describe('normalizeInput', () => {
+    it('maps conversationId to sessionId and the first workspace path to cwd', () => {
+      const raw = {
+        conversationId: '6f1c2d3e-0000-4000-8000-000000000001',
+        workspacePaths: ['/workspace/app', '/workspace/lib'],
+        transcriptPath: '/tmp/conversation/transcript.jsonl',
+        artifactDirectoryPath: '/tmp/conversation/artifacts',
+        modelName: 'example-model',
+      };
+
+      const result = antigravityAdapter.normalizeInput(raw);
+
+      assert.equal(result.sessionId, '6f1c2d3e-0000-4000-8000-000000000001');
+      assert.equal(result.cwd, '/workspace/app');
+    });
+
+    it('skips empty and non-string workspace paths', () => {
+      const result = antigravityAdapter.normalizeInput({ workspacePaths: ['', null, 7, '/workspace/app'] });
+
+      assert.equal(result.cwd, '/workspace/app');
+    });
+
+    it('leaves the agent fields null because the payload names no agent', () => {
+      const result = antigravityAdapter.normalizeInput({
+        conversationId: 'conv-1',
+        workspacePaths: ['/workspace/app'],
+      });
+
+      assert.equal(result.agentName, null);
+      assert.equal(result.agentInput, null);
+      assert.equal(result.agentResult, null);
+      assert.equal(result.stopHookActive, false);
+    });
+
+    it('handles missing fields and a non-array workspacePaths with empty-string defaults', () => {
+      for (const raw of [{}, { workspacePaths: '/workspace/app' }]) {
+        const result = antigravityAdapter.normalizeInput(raw);
+
+        assert.equal(result.sessionId, '');
+        assert.equal(result.cwd, '');
+      }
+    });
+  });
+
+  describe('formatOutput', () => {
+    it('returns {} when there is no message', () => {
+      assert.deepEqual(antigravityAdapter.formatOutput({ action: 'advisory', message: null, reason: null }), {});
+      assert.deepEqual(antigravityAdapter.formatOutput({ action: 'allow', message: null, reason: null }), {});
+    });
+
+    it('injects the message as a system message step', () => {
+      const result = antigravityAdapter.formatOutput({
+        action: 'allow',
+        message: 'Active session: current_phase=2, status=in_progress',
+        reason: null,
+      });
+
+      assert.deepEqual(result, {
+        injectSteps: [{ systemMessage: { systemMessage: 'Active session: current_phase=2, status=in_progress' } }],
+      });
+    });
+  });
+
+  describe('errorFallback', () => {
+    it('returns {}', () => {
+      assert.deepEqual(antigravityAdapter.errorFallback(), {});
+    });
+  });
+
+  describe('getExitCode', () => {
+    it('is not defined, so the hook runner always exits 0', () => {
+      assert.equal(antigravityAdapter.getExitCode, undefined);
+    });
+  });
 });
 
 describe('claude hook-adapter', () => {

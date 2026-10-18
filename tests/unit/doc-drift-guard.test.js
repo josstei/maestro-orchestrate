@@ -51,7 +51,9 @@ test('doc-drift: agent-count claim phrase present in user-facing surfaces', () =
     'docs/overview.md',
     'README.md',
     'claude/README.md',
+    'antigravity/README.md',
     'QWEN.md',
+    'docs/runtime-antigravity.md',
     'docs/runtime-claude.md',
     'docs/runtime-qwen.md',
     'src/references/architecture.md',
@@ -61,6 +63,7 @@ test('doc-drift: agent-count claim phrase present in user-facing surfaces', () =
     const hasClaim =
       body.includes(`${canonicalCount} specialist`) ||
       body.includes(`${canonicalCount} agent`) ||
+      body.includes(`${canonicalCount} subagent`) ||
       body.includes(`${canonicalCount} specialized`);
     assert.ok(hasClaim, `${surface}: missing "${canonicalCount} specialists/agents" claim`);
   }
@@ -71,14 +74,16 @@ test('doc-drift: no stale inject-frontmatter transform in docs', () => {
   assert.ok(!body.includes('inject-frontmatter'), 'docs/architecture.md still references removed inject-frontmatter transform');
 });
 
-test('doc-drift: root pointer docs include Qwen runtime docs', () => {
+test('doc-drift: root pointer docs include every runtime doc', () => {
   for (const surface of ['OVERVIEW.md', 'USAGE.md', 'ARCHITECTURE.md']) {
     const body = read(surface);
-    assert.ok(body.includes('docs/runtime-qwen.md'), `${surface}: missing Qwen runtime documentation link`);
+    for (const runtime of RUNTIME_NAMES) {
+      assert.ok(body.includes(`docs/runtime-${runtime}.md`), `${surface}: missing ${runtime} runtime documentation link`);
+    }
   }
 });
 
-test('doc-drift: GitHub templates include Qwen runtime impact choices', () => {
+test('doc-drift: GitHub templates include Antigravity and Qwen runtime impact choices', () => {
   const surfaces = [
     '.github/ISSUE_TEMPLATE/bug_report.md',
     '.github/ISSUE_TEMPLATE/feature_request.md',
@@ -87,6 +92,7 @@ test('doc-drift: GitHub templates include Qwen runtime impact choices', () => {
   for (const surface of surfaces) {
     const body = read(surface);
     assert.ok(body.includes('Qwen Code'), `${surface}: missing Qwen Code runtime option`);
+    assert.ok(body.includes('- [ ] Antigravity'), `${surface}: missing Antigravity runtime option`);
   }
 });
 
@@ -153,6 +159,9 @@ test('doc-drift: examples guide includes all runtime command forms', () => {
     '$maestro:review-code',
     '/debug-workflow',
     '$maestro:debug-workflow',
+    '/maestro:resume-session',
+    '/maestro:review-code',
+    '/maestro:debug-workflow',
   ];
   for (const form of expectedForms) {
     assert.ok(body.includes(form), `EXAMPLES.md missing command form ${form}`);
@@ -323,6 +332,37 @@ test('doc-drift: docs/runtime-qwen.md tool mapping lists every Qwen runtime-conf
   }
 });
 
+test('doc-drift: docs/runtime-antigravity.md tool mapping lists every Antigravity runtime-config tool', () => {
+  const body = read('docs/runtime-antigravity.md');
+  const antigravityTools = Object.entries(getRuntimeConfig('antigravity').tools);
+  assert.ok(antigravityTools.length > 0, 'src/platforms/antigravity/runtime-config.js declares no tool mappings');
+  for (const [canonical, antigravity] of antigravityTools) {
+    // [] means no Antigravity equivalent, documented as `none`.
+    const documented = Array.isArray(antigravity) && antigravity.length === 0 ? 'none' : `\`${antigravity}\``;
+    assert.ok(
+      body.includes(`| \`${canonical}\` | ${documented} |`),
+      `docs/runtime-antigravity.md: mapping row missing: ${canonical} → ${documented}`
+    );
+  }
+});
+
+test('doc-drift: Antigravity surfaces name only generated public skills as /maestro: commands', () => {
+  // Antigravity has a built-in /resume, so review/debug/resume are generated as
+  // review-code/debug-workflow/resume-session; shared skills hide their commands.
+  const publicSkills = listSubdirs('antigravity/skills')
+    .filter((skill) => !read(`antigravity/skills/${skill}/SKILL.md`).includes('disable-slash-command: true'));
+  assert.ok(publicSkills.includes('resume-session'), 'antigravity/skills: missing public resume-session skill');
+  for (const surface of ['antigravity/README.md', 'docs/runtime-antigravity.md']) {
+    for (const [, skill] of read(surface).matchAll(/\/maestro:([a-z0-9-]+)/g)) {
+      assert.ok(publicSkills.includes(skill), `${surface}: /maestro:${skill} is not a generated public Antigravity skill`);
+    }
+  }
+  const readme = read('antigravity/README.md');
+  for (const skill of publicSkills) {
+    assert.ok(readme.includes(`\`/maestro:${skill}\``), `antigravity/README.md: missing /maestro:${skill}`);
+  }
+});
+
 /**
  * Hand-maintained doc surfaces, including every served `.md` under `src/`.
  * CHANGELOG.md is intentionally excluded: released sections are history.
@@ -338,6 +378,7 @@ function handMaintainedDocSurfaces() {
     'USAGE.md',
     'QWEN.md',
     'claude/README.md',
+    'antigravity/README.md',
     'plugins/maestro/README.md',
     ...listDir('docs').filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`),
     ...listDir('.github/ISSUE_TEMPLATE').map((f) => `.github/ISSUE_TEMPLATE/${f}`),
@@ -348,10 +389,22 @@ function handMaintainedDocSurfaces() {
   return surfaces;
 }
 
-/** `surface:line: text` for every line of the hand-maintained doc surfaces that matches `pattern`. */
-const docSurfaceHits = (pattern) => handMaintainedDocSurfaces().flatMap((surface) => read(surface)
+/**
+ * `surface:line: text` for every line of the hand-maintained doc surfaces that
+ * matches `pattern` once the `allowed` occurrences are removed from it.
+ */
+const docSurfaceHits = (pattern, allowed) => handMaintainedDocSurfaces().flatMap((surface) => read(surface)
   .split('\n')
-  .flatMap((line, index) => (pattern.test(line) ? [`${surface}:${index + 1}: ${line.trim()}`] : [])));
+  .flatMap((line, index) => (pattern.test(allowed ? line.replace(allowed, '') : line)
+    ? [`${surface}:${index + 1}: ${line.trim()}`]
+    : [])));
+
+/**
+ * Antigravity keeps its plugins and settings under `~/.gemini/config/` and
+ * `~/.gemini/antigravity-cli/`; paths into those directories are the only
+ * Gemini-named text the docs may carry.
+ */
+const ANTIGRAVITY_CONFIG_PATHS = /(?:~\/)?\.gemini\/(?:config|antigravity-cli)\//g;
 
 test('doc-drift: hand-maintained docs do not advertise the removed Gemini CLI runtime', () => {
   for (const removed of ['GEMINI.md', 'docs/runtime-gemini.md']) {
@@ -359,8 +412,16 @@ test('doc-drift: hand-maintained docs do not advertise the removed Gemini CLI ru
   }
   assert.ok(!RUNTIME_NAMES.includes('gemini'), 'src/platforms/gemini/runtime-config.js should not exist');
 
-  const hits = docSurfaceHits(/gemini/i);
-  assert.deepEqual(hits, [], `Gemini CLI is no longer supported; remove these mentions:\n${hits.join('\n')}`);
+  const mentionsGemini = (line) => /gemini/i.test(line.replace(ANTIGRAVITY_CONFIG_PATHS, ''));
+  for (const allowed of ['`~/.gemini/config/plugins/maestro/`', '`~/.gemini/antigravity-cli/settings.json`', '`.gemini/config/plugins`']) {
+    assert.equal(mentionsGemini(allowed), false, `Antigravity config path should be allowed: ${allowed}`);
+  }
+  for (const banned of ['Gemini CLI', 'GEMINI.md', 'gemini-extension.json', '`~/.gemini/settings.json`', '`~/.gemini/extensions/maestro`', 'Gemini CLI read `~/.gemini/config/plugins`']) {
+    assert.equal(mentionsGemini(banned), true, `Gemini reference should still be banned: ${banned}`);
+  }
+
+  const hits = docSurfaceHits(/gemini/i, ANTIGRAVITY_CONFIG_PATHS);
+  assert.deepEqual(hits, [], `Gemini CLI is no longer supported; remove these mentions (only Antigravity's \`~/.gemini/config/\` and \`~/.gemini/antigravity-cli/\` paths are allowed):\n${hits.join('\n')}`);
 });
 
 test('doc-drift: hand-maintained docs do not mention a qwen/agents directory', () => {

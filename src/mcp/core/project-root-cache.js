@@ -96,9 +96,6 @@ function createProjectRootCache(options) {
       clientSupportsRoots = Boolean(supports);
     },
     refreshClientRoots,
-    invalidateClientRoots() {
-      clientRoots = [];
-    },
   };
 }
 

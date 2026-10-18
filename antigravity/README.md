@@ -18,6 +18,7 @@ For local development, link this directory instead of copying it, then restart `
 
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate
+mkdir -p ~/.gemini/config/plugins
 ln -s "$PWD/maestro-orchestrate/antigravity" ~/.gemini/config/plugins/maestro
 ```
 
@@ -60,7 +61,7 @@ Antigravity has a built-in `/resume`, so Maestro uses `resume-session`, `review-
 - **Workspace**: the MCP server suggests the first workspace root Antigravity reports, unless `MAESTRO_WORKSPACE_PATH` is set. Session state lives in `docs/maestro/` in that workspace.
 - **Settings**: Antigravity plugins have no settings form. Export `MAESTRO_*` variables before starting `agy`, or put them in the workspace `.env`.
 - **Hooks**: Antigravity has no session-end or post-delegation event. A SessionStart hook adds the active Maestro session's phase and status to the main conversation and to each subagent conversation. The orchestrator checks every handoff report itself and asks a subagent once to resend a malformed one.
-- **Shell policy**: a PreToolUse hook on `run_command` applies Maestro's shell rules. Destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd`, heredocs) are denied. `tee` and output redirects always ask for confirmation. Every other command keeps your own permission settings.
+- **Shell policy**: a PreToolUse hook on `run_command` applies Maestro's shell rules to each command segment and subshell. A segment that starts with `rm -rf`, `git reset --hard`, `git checkout --` or `git clean -fd` (or a flag-reordered form), or that contains a heredoc, is denied. `tee` and spaced output redirects (`>`, `>>`) prompt for confirmation even when your `permissions.allow` covers the command, unless you run with `--dangerously-skip-permissions`. Every other command keeps your own permission settings. The rules are guardrails, not a sandbox.
 - **Plan Mode**: Antigravity exposes no plan-mode tools to the agent, so Maestro's server-side design gate and `ask_question` approvals carry the design approval.
 
 ## Alignment goal

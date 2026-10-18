@@ -11,6 +11,26 @@ const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
 const SYNCHRONOUS_CONSTRAINTS = { result_surface: 'synchronous', child_cannot_prompt_user: false };
 
 const EXPECTED_CONTEXT = {
+  antigravity: {
+    mcp_prefix: 'mcp_maestro_maestro_',
+    plan_mode_native: false,
+    agent_dispatch: {
+      pattern: 'invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])',
+      naming: 'kebab-case',
+      prefix: '',
+    },
+    constraints: { result_surface: 'notified', child_cannot_prompt_user: false },
+    agents: AGENT_NAMES,
+    tools: {
+      read_file: 'view_file',
+      read_many_files: 'view_file',
+      replace: 'replace_file_content',
+      run_shell_command: 'run_command',
+      ask_user: 'ask_question',
+      write_todos: [],
+      enter_plan_mode: [],
+    },
+  },
   claude: {
     mcp_prefix: 'mcp__plugin_maestro_maestro__',
     plan_mode_native: true,
@@ -69,7 +89,7 @@ describe('get_runtime_context handler', () => {
       assert.deepEqual(result.agents, expected.agents);
       assert.equal(result.workspace_suggestion, null);
       for (const [tool, mapped] of Object.entries(expected.tools)) {
-        assert.equal(result.tools[tool], mapped, `${runtime} tools.${tool}`);
+        assert.deepEqual(result.tools[tool], mapped, `${runtime} tools.${tool}`);
       }
     });
   }

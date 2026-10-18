@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 
-const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
+const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
 const { spawnMcpServer } = require('./mcp-stdio-client');
 
 async function assertServerStarts(options) {
@@ -30,21 +30,28 @@ const ENTRYPOINTS = [
   {
     title: 'starts the installed claude runtime server from an isolated plugin bundle',
     relativePath: 'mcp/maestro-server.js',
-    isolatedClaudePlugin: true,
+    isolatedPlugin: withIsolatedClaudePlugin,
   },
   {
     title: 'starts the codex runtime server via the maestro-mcp-server bin',
     relativePath: 'bin/maestro-mcp-server.js',
   },
+  {
+    title: 'starts the antigravity runtime server from the repo plugin shim',
+    relativePath: 'antigravity/mcp/maestro-server.js',
+  },
+  {
+    title: 'starts the installed antigravity runtime server from an isolated plugin install',
+    relativePath: 'mcp/maestro-server.js',
+    isolatedPlugin: withIsolatedAntigravityPlugin,
+  },
 ];
 
 describe('mcp server entrypoint startup', () => {
-  for (const { title, relativePath, isolatedClaudePlugin } of ENTRYPOINTS) {
+  for (const { title, relativePath, isolatedPlugin } of ENTRYPOINTS) {
     it(title, () =>
-      isolatedClaudePlugin
-        ? withIsolatedClaudePlugin((pluginRoot) =>
-            assertServerStarts({ cwd: pluginRoot, relativePath })
-          )
+      isolatedPlugin
+        ? isolatedPlugin((pluginRoot) => assertServerStarts({ cwd: pluginRoot, relativePath }))
         : assertServerStarts({ relativePath })
     );
   }

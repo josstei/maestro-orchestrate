@@ -41,6 +41,7 @@ describe('agent-stub transform', () => {
     'Review code carefully.',
   ].join('\n');
 
+  const antigravityRuntime = getRuntimeConfig('antigravity');
   const claudeRuntime = getRuntimeConfig('claude');
   const qwenRuntime = getRuntimeConfig('qwen');
 
@@ -107,6 +108,25 @@ describe('agent-stub transform', () => {
     );
   });
 
+  it('produces antigravity frontmatter with subagent, mainAgent, model and mapped tools, without color or turns', () => {
+    const result = agentStub(canonicalAgent, antigravityRuntime);
+    assertDocument(
+      result,
+      [
+        'name: code-reviewer',
+        'description: "Code review specialist."',
+        'subagent: true',
+        'mainAgent: false',
+        'model: inherit',
+        'tools:',
+        '  - view_file',
+        '  - find_by_name',
+        '  - grep_search',
+      ],
+      stubBody('code-reviewer')
+    );
+  });
+
   it('uses tools.<runtime> override when present', () => {
     const agentWithOverride = [
       '---',
@@ -167,6 +187,12 @@ describe('agent-stub transform', () => {
     );
   });
 
+  it('does not embed example blocks for antigravity', () => {
+    const { frontmatter } = parseDocument(agentStub(agentWithExamples, antigravityRuntime));
+    assert.ok(frontmatter.includes('description: "Code review specialist."'));
+    assert.ok(!frontmatter.some((line) => line.includes('<example>')));
+  });
+
   it('throws on an unclosed <example> tag only when the runtime embeds examples', () => {
     const unclosedExample = [
       '---',
@@ -181,6 +207,7 @@ describe('agent-stub transform', () => {
       message: 'Unclosed <example> tag in agent body',
     });
     assert.doesNotThrow(() => agentStub(unclosedExample, qwenRuntime));
+    assert.doesNotThrow(() => agentStub(unclosedExample, antigravityRuntime));
   });
 
   it('flattens array tool mappings when no per-runtime override', () => {
@@ -325,8 +352,8 @@ describe('agent-stub transform', () => {
       (name) => getRuntimeConfig(name).agentFrontmatter
     );
 
-    it('is only stubbed for the claude and qwen runtimes', () => {
-      assert.deepEqual(STUB_RUNTIME_NAMES, ['claude', 'qwen']);
+    it('is only stubbed for the antigravity, claude and qwen runtimes', () => {
+      assert.deepEqual(STUB_RUNTIME_NAMES, ['antigravity', 'claude', 'qwen']);
     });
 
     it('is never emitted into a stub, even when the source still declares it', () => {
@@ -427,6 +454,39 @@ describe('agent-stub transform', () => {
         '  - web_search',
         '  - ask_user_question',
         '  - skill',
+      ]
+    );
+  });
+
+  it('maps canonical tools to Antigravity tool names, each listed once', () => {
+    const agentWithEveryTool = [
+      '---',
+      'name: builder',
+      'description: "Builder."',
+      'tools: [read_file, list_directory, glob, grep_search, google_web_search, web_fetch, write_file, replace, run_shell_command, ask_user, read_many_files, write_todos, activate_skill]',
+      'max_turns: 25',
+      '---',
+      '',
+      'Body.',
+    ].join('\n');
+
+    // read_many_files and activate_skill both map to view_file; write_todos
+    // has no Antigravity equivalent.
+    const { frontmatter } = parseDocument(agentStub(agentWithEveryTool, antigravityRuntime));
+    assert.deepEqual(
+      frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
+      [
+        'tools:',
+        '  - view_file',
+        '  - list_dir',
+        '  - find_by_name',
+        '  - grep_search',
+        '  - search_web',
+        '  - read_url_content',
+        '  - write_to_file',
+        '  - replace_file_content',
+        '  - run_command',
+        '  - ask_question',
       ]
     );
   });

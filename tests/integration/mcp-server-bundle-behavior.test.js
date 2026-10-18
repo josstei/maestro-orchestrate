@@ -4,11 +4,15 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const readline = require('node:readline');
+const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 
 const { makeTempDir } = require('../support/fs');
-const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
+const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
 const { spawnMcpServer } = require('./mcp-stdio-client');
+
+const ROOTS_TIMEOUT_MS = 5000;
 
 async function withServer(options, fn) {
   const client = spawnMcpServer(options);
@@ -22,51 +26,152 @@ async function withServer(options, fn) {
 }
 
 /**
- * Runs `fn` against a server booted from every runtime bundle: the Qwen
- * (repo-root), Claude and Codex entrypoints in the repo plus an isolated copy
- * of the installed Claude plugin. Each bundle names the `runtime` its
- * entrypoint defaults MAESTRO_RUNTIME to and the `expectSkill` text its
- * delegation skill content must contain. MAESTRO_RUNTIME is cleared so each
- * entrypoint applies its own default.
+ * Spawns the MCP server of the Antigravity plugin at `cwd` and lets a test
+ * drive it the way the Antigravity CLI (agy 1.4.2) does: `server/discover`
+ * before `initialize`, the roots capability, and
+ * `notifications/roots/list_changed` even after roots/list was answered.
+ * Every roots/list request is answered with `client.roots`;
+ * `rootsAnswered(n)` resolves once n requests have been answered.
  */
-async function forEachRuntimeBundle(fn) {
-  await withIsolatedClaudePlugin(async (pluginRoot) => {
-    const env = { MAESTRO_RUNTIME: '' };
-    const bundles = [
-      {
-        cwd: ROOT,
-        relativePath: 'mcp/maestro-server.js',
-        env,
-        runtime: 'qwen',
-        expectSkill: '# Delegation Skill',
-      },
-      {
-        cwd: ROOT,
-        relativePath: 'claude/mcp/maestro-server.js',
-        env,
-        runtime: 'claude',
-        expectSkill: 'user-invocable: false',
-      },
-      {
-        cwd: ROOT,
-        relativePath: 'bin/maestro-mcp-server.js',
-        env,
-        runtime: 'codex',
-        expectSkill: '# Delegation Skill',
-      },
-      {
-        cwd: pluginRoot,
-        relativePath: 'mcp/maestro-server.js',
-        env,
-        runtime: 'claude',
-        expectSkill: 'user-invocable: false',
-      },
-    ];
+function spawnAntigravityClient({ cwd, roots }) {
+  const child = spawn(process.execPath, ['mcp/maestro-server.js'], {
+    cwd,
+    env: { ...process.env, MAESTRO_RUNTIME: '', MAESTRO_WORKSPACE_PATH: '' },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  const pending = new Map();
+  const rootsWaiters = new Set();
+  let rootsRequests = 0;
+  let nextId = 0;
+  let stderr = '';
 
-    for (const bundle of bundles) {
-      await withServer(bundle, (client) => fn(client, bundle));
+  const send = (message) => child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\n');
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  child.on('exit', (code) => {
+    for (const { reject } of pending.values()) {
+      reject(new Error(`Server exited (code=${code}).\nSTDERR:\n${stderr}`));
+    }
+    pending.clear();
+  });
+  readline.createInterface({ input: child.stdout }).on('line', (line) => {
+    const message = JSON.parse(line);
+    if (message.method === 'roots/list') {
+      send({ id: message.id, result: { roots: client.roots } });
+      rootsRequests += 1;
+      for (const waiter of rootsWaiters) waiter();
+      return;
+    }
+    const entry = pending.get(message.id);
+    if (entry) {
+      pending.delete(message.id);
+      entry.resolve(message);
     }
   });
+
+  const client = {
+    roots,
+    request(method, params = {}) {
+      const id = nextId++;
+      return new Promise((resolve, reject) => {
+        pending.set(id, { resolve, reject });
+        send({ id, method, params });
+      });
+    },
+    notify(method, params = {}) {
+      send({ method, params });
+    },
+    rootsAnswered(count) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          rootsWaiters.delete(check);
+          reject(new Error(`Expected roots/list request #${count}, got ${rootsRequests}`));
+        }, ROOTS_TIMEOUT_MS);
+        function check() {
+          if (rootsRequests < count) return;
+          clearTimeout(timer);
+          rootsWaiters.delete(check);
+          resolve();
+        }
+        rootsWaiters.add(check);
+        check();
+      });
+    },
+    async callTool(name, args = {}) {
+      const { result } = await client.request('tools/call', { name, arguments: args });
+      return JSON.parse(result.content[0].text);
+    },
+    close() {
+      child.kill('SIGTERM');
+    },
+  };
+  return client;
+}
+
+/**
+ * Runs `fn` against a server booted from every runtime bundle: the Qwen
+ * (repo-root), Claude, Codex and Antigravity entrypoints in the repo plus
+ * isolated copies of the installed Claude and Antigravity plugins. Each
+ * bundle names the `runtime` its entrypoint defaults MAESTRO_RUNTIME to and
+ * the `expectSkill` text its delegation skill content must contain.
+ * MAESTRO_RUNTIME is cleared so each entrypoint applies its own default.
+ */
+async function forEachRuntimeBundle(fn) {
+  await withIsolatedClaudePlugin((pluginRoot) =>
+    withIsolatedAntigravityPlugin(async (antigravityPluginRoot) => {
+      const env = { MAESTRO_RUNTIME: '' };
+      const bundles = [
+        {
+          cwd: ROOT,
+          relativePath: 'mcp/maestro-server.js',
+          env,
+          runtime: 'qwen',
+          expectSkill: '# Delegation Skill',
+        },
+        {
+          cwd: ROOT,
+          relativePath: 'claude/mcp/maestro-server.js',
+          env,
+          runtime: 'claude',
+          expectSkill: 'user-invocable: false',
+        },
+        {
+          cwd: ROOT,
+          relativePath: 'bin/maestro-mcp-server.js',
+          env,
+          runtime: 'codex',
+          expectSkill: '# Delegation Skill',
+        },
+        {
+          cwd: pluginRoot,
+          relativePath: 'mcp/maestro-server.js',
+          env,
+          runtime: 'claude',
+          expectSkill: 'user-invocable: false',
+        },
+        {
+          cwd: ROOT,
+          relativePath: 'antigravity/mcp/maestro-server.js',
+          env,
+          runtime: 'antigravity',
+          expectSkill: '# Delegation Skill',
+        },
+        {
+          cwd: antigravityPluginRoot,
+          relativePath: 'mcp/maestro-server.js',
+          env,
+          runtime: 'antigravity',
+          expectSkill: '# Delegation Skill',
+        },
+      ];
+
+      for (const bundle of bundles) {
+        await withServer(bundle, (client) => fn(client, bundle));
+      }
+    })
+  );
 }
 
 describe('mcp server bundle behavior', () => {
@@ -90,7 +195,7 @@ describe('mcp server bundle behavior', () => {
       async (client) => {
         const result = await client.callTool('get_runtime_context');
 
-        assert.equal(result.parsed.runtime, 'claude');
+        assert.equal(result.parsed.runtime, 'antigravity');
       }
     );
   });
@@ -120,6 +225,22 @@ describe('mcp server bundle behavior', () => {
         skillTool.description,
         /runtime-configured Maestro content source/
       );
+    });
+  });
+
+  it('marks every listed tool always-loaded on the antigravity bundles only', async () => {
+    await forEachRuntimeBundle(async (client, bundle) => {
+      const tools = await client.listTools();
+      const label = path.join(bundle.cwd, bundle.relativePath);
+
+      assert.ok(tools.length > 0, label);
+      for (const tool of tools) {
+        if (bundle.runtime === 'antigravity') {
+          assert.deepEqual(tool._meta, { 'antigravity/alwaysLoad': true }, `${label}: ${tool.name}`);
+        } else {
+          assert.equal('_meta' in tool, false, `${label}: ${tool.name}`);
+        }
+      }
     });
   });
 
@@ -221,5 +342,48 @@ describe('mcp server bundle behavior', () => {
         assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
       }
     );
+  });
+
+  it('keeps following the client roots when Antigravity sends roots/list_changed after initialization', async () => {
+    const firstWorkspace = makeTempDir('maestro-antigravity-first-');
+    const secondWorkspace = makeTempDir('maestro-antigravity-second-');
+
+    // The installed plugin directory is the server cwd and is never
+    // suggested, so without client roots there is no suggestion at all.
+    await withIsolatedAntigravityPlugin(async (pluginRoot) => {
+      const client = spawnAntigravityClient({
+        cwd: pluginRoot,
+        roots: [{ uri: pathToFileURL(firstWorkspace).href, name: 'first' }],
+      });
+      try {
+        const discover = await client.request('server/discover');
+        assert.equal(discover.error.code, -32601);
+
+        await client.request('initialize', {
+          protocolVersion: '2025-06-18',
+          capabilities: { roots: { listChanged: true } },
+          clientInfo: { name: 'antigravity-test', version: '0.0.0' },
+        });
+        assert.equal((await client.callTool('get_runtime_context')).workspace_suggestion, null);
+
+        client.notify('notifications/initialized');
+        await client.rootsAnswered(1);
+        assert.equal((await client.callTool('get_runtime_context')).workspace_suggestion, firstWorkspace);
+
+        // Antigravity repeats list_changed after its roots/list reply.
+        client.notify('notifications/roots/list_changed');
+        await client.rootsAnswered(2);
+        assert.equal((await client.callTool('get_runtime_context')).workspace_suggestion, firstWorkspace);
+
+        client.roots = [{ uri: pathToFileURL(secondWorkspace).href, name: 'second' }];
+        client.notify('notifications/roots/list_changed');
+        await client.rootsAnswered(3);
+        const context = await client.callTool('get_runtime_context');
+        assert.equal(context.runtime, 'antigravity');
+        assert.equal(context.workspace_suggestion, secondWorkspace);
+      } finally {
+        client.close();
+      }
+    });
   });
 });

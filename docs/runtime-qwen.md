@@ -96,7 +96,7 @@ Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string,
 
 ## Policies
 
-`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine. The Qwen builder in `src/platforms/metadata.js` generates the file from `src/core/policy-rules.js`, the same rules the Claude policy enforcer applies:
+`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine. The Qwen builder in `src/platforms/metadata.js` generates the file from `src/core/policy-rules.js`, the same rules the Antigravity and Claude policy enforcers apply:
 
 **Deny (priority 950)**:
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`

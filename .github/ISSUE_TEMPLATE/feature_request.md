@@ -22,6 +22,7 @@ assignees: ''
 
 <!-- Which runtimes would this affect? -->
 
+- [ ] Antigravity
 - [ ] Claude Code
 - [ ] Codex
 - [ ] Qwen Code

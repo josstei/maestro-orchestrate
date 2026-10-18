@@ -69,25 +69,36 @@ describe('release artifact packaging', () => {
       .trim()
       .split('\n');
     assert.equal(archiveEntries.includes('./claude/scripts/policy-enforcer.test.js'), false);
+    for (const entry of [
+      './antigravity/plugin.json',
+      './antigravity/mcp_config.json',
+      './antigravity/hooks.json',
+      './antigravity/src/version.json',
+      './docs/runtime-antigravity.md',
+    ]) {
+      assert.ok(archiveEntries.includes(entry), `Expected the archive to include ${entry}`);
+    }
   });
 
   it('rejects an archive with manifest version drift', () => {
-    withRepackedArchive(
-      packaged.archivePath,
-      'maestro-corrupt-extension.tar.gz',
-      (extractRoot) => {
-        const qwenManifestPath = path.join(extractRoot, 'qwen-extension.json');
-        const qwenManifest = JSON.parse(fs.readFileSync(qwenManifestPath, 'utf8'));
-        qwenManifest.version = '0.0.0';
-        fs.writeFileSync(qwenManifestPath, `${JSON.stringify(qwenManifest, null, 2)}\n`, 'utf8');
-      },
-      (corruptArchivePath) => {
-        assert.throws(
-          () => verifyReleaseArtifact(corruptArchivePath, { root: repoRoot }),
-          /Release manifest version mismatch/
-        );
-      }
-    );
+    for (const manifestPath of ['qwen-extension.json', 'antigravity/plugin.json']) {
+      withRepackedArchive(
+        packaged.archivePath,
+        'maestro-corrupt-extension.tar.gz',
+        (extractRoot) => {
+          const manifestFile = path.join(extractRoot, manifestPath);
+          const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+          manifest.version = '0.0.0';
+          fs.writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+        },
+        (corruptArchivePath) => {
+          assert.throws(
+            () => verifyReleaseArtifact(corruptArchivePath, { root: repoRoot }),
+            { message: `Release manifest version mismatch; expected ${packaged.version}: ${manifestPath}=0.0.0` }
+          );
+        }
+      );
+    }
   });
 
   it('rejects an archive with extra unallowlisted files', () => {

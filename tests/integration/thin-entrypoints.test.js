@@ -13,6 +13,7 @@ describe('thin entrypoint design', () => {
       { file: 'mcp/maestro-server.js', runtime: 'qwen' },
       { file: 'claude/mcp/maestro-server.js', runtime: 'claude' },
       { file: 'bin/maestro-mcp-server.js', runtime: 'codex' },
+      { file: 'antigravity/mcp/maestro-server.js', runtime: 'antigravity' },
     ];
 
     for (const { file, runtime } of expectations) {
@@ -32,12 +33,42 @@ describe('thin entrypoint design', () => {
     }
   });
 
-  it('Claude entrypoint has repo-first / bundled-fallback resolution', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'claude/mcp/maestro-server.js'), 'utf8');
-    assert.ok(
-      content.includes('repoEntry') && content.includes('bundledEntry'),
-      'Expected claude/mcp/maestro-server.js to have repo-first / bundled-fallback resolution'
+  it('Claude and Antigravity entrypoints have repo-first / bundled-fallback resolution', () => {
+    for (const file of ['claude/mcp/maestro-server.js', 'antigravity/mcp/maestro-server.js']) {
+      const content = fs.readFileSync(path.join(ROOT, file), 'utf8');
+      assert.ok(
+        content.includes('repoEntry') && content.includes('bundledEntry'),
+        `Expected ${file} to have repo-first / bundled-fallback resolution`
+      );
+    }
+  });
+
+  it('Antigravity plugin config launches the plugin MCP shim', () => {
+    const { mcpServers } = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'antigravity/mcp_config.json'), 'utf8')
     );
+    assert.deepEqual(mcpServers.maestro.args, ['${PLUGIN_ROOT}/mcp/maestro-server.js']);
+    assert.equal(fs.existsSync(path.join(ROOT, 'antigravity/mcp/maestro-server.js')), true);
+  });
+
+  it('Antigravity hook shims back every hooks.json command with repo-first / bundled-fallback resolution', () => {
+    const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'antigravity/hooks.json'), 'utf8'));
+    // SessionStart holds handlers directly; PreToolUse groups them under a matcher.
+    const commands = Object.values(hooks)
+      .flatMap((events) => Object.values(events).flat())
+      .flatMap((entry) => (entry.hooks ? entry.hooks : [entry]))
+      .map((hook) => hook.command);
+
+    assert.ok(commands.length > 0);
+    for (const command of commands) {
+      const match = command.match(/^node hooks\/([a-z-]+\.js)( |$)/);
+      assert.ok(match, `Expected antigravity hook command to run a plugin hook shim: ${command}`);
+      const content = fs.readFileSync(path.join(ROOT, 'antigravity/hooks', match[1]), 'utf8');
+      assert.ok(
+        content.includes('repoEntry') && content.includes('bundledEntry'),
+        `Expected antigravity/hooks/${match[1]} to have repo-first / bundled-fallback resolution`
+      );
+    }
   });
 
   it('repo-root (Qwen) entrypoint uses direct repo-local resolution only', () => {
@@ -96,6 +127,9 @@ describe('thin entrypoint design', () => {
     const requiredFiles = [
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
+      'antigravity/plugin.json',
+      'antigravity/mcp_config.json',
+      'antigravity/hooks.json',
       'claude/.claude-plugin/plugin.json',
       'claude/.mcp.json',
       'claude/hooks/claude-hooks.json',
