@@ -5,6 +5,7 @@ const path = require('node:path');
 const { atomicWriteSync, ensurePrivateDir } = require('../lib/io');
 const { StateError, NotFoundError } = require('../lib/errors');
 const markdownState = require('../core/markdown-state');
+const { resolveSetting } = require('../config/setting-resolver');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
@@ -41,9 +42,19 @@ function resolveStateDirUnder(base, stateDir) {
   return path.join(base, stateDir);
 }
 
+/**
+ * Resolve the absolute state dir for a workspace: the override when given,
+ * else MAESTRO_STATE_DIR with the same precedence initialize_workspace uses
+ * (environment, then the workspace .env, then the extension .env), else
+ * DEFAULT_STATE_DIR.
+ * @param {string} [cwd] - Workspace root; defaults to process.cwd()
+ * @param {string} [stateDirOverride]
+ * @returns {string}
+ */
 function resolveStateDirPath(cwd, stateDirOverride) {
-  const stateDir = stateDirOverride || process.env.MAESTRO_STATE_DIR || DEFAULT_STATE_DIR;
-  return resolveStateDirUnder(cwd || process.cwd(), stateDir);
+  const root = cwd || process.cwd();
+  const stateDir = stateDirOverride || resolveSetting('MAESTRO_STATE_DIR', root) || DEFAULT_STATE_DIR;
+  return resolveStateDirUnder(root, stateDir);
 }
 
 function activeSessionFile(basePath) {
