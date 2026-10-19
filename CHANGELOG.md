@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`maestro-install-codex` printed a stack trace on failure**: it now prints a one-line `codex plugin install failed: <reason>` error and still exits with code 1.
 - **`package-release-artifacts` did not say which flag lacked a value**: a trailing `--version` or `--out-dir` now fails with `Missing value for <flag>`.
 - **Prepare Release wrote the `version` input to a step output before validating it**: a multi-line input reached that output unchecked. The workflow now validates the raw input against `X.Y.Z` before exporting it, so a multi-line value is rejected.
+- **Heredoc shell-policy rule blocked arithmetic shifts and here-strings**: the deny rule matched any `<<`, so `echo $((1<<4))`, `python3 -c "print(1 << 3)"` and here-strings such as `grep x <<<"$v"` were blocked by the Claude Code policy hook and the Qwen Code policy pack. The rule now matches only a heredoc operator followed by a delimiter word (`<<EOF`, `<< 'EOF'`, `<<-EOF`, `<<\EOF`), and its message says to use the file-writing tool instead of naming `write_file`.
+- **`MAESTRO_STATE_DIR` from the workspace `.env` was honored only by `initialize_workspace`**: with the setting in the workspace `.env` and not in the environment, `initialize_workspace` created the configured state directory, but session, design-gate and reconciliation tools and the session-start and before-agent hooks still read and wrote `docs/maestro`. Every caller now resolves `MAESTRO_STATE_DIR` with the same precedence (environment, workspace `.env`, extension `.env`, default).
 
 ## [1.6.4] - 2026-04-30
 

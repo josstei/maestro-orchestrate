@@ -56,10 +56,35 @@ describe('session-state', () => {
   });
 
   it('resolveStateDirPath uses DEFAULT_STATE_DIR as final fallback', () => {
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () =>
+    const result = withEnv({ MAESTRO_STATE_DIR: null, MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: null }, () =>
       resolveStateDirPath(tmpRoot, undefined)
     );
     assert.equal(result, path.join(tmpRoot, DEFAULT_STATE_DIR));
+  });
+
+  it('resolveStateDirPath reads MAESTRO_STATE_DIR from the workspace .env when the env var is unset', () => {
+    // initialize_workspace already honors the workspace .env; session tools and
+    // hooks must resolve the same directory.
+    fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
+    const result = withEnv({ MAESTRO_STATE_DIR: null }, () =>
+      resolveStateDirPath(tmpRoot, undefined)
+    );
+    assert.equal(result, path.join(tmpRoot, '.maestro'));
+  });
+
+  it('resolveStateDirPath prefers the MAESTRO_STATE_DIR env var over the workspace .env', () => {
+    fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
+    const result = withEnv({ MAESTRO_STATE_DIR: 'env/state' }, () =>
+      resolveStateDirPath(tmpRoot, undefined)
+    );
+    assert.equal(result, path.join(tmpRoot, 'env/state'));
+  });
+
+  it('hasActiveSession finds a session under the state dir named in the workspace .env', () => {
+    fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
+    fs.mkdirSync(path.join(tmpRoot, '.maestro', 'state'), { recursive: true });
+    fs.writeFileSync(path.join(tmpRoot, '.maestro', 'state', 'active-session.md'), '---\n{}\n---\n');
+    assert.equal(withEnv({ MAESTRO_STATE_DIR: null }, () => hasActiveSession(tmpRoot)), true);
   });
 
   it('resolveStateDirPath rejects absolute paths outside root via validateContainment', () => {

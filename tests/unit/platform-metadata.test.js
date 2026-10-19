@@ -265,9 +265,9 @@ describe('policy pack generation', () => {
   });
 
   it('renders the regex deny rules and the ask rules as commandRegex rules', () => {
-    const heredoc = DENY_RULES.find((rule) => rule.pattern === '<<');
+    const heredoc = DENY_RULES.find((rule) => rule.matchType === 'regex' && rule.reason.startsWith('Heredoc'));
     assert.ok(toml.includes(
-      `commandRegex = ".*(?:<<).*$"\ndecision = "deny"\npriority = 950\ndeny_message = ${JSON.stringify(heredoc.reason)}\n`
+      `commandRegex = ".*(?:${tomlEscaped(heredoc.pattern).replace(/"/g, '\\"')}).*$"\ndecision = "deny"\npriority = 950\ndeny_message = ${JSON.stringify(heredoc.reason)}\n`
     ));
 
     const redirect = ASK_RULES.find((rule) => rule.matchType === 'regex');
