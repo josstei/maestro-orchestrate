@@ -17,9 +17,7 @@ const CLAUDE_DECISIONS = { deny: 'block', ask: 'ask', allow: 'approve' };
 function main() {
   runPolicyEnforcer({
     readCommand: (input) => input.tool_input && input.tool_input.command,
-    formatDecision: ({ action, reason }) =>
-      reason ? { decision: CLAUDE_DECISIONS[action], reason } : { decision: CLAUDE_DECISIONS[action] },
-    failure: (reason) => ({ decision: 'block', reason }),
+    decisions: CLAUDE_DECISIONS,
   });
 }
 

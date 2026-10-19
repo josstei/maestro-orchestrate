@@ -8,7 +8,8 @@ const MAX_STDIN_BYTES = 1024 * 1024;
  * Collect stdin up to MAX_STDIN_BYTES. Raw Buffers are concatenated and
  * decoded as UTF-8 once at the end, so multi-byte sequences split across
  * chunks decode intact. Rejects with `Stdin payload too large` once the cap
- * is exceeded, after calling `onOverflow` when provided.
+ * is exceeded, after calling `onOverflow` when provided. Used directly by the
+ * shared policy enforcer (src/platforms/shared/policy-enforcer.js).
  */
 function collectStdin({ onOverflow } = {}) {
   return new Promise((resolve, reject) => {
@@ -49,4 +50,4 @@ function readBoundedJson() {
   return collectStdin().then((raw) => JSON.parse(raw));
 }
 
-module.exports = { readText, readBoundedJson };
+module.exports = { collectStdin, readText, readBoundedJson };
