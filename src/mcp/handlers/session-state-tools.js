@@ -1,7 +1,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const path = require('node:path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { validatePhases } = require('../contracts/plan-schema');
@@ -12,22 +11,22 @@ const {
   describeShape: describeDownstreamContextShape,
 } = require('../contracts/downstream-context');
 const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
-const {
-  readGateForCreateSession,
-  toWorkspacePath,
-  isInsidePlansDir,
-  ensureDesignDocumentInPlans,
-  resolveDocumentInput,
-  removeDesignGate,
-} = require('./design-gate');
+const { readGateForCreateSession, removeDesignGate } = require('./design-gate');
 const {
   resolveStateDirPath,
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
+  archiveActiveSession,
   assertSessionMatch,
   findPhaseOrThrow,
 } = require('../../state/session-state');
+const {
+  toWorkspacePath,
+  ensureDesignDocumentInPlans,
+  resolveDocumentInput,
+  archivePlansDocuments,
+} = require('../../state/session-documents');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
 
@@ -59,6 +58,72 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind) {
     throw new NotFoundError(`${documentKind} does not exist: ${absolutePath}${context}`);
   }
   return ensureDesignDocumentInPlans(projectRoot, absolutePath);
+}
+
+/**
+ * Mark `phase` in_progress, started at `now`.
+ *
+ * @param {object} phase - mutated in place
+ * @param {string} now - ISO timestamp recorded as `started`
+ */
+function startPhase(phase, now) {
+  phase.status = 'in_progress';
+  phase.started = now;
+}
+
+/**
+ * Mark `phase` completed with the handoff (file lists and downstream context)
+ * carried by transition_phase `params`. Flags the phase for reconciliation
+ * when the handoff is entirely empty.
+ *
+ * @param {object} phase - mutated in place
+ * @param {object} params - transition_phase params
+ * @param {string} now - ISO timestamp recorded as `completed`
+ * @throws {ValidationError} HANDOFF_INCOMPLETE when files were reported but downstream_context is empty after normalization
+ */
+function completePhase(phase, params, now) {
+  const filesCreated = params.files_created ?? [];
+  const filesModified = params.files_modified ?? [];
+  const filesDeleted = params.files_deleted ?? [];
+  const hasFiles =
+    filesCreated.length + filesModified.length + filesDeleted.length > 0;
+  const normalizedContext = normalizeDownstreamContext(params.downstream_context);
+  const contextProvided = isDownstreamContextPopulated(normalizedContext);
+
+  if (hasFiles && !contextProvided) {
+    throw new ValidationError(
+      `Phase ${phase.id} produced files but downstream_context is empty after normalization. ${describeDownstreamContextShape()}`,
+      {
+        code: 'HANDOFF_INCOMPLETE',
+        details: {
+          phase_id: phase.id,
+          files_created_count: filesCreated.length,
+          files_modified_count: filesModified.length,
+          files_deleted_count: filesDeleted.length,
+          received_downstream_context: params.downstream_context ?? null,
+        },
+      }
+    );
+  }
+
+  phase.status = 'completed';
+  phase.completed = now;
+  phase.downstream_context = normalizedContext;
+  phase.files_created = filesCreated;
+  phase.files_modified = filesModified;
+  phase.files_deleted = filesDeleted;
+  phase.requires_reconciliation = !hasFiles && !contextProvided;
+}
+
+/**
+ * Ids of the phases whose status is `status`, in phase order.
+ *
+ * @param {Array<{ id: number | string, status: string }>} phases
+ * @param {string} status
+ * @returns {Array<number | string>}
+ */
+function phaseIdsWithStatus(phases, status) {
+  return phases.filter((phase) => phase.status === status).map((phase) => phase.id);
 }
 
 function handleCreateSession(params, projectRoot) {
@@ -139,8 +204,7 @@ function handleCreateSession(params, projectRoot) {
   };
 
   if (state.phases.length > 0) {
-    state.phases[0].status = 'in_progress';
-    state.phases[0].started = now;
+    startPhase(state.phases[0], now);
   }
 
   const sessionPath = writeActiveSession(
@@ -206,9 +270,8 @@ function handleTransitionPhase(params, projectRoot) {
     );
   }
 
-  return withSessionState(projectRoot, ({ state }) => {
+  return withSessionState(projectRoot, ({ state }, now) => {
     assertSessionMatch(state, params.session_id);
-    const now = new Date().toISOString();
 
     const completedPhase = hasCompletedPhase
       ? findPhaseOrThrow(state.phases, params.completed_phase_id)
@@ -236,49 +299,17 @@ function handleTransitionPhase(params, projectRoot) {
     }
 
     if (completedPhase) {
-      const filesCreated = params.files_created ?? [];
-      const filesModified = params.files_modified ?? [];
-      const filesDeleted = params.files_deleted ?? [];
-      const hasFiles =
-        filesCreated.length + filesModified.length + filesDeleted.length > 0;
-      const normalizedContext = normalizeDownstreamContext(params.downstream_context);
-      const contextProvided = isDownstreamContextPopulated(normalizedContext);
-
-      if (hasFiles && !contextProvided) {
-        throw new ValidationError(
-          `Phase ${completedPhase.id} produced files but downstream_context is empty after normalization. ${describeDownstreamContextShape()}`,
-          {
-            code: 'HANDOFF_INCOMPLETE',
-            details: {
-              phase_id: completedPhase.id,
-              files_created_count: filesCreated.length,
-              files_modified_count: filesModified.length,
-              files_deleted_count: filesDeleted.length,
-              received_downstream_context: params.downstream_context ?? null,
-            },
-          }
-        );
-      }
-
-      completedPhase.status = 'completed';
-      completedPhase.completed = now;
-      completedPhase.downstream_context = normalizedContext;
-      completedPhase.files_created = filesCreated;
-      completedPhase.files_modified = filesModified;
-      completedPhase.files_deleted = filesDeleted;
-      completedPhase.requires_reconciliation = !hasFiles && !contextProvided;
+      completePhase(completedPhase, params, now);
     }
 
     if (hasNextPhaseIds) {
       for (const phase of phasesToStart) {
-        phase.status = 'in_progress';
-        phase.started = now;
+        startPhase(phase, now);
       }
       state.current_phase = params.next_phase_ids[0];
     } else if (nextPhase) {
       if (nextPhase.status === 'pending') {
-        nextPhase.status = 'in_progress';
-        nextPhase.started = now;
+        startPhase(nextPhase, now);
       }
       state.current_phase = params.next_phase_id;
     }
@@ -293,18 +324,12 @@ function handleTransitionPhase(params, projectRoot) {
       state.token_usage.total_cached += params.token_usage.cached || 0;
     }
 
-    state.updated = now;
-
     const response = {
       success: true,
       session_state_summary: {
         current_phase: state.current_phase,
-        completed_phases: state.phases
-          .filter((phase) => phase.status === 'completed')
-          .map((phase) => phase.id),
-        pending_phases: state.phases
-          .filter((phase) => phase.status === 'pending')
-          .map((phase) => phase.id),
+        completed_phases: phaseIdsWithStatus(state.phases, 'completed'),
+        pending_phases: phaseIdsWithStatus(state.phases, 'pending'),
       },
     };
 
@@ -319,7 +344,7 @@ function handleTransitionPhase(params, projectRoot) {
 function handleArchiveSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  const { state, basePath, sessionPath } = withSessionState(projectRoot, (session) => {
+  const { state, basePath } = withSessionState(projectRoot, (session) => {
     assertSessionMatch(session.state, params.session_id, 'requested');
 
     const pendingRec = (session.state.phases || []).find(
@@ -333,43 +358,17 @@ function handleArchiveSession(params, projectRoot) {
     }
 
     session.state.status = 'completed';
-    session.state.updated = new Date().toISOString();
     return session;
   });
 
-  const archivePath = path.join(
-    basePath,
-    'state',
-    'archive',
-    `${params.session_id}.md`
-  );
-  fs.mkdirSync(path.dirname(archivePath), { recursive: true });
-  fs.renameSync(sessionPath, archivePath);
-
-  const archivedFiles = [archivePath];
-  const plansArchiveDir = path.join(basePath, 'plans', 'archive');
-  fs.mkdirSync(plansArchiveDir, { recursive: true });
-
-  const documentPaths = [state.design_document, state.implementation_plan].filter(
-    Boolean
-  );
-
-  for (const documentPath of documentPaths) {
-    const absoluteDocumentPath = path.resolve(toWorkspacePath(projectRoot, documentPath));
-    if (
-      !isInsidePlansDir(projectRoot, absoluteDocumentPath) ||
-      !fs.existsSync(absoluteDocumentPath)
-    ) {
-      continue;
-    }
-
-    const destinationPath = path.join(
-      plansArchiveDir,
-      path.basename(absoluteDocumentPath)
-    );
-    fs.renameSync(absoluteDocumentPath, destinationPath);
-    archivedFiles.push(destinationPath);
-  }
+  const archivePath = archiveActiveSession(basePath, params.session_id);
+  const archivedFiles = [
+    archivePath,
+    ...archivePlansDocuments(projectRoot, basePath, [
+      state.design_document,
+      state.implementation_plan,
+    ]),
+  ];
 
   removeDesignGate(projectRoot, params.session_id);
 
@@ -400,8 +399,6 @@ function handleUpdateSession(params, projectRoot) {
         `At least one updatable field (${UPDATABLE_SESSION_FIELDS.join(', ')}) is required`
       );
     }
-
-    state.updated = new Date().toISOString();
 
     return { success: true, updated_fields: updatedFields };
   });

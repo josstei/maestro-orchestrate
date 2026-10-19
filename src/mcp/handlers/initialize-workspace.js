@@ -4,12 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  DEFAULT_STATE_DIR,
   WORKSPACE_SUBDIRS,
   ensureWorkspace,
+  resolveStateDirSetting,
   resolveStateDirPath,
 } = require('../../state/session-state');
-const { resolveSetting } = require('../../config/setting-resolver');
 const {
   requireExplicitWorkspaceRoot,
 } = require('../../core/project-root-resolver');
@@ -23,10 +22,7 @@ async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
     workspacePath,
   });
 
-  const stateDir =
-    params.state_dir ||
-    resolveSetting('MAESTRO_STATE_DIR', resolvedWorkspace) ||
-    DEFAULT_STATE_DIR;
+  const stateDir = resolveStateDirSetting(resolvedWorkspace, params.state_dir);
   const fullStatePath = resolveStateDirPath(resolvedWorkspace, stateDir);
   const alreadyExisted = fs.existsSync(path.join(fullStatePath, 'state'));
 
