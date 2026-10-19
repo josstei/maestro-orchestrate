@@ -7,9 +7,11 @@ const path = require('node:path');
 
 const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir } = require('../support/fs');
+
+const SRC_ROOT = path.resolve(__dirname, '../../src');
 
 describe('get_skill_content handler', () => {
   it('reads canonical src content and applies skill transforms', () => {
@@ -60,6 +62,38 @@ describe('get_skill_content handler', () => {
     assert.ok(content.includes('Qwen uses ${PLUGIN_ROOT} and code_reviewer.'));
     assert.ok(!content.includes('code-reviewer'));
     assert.ok(!content.includes('Codex keeps'));
+  });
+
+  it('serves antigravity the script-based state contract rooted at ${PLUGIN_ROOT}', () => {
+    const handler = createSkillContentHandler(getRuntimeConfig('antigravity'), SRC_ROOT);
+
+    const content = handler({ resources: ['architecture'] }).contents.architecture;
+
+    assert.ok(content.includes('Maestro maintains session state under `<state_dir>`'));
+    assert.ok(content.includes('`node ${PLUGIN_ROOT}/src/scripts/ensure-workspace.js <state_dir>`'));
+    assert.ok(!content.includes('${extensionPath}'));
+    assert.ok(!content.includes('${CLAUDE_PLUGIN_ROOT}'));
+    assert.ok(!content.includes('node ./src/scripts/'));
+  });
+
+  it('serves every runtime a delegation skill that explains its result surface', () => {
+    for (const runtimeName of RUNTIME_NAMES) {
+      const runtimeConfig = getRuntimeConfig(runtimeName);
+      const handler = createSkillContentHandler(runtimeConfig, SRC_ROOT);
+
+      const content = handler({ resources: ['delegation'] }).contents.delegation;
+
+      assert.ok(
+        content.includes(`\`result_surface: "${runtimeConfig.delegation.constraints.result_surface}"\``),
+        `${runtimeName}: delegation skill does not explain its result surface`
+      );
+    }
+    // Antigravity has no post-delegation hook, so the orchestrator validates handoffs.
+    const antigravity = createSkillContentHandler(getRuntimeConfig('antigravity'), SRC_ROOT);
+    assert.ok(
+      antigravity({ resources: ['delegation'] }).contents.delegation
+        .includes('Antigravity runs no post-delegation hook')
+    );
   });
 
   it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {
@@ -164,6 +198,27 @@ describe('get_agent handler', () => {
       'code-reviewer',
       'Claude tool_name should be kebab-case'
     );
+  });
+
+  it('returns the bare agent name and deduplicated Antigravity tools for coder', () => {
+    const handler = createAgentHandler(getRuntimeConfig('antigravity'), SRC_ROOT);
+
+    const result = handler({ agents: ['coder'] });
+
+    assert.deepEqual(result.errors, {});
+    assert.equal(result.agents.coder.tool_name, 'coder');
+    // read_file, read_many_files and activate_skill all map to view_file, and
+    // write_todos has no Antigravity equivalent.
+    assert.deepEqual(result.agents.coder.tools, [
+      'view_file',
+      'list_dir',
+      'find_by_name',
+      'grep_search',
+      'write_to_file',
+      'replace_file_content',
+      'run_command',
+      'ask_question',
+    ]);
   });
 
   it('replays a snake_case ux_designer delegation scenario end-to-end on qwen', () => {

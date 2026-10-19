@@ -73,6 +73,24 @@ async function withIsolatedClaudePlugin(fn) {
   }
 }
 
+/**
+ * Runs `fn` against a copy of antigravity/ at the path `agy plugin install`
+ * uses (~/.gemini/config/plugins/maestro/ under a temp home), where the shim
+ * cannot reach the repo src/ and must run the bundled antigravity/src/.
+ */
+async function withIsolatedAntigravityPlugin(fn) {
+  const tempHome = makeTempDir('maestro-antigravity-home-');
+  const pluginRoot = path.join(tempHome, '.gemini', 'config', 'plugins', 'maestro');
+
+  fs.cpSync(path.join(ROOT, 'antigravity'), pluginRoot, { recursive: true });
+
+  try {
+    return await fn(pluginRoot);
+  } finally {
+    removeDir(tempHome);
+  }
+}
+
 function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
   const tempRoot = makeTempDir(prefix);
   const repoRoot = path.join(tempRoot, 'repo');
@@ -121,6 +139,7 @@ module.exports = {
   parseDryRunReport,
   runGenerator,
   runGeneratorExpectFailure,
+  withIsolatedAntigravityPlugin,
   withIsolatedClaudePlugin,
   withTempRepoCopy,
 };

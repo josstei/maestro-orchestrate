@@ -67,14 +67,15 @@ function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
 /**
  * Resolve an agent's declared tools for a runtime: the `tools.<runtime>`
  * override when present, else `tools`, each name mapped (and flattened)
- * through runtimeConfig.tools. Unmapped names pass through unchanged.
+ * through runtimeConfig.tools, without duplicates. Unmapped names pass
+ * through unchanged.
  */
 function mapTools(frontmatter, runtimeConfig) {
   const declared = frontmatter[`tools.${runtimeConfig.name}`] || frontmatter.tools;
 
-  return (Array.isArray(declared) ? declared : [])
+  return [...new Set((Array.isArray(declared) ? declared : [])
     .filter(Boolean)
-    .flatMap((toolName) => (runtimeConfig.tools && runtimeConfig.tools[toolName]) || toolName);
+    .flatMap((toolName) => (runtimeConfig.tools && runtimeConfig.tools[toolName]) || toolName))];
 }
 
 function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {

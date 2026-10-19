@@ -42,6 +42,25 @@ describe('zero-diff validation', () => {
       report.statusLines.some((line) => line.includes('plugins/maestro/.mcp.json')),
       'Expected Codex MCP metadata in generator output'
     );
+    for (const antigravityOwned of [
+      'antigravity/plugin.json',
+      'antigravity/mcp_config.json',
+      'antigravity/hooks.json',
+      'antigravity/agents/architect.md',
+      'antigravity/skills/orchestrate/SKILL.md',
+      'antigravity/skills/delegation/SKILL.md',
+    ]) {
+      assert.ok(outputPaths.includes(antigravityOwned), `Expected ${antigravityOwned} in generator output`);
+    }
+    assert.deepEqual(
+      outputPaths.filter(
+        (outputPath) =>
+          outputPath.startsWith('antigravity/') &&
+          !/^antigravity\/(plugin\.json|mcp_config\.json|hooks\.json|agents\/[a-z0-9-]+\.md|skills\/[a-z0-9-]+\/SKILL\.md)$/.test(outputPath)
+      ),
+      [],
+      'Did not expect generated Antigravity outputs beyond the metadata, agents/ and skills/ (README.md and the shims are hand-maintained)'
+    );
     assert.ok(
       report.statusLines.every((line) => !line.includes('canonical-source.js')),
       'Did not expect canonical-source copies in generator output'

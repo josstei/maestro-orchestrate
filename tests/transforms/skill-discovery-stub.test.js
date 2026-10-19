@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const skillDiscoveryStub = require('../../src/transforms/skill-discovery-stub');
 
 describe('skill-discovery-stub transform', () => {
+  const antigravityRuntime = { name: 'antigravity' };
   const claudeRuntime = { name: 'claude' };
   const codexRuntime = { name: 'codex' };
 
@@ -35,6 +36,27 @@ describe('skill-discovery-stub transform', () => {
     const result = skillDiscoveryStub(skillContent, codexRuntime);
 
     assert.ok(!result.includes('user-invocable'));
+  });
+
+  it('adds disable-slash-command: true for antigravity runtime only', () => {
+    const result = skillDiscoveryStub(skillContent, antigravityRuntime);
+
+    assert.equal(
+      result,
+      [
+        '---',
+        'name: delegation',
+        'description: Delegation methodology for agents.',
+        'disable-slash-command: true',
+        '---',
+        '',
+        'Methodology loaded via MCP. Call `get_skill_content(resources: ["delegation"])`.',
+        '',
+      ].join('\n')
+    );
+    for (const runtime of [claudeRuntime, codexRuntime]) {
+      assert.ok(!skillDiscoveryStub(skillContent, runtime).includes('disable-slash-command'), runtime.name);
+    }
   });
 
   it('points to get_skill_content in the body', () => {

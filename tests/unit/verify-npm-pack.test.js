@@ -23,6 +23,7 @@ describe('verify npm pack', () => {
 
   it('requires release-critical files in the package', () => {
     assert.deepEqual(REQUIRED_PACKAGE_FILES, [
+      'antigravity/plugin.json',
       'bin/maestro-mcp-server.js',
       'claude/.claude-plugin/plugin.json',
       'plugins/maestro/.codex-plugin/plugin.json',
@@ -34,12 +35,15 @@ describe('verify npm pack', () => {
 
   it('rejects a package that is missing a runtime manifest', () => {
     const [pack] = packWith();
-    const files = pack.files.filter((file) => file.path !== 'qwen-extension.json');
 
-    assert.throws(
-      () => verifyPackageEntries([{ ...pack, files }]),
-      { message: 'npm package missing required file: qwen-extension.json' }
-    );
+    for (const manifestPath of ['antigravity/plugin.json', 'qwen-extension.json']) {
+      const files = pack.files.filter((file) => file.path !== manifestPath);
+
+      assert.throws(
+        () => verifyPackageEntries([{ ...pack, files }]),
+        { message: `npm package missing required file: ${manifestPath}` }
+      );
+    }
   });
 
   it('rejects test-only package content', () => {

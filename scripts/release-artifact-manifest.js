@@ -12,9 +12,11 @@ const RELEASE_ARTIFACT_PATHS = [
   'QWEN.md',
   'README.md',
   'agents',
+  'antigravity',
   'bin',
   'claude',
   'commands',
+  'docs/runtime-antigravity.md',
   'docs/runtime-claude.md',
   'docs/runtime-codex.md',
   'docs/runtime-qwen.md',
@@ -57,6 +59,7 @@ const DENIED_ARTIFACT_PATTERNS = [
 ];
 
 const REQUIRED_PACKAGE_FILES = [
+  'antigravity/plugin.json',
   'bin/maestro-mcp-server.js',
   'claude/.claude-plugin/plugin.json',
   'plugins/maestro/.codex-plugin/plugin.json',
@@ -198,10 +201,12 @@ function findNamedPlugin(marketplace, name, relativePath) {
 
 function assertRuntimeManifestShape(root, expectedVersion = null) {
   const pkg = readJson(root, 'package.json');
+  const antigravityPlugin = readJson(root, 'antigravity/plugin.json');
   const qwen = readJson(root, 'qwen-extension.json');
   const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
+  const antigravitySrcVersion = readJson(root, 'antigravity/src/version.json');
   const claudeSrcVersion = readJson(root, 'claude/src/version.json');
   const codexSrcVersion = readJson(root, 'plugins/maestro/src/version.json');
   const claudeMarketplacePlugin = findNamedPlugin(
@@ -212,11 +217,13 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
   const versionEntries = [
     ['package.json', requireNonEmpty(pkg.version, 'package.json')],
+    ['antigravity/plugin.json', requireNonEmpty(antigravityPlugin.version, 'Antigravity plugin')],
     ['qwen-extension.json', requireNonEmpty(qwen.version, 'qwen-extension.json')],
     ['claude/.claude-plugin/plugin.json', requireNonEmpty(claudePlugin.version, 'claude plugin')],
     ['plugins/maestro/.codex-plugin/plugin.json', requireNonEmpty(codexPlugin.version, 'Codex plugin')],
     ['.claude-plugin/marketplace.json metadata.version', requireNonEmpty(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
     ['.claude-plugin/marketplace.json plugins.maestro.version', requireNonEmpty(claudeMarketplacePlugin.version, 'Claude marketplace plugin')],
+    ['antigravity/src/version.json', requireNonEmpty(antigravitySrcVersion.version, 'Antigravity detached payload')],
     ['claude/src/version.json', requireNonEmpty(claudeSrcVersion.version, 'Claude detached payload')],
     ['plugins/maestro/src/version.json', requireNonEmpty(codexSrcVersion.version, 'Codex detached payload')],
   ];
@@ -229,6 +236,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   }
 
   const codexMarketplace = readJson(root, '.agents/plugins/marketplace.json');
+  const antigravityMcp = readJson(root, 'antigravity/mcp_config.json');
   const claudeMcp = readJson(root, 'claude/.mcp.json');
   const codexMcp = readJson(root, 'plugins/maestro/.mcp.json');
 
@@ -267,6 +275,20 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     throw new Error('Codex plugin manifest must reference skills, MCP, and app config files');
   }
 
+  if (antigravityPlugin.name !== 'maestro') {
+    throw new Error('antigravity/plugin.json must name the plugin maestro');
+  }
+
+  const antigravityServer = antigravityMcp.mcpServers && antigravityMcp.mcpServers.maestro;
+  if (
+    !antigravityServer ||
+    antigravityServer.command !== 'node' ||
+    !Array.isArray(antigravityServer.args) ||
+    !antigravityServer.args.includes('${PLUGIN_ROOT}/mcp/maestro-server.js')
+  ) {
+    throw new Error('antigravity/mcp_config.json must launch the bundled Maestro MCP server');
+  }
+
   const claudeServer = claudeMcp.mcpServers && claudeMcp.mcpServers.maestro;
   if (
     !claudeServer ||
@@ -291,6 +313,8 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   }
 
   const requiredRuntimeFiles = [
+    'antigravity/hooks.json',
+    'antigravity/src/mcp/maestro-server.js',
     'bin/maestro-mcp-server.js',
     'claude/src/mcp/maestro-server.js',
     'plugins/maestro/src/mcp/maestro-server.js',

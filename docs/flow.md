@@ -112,7 +112,7 @@ Phases at the same dependency depth execute concurrently:
 2. For each batch:
    - Verify all blocking phases complete
    - Slice by `MAESTRO_MAX_CONCURRENT` (0 = all)
-   - Emit contiguous agent calls in single turn
+   - Emit contiguous agent calls in single turn (Antigravity: one `invoke_subagent` call with one `Subagents` entry per agent)
    - Runtime parallelizes the calls
 3. All batch members must complete before next batch
 
@@ -220,9 +220,9 @@ Non-negotiable checkpoints that block progression:
 | Session ID | Step 9a | One finalized session ID must be reused for design approval, session creation, transitions, reconciliation, and archive |
 | Design gate | Steps 9a/14a/21 | Standard workflow cannot create a session until approved design is recorded for the same session ID |
 | Design sections | Step 12 | Each section presented individually and approved |
-| Design approval variant | Step 14a | Use content variant when the write surface is one the MCP server cannot reach (for example, a Plan Mode host tmp directory); use path variant for Claude, Codex, and Qwen direct writes; never provide both |
+| Design approval variant | Step 14a | Use content variant when the write surface is one the MCP server cannot reach (for example, a Plan Mode host tmp directory); use path variant for Antigravity, Claude, Codex, and Qwen direct writes; never provide both |
 | validate_plan | Step 16 | Plan must pass validation before user sees it |
-| Implementation plan variant | Step 21 | Use content variant for plans written to a Plan Mode location the MCP server cannot reach; use path variant for Claude, Codex, and Qwen direct writes; never provide both |
+| Implementation plan variant | Step 21 | Use content variant for plans written to a Plan Mode location the MCP server cannot reach; use path variant for Antigravity, Claude, Codex, and Qwen direct writes; never provide both |
 | Execution mode | Step 19 | Must present only Parallel and Sequential options |
 | Agent dispatch | Step 23 | Must dispatch by agent's registered tool directly |
 | Blockers | Step 24 | Non-empty `## Blockers` must be answered and re-delegated before `transition_phase` |

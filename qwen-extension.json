@@ -48,7 +48,6 @@
       ],
       "cwd": "${extensionPath}",
       "env": {
-        "MAESTRO_RUNTIME": "qwen",
         "MAESTRO_WORKSPACE_PATH": "${workspacePath}"
       }
     }

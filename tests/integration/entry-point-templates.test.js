@@ -43,6 +43,7 @@ describe('expandEntryPoints', () => {
   });
 
   for (const { runtime, root } of [
+    { runtime: 'antigravity', root: 'antigravity/skills' },
     { runtime: 'claude', root: 'claude/skills' },
     { runtime: 'codex', root: 'plugins/maestro/skills' },
   ]) {
@@ -206,6 +207,90 @@ describe('expandCoreCommands for qwen', () => {
       assert.ok(
         !byPath[`commands/maestro/${name}.toml`].includes('<session-state>'),
         `Did not expect session-state injection in ${name}.toml`
+      );
+    }
+  });
+});
+
+describe('entry-point and core-command skills for antigravity', () => {
+  const SKILLS_ROOT = 'antigravity/skills';
+  const entryPoints = expandEntryPoints('antigravity');
+  const coreCommands = expandCoreCommands('antigravity');
+  const publicSkills = [...entryPoints, ...coreCommands];
+
+  it('emits the 12 public skills at antigravity/skills/<name>/SKILL.md', () => {
+    assert.deepEqual(
+      publicSkills.map((r) => r.outputPath).sort(),
+      [
+        'a11y-audit',
+        'archive',
+        'compliance-check',
+        'debug-workflow',
+        'execute',
+        'orchestrate',
+        'perf-check',
+        'resume-session',
+        'review-code',
+        'security-audit',
+        'seo-audit',
+        'status',
+      ].map((name) => `${SKILLS_ROOT}/${name}/SKILL.md`)
+    );
+    for (const { outputPath, content } of publicSkills) {
+      const folder = outputPath.split('/').at(-2);
+      assert.ok(content.startsWith(`---\nname: ${folder}\ndescription: `), outputPath);
+    }
+  });
+
+  it('carries the Antigravity runtime preamble in every core command', () => {
+    assert.equal(coreCommands.length, 3);
+    for (const { outputPath, content } of coreCommands) {
+      assert.ok(content.includes('## Runtime: Antigravity'), outputPath);
+      assert.ok(content.includes('native tools named `mcp_maestro_maestro_<tool>`'), outputPath);
+      assert.ok(content.includes('through `call_mcp_tool` with `ServerName: "maestro_maestro"`'), outputPath);
+      assert.ok(content.includes('| Delegate to agent | `invoke_subagent` with one `Subagents` entry per agent'), outputPath);
+      assert.ok(content.includes('`plan_mode_native` is false'), outputPath);
+      assert.ok(content.includes('| User prompt (approve) | `ask_question` with the options `Approve` and `Revise` |'), outputPath);
+      assert.match(content, /## Runtime: Antigravity[\s\S]*## Execute\n\nCall `get_skill_content` with resources: \[/, outputPath);
+      assert.ok(!content.includes('<session-state>'), `Did not expect session-state injection in ${outputPath}`);
+    }
+  });
+
+  it('names the native MCP tools and the call_mcp_tool fallback in every entry-point skill', () => {
+    assert.equal(entryPoints.length, 9);
+    for (const { outputPath, content } of entryPoints) {
+      assert.ok(content.includes('`mcp_maestro_maestro_<tool>`'), outputPath);
+      assert.ok(content.includes('`call_mcp_tool` with `ServerName: "maestro_maestro"`'), outputPath);
+      assert.ok(content.includes('Call `get_skill_content` with resources: ['), outputPath);
+      assert.ok(!content.includes('## Runtime: Antigravity'), outputPath);
+    }
+  });
+
+  it('delegates with invoke_subagent only from entries that declare agents', () => {
+    for (const entry of entryPointRegistry) {
+      const name = entry.runtimeNames?.antigravity || entry.name;
+      const { content } = entryPoints.find((r) => r.outputPath === `${SKILLS_ROOT}/${name}/SKILL.md`);
+      if (entry.agents.length > 0) {
+        assert.ok(
+          content.includes(`Call \`get_agent\` with agents: [${entry.agents.map((a) => `"${a}"`).join(', ')}].`),
+          name
+        );
+        assert.ok(content.includes('Delegate with `invoke_subagent`'), name);
+      } else {
+        assert.ok(!content.includes('get_agent'), name);
+        assert.ok(!content.includes('invoke_subagent'), name);
+      }
+    }
+  });
+
+  it('leaves no template placeholders, {{args}} or Gemini wording', () => {
+    for (const { outputPath, content } of publicSkills) {
+      assert.doesNotMatch(content, /\{\{/, `Unreplaced placeholder in ${outputPath}`);
+      // Antigravity keeps its own config under ~/.gemini/; only those paths may name it.
+      assert.doesNotMatch(
+        content.replace(/~\/\.gemini\/(config|antigravity-cli)\//g, ''),
+        /gemini/i,
+        `Did not expect Gemini wording in ${outputPath}`
       );
     }
   });

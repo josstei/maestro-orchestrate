@@ -15,6 +15,7 @@ const {
   readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir, writeTree } = require('../support/fs');
 
@@ -76,7 +77,7 @@ describe('applySkillMetadata', () => {
 
   it('returns unchanged for non-claude runtimes', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
-    for (const name of ['codex', 'qwen']) {
+    for (const name of ['antigravity', 'codex', 'qwen']) {
       const result = applySkillMetadata(content, { name }, 'skills/shared/delegation/SKILL.md');
       assert.equal(result, content, name);
     }
@@ -121,6 +122,15 @@ describe('mapTools', () => {
     const runtimeConfig = { name: 'qwen', tools: { bash: ['Bash', 'Terminal'] } };
     const result = mapTools(frontmatter, runtimeConfig);
     assert.deepEqual(result, ['Bash', 'Terminal']);
+  });
+
+  it('drops duplicate mapped names, keeping the first occurrence', () => {
+    const frontmatter = { tools: ['read_file', 'grep_search', 'read_many_files', 'activate_skill'] };
+    const runtimeConfig = {
+      name: 'antigravity',
+      tools: { read_file: 'view_file', read_many_files: 'view_file', activate_skill: 'view_file' },
+    };
+    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['view_file', 'grep_search']);
   });
 
   it('keeps unmapped tool names as-is', () => {
@@ -226,7 +236,7 @@ describe('served agent bodies', () => {
   });
 
   it('cover exactly the supported runtimes', () => {
-    assert.deepEqual(RUNTIME_NAMES, ['claude', 'codex', 'qwen']);
+    assert.deepEqual(RUNTIME_NAMES, ['antigravity', 'claude', 'codex', 'qwen']);
   });
 
   for (const runtimeName of RUNTIME_NAMES) {
@@ -251,4 +261,19 @@ describe('served agent bodies', () => {
       }
     });
   }
+});
+
+describe('served Antigravity agent tools', () => {
+  it('name only tools Antigravity grants a subagent, each once', () => {
+    const runtimeConfig = getRuntimeConfig('antigravity');
+
+    for (const agentName of AGENT_ALLOWLIST) {
+      const { tools } = readAgentFromFilesystem(agentName, runtimeConfig, SRC_ROOT).agent;
+      assert.ok(tools.length > 0, `${agentName}: expected a tool allowlist`);
+      assert.equal(new Set(tools).size, tools.length, `${agentName}: duplicate tools ${tools}`);
+      for (const tool of tools) {
+        assert.ok(ANTIGRAVITY_SUBAGENT_TOOLS.has(tool), `${agentName}: ${tool} is not an Antigravity subagent tool`);
+      }
+    }
+  });
 });

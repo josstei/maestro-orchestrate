@@ -10,6 +10,16 @@ const BASE_KEYWORDS = ['orchestration', 'multi-agent', 'planning', 'execution'];
 const CLAUDE_HOOKS_PATH = 'hooks/claude-hooks.json';
 const CODEX_APPS_PATH = '.app.json';
 
+// Antigravity's plugin cards and Marketplace listing keep descriptions to 160
+// characters.
+const ANTIGRAVITY_DESCRIPTION = 'Multi-agent development orchestration: 39 specialist subagents, design-plan-execute workflows with persistent sessions, and review, debug and audit skills';
+
+const DEFAULT_PROMPTS = [
+  'Use Maestro to orchestrate a feature from design through implementation and review.',
+  'Use Maestro to review my changes and block on critical or major findings.',
+  'Use Maestro to debug a failing workflow and route investigation to the right specialist.',
+];
+
 const HOOK_DESCRIPTIONS = {
   'session-start': 'Initialize hook state and prune stale sessions',
   'before-agent': 'Inject session context into agent turns',
@@ -102,7 +112,7 @@ function codexMarketplace(plugins) {
   };
 }
 
-function buildExtensionManifest(context, runtime, contextFileName) {
+function buildExtensionManifest(context, contextFileName) {
   return {
     name: 'maestro',
     version: context.version,
@@ -115,7 +125,6 @@ function buildExtensionManifest(context, runtime, contextFileName) {
         args: ['${extensionPath}/mcp/maestro-server.js'],
         cwd: '${extensionPath}',
         env: {
-          MAESTRO_RUNTIME: runtime,
           MAESTRO_WORKSPACE_PATH: '${workspacePath}',
         },
       },
@@ -155,6 +164,36 @@ function buildClaudeHooks() {
       PreToolUse: [
         { hooks: [claudeHookCommand('hook-runner.js claude before-agent', 10)], matcher: 'Agent' },
         { hooks: [claudeHookCommand('policy-enforcer.js', 5)], matcher: 'Bash' },
+      ],
+    },
+  };
+}
+
+// Antigravity reads hook timeouts in seconds and runs each command from the
+// directory holding hooks.json (the plugin root), so script paths are relative.
+function antigravityHookCommand(script, timeout) {
+  return { type: 'command', command: `node hooks/${script}`, timeout };
+}
+
+/**
+ * Antigravity hooks.json: named hooks, each mapping events to handlers.
+ * SessionStart takes a flat handler list and fires for the main conversation
+ * and every subagent conversation, so it carries both the session-start and
+ * the session-context (before-agent) handlers. PreToolUse groups handlers
+ * under an anchored tool-name matcher. Antigravity has no session-end or
+ * post-delegation event.
+ */
+function buildAntigravityHooks() {
+  return {
+    'maestro-session': {
+      SessionStart: [
+        antigravityHookCommand('hook-runner.js antigravity session-start', 10),
+        antigravityHookCommand('hook-runner.js antigravity before-agent', 10),
+      ],
+    },
+    'maestro-shell-policy': {
+      PreToolUse: [
+        { matcher: 'run_command', hooks: [antigravityHookCommand('policy-enforcer.js', 5)] },
       ],
     },
   };
@@ -213,6 +252,26 @@ function buildPolicyPackToml(denyRules = DENY_RULES, askRules = ASK_RULES) {
 // Per-runtime metadata files, as ordered [outputPath, value] pairs. String
 // values are written as-is; anything else is written as JSON.
 const METADATA_BUILDERS = {
+  // Antigravity loads only plugin.json's own fields; MCP servers and hooks are
+  // read from mcp_config.json and hooks.json at the plugin root.
+  antigravity: (context) => [
+    ['antigravity/plugin.json', {
+      name: 'maestro',
+      displayName: 'Maestro',
+      version: context.version,
+      description: ANTIGRAVITY_DESCRIPTION,
+      suggestedPrompts: DEFAULT_PROMPTS,
+    }],
+    ['antigravity/mcp_config.json', {
+      mcpServers: {
+        maestro: {
+          command: 'node',
+          args: ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
+        },
+      },
+    }],
+    ['antigravity/hooks.json', buildAntigravityHooks()],
+  ],
   claude: (context) => [
     ['.claude-plugin/marketplace.json', {
       name: 'maestro-orchestrator',
@@ -278,7 +337,7 @@ const METADATA_BUILDERS = {
       interface: {
         displayName: 'Maestro',
         shortDescription: 'Multi-agent coding orchestration for Codex',
-        longDescription: 'Generated Codex runtime for Maestro. Shared methodology, templates, references, and agent personas stay aligned with the Claude Code and Qwen Code runtimes while Codex-specific delegation and state handling stay isolated to this plugin.',
+        longDescription: 'Generated Codex runtime for Maestro. Shared methodology, templates, references, and agent personas stay aligned with the Antigravity, Claude Code, and Qwen Code runtimes while Codex-specific delegation and state handling stay isolated to this plugin.',
         developerName: context.author.name,
         category: 'Coding',
         capabilities: [
@@ -286,11 +345,7 @@ const METADATA_BUILDERS = {
           'Write',
         ],
         websiteURL: context.homepage,
-        defaultPrompt: [
-          'Use Maestro to orchestrate a feature from design through implementation and review.',
-          'Use Maestro to review my changes and block on critical or major findings.',
-          'Use Maestro to debug a failing workflow and route investigation to the right specialist.',
-        ],
+        defaultPrompt: DEFAULT_PROMPTS,
         brandColor: '#2563EB',
       },
     }],
@@ -299,16 +354,13 @@ const METADATA_BUILDERS = {
         maestro: {
           command: 'npx',
           args: ['-y', '-p', `${context.packageName}@${context.version}`, 'maestro-mcp-server'],
-          env: {
-            MAESTRO_RUNTIME: 'codex',
-          },
         },
       },
     }],
     [`plugins/maestro/${CODEX_APPS_PATH}`, { apps: {} }],
   ],
   qwen: (context) => [
-    ['qwen-extension.json', buildExtensionManifest(context, 'qwen', 'QWEN.md')],
+    ['qwen-extension.json', buildExtensionManifest(context, 'QWEN.md')],
     ['qwen/hooks.json', buildExtensionHooks('qwen', {
       SessionStart: 'session-start',
       SubagentStart: 'before-agent',

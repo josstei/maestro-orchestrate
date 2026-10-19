@@ -238,6 +238,22 @@ describe('handleBeforeAgent', () => {
     assert.equal(activeAgent, 'coder');
   });
 
+  it('returns the session context without recording an agent when the payload names none', () => {
+    // Antigravity runs before-agent on SessionStart, whose payload has no agent name or prompt.
+    hookState.clearActiveAgent(SESSION_ID);
+    const cwd = makeTempDir('maestro-json-noagent-');
+    writeMcpSession(path.join(cwd, 'docs', 'maestro'), { status: 'in_progress', current_phase: 2 });
+
+    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentName: null, agentInput: null });
+
+    assert.deepEqual(result, {
+      action: 'allow',
+      message: 'Active session: current_phase=2, status=in_progress',
+      reason: null,
+    });
+    assert.equal(hookState.getActiveAgent(SESSION_ID), '');
+  });
+
   it('uses normalized agentName when no prompt is available', () => {
     hookState.clearActiveAgent(SESSION_ID);
 

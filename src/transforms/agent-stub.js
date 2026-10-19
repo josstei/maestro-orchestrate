@@ -15,7 +15,7 @@ const { emitBlockList } = require('../lib/yaml-emit');
  *   - `description`  - final description (may have examples appended for claude)
  *   - `tools`        - resolved tool list (explicit `tools.<runtime>` override,
  *                      otherwise the canonical list mapped through
- *                      runtime.tools)
+ *                      runtime.tools), without duplicates
  *   - `runtime`      - full runtime config
  *   - `fm`           - runtime.agentFrontmatter config (shape hints)
  */
@@ -34,6 +34,10 @@ const FIELDS = {
     }
     return [`description: "${escapeYaml(ctx.frontmatter.description || '')}"`];
   },
+
+  subagent: (ctx) => (ctx.fm.subagent != null ? [`subagent: ${ctx.fm.subagent}`] : []),
+
+  mainAgent: (ctx) => (ctx.fm.mainAgent != null ? [`mainAgent: ${ctx.fm.mainAgent}`] : []),
 
   model: (ctx) => (ctx.fm.model ? [`model: ${ctx.fm.model}`] : []),
 
@@ -54,9 +58,11 @@ function resolveTools(frontmatter, runtime) {
     return frontmatter[overrideKey];
   }
 
-  return (frontmatter.tools || []).flatMap(
+  // Several canonical tools can map to one runtime tool (Antigravity reads
+  // single files, many files and skills all with view_file).
+  return [...new Set((frontmatter.tools || []).flatMap(
     (tool) => (runtime.tools && runtime.tools[tool]) || tool
-  );
+  ))];
 }
 
 function buildDescription(baseDescription, examples) {

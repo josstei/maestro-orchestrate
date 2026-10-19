@@ -56,7 +56,9 @@ function readSessionSummary(cwd) {
  * Field name mapping: each runtime's hook adapter
  * (src/platforms/<runtime>/hook-adapter.js) fills ctx.agentInput and/or
  * ctx.agentName from its host payload before calling this function (Claude:
- * tool_input.prompt and tool_input.subagent_type; Qwen: agent_type only).
+ * tool_input.prompt and tool_input.subagent_type; Qwen: agent_type only;
+ * Antigravity, which runs it at SessionStart: neither, so only the session
+ * context line is produced).
  *
  * @param {object} ctx - Internal context contract
  * @param {string} ctx.sessionId

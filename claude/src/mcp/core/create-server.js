@@ -53,11 +53,14 @@ function normalizeToolError(toolName, error) {
  * `{ runtimeConfig, services }` context), where each tool is its schema plus a
  * `handler` function; the handler is not part of the listed schema. Packs are
  * mounted in order (an unnamed pack is reported as `tool-pack-<n>`); tool
- * names must be unique.
+ * names must be unique. A runtime config's `mcpToolMeta` is listed as every
+ * tool schema's `_meta` (Antigravity loads tools marked
+ * `antigravity/alwaysLoad` as native tools instead of on demand).
  */
 function createServer(options = {}) {
   const { runtimeConfig = {}, services = {}, toolPacks = [] } = options;
   const context = Object.freeze({ runtimeConfig, services });
+  const toolMeta = runtimeConfig.mcpToolMeta || null;
   const packs = toolPacks.map((entry, index) => resolveToolPack(entry, context, index));
   const schemas = [];
   const handlers = Object.create(null);
@@ -89,7 +92,7 @@ function createServer(options = {}) {
       }
 
       toolSources[schema.name] = pack.name;
-      schemas.push(schema);
+      schemas.push(toolMeta ? { ...schema, _meta: { ...toolMeta } } : schema);
       handlers[schema.name] = handler;
       requiresWorkspace[schema.name] = schema.requiresWorkspace === true;
     }

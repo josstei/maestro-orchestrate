@@ -8,6 +8,7 @@ assignees: ''
 
 ## Runtime
 
+- [ ] Antigravity
 - [ ] Claude Code
 - [ ] Codex
 - [ ] Qwen Code
@@ -20,7 +21,7 @@ assignees: ''
 
 - **OS**: <!-- e.g. macOS 15.2, Ubuntu 24.04 -->
 - **Node.js version**: <!-- e.g. 22.12.0 -->
-- **Runtime version**: <!-- e.g. Claude Code 1.0.23, Qwen Code 0.1.5 -->
+- **Runtime version**: <!-- e.g. Antigravity CLI 1.4.2, Claude Code 1.0.23, Qwen Code 0.1.5 -->
 
 ## Description
 

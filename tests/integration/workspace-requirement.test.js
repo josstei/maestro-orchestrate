@@ -88,11 +88,27 @@ describe('workspace requirement contract', () => {
   });
 });
 
+// Installed-plugin directories per host, relative to the home directory.
+const HOST_PLUGIN_DIRS = [
+  { host: 'codex', label: 'a codex plugin cache', segments: ['.codex', 'plugins', 'maestro'] },
+  { host: 'claude', label: 'a claude plugin cache', segments: ['.claude', 'plugins', 'maestro'] },
+  {
+    host: 'antigravity',
+    label: 'an antigravity plugin install',
+    segments: ['.gemini', 'config', 'plugins', 'maestro'],
+  },
+  {
+    host: 'antigravity-cli',
+    label: 'the older antigravity-cli plugin directory',
+    segments: ['.gemini', 'antigravity-cli', 'plugins', 'maestro'],
+  },
+];
+
 describe('initialize_workspace contract', () => {
-  for (const host of ['codex', 'claude']) {
-    it(`rejects initialize_workspace with a path inside a ${host} plugin cache`, async () => {
+  for (const { host, label, segments } of HOST_PLUGIN_DIRS) {
+    it(`rejects initialize_workspace with a path inside ${label}`, async () => {
       const cacheParent = makeTempDir(`${host}-cache-parent-`);
-      const cache = path.join(cacheParent, `.${host}`, 'plugins', 'maestro');
+      const cache = path.join(cacheParent, ...segments);
       fs.mkdirSync(cache, { recursive: true });
 
       const server = createFullServer();

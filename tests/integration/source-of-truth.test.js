@@ -8,6 +8,19 @@ const path = require('node:path');
 const { ROOT } = require('./helpers');
 
 describe('src-first architecture invariants', () => {
+  it('ships a detached src payload for Antigravity isolated installs', () => {
+    assert.equal(
+      fs.existsSync(path.join(ROOT, 'antigravity/src/mcp/maestro-server.js')),
+      true,
+      'Expected detached Antigravity src payload to exist'
+    );
+    assert.equal(
+      fs.existsSync(path.join(ROOT, 'antigravity/src/version.json')),
+      true,
+      'Expected detached Antigravity src payload version metadata to exist'
+    );
+  });
+
   it('ships a detached src payload for Claude isolated installs', () => {
     assert.equal(
       fs.existsSync(path.join(ROOT, 'claude/src/mcp/maestro-server.js')),
@@ -45,9 +58,11 @@ describe('src-first architecture invariants', () => {
   it('removes mirrored runtime lib trees and generated MCP core artifacts', () => {
     const forbiddenPaths = [
       'lib',
+      'antigravity/lib',
       'claude/lib',
       'plugins/maestro/lib',
       'mcp/maestro-server-core.js',
+      'antigravity/mcp/maestro-server-core.js',
       'claude/mcp/maestro-server-core.js',
       'plugins/maestro/mcp/maestro-server-core.js',
       'src/mcp/maestro-server-core.js',

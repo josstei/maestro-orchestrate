@@ -247,6 +247,41 @@ describe('createProtocolHandlers.respond', () => {
     assert.equal(called, 1);
   });
 
+  it('lets onRootsListChanged re-request roots while the notification is still being handled', async () => {
+    let roots;
+    const { handlers, frames } = makeHandlers(
+      {},
+      {
+        options: {
+          serverInfo: { name: 's', version: '1' },
+          callbacks: {
+            async onRootsListChanged() {
+              roots = (await handlers.requestFromClient('roots/list')).roots;
+            },
+          },
+        },
+      }
+    );
+
+    const notification = handlers.respond({ method: 'notifications/roots/list_changed' });
+    assert.equal(frames.length, 1);
+    assert.equal(frames[0].method, 'roots/list');
+
+    await handlers.respond({ jsonrpc: '2.0', id: frames[0].id, result: { roots: ['file:///ws'] } });
+    await notification;
+
+    assert.deepEqual(roots, ['file:///ws']);
+    assert.equal(frames.length, 1);
+  });
+
+  it('answers server/discover, which Antigravity sends before initialize, with -32601', async () => {
+    const { handlers, frames } = makeHandlers();
+    await handlers.respond({ jsonrpc: '2.0', id: 0, method: 'server/discover', params: {} });
+    assert.deepEqual(frames, [
+      { jsonrpc: '2.0', id: 0, error: { code: -32601, message: 'Method not found: server/discover' } },
+    ]);
+  });
+
   it('returns -32601 Method not found for unknown methods with an id', async () => {
     const { handlers, frames } = makeHandlers();
     await handlers.respond({ id: 99, method: 'does/not/exist' });

@@ -23,7 +23,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 }
 ```
 
-The public server at `claude/mcp/maestro-server.js` is a thin adapter. It sets `MAESTRO_RUNTIME=claude`, prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `claude/src/mcp/maestro-server.js` for detached marketplace or copied installs. Content tools read from the filesystem only.
+The public server at `claude/mcp/maestro-server.js` is a thin adapter. It prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `claude/src/mcp/maestro-server.js` for detached marketplace or copied installs. Content tools read from the filesystem only. The server identifies the Claude runtime from the `clientInfo.name` Claude Code sends in `initialize` (`claude-code`); setting `MAESTRO_RUNTIME` overrides that.
 
 ## Agent Naming
 
@@ -96,7 +96,7 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 
 ## Policy Enforcement
 
-`src/platforms/claude/policy-enforcer.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. Its rules come from `src/core/policy-rules.js`, the same rules `policies/maestro.toml` applies for Qwen Code:
+`src/platforms/claude/policy-enforcer.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. Its rules come from `src/core/policy-rules.js`, the same rules the Antigravity `run_command` enforcer applies and `policies/maestro.toml` applies for Qwen Code:
 
 **Deny rules** (blocks command):
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
@@ -108,7 +108,7 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 - `tee` commands
 - Output redirection (`>`, `>>`)
 
-Parses compound commands (`;`, `&&`, `||`, `|`) and recursively checks subshells (`$(...)`, backticks).
+`checkCommand()` in `src/core/policy-rules.js` parses compound commands (`;`, `&&`, `||`, `|`) and recursively checks subshells (`$(...)`, backticks); the shared runner `src/platforms/shared/policy-enforcer.js` reads stdin and emits `{ decision: "block", reason }` when the check cannot run.
 
 ## Tool Mapping
 

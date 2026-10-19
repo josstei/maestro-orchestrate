@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const {
   DETACHED_PAYLOAD_BASE_ALLOWLIST,
+  RUNTIME_PAYLOAD_EXTRAS,
   buildPayloadAllowlist,
   shouldIncludeInPayload,
   buildDetachedPayload,
@@ -79,6 +80,21 @@ describe('buildPayloadAllowlist', () => {
   it('constructs the correct platform path for any runtime', () => {
     const result = buildPayloadAllowlist('test-runtime');
     assert.ok(result.includes('platforms/test-runtime/'));
+  });
+
+  it('adds the state scripts to the antigravity payload only', () => {
+    // Antigravity serves `node ${PLUGIN_ROOT}/src/scripts/...` from its
+    // installed plugin dir, so only its payload carries src/scripts/.
+    assert.ok(Object.isFrozen(RUNTIME_PAYLOAD_EXTRAS));
+    assert.deepEqual(Object.keys(RUNTIME_PAYLOAD_EXTRAS), ['antigravity']);
+    assert.deepEqual(buildPayloadAllowlist('antigravity'), [
+      ...DETACHED_PAYLOAD_BASE_ALLOWLIST,
+      'platforms/antigravity/',
+      'scripts/',
+    ]);
+    for (const runtimeName of ['claude', 'codex']) {
+      assert.ok(!buildPayloadAllowlist(runtimeName).includes('scripts/'), runtimeName);
+    }
   });
 });
 
@@ -207,6 +223,30 @@ describe('buildDetachedPayload', () => {
     assert.ok(fs.existsSync(path.join(platformsDir, 'shared', 'hook-runner.js')));
     assert.ok(!fs.existsSync(path.join(platformsDir, 'claude')));
     assert.ok(!fs.existsSync(path.join(platformsDir, 'qwen')));
+  });
+
+  it('gives the antigravity payload its platform modules and the shared policy enforcer', () => {
+    writeTree(srcDir, 'core/policy-rules.js', 'rules');
+    writeTree(srcDir, 'platforms/shared/hook-runner.js', 'runner');
+    writeTree(srcDir, 'platforms/shared/policy-enforcer.js', 'shared enforcer');
+    writeTree(srcDir, 'platforms/antigravity/runtime-config.js', 'antigravity config');
+    writeTree(srcDir, 'platforms/antigravity/hook-adapter.js', 'antigravity adapter');
+    writeTree(srcDir, 'platforms/antigravity/policy-enforcer.js', 'antigravity enforcer');
+    writeTree(srcDir, 'platforms/claude/policy-enforcer.js', 'claude enforcer');
+
+    buildDetachedPayload(srcDir, outputDir, 'antigravity', '1.0.0');
+
+    const platformsDir = path.join(outputDir, 'platforms');
+    assert.deepEqual(
+      fs.readdirSync(path.join(platformsDir, 'antigravity')).sort(),
+      ['hook-adapter.js', 'policy-enforcer.js', 'runtime-config.js']
+    );
+    assert.deepEqual(
+      fs.readdirSync(path.join(platformsDir, 'shared')).sort(),
+      ['hook-runner.js', 'policy-enforcer.js']
+    );
+    assert.ok(fs.existsSync(path.join(outputDir, 'core', 'policy-rules.js')));
+    assert.ok(!fs.existsSync(path.join(platformsDir, 'claude')));
   });
 
   it('cleans up empty directories after stale file removal', () => {

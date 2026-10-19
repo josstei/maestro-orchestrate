@@ -311,7 +311,7 @@ describe('manifest-expander', () => {
         assert.equal(codeReviewerEntry.outputs.claude, 'claude/agents/code-reviewer.md');
       });
 
-      it('stubs agents for claude and qwen only, with the qwen stubs in the repo-root agents/ directory', () => {
+      it('stubs agents for antigravity, claude and qwen only, with the qwen stubs in the repo-root agents/ directory', () => {
         const result = expandManifest(manifestRules, realRuntimes, SRC);
 
         assert.doesNotThrow(() => assertNoMirroredSharedOutputs(result));
@@ -319,7 +319,8 @@ describe('manifest-expander', () => {
         const agentEntries = result.filter((e) => e.transforms.includes('agent-stub'));
         assert.equal(agentEntries.length, 39);
         for (const entry of agentEntries) {
-          assert.deepEqual(Object.keys(entry.outputs), ['claude', 'qwen'], entry.src);
+          assert.deepEqual(Object.keys(entry.outputs), ['antigravity', 'claude', 'qwen'], entry.src);
+          assert.equal(entry.outputs.antigravity, `antigravity/${entry.src}`, entry.src);
           assert.equal(
             entry.outputs.qwen,
             `agents/${path.basename(entry.src, '.md').replace(/-/g, '_')}.md`,
@@ -335,6 +336,20 @@ describe('manifest-expander', () => {
           agentEntries.map((e) => e.outputs.qwen).sort()
         );
         assert.deepEqual(outputPaths.filter((p) => p.startsWith('qwen/')), []);
+      });
+
+      it('stubs shared skills for antigravity, claude and codex only, one folder per skill', () => {
+        const result = expandManifest(manifestRules, realRuntimes, SRC);
+
+        const skillEntries = result.filter((e) => e.transforms.includes('skill-discovery-stub'));
+        assert.equal(skillEntries.length, 7);
+        for (const entry of skillEntries) {
+          const skillPath = entry.src.split(path.sep).join('/').replace(/^skills\/shared\//, 'skills/');
+          assert.deepEqual(Object.keys(entry.outputs), ['antigravity', 'claude', 'codex'], entry.src);
+          assert.equal(entry.outputs.antigravity, `antigravity/${skillPath}`, entry.src);
+          assert.equal(entry.outputs.claude, `claude/${skillPath}`, entry.src);
+          assert.equal(entry.outputs.codex, `plugins/maestro/${skillPath}`, entry.src);
+        }
       });
     });
   });

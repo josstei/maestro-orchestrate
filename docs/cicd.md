@@ -34,7 +34,7 @@ The six source-of-truth workflows share a common validation core: generate runti
 
 ### Purpose
 
-The foundational CI gate. Enforces that all generated runtime adapters (Claude Code, Codex, and Qwen Code) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
+The foundational CI gate. Enforces that all generated runtime adapters (Antigravity, Claude Code, Codex, and Qwen Code) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
 
 ### Trigger
 

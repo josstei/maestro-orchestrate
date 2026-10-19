@@ -1,7 +1,7 @@
 {
   "name": "@josstei/maestro",
   "version": "1.6.4",
-  "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase workflows, 3 runtime targets (Claude Code, OpenAI Codex, Qwen Code)",
+  "description": "Multi-agent development orchestration platform — 39 specialists, 4-phase workflows, 4 runtime targets (Antigravity, Claude Code, OpenAI Codex, Qwen Code)",
   "license": "Apache-2.0",
   "author": {
     "name": "josstei",
@@ -55,6 +55,7 @@
     "multi-agent",
     "planning",
     "execution",
+    "antigravity",
     "claude",
     "codex",
     "mcp"
@@ -65,6 +66,7 @@
     "scripts/",
     "bin/",
     "agents/",
+    "antigravity/",
     "claude/",
     "plugins/",
     "commands/",
@@ -76,6 +78,7 @@
     "docs/flow.md",
     "docs/maestro-cheatsheet.md",
     "docs/overview.md",
+    "docs/runtime-antigravity.md",
     "docs/runtime-claude.md",
     "docs/runtime-codex.md",
     "docs/runtime-qwen.md",
