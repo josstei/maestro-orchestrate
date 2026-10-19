@@ -48,6 +48,12 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
   const pendingClientRequests = new Map();
   let nextClientRequestId = 1;
 
+  async function invoke(callback, ...args) {
+    if (typeof callback === 'function') {
+      await callback(...args);
+    }
+  }
+
   function settleClientRequest(message) {
     if (!message || message.id == null) {
       return false;
@@ -106,9 +112,7 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
 
     switch (method) {
       case 'initialize':
-        if (typeof callbacks.onInitialize === 'function') {
-          await callbacks.onInitialize(params || {});
-        }
+        await invoke(callbacks.onInitialize, params || {});
         reply({
           protocolVersion: (params && params.protocolVersion) || DEFAULT_PROTOCOL_VERSION,
           capabilities: {
@@ -119,15 +123,11 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
         return;
 
       case 'notifications/initialized':
-        if (typeof callbacks.onInitialized === 'function') {
-          await callbacks.onInitialized();
-        }
+        await invoke(callbacks.onInitialized);
         return;
 
       case 'notifications/roots/list_changed':
-        if (typeof callbacks.onRootsListChanged === 'function') {
-          await callbacks.onRootsListChanged();
-        }
+        await invoke(callbacks.onRootsListChanged);
         return;
 
       case 'notifications/cancelled':

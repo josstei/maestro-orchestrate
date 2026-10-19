@@ -1,13 +1,7 @@
 'use strict';
 
-const { validatePhases } = require('../contracts/plan-schema');
+const { PHASE_LIMITS, validatePhases } = require('../contracts/plan-schema');
 const { violation } = require('./violation');
-
-const PHASE_LIMITS = {
-  simple: 3,
-  medium: 5,
-  complex: Infinity,
-};
 
 /**
  * Lightweight shape validation: guard against non-object plans or
@@ -35,8 +29,7 @@ function checkPhaseCount(phases, taskComplexity) {
 }
 
 /**
- * Flag duplicate phase IDs. Emits one violation per duplicate occurrence
- * (matches the original loop behavior).
+ * Flag duplicate phase IDs, one violation per repeated occurrence after the first.
  */
 function checkDuplicateIds(phases) {
   const violations = [];
@@ -76,14 +69,10 @@ function checkDanglingDependencies(phases) {
  * Maps contract violations to the schema-checker violation shape.
  */
 function checkPhaseFieldSchema(phases) {
-  const result = validatePhases(phases);
-  if (result.valid) return [];
-  return result.violations.map((contractViolation) => ({
-    rule: contractViolation.rule,
-    detail: `Phase ${contractViolation.phase_id ?? '?'} field "${contractViolation.field}" ${contractViolation.rule.replace('_', ' ')}`,
-    severity: 'error',
-    phase_id: contractViolation.phase_id,
-    field: contractViolation.field,
+  return validatePhases(phases).violations.map(({ rule, phase_id, field }) => ({
+    ...violation(rule, `Phase ${phase_id ?? '?'} field "${field}" ${rule.replace('_', ' ')}`),
+    phase_id,
+    field,
   }));
 }
 

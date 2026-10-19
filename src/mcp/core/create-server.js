@@ -23,6 +23,10 @@ function sanitizeErrorMessage(error) {
   return message.replace(/\/[^\s'"]+/g, '[path]');
 }
 
+/**
+ * Build a failed tool outcome: `ok: false` plus the error payload the
+ * dispatcher puts on the wire. `details` is included only when present.
+ */
 function toolFailure(error, code, recovery_hint = null, details = null) {
   const outcome = { ok: false, error, recovery_hint, code };
 
@@ -63,9 +67,7 @@ function createServer(options = {}) {
   const toolMeta = runtimeConfig.mcpToolMeta || null;
   const packs = toolPacks.map((entry, index) => resolveToolPack(entry, context, index));
   const schemas = [];
-  const handlers = Object.create(null);
-  const toolSources = Object.create(null);
-  const requiresWorkspace = Object.create(null);
+  const registry = Object.create(null);
 
   for (const pack of packs) {
     for (const tool of pack.tools) {
@@ -79,9 +81,9 @@ function createServer(options = {}) {
         throw new Error(`Tool schema in pack "${pack.name}" is missing a valid name.`);
       }
 
-      if (schema.name in toolSources) {
+      if (schema.name in registry) {
         throw new Error(
-          `Duplicate tool name "${schema.name}" found in packs "${toolSources[schema.name]}" and "${pack.name}".`
+          `Duplicate tool name "${schema.name}" found in packs "${registry[schema.name].packName}" and "${pack.name}".`
         );
       }
 
@@ -91,10 +93,12 @@ function createServer(options = {}) {
         );
       }
 
-      toolSources[schema.name] = pack.name;
+      registry[schema.name] = {
+        packName: pack.name,
+        handler,
+        requiresWorkspace: schema.requiresWorkspace === true,
+      };
       schemas.push(toolMeta ? { ...schema, _meta: { ...toolMeta } } : schema);
-      handlers[schema.name] = handler;
-      requiresWorkspace[schema.name] = schema.requiresWorkspace === true;
     }
   }
 
@@ -103,15 +107,15 @@ function createServer(options = {}) {
       return schemas.slice();
     },
     async callTool(name, args = {}, projectRoot) {
-      const handler = handlers[name];
-      if (!handler) {
+      const tool = registry[name];
+      if (!tool) {
         return toolFailure(`Unknown tool: ${name}`, 'UNKNOWN_TOOL');
       }
       try {
-        if (requiresWorkspace[name]) {
+        if (tool.requiresWorkspace) {
           requireWorkspaceRoot(projectRoot, name);
         }
-        return { ok: true, result: await handler(args, projectRoot) };
+        return { ok: true, result: await tool.handler(args, projectRoot) };
       } catch (error) {
         return normalizeToolError(name, error);
       }
@@ -121,4 +125,5 @@ function createServer(options = {}) {
 
 module.exports = {
   createServer,
+  toolFailure,
 };

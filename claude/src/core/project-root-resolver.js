@@ -12,24 +12,25 @@ const WorkspaceResolutionError = defineErrorType(
   'WORKSPACE_RESOLUTION_FAILED'
 );
 
-function resolveGitRoot(baseDir) {
-  return execSync('git rev-parse --show-toplevel', {
-    cwd: baseDir,
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe'],
-  }).trim();
+/** A non-empty string that is not an unexpanded `${...}` host placeholder. */
+function isConcretePath(value) {
+  return typeof value === 'string' && value.length > 0 && !value.includes('${');
 }
 
-function gitRootOrSelf(resolved) {
+function gitRootOrSelf(dir) {
   try {
-    return resolveGitRoot(resolved);
+    return execSync('git rev-parse --show-toplevel', {
+      cwd: dir,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
   } catch {
-    return resolved;
+    return dir;
   }
 }
 
 function resolveExistingRoot(candidate) {
-  if (typeof candidate !== 'string' || !candidate || candidate.includes('${')) {
+  if (!isConcretePath(candidate)) {
     return null;
   }
 
@@ -89,7 +90,7 @@ function requireWorkspaceRoot(projectRoot, toolName) {
 }
 
 function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
-  if (!workspacePath || typeof workspacePath !== 'string' || workspacePath.includes('${')) {
+  if (!isConcretePath(workspacePath)) {
     throw new WorkspaceResolutionError(
       'initialize_workspace requires an explicit workspace_path. No implicit cwd or env fallback is used.',
       { code: 'WORKSPACE_REQUIRED' }
@@ -112,6 +113,7 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
 }
 
 module.exports = {
+  isConcretePath,
   resolveHookWorkspaceRoot,
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,

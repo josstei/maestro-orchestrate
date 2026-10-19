@@ -5,6 +5,7 @@ const path = require('node:path');
 const { fileURLToPath } = require('node:url');
 
 const { isExtensionCachePath } = require('../../core/cache-path-rejector');
+const { isConcretePath } = require('../../core/project-root-resolver');
 
 /**
  * Project-root cache for the MCP session.
@@ -37,7 +38,7 @@ function createProjectRootCache(options) {
       runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
     if (!envVarName) return null;
     const value = process.env[envVarName];
-    if (!value || value.includes('${')) return null;
+    if (!isConcretePath(value)) return null;
     return usableDir(path.resolve(value));
   }
 
