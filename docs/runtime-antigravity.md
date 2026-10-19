@@ -137,7 +137,7 @@ Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: strin
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
 - `git reset --hard`, `git checkout --`
 - `git clean -fd`, `git clean -df`, `git clean -xfd`, `git clean -xdf`
-- Heredocs (`<<`)
+- Heredocs (`<<EOF`, `<< 'EOF'`, `<<-EOF`; not here-strings `<<<` or arithmetic shifts such as `1<<4`)
 
 **Ask User** (`force_ask`, which prompts even when `permissions.allow` covers the command; headless runs deny it and `--dangerously-skip-permissions` approves it):
 - `tee` commands
