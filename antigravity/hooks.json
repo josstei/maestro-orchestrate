@@ -1,0 +1,30 @@
+{
+  "maestro-session": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node hooks/hook-runner.js antigravity session-start",
+        "timeout": 10
+      },
+      {
+        "type": "command",
+        "command": "node hooks/hook-runner.js antigravity before-agent",
+        "timeout": 10
+      }
+    ]
+  },
+  "maestro-shell-policy": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node hooks/policy-enforcer.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

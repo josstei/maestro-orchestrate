@@ -31,7 +31,25 @@ function outputsByPath(outputs) {
   ]));
 }
 
-const ALL_RUNTIMES = { claude: {}, codex: {}, qwen: {} };
+const ALL_RUNTIMES = { antigravity: {}, claude: {}, codex: {}, qwen: {} };
+
+// Claude and Qwen nest events under "hooks" and wrap every handler in a group
+// (with an optional matcher); Antigravity's top level is named hooks, and its
+// SessionStart handlers are flat.
+function hookCommands(config) {
+  if (config.hooks) {
+    return Object.values(config.hooks).flat()
+      .flatMap((group) => {
+        assert.ok(Array.isArray(group.hooks), `expected a handler group: ${JSON.stringify(group)}`);
+        return group.hooks;
+      })
+      .map((hook) => hook.command);
+  }
+  return Object.values(config)
+    .flatMap((events) => Object.values(events).flat())
+    .flatMap((entry) => entry.hooks || [entry])
+    .map((hook) => hook.command);
+}
 
 // policies/maestro.toml holds patterns as TOML basic strings, so backslashes are doubled.
 function tomlEscaped(text) {
@@ -49,6 +67,9 @@ describe('platform metadata generation', () => {
     const expectedPaths = [
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
+      'antigravity/hooks.json',
+      'antigravity/mcp_config.json',
+      'antigravity/plugin.json',
       'claude/.claude-plugin/plugin.json',
       'claude/.mcp.json',
       'claude/hooks/claude-hooks.json',
@@ -62,10 +83,10 @@ describe('platform metadata generation', () => {
 
     assert.deepEqual([...outputs.keys()].sort(), expectedPaths);
     assert.equal(outputs.get('qwen-extension.json').version, PACKAGE_FIXTURE.version);
-    assert.equal(
-      outputs.get('qwen-extension.json').mcpServers.maestro.env.MAESTRO_RUNTIME,
-      'qwen'
-    );
+    assert.deepEqual(outputs.get('qwen-extension.json').mcpServers.maestro.env, {
+      MAESTRO_WORKSPACE_PATH: '${workspacePath}',
+    });
+    assert.equal(outputs.get('antigravity/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('claude/.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(
@@ -116,6 +137,59 @@ describe('platform metadata generation', () => {
     }
   });
 
+  it('makes the antigravity runtime own its plugin manifest, MCP config and hooks at the plugin root', () => {
+    const outputs = outputsByPath(buildPlatformMetadataOutputs({ antigravity: {} }, PACKAGE_FIXTURE));
+
+    assert.deepEqual([...outputs.keys()].sort(), [
+      'antigravity/hooks.json',
+      'antigravity/mcp_config.json',
+      'antigravity/plugin.json',
+    ]);
+
+    // plugin.json carries only the manifest fields (MCP servers and hooks have
+    // their own files), and Antigravity keeps descriptions to 160 characters.
+    const manifest = outputs.get('antigravity/plugin.json');
+    assert.deepEqual(Object.keys(manifest), ['name', 'displayName', 'version', 'description', 'suggestedPrompts']);
+    assert.equal(manifest.name, 'maestro');
+    assert.equal(manifest.displayName, 'Maestro');
+    assert.equal(manifest.version, PACKAGE_FIXTURE.version);
+    assert.ok(manifest.description.length > 0 && manifest.description.length <= 160, manifest.description);
+    assert.equal(manifest.suggestedPrompts.length, 3);
+    for (const prompt of manifest.suggestedPrompts) {
+      assert.match(prompt, /^Use Maestro to /);
+    }
+
+    assert.deepEqual(outputs.get('antigravity/mcp_config.json'), {
+      mcpServers: {
+        maestro: {
+          command: 'node',
+          args: ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
+        },
+      },
+    });
+  });
+
+  it('registers the antigravity session-context and shell-policy hooks with second timeouts', () => {
+    const outputs = outputsByPath(buildPlatformMetadataOutputs({ antigravity: {} }, PACKAGE_FIXTURE));
+
+    assert.deepEqual(outputs.get('antigravity/hooks.json'), {
+      'maestro-session': {
+        SessionStart: [
+          { type: 'command', command: 'node hooks/hook-runner.js antigravity session-start', timeout: 10 },
+          { type: 'command', command: 'node hooks/hook-runner.js antigravity before-agent', timeout: 10 },
+        ],
+      },
+      'maestro-shell-policy': {
+        PreToolUse: [
+          {
+            matcher: 'run_command',
+            hooks: [{ type: 'command', command: 'node hooks/policy-enforcer.js', timeout: 5 }],
+          },
+        ],
+      },
+    });
+  });
+
   it('emits no gemini metadata', () => {
     const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
 
@@ -131,6 +205,16 @@ describe('platform metadata generation', () => {
     }
   });
 
+  it('leaves the runtime to the MCP server, which identifies its host', () => {
+    const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
+
+    for (const output of outputs.filter((entry) => entry.outputPath.endsWith('.json'))) {
+      for (const server of Object.values(JSON.parse(output.content).mcpServers || {})) {
+        assert.ok(!(server.env && 'MAESTRO_RUNTIME' in server.env), `${output.outputPath} names a runtime`);
+      }
+    }
+  });
+
   it('points the plugin manifests at the generated hook and app configs', () => {
     const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
 
@@ -142,6 +226,7 @@ describe('platform metadata generation', () => {
   it('runs only registered hooks from every hook config', () => {
     const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
     const expectedRuntimes = {
+      'antigravity/hooks.json': 'antigravity',
       'qwen/hooks.json': 'qwen',
       'claude/hooks/claude-hooks.json': 'claude',
     };
@@ -152,8 +237,7 @@ describe('platform metadata generation', () => {
     );
 
     for (const [configPath, runtime] of Object.entries(expectedRuntimes)) {
-      const commands = Object.values(outputs.get(configPath).hooks)
-        .flatMap((entries) => entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)))
+      const commands = hookCommands(outputs.get(configPath))
         .filter((command) => command.includes('hook-runner.js'));
 
       assert.ok(commands.length > 0, `${configPath} must run the hook runner`);

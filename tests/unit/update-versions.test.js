@@ -12,6 +12,7 @@ function createTempProject(version) {
   const root = makeTempDir('maestro-update-versions-');
   const files = {
     'package.json': { name: '@josstei/maestro', version, license: 'Apache-2.0' },
+    'antigravity/plugin.json': { name: 'maestro', version },
     'qwen-extension.json': { name: 'maestro', version },
     'claude/.claude-plugin/plugin.json': { name: 'maestro', version },
     'plugins/maestro/.codex-plugin/plugin.json': { name: 'maestro', version },
@@ -71,6 +72,7 @@ describe('updateVersions', () => {
     updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' });
 
     const pkg = readJson(tempRoot, 'package.json');
+    const antigravityPlugin = readJson(tempRoot, 'antigravity/plugin.json');
     const qwen = readJson(tempRoot, 'qwen-extension.json');
     const claudePlugin = readJson(tempRoot, 'claude/.claude-plugin/plugin.json');
     const codexPlugin = readJson(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json');
@@ -78,6 +80,7 @@ describe('updateVersions', () => {
     const marketplace = readJson(tempRoot, '.claude-plugin/marketplace.json');
 
     assert.equal(pkg.version, '1.7.0');
+    assert.equal(antigravityPlugin.version, '1.6.1');
     assert.equal(qwen.version, '1.6.1');
     assert.equal(claudePlugin.version, '1.6.1');
     assert.equal(codexPlugin.version, '1.6.1');

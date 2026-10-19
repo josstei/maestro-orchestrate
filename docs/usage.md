@@ -47,7 +47,7 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the Qwen context file (`QWEN.md`), and the thin MCP-server and hook-runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `claude/mcp/maestro-server.js`, `claude/scripts/`, `bin/maestro-mcp-server.js`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `claude/src/` and `plugins/maestro/src/` payloads.
+1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the Qwen context file (`QWEN.md`), and the thin MCP-server, hook-runner, and policy-enforcer shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `antigravity/mcp/maestro-server.js`, `antigravity/hooks/`, `claude/mcp/maestro-server.js`, `claude/scripts/`, `bin/maestro-mcp-server.js`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` payloads.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime outputs
 3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
 4. Run `npm test` (or `just test`) before committing
@@ -74,6 +74,7 @@ All settings are resolved with precedence: environment variable > workspace `.en
 
 | Variable | Runtime | Purpose |
 |----------|---------|---------|
+| `MAESTRO_WORKSPACE_PATH` | Antigravity | First source for `workspace_suggestion` when exported before starting `agy`; otherwise the suggestion comes from MCP `roots/list` |
 | `MAESTRO_EXTENSION_PATH` | Qwen | Override extension root path |
 | `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
 | `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
@@ -82,24 +83,24 @@ All settings are resolved with precedence: environment variable > workspace `.en
 
 ## Invoking Maestro
 
-Qwen Code runs TOML slash commands from `commands/maestro/`, Claude Code runs Markdown skills as slash commands, and Codex invokes skills through the plugin namespace:
+Qwen Code runs TOML slash commands from `commands/maestro/`, Claude Code runs Markdown skills as slash commands, Antigravity runs plugin skills as slash commands under the plugin namespace, and Codex invokes skills through the plugin namespace:
 
-| Capability | Claude Code | Codex | Qwen Code | Purpose |
-|------------|-------------|-------|-----------|---------|
-| Orchestrate | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` | Full orchestration workflow |
-| Execute | `/execute` | `$maestro:execute` | `/maestro:execute` | Execute an approved plan |
-| Resume | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` | Resume interrupted session |
-| Review | `/review-code` | `$maestro:review-code` | `/maestro:review` | Code review |
-| Debug | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` | Debugging workflow |
-| Archive | `/archive` | `$maestro:archive` | `/maestro:archive` | Archive active session |
-| Status | `/status` | `$maestro:status` | `/maestro:status` | Show session status |
-| Security Audit | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` | Security assessment |
-| Performance Check | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` | Performance assessment |
-| SEO Audit | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` | SEO audit |
-| Accessibility Audit | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` | Accessibility audit |
-| Compliance Check | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` | Compliance review |
+| Capability | Antigravity | Claude Code | Codex | Qwen Code | Purpose |
+|------------|-------------|-------------|-------|-----------|---------|
+| Orchestrate | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` | Full orchestration workflow |
+| Execute | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` | Execute an approved plan |
+| Resume | `/maestro:resume-session` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` | Resume interrupted session |
+| Review | `/maestro:review-code` | `/review-code` | `$maestro:review-code` | `/maestro:review` | Code review |
+| Debug | `/maestro:debug-workflow` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` | Debugging workflow |
+| Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` | Archive active session |
+| Status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` | Show session status |
+| Security Audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` | Security assessment |
+| Performance Check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` | Performance assessment |
+| SEO Audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` | SEO audit |
+| Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` | Accessibility audit |
+| Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` | Compliance review |
 
-Claude Code and Codex keep their built-in `/review`, `/debug`, and `/resume` commands. Maestro exposes `review-code`, `debug-workflow`, and `resume-session` in those runtimes (`/review-code` in Claude Code, `$maestro:review-code` in Codex, and so on) to avoid colliding with those host commands.
+Claude Code and Codex keep their built-in `/review`, `/debug`, and `/resume` commands, and Antigravity has a built-in `/resume`. Maestro exposes `review-code`, `debug-workflow`, and `resume-session` in those runtimes (`/review-code` in Claude Code, `$maestro:review-code` in Codex, `/maestro:review-code` in Antigravity, and so on) to avoid colliding with those host commands.
 
 ## State Directory Structure
 

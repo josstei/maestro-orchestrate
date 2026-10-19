@@ -6,30 +6,37 @@ This document summarizes the minimum commands and concepts for using Maestro acr
 
 | Runtime | Install | Entry Point |
 |---|---|---|
+| Antigravity | `agy plugin install https://github.com/josstei/maestro-orchestrate/tree/main/antigravity`, then restart `agy` | `/maestro:*` |
 | Claude Code | `claude plugin marketplace add josstei/maestro-orchestrate` + `claude plugin install maestro@maestro-orchestrator --scope user` | `/orchestrate`, `/review-code`, `/status`, ... |
 | Codex CLI | `codex plugin marketplace add josstei/maestro-orchestrate`, then install Maestro inside Codex via `/plugins` | `$maestro:*` |
 | Qwen Code | `qwen extensions install https://github.com/josstei/maestro-orchestrate` | `/maestro:*` |
 
 ## 2. Most Common Commands
 
-| Capability | Claude Code | Codex CLI | Qwen Code |
-|---|---|---|---|
-| Start the full workflow | `/orchestrate <task>` | `$maestro:orchestrate <task>` | `/maestro:orchestrate <task>` |
-| Run an existing plan | `/execute` | `$maestro:execute` | `/maestro:execute` |
-| Check status | `/status` | `$maestro:status` | `/maestro:status` |
-| Resume a session | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
-| Archive | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Code review | `/review-code` | `$maestro:review-code` | `/maestro:review` |
-| Debug | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
-| Security audit | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
-| Perf check | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
-| SEO audit | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
-| A11y audit | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
-| Compliance check | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
+| Capability | Antigravity | Claude Code | Codex CLI | Qwen Code |
+|---|---|---|---|---|
+| Start the full workflow | `/maestro:orchestrate <task>` | `/orchestrate <task>` | `$maestro:orchestrate <task>` | `/maestro:orchestrate <task>` |
+| Run an existing plan | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
+| Check status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
+| Resume a session | `/maestro:resume-session` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
+| Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
+| Code review | `/maestro:review-code` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
+| Debug | `/maestro:debug-workflow` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
+| Security audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
+| Perf check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
+| SEO audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
+| A11y audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
+| Compliance check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
 ## 3. Minimal Usage Examples
 
 ### Start a new task
+
+Antigravity:
+
+```text
+/maestro:orchestrate Build a REST API with authentication
+```
 
 Claude Code:
 
@@ -50,6 +57,12 @@ Qwen Code:
 ```
 
 ### Check the current session
+
+Antigravity:
+
+```text
+/maestro:status
+```
 
 Claude Code:
 
@@ -117,6 +130,17 @@ Common paths:
 
 ## 6. Runtime Differences at a Glance
 
+### Antigravity
+
+- Command entry point: `/maestro:*`
+- Supports hooks: `SessionStart` session context and a `run_command` shell policy
+- Uses plugin skills + `invoke_subagent`; each subagent's result arrives as a message when it finishes
+- Antigravity has a built-in `/resume`, so Maestro uses the same remapped names as Claude Code and Codex:
+  - `/maestro:review-code`
+  - `/maestro:debug-workflow`
+  - `/maestro:resume-session`
+- Agent naming: `kebab-case`
+
 ### Claude Code
 
 - Command entry point: `/orchestrate`, `/review-code`, `/status`, ...
@@ -142,6 +166,11 @@ Common paths:
 - Agent stubs (`agents/`), commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), MCP server shim (`mcp/maestro-server.js`), and hook runner (`hooks/hook-runner.js`) live at the repository root, Qwen Code's extension directory; `qwen/` holds only the generated `qwen/hooks.json`
 
 ## 7. Hook Reference
+
+### Antigravity
+
+- `SessionStart` (fires for the main conversation and each subagent)
+- `PreToolUse` + `run_command`
 
 ### Claude Code
 
@@ -169,6 +198,7 @@ If you want to go deeper:
 2. `EXAMPLES.md`
 3. `docs/flow.md`
 4. `docs/architecture.md`
-5. `docs/runtime-claude.md`
-6. `docs/runtime-codex.md`
-7. `docs/runtime-qwen.md`
+5. `docs/runtime-antigravity.md`
+6. `docs/runtime-claude.md`
+7. `docs/runtime-codex.md`
+8. `docs/runtime-qwen.md`

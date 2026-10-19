@@ -2,27 +2,27 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Antigravity and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
-                    ┌─────────────┐
-                    │   src/      │
-                    │  (source    │
-                    │   of truth) │
-                    └──────┬──────┘
-                           │
-                    ┌──────┴──────┐
-                    │ generate.js │
-                    │ + manifest  │
-                    │ + transforms│
-                    └──────┬──────┘
-           ┌───────────────┼───────────────┐
-           ▼               ▼               ▼
-    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
-    │   Claude    │ │    Codex    │ │    Qwen     │
-    │  (claude/)  │ │(plugins/    │ │ (repo root  │
-    │             │ │  maestro/)  │ │  + qwen/)   │
-    └─────────────┘ └─────────────┘ └─────────────┘
+                             ┌─────────────┐
+                             │   src/      │
+                             │  (source    │
+                             │   of truth) │
+                             └──────┬──────┘
+                                    │
+                             ┌──────┴──────┐
+                             │ generate.js │
+                             │ + manifest  │
+                             │ + transforms│
+                             └──────┬──────┘
+        ┌──────────────────┬────────┴─────────┬──────────────────┐
+        ▼                  ▼                  ▼                  ▼
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│  Antigravity   │ │     Claude     │ │     Codex      │ │      Qwen      │
+│ (antigravity/) │ │   (claude/)    │ │   (plugins/    │ │   (repo root   │
+│                │ │                │ │   maestro/)    │ │    + qwen/)    │
+└────────────────┘ └────────────────┘ └────────────────┘ └────────────────┘
 ```
 
 ## Generator Pipeline
@@ -31,11 +31,11 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads every runtime config (`src/platforms/<runtime>/runtime-config.js`, discovered by `src/mcp/runtime/runtime-config-map.js`)
 2. Scans `src/agents/`, `src/skills/shared/`, `src/templates/`, `src/references/`, and `src/hooks/logic/` into `src/generated/agent-registry.json`, `resource-registry.json`, and `hook-registry.json` (`src/generator/registry-scanner.js`)
-3. Expands the rules in `src/manifest.js` and runs their transforms: agent stubs into `claude/agents/` and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `claude/skills/` and `plugins/maestro/skills/`
-4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Claude and Codex skills and Qwen TOML commands (`commands/maestro/`)
-5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`): `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
-6. Prunes stale files from the directories it owns (`agents/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
-7. Rebuilds the detached payloads `claude/src/` and `plugins/maestro/src/` (an allowlisted copy of `src/` plus that runtime's `src/platforms/<runtime>/` directory) and stamps each with `version.json`
+3. Expands the rules in `src/manifest.js` and runs their transforms: agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
+4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Antigravity, Claude, and Codex skills and Qwen TOML commands (`commands/maestro/`)
+5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
+6. Prunes stale files from the directories it owns (`agents/`, `antigravity/agents/`, `antigravity/skills/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
+7. Rebuilds the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` (an allowlisted copy of `src/` plus that runtime's `src/platforms/<runtime>/` directory) and stamps each with `version.json`
 
 `--dry-run` and `--diff` write nothing and skip steps 6 and 7. `--clean` deletes the manifest outputs before regenerating them.
 
@@ -45,9 +45,9 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 ```javascript
 {
-  src: 'agents/architect.md',           // Source file
-  transforms: ['agent-stub'],           // Transform pipeline
-  runtimes: ['claude', 'qwen'],         // Target runtimes
+  src: 'agents/architect.md',                  // Source file
+  transforms: ['agent-stub'],                  // Transform pipeline
+  runtimes: ['antigravity', 'claude', 'qwen'], // Target runtimes
 }
 ```
 
@@ -57,7 +57,7 @@ Or with glob patterns:
 {
   glob: 'agents/*.md',
   transforms: ['agent-stub'],
-  runtimes: ['claude', 'qwen'],
+  runtimes: ['antigravity', 'claude', 'qwen'],
 }
 ```
 
@@ -69,29 +69,33 @@ The generator exposes 2 transforms, registered by name in `src/transforms/index.
 
 | Transform | Purpose |
 |-----------|---------|
-| `agent-stub` | Emit the runtime's agent frontmatter (the fields its `agentFrontmatter.fields` lists, with tools in that runtime's names and, when `features.exampleBlocks` is on, the body's `<example>` blocks folded into the description), followed by a one-line body that points at `get_agent()` |
-| `skill-discovery-stub` | Replace a shared skill body with a stub that points at `get_skill_content()`; Claude stubs also set `user-invocable: false` |
+| `agent-stub` | Emit the runtime's agent frontmatter (the fields its `agentFrontmatter.fields` lists, with tools in that runtime's names, each listed once, and, when `features.exampleBlocks` is on, the body's `<example>` blocks folded into the description), followed by a one-line body that points at `get_agent()` |
+| `skill-discovery-stub` | Replace a shared skill body with a stub that points at `get_skill_content()`; Claude stubs also set `user-invocable: false` and Antigravity stubs `disable-slash-command: true` |
 
 ### Runtime Definitions
 
 Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
-| Field | Claude | Codex | Qwen |
-|-------|--------|-------|------|
-| `outputDir` | `claude/` | `plugins/maestro/` | `./` (repo root) |
-| `agentNaming` | `kebab-case` | `kebab-case` | `snake_case` |
-| `agentPrefix` | `maestro:` | — | — |
-| `mcpPrefix` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |
-| `planModeNative` | `true` | `false` | `false` |
-| `delegation.pattern` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
-| `env.extensionPath` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
-| `env.workspacePath` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
-| `agentFrontmatter.fields` | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
+| Field | Antigravity | Claude | Codex | Qwen |
+|-------|-------------|--------|-------|------|
+| `outputDir` | `antigravity/` | `claude/` | `plugins/maestro/` | `./` (repo root) |
+| `agentNaming` | `kebab-case` | `kebab-case` | `kebab-case` | `snake_case` |
+| `agentPrefix` | — | `maestro:` | — | — |
+| `mcpPrefix` | `mcp_maestro_maestro_` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |
+| `mcpClientNames` | `antigravity-client` | `claude-code` | `codex-mcp-client` | `qwen-cli-mcp-client-*` |
+| `mcpToolMeta` | `{ "antigravity/alwaysLoad": true }` | — | — | — |
+| `planModeNative` | `false` | `true` | `false` | `false` |
+| `delegation.pattern` | `invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
+| `delegation.constraints.result_surface` | `notified` | `synchronous` | `deferred` | `synchronous` |
+| `env.extensionPath` | `PLUGIN_ROOT` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
+| `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
+| `agentFrontmatter.fields` | name, description, subagent, mainAgent, model, tools | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
 
 ### Entry-Point Registry
 
 9 entry-points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
 
+- Antigravity: Markdown skills in `antigravity/skills/*/`, invoked as `/maestro:<skill>`
 - Claude: Markdown skills in `claude/skills/`
 - Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
 - Qwen: TOML commands in repo-root `commands/maestro/` (the repo root is Qwen Code's extension directory)
@@ -154,13 +158,18 @@ This makes the source-of-truth rules explicit:
 
 ### MCP Server Packaging
 
-Qwen uses the repo-root public entrypoint at `mcp/maestro-server.js`, Claude keeps a runtime-local public entrypoint at `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js`:
+Qwen uses the repo-root public entrypoint at `mcp/maestro-server.js`, Antigravity and Claude keep runtime-local public entrypoints at `antigravity/mcp/maestro-server.js` and `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js` that only locate `src/`; none names a runtime:
 
-- **Qwen** (`mcp/maestro-server.js`): launched with `MAESTRO_RUNTIME=qwen` from `qwen-extension.json` (and defaults to `qwen` when that variable is unset), directly requires `../src/mcp/maestro-server` and calls `.main()`
-- **Claude** (`claude/mcp/maestro-server.js`): sets `MAESTRO_RUNTIME=claude`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
-- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_RUNTIME=codex` and `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
+- **Qwen** (`mcp/maestro-server.js`): launched from `qwen-extension.json`, directly requires `../src/mcp/maestro-server` and calls `.main()`
+- **Antigravity** (`antigravity/mcp/maestro-server.js`): launched as `node ${PLUGIN_ROOT}/mcp/maestro-server.js` from `antigravity/mcp_config.json`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
+- **Claude** (`claude/mcp/maestro-server.js`): uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
+- **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
+
+The server identifies its host runtime instead of assuming one. It takes `MAESTRO_RUNTIME` when that variable is set (an unknown value stops the server at startup); otherwise it takes the runtime whose config lists, in `mcpClientNames`, the `clientInfo.name` the MCP client sends in `initialize` (an entry ending in `*` matches any name with that prefix, since Qwen Code appends the server's key). There is no default runtime: when neither identifies one, the server still lists its tools, logs the reason, and fails every tool call with `RUNTIME_UNIDENTIFIED` and a recovery hint naming the valid `MAESTRO_RUNTIME` values. `findRuntimeConfigForClient()` in `src/mcp/runtime/runtime-config-map.js` does the lookup, and each client name may belong to one runtime only.
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
+
+When a runtime config sets `mcpToolMeta`, `src/mcp/core/create-server.js` lists it as every tool schema's `_meta`. Antigravity's `antigravity/alwaysLoad` marks the tools to register as native tools (`mcp_maestro_maestro_<tool>`) instead of loading them on demand.
 
 ### Workspace Resolution
 
@@ -172,7 +181,7 @@ To help the orchestrator choose that path, `get_runtime_context` returns a `work
 2. the first existing `file://` root in the MCP client's `roots/list` response
 3. the server's `cwd`
 
-Candidates inside an extension cache are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/core/project-root-cache.js`).
+When the client supports roots, the server requests them after `notifications/initialized` and again on every `notifications/roots/list_changed` (Antigravity sends these repeatedly, sometimes right after answering `roots/list`). Candidates inside an extension cache (`.codex/plugins`, `.claude/plugins`, and Antigravity's `~/.gemini/config/plugins` and `~/.gemini/antigravity-cli/plugins`; `src/core/cache-path-rejector.js`) are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/core/project-root-cache.js`).
 
 ### Tool Catalog
 
@@ -217,19 +226,24 @@ Hooks fire at session and agent boundaries to inject context and validate output
 
 | Runtime | Registration file | Events | Command |
 |---------|-------------------|--------|---------|
+| Antigravity | `antigravity/hooks.json` | `SessionStart` (session-start and before-agent handlers; fires for the main conversation and each subagent conversation); timeouts in seconds (10) | `node hooks/hook-runner.js antigravity <hook>`, run from the plugin root |
+| Antigravity | `antigravity/hooks.json` | `PreToolUse` (`run_command` matcher); 5-second timeout | `node hooks/policy-enforcer.js`, run from the plugin root |
 | Claude Code | `claude/hooks/claude-hooks.json` | `SessionStart`, `PreToolUse` (`Agent` matcher), `SessionEnd`; timeouts in seconds (10) | `node ${CLAUDE_PLUGIN_ROOT}/scripts/hook-runner.js claude <hook>` |
 | Claude Code | `claude/hooks/claude-hooks.json` | `PreToolUse` (`Bash` matcher); 5-second timeout | `node ${CLAUDE_PLUGIN_ROOT}/scripts/policy-enforcer.js` |
 | Qwen Code | `qwen/hooks.json` | `SessionStart`, `SubagentStart`, `SubagentStop`, `SessionEnd`; timeouts in milliseconds (10000) | `node ${extensionPath}/hooks/hook-runner.js qwen <hook>` |
 | Codex | — | none | — |
 
-`src/platforms/metadata.js` generates both registration files. Both hook runners load `src/platforms/shared/hook-runner.js`: Qwen's repo-root `hooks/hook-runner.js` directly, and `claude/scripts/hook-runner.js` from the repo `src/` when present, otherwise from the bundled `claude/src/`. The shared runner looks `<hook>` up in `src/generated/hook-registry.json`, normalizes stdin through `src/platforms/<runtime>/hook-adapter.js`, runs the matching `src/hooks/logic/<hook>-logic.js` handler, and formats the result for the host. Per-event behavior and the adapter field mappings are in [runtime-claude.md](runtime-claude.md#hooks) and [runtime-qwen.md](runtime-qwen.md#hooks).
+`src/platforms/metadata.js` generates all three registration files. Every hook runner loads `src/platforms/shared/hook-runner.js`: Qwen's repo-root `hooks/hook-runner.js` directly, and `antigravity/hooks/hook-runner.js` and `claude/scripts/hook-runner.js` from the repo `src/` when present, otherwise from the bundled `antigravity/src/` or `claude/src/`. The shared runner looks `<hook>` up in `src/generated/hook-registry.json`, normalizes stdin through `src/platforms/<runtime>/hook-adapter.js`, runs the matching `src/hooks/logic/<hook>-logic.js` handler, and formats the result for the host. Antigravity has no session-end or post-delegation event, so the orchestrator validates handoff reports itself there. Per-event behavior and the adapter field mappings are in [runtime-antigravity.md](runtime-antigravity.md#hooks), [runtime-claude.md](runtime-claude.md#hooks), and [runtime-qwen.md](runtime-qwen.md#hooks).
 
 ### Policy Enforcement
 
-Qwen and Claude apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
+Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
 
-- **Qwen**: the TOML policy pack `policies/maestro.toml`, generated from those rules by the Qwen builder in `src/platforms/metadata.js`
+- **Antigravity**: `src/platforms/antigravity/policy-enforcer.js`, run on `run_command` through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It answers `deny` for a deny rule, `force_ask` for an ask rule, and `ask` for any other command, which leaves the user's own permission settings in charge; it answers `deny` when the check cannot run
 - **Claude**: `src/platforms/claude/policy-enforcer.js`, run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
+- **Qwen**: the TOML policy pack `policies/maestro.toml`, generated from those rules by the Qwen builder in `src/platforms/metadata.js`
+
+Both JavaScript enforcers run `checkCommand()` from `src/core/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared stdin runner `src/platforms/shared/policy-enforcer.js`; they differ only in where they read the command and how they format the decision.
 
 ### Hook State
 

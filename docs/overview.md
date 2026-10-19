@@ -1,7 +1,8 @@
 # Maestro Overview
 
-Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as three runtime targets from a single canonical source tree:
+Maestro is a multi-agent development orchestration platform that coordinates 39 specialized AI agents through structured workflows. It runs as four runtime targets from a single canonical source tree:
 
+- **Antigravity plugin** (`antigravity/` subdirectory, for the Antigravity CLI `agy` and the Antigravity app)
 - **Claude Code plugin** (`claude/` subdirectory)
 - **Codex plugin** (`plugins/maestro/` subdirectory)
 - **Qwen Code extension** (repo root, which is Qwen Code's extension directory — the `qwen-extension.json` manifest, `QWEN.md` context file, generated `agents/` stubs, and the `commands/maestro/`, `policies/`, `mcp/`, and `hooks/` artifacts; only the generated `qwen/hooks.json` lives in the `qwen/` subdirectory)
@@ -30,7 +31,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | MCP tools | 17 |
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
-| Runtime targets | 3 |
+| Runtime targets | 4 |
 | Source transforms | 2 |
 
 ## Project Structure
@@ -45,7 +46,7 @@ maestro-orchestrate/
 │   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
 │   ├── generator/                # Generator modules (manifest and entry-point expansion, registries, pruning, payloads)
 │   ├── generated/                # [generated] Agent, resource, and hook registries
-│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 6 templates
+│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 8 templates
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
@@ -53,7 +54,7 @@ maestro-orchestrate/
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime configs, hook adapters, shared hook runner, Claude policy enforcer, metadata.js builders
+│   ├── platforms/                # Runtime configs, hook adapters, shared hook and policy-enforcer runners, Antigravity and Claude policy enforcers, metadata.js builders
 │   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
@@ -67,6 +68,17 @@ maestro-orchestrate/
 ├── policies/                     # [generated] Shell policy pack (Qwen)
 ├── .claude-plugin/               # [generated] Claude marketplace
 ├── .agents/plugins/              # [generated] Codex marketplace
+│
+├── antigravity/                  # Antigravity plugin
+│   ├── agents/                   # [generated] Antigravity agent stubs
+│   ├── skills/                   # [generated] Antigravity skills (19)
+│   ├── hooks/                    # Hook-runner and policy-enforcer shims
+│   ├── mcp/                      # MCP server shim
+│   ├── src/                      # [generated] Detached runtime payload
+│   ├── plugin.json               # [generated] Plugin manifest
+│   ├── mcp_config.json           # [generated] MCP server config
+│   ├── hooks.json                # [generated] Hook config
+│   └── README.md
 │
 ├── claude/                       # Claude Code plugin
 │   ├── agents/                   # [generated] Claude agent stubs

@@ -1,0 +1,96 @@
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } = require('../../lib/framework-detection');
+const { readJsonSafe } = require('../../lib/io');
+
+// First band whose `max` is >= the file count wins.
+const SIZE_BANDS = [
+  { max: 0, size: 'empty', loc: 'low' },
+  { max: 20, size: 'small', loc: 'low' },
+  { max: 200, size: 'medium', loc: 'moderate' },
+  { max: Infinity, size: 'large', loc: 'high' },
+];
+const TEST_DIRS = ['tests', '__tests__', 'test'];
+
+function countFiles(directory, depth, depthLimit) {
+  if (depth > depthLimit) {
+    return { count: 0, deepestLevel: depth };
+  }
+
+  let count = 0;
+  let deepestLevel = depth;
+
+  try {
+    const entries = fs.readdirSync(directory, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry.name)) {
+        continue;
+      }
+
+      if (entry.isFile()) {
+        count += 1;
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        const nested = countFiles(
+          path.join(directory, entry.name),
+          depth + 1,
+          depthLimit
+        );
+        count += nested.count;
+        deepestLevel = Math.max(deepestLevel, nested.deepestLevel);
+      }
+    }
+  } catch {}
+
+  return { count, deepestLevel };
+}
+
+function detectFrameworks(directory) {
+  const pkg = readJsonSafe(path.join(directory, 'package.json'));
+  if (!pkg) {
+    return [];
+  }
+
+  const allDependencies = {
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+  };
+
+  return Object.entries(FRAMEWORK_INDICATORS)
+    .filter(([, indicators]) =>
+      indicators.some((indicator) => indicator in allDependencies)
+    )
+    .map(([name]) => name);
+}
+
+function handleAssessTaskComplexity(_params, projectRoot) {
+  const { count: fileCount, deepestLevel } = countFiles(projectRoot, 0, 10);
+  const configFiles = CONFIG_FILES.filter((file) =>
+    fs.existsSync(path.join(projectRoot, file))
+  );
+  const sizeBand = SIZE_BANDS.find((band) => fileCount <= band.max);
+
+  return {
+    file_count: fileCount,
+    directory_depth: deepestLevel,
+    has_package_json: fs.existsSync(path.join(projectRoot, 'package.json')),
+    has_config_files: configFiles,
+    frameworks_detected: detectFrameworks(projectRoot),
+    existing_test_infrastructure: TEST_DIRS.some((dir) =>
+      fs.existsSync(path.join(projectRoot, dir))
+    ),
+    lines_of_code_estimate: sizeBand.loc,
+    repo_is_empty: fileCount === 0,
+    repo_size_estimate: sizeBand.size,
+  };
+}
+
+module.exports = {
+  handleAssessTaskComplexity,
+};

@@ -29,9 +29,21 @@ const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
 ]);
 
 /**
+ * src/ prefixes a runtime's payload carries beyond the base allowlist and its
+ * platform dir. Antigravity serves the script-based state contract rooted at
+ * its installed plugin dir (`${PLUGIN_ROOT}/src/scripts/...`), so its payload
+ * ships the state scripts.
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const RUNTIME_PAYLOAD_EXTRAS = Object.freeze({
+  antigravity: Object.freeze(['scripts/']),
+});
+
+/**
  * Build a payload allowlist for a specific runtime by extending the base
  * allowlist with that runtime's platform dir (its runtime config plus any
- * runtime-specific modules such as a hook adapter).
+ * runtime-specific modules such as a hook adapter) and any
+ * RUNTIME_PAYLOAD_EXTRAS entries.
  * @param {string} runtimeName
  * @returns {string[]}
  */
@@ -39,6 +51,7 @@ function buildPayloadAllowlist(runtimeName) {
   return [
     ...DETACHED_PAYLOAD_BASE_ALLOWLIST,
     `platforms/${runtimeName}/`,
+    ...(RUNTIME_PAYLOAD_EXTRAS[runtimeName] || []),
   ];
 }
 
@@ -97,6 +110,7 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName, version) {
 
 module.exports = {
   DETACHED_PAYLOAD_BASE_ALLOWLIST,
+  RUNTIME_PAYLOAD_EXTRAS,
   buildPayloadAllowlist,
   shouldIncludeInPayload,
   buildDetachedPayload,

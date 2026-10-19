@@ -17,6 +17,44 @@ const {
 const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 
+// Every file assertRuntimeManifestShape reads or requires.
+const RUNTIME_MANIFEST_FILES = [
+  '.agents/plugins/marketplace.json',
+  '.claude-plugin/marketplace.json',
+  'antigravity/hooks.json',
+  'antigravity/mcp_config.json',
+  'antigravity/plugin.json',
+  'antigravity/src/mcp/maestro-server.js',
+  'antigravity/src/version.json',
+  'bin/maestro-mcp-server.js',
+  'claude/.claude-plugin/plugin.json',
+  'claude/.mcp.json',
+  'claude/src/mcp/maestro-server.js',
+  'claude/src/version.json',
+  'package.json',
+  'plugins/maestro/.codex-plugin/plugin.json',
+  'plugins/maestro/.mcp.json',
+  'plugins/maestro/src/mcp/maestro-server.js',
+  'plugins/maestro/src/version.json',
+  'qwen-extension.json',
+];
+
+function copyRuntimeManifests() {
+  const tempRoot = makeTempDir('maestro-release-runtime-');
+  for (const relativePath of RUNTIME_MANIFEST_FILES) {
+    fs.mkdirSync(path.dirname(path.join(tempRoot, relativePath)), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, relativePath), path.join(tempRoot, relativePath));
+  }
+  return tempRoot;
+}
+
+function editJson(root, relativePath, edit) {
+  const filePath = path.join(root, relativePath);
+  const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  edit(content);
+  fs.writeFileSync(filePath, `${JSON.stringify(content, null, 2)}\n`, 'utf8');
+}
+
 describe('release artifact manifest', () => {
   it('uses an explicit allowlist for required release surfaces', () => {
     const expectedPaths = [
@@ -32,6 +70,8 @@ describe('release artifact manifest', () => {
       '.agents/plugins/marketplace.json',
       'claude',
       'plugins/maestro',
+      'antigravity',
+      'docs/runtime-antigravity.md',
       'bin',
       'src',
     ];
@@ -44,6 +84,8 @@ describe('release artifact manifest', () => {
     }
     // Repo-root agents/ holds the Qwen agent stubs (Qwen loads <extension>/agents/).
     assert.equal(isReleaseArtifactPathAllowed('agents/coder.md'), true);
+    assert.equal(isReleaseArtifactPathAllowed('antigravity/agents/coder.md'), true);
+    assert.equal(isReleaseArtifactPathAllowed('antigravity/src/mcp/maestro-server.js'), true);
   });
 
   it('ships no Gemini CLI surfaces', () => {
@@ -129,7 +171,78 @@ describe('release artifact manifest', () => {
     );
   });
 
+  it('names a missing antigravity runtime doc', () => {
+    const tempRoot = makeTempDir('maestro-release-antigravity-doc-');
+    for (const releasePath of RELEASE_ARTIFACT_PATHS.filter((entry) => entry !== 'docs/runtime-antigravity.md')) {
+      writeTree(tempRoot, releasePath);
+    }
+
+    assert.throws(
+      () => assertRequiredArtifactPaths(tempRoot),
+      { message: 'Required release artifact paths are missing: docs/runtime-antigravity.md' }
+    );
+  });
+
   it('keeps all runtime manifest versions aligned with package.json', () => {
     assert.doesNotThrow(() => assertRuntimeManifestShape(ROOT));
+  });
+
+  it('checks the antigravity plugin and detached payload versions', () => {
+    const pkgVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+    assert.equal(assertRuntimeManifestShape(copyRuntimeManifests()), pkgVersion);
+
+    for (const relativePath of ['antigravity/plugin.json', 'antigravity/src/version.json']) {
+      const tempRoot = copyRuntimeManifests();
+      editJson(tempRoot, relativePath, (content) => {
+        content.version = '0.0.0';
+      });
+
+      assert.throws(
+        () => assertRuntimeManifestShape(tempRoot),
+        { message: `Release manifest version mismatch; expected ${pkgVersion}: ${relativePath}=0.0.0` }
+      );
+    }
+  });
+
+  it('requires the antigravity plugin to be named maestro', () => {
+    const tempRoot = copyRuntimeManifests();
+    editJson(tempRoot, 'antigravity/plugin.json', (manifest) => {
+      manifest.name = 'maestro-orchestrate';
+    });
+
+    assert.throws(
+      () => assertRuntimeManifestShape(tempRoot),
+      { message: 'antigravity/plugin.json must name the plugin maestro' }
+    );
+  });
+
+  it('requires antigravity/mcp_config.json to launch the bundled MCP server', () => {
+    const edits = [
+      (config) => { delete config.mcpServers.maestro; },
+      (config) => { config.mcpServers.maestro.command = 'npx'; },
+      (config) => { config.mcpServers.maestro.args = ['${PLUGIN_ROOT}/src/mcp/maestro-server.js']; },
+    ];
+
+    for (const edit of edits) {
+      const tempRoot = copyRuntimeManifests();
+      editJson(tempRoot, 'antigravity/mcp_config.json', edit);
+
+      assert.throws(
+        () => assertRuntimeManifestShape(tempRoot),
+        { message: 'antigravity/mcp_config.json must launch the bundled Maestro MCP server' }
+      );
+    }
+  });
+
+  it('requires the antigravity hooks config and bundled MCP server', () => {
+    for (const relativePath of ['antigravity/hooks.json', 'antigravity/src/mcp/maestro-server.js']) {
+      const tempRoot = copyRuntimeManifests();
+      fs.rmSync(path.join(tempRoot, relativePath));
+
+      assert.throws(
+        () => assertRuntimeManifestShape(tempRoot),
+        { message: `Required runtime file missing: ${relativePath}` }
+      );
+    }
   });
 });

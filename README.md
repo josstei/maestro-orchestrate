@@ -2,16 +2,18 @@
 
 [![Version](https://img.shields.io/badge/version-1.6.4-blue)](https://github.com/josstei/maestro-orchestrate/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
+[![Antigravity](https://img.shields.io/badge/Antigravity-plugin-orange)](docs/runtime-antigravity.md)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://docs.anthropic.com/en/docs/claude-code)
 [![Codex](https://img.shields.io/badge/Codex-plugin-black)](docs/runtime-codex.md)
 [![Qwen Code](https://img.shields.io/badge/Qwen_Code-extension-purple)](https://github.com/QwenLM/qwen-code)
 
-Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Claude Code**, **Codex**, and **Qwen Code**.
+Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Antigravity**, **Claude Code**, **Codex**, and **Qwen Code**.
 
 ## Runtime Targets
 
 | Runtime | Location | Public Surface | Notes |
 |---------|----------|----------------|-------|
+| Antigravity | `antigravity/` | `/maestro:*` | Plugin skills, kebab-case subagents run with `invoke_subagent`, SessionStart and `run_command` policy hooks |
 | Claude Code | `claude/` | `/orchestrate`, `/review-code`, ... | Kebab-case agents with `maestro:` subagent names |
 | Codex | `plugins/maestro/` | `$maestro:*` | Plugin skills, `spawn_agent`, no runtime hooks |
 | Qwen Code | repo root + `qwen/hooks.json` | `/maestro:*` | Snake-case agents, TOML commands, `QWEN.md` context file, `SubagentStart`/`SubagentStop` hooks |
@@ -20,10 +22,28 @@ Maestro is a multi-agent development orchestration platform with 39 specialists,
 
 ### Prerequisites
 
-- One supported runtime: Claude Code, Codex, or Qwen Code
+- One supported runtime: Antigravity (the `agy` CLI or the Antigravity app), Claude Code, Codex, or Qwen Code
 - Node.js 20+ for the MCP server and helper scripts
 
 ### Installation
+
+#### Antigravity
+
+```bash
+agy plugin install https://github.com/josstei/maestro-orchestrate/tree/main/antigravity
+```
+
+Restart `agy` afterwards: Antigravity discovers a newly installed plugin only on startup. Verify with `agy plugin list`.
+
+Local development (link the plugin directory, then restart `agy`; a linked plugin loads but is not listed by `agy plugin list`):
+
+```bash
+git clone https://github.com/josstei/maestro-orchestrate
+mkdir -p ~/.gemini/config/plugins
+ln -s "$PWD/maestro-orchestrate/antigravity" ~/.gemini/config/plugins/maestro
+```
+
+More Antigravity-specific setup and runtime details live in [antigravity/README.md](antigravity/README.md) and [docs/runtime-antigravity.md](docs/runtime-antigravity.md).
 
 #### Claude Code
 
@@ -85,6 +105,7 @@ Start a full orchestration with the runtime-specific entrypoint:
 
 | Runtime | Example |
 |---------|---------|
+| Antigravity | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Claude Code | `/orchestrate Build a REST API for a task management system with user authentication` |
 | Codex | `$maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Qwen Code | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
@@ -115,22 +136,24 @@ Defaults work; these settings tune behavior:
 
 ## Commands
 
-| Capability | Claude Code | Codex | Qwen Code |
-|------------|-------------|-------|-----------|
-| Orchestrate | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
-| Execute | `/execute` | `$maestro:execute` | `/maestro:execute` |
-| Resume | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
-| Status | `/status` | `$maestro:status` | `/maestro:status` |
-| Archive | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Review | `/review-code` | `$maestro:review-code` | `/maestro:review` |
-| Debug | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
-| Security Audit | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
-| Performance Check | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
-| SEO Audit | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
-| Accessibility Audit | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
-| Compliance Check | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
+| Capability | Antigravity | Claude Code | Codex | Qwen Code |
+|------------|-------------|-------------|-------|-----------|
+| Orchestrate | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
+| Execute | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
+| Resume | `/maestro:resume-session` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
+| Status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
+| Archive | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
+| Review | `/maestro:review-code` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
+| Debug | `/maestro:debug-workflow` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
+| Security Audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
+| Performance Check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
+| SEO Audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
+| Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
+| Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
 For Claude Code and Codex, Maestro intentionally avoids bare skill names that collide with host commands. Use `/review-code`, `/debug-workflow`, and `/resume-session` in Claude Code, and `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` in Codex, so built-in `/review`, `/debug`, and `/resume` commands keep working.
+
+Antigravity has a built-in `/resume`, so it uses the same remapped names under its plugin namespace: `/maestro:review-code`, `/maestro:debug-workflow`, and `/maestro:resume-session`.
 
 Qwen Code does not remap any entry point; it keeps `/maestro:review`, `/maestro:debug`, and `/maestro:resume`.
 
@@ -158,13 +181,14 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
 - [docs/maestro-cheatsheet.md](docs/maestro-cheatsheet.md) for a one-page command and runtime quick reference
 - [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
+- [docs/runtime-antigravity.md](docs/runtime-antigravity.md) for Antigravity runtime specifics
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
 - [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
 - [docs/runtime-qwen.md](docs/runtime-qwen.md) for Qwen runtime specifics
 
 ## Development and Release Validation
 
-Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `policies/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
+Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `policies/`, `antigravity/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
 
 ```bash
 npm ci
@@ -176,7 +200,7 @@ npm run release:artifacts
 npm run release:verify-artifacts
 ```
 
-Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payload needed by Qwen Code, Claude Code, and Codex.
+Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payloads needed by Antigravity (`antigravity/`), Claude Code, Codex, and Qwen Code.
 
 Stable releases publish three aligned outputs:
 
@@ -184,7 +208,7 @@ Stable releases publish three aligned outputs:
 - npm package `@josstei/maestro@X.Y.Z`
 - GitHub Release asset `maestro-vX.Y.Z-extension.tar.gz`
 
-Codex plugin releases launch the MCP server through the matching npm package version. Hook installation is explicit via `npm run install-hooks`; package, pack, and publish flows do not install git hooks.
+Codex plugin releases launch the MCP server through the matching npm package version. The Antigravity plugin is self-contained: an installed copy runs the MCP server and hooks from its bundled `antigravity/src/`. Hook installation is explicit via `npm run install-hooks`; package, pack, and publish flows do not install git hooks.
 
 ## License
 

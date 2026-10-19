@@ -41,6 +41,7 @@ describe('collectRegistryOutputs', () => {
       fs.readFileSync(path.join(ROOT, 'src', 'generated', 'hook-registry.json'), 'utf8')
     );
     const hookConfigs = [
+      path.join('antigravity', 'hooks.json'),
       path.join('qwen', 'hooks.json'),
       path.join('claude', 'hooks', 'claude-hooks.json'),
     ];
@@ -50,7 +51,7 @@ describe('collectRegistryOutputs', () => {
     for (const configPath of hookConfigs) {
       const config = fs.readFileSync(path.join(ROOT, configPath), 'utf8');
       for (const [, runtime, hookName] of config.matchAll(/hook-runner\.js (\w+) ([a-z-]+)/g)) {
-        assert.ok(['claude', 'qwen'].includes(runtime), `${configPath}: ${runtime}`);
+        assert.ok(['antigravity', 'claude', 'qwen'].includes(runtime), `${configPath}: ${runtime}`);
         registered.add(hookName);
       }
     }

@@ -2,9 +2,12 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { DENY_RULES, ASK_RULES, matchRule } = require('../../src/core/policy-rules');
+const { DENY_RULES, ASK_RULES, matchRule, checkCommand } = require('../../src/core/policy-rules');
 
 const VALID_MATCH_TYPES = new Set(['prefix', 'regex', 'word']);
+const DOLLAR = '$';
+const BACKTICK = '`';
+const BACKSLASH = '\\';
 
 const RULE_LISTS = {
   DENY_RULES: { rules: DENY_RULES, count: 11 },
@@ -148,6 +151,61 @@ describe('policy-rules', () => {
 
     it('never matches an unknown matchType', () => {
       assert.equal(matchRule({ matchType: 'glob', pattern: '*', reason: 'test' }, 'anything'), false);
+    });
+  });
+
+  describe('checkCommand', () => {
+    it('allows a command that matches no rule', () => {
+      assert.deepEqual(checkCommand('git status --short'), { action: 'allow' });
+      assert.deepEqual(checkCommand(''), { action: 'allow' });
+    });
+
+    it('returns the reason of the matching deny or ask rule', () => {
+      assert.deepEqual(checkCommand('rm -rf build'), { action: 'deny', reason: 'Recursive force delete' });
+      assert.deepEqual(checkCommand('echo hi | tee out.txt'), { action: 'ask', reason: 'Writes to file and stdout' });
+      assert.deepEqual(checkCommand('echo hi > out.txt'), { action: 'ask', reason: 'Shell output redirection' });
+    });
+
+    it('checks every segment split on ;, |, && and ||', () => {
+      for (const command of [
+        'ls && git clean -fd',
+        'echo a; git reset --hard',
+        'cat notes.txt || rm -fr build',
+        'git status | git checkout -- src',
+      ]) {
+        assert.equal(checkCommand(command).action, 'deny', command);
+      }
+    });
+
+    it('lets a deny rule win over any ask rule, including one in an earlier segment', () => {
+      assert.deepEqual(checkCommand('echo hi > out.txt && rm -rf build'), {
+        action: 'deny',
+        reason: 'Recursive force delete',
+      });
+      assert.equal(checkCommand('cat <<EOF > notes.md').action, 'deny');
+    });
+
+    it('checks the commands inside dollar and backtick substitutions, nested or not', () => {
+      for (const command of [
+        `echo ${DOLLAR}(git reset --hard)`,
+        `echo "${DOLLAR}(rm -rf build)"`,
+        `echo ${DOLLAR}(printf %s "${DOLLAR}(git checkout -- src)")`,
+        `echo ${BACKTICK}rm -rf build${BACKTICK}`,
+        `echo ${BACKTICK}printf %s "${BACKSLASH}${BACKTICK}git reset --hard${BACKSLASH}${BACKTICK}"${BACKTICK}`,
+      ]) {
+        assert.equal(checkCommand(command).action, 'deny', command);
+      }
+      assert.deepEqual(checkCommand(`echo ${DOLLAR}(printf %s "${DOLLAR}(pwd)")`), { action: 'allow' });
+    });
+
+    it('treats single-quoted text as literal', () => {
+      assert.deepEqual(checkCommand(`echo '${DOLLAR}(rm -rf build)'`), { action: 'allow' });
+      assert.deepEqual(checkCommand("echo 'a; rm -rf build'"), { action: 'allow' });
+    });
+
+    it('throws on an unterminated command substitution', () => {
+      assert.throws(() => checkCommand(`echo ${DOLLAR}(rm -rf build`), /Unterminated \$\(\.\.\.\) command substitution/);
+      assert.throws(() => checkCommand(`echo ${BACKTICK}pwd`), /Unterminated backtick command substitution/);
     });
   });
 });

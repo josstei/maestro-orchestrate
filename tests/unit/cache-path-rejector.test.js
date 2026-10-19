@@ -14,6 +14,8 @@ describe('cache-path-rejector', () => {
     assert.deepEqual(CACHE_PATH_SEGMENTS, [
       path.join('.codex', 'plugins'),
       path.join('.claude', 'plugins'),
+      path.join('.gemini', 'config', 'plugins'),
+      path.join('.gemini', 'antigravity-cli', 'plugins'),
     ]);
   });
 
@@ -31,9 +33,37 @@ describe('cache-path-rejector', () => {
     );
   });
 
+  it('rejects Antigravity plugin install paths', () => {
+    assert.equal(
+      isExtensionCachePath('/Users/me/.gemini/config/plugins/maestro'),
+      true
+    );
+    assert.equal(
+      isExtensionCachePath('/Users/me/.gemini/antigravity-cli/plugins/maestro/mcp'),
+      true
+    );
+  });
+
   it('rejects the cache directory itself, not only paths below it', () => {
     assert.equal(isExtensionCachePath('/Users/me/.codex/plugins'), true);
     assert.equal(isExtensionCachePath('/Users/me/.claude/plugins'), true);
+    assert.equal(isExtensionCachePath('/Users/me/.gemini/config/plugins'), true);
+    assert.equal(isExtensionCachePath('/Users/me/.gemini/antigravity-cli/plugins'), true);
+  });
+
+  it('requires every segment of a multi-segment cache directory, contiguous and in order', () => {
+    for (const candidate of [
+      '/a/config/plugins',
+      '/Users/me/.gemini/config',
+      '/Users/me/.gemini/plugins',
+      '/Users/me/.gemini/antigravity-cli',
+      '/Users/me/.gemini/x/config/plugins',
+      '/Users/me/config/plugins/.gemini',
+      '/Users/me/.gemini/config/plugins-research',
+      '/Users/me/dev/.gemini-config/plugins',
+    ]) {
+      assert.equal(isExtensionCachePath(candidate), false, candidate);
+    }
   });
 
   it('no longer treats Gemini CLI extension directories as a cache', () => {

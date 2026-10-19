@@ -27,6 +27,7 @@
 
 <!-- Which runtimes are affected? Check all that apply. -->
 
+- [ ] Antigravity
 - [ ] Claude Code
 - [ ] Codex
 - [ ] Qwen Code

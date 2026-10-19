@@ -13,8 +13,8 @@ const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
 /**
  * Host command names that must never appear as public skill names. Claude
  * /review shadows the built-in PR review command and Codex review, debug and
- * resume conflict with built-ins; Claude debug and resume are reserved
- * defensively.
+ * resume conflict with built-ins; Antigravity has a built-in /resume; Claude
+ * debug and resume and Antigravity review and debug are reserved defensively.
  */
 const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
 
@@ -23,6 +23,15 @@ const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
  * output location per runtime.
  */
 const RUNTIME_ENTRY_POINTS = {
+  // Antigravity turns every plugin skill into a /maestro:<name> command.
+  antigravity: {
+    outputPath: (e) => `antigravity/skills/${e.name}/SKILL.md`,
+    templates: {
+      'entry-point': 'antigravity-skill.md.tmpl',
+      'core-command': 'antigravity-core-command.md.tmpl',
+    },
+    reservedNames: HOST_RESERVED_NAMES,
+  },
   claude: {
     outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
     templates: {

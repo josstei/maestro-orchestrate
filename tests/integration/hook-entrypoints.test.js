@@ -3,20 +3,22 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+const markdownState = require('../../src/core/markdown-state');
 const { makeTempDir } = require('../support/fs');
-const { ROOT, withIsolatedClaudePlugin } = require('./helpers');
+const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
 
 // Hooks keep per-session state under MAESTRO_HOOKS_DIR; give them a private
 // one instead of the shared default under os.tmpdir().
 const HOOKS_DIR = makeTempDir('maestro-hooks-test-');
 
-function runHook(relativePath, runtime, hookName, input, cwd = ROOT) {
+function runHook(relativePath, runtime, hookName, input, cwd = ROOT, env = {}) {
   return spawnSync(process.execPath, [relativePath, runtime, hookName], {
     cwd,
-    env: { ...process.env, MAESTRO_HOOKS_DIR: HOOKS_DIR },
+    env: { ...process.env, MAESTRO_HOOKS_DIR: HOOKS_DIR, ...env },
     input: typeof input === 'string' ? input : `${JSON.stringify(input)}\n`,
     encoding: 'utf8',
   });
@@ -46,6 +48,63 @@ const BOOT_CASES = [
     hooks: CLAUDE_HOOKS,
   },
 ];
+
+// Antigravity runs hooks from the plugin root and names the workspace in a
+// camelCase payload, so session state is read from workspacePaths[0].
+const ANTIGRAVITY_PLUGIN_ROOT = path.join(ROOT, 'antigravity');
+
+function runAntigravityHook(pluginRoot, hookName, input) {
+  return runHook('hooks/hook-runner.js', 'antigravity', hookName, input, pluginRoot, {
+    // Keep temp workspaces from resolving to an enclosing checkout.
+    GIT_CEILING_DIRECTORIES: fs.realpathSync(os.tmpdir()),
+  });
+}
+
+// Each workspace gets its own conversation, named after its unique temp dir.
+function antigravityPayload(workspace) {
+  return {
+    conversationId: path.basename(workspace),
+    workspacePaths: [workspace],
+    transcriptPath: path.join(workspace, 'transcript.jsonl'),
+    artifactDirectoryPath: path.join(workspace, 'artifacts'),
+    modelName: 'example-model',
+  };
+}
+
+function makeWorkspace(prefix, session = null) {
+  const workspace = makeTempDir(prefix);
+  if (session) {
+    const sessionFilePath = path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md');
+    fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
+    fs.writeFileSync(sessionFilePath, markdownState.serialize(session, '# Session\n'), 'utf8');
+  }
+  return workspace;
+}
+
+function assertAntigravitySessionHooks(pluginRoot) {
+  const idle = antigravityPayload(makeWorkspace('maestro-antigravity-idle-'));
+  for (const hookName of ['session-start', 'before-agent']) {
+    const result = runAntigravityHook(pluginRoot, hookName, idle);
+
+    assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+    assert.deepEqual(JSON.parse(result.stdout), {}, `${hookName} without an active session`);
+  }
+
+  const active = antigravityPayload(
+    makeWorkspace('maestro-antigravity-active-', { session_id: 's1', status: 'in_progress', current_phase: 2 })
+  );
+
+  const start = runAntigravityHook(pluginRoot, 'session-start', active);
+  assert.equal(start.status, 0, `session-start exited non-zero: ${start.stderr}`);
+  assert.deepEqual(JSON.parse(start.stdout), {});
+  assert.ok(fs.existsSync(path.join(HOOKS_DIR, active.conversationId)), 'session-start must create hook state');
+
+  const context = runAntigravityHook(pluginRoot, 'before-agent', active);
+  assert.equal(context.status, 0, `before-agent exited non-zero: ${context.stderr}`);
+  assert.deepEqual(JSON.parse(context.stdout), {
+    injectSteps: [{ systemMessage: { systemMessage: 'Active session: current_phase=2, status=in_progress' } }],
+  });
+}
 
 describe('hook entrypoints', () => {
   for (const bootCase of BOOT_CASES) {
@@ -81,6 +140,32 @@ describe('hook entrypoints', () => {
         decision: 'block',
       });
     });
+  });
+
+  it('boots antigravity SessionStart hooks from the plugin root against canonical src hook logic', () => {
+    assertAntigravitySessionHooks(ANTIGRAVITY_PLUGIN_ROOT);
+  });
+
+  it('boots installed antigravity hooks from an isolated plugin copy', async () => {
+    await withIsolatedAntigravityPlugin(async (pluginRoot) => {
+      assertAntigravitySessionHooks(pluginRoot);
+
+      // The bundled src/ carries only the antigravity and shared platform dirs.
+      const result = runHook('hooks/hook-runner.js', 'claude', 'session-start', {}, pluginRoot);
+      assert.equal(result.status, 1);
+      assert.equal(result.stderr, 'Unknown runtime: claude\n');
+      assert.equal(result.stdout, '');
+    });
+  });
+
+  it('answers antigravity with {} and exits 0 when stdin is not JSON', () => {
+    for (const hookName of ['session-start', 'before-agent']) {
+      const result = runAntigravityHook(ANTIGRAVITY_PLUGIN_ROOT, hookName, 'not-json');
+
+      assert.equal(result.status, 0, `exit code for ${hookName}`);
+      assert.match(result.stderr, /^Hook error: /);
+      assert.deepEqual(JSON.parse(result.stdout), {});
+    }
   });
 
   it('rejects a runtime without a hook adapter in the repo install, including the removed gemini runtime', () => {

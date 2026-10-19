@@ -157,6 +157,34 @@ describe('pruneStaleFiles', () => {
     assert.ok(fs.existsSync(path.join(rootDir, 'claude', 'agents', 'legacy.md')));
   });
 
+  it('prunes owned subdirectories of a plugin dir without touching its other files', () => {
+    writeTree(rootDir, 'antigravity/agents/coder.md', 'coder');
+    writeTree(rootDir, 'antigravity/agents/retired.md', 'stale');
+    writeTree(rootDir, 'antigravity/skills/orchestrate/SKILL.md', 'orchestrate');
+    writeTree(rootDir, 'antigravity/skills/retired/SKILL.md', 'stale');
+    writeTree(rootDir, 'antigravity/hooks/hook-runner.js', 'shim');
+    writeTree(rootDir, 'antigravity/mcp/maestro-server.js', 'shim');
+    writeTree(rootDir, 'antigravity/README.md', 'readme');
+
+    const result = pruneStaleFiles({
+      rootDir,
+      manifestPaths: new Set([
+        'antigravity/agents/coder.md',
+        'antigravity/skills/orchestrate/SKILL.md',
+      ]),
+      ownedDirs: ['antigravity/agents', 'antigravity/skills'],
+    });
+
+    assert.deepEqual(result.pruned.sort(), [
+      'antigravity/agents/retired.md',
+      'antigravity/skills/retired/SKILL.md',
+    ]);
+    assert.deepEqual(result.emptyDirsRemoved, ['antigravity/skills/retired']);
+    for (const kept of ['hooks/hook-runner.js', 'mcp/maestro-server.js', 'README.md']) {
+      assert.ok(fs.existsSync(path.join(rootDir, 'antigravity', kept)), kept);
+    }
+  });
+
   it('does not remove non-empty directories', () => {
     writeTree(rootDir, 'agents/sub/keep.md', 'keep');
     writeTree(rootDir, 'agents/sub/stale.md', 'stale');

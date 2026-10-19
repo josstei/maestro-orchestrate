@@ -7,6 +7,10 @@ module.exports = {
   agentNaming: 'kebab-case',
   agentPrefix: 'maestro:',
 
+  // clientInfo.name Claude Code sends in MCP initialize; the server identifies
+  // its host runtime by it.
+  mcpClientNames: ['claude-code'],
+
   mcpPrefix: 'mcp__plugin_maestro_maestro__',
   planModeNative: true,
 
