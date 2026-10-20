@@ -74,6 +74,22 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
+  it('says the client has not sent initialize when a tool is called before it', async () => {
+    const client = spawnMcpServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' });
+    try {
+      await client.ready;
+      const result = await client.callTool('get_runtime_context');
+
+      assert.equal(result.parsed.code, 'RUNTIME_UNIDENTIFIED');
+      assert.equal(
+        result.parsed.error,
+        'Maestro could not identify its host runtime: MAESTRO_RUNTIME is not set and the MCP client has not sent initialize yet.'
+      );
+    } finally {
+      await client.close();
+    }
+  });
+
   it('serves the runtime MAESTRO_RUNTIME names over the one the client identifies', async () => {
     await withServer(
       {

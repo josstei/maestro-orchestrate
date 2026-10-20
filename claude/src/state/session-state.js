@@ -83,15 +83,6 @@ function resolveActiveSessionPath(cwd) {
   return activeSessionFile(resolveStateDirPath(cwd));
 }
 
-function hasActiveSession(cwd) {
-  try {
-    const sessionPath = resolveActiveSessionPath(cwd);
-    return fs.existsSync(sessionPath);
-  } catch {
-    return false;
-  }
-}
-
 function readState(relativePath, basePath) {
   return fs.readFileSync(joinRelative(basePath, relativePath), 'utf8');
 }
@@ -204,7 +195,6 @@ module.exports = {
   resolveStateDirSetting,
   resolveStateDirPath,
   resolveActiveSessionPath,
-  hasActiveSession,
   readState,
   writeState,
   readActiveSession,

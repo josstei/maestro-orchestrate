@@ -24,7 +24,7 @@ const DEFAULT_TOOL_PACKS = Object.freeze([
 
 /** The RUNTIME_UNIDENTIFIED failure, saying why `session` has no runtime. */
 function runtimeUnidentified(session) {
-  let reason = 'the MCP client has not sent initialize yet';
+  let reason = 'MCP client has not sent initialize yet';
   if (session) {
     const clientName = session.clientInfo && typeof session.clientInfo.name === 'string'
       ? session.clientInfo.name

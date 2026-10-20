@@ -17,7 +17,7 @@ function createToolPack({ services }) {
       {
         name: 'initialize_workspace',
         description:
-          'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback. Writes a workspace marker for session persistence.',
+          'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback.',
         inputSchema: {
           type: 'object',
           properties: {

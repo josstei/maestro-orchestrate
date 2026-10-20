@@ -39,6 +39,8 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
     }
   }
 
+  // Nothing else creates `<baseDir>/<sessionId>/`: atomicWriteSync makes the
+  // session directory (mode 0o700) before the first write.
   function setActiveAgent(sessionId, agentName) {
     if (!isValidSessionId(sessionId)) return false;
     atomicWriteSync(activeAgentFile(sessionId), agentName);
@@ -57,13 +59,6 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
     } catch {}
   }
 
-  function ensureSessionDir(sessionId) {
-    if (!isValidSessionId(sessionId)) return false;
-    ensurePrivateDir(baseDir, BASE_DIR_SYMLINK_MESSAGE);
-    fs.mkdirSync(path.join(baseDir, sessionId), { recursive: true, mode: 0o700 });
-    return true;
-  }
-
   function removeSessionDir(sessionId) {
     if (!isValidSessionId(sessionId)) return false;
     try {
@@ -77,7 +72,6 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
     setActiveAgent,
     getActiveAgent,
     clearActiveAgent,
-    ensureSessionDir,
     removeSessionDir,
   };
 }

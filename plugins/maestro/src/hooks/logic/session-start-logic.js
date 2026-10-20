@@ -1,20 +1,17 @@
 'use strict';
 
-const { resolveHookWorkspaceRoot } = require('../../core/project-root-resolver');
 const hookState = require('./hook-state');
-const state = require('../../state/session-state');
 
 /**
- * Session-start hook logic (runtime-agnostic).
+ * Session-start hook logic (runtime-agnostic). It only prunes stale hook
+ * state, so it needs nothing from the hook context: the per-session directory
+ * is created by before-agent when it records the active agent, and removed by
+ * session-end.
  *
- * @param {object} ctx - Internal context contract
- * @param {string} ctx.sessionId
- * @param {string} ctx.cwd
  * @returns {{ action: string, message: null, reason: null }}
  */
-function handleSessionStart(ctx) {
+function handleSessionStart() {
   hookState.pruneStale();
-  if (state.hasActiveSession(resolveHookWorkspaceRoot(ctx.cwd))) hookState.ensureSessionDir(ctx.sessionId);
   return { action: 'advisory', message: null, reason: null };
 }
 

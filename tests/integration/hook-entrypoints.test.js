@@ -90,13 +90,16 @@ function assertAntigravitySessionHooks(pluginRoot) {
   const start = runAntigravityHook(pluginRoot, 'session-start', active);
   assert.equal(start.status, 0, `session-start exited non-zero: ${start.stderr}`);
   assert.deepEqual(JSON.parse(start.stdout), {});
-  assert.ok(fs.existsSync(path.join(HOOKS_DIR, active.conversationId)), 'session-start must create hook state');
 
   const context = runAntigravityHook(pluginRoot, 'before-agent', active);
   assert.equal(context.status, 0, `before-agent exited non-zero: ${context.stderr}`);
   assert.deepEqual(JSON.parse(context.stdout), {
     injectSteps: [{ systemMessage: { systemMessage: 'Active session: current_phase=2, status=in_progress' } }],
   });
+  // Antigravity has no session-end hook and its payload names no agent, so
+  // neither hook may leave per-conversation hook state behind.
+  assert.equal(fs.existsSync(path.join(HOOKS_DIR, active.conversationId)), false,
+    'Antigravity hooks must not create per-conversation hook state');
 }
 
 describe('hook entrypoints', () => {
@@ -209,6 +212,29 @@ describe('hook entrypoints', () => {
     assert.equal(result.status, 0);
     assert.match(result.stderr, /^Hook error: /);
     assert.deepEqual(JSON.parse(result.stdout), { continue: true, decision: 'allow' });
+  });
+
+  it('starts a session when a file blocks its per-session hook-state path', () => {
+    // session-start used to create <MAESTRO_HOOKS_DIR>/<session> while a session
+    // was active, so a file in the way made it fail (Claude: continue false).
+    const sessionId = 'blocked-session';
+    const blocker = path.join(HOOKS_DIR, sessionId);
+    fs.writeFileSync(blocker, 'x');
+    const workspace = makeWorkspace('maestro-blocked-', { session_id: 's1', status: 'in_progress', current_phase: 2 });
+    try {
+      const input = { session_id: sessionId, cwd: workspace, hook_event_name: 'SessionStart' };
+      const claude = runHook('claude/scripts/hook-runner.js', 'claude', 'session-start', input);
+      const qwen = runHook('hooks/hook-runner.js', 'qwen', 'session-start', input);
+
+      assert.equal(claude.status, 0);
+      assert.equal(claude.stderr, '');
+      assert.deepEqual(JSON.parse(claude.stdout), { continue: true, decision: 'approve' });
+      assert.equal(qwen.status, 0);
+      assert.equal(qwen.stderr, '');
+      assert.deepEqual(JSON.parse(qwen.stdout), {});
+    } finally {
+      fs.rmSync(blocker, { force: true });
+    }
   });
 
   it('boots qwen hook adapters against canonical src hook logic', () => {
