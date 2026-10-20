@@ -1,8 +1,9 @@
 'use strict';
 
-const { toSnakeCase } = require('../lib/naming');
+const { toNamingConvention } = require('../lib/naming');
 const { parse, escapeYaml } = require('../lib/frontmatter');
 const { emitBlockList } = require('../lib/yaml-emit');
+const { mapTools } = require('../core/agent-tools');
 
 /**
  * Per-field emitters, keyed by the names runtime configs list in
@@ -13,9 +14,9 @@ const { emitBlockList } = require('../lib/yaml-emit');
  *   - `name`         - agent name in the runtime's naming convention
  *   - `frontmatter`  - parsed input frontmatter
  *   - `description`  - final description (may have examples appended for claude)
- *   - `tools`        - resolved tool list (explicit `tools.<runtime>` override,
- *                      otherwise the canonical list mapped through
- *                      runtime.tools), without duplicates
+ *   - `tools`        - resolved tool list (the `tools.<runtime>` override,
+ *                      else `tools`, each mapped through runtime.tools),
+ *                      without duplicates
  *   - `runtime`      - full runtime config
  *   - `fm`           - runtime.agentFrontmatter config (shape hints)
  */
@@ -51,19 +52,6 @@ const FIELDS = {
       ? [`${ctx.fm.turnsField}: ${ctx.frontmatter.max_turns}`]
       : [],
 };
-
-function resolveTools(frontmatter, runtime) {
-  const overrideKey = `tools.${runtime.name}`;
-  if (frontmatter[overrideKey]) {
-    return frontmatter[overrideKey];
-  }
-
-  // Several canonical tools can map to one runtime tool (Antigravity reads
-  // single files, many files and skills all with view_file).
-  return [...new Set((frontmatter.tools || []).flatMap(
-    (tool) => (runtime.tools && runtime.tools[tool]) || tool
-  ))];
-}
 
 function buildDescription(baseDescription, examples) {
   if (examples.length > 0) {
@@ -122,16 +110,11 @@ function agentStub(content, runtime) {
   const examples = runtime.features?.exampleBlocks ? extractExamples(body) : [];
   const fm = runtime.agentFrontmatter;
 
-  const name =
-    runtime.agentNaming === 'snake_case'
-      ? toSnakeCase(frontmatter.name)
-      : frontmatter.name;
-
   const ctx = {
-    name,
+    name: toNamingConvention(frontmatter.name, runtime.agentNaming),
     frontmatter,
     description: buildDescription(frontmatter.description || '', examples),
-    tools: resolveTools(frontmatter, runtime),
+    tools: mapTools(frontmatter, runtime),
     runtime,
     fm,
   };
