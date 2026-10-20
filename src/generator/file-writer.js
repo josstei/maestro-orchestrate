@@ -61,19 +61,6 @@ function executeDryRun(absOutputPath, content, displayPath) {
 }
 
 /**
- * @param {string} absOutputPath
- * @param {string} content
- * @param {{ written: number, unchanged: number, errors: number }} stats
- */
-function executeWrite(absOutputPath, content, stats) {
-  if (writeIfChanged(absOutputPath, content)) {
-    stats.written++;
-  } else {
-    stats.unchanged++;
-  }
-}
-
-/**
  * @typedef {Object} FileWriterOptions
  * @property {string} rootDir - Absolute path to the project root directory
  * @property {boolean} [dryRun=false] - Log intended actions without writing files
@@ -118,8 +105,10 @@ function createFileWriter(opts) {
         executeDiff(absOutputPath, content, outputPath);
       } else if (dryRun) {
         executeDryRun(absOutputPath, content, outputPath);
+      } else if (writeIfChanged(absOutputPath, content)) {
+        stats.written++;
       } else {
-        executeWrite(absOutputPath, content, stats);
+        stats.unchanged++;
       }
     } catch (err) {
       console.error(`ERROR writing ${outputPath}: ${err.message}`);
@@ -174,4 +163,4 @@ function createFileWriter(opts) {
   return { write, writeAll, clean, reportError, getStats };
 }
 
-module.exports = { createFileWriter, safeResolve };
+module.exports = { createFileWriter };

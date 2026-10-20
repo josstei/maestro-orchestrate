@@ -5,39 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createFileWriter, safeResolve } = require('../../src/generator/file-writer');
+const { createFileWriter } = require('../../src/generator/file-writer');
 const { makeTempDir } = require('../support/fs');
 
 let tempRoot;
 
 beforeEach(() => {
   tempRoot = makeTempDir('maestro-fw-');
-});
-
-describe('safeResolve', () => {
-  it('resolves a relative path within the root directory', () => {
-    const resolved = safeResolve('sub/file.txt', tempRoot);
-    assert.equal(resolved, path.join(tempRoot, 'sub', 'file.txt'));
-  });
-
-  it('throws on path traversal attempting to escape root', () => {
-    assert.throws(
-      () => safeResolve('../../../etc/passwd', tempRoot),
-      /Path traversal detected/
-    );
-  });
-
-  it('throws on absolute path that escapes root', () => {
-    assert.throws(
-      () => safeResolve('/etc/passwd', tempRoot),
-      /Path traversal detected/
-    );
-  });
-
-  it('allows resolving to the root directory itself', () => {
-    const resolved = safeResolve('.', tempRoot);
-    assert.equal(resolved, tempRoot);
-  });
 });
 
 describe('FileWriter write', () => {
@@ -93,13 +67,19 @@ describe('FileWriter write', () => {
     assert.equal(stats.unchanged, 0);
   });
 
-  it('tracks errors when path traversal is detected', () => {
+  it('refuses relative and absolute paths that escape the root, counting each as an error', (t) => {
+    t.mock.method(console, 'error', () => {});
     const writer = createFileWriter({ rootDir: tempRoot });
     writer.write('../../../etc/passwd', 'malicious');
+    writer.write('/etc/passwd', 'malicious');
 
     const stats = writer.getStats();
-    assert.equal(stats.errors, 1);
+    assert.equal(stats.errors, 2);
     assert.equal(stats.written, 0);
+    assert.deepEqual(console.error.mock.calls.map((c) => c.arguments[0]), [
+      'ERROR writing ../../../etc/passwd: Path traversal detected: "../../../etc/passwd" resolves outside project root',
+      'ERROR writing /etc/passwd: Path traversal detected: "/etc/passwd" resolves outside project root',
+    ]);
   });
 });
 
@@ -277,7 +257,7 @@ describe('FileWriter clean', () => {
     assert.equal(fs.existsSync(filePath), true);
   });
 
-  it('validates paths through safeResolve', () => {
+  it('refuses a path that escapes the root', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
 
     assert.throws(
