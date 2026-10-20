@@ -10,7 +10,6 @@ const {
   normalizeAgentName,
   detectAgentFromPrompt,
   getAgentCapability,
-  canCreateFiles,
 } = require('../../src/core/agent-registry');
 const { AGENT_COUNT } = require('../support/catalog');
 const { withEnv } = require('../support/env');
@@ -173,38 +172,9 @@ describe('getAgentCapability', () => {
     assert.equal(getAgentCapability(''), null);
     assert.equal(getAgentCapability('fake-agent'), null);
   });
-});
 
-describe('canCreateFiles', () => {
-  it('returns true for read_write agents', () => {
-    assert.equal(canCreateFiles('technical_writer'), true);
-    assert.equal(canCreateFiles('product_manager'), true);
-    assert.equal(canCreateFiles('ux_designer'), true);
-    assert.equal(canCreateFiles('copywriter'), true);
-  });
-
-  it('returns true for full agents', () => {
-    assert.equal(canCreateFiles('coder'), true);
-    assert.equal(canCreateFiles('data_engineer'), true);
-    assert.equal(canCreateFiles('devops_engineer'), true);
-    assert.equal(canCreateFiles('tester'), true);
-    assert.equal(canCreateFiles('refactor'), true);
-  });
-
-  it('returns false for read_only agents', () => {
-    assert.equal(canCreateFiles('architect'), false);
-    assert.equal(canCreateFiles('code_reviewer'), false);
-    assert.equal(canCreateFiles('api_designer'), false);
-  });
-
-  it('returns false for read_shell agents', () => {
-    assert.equal(canCreateFiles('debugger'), false);
-    assert.equal(canCreateFiles('security_engineer'), false);
-    assert.equal(canCreateFiles('performance_engineer'), false);
-  });
-
-  it('returns false for unknown agents', () => {
-    assert.equal(canCreateFiles('nonexistent_agent'), false);
-    assert.equal(canCreateFiles(''), false);
+  it('returns null for names of Object.prototype members', () => {
+    assert.equal(getAgentCapability('constructor'), null);
+    assert.equal(getAgentCapability('__proto__'), null);
   });
 });

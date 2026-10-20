@@ -127,16 +127,15 @@ src/mcp/
 │   ├── get-runtime-context.js  # Runtime config snapshot
 │   ├── initialize-workspace.js # Directory setup
 │   ├── assess-task-complexity.js # Repo analysis signals
-│   ├── validate-plan.js        # Plan validation + dependency DAG
+│   ├── validate-plan.js        # validate_plan: schema, ids, agents, dependency DAG, file overlap
 │   ├── resolve-settings.js     # Config resolution
 │   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   └── reconciliation.js       # Phase reconciliation (2 tools)
-├── tools/                      # Tool definitions: listed schema + handler
-│   ├── workspace.js            # 4 tools
-│   ├── session.js              # 10 tools
-│   └── content.js              # 3 tools
-└── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
+└── tools/                      # Tool definitions: listed schema + handler
+    ├── workspace.js            # 4 tools
+    ├── session.js              # 10 tools
+    └── content.js              # 3 tools
 ```
 
 The runtime config registry the server and the generator share, `src/platforms/runtime-config-map.js`, sits with the platform configs it discovers, outside `src/mcp/`.

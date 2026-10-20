@@ -59,14 +59,15 @@ function detectAgentFromPrompt(prompt) {
   return '';
 }
 
+/**
+ * The tool tier of an agent named in either case, or null for a name that is
+ * not a registered agent.
+ * @param {unknown} name
+ * @returns {string|null}
+ */
 function getAgentCapability(name) {
   const normalized = normalizeAgentName(name);
-  return AGENT_CAPABILITIES[normalized] || null;
+  return Object.hasOwn(AGENT_CAPABILITIES, normalized) ? AGENT_CAPABILITIES[normalized] : null;
 }
 
-function canCreateFiles(name) {
-  const cap = getAgentCapability(name);
-  return cap === 'read_write' || cap === 'full';
-}
-
-module.exports = { AGENT_NAMES, KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability, canCreateFiles };
+module.exports = { AGENT_NAMES, KNOWN_AGENTS, AGENT_CAPABILITIES, normalizeAgentName, detectAgentFromPrompt, getAgentCapability };

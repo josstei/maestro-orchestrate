@@ -11,7 +11,7 @@ const { handleValidatePlan } = require('../../src/mcp/handlers/validate-plan');
  */
 const phase = (id, overrides = {}) => ({
   id,
-  name: `Phase ${id.replace(/^p(?=\d)/, '')}`,
+  name: `Phase ${String(id).replace(/^p(?=\d)/, '')}`,
   agent: 'architect',
   parallel: false,
   blocked_by: [],
@@ -512,5 +512,107 @@ describe('handleValidatePlan with strict phase schema', () => {
       task_complexity: 'simple',
     });
     assert.equal(result.valid, true);
+  });
+});
+
+describe('handleValidatePlan — ids, agents and files that are not plain map keys', () => {
+  it('treats an integer id and the same id as a string as different phases', () => {
+    const selfNamed = handleValidatePlan({
+      plan: { phases: [phase(1, { blocked_by: ['1'] })] },
+      task_complexity: 'simple',
+    });
+    assert.deepEqual(selfNamed.violations, [
+      {
+        rule: 'dangling_dependency',
+        detail: 'Phase 1 references non-existent dependency: 1',
+        severity: 'error',
+      },
+    ]);
+    assert.deepEqual(Object.keys(selfNamed.parallelization_profile.depth_map), ['1']);
+    assert.deepEqual(selfNamed.parallelization_profile.batches, [{ depth: 1, phase_ids: [1] }]);
+
+    const chained = handleValidatePlan({
+      plan: {
+        phases: [
+          phase(1),
+          phase('1', { blocked_by: [1] }),
+          phase(2, { blocked_by: ['1'] }),
+        ],
+      },
+      task_complexity: 'simple',
+    });
+    assert.deepEqual(chained.violations, []);
+    assert.deepEqual(chained.parallelization_profile.batches, [
+      { depth: 0, phase_ids: [1] },
+      { depth: 1, phase_ids: ['1'] },
+      { depth: 2, phase_ids: [2] },
+    ]);
+  });
+
+  it('walks phase ids named after Object.prototype members like any other id', () => {
+    const constructorBlocker = handleValidatePlan({
+      plan: {
+        phases: [phase('constructor'), phase('B'), phase('C', { blocked_by: ['constructor', 'B'] })],
+      },
+      task_complexity: 'simple',
+    });
+    assert.deepEqual(constructorBlocker.violations, []);
+    assert.deepEqual(constructorBlocker.parallelization_profile.depth_map, { constructor: 0, B: 0, C: 1 });
+
+    const chain = handleValidatePlan({
+      plan: {
+        phases: [
+          phase('toString'),
+          phase('b', { blocked_by: ['toString'] }),
+          phase('__proto__', { blocked_by: ['b'] }),
+        ],
+      },
+      task_complexity: 'simple',
+    });
+    assert.deepEqual(chain.violations, []);
+    assert.equal(
+      JSON.stringify(chain.parallelization_profile.depth_map),
+      '{"toString":0,"b":1,"__proto__":2}'
+    );
+    assert.deepEqual(
+      chain.parallelization_profile.batches.map((batch) => batch.depth),
+      [0, 1, 2]
+    );
+  });
+
+  it('does not report an overlap for files named after Object.prototype members', () => {
+    const phases = [
+      phase('a', { agent: 'coder', parallel: true, files: ['constructor'] }),
+      phase('b', { agent: 'coder', parallel: true, files: ['toString', '__proto__'] }),
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.equal(result.valid, true);
+    assert.deepEqual(result.violations, []);
+  });
+
+  it('ignores runtime file manifests that are not arrays', () => {
+    const phases = [
+      phase('a', { agent: 'coder', parallel: true, files_created: 'ab' }),
+      phase('b', { agent: 'coder', parallel: true, files: ['a', 'b'], files_modified: 5 }),
+      phase('c', { parallel: true, files_created: {} }),
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.equal(result.valid, true);
+    assert.deepEqual(result.violations, []);
+  });
+
+  it('reports agents named after Object.prototype members as unknown, with a null capability', () => {
+    const phases = [phase('a', { agent: 'constructor', files: ['x.js'] })];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.deepEqual(
+      result.violations.map(({ rule, detail }) => [rule, detail]),
+      [
+        ['unknown_agent', 'Phase a: unknown agent "constructor" (normalized: "constructor")'],
+        [
+          'agent_capability_mismatch',
+          "Phase a: agent 'constructor' (null) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.",
+        ],
+      ]
+    );
   });
 });
