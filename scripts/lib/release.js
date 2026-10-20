@@ -80,13 +80,8 @@ function isReleaseVersion(version) {
 }
 
 /**
- * Path of the release archive for `version`. An unset or empty `outDir`
- * means dist/release; a relative one resolves against `root`.
- *
- * @param {string} root - Absolute path of the repo the archive is built from
- * @param {string} version - Release version
- * @param {string} [outDir] - Output directory
- * @returns {string} Absolute archive path
+ * Absolute path of the release archive for `version`. An unset or empty
+ * `outDir` means dist/release; a relative one resolves against `root`.
  */
 function releaseArchivePath(root, version, outDir) {
   return path.join(path.resolve(root, outDir || RELEASE_OUT_DIR), `maestro-v${version}-extension.tar.gz`);
