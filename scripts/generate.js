@@ -4,7 +4,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { createFileWriter } = require('../src/generator/file-writer');
+const manifestRules = require('../src/generator/manifest');
 const { expandManifest, renderManifest } = require('../src/generator/manifest-expander');
+const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
@@ -26,7 +28,6 @@ const readOnlyMode = dryRun || diffMode;
 function main() {
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const manifestRules = require('../src/generator/manifest');
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   const manifestOutputPaths = manifest.flatMap((entry) => Object.values(entry.outputs));
 
@@ -44,9 +45,6 @@ function main() {
 
   writer.writeAll(renderManifest(manifest, runtimes, SRC, writer.reportError));
 
-  // Required here, not at the top, so a broken src/entry-points module is
-  // reported with runCli's 'Generator failed' prefix like the manifest.
-  const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
   const entryPointPaths = [];
   for (const expand of [expandEntryPoints, expandCoreCommands]) {
     for (const runtimeName of Object.keys(runtimes)) {
