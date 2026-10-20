@@ -39,9 +39,6 @@
       "src/**/*.js",
       "scripts/**/*.js",
       "bin/**/*.js"
-    ],
-    "exclude": [
-      "**/*.test.js"
     ]
   },
   "devDependencies": {

@@ -2,27 +2,7 @@
 
 # List available commands with descriptions
 help:
-    @echo "Maestro Orchestrate — development commands"
-    @echo ""
-    @echo "Generator:"
-    @echo "  just generate         Generate all runtime files from src/"
-    @echo "  just dry-run          Preview what would change without writing"
-    @echo "  just diff             Show unified diff of what would change"
-    @echo "  just clean            Delete generated agent and shared-skill stubs, then regenerate"
-    @echo ""
-    @echo "Testing:"
-    @echo "  just test             Run all tests"
-    @echo "  just test-unit        Run only unit tests"
-    @echo "  just test-transforms  Run only transform unit tests"
-    @echo "  just test-integration Run only integration tests"
-    @echo ""
-    @echo "CI:"
-    @echo "  just check            Generate + verify zero drift"
-    @echo "  just check-layers     Verify lib/ layer boundary"
-    @echo "  just ci               Full CI equivalent (check + check-layers + test)"
-    @echo ""
-    @echo "Maintenance:"
-    @echo "  just cleanup-branches Delete local branches whose remote is gone"
+    @{{just_executable()}} --list --unsorted
 
 # Generate all runtime files from src/
 generate:
@@ -41,7 +21,8 @@ clean:
     node scripts/generate.js --clean
 
 # Run all tests
-test: (_node-test "test" "tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js")
+test:
+    npm test
 
 # Run only unit tests (core modules, hooks, handlers)
 test-unit: (_node-test "unit test" "tests/unit/*.test.js")
@@ -75,7 +56,7 @@ check-layers:
     node scripts/check-layer-boundaries.js
 
 # Generate, test, and verify — full CI equivalent
-ci: check check-layers test
+ci: check test
 
 # Delete local branches whose remote tracking ref is gone
 cleanup-branches:

@@ -564,13 +564,13 @@ The `justfile` provides local development commands that mirror CI behavior.
 | `just dry-run` | Preview changes without writing | No CI equivalent |
 | `just diff` | Show unified diff of pending changes | No CI equivalent |
 | `just clean` | Delete the generated agent and shared-skill stubs, then regenerate | No CI equivalent |
-| `just test` | Run all tests (unit + transform + integration) | Used in all 6 generator workflows |
+| `just test` | Run all tests (unit + transform + integration) with `npm test` | Used in all 6 generator workflows |
 | `just test-unit` | Run only unit tests | No CI equivalent |
 | `just test-transforms` | Run only transform unit tests | No CI equivalent |
 | `just test-integration` | Run only integration tests | No CI equivalent |
 | `just check` | Generate + verify zero drift | Replicated in all 6 generator workflows |
 | `just check-layers` | Verify `lib/` layer boundary imports | Covered by `npm test` in all 6 generator workflows (the suite runs `scripts/check-layer-boundaries.js` against the real `src/lib`) |
-| `just ci` | Full CI equivalent: `check` + `check-layers` + `test` | Matches Source Of Truth Check, minus the npm pack and release-artifact verification |
+| `just ci` | Full CI equivalent: `check` + `test` (the test suite includes the layer check) | Matches Source Of Truth Check, minus the npm pack and release-artifact verification |
 | `just cleanup-branches` | Delete local branches whose remote is gone | No CI equivalent |
 
 ### CI Mapping
@@ -584,8 +584,6 @@ just test      -->  npm test
 pack verify    -->  npm run pack:verify
 artifact check -->  npm run release:artifacts && npm run release:verify-artifacts
 ```
-
-`just test` passes the same three `node --test` globs as the `package.json` `test` script.
 
 ---
 

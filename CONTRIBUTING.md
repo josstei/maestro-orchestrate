@@ -28,18 +28,18 @@ The hooks are best-effort — CI re-validates everything on PR submission and on
 
 ## Key Commands
 
-All commands are available via `just`:
+All commands are available via `just` (run `just` on its own to list them):
 
 | Command | Description |
 |---------|-------------|
 | `just generate` | Generate all runtime files from `src/` |
-| `just test` | Run all tests (unit + transform + integration) |
+| `just test` | Run all tests (unit + transform + integration) with `npm test` |
 | `just test-unit` | Run only unit tests |
 | `just test-transforms` | Run only transform unit tests |
 | `just test-integration` | Run only integration tests |
 | `just check` | Generate + verify zero drift (`git diff --exit-code`) |
 | `just check-layers` | Verify that `src/lib/` imports only `src/lib/` and `node:` builtins |
-| `just ci` | Full CI equivalent: check + check-layers + test |
+| `just ci` | Full CI equivalent: check + test (the test suite includes the layer check) |
 | `just dry-run` | Preview changes without writing |
 | `just diff` | Show unified diff of pending changes |
 | `just clean` | Delete the generated agent and shared-skill stubs, then regenerate |

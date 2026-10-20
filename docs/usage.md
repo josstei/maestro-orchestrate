@@ -20,7 +20,7 @@ node scripts/generate.js --clean
 # Run all tests across unit, transform, and integration suites
 npm test
 
-# Run all tests through just (same globs as npm test)
+# Run all tests through just (runs npm test)
 just test
 
 # Run only unit tests
@@ -38,7 +38,7 @@ just check
 # Verify lib/ import-boundary rules
 just check-layers
 
-# Full CI equivalent in a clean worktree/CI checkout (check + check-layers + test)
+# Full CI equivalent in a clean worktree/CI checkout (check + test; the tests include the layer check)
 just ci
 
 # Delete local branches whose remotes are gone
