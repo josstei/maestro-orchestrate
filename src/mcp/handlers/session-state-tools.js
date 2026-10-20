@@ -3,10 +3,9 @@
 const { assertSessionId } = require('../../lib/session-id');
 const { validatePhases } = require('../contracts/plan-schema');
 const {
-  createEmptyDownstreamContext,
+  DOWNSTREAM_CONTEXT_SHAPE,
   normalizeDownstreamContext,
-  isDownstreamContextPopulated,
-  describeShape: describeDownstreamContextShape,
+  readDownstreamContext,
 } = require('../contracts/downstream-context');
 const { ValidationError, StateError } = require('../../lib/errors');
 const {
@@ -113,12 +112,11 @@ function completePhase(phase, params, now) {
   const filesDeleted = params.files_deleted ?? [];
   const hasFiles =
     filesCreated.length + filesModified.length + filesDeleted.length > 0;
-  const normalizedContext = normalizeDownstreamContext(params.downstream_context);
-  const contextProvided = isDownstreamContextPopulated(normalizedContext);
+  const { context, populated } = readDownstreamContext(params.downstream_context);
 
-  if (hasFiles && !contextProvided) {
+  if (hasFiles && !populated) {
     throw new ValidationError(
-      `Phase ${phase.id} produced files but downstream_context is empty after normalization. ${describeDownstreamContextShape()}`,
+      `Phase ${phase.id} produced files but downstream_context is empty after normalization. ${DOWNSTREAM_CONTEXT_SHAPE}`,
       {
         code: 'HANDOFF_INCOMPLETE',
         details: {
@@ -134,11 +132,11 @@ function completePhase(phase, params, now) {
 
   phase.status = 'completed';
   phase.completed = now;
-  phase.downstream_context = normalizedContext;
+  phase.downstream_context = context;
   phase.files_created = filesCreated;
   phase.files_modified = filesModified;
   phase.files_deleted = filesDeleted;
-  phase.requires_reconciliation = !hasFiles && !contextProvided;
+  phase.requires_reconciliation = !hasFiles && !populated;
 }
 
 /**
@@ -221,7 +219,7 @@ function handleCreateSession(params, projectRoot) {
       files_modified: [],
       files_deleted: [],
       planned_files: phase.files || [],
-      downstream_context: createEmptyDownstreamContext(),
+      downstream_context: normalizeDownstreamContext(),
       errors: [],
       retry_count: 0,
     })),

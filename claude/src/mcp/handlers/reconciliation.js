@@ -15,10 +15,7 @@ const {
 } = require('../../state/session-state');
 const { isExtensionCachePath } = require('../../core/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
-const {
-  normalizeDownstreamContext,
-  isDownstreamContextPopulated,
-} = require('../contracts/downstream-context');
+const { readDownstreamContext } = require('../contracts/downstream-context');
 
 const DEFAULT_IGNORE_DIRS = new Set([
   '.git',
@@ -202,10 +199,9 @@ function handleReconcilePhase(params, projectRoot) {
   const filesDeleted = Array.isArray(params.files_deleted) ? params.files_deleted : [];
   const hasFilesPayload =
     filesCreated.length + filesModified.length + filesDeleted.length > 0;
-  const normalizedContext = normalizeDownstreamContext(params.downstream_context);
-  const hasContextPayload = isDownstreamContextPopulated(normalizedContext);
+  const { context, populated } = readDownstreamContext(params.downstream_context);
 
-  if (!hasFilesPayload && !hasContextPayload) {
+  if (!hasFilesPayload && !populated) {
     throw new ValidationError(
       'reconcile_phase requires at least one of files_created, files_modified, files_deleted, or a populated downstream_context. An empty payload cannot clear requires_reconciliation.',
       { code: 'RECONCILIATION_EMPTY_PAYLOAD' }
@@ -229,8 +225,8 @@ function handleReconcilePhase(params, projectRoot) {
     if (params.files_deleted !== undefined) {
       phase.files_deleted = filesDeleted;
     }
-    if (hasContextPayload) {
-      phase.downstream_context = normalizedContext;
+    if (populated) {
+      phase.downstream_context = context;
     }
     phase.requires_reconciliation = false;
     if (params.reason) {
