@@ -12,10 +12,11 @@ const { hookCommands } = require('../support/generated-files');
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',
   version: '9.8.7-preview.abc1234',
+  // Keys out of manifest order: the manifests write name, email, url.
   author: {
-    name: 'Example Author',
-    email: 'hello@example.com',
     url: 'https://example.com',
+    email: 'hello@example.com',
+    name: 'Example Author',
   },
   homepage: 'https://example.com/maestro',
   repository: {
