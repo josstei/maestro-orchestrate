@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * What the generator writes for Qwen Code. Build-time only: scripts/generate.js
- * reads it, and no detached payload ships it.
+ * What the generator writes for Qwen Code. Build-time only: the generator reads
+ * it, and no detached payload ships it.
  */
 
 const { MAESTRO_SETTINGS } = require('../../config/settings-catalog');

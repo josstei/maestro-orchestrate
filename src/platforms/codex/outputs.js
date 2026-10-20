@@ -1,10 +1,9 @@
 'use strict';
 
 /**
- * What the generator writes for Codex. Build-time only: scripts/generate.js
- * reads it, and no detached payload ships it. scripts/install-codex-plugin.js
- * also builds its personal-marketplace entry with codexMarketplace and
- * codexMarketplacePlugin.
+ * What the generator writes for Codex. The generator reads it, and so does
+ * scripts/install-codex-plugin.js for its personal-marketplace entry
+ * (codexMarketplace, codexMarketplacePlugin); no detached payload ships it.
  */
 
 const CODEX_APPS_PATH = '.app.json';
