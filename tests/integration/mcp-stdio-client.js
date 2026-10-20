@@ -6,17 +6,27 @@ const { pathToFileURL } = require('node:url');
 
 const { ROOT } = require('./helpers');
 
-const DEFAULT_STARTUP_TIMEOUT_MS = 5000;
+const STARTUP_TIMEOUT_MS = 5000;
+const ROOTS_TIMEOUT_MS = 5000;
 const KILL_GRACE_MS = 250;
 
+/**
+ * Spawns the MCP server at `relativePath` (from `cwd`, the repo root by
+ * default) and drives it over newline-delimited JSON-RPC on stdio. Every
+ * roots/list request is answered with `client.roots`, which a test may
+ * reassign; `rootsAnswered(n)` resolves once n requests have been answered.
+ * `firstRequestId` (default 1) sets the id of the first request, and
+ * `requestTimeoutMs` (default none) rejects a request left unanswered that
+ * long.
+ */
 function spawnMcpServer(options) {
   const cwd = options.cwd || ROOT;
   const relativePath = options.relativePath;
-  const startupTimeoutMs = options.startupTimeoutMs || DEFAULT_STARTUP_TIMEOUT_MS;
+  const requestTimeoutMs = options.requestTimeoutMs;
   // The server identifies its host runtime from this name unless
   // MAESTRO_RUNTIME is set; 'maestro-test' is not a host it recognizes.
   const clientInfo = options.clientInfo || { name: 'maestro-test', version: '0.0.0' };
-  const roots = Array.isArray(options.roots)
+  let roots = Array.isArray(options.roots)
     ? options.roots
     : [
         {
@@ -40,7 +50,9 @@ function spawnMcpServer(options) {
   let stderr = '';
   let ready = false;
   let exited = false;
-  let nextId = 1;
+  let nextId = options.firstRequestId ?? 1;
+  let rootsRequests = 0;
+  const rootsWaiters = new Set();
   let settleReady;
   let rejectReady;
 
@@ -56,7 +68,7 @@ function spawnMcpServer(options) {
       )
     );
     close();
-  }, startupTimeoutMs);
+  }, STARTUP_TIMEOUT_MS);
 
   const pending = new Map();
 
@@ -100,6 +112,10 @@ function spawnMcpServer(options) {
       sendResponse(message.id, {
         roots,
       });
+      rootsRequests += 1;
+      for (const waiter of rootsWaiters) {
+        waiter();
+      }
     }
   }
 
@@ -160,7 +176,23 @@ function spawnMcpServer(options) {
   async function sendRequest(method, params = {}) {
     const id = nextId++;
     const result = new Promise((resolve, reject) => {
-      pending.set(id, { resolve, reject });
+      let timer;
+      if (requestTimeoutMs !== undefined) {
+        timer = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error(`No reply to ${method} within ${requestTimeoutMs}ms.\nSTDERR:\n${stderr}`));
+        }, requestTimeoutMs);
+      }
+      pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
     });
 
     send({
@@ -213,6 +245,23 @@ function spawnMcpServer(options) {
     };
   }
 
+  function rootsAnswered(count, timeoutMs = ROOTS_TIMEOUT_MS) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        rootsWaiters.delete(check);
+        reject(new Error(`Expected roots/list request #${count}, got ${rootsRequests}`));
+      }, timeoutMs);
+      function check() {
+        if (rootsRequests < count) return;
+        clearTimeout(timer);
+        rootsWaiters.delete(check);
+        resolve();
+      }
+      rootsWaiters.add(check);
+      check();
+    });
+  }
+
   async function close() {
     clearTimeout(startupTimer);
     if (exited || child.killed) {
@@ -232,7 +281,16 @@ function spawnMcpServer(options) {
     initialize,
     listTools,
     callTool,
+    request: sendRequest,
+    notify: sendNotification,
+    rootsAnswered,
     ready: readyPromise,
+    get roots() {
+      return roots;
+    },
+    set roots(value) {
+      roots = value;
+    },
     get stderr() {
       return stderr;
     },
