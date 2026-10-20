@@ -51,7 +51,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 }
 ```
 
-A glob may use `*` only in its final (file name) segment; a `**` segment directly before it also matches files in subdirectories. Any other use of `*` fails generation with `Unsupported manifest glob`, and other glob characters such as `?` and `[...]` are matched literally.
+Globs are matched by `src/generator/glob-files.js`, which also lists the files the registries and detached payloads are built from. A glob may use `*` only in its final (file name) segment; a `**` segment directly before it also matches files in subdirectories. Any other use of `*` fails generation with `Unsupported manifest glob`, and other glob characters such as `?` and `[...]` are matched literally.
 
 Each output path is the source path under the runtime's `outputDir`, with `skills/shared/` flattened to `skills/` and agent filenames converted to snake_case for snake_case runtimes.
 

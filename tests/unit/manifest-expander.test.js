@@ -4,11 +4,7 @@ const { describe, it, before } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const {
-  expandGlob,
-  computeOutputPath,
-  expandManifest,
-} = require('../../src/generator/manifest-expander');
+const { expandManifest, renderManifest } = require('../../src/generator/manifest-expander');
 const manifestRules = require('../../src/generator/manifest');
 const agentStub = require('../../src/generator/transforms/agent-stub');
 const skillDiscoveryStub = require('../../src/generator/transforms/skill-discovery-stub');
@@ -18,176 +14,57 @@ const { makeTempDir, writeTree } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
 
 describe('manifest-expander', () => {
+  const runtimes = {
+    qwen: { name: 'qwen', agentNaming: 'snake_case', outputDir: './' },
+    claude: { name: 'claude', agentNaming: 'kebab-case', outputDir: 'claude/' },
+    codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
+  };
   let tmpDir;
 
   before(() => {
     tmpDir = makeTempDir('manifest-expander-');
-    for (const relPath of [
-      'agents/foo-bar.md',
-      'agents/baz.md',
-      'agents/qux-thing.md',
-      'skills/shared/delegation/SKILL.md',
-      'skills/shared/execution/SKILL.md',
-      'docs/readme.txt',
-      'docs/guide.md',
-    ]) {
-      writeTree(tmpDir, relPath);
-    }
-  });
-
-  describe('expandGlob', () => {
-    it('finds files matching a single-level wildcard pattern', () => {
-      const results = expandGlob('agents/*.md', tmpDir);
-
-      assert.ok(results.length === 3);
-      assert.ok(results.includes('agents/foo-bar.md'));
-      assert.ok(results.includes('agents/baz.md'));
-      assert.ok(results.includes('agents/qux-thing.md'));
-    });
-
-    it('handles ** recursive patterns', () => {
-      const results = expandGlob('skills/shared/**/SKILL.md', tmpDir);
-
-      assert.ok(results.length === 2);
-      assert.ok(results.includes(path.join('skills', 'shared', 'delegation', 'SKILL.md')));
-      assert.ok(results.includes(path.join('skills', 'shared', 'execution', 'SKILL.md')));
-    });
-
-    it('returns sorted results', () => {
-      const results = expandGlob('agents/*.md', tmpDir);
-
-      const sorted = [...results].sort();
-      assert.deepEqual(results, sorted);
-    });
-
-    it('returns empty array when no files match', () => {
-      const results = expandGlob('nonexistent/*.js', tmpDir);
-
-      assert.deepEqual(results, []);
-    });
-
-    it('does not match directories as final segment', () => {
-      const results = expandGlob('skills/*', tmpDir);
-
-      assert.deepEqual(results, []);
-    });
-
-    it('filters by extension when wildcard is scoped', () => {
-      const results = expandGlob('docs/*.md', tmpDir);
-
-      assert.ok(results.length === 1);
-      assert.ok(results.includes('docs/guide.md'));
-    });
-  });
-
-  describe('computeOutputPath', () => {
-    it('rewrites skills/shared/ to skills/', () => {
-      const result = computeOutputPath('skills/shared/delegation/SKILL.md', {
-        outputDir: './',
-      });
-
-      assert.equal(result, 'skills/delegation/SKILL.md');
-    });
-
-    it('applies snake_case naming for agent files', () => {
-      const result = computeOutputPath('agents/foo-bar.md', {
-        agentNaming: 'snake_case',
-        outputDir: './',
-      });
-
-      assert.equal(result, 'agents/foo_bar.md');
-    });
-
-    it('preserves kebab-case naming when agentNaming is not snake_case', () => {
-      const result = computeOutputPath('agents/foo-bar.md', {
-        agentNaming: 'kebab-case',
-        outputDir: './',
-      });
-
-      assert.equal(result, 'agents/foo-bar.md');
-    });
-
-    it('prepends outputDir when present and not ./', () => {
-      const result = computeOutputPath('agents/baz.md', {
-        outputDir: 'claude/',
-      });
-
-      assert.equal(result, 'claude/agents/baz.md');
-    });
-
-    it('skips outputDir prepending for ./', () => {
-      const result = computeOutputPath('agents/baz.md', {
-        outputDir: './',
-      });
-
-      assert.equal(result, 'agents/baz.md');
-    });
-
-    it('skips outputDir prepending when outputDir is undefined', () => {
-      const result = computeOutputPath('agents/baz.md', {});
-
-      assert.equal(result, 'agents/baz.md');
-    });
-
-    it('applies both snake_case and outputDir together', () => {
-      const result = computeOutputPath('agents/code-reviewer.md', {
-        agentNaming: 'snake_case',
-        outputDir: 'plugins/maestro/',
-      });
-
-      assert.equal(result, 'plugins/maestro/agents/code_reviewer.md');
-    });
-
-    it('does not apply snake_case to non-agent paths', () => {
-      const result = computeOutputPath('skills/shared/my-skill/SKILL.md', {
-        agentNaming: 'snake_case',
-        outputDir: './',
-      });
-
-      assert.equal(result, 'skills/my-skill/SKILL.md');
-    });
+    writeTree(tmpDir, 'agents/foo-bar.md', 'foo');
+    writeTree(tmpDir, 'agents/baz.md', 'baz');
+    writeTree(tmpDir, 'skills/shared/delegation/SKILL.md');
+    writeTree(tmpDir, 'skills/shared/code-review/SKILL.md');
   });
 
   describe('expandManifest', () => {
-    const runtimes = {
-      qwen: { name: 'qwen', agentNaming: 'snake_case', outputDir: './' },
-      claude: { name: 'claude', agentNaming: 'kebab-case', outputDir: 'claude/' },
-      codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
-    };
+    it('expands a glob rule into one entry per file, named per runtime under its outputDir', () => {
+      const rule = { glob: 'agents/*.md', transform: agentStub, runtimes: ['qwen', 'claude'] };
 
-    it('expands glob rules into per-file entries', () => {
-      const rule = {
-        glob: 'agents/*.md',
-        transform: agentStub,
-        runtimes: ['qwen', 'claude'],
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result.length, 3);
-
-      const srcs = result.map((e) => e.src).sort();
-      assert.deepEqual(srcs, ['agents/baz.md', 'agents/foo-bar.md', 'agents/qux-thing.md']);
-
-      const fooEntry = result.find((e) => e.src === 'agents/foo-bar.md');
-      assert.equal(fooEntry.outputs.qwen, 'agents/foo_bar.md');
-      assert.equal(fooEntry.outputs.claude, 'claude/agents/foo-bar.md');
+      assert.deepEqual(expandManifest([rule], runtimes, tmpDir), [
+        {
+          src: 'agents/baz.md',
+          transform: agentStub,
+          outputs: { qwen: 'agents/baz.md', claude: 'claude/agents/baz.md' },
+        },
+        {
+          src: 'agents/foo-bar.md',
+          transform: agentStub,
+          outputs: { qwen: 'agents/foo_bar.md', claude: 'claude/agents/foo-bar.md' },
+        },
+      ]);
     });
 
-    it('applies recursive glob with runtimes correctly', () => {
+    it('flattens skills/shared/ and keeps skill paths kebab-case under a snake_case runtime', () => {
       const rule = {
         glob: 'skills/shared/**/SKILL.md',
         transform: skillDiscoveryStub,
-        runtimes: ['claude', 'codex'],
+        runtimes: ['qwen', 'claude', 'codex'],
       };
 
       const result = expandManifest([rule], runtimes, tmpDir);
 
-      assert.equal(result.length, 2);
-
-      const delegationEntry = result.find((e) => e.src.includes('delegation'));
-      assert.equal(delegationEntry.outputs.claude, 'claude/skills/delegation/SKILL.md');
-      assert.equal(delegationEntry.outputs.codex, 'plugins/maestro/skills/delegation/SKILL.md');
+      assert.deepEqual(result.map((e) => e.src), [
+        'skills/shared/code-review/SKILL.md',
+        'skills/shared/delegation/SKILL.md',
+      ]);
+      assert.deepEqual(result[0].outputs, {
+        qwen: 'skills/code-review/SKILL.md',
+        claude: 'claude/skills/code-review/SKILL.md',
+        codex: 'plugins/maestro/skills/code-review/SKILL.md',
+      });
     });
 
     describe('against src/', () => {
@@ -245,13 +122,39 @@ describe('manifest-expander', () => {
         const skillEntries = result.filter((e) => e.transform === skillDiscoveryStub);
         assert.equal(skillEntries.length, SHARED_SKILL_COUNT);
         for (const entry of skillEntries) {
-          const skillPath = entry.src.split(path.sep).join('/').replace(/^skills\/shared\//, 'skills/');
+          const skillPath = entry.src.replace(/^skills\/shared\//, 'skills/');
           assert.deepEqual(Object.keys(entry.outputs), ['antigravity', 'claude', 'codex'], entry.src);
           assert.equal(entry.outputs.antigravity, `antigravity/${skillPath}`, entry.src);
           assert.equal(entry.outputs.claude, `claude/${skillPath}`, entry.src);
           assert.equal(entry.outputs.codex, `plugins/maestro/${skillPath}`, entry.src);
         }
       });
+    });
+  });
+
+  describe('renderManifest', () => {
+    it('runs each entry transform per runtime and reports a failing one without stopping', () => {
+      const transform = (content, runtime) => {
+        if (runtime.name === 'claude' && content === 'foo') throw new Error('boom');
+        return `${runtime.name}:${content}`;
+      };
+      const manifest = expandManifest(
+        [{ glob: 'agents/*.md', transform, runtimes: ['qwen', 'claude'] }],
+        runtimes,
+        tmpDir
+      );
+      const reported = [];
+
+      const outputs = [...renderManifest(manifest, runtimes, tmpDir, (message, err) => {
+        reported.push(`${message}: ${err.message}`);
+      })];
+
+      assert.deepEqual(outputs, [
+        { outputPath: 'agents/baz.md', content: 'qwen:baz' },
+        { outputPath: 'claude/agents/baz.md', content: 'claude:baz' },
+        { outputPath: 'agents/foo_bar.md', content: 'qwen:foo' },
+      ]);
+      assert.deepEqual(reported, ['processing agents/foo-bar.md -> claude/agents/foo-bar.md: boom']);
     });
   });
 });

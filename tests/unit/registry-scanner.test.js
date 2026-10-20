@@ -10,9 +10,9 @@ const { makeTempDir, readJson, writeTree } = require('../support/fs');
 const { ROOT, SRC_ROOT } = require('../support/paths');
 
 const REGISTRY_PATHS = [
-  path.join('src', 'generated', 'agent-registry.json'),
-  path.join('src', 'generated', 'resource-registry.json'),
-  path.join('src', 'generated', 'hook-registry.json'),
+  'src/generated/agent-registry.json',
+  'src/generated/resource-registry.json',
+  'src/generated/hook-registry.json',
 ];
 
 function agentSource(name, tools, extraLines = []) {

@@ -3,8 +3,8 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { VERSION_JSON_FILENAME } = require('../core/version');
-const { collectFiles } = require('../lib/discovery');
 const { formatJson, writeIfChanged } = require('../lib/io');
+const { globFiles } = require('./glob-files');
 const { pruneStaleFiles } = require('./stale-pruner');
 
 /**
@@ -82,14 +82,13 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName, version) {
   const keptOutputs = new Set([VERSION_JSON_FILENAME]);
   let copied = 0;
 
-  for (const filePath of collectFiles(srcDir, true)) {
-    const relativePath = path.relative(srcDir, filePath).split(path.sep).join('/');
+  for (const relativePath of globFiles(srcDir, '**/*')) {
     if (!shouldIncludeInPayload(relativePath, allowlist)) {
       continue;
     }
 
     keptOutputs.add(relativePath);
-    const content = fs.readFileSync(filePath, 'utf8');
+    const content = fs.readFileSync(path.join(srcDir, relativePath), 'utf8');
     if (writeIfChanged(path.join(outputDir, relativePath), content)) {
       copied++;
     }

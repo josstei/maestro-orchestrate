@@ -1,10 +1,11 @@
 'use strict';
 
+const fs = require('node:fs');
 const path = require('node:path');
-const { discover } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
 const { formatJson } = require('../lib/io');
 const { toPascalCase } = require('../lib/naming');
+const { globFiles } = require('./glob-files');
 
 /**
  * Derive an agent's tool tier from its canonical `tools` list, so the tier
@@ -21,73 +22,66 @@ function capabilityTier(tools) {
   return 'read_only';
 }
 
+/**
+ * Sort registry entries by id. localeCompare, not code-unit order, is the
+ * order the committed registries are in.
+ * @template {{ id: string }} T
+ * @param {T[]} entries
+ * @returns {T[]}
+ */
+function sortById(entries) {
+  return entries.sort((a, b) => a.id.localeCompare(b.id));
+}
+
 function buildAgentRegistry(srcDir) {
-  const agentEntries = discover({
-    dir: path.join(srcDir, 'agents'),
-    pattern: '*.md',
-    identity: (filepath) => path.basename(filepath, '.md'),
-    metadata: (filepath, content) => {
-      const { frontmatter } = parse(content);
-      const name = frontmatter.name || path.basename(filepath, '.md');
-      const rawTools = frontmatter.tools || [];
-      const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-      return { name, capabilities: capabilityTier(tools) };
-    },
+  const agents = globFiles(srcDir, 'agents/*.md').map((relativePath) => {
+    const { frontmatter } = parse(fs.readFileSync(path.join(srcDir, relativePath), 'utf8'));
+    const id = path.posix.basename(relativePath, '.md');
+    const rawTools = frontmatter.tools || [];
+    const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
+    return { id, name: frontmatter.name || id, capabilities: capabilityTier(tools) };
   });
 
-  return agentEntries.map(({ name, capabilities }) => ({ name, capabilities }));
+  return sortById(agents).map(({ name, capabilities }) => ({ name, capabilities }));
 }
 
-function markdownEntries(
-  srcDir,
-  subdir,
-  pattern = '*.md',
-  identity = (filepath) => path.basename(filepath, '.md')
-) {
-  return discover({
-    dir: path.join(srcDir, subdir),
-    pattern,
-    identity,
-    metadata: (filepath) => ({
-      relativePath: path.relative(srcDir, filepath).split(path.sep).join('/'),
-    }),
-  });
-}
-
-function skillIdentity(filepath) {
-  if (path.basename(filepath) === 'SKILL.md') {
-    return path.basename(path.dirname(filepath));
-  }
-  return path.basename(filepath, '.md');
+/**
+ * Key a resource by its file name, or a skill's SKILL.md by its directory name.
+ * @param {string} relativePath - Posix path relative to the source directory
+ * @returns {string}
+ */
+function resourceId(relativePath) {
+  return path.posix.basename(relativePath) === 'SKILL.md'
+    ? path.posix.basename(path.posix.dirname(relativePath))
+    : path.posix.basename(relativePath, '.md');
 }
 
 function buildResourceRegistry(srcDir) {
+  const resources = (pattern) =>
+    sortById(globFiles(srcDir, pattern).map((relativePath) => ({ id: resourceId(relativePath), relativePath })));
+
   return Object.fromEntries(
     [
-      ...markdownEntries(srcDir, path.join('skills', 'shared'), '**/*.md', skillIdentity),
-      ...markdownEntries(srcDir, 'templates'),
-      ...markdownEntries(srcDir, 'references'),
-    ].map((entry) => [entry.id, entry.relativePath])
+      ...resources('skills/shared/**/*.md'),
+      ...resources('templates/*.md'),
+      ...resources('references/*.md'),
+    ].map(({ id, relativePath }) => [id, relativePath])
   );
 }
 
 function buildHookRegistry(srcDir) {
-  const hookEntries = discover({
-    dir: path.join(srcDir, 'hooks', 'logic'),
-    pattern: '*-logic.js',
-    identity: (filepath) => path.basename(filepath).replace(/-logic\.js$/, ''),
-  });
+  const hooks = globFiles(srcDir, 'hooks/logic/*-logic.js').map((relativePath) => ({
+    id: path.posix.basename(relativePath).replace(/-logic\.js$/, ''),
+    module: relativePath,
+  }));
 
   return Object.fromEntries(
-    hookEntries.map(({ id }) => [
-      id,
-      { module: `hooks/logic/${id}-logic.js`, fn: `handle${toPascalCase(id)}` },
-    ])
+    sortById(hooks).map(({ id, module }) => [id, { module, fn: `handle${toPascalCase(id)}` }])
   );
 }
 
-function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
-  const generatedDir = path.join(srcDir, 'generated');
+function collectRegistryOutputs(srcDir, rootDir) {
+  const generatedDir = path.relative(rootDir, path.join(srcDir, 'generated')).split(path.sep).join('/');
   const registries = [
     { fileName: 'agent-registry.json', data: buildAgentRegistry(srcDir) },
     { fileName: 'resource-registry.json', data: buildResourceRegistry(srcDir) },
@@ -95,7 +89,7 @@ function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
   ];
 
   return registries.map(({ fileName, data }) => ({
-    outputPath: path.relative(rootDir, path.join(generatedDir, fileName)),
+    outputPath: `${generatedDir}/${fileName}`,
     content: formatJson(data),
   }));
 }
