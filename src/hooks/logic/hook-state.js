@@ -47,7 +47,7 @@ function setActiveAgent(sessionId, agentName) {
 
 function getActiveAgent(sessionId) {
   if (!isValidSessionId(sessionId)) return '';
-  return readFileSafe(activeAgentFile(sessionId), '').trim();
+  return readFileSafe(activeAgentFile(sessionId)).trim();
 }
 
 function clearActiveAgent(sessionId) {

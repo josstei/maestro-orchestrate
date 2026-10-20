@@ -27,34 +27,32 @@ function atomicWriteSync(filePath, content) {
 }
 
 /**
- * Reads a file and returns its contents as a UTF-8 string.
- * Returns the fallback value on any error (missing file, permission denied, etc.).
+ * Reads a file as UTF-8, or returns '' on any error (missing file, permission
+ * denied, a directory, etc.).
  *
  * @param {string} filePath - Absolute or relative path to the file
- * @param {string} [fallback=''] - Value returned when reading fails
- * @returns {string} File contents or fallback
+ * @returns {string} File contents, or '' when reading fails
  */
-function readFileSafe(filePath, fallback = '') {
+function readFileSafe(filePath) {
   try {
     return fs.readFileSync(filePath, 'utf8');
   } catch {
-    return fallback;
+    return '';
   }
 }
 
 /**
- * Reads a file and parses its contents as JSON.
- * Returns the fallback value on any error (missing file, invalid JSON, etc.).
+ * Reads a file and parses it as JSON, or returns null on any error (missing
+ * file, invalid JSON, etc.).
  *
  * @param {string} filePath - Absolute or relative path to the file
- * @param {*} [fallback=null] - Value returned when reading or parsing fails
- * @returns {*} Parsed JSON value or fallback
+ * @returns {*} Parsed JSON value, or null when reading or parsing fails
  */
-function readJsonSafe(filePath, fallback = null) {
+function readJsonSafe(filePath) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch {
-    return fallback;
+    return null;
   }
 }
 
@@ -80,28 +78,6 @@ function readStdin() {
     });
     process.stdin.on('end', () => resolve(Buffer.concat(chunks).toString()));
   });
-}
-
-/**
- * Writes content to a file only when it differs from existing content.
- * Creates parent directories if they do not exist.
- *
- * @param {string} filePath - Absolute path to the target file
- * @param {string} content - Content to write
- * @returns {boolean} True if the file was written, false if content was identical
- */
-function writeIfChanged(filePath, content) {
-  const existing = fs.existsSync(filePath)
-    ? fs.readFileSync(filePath, 'utf8')
-    : null;
-
-  if (existing === content) {
-    return false;
-  }
-
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content, 'utf8');
-  return true;
 }
 
 /**
@@ -136,5 +112,4 @@ module.exports = {
   readFileSafe,
   readJsonSafe,
   readStdin,
-  writeIfChanged,
 };

@@ -12,7 +12,6 @@ const {
   formatJson,
   readFileSafe,
   readJsonSafe,
-  writeIfChanged,
 } = require('../../src/lib/io');
 const { makeTempDir } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
@@ -101,23 +100,13 @@ describe('readFileSafe', () => {
     assert.equal(readFileSafe(filePath), 'file content');
   });
 
-  it('returns empty string by default when file does not exist', () => {
+  it('returns an empty string when the file does not exist', () => {
     const filePath = path.join(tempRoot, 'nonexistent.txt');
     assert.equal(readFileSafe(filePath), '');
   });
 
-  it('returns custom fallback when file does not exist', () => {
-    const filePath = path.join(tempRoot, 'missing.txt');
-    assert.equal(readFileSafe(filePath, 'default value'), 'default value');
-  });
-
-  it('returns null fallback when explicitly passed', () => {
-    const filePath = path.join(tempRoot, 'missing.txt');
-    assert.equal(readFileSafe(filePath, null), null);
-  });
-
-  it('returns fallback when path is a directory', () => {
-    assert.equal(readFileSafe(tempRoot, 'fallback'), 'fallback');
+  it('returns an empty string when the path is a directory', () => {
+    assert.equal(readFileSafe(tempRoot), '');
   });
 
   it('does not throw on any error condition', () => {
@@ -147,26 +136,14 @@ describe('readJsonSafe', () => {
     assert.deepEqual(readJsonSafe(filePath), data);
   });
 
-  it('returns null by default when file does not exist', () => {
+  it('returns null when the file does not exist', () => {
     const filePath = path.join(tempRoot, 'nonexistent.json');
     assert.equal(readJsonSafe(filePath), null);
   });
 
-  it('returns custom fallback when file does not exist', () => {
-    const filePath = path.join(tempRoot, 'missing.json');
-    const fallback = { default: true };
-    assert.deepEqual(readJsonSafe(filePath, fallback), fallback);
-  });
-
-  it('returns fallback when file contains invalid JSON', () => {
+  it('returns null when the file contains invalid JSON', () => {
     const filePath = path.join(tempRoot, 'bad.json');
     fs.writeFileSync(filePath, '{not valid json}', 'utf8');
-    assert.deepEqual(readJsonSafe(filePath, { error: true }), { error: true });
-  });
-
-  it('returns null fallback for invalid JSON when no fallback specified', () => {
-    const filePath = path.join(tempRoot, 'bad.json');
-    fs.writeFileSync(filePath, 'not json at all', 'utf8');
     assert.equal(readJsonSafe(filePath), null);
   });
 
@@ -183,68 +160,14 @@ describe('readJsonSafe', () => {
     assert.equal(readJsonSafe(filePath), 42);
   });
 
-  it('returns fallback when file is empty', () => {
+  it('returns null when the file is empty', () => {
     const filePath = path.join(tempRoot, 'empty.json');
     fs.writeFileSync(filePath, '', 'utf8');
-    assert.equal(readJsonSafe(filePath, 'empty'), 'empty');
+    assert.equal(readJsonSafe(filePath), null);
   });
 
   it('does not throw on any error condition', () => {
     assert.doesNotThrow(() => readJsonSafe('/nonexistent/path/file.json'));
-  });
-});
-
-describe('writeIfChanged', () => {
-  it('writes a new file and returns true', () => {
-    const filePath = path.join(tempRoot, 'new.txt');
-    const result = writeIfChanged(filePath, 'new content');
-    assert.equal(result, true);
-    assert.equal(fs.readFileSync(filePath, 'utf8'), 'new content');
-  });
-
-  it('returns false when content is identical to existing file', () => {
-    const filePath = path.join(tempRoot, 'unchanged.txt');
-    fs.writeFileSync(filePath, 'same content', 'utf8');
-    const result = writeIfChanged(filePath, 'same content');
-    assert.equal(result, false);
-  });
-
-  it('does not modify the file when content is identical', () => {
-    const filePath = path.join(tempRoot, 'unchanged.txt');
-    fs.writeFileSync(filePath, 'same content', 'utf8');
-    const mtimeBefore = fs.statSync(filePath).mtimeMs;
-    writeIfChanged(filePath, 'same content');
-    const mtimeAfter = fs.statSync(filePath).mtimeMs;
-    assert.equal(mtimeBefore, mtimeAfter);
-  });
-
-  it('writes and returns true when content differs', () => {
-    const filePath = path.join(tempRoot, 'changed.txt');
-    fs.writeFileSync(filePath, 'old content', 'utf8');
-    const result = writeIfChanged(filePath, 'new content');
-    assert.equal(result, true);
-    assert.equal(fs.readFileSync(filePath, 'utf8'), 'new content');
-  });
-
-  it('creates parent directories for new files', () => {
-    const filePath = path.join(tempRoot, 'deep', 'nested', 'file.txt');
-    const result = writeIfChanged(filePath, 'deep content');
-    assert.equal(result, true);
-    assert.equal(fs.readFileSync(filePath, 'utf8'), 'deep content');
-  });
-
-  it('handles empty string content for new file', () => {
-    const filePath = path.join(tempRoot, 'empty.txt');
-    const result = writeIfChanged(filePath, '');
-    assert.equal(result, true);
-    assert.equal(fs.readFileSync(filePath, 'utf8'), '');
-  });
-
-  it('returns false when existing file and new content are both empty', () => {
-    const filePath = path.join(tempRoot, 'both-empty.txt');
-    fs.writeFileSync(filePath, '', 'utf8');
-    const result = writeIfChanged(filePath, '');
-    assert.equal(result, false);
   });
 });
 

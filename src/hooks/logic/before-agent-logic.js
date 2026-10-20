@@ -90,7 +90,7 @@ function readSessionSummary(cwd) {
   let content;
   try {
     const root = resolveHookWorkspaceRoot(cwd);
-    content = readFileSafe(state.resolveActiveSessionPath(root), '');
+    content = readFileSafe(state.resolveActiveSessionPath(root));
   } catch (err) {
     log('WARN', `BeforeAgent: could not resolve session state: ${err.message}`);
     return [];

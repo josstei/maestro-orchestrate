@@ -33,11 +33,7 @@ function stripInlineComment(value) {
 
 function parseEnvFile(filePath) {
   const result = {};
-  const content = readFileSafe(filePath, null);
-  if (content === null) {
-    return result;
-  }
-  const lines = content.split('\n');
+  const lines = readFileSafe(filePath).split('\n');
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (!trimmed || trimmed.startsWith('#')) continue;

@@ -3,7 +3,8 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { VERSION_JSON_FILENAME } = require('../core/version');
-const { formatJson, writeIfChanged } = require('../lib/io');
+const { formatJson } = require('../lib/io');
+const { writeIfChanged } = require('./file-writer');
 const { globFiles } = require('./glob-files');
 const { pruneStaleFiles } = require('./stale-pruner');
 

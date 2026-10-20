@@ -3,7 +3,28 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
-const { writeIfChanged } = require('../lib/io');
+
+/**
+ * Writes content to a file only when it differs from existing content.
+ * Creates parent directories if they do not exist.
+ *
+ * @param {string} filePath - Absolute path to the target file
+ * @param {string} content - Content to write
+ * @returns {boolean} True if the file was written, false if content was identical
+ */
+function writeIfChanged(filePath, content) {
+  const existing = fs.existsSync(filePath)
+    ? fs.readFileSync(filePath, 'utf8')
+    : null;
+
+  if (existing === content) {
+    return false;
+  }
+
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, 'utf8');
+  return true;
+}
 
 /**
  * @param {string} relativePath
@@ -163,4 +184,4 @@ function createFileWriter(opts) {
   return { write, writeAll, clean, reportError, getStats };
 }
 
-module.exports = { createFileWriter };
+module.exports = { createFileWriter, writeIfChanged };

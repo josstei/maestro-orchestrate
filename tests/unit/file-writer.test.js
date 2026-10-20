@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createFileWriter } = require('../../src/generator/file-writer');
+const { createFileWriter, writeIfChanged } = require('../../src/generator/file-writer');
 const { makeTempDir } = require('../support/fs');
 
 let tempRoot;
@@ -276,5 +276,59 @@ describe('FileWriter clean', () => {
       () => writer.clean([path.relative(tempRoot, outsideRoot())]),
       /Path traversal detected/
     );
+  });
+});
+
+describe('writeIfChanged', () => {
+  it('writes a new file and returns true', () => {
+    const filePath = path.join(tempRoot, 'new.txt');
+    const result = writeIfChanged(filePath, 'new content');
+    assert.equal(result, true);
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'new content');
+  });
+
+  it('returns false when content is identical to existing file', () => {
+    const filePath = path.join(tempRoot, 'unchanged.txt');
+    fs.writeFileSync(filePath, 'same content', 'utf8');
+    const result = writeIfChanged(filePath, 'same content');
+    assert.equal(result, false);
+  });
+
+  it('does not modify the file when content is identical', () => {
+    const filePath = path.join(tempRoot, 'unchanged.txt');
+    fs.writeFileSync(filePath, 'same content', 'utf8');
+    const mtimeBefore = fs.statSync(filePath).mtimeMs;
+    writeIfChanged(filePath, 'same content');
+    const mtimeAfter = fs.statSync(filePath).mtimeMs;
+    assert.equal(mtimeBefore, mtimeAfter);
+  });
+
+  it('writes and returns true when content differs', () => {
+    const filePath = path.join(tempRoot, 'changed.txt');
+    fs.writeFileSync(filePath, 'old content', 'utf8');
+    const result = writeIfChanged(filePath, 'new content');
+    assert.equal(result, true);
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'new content');
+  });
+
+  it('creates parent directories for new files', () => {
+    const filePath = path.join(tempRoot, 'deep', 'nested', 'file.txt');
+    const result = writeIfChanged(filePath, 'deep content');
+    assert.equal(result, true);
+    assert.equal(fs.readFileSync(filePath, 'utf8'), 'deep content');
+  });
+
+  it('handles empty string content for new file', () => {
+    const filePath = path.join(tempRoot, 'empty.txt');
+    const result = writeIfChanged(filePath, '');
+    assert.equal(result, true);
+    assert.equal(fs.readFileSync(filePath, 'utf8'), '');
+  });
+
+  it('returns false when existing file and new content are both empty', () => {
+    const filePath = path.join(tempRoot, 'both-empty.txt');
+    fs.writeFileSync(filePath, '', 'utf8');
+    const result = writeIfChanged(filePath, '');
+    assert.equal(result, false);
   });
 });
