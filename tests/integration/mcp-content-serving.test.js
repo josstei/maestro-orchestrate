@@ -22,8 +22,14 @@ function copyServerTree() {
   return root;
 }
 
-async function withCodexServer(root, fn) {
-  const client = spawnMcpServer({ cwd: root, relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.codex });
+async function withCodexServer(root, fn, env = {}) {
+  const client = spawnMcpServer({
+    cwd: root,
+    relativePath: 'mcp/maestro-server.js',
+    clientInfo: HOST_CLIENTS.codex,
+    env,
+    requestTimeoutMs: 10000,
+  });
   try {
     await client.ready;
     await client.initialize();
@@ -34,6 +40,21 @@ async function withCodexServer(root, fn) {
 }
 
 describe('mcp content serving from the server src/', () => {
+  it('serves its own src/ wherever MAESTRO_EXTENSION_PATH points', async () => {
+    const root = copyServerTree();
+    const marker = '\nServed from the copied server tree.\n';
+    fs.appendFileSync(path.join(root, 'src', 'skills', 'shared', 'delegation', 'SKILL.md'), marker);
+
+    // Another Maestro tree, and a directory with no Maestro tree above it.
+    for (const extensionPath of [ROOT, makeTempDir('maestro-no-extension-')]) {
+      await withCodexServer(root, async (client) => {
+        const { contents, errors } = (await client.callTool('get_skill_content', { resources: ['delegation'] })).parsed;
+        assert.deepEqual(errors, {}, extensionPath);
+        assert.ok(contents.delegation.endsWith(marker), extensionPath);
+      }, { MAESTRO_EXTENSION_PATH: extensionPath });
+    }
+  });
+
   it('reads content at call time and reports each unreadable resource or agent per id', async () => {
     const root = copyServerTree();
     const src = path.join(root, 'src');

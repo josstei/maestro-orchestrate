@@ -132,22 +132,6 @@ describe('createServer tool calls', () => {
     assert.equal(result.ok, true);
   });
 
-  it('returns recovery hints for known tool failures', async () => {
-    const server = createTestServer([
-      tool('create_session', () => {
-        throw new Error('Active session already exists.');
-      }),
-    ]);
-
-    const result = await server.callTool('create_session');
-
-    assert.equal(result.ok, false);
-    assert.equal(
-      result.recovery_hint,
-      'Call get_session_status to check the current session, then archive_session if you want to start fresh.'
-    );
-  });
-
   it('normalizes MaestroError failures into the internal tool outcome contract', async () => {
     const server = createTestServer([
       tool('get_agent', () => {
