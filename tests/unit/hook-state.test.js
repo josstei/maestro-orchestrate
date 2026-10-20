@@ -8,7 +8,9 @@ const path = require('node:path');
 const { makeTempDir } = require('../support/fs');
 
 // hook-state reads MAESTRO_HOOKS_DIR once, at load; each test uses its own session id.
-const baseDir = makeTempDir('maestro-hook-state-test-');
+// The base dir is nested in a private temp dir, so a removeSessionDir('..') that
+// slipped past session-id validation could only delete that dir, not os.tmpdir().
+const baseDir = path.join(makeTempDir('maestro-hook-state-test-'), 'hooks');
 process.env.MAESTRO_HOOKS_DIR = baseDir;
 const state = require('../../src/hooks/logic/hook-state');
 

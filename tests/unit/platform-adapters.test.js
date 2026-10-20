@@ -204,9 +204,9 @@ describe('qwen hook-adapter', () => {
       assert.equal(result.agentName, 'coder');
     });
 
-    it('maps last_assistant_message to agentResult', () => {
+    it('maps last_assistant_message to agentResult whatever the hook_event_name', () => {
+      // after-agent is registered only on SubagentStop, so the event name is not checked.
       const result = qwenAdapter.normalizeInput({
-        hook_event_name: 'SubagentStop',
         agent_type: 'coder',
         last_assistant_message: '## Task Report\nDone.\n\n## Downstream Context\nNext steps.',
       });

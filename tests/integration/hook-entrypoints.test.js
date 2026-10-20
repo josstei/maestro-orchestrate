@@ -295,6 +295,25 @@ describe('hook entrypoints', () => {
     });
   });
 
+  it('denies a qwen after-agent response that is not text and clears the agent', () => {
+    // A numeric last_assistant_message used to crash the hook (allow fallback,
+    // agent left recorded) and an array of heading strings used to pass.
+    const payload = { cwd: ROOT, session_id: 'hook-non-text-session', hook_event_name: 'SubagentStop', agent_type: 'coder' };
+    for (const message of [42, ['## Task Report', '## Downstream Context']]) {
+      const start = runHook('hooks/hook-runner.js', 'qwen', 'before-agent', { ...payload, hook_event_name: 'SubagentStart' });
+      assert.equal(start.status, 0, start.stderr);
+
+      const result = runHook('hooks/hook-runner.js', 'qwen', 'after-agent', { ...payload, last_assistant_message: message });
+      assert.equal(result.status, 2, result.stderr);
+      assert.equal(JSON.parse(result.stdout).decision, 'block');
+      assert.ok(!result.stderr.includes('Hook error'), result.stderr);
+
+      const again = runHook('hooks/hook-runner.js', 'qwen', 'after-agent', { ...payload, last_assistant_message: message });
+      assert.equal(again.status, 0, 'the first after-agent cleared the agent');
+      assert.deepEqual(JSON.parse(again.stdout), {});
+    }
+  });
+
   it('keeps hook state under <os.tmpdir()>/maestro-hooks-<uid> when MAESTRO_HOOKS_DIR is unset', {
     skip: process.platform === 'win32' && 'os.tmpdir() ignores TMPDIR on Windows',
   }, () => {
