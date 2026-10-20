@@ -26,22 +26,24 @@ function computeOutputPath(src, runtime) {
 
 /**
  * Expand the manifest rules into one entry per matched source file, with
- * that file's output path in each of the rule's runtimes.
- * @param {Array<{ glob: string, transform: Function, runtimes: string[] }>} rules - Manifest rules to expand
+ * that file's output path in each runtime whose config declares the field
+ * the rule requires, in runtime order.
+ * @param {Array<{ glob: string, transform: Function, requires: string }>} rules - Manifest rules to expand
  * @param {Record<string, Object>} runtimes - Runtime configurations keyed by name
  * @param {string} srcDir - Absolute path to source directory
  * @returns {Array<{ src: string, transform: Function, outputs: Record<string, string> }>}
  */
 function expandManifest(rules, runtimes, srcDir) {
-  return rules.flatMap((rule) =>
-    globFiles(srcDir, rule.glob).map((src) => ({
+  return rules.flatMap((rule) => {
+    const targets = Object.entries(runtimes).filter(([, runtime]) => Object.hasOwn(runtime, rule.requires));
+    return globFiles(srcDir, rule.glob).map((src) => ({
       src,
       transform: rule.transform,
       outputs: Object.fromEntries(
-        rule.runtimes.map((runtimeName) => [runtimeName, computeOutputPath(src, runtimes[runtimeName])])
+        targets.map(([runtimeName, runtime]) => [runtimeName, computeOutputPath(src, runtime)])
       ),
-    }))
-  );
+    }));
+  });
 }
 
 /**

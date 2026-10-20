@@ -6,13 +6,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const skillDiscoveryStub = require('../../src/generator/transforms/skill-discovery-stub');
 const { parse } = require('../../src/lib/frontmatter');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { SHARED_SKILL_COUNT } = require('../support/catalog');
 const { SRC_ROOT } = require('../support/paths');
 
 describe('skill-discovery-stub transform', () => {
-  const antigravityRuntime = { name: 'antigravity' };
-  const claudeRuntime = { name: 'claude' };
-  const codexRuntime = { name: 'codex' };
+  const antigravityRuntime = getRuntimeConfig('antigravity');
+  const claudeRuntime = getRuntimeConfig('claude');
+  const codexRuntime = getRuntimeConfig('codex');
 
   const skillContent = [
     '---',

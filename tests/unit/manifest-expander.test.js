@@ -15,9 +15,9 @@ const { SRC_ROOT } = require('../support/paths');
 
 describe('manifest-expander', () => {
   const runtimes = {
-    qwen: { name: 'qwen', agentNaming: 'snake_case', outputDir: './' },
-    claude: { name: 'claude', agentNaming: 'kebab-case', outputDir: 'claude/' },
-    codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/' },
+    qwen: { name: 'qwen', agentNaming: 'snake_case', outputDir: './', agentFrontmatter: {}, skillFrontmatter: {} },
+    claude: { name: 'claude', agentNaming: 'kebab-case', outputDir: 'claude/', agentFrontmatter: {}, skillFrontmatter: {} },
+    codex: { name: 'codex', agentNaming: 'kebab-case', outputDir: 'plugins/maestro/', skillFrontmatter: {} },
   };
   let tmpDir;
 
@@ -30,8 +30,8 @@ describe('manifest-expander', () => {
   });
 
   describe('expandManifest', () => {
-    it('expands a glob rule into one entry per file, named per runtime under its outputDir', () => {
-      const rule = { glob: 'agents/*.md', transform: agentStub, runtimes: ['qwen', 'claude'] };
+    it('expands a glob rule into one entry per file for each runtime declaring the required field, named under its outputDir', () => {
+      const rule = { glob: 'agents/*.md', transform: agentStub, requires: 'agentFrontmatter' };
 
       assert.deepEqual(expandManifest([rule], runtimes, tmpDir), [
         {
@@ -48,11 +48,7 @@ describe('manifest-expander', () => {
     });
 
     it('flattens skills/shared/ and keeps skill paths kebab-case under a snake_case runtime', () => {
-      const rule = {
-        glob: 'skills/shared/**/SKILL.md',
-        transform: skillDiscoveryStub,
-        runtimes: ['qwen', 'claude', 'codex'],
-      };
+      const rule = { glob: 'skills/shared/**/SKILL.md', transform: skillDiscoveryStub, requires: 'skillFrontmatter' };
 
       const result = expandManifest([rule], runtimes, tmpDir);
 
@@ -73,7 +69,7 @@ describe('manifest-expander', () => {
       );
 
       it('expands the agents glob into one entry per agent with per-runtime outputs', () => {
-        const rule = { glob: 'agents/*.md', transform: agentStub, runtimes: ['claude', 'qwen'] };
+        const rule = { glob: 'agents/*.md', transform: agentStub, requires: 'agentFrontmatter' };
 
         const result = expandManifest([rule], realRuntimes, SRC_ROOT);
 
@@ -139,7 +135,7 @@ describe('manifest-expander', () => {
         return `${runtime.name}:${content}`;
       };
       const manifest = expandManifest(
-        [{ glob: 'agents/*.md', transform, runtimes: ['qwen', 'claude'] }],
+        [{ glob: 'agents/*.md', transform, requires: 'agentFrontmatter' }],
         runtimes,
         tmpDir
       );

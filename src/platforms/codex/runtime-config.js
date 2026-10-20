@@ -37,6 +37,9 @@ module.exports = {
     codebase_investigator: 'local inspection or spawn_agent',
   },
 
+  // Shared-skill stubs carry only their name and description.
+  skillFrontmatter: {},
+
   delegation: {
     pattern: 'spawn_agent(...)',
     constraints: {

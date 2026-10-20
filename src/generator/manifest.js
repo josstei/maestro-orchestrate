@@ -3,14 +3,16 @@
 const agentStub = require('./transforms/agent-stub');
 const skillDiscoveryStub = require('./transforms/skill-discovery-stub');
 
+// Each rule renders for every runtime whose config declares the field its
+// transform reads (`requires`).
 module.exports = [
-  // ── Agent discovery stubs — Antigravity, Claude, and Qwen ──────────
+  // ── Agent discovery stubs ──────────────────────────────────────────
   { glob: 'agents/*.md',
     transform: agentStub,
-    runtimes: ['antigravity', 'claude', 'qwen'] },
+    requires: 'agentFrontmatter' },
 
-  // ── Shared skill discovery stubs — Antigravity, Claude, and Codex ──
+  // ── Shared skill discovery stubs ───────────────────────────────────
   { glob: 'skills/shared/**/SKILL.md',
     transform: skillDiscoveryStub,
-    runtimes: ['antigravity', 'claude', 'codex'] },
+    requires: 'skillFrontmatter' },
 ];

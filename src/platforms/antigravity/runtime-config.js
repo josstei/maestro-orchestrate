@@ -58,6 +58,11 @@ module.exports = {
     fields: ['name', 'description', 'subagent', 'mainAgent', 'model', 'tools'],
   },
 
+  // Extra frontmatter for shared-skill stubs. Shared skills are methodology
+  // the orchestrator loads, not commands: keep them out of the slash-command
+  // menu.
+  skillFrontmatter: { 'disable-slash-command': true },
+
   delegation: {
     pattern: 'invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])',
     constraints: {

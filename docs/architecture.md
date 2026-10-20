@@ -41,13 +41,13 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 ### Manifest System
 
-`src/generator/manifest.js` declares how source files map to outputs. Each rule globs source files under `src/` and names the transform that renders them and the runtimes that receive the result:
+`src/generator/manifest.js` declares how source files map to outputs. Each rule globs source files under `src/`, names the transform that renders them, and names the runtime-config field that transform reads; every runtime whose config declares that field receives the result:
 
 ```javascript
 {
   glob: 'agents/*.md',
-  transform: agentStub,                        // require('./transforms/agent-stub')
-  runtimes: ['antigravity', 'claude', 'qwen'], // Target runtimes
+  transform: agentStub,           // require('./transforms/agent-stub')
+  requires: 'agentFrontmatter',   // Antigravity, Claude and Qwen declare it
 }
 ```
 
@@ -62,7 +62,7 @@ The generator has 2 transforms in `src/generator/transforms/`, each a `(content,
 | Transform | Purpose |
 |-----------|---------|
 | `agent-stub.js` | Emit the runtime's agent frontmatter (the fields its `agentFrontmatter.fields` lists, with tools in that runtime's names, each listed once, and, when `features.exampleBlocks` is on, the body's `<example>` blocks folded into the description), followed by a one-line body that points at `get_agent()` |
-| `skill-discovery-stub.js` | Replace a shared skill body with a stub that points at `get_skill_content()`; Claude stubs also set `user-invocable: false` and Antigravity stubs `disable-slash-command: true` |
+| `skill-discovery-stub.js` | Replace a shared skill body with a stub that points at `get_skill_content()`, adding the runtime's `skillFrontmatter` fields (Claude `user-invocable: false`, Antigravity `disable-slash-command: true`) |
 
 ### Runtime Definitions
 
@@ -82,6 +82,9 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `env.extensionPath` | `PLUGIN_ROOT` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
 | `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
 | `agentFrontmatter.fields` | name, description, subagent, mainAgent, model, tools | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
+| `skillFrontmatter` | `{ "disable-slash-command": true }` | `{ "user-invocable": false }` | `{}` | — (no shared-skill stubs) |
+
+Beside its runtime config, each runtime has a build-time `src/platforms/<runtime>/outputs.js` that only the generator reads and no payload ships. It declares `ownedDirs` (pruned in step 6), `payload` (step 7), `entryPoints` (see [Entry-Point Registry](#entry-point-registry)), and `metadataFiles(context)` (step 5); the entry-point templates sit beside it in `templates/`. A runtime is added or changed in its own `src/platforms/<runtime>/` directory: `runtime-config.js`, `outputs.js`, `templates/`, and a `hook-adapter.js` and `policy-enforcer.js` when its host runs Maestro's hooks.
 
 ### Entry-Point Registry
 
