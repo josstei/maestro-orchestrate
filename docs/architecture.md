@@ -84,7 +84,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `agentFrontmatter.fields` | name, description, subagent, mainAgent, model, tools | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
 | `skillFrontmatter` | `{ "disable-slash-command": true }` | `{ "user-invocable": false }` | `{}` | — (no shared-skill stubs) |
 
-Beside its runtime config, each runtime has a build-time `src/platforms/<runtime>/outputs.js` that only the generator reads and no payload ships. It declares `ownedDirs` (pruned in step 6), `payload` (step 7), `entryPoints` (see [Entry-Point Registry](#entry-point-registry)), and `metadataFiles(context)` (step 5); the entry-point templates sit beside it in `templates/`. A runtime is added or changed in its own `src/platforms/<runtime>/` directory: `runtime-config.js`, `outputs.js`, `templates/`, and a `hook-adapter.js` and `policy-enforcer.js` when its host runs Maestro's hooks.
+Beside its runtime config, each runtime has a build-time `src/platforms/<runtime>/outputs.js` that only the generator reads and no payload ships. It declares `ownedDirs` (pruned in step 6), `payload` (step 7), `entryPoints` (see [Entry-Point Registry](#entry-point-registry)), and `metadataFiles(context)` (step 5); the entry-point templates sit beside it in `templates/`. Everything the generator writes or bundles for a runtime is declared in its own `src/platforms/<runtime>/` directory: `runtime-config.js`, `outputs.js`, `templates/`, and a `hook-adapter.js` and `policy-enforcer.js` when its host runs Maestro's hooks.
 
 ### Entry-Point Registry
 

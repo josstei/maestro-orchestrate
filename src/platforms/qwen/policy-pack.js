@@ -3,7 +3,7 @@
 /**
  * Renders the Qwen Code shell policy pack (policies/maestro.toml) from the
  * canonical rules in src/platforms/shared/policy-rules.js. Build-time only:
- * Qwen's metadataFiles (src/platforms/qwen/outputs.js) call it.
+ * Qwen's metadataFiles (src/platforms/qwen/outputs.js) calls it.
  */
 
 const { DENY_RULES, ASK_RULES } = require('../shared/policy-rules');
