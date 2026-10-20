@@ -93,7 +93,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
 | `agentFrontmatter.fields` | name, description, subagent, mainAgent, model, tools | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
 
-Each config also declares its `tools` map, `features` flags and `paths`. Only `agentPrefix`, `mcpToolMeta` and `agentFrontmatter` are optional (— above); the server and generator read every other field without a fallback, and `tests/unit/runtime-config-constraints.test.js` pins them.
+Each config also declares its `tools` map, `features` flags and `paths`. Only `agentPrefix`, `mcpToolMeta` and `agentFrontmatter` are optional (— above). Every other field is required, so its consumers need no fallback; `tests/unit/runtime-config-constraints.test.js` pins them.
 
 ### Entry-Point Registry
 

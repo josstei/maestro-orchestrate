@@ -118,7 +118,7 @@ maestro-orchestrate/
 
 ### MCP Server
 
-A bundled Model Context Protocol server providing 17 tools across 3 packs:
+A bundled Model Context Protocol server providing 17 tools in three groups:
 
 - **Workspace** (4): initialize_workspace, assess_task_complexity, validate_plan, resolve_settings
 - **Session** (10): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase

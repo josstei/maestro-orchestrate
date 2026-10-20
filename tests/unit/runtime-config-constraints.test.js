@@ -14,10 +14,9 @@ const isPlainObject = (value) => value !== null && typeof value === 'object' && 
 const isNonEmptyString = (value) => typeof value === 'string' && value.length > 0;
 
 describe('runtime-config required fields', () => {
-  // Consumers (MCP server, content serving, generator) read these fields
-  // without a fallback. agentPrefix, mcpToolMeta and agentFrontmatter are
-  // optional.
-  it('every runtime-config defines the fields its consumers read without a fallback', () => {
+  // Every config defines these fields, so their consumers need no fallback.
+  // agentPrefix, mcpToolMeta and agentFrontmatter are optional.
+  it('every runtime-config defines the required fields', () => {
     for (const [name, config] of Object.entries(RUNTIME_CONFIGS)) {
       assert.equal(config.name, name);
       assert.ok(isNonEmptyString(config.outputDir), `${name}.outputDir`);
