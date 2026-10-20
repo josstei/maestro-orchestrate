@@ -1,12 +1,10 @@
 'use strict';
 
-const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
-const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
+const { handleGetAgent, handleGetSkillContent } = require('../../handlers/content');
 const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
-const { resolveCanonicalSrcFromExtensionRoot } = require('../../utils/extension-root');
 
 function createToolPack({ runtimeConfig, services }) {
-  const srcRoot = services.canonicalSrcRoot || resolveCanonicalSrcFromExtensionRoot();
+  const context = { runtimeConfig };
 
   return {
     name: 'content',
@@ -27,7 +25,7 @@ function createToolPack({ runtimeConfig, services }) {
           },
           required: ['resources'],
         },
-        handler: createSkillContentHandler(runtimeConfig, srcRoot),
+        handler: (params, projectRoot) => handleGetSkillContent(params, projectRoot, context),
       },
       {
         name: 'get_agent',
@@ -45,7 +43,7 @@ function createToolPack({ runtimeConfig, services }) {
           },
           required: ['agents'],
         },
-        handler: createAgentHandler(runtimeConfig, srcRoot),
+        handler: (params, projectRoot) => handleGetAgent(params, projectRoot, context),
       },
       {
         name: 'get_runtime_context',

@@ -115,8 +115,6 @@ The MCP server is authored directly in modular source under `src/mcp/`. Each run
 ```
 src/mcp/
 ├── maestro-server.js           # Server entry-point (main) + default tool pack order
-├── content/
-│   └── runtime-content.js      # Runtime-specific content resolution
 ├── contracts/                  # Plan schema + complexity tiers, document input and handoff contracts
 ├── core/
 │   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
@@ -124,9 +122,8 @@ src/mcp/
 │   ├── project-root-cache.js   # Workspace path + workspace_suggestion
 │   ├── line-reader.js          # stdin line → JSON message dispatch
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 10 handler implementations
-│   ├── get-agent.js            # Agent methodology serving
-│   ├── get-skill-content.js    # Skill/template/reference serving
+├── handlers/                   # 9 handler implementations
+│   ├── content.js              # get_agent + get_skill_content serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
 │   ├── initialize-workspace.js # Directory setup
 │   ├── assess-task-complexity.js # Repo analysis signals
@@ -139,8 +136,6 @@ src/mcp/
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 10 tools
 │   └── content/index.js        # 3 tools
-├── utils/
-│   └── extension-root.js       # Canonical src/ resolution
 └── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
 ```
 
@@ -148,7 +143,7 @@ The runtime config registry the server and the generator share, `src/platforms/r
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime: `src/mcp/content/runtime-content.js` reads the requested agent or resource from the resolved canonical `src/` directory and applies the runtime's transforms, with no registry fallback.
+The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime: `src/mcp/handlers/content.js` reads the requested agent or resource from the `src/` directory the server runs from (the tree its resource registry and agent names come from) and applies the runtime's transforms, with no registry fallback.
 
 This makes the source-of-truth rules explicit:
 

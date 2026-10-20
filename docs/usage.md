@@ -75,7 +75,7 @@ All settings are resolved with precedence: environment variable > workspace `.en
 | Variable | Runtime | Purpose |
 |----------|---------|---------|
 | `MAESTRO_WORKSPACE_PATH` | Antigravity | First source for `workspace_suggestion` when exported before starting `agy`; otherwise the suggestion comes from MCP `roots/list` |
-| `MAESTRO_EXTENSION_PATH` | Qwen | Override extension root path |
+| `MAESTRO_EXTENSION_PATH` | Qwen | Extension root holding the extension `.env` used for setting resolution, and the `read-active-session.js` script `/maestro:resume` runs (defaults to `~/.qwen/extensions/maestro`) |
 | `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
 | `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |

@@ -34,8 +34,9 @@ describe('KNOWN_AGENTS', () => {
 });
 
 describe('AGENT_NAMES', () => {
-  it('is frozen and lists the canonical kebab-case names', () => {
+  it(`is frozen and lists the ${AGENT_COUNT} canonical kebab-case names`, () => {
     assert.equal(Object.isFrozen(AGENT_NAMES), true);
+    assert.equal(AGENT_NAMES.length, AGENT_COUNT);
     for (const name of AGENT_NAMES) {
       assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
     }
