@@ -5,8 +5,9 @@
  * runtime is named and the agent declares one, else `tools`, without empty
  * entries. A missing or non-list value declares no tools.
  *
- * Shared by mapTools and the generator's registry scanner (which tiers the
- * canonical `tools`), so a tier never counts tools the agent is not given.
+ * Shared by mapTools and the generator's registry scanner, which tiers an
+ * agent by its canonical `tools`, so the tier and the served tool lists read
+ * a missing, scalar or empty entry the same way.
  *
  * @param {object} frontmatter - Parsed agent frontmatter
  * @param {string} [runtimeName] - Runtime whose override applies
