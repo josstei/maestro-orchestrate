@@ -35,12 +35,16 @@ const EXTRA_FILES = [
   'scripts/read-state.js',
 ];
 
-/** Each runtime's platform modules. */
-const PLATFORM_FILES = RUNTIME_NAMES.flatMap((runtimeName) => [
+/**
+ * Every file of a runtime's platform dir, including a module in a subdirectory
+ * that no payload rule names.
+ */
+const platformFiles = (runtimeName) => [
   'hook-adapter.js',
   'policy-enforcer.js',
   'runtime-config.js',
-].map((file) => `platforms/${runtimeName}/${file}`));
+  'support/new-module.js',
+].map((file) => `platforms/${runtimeName}/${file}`);
 
 /** Build-time sources no payload ships, including each runtime's generator module and template. */
 const BUILD_ONLY_FILES = [
@@ -51,22 +55,19 @@ const BUILD_ONLY_FILES = [
     .map((file) => `generator/runtimes/${runtimeName}/${file}`)),
 ];
 
-const platformModules = (runtimeName) => ['hook-adapter.js', 'policy-enforcer.js', 'runtime-config.js']
-  .map((file) => `platforms/${runtimeName}/${file}`);
-
 describe('detached payload contents', () => {
-  it('ships the base, the runtime platform modules and the runtime extras for each payload runtime', () => {
+  it('ships the base, its whole platform dir and its extras for each payload runtime, and no build-only file', () => {
     const srcDir = makeTempDir('maestro-payload-src-');
-    for (const file of [...BASE_FILES, ...EXTRA_FILES, ...PLATFORM_FILES, ...BUILD_ONLY_FILES]) {
+    for (const file of [...BASE_FILES, ...EXTRA_FILES, ...RUNTIME_NAMES.flatMap(platformFiles), ...BUILD_ONLY_FILES]) {
       writeTree(srcDir, file, file);
     }
     const expected = {
       // Antigravity runs its hooks and the served script-based state contract
       // from the installed plugin.
-      antigravity: [...BASE_FILES, ...EXTRA_FILES, ...platformModules('antigravity')],
-      claude: [...BASE_FILES, ...EXTRA_FILES.filter((file) => !file.startsWith('scripts/')), ...platformModules('claude')],
+      antigravity: [...BASE_FILES, ...EXTRA_FILES, ...platformFiles('antigravity')],
+      claude: [...BASE_FILES, ...EXTRA_FILES.filter((file) => !file.startsWith('scripts/')), ...platformFiles('claude')],
       // Codex registers no hooks.
-      codex: [...BASE_FILES, ...platformModules('codex')],
+      codex: [...BASE_FILES, ...platformFiles('codex')],
     };
 
     assert.deepEqual(

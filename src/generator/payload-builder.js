@@ -27,30 +27,21 @@ const BASE_PREFIXES = [
 ];
 
 /**
- * The files of a runtime's platform dir that its host loads at run time; the
- * build-time outputs.js and templates/ stay out of the payload.
- */
-const PLATFORM_RUNTIME_FILES = ['runtime-config.js', 'hook-adapter.js', 'policy-enforcer.js'];
-
-/**
  * Copy the files of srcDir that one runtime's payload ships into outputDir,
  * stamp version.json, then remove stale files from outputDir that are no
  * longer present in the source.
  * @param {string} srcDir - Absolute path to the source directory
  * @param {string} outputDir - Absolute path to the output payload directory
- * @param {string} runtimeName - Runtime whose platform files the payload carries
+ * @param {string} runtimeName - Runtime whose platform dir
+ *   (src/platforms/<runtime>/) the payload carries
  * @param {string[]} extraPrefixes - src/ prefixes the runtime ships beyond the
- *   base (its outputs.js `payload`)
+ *   base and its platform dir (its outputs.js `payload`)
  * @param {string} version - Package version to stamp into version.json
  * @returns {{ copied: number, removed: number }} copied counts updated source
  *   files only; version.json is not counted
  */
 function buildDetachedPayload(srcDir, outputDir, runtimeName, extraPrefixes, version) {
-  const prefixes = [
-    ...BASE_PREFIXES,
-    ...PLATFORM_RUNTIME_FILES.map((file) => `platforms/${runtimeName}/${file}`),
-    ...extraPrefixes,
-  ];
+  const prefixes = [...BASE_PREFIXES, `platforms/${runtimeName}/`, ...extraPrefixes];
   const keptOutputs = new Set([VERSION_JSON_FILENAME]);
   let copied = 0;
 
