@@ -2,32 +2,30 @@
 
 const { toNamingConvention } = require('../../lib/naming');
 const { parse, escapeYaml } = require('../../lib/frontmatter');
-const { emitBlockList } = require('../../lib/yaml-emit');
 const { mapTools } = require('../../core/agent-tools');
 
 /**
- * Per-field emitters, keyed by the names runtime configs list in
- * `agentFrontmatter.fields`. Each returns the YAML line(s) to append, or an
- * empty array to skip the field entirely.
+ * Emitters for the `agentFrontmatter.fields` entries that depend on the
+ * agent. Each returns the YAML line(s) to append, or an empty array to skip
+ * the field entirely. Every other listed field (kind, subagent, mainAgent,
+ * model) is a constant the runtime sets in `agentFrontmatter` and is emitted
+ * as `<field>: <value>`.
  *
  * Context shape:
- *   - `name`         - agent name in the runtime's naming convention
- *   - `frontmatter`  - parsed input frontmatter
- *   - `description`  - final description (may have examples appended for claude)
- *   - `tools`        - resolved tool list (the `tools.<runtime>` override,
- *                      else `tools`, each mapped through runtime.tools),
- *                      without duplicates
- *   - `runtime`      - full runtime config
- *   - `fm`           - runtime.agentFrontmatter config (shape hints)
+ *   - `name`          - agent name in the runtime's naming convention
+ *   - `frontmatter`   - parsed input frontmatter
+ *   - `description`   - final description (with the body's <example> blocks
+ *                       appended when exampleBlocks is on)
+ *   - `tools`         - resolved tool list (see mapTools)
+ *   - `exampleBlocks` - the runtime's features.exampleBlocks
+ *   - `fm`            - runtime.agentFrontmatter config
  */
 const FIELDS = {
   name: (ctx) =>
     ctx.name != null && ctx.name !== '' ? [`name: ${ctx.name}`] : [],
 
-  kind: (ctx) => (ctx.fm.kind ? [`kind: ${ctx.fm.kind}`] : []),
-
   description: (ctx) => {
-    if (ctx.runtime.features?.exampleBlocks && ctx.description.includes('\n')) {
+    if (ctx.exampleBlocks && ctx.description.includes('\n')) {
       return [
         'description: |',
         ...ctx.description.split('\n').map((line) => `  ${line}`),
@@ -36,29 +34,17 @@ const FIELDS = {
     return [`description: "${escapeYaml(ctx.frontmatter.description || '')}"`];
   },
 
-  subagent: (ctx) => (ctx.fm.subagent != null ? [`subagent: ${ctx.fm.subagent}`] : []),
-
-  mainAgent: (ctx) => (ctx.fm.mainAgent != null ? [`mainAgent: ${ctx.fm.mainAgent}`] : []),
-
-  model: (ctx) => (ctx.fm.model ? [`model: ${ctx.fm.model}`] : []),
-
   color: (ctx) =>
     ctx.frontmatter.color ? [`color: ${ctx.frontmatter.color}`] : [],
 
-  tools: (ctx) => emitBlockList('tools', ctx.tools),
+  tools: (ctx) =>
+    ctx.tools.length > 0 ? ['tools:', ...ctx.tools.map((tool) => `  - ${tool}`)] : [],
 
   turns: (ctx) =>
     ctx.fm.turnsField && ctx.frontmatter.max_turns != null
       ? [`${ctx.fm.turnsField}: ${ctx.frontmatter.max_turns}`]
       : [],
 };
-
-function buildDescription(baseDescription, examples) {
-  if (examples.length > 0) {
-    return baseDescription + '\n\n' + examples.join('\n');
-  }
-  return baseDescription;
-}
 
 /**
  * Collect the <example>...</example> blocks from body text.
@@ -107,21 +93,23 @@ function extractExamples(body) {
  */
 function agentStub(content, runtime) {
   const { frontmatter, body } = parse(content);
-  const examples = runtime.features?.exampleBlocks ? extractExamples(body) : [];
+  const exampleBlocks = runtime.features.exampleBlocks;
+  const examples = exampleBlocks ? extractExamples(body) : [];
+  const baseDescription = frontmatter.description || '';
   const fm = runtime.agentFrontmatter;
 
   const ctx = {
     name: toNamingConvention(frontmatter.name, runtime.agentNaming),
     frontmatter,
-    description: buildDescription(frontmatter.description || '', examples),
+    description: examples.length > 0 ? `${baseDescription}\n\n${examples.join('\n')}` : baseDescription,
     tools: mapTools(frontmatter, runtime),
-    runtime,
+    exampleBlocks,
     fm,
   };
 
   const lines = ['---'];
-  for (const fieldName of fm.fields) {
-    lines.push(...FIELDS[fieldName](ctx));
+  for (const field of fm.fields) {
+    lines.push(...(FIELDS[field] ? FIELDS[field](ctx) : [`${field}: ${fm[field]}`]));
   }
   lines.push(
     '---',

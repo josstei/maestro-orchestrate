@@ -2,33 +2,33 @@
 
 const { parse } = require('../../lib/frontmatter');
 
+/**
+ * Transform: skill-discovery-stub
+ *
+ * Builds a shared skill's discovery stub: its name and description, then a
+ * body that points at the MCP `get_skill_content` tool. The source
+ * methodology body is not emitted.
+ *
+ * @param {string} content - Full SKILL.md with --- delimited frontmatter
+ * @param {object} runtime - Runtime config (name)
+ * @returns {string} Stub content
+ */
 function skillDiscoveryStub(content, runtime) {
-  const { frontmatter } = parse(content);
-  const name = frontmatter.name;
-  const description = frontmatter.description;
-  const lines = ['---'];
+  const { name, description } = parse(content).frontmatter;
 
-  if (name) {
-    lines.push(`name: ${name}`);
-  }
-  if (description) {
-    lines.push(`description: ${description}`);
-  }
-  // Shared skills are methodology the orchestrator loads, not commands: keep
-  // them out of the host's slash-command menu.
-  if (runtime.name === 'claude') {
-    lines.push('user-invocable: false');
-  }
-  if (runtime.name === 'antigravity') {
-    lines.push('disable-slash-command: true');
-  }
-
-  lines.push('---');
-  lines.push('');
-  lines.push(`Methodology loaded via MCP. Call \`get_skill_content(resources: ["${name}"])\`.`);
-  lines.push('');
-
-  return lines.join('\n');
+  return [
+    '---',
+    `name: ${name}`,
+    `description: ${description}`,
+    // Shared skills are methodology the orchestrator loads, not commands: keep
+    // them out of the host's slash-command menu.
+    ...(runtime.name === 'claude' ? ['user-invocable: false'] : []),
+    ...(runtime.name === 'antigravity' ? ['disable-slash-command: true'] : []),
+    '---',
+    '',
+    `Methodology loaded via MCP. Call \`get_skill_content(resources: ["${name}"])\`.`,
+    '',
+  ].join('\n');
 }
 
 module.exports = skillDiscoveryStub;

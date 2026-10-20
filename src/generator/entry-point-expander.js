@@ -3,10 +3,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { toTitleCase } = require('../lib/naming');
-const { emitInlineQuotedList } = require('../lib/yaml-emit');
 const entryPointRegistry = require('../entry-points/registry');
 const coreCommandRegistry = require('../entry-points/core-command-registry');
-const preambleBuilders = require('../entry-points/preamble-builders');
+const { preambleBuilders, quotedList } = require('../entry-points/preamble-builders');
 
 const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
 
@@ -93,7 +92,7 @@ const KINDS = {
       firstLine: entry.firstLine,
       requestType: entry.requestType,
       executeInstructions: entry.executeInstructions,
-      preloadList: emitInlineQuotedList(entry.preload),
+      preloadList: quotedList(entry.preload),
       sessionStateBlock: entry.qwenSessionStateInjection ? QWEN_SESSION_STATE_BLOCK : '',
     }),
   },

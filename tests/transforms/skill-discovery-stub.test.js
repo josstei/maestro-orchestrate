@@ -2,7 +2,12 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const skillDiscoveryStub = require('../../src/generator/transforms/skill-discovery-stub');
+const { parse } = require('../../src/lib/frontmatter');
+const { SHARED_SKILL_COUNT } = require('../support/catalog');
+const { SRC_ROOT } = require('../support/paths');
 
 describe('skill-discovery-stub transform', () => {
   const antigravityRuntime = { name: 'antigravity' };
@@ -64,5 +69,17 @@ describe('skill-discovery-stub transform', () => {
 
     assert.ok(result.includes('get_skill_content'));
     assert.ok(result.includes('"delegation"'));
+  });
+
+  it('is fed a name and a description by every canonical shared skill', () => {
+    const sharedDir = path.join(SRC_ROOT, 'skills', 'shared');
+    const skills = fs.readdirSync(sharedDir);
+    assert.equal(skills.length, SHARED_SKILL_COUNT);
+
+    for (const skill of skills) {
+      const { frontmatter } = parse(fs.readFileSync(path.join(sharedDir, skill, 'SKILL.md'), 'utf8'));
+      assert.equal(frontmatter.name, skill);
+      assert.ok(typeof frontmatter.description === 'string' && frontmatter.description !== '', skill);
+    }
   });
 });
