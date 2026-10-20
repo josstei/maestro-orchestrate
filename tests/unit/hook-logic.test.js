@@ -235,10 +235,10 @@ describe('handleBeforeAgent', () => {
     assert.deepEqual(result, { action: 'allow', message: null, reason: null });
   });
 
-  /** The active agent handleBeforeAgent records for a prompt and adapter agent name. */
-  function detectedAgent(agentInput, agentName = null) {
+  /** The active agent handleBeforeAgent records for a prompt when the adapter names no agent. */
+  function detectedAgent(agentInput) {
     hookState.clearActiveAgent(SESSION_ID);
-    handleBeforeAgent({ sessionId: SESSION_ID, cwd: fakeCwd, agentName, agentInput });
+    handleBeforeAgent({ sessionId: SESSION_ID, cwd: fakeCwd, agentName: null, agentInput });
     return hookState.getActiveAgent(SESSION_ID);
   }
 

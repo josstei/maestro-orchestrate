@@ -620,17 +620,19 @@ describe('handleValidatePlan — ids, agents and files that are not plain map ke
   });
 
   it('reports agents named after Object.prototype members as unknown, with a null capability', () => {
-    const phases = [phase('a', { agent: 'constructor', files: ['x.js'] })];
-    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
-    assert.deepEqual(
-      result.violations.map(({ rule, detail }) => [rule, detail]),
-      [
-        ['unknown_agent', 'Phase a: unknown agent "constructor" (normalized: "constructor")'],
+    for (const agent of ['constructor', '__proto__']) {
+      const phases = [phase('a', { agent, files: ['x.js'] })];
+      const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+      assert.deepEqual(
+        result.violations.map(({ rule, detail }) => [rule, detail]),
         [
-          'agent_capability_mismatch',
-          "Phase a: agent 'constructor' (null) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.",
-        ],
-      ]
-    );
+          ['unknown_agent', `Phase a: unknown agent "${agent}" (normalized: "${agent}")`],
+          [
+            'agent_capability_mismatch',
+            `Phase a: agent '${agent}' (null) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.`,
+          ],
+        ]
+      );
+    }
   });
 });
