@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { parseFlagArgs, runCli } = require('./lib/cli');
+const { isPrereleaseVersion, isStableVersion } = require('./lib/release');
 
 const ROOT = path.resolve(__dirname, '..');
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
@@ -53,14 +54,6 @@ function isNpmNotFoundError(error) {
   ].filter(Boolean).join('\n');
 
   return /\bE404\b|404 Not Found|is not in this registry/i.test(text);
-}
-
-function isPrereleaseVersion(version) {
-  return /^[0-9]+\.[0-9]+\.[0-9]+-.+/.test(version);
-}
-
-function isStableVersion(version) {
-  return /^[0-9]+\.[0-9]+\.[0-9]+$/.test(version);
 }
 
 function compareStableVersions(left, right) {

@@ -10,6 +10,7 @@ const {
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
+  isReleaseVersion,
   readJson,
   releaseArchivePath,
 } = require('./lib/release');
@@ -41,7 +42,7 @@ function resolveVersion(root, requestedVersion) {
   const packageVersion = readJson(root, 'package.json').version;
   const version = requestedVersion || packageVersion;
 
-  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
+  if (!isReleaseVersion(version)) {
     throw new Error(`Invalid release artifact version: ${version}`);
   }
 

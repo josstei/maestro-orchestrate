@@ -3,9 +3,10 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { formatJson } = require('../src/lib/io');
 const { runCli } = require('./lib/cli');
+const { isStableVersion } = require('./lib/release');
 
-const STABLE_SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const BADGE_FILES = [
   'README.md',
   'claude/README.md',
@@ -23,7 +24,7 @@ function requireFile(root, relativePath) {
 function updatePackageVersion(filePath, version) {
   const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   content.version = version;
-  fs.writeFileSync(filePath, `${JSON.stringify(content, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(filePath, formatJson(content));
 }
 
 function updateBadge(filePath, version) {
@@ -79,7 +80,7 @@ function updateChangelog(filePath, version, dateString = new Date().toISOString(
 function updateVersions(version, options = {}) {
   const root = options.root || path.resolve(__dirname, '..');
 
-  if (!STABLE_SEMVER_RE.test(version)) {
+  if (!isStableVersion(version)) {
     throw new Error(`Invalid semver version: "${version}"`);
   }
 
@@ -90,8 +91,6 @@ function updateVersions(version, options = {}) {
   }
 
   updateChangelog(requireFile(root, 'CHANGELOG.md'), version, options.dateString);
-
-  return { version };
 }
 
 if (require.main === module) {

@@ -1,10 +1,10 @@
 'use strict';
 
 /**
- * Release rules shared by the packaging and verification scripts: which repo
- * paths a release archive ships, which paths neither the archive nor the npm
- * package may contain, and the runtime manifests every release must keep
- * consistent.
+ * Release rules shared by the scripts that version, package, verify and
+ * publish Maestro: the version formats they accept, which repo paths a release
+ * archive ships, which paths neither the archive nor the npm package may
+ * contain, and the runtime manifests every release must keep consistent.
  */
 
 const fs = require('node:fs');
@@ -65,6 +65,19 @@ const DENIED_ARTIFACT_PATTERNS = [
 ];
 
 const RELEASE_OUT_DIR = 'dist/release';
+
+function isStableVersion(version) {
+  return /^\d+\.\d+\.\d+$/.test(version);
+}
+
+function isPrereleaseVersion(version) {
+  return /^\d+\.\d+\.\d+-.+/.test(version);
+}
+
+function isReleaseVersion(version) {
+  // RegExp.test coerces its argument, so a non-string such as ['1.2.3'] must be rejected first.
+  return typeof version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version);
+}
 
 /**
  * Path of the release archive for `version`. An unset or empty `outDir`
@@ -329,6 +342,9 @@ module.exports = {
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
+  isPrereleaseVersion,
+  isReleaseVersion,
+  isStableVersion,
   readJson,
   releaseArchivePath,
 };

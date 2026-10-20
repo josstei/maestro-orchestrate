@@ -11,6 +11,9 @@ const {
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
+  isPrereleaseVersion,
+  isReleaseVersion,
+  isStableVersion,
   releaseArchivePath,
 } = require('../../scripts/lib/release');
 const { editJson, makeTempDir, readJson, writeTree } = require('../support/fs');
@@ -55,6 +58,31 @@ function copyRuntimeManifests() {
   }
   return tempRoot;
 }
+
+describe('release version formats', () => {
+  it('tells stable, prerelease and invalid versions apart', () => {
+    const cases = [
+      // [version, stable, prerelease, release]
+      ['1.2.3', true, false, true],
+      ['10.20.30', true, false, true],
+      ['1.2.3-rc.1', false, true, true],
+      ['1.2.3-preview.abcdef0', false, true, true],
+      ['1.2.3-', false, false, false],
+      ['1.2.3-rc_1', false, true, false],
+      ['1.2', false, false, false],
+      ['v1.2.3', false, false, false],
+      ['1.2.3.4', false, false, false],
+    ];
+
+    for (const [version, stable, prerelease, release] of cases) {
+      assert.equal(isStableVersion(version), stable, `isStableVersion(${version})`);
+      assert.equal(isPrereleaseVersion(version), prerelease, `isPrereleaseVersion(${version})`);
+      assert.equal(isReleaseVersion(version), release, `isReleaseVersion(${version})`);
+    }
+    assert.equal(isReleaseVersion(['1.2.3']), false);
+    assert.equal(isReleaseVersion(undefined), false);
+  });
+});
 
 describe('release artifact manifest', () => {
   it('uses an explicit allowlist for required release surfaces', () => {
