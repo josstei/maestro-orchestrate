@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { handleInitializeWorkspace } = require('../../src/mcp/handlers/initialize-workspace');
+const { MaestroError } = require('../../src/lib/errors');
 const { makeTempDir } = require('../support/fs');
 
 /** A handler context whose workspace records the path initialize_workspace sets. */
@@ -15,12 +16,12 @@ function createContext() {
   return context;
 }
 
-/** Asserts that the call fails with a WorkspaceResolutionError `code` and records nothing. */
+/** Asserts that the call fails with a MaestroError `code` and records nothing. */
 function assertRejected(params, projectRoot, code) {
   const context = createContext();
   assert.throws(
     () => handleInitializeWorkspace(params, projectRoot, context),
-    { name: 'WorkspaceResolutionError', code }
+    (err) => err instanceof MaestroError && err.code === code
   );
   assert.deepEqual(context.recorded, [], 'a rejected path is not recorded');
 }

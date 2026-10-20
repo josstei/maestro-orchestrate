@@ -5,12 +5,7 @@ const path = require('node:path');
 const { execSync } = require('node:child_process');
 
 const { isExtensionCachePath } = require('./cache-path-rejector');
-const { defineErrorType } = require('../lib/errors');
-
-const WorkspaceResolutionError = defineErrorType(
-  'WorkspaceResolutionError',
-  'WORKSPACE_RESOLUTION_FAILED'
-);
+const { MaestroError } = require('../lib/errors');
 
 /** A non-empty string that is not an unexpanded `${...}` host placeholder. */
 function isConcretePath(value) {
@@ -43,16 +38,15 @@ function resolveExistingRoot(candidate) {
 }
 
 function resolveProjectRoot() {
-  const env = process.env;
+  const { MAESTRO_WORKSPACE_PATH, CLAUDE_PROJECT_DIR, PWD, INIT_CWD } = process.env;
   const cwd = process.cwd();
-  for (const candidate of [env.MAESTRO_WORKSPACE_PATH, env.CLAUDE_PROJECT_DIR, env.PWD, env.INIT_CWD]) {
-    const resolvedRoot = resolveExistingRoot(candidate);
-    if (resolvedRoot) {
-      return resolvedRoot;
+  for (const candidate of [MAESTRO_WORKSPACE_PATH, CLAUDE_PROJECT_DIR, PWD, INIT_CWD, cwd]) {
+    const root = resolveExistingRoot(candidate);
+    if (root) {
+      return root;
     }
   }
-
-  return resolveExistingRoot(cwd) || path.resolve(cwd);
+  return cwd;
 }
 
 /**
@@ -74,25 +68,25 @@ function resolveHookWorkspaceRoot(cwd) {
  *
  * @param {string|null|undefined} workspacePath
  * @returns {string}
- * @throws {WorkspaceResolutionError} WORKSPACE_REQUIRED, WORKSPACE_NOT_FOUND
+ * @throws {MaestroError} WORKSPACE_REQUIRED, WORKSPACE_NOT_FOUND
  *   or WORKSPACE_IN_EXTENSION_CACHE
  */
 function requireExplicitWorkspaceRoot(workspacePath) {
   if (!isConcretePath(workspacePath)) {
-    throw new WorkspaceResolutionError(
+    throw new MaestroError(
       'initialize_workspace requires an explicit workspace_path. No implicit cwd or env fallback is used.',
       { code: 'WORKSPACE_REQUIRED' }
     );
   }
   const resolved = path.resolve(workspacePath);
   if (!fs.existsSync(resolved)) {
-    throw new WorkspaceResolutionError(
+    throw new MaestroError(
       `workspace_path does not exist: ${resolved}`,
       { code: 'WORKSPACE_NOT_FOUND', details: { workspace_path: resolved } }
     );
   }
   if (isExtensionCachePath(resolved)) {
-    throw new WorkspaceResolutionError(
+    throw new MaestroError(
       `workspace_path resolves inside an extension cache directory: ${resolved}. Provide the user workspace path instead.`,
       { code: 'WORKSPACE_IN_EXTENSION_CACHE', details: { workspace_path: resolved } }
     );
