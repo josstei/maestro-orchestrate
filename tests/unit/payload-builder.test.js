@@ -30,7 +30,6 @@ describe('DETACHED_PAYLOAD_BASE_ALLOWLIST', () => {
       'skills/',
       'references/',
       'templates/',
-      'entry-points/',
       'generated/',
     ]);
   });
@@ -53,6 +52,7 @@ describe('shouldIncludeInPayload', () => {
     assert.ok(!shouldIncludeInPayload('manifest.js', allowlist));
     assert.ok(!shouldIncludeInPayload('platforms/claude/runtime-config.js', allowlist));
     assert.ok(!shouldIncludeInPayload('platforms/metadata.js', allowlist));
+    assert.ok(!shouldIncludeInPayload('entry-points/registry.js', allowlist));
   });
 
   it('uses custom allowlist when provided', () => {

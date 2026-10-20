@@ -25,7 +25,6 @@ const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
   'skills/',
   'references/',
   'templates/',
-  'entry-points/',
   'generated/',
 ]);
 
