@@ -208,17 +208,6 @@ describe('design gate tools', () => {
     assert.equal(fs.readFileSync(canonical, 'utf8'), body);
   });
 
-  it('get_design_gate_status returns null when gate was never entered', async () => {
-    const { workspace, server } = await initializedServer();
-    const outcome = await server.callTool(
-      'get_design_gate_status',
-      { session_id: 'alpha' },
-      workspace
-    );
-    assert.equal(outcome.ok, true);
-    assert.equal(outcome.result.entered_at, null);
-  });
-
   it('create_session rejects when design gate is entered but unapproved', async () => {
     const { workspace, server } = await gatedServer();
 

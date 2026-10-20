@@ -212,6 +212,15 @@ describe('handleBeforeAgent', () => {
     assert.equal(result.message, 'Active session: current_phase=4, status=in_progress');
   });
 
+  it('reads the session under the raw process cwd when the payload has no cwd and that cwd is not a concrete path', () => {
+    const workspace = path.join(fs.realpathSync(makeTempDir('maestro-nocwd-placeholder-')), '${workspace}');
+    writeSessionState(workspace, { status: 'in_progress', current_phase: 6 });
+    const result = withCwd(workspace, () =>
+      handleBeforeAgent({ sessionId: SESSION_ID, cwd: undefined, agentInput: null })
+    );
+    assert.equal(result.message, 'Active session: current_phase=6, status=in_progress');
+  });
+
   it('allows with no context for a non-string cwd instead of throwing', () => {
     const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: 42, agentInput: null });
     assert.deepEqual(result, { action: 'allow', message: null, reason: null });
