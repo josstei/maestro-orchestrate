@@ -9,17 +9,15 @@ const {
   resolveStateDirSetting,
   resolveStateDirPath,
 } = require('../../state/session-state');
-const {
-  requireExplicitWorkspaceRoot,
-} = require('../../core/project-root-resolver');
+const { requireExplicitWorkspaceRoot } = require('../../core/project-root-resolver');
 
-async function handleInitializeWorkspace(params = {}, cachedProjectRoot, context) {
-  const workspacePath =
-    params.workspace_path || cachedProjectRoot || null;
-
-  const resolvedWorkspace = requireExplicitWorkspaceRoot({
-    workspacePath,
-  });
+/**
+ * initialize_workspace: create the state and plans directories under the
+ * given workspace and record it as the project root. Without workspace_path
+ * it re-initializes the current project root, if there is one.
+ */
+function handleInitializeWorkspace(params, projectRoot, { workspace }) {
+  const resolvedWorkspace = requireExplicitWorkspaceRoot(params.workspace_path || projectRoot);
 
   const stateDir = resolveStateDirSetting(resolvedWorkspace, params.state_dir);
   const fullStatePath = resolveStateDirPath(resolvedWorkspace, stateDir);
@@ -28,7 +26,7 @@ async function handleInitializeWorkspace(params = {}, cachedProjectRoot, context
   ensureWorkspace(stateDir, resolvedWorkspace);
   // Recorded only once the workspace exists, so a failed call keeps the
   // previous project root.
-  context.workspace.setExplicitWorkspacePath(resolvedWorkspace);
+  workspace.setExplicitWorkspacePath(resolvedWorkspace);
 
   return {
     success: true,

@@ -117,10 +117,9 @@ src/mcp/
 ├── maestro-server.js           # Server entry-point (main) + tool order
 ├── contracts/                  # Plan schema + complexity tiers, document input and handoff contracts
 ├── core/
-│   ├── create-server.js        # Tool dispatch + error sanitization
+│   ├── create-server.js        # Tool dispatch, error sanitization + recovery hints
 │   ├── protocol-dispatcher.js  # JSON-RPC routing + stdio line framing
-│   ├── project-root-cache.js   # Workspace path + workspace_suggestion
-│   └── recovery-hints.js       # Error → recovery guidance mapping
+│   └── project-root-cache.js   # Workspace path + workspace_suggestion
 ├── handlers/                   # 9 handler implementations
 │   ├── content.js              # get_agent + get_skill_content serving
 │   ├── get-runtime-context.js  # Runtime config snapshot

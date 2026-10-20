@@ -69,27 +69,15 @@ function resolveHookWorkspaceRoot(cwd) {
 }
 
 /**
- * Assert that a tool handler was invoked with a resolved workspace root.
- * Used by handlers that cannot function without a workspace (session state,
- * reconciliation, complexity assessment). The dispatcher calls this centrally
- * when `requiresWorkspace` is declared on the tool schema; handlers may also
- * call it directly for defense in depth.
+ * Validate the workspace path `initialize_workspace` was given and return
+ * its git toplevel, or the path itself outside a git repository.
  *
- * @param {string|null|undefined} projectRoot - resolved project root or nullish
- * @param {string} toolName - tool name for the error message
- * @throws {WorkspaceResolutionError} when projectRoot is absent
+ * @param {string|null|undefined} workspacePath
+ * @returns {string}
+ * @throws {WorkspaceResolutionError} WORKSPACE_REQUIRED, WORKSPACE_NOT_FOUND
+ *   or WORKSPACE_IN_EXTENSION_CACHE
  */
-function requireWorkspaceRoot(projectRoot, toolName) {
-  if (typeof projectRoot === 'string' && projectRoot.length > 0) {
-    return projectRoot;
-  }
-  throw new WorkspaceResolutionError(
-    `${toolName} requires an initialized workspace. Call initialize_workspace(workspace_path=...) first.`,
-    { code: 'WORKSPACE_NOT_INITIALIZED', details: { tool_name: toolName } }
-  );
-}
-
-function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
+function requireExplicitWorkspaceRoot(workspacePath) {
   if (!isConcretePath(workspacePath)) {
     throw new WorkspaceResolutionError(
       'initialize_workspace requires an explicit workspace_path. No implicit cwd or env fallback is used.',
@@ -117,6 +105,5 @@ module.exports = {
   resolveHookWorkspaceRoot,
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,
-  requireWorkspaceRoot,
   WorkspaceResolutionError,
 };

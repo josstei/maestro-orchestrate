@@ -198,6 +198,41 @@ describe('createServer tool calls', () => {
     });
   });
 
+  it('attaches the recovery hint matching the failing tool and message, if any', async () => {
+    const checkSession =
+      'Call get_session_status to check the current session, then archive_session if you want to start fresh.';
+    const writable = 'Check that the target directory is writable.';
+    const cases = [
+      ['create_session', 'Active session already exists.', checkSession],
+      ['create_session', 'Session Already Exists', checkSession],
+      ['create_session', 'unexpected internal error', null],
+      ['transition_phase', 'Phase 9 not found', 'Call get_session_status to verify the current session and phase IDs.'],
+      ['update_session', 'ENOENT: no such file or directory', 'Call get_session_status to verify a session exists before updating.'],
+      [
+        'update_session',
+        'must provide at least one updatable field',
+        'Provide at least one of: execution_mode, execution_backend, current_batch.',
+      ],
+      ['initialize_workspace', 'EACCES: permission denied', writable],
+      ['initialize_workspace', 'EPERM: operation not permitted', writable],
+      ['archive_session', 'ENOENT: no such file or directory', null],
+      ['get_agent', 'already exists', null],
+    ];
+
+    for (const [name, message, hint] of cases) {
+      const server = createTestServer([tool(name, () => {
+        throw new Error(message);
+      })]);
+      assert.equal((await server.callTool(name)).recovery_hint, hint, `${name}: ${message}`);
+    }
+
+    // A MaestroError message is matched the same way.
+    const server = createTestServer([tool('create_session', () => {
+      throw new ValidationError('session already exists');
+    })]);
+    assert.equal((await server.callTool('create_session')).recovery_hint, checkSession);
+  });
+
   it('reports unknown tools without a recovery hint', async () => {
     const result = await createTestServer([]).callTool('missing');
 
