@@ -13,7 +13,6 @@ const { resolveSetting } = require('../../config/setting-resolver');
 const {
   requireExplicitWorkspaceRoot,
 } = require('../../core/project-root-resolver');
-const { writeWorkspaceMarker } = require('../contracts/workspace-marker');
 
 async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
   const workspacePath =
@@ -31,7 +30,6 @@ async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
   const alreadyExisted = fs.existsSync(path.join(fullStatePath, 'state'));
 
   ensureWorkspace(stateDir, resolvedWorkspace);
-  writeWorkspaceMarker(fullStatePath, resolvedWorkspace);
 
   return {
     success: true,

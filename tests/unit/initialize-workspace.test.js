@@ -9,9 +9,6 @@ const {
   handleInitializeWorkspace,
 } = require('../../src/mcp/handlers/initialize-workspace');
 const {
-  MARKER_FILENAME,
-} = require('../../src/mcp/contracts/workspace-marker');
-const {
   WorkspaceResolutionError,
 } = require('../../src/core/project-root-resolver');
 const { makeTempDir } = require('../support/fs');
@@ -25,14 +22,13 @@ describe('handleInitializeWorkspace', () => {
     assert.equal(result.state_dir, 'docs/maestro');
   });
 
-  it('writes a workspace marker to <workspace>/docs/maestro', async () => {
+  it('creates only the state and plans trees under <workspace>/docs/maestro', async () => {
     const workspace = makeTempDir('maestro-init-');
-    await handleInitializeWorkspace({ workspace_path: workspace });
-    const marker = JSON.parse(
-      fs.readFileSync(path.join(workspace, 'docs', 'maestro', MARKER_FILENAME), 'utf8')
-    );
-    assert.equal(marker.workspace_path, workspace);
-    assert.equal(marker.schema_version, 1);
+    const result = await handleInitializeWorkspace({ workspace_path: workspace });
+    for (const dir of result.created_directories) {
+      assert.ok(fs.statSync(path.join(workspace, dir)).isDirectory(), dir);
+    }
+    assert.deepEqual(fs.readdirSync(path.join(workspace, 'docs', 'maestro')).sort(), ['plans', 'state']);
   });
 
   it('rejects paths inside an extension cache', async () => {
