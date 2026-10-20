@@ -12,7 +12,7 @@ const {
   assertRuntimeManifestShape,
   readJson,
   releaseArchiveName,
-} = require('./release-artifact-manifest');
+} = require('./lib/release');
 const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');

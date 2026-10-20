@@ -6,14 +6,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  DENIED_ARTIFACT_PATHS,
   RELEASE_ARTIFACT_PATHS,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
-  isReleaseArtifactPathAllowed,
-} = require('../../scripts/release-artifact-manifest');
+} = require('../../scripts/lib/release');
 const { editJson, makeTempDir, readJson, writeTree } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 
@@ -38,6 +36,15 @@ const RUNTIME_MANIFEST_FILES = [
   'plugins/maestro/src/version.json',
   'qwen-extension.json',
 ];
+
+/** A temp dir holding an empty file at each of `relativePaths`. */
+function artifactTree(...relativePaths) {
+  const root = makeTempDir('maestro-release-tree-');
+  for (const relativePath of relativePaths) {
+    writeTree(root, relativePath);
+  }
+  return root;
+}
 
 function copyRuntimeManifests() {
   const tempRoot = makeTempDir('maestro-release-runtime-');
@@ -76,9 +83,14 @@ describe('release artifact manifest', () => {
       );
     }
     // Repo-root agents/ holds the Qwen agent stubs (Qwen loads <extension>/agents/).
-    assert.equal(isReleaseArtifactPathAllowed('agents/coder.md'), true);
-    assert.equal(isReleaseArtifactPathAllowed('antigravity/agents/coder.md'), true);
-    assert.equal(isReleaseArtifactPathAllowed('antigravity/src/mcp/maestro-server.js'), true);
+    // docs/ and .agents/plugins/ are allowed only as parents of allowlisted files.
+    assert.doesNotThrow(() => assertReleaseArtifactContents(artifactTree(
+      'agents/coder.md',
+      'antigravity/agents/coder.md',
+      'antigravity/src/mcp/maestro-server.js',
+      'docs/usage.md',
+      '.agents/plugins/marketplace.json'
+    )));
   });
 
   it('ships no Gemini CLI surfaces', () => {
@@ -90,10 +102,9 @@ describe('release artifact manifest', () => {
     ];
 
     for (const removedPath of removedPaths) {
-      assert.equal(
-        isReleaseArtifactPathAllowed(removedPath),
-        false,
-        `${removedPath} must not be allowlisted`
+      assert.throws(
+        () => assertReleaseArtifactContents(artifactTree(removedPath)),
+        { message: `Release artifact contains unallowlisted paths: ${removedPath}` }
       );
     }
     for (const releasePath of RELEASE_ARTIFACT_PATHS) {
@@ -103,7 +114,6 @@ describe('release artifact manifest', () => {
 
   it('keeps denying local .gemini tool directories', () => {
     for (const deniedPath of ['.gemini', '.gemini_security']) {
-      assert.ok(DENIED_ARTIFACT_PATHS.includes(deniedPath), `${deniedPath} must stay denied`);
       assert.equal(isDeniedPath(`${deniedPath}/settings.json`), true);
     }
   });
@@ -112,42 +122,18 @@ describe('release artifact manifest', () => {
     for (const releasePath of RELEASE_ARTIFACT_PATHS) {
       assert.equal(isDeniedPath(releasePath), false, `${releasePath} must not be denied`);
     }
-
-    for (const deniedPath of DENIED_ARTIFACT_PATHS) {
-      assert.equal(isDeniedPath(deniedPath), true, `${deniedPath} should be denied`);
-      assert.equal(isDeniedPath(`${deniedPath}/nested.txt`), true, `${deniedPath}/nested.txt should be denied`);
-    }
-  });
-
-  it('denies test-only files inside otherwise allowlisted runtime roots', () => {
-    const testFile = 'claude/scripts/policy-enforcer.test.js';
-
-    assert.equal(isReleaseArtifactPathAllowed(testFile), true);
-    assert.equal(isDeniedPath(testFile), true);
-  });
-
-  it('allows parent directories needed to reach explicitly allowlisted files', () => {
-    assert.equal(isReleaseArtifactPathAllowed('docs'), true);
-    assert.equal(isReleaseArtifactPathAllowed('.agents/plugins'), true);
-    assert.equal(isReleaseArtifactPathAllowed('unexpected-local-file.txt'), false);
   });
 
   it('fails when extracted artifact contents are outside the allowlist', () => {
-    const tempRoot = makeTempDir('maestro-release-unexpected-');
-    fs.writeFileSync(path.join(tempRoot, 'unexpected-local-file.txt'), 'secret\n');
-
     assert.throws(
-      () => assertReleaseArtifactContents(tempRoot),
+      () => assertReleaseArtifactContents(artifactTree('unexpected-local-file.txt')),
       /Release artifact contains unallowlisted paths: unexpected-local-file\.txt/
     );
   });
 
   it('fails when extracted artifact contents contain denied file patterns', () => {
-    const tempRoot = makeTempDir('maestro-release-denied-');
-    writeTree(tempRoot, 'claude/scripts/policy-enforcer.test.js', 'test\n');
-
     assert.throws(
-      () => assertReleaseArtifactContents(tempRoot),
+      () => assertReleaseArtifactContents(artifactTree('claude/scripts/policy-enforcer.test.js')),
       /Release artifact contains denied paths: claude\/scripts\/policy-enforcer\.test\.js/
     );
   });

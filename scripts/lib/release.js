@@ -1,5 +1,12 @@
 'use strict';
 
+/**
+ * Release rules shared by the packaging and verification scripts: which repo
+ * paths a release archive ships, which paths neither the archive nor the npm
+ * package may contain, and the runtime manifests every release must keep
+ * consistent.
+ */
+
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -55,15 +62,6 @@ const DENIED_ARTIFACT_PATTERNS = [
   /(^|\/)__tests__(\/|$)/,
   /\.spec\.[cm]?js$/,
   /\.test\.[cm]?js$/,
-];
-
-const REQUIRED_PACKAGE_FILES = [
-  'antigravity/plugin.json',
-  'bin/maestro-mcp-server.js',
-  'claude/.claude-plugin/plugin.json',
-  'plugins/maestro/.codex-plugin/plugin.json',
-  'qwen-extension.json',
-  'src/mcp/maestro-server.js',
 ];
 
 const RELEASE_OUT_DIR = 'dist/release';
@@ -317,15 +315,12 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 }
 
 module.exports = {
-  DENIED_ARTIFACT_PATHS,
   RELEASE_ARTIFACT_PATHS,
   RELEASE_OUT_DIR,
-  REQUIRED_PACKAGE_FILES,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
-  isReleaseArtifactPathAllowed,
   readJson,
   releaseArchiveName,
 };

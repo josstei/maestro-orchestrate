@@ -2,12 +2,23 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   parsePackJson,
   verifyPackageEntries,
 } = require('../../scripts/verify-npm-pack');
-const { REQUIRED_PACKAGE_FILES } = require('../../scripts/release-artifact-manifest');
+const { ROOT } = require('../support/paths');
+
+const REQUIRED_PACKAGE_FILES = [
+  'antigravity/plugin.json',
+  'bin/maestro-mcp-server.js',
+  'claude/.claude-plugin/plugin.json',
+  'plugins/maestro/.codex-plugin/plugin.json',
+  'qwen-extension.json',
+  'src/mcp/maestro-server.js',
+];
 
 function packWith(...extraPaths) {
   const files = [...REQUIRED_PACKAGE_FILES, ...extraPaths].map((filePath) => ({ path: filePath }));
@@ -21,28 +32,23 @@ describe('verify npm pack', () => {
     assert.equal(parsed[0].filename, 'pkg.tgz');
   });
 
-  it('requires release-critical files in the package', () => {
-    assert.deepEqual(REQUIRED_PACKAGE_FILES, [
-      'antigravity/plugin.json',
-      'bin/maestro-mcp-server.js',
-      'claude/.claude-plugin/plugin.json',
-      'plugins/maestro/.codex-plugin/plugin.json',
-      'qwen-extension.json',
-      'src/mcp/maestro-server.js',
-    ]);
-    assert.doesNotThrow(() => verifyPackageEntries(packWith()));
-  });
-
-  it('rejects a package that is missing a runtime manifest', () => {
+  it('requires exactly the release-critical files in the package', () => {
     const [pack] = packWith();
+    assert.doesNotThrow(() => verifyPackageEntries([pack]));
 
-    for (const manifestPath of ['antigravity/plugin.json', 'qwen-extension.json']) {
-      const files = pack.files.filter((file) => file.path !== manifestPath);
+    for (const requiredPath of REQUIRED_PACKAGE_FILES) {
+      const files = pack.files.filter((file) => file.path !== requiredPath);
 
       assert.throws(
         () => verifyPackageEntries([{ ...pack, files }]),
-        { message: `npm package missing required file: ${manifestPath}` }
+        { message: `npm package missing required file: ${requiredPath}` }
       );
+    }
+  });
+
+  it('requires only files that exist in the repo', () => {
+    for (const requiredPath of REQUIRED_PACKAGE_FILES) {
+      assert.ok(fs.existsSync(path.join(ROOT, requiredPath)), `${requiredPath} is missing from the repo`);
     }
   });
 

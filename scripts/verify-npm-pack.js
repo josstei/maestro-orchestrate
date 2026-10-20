@@ -5,13 +5,20 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const {
-  REQUIRED_PACKAGE_FILES,
-  isDeniedPath,
-} = require('./release-artifact-manifest');
+const { isDeniedPath } = require('./lib/release');
 const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
+
+// Every runtime manifest, plus the maestro-mcp-server bin and the server it starts.
+const REQUIRED_PACKAGE_FILES = [
+  'antigravity/plugin.json',
+  'bin/maestro-mcp-server.js',
+  'claude/.claude-plugin/plugin.json',
+  'plugins/maestro/.codex-plugin/plugin.json',
+  'qwen-extension.json',
+  'src/mcp/maestro-server.js',
+];
 
 function parsePackJson(stdout) {
   const start = stdout.indexOf('[');

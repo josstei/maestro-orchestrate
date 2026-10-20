@@ -13,7 +13,7 @@ const {
   isDeniedPath,
   readJson,
   releaseArchiveName,
-} = require('./release-artifact-manifest');
+} = require('./lib/release');
 const { parseFlagArgs, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
