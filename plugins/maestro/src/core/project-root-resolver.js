@@ -105,5 +105,4 @@ module.exports = {
   resolveHookWorkspaceRoot,
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,
-  WorkspaceResolutionError,
 };

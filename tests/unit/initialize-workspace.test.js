@@ -6,7 +6,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { handleInitializeWorkspace } = require('../../src/mcp/handlers/initialize-workspace');
-const { WorkspaceResolutionError } = require('../../src/core/project-root-resolver');
 const { makeTempDir } = require('../support/fs');
 
 /** A handler context whose workspace records the path initialize_workspace sets. */
@@ -21,7 +20,7 @@ function assertRejected(params, projectRoot, code) {
   const context = createContext();
   assert.throws(
     () => handleInitializeWorkspace(params, projectRoot, context),
-    (err) => err instanceof WorkspaceResolutionError && err.code === code
+    { name: 'WorkspaceResolutionError', code }
   );
   assert.deepEqual(context.recorded, [], 'a rejected path is not recorded');
 }
