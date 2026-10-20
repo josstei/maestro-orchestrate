@@ -111,6 +111,28 @@ describe('handleAfterAgent', () => {
     assert.equal(result.action, 'allow');
   });
 
+  it('accepts single-# headings', () => {
+    seedActiveAgent();
+    const result = handleAfterAgent({
+      sessionId: SESSION_ID,
+      agentResult: '# Task Report\nDone.\n\n# Downstream Context\nContext info.',
+    });
+    assert.equal(result.action, 'allow');
+  });
+
+  it('treats a missing or non-text response as one without headings and clears the agent', () => {
+    // Hook stdin is arbitrary JSON: a number used to throw (leaving the agent
+    // recorded) and an array of heading strings used to pass.
+    for (const agentResult of [undefined, 42, { text: VALID_RESULT }, ['## Task Report', '## Downstream Context']]) {
+      seedActiveAgent();
+      const result = handleAfterAgent({ sessionId: SESSION_ID, agentResult });
+      assert.equal(result.action, 'deny', JSON.stringify(agentResult));
+      assert.ok(result.reason.includes('Missing Task Report section'));
+      assert.ok(result.reason.includes('Missing Downstream Context section'));
+      assert.equal(hookState.getActiveAgent(SESSION_ID), '');
+    }
+  });
+
   it('clears active agent after processing', () => {
     seedActiveAgent();
     handleAfterAgent({ sessionId: SESSION_ID, agentResult: VALID_RESULT, stopHookActive: false });
