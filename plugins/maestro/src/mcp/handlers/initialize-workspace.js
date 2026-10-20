@@ -1,13 +1,11 @@
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 
 const {
   WORKSPACE_SUBDIRS,
   ensureWorkspace,
   resolveStateDirSetting,
-  resolveStateDirPath,
 } = require('../../state/session-state');
 const { requireExplicitWorkspaceRoot } = require('../../core/project-root-resolver');
 
@@ -19,11 +17,8 @@ const { requireExplicitWorkspaceRoot } = require('../../core/project-root-resolv
 function handleInitializeWorkspace(params, projectRoot, { workspace }) {
   const resolvedWorkspace = requireExplicitWorkspaceRoot(params.workspace_path || projectRoot);
 
-  const stateDir = resolveStateDirSetting(resolvedWorkspace, params.state_dir);
-  const fullStatePath = resolveStateDirPath(resolvedWorkspace, stateDir);
-  const alreadyExisted = fs.existsSync(path.join(fullStatePath, 'state'));
-
-  ensureWorkspace(stateDir, resolvedWorkspace);
+  const stateDirSetting = resolveStateDirSetting(resolvedWorkspace, params.state_dir);
+  const alreadyExisted = ensureWorkspace(resolvedWorkspace, stateDirSetting);
   // Recorded only once the workspace exists, so a failed call keeps the
   // previous project root.
   workspace.setExplicitWorkspacePath(resolvedWorkspace);
@@ -31,8 +26,8 @@ function handleInitializeWorkspace(params, projectRoot, { workspace }) {
   return {
     success: true,
     workspace_path: resolvedWorkspace,
-    state_dir: stateDir,
-    created_directories: WORKSPACE_SUBDIRS.map((dir) => path.join(stateDir, `${dir}/`)),
+    state_dir: stateDirSetting,
+    created_directories: WORKSPACE_SUBDIRS.map((dir) => path.join(stateDirSetting, `${dir}/`)),
     already_existed: alreadyExisted,
   };
 }

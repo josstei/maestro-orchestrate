@@ -45,6 +45,26 @@ describe('handleInitializeWorkspace', () => {
     assert.deepEqual(fs.readdirSync(path.join(workspace, 'docs', 'maestro')).sort(), ['plans', 'state']);
   });
 
+  it('creates the tree under a custom state_dir and reports whether it already existed', () => {
+    const workspace = makeTempDir('maestro-init-');
+    const first = handleInitializeWorkspace({ workspace_path: workspace, state_dir: 'custom/state' }, null, createContext());
+    assert.equal(first.state_dir, 'custom/state');
+    assert.equal(first.already_existed, false);
+    assert.deepEqual(first.created_directories, [
+      'custom/state/state/',
+      'custom/state/state/archive/',
+      'custom/state/plans/',
+      'custom/state/plans/archive/',
+    ]);
+    for (const dir of first.created_directories) {
+      assert.ok(fs.statSync(path.join(workspace, dir)).isDirectory(), dir);
+    }
+    assert.equal(fs.existsSync(path.join(workspace, 'docs')), false);
+
+    const second = handleInitializeWorkspace({ workspace_path: workspace, state_dir: 'custom/state' }, null, createContext());
+    assert.equal(second.already_existed, true);
+  });
+
   it('rejects a missing workspace_path while no workspace is initialized', () => {
     assertRejected({}, null, 'WORKSPACE_REQUIRED');
     assertRejected({ workspace_path: '' }, null, 'WORKSPACE_REQUIRED');

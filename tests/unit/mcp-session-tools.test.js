@@ -14,7 +14,7 @@ const { activeSessionPath, readSessionState } = require('../support/session-file
 
 function setup(prefix) {
   const projectRoot = makeTempDir(prefix);
-  ensureWorkspace('docs/maestro', projectRoot);
+  ensureWorkspace(projectRoot, 'docs/maestro');
   // The session tools use neither the runtime config nor the workspace cache.
   const server = createServer({ runtimeConfig: getRuntimeConfig('codex'), workspace: null, tools });
   return { projectRoot, server };

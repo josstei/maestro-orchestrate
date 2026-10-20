@@ -15,7 +15,7 @@ readText()
     if (!content) {
       fatal('stdin content is empty');
     }
-    writeState(stateFile, content, process.cwd());
+    writeState(process.cwd(), stateFile, content);
   })
   .catch((err) => {
     fatal(err.message);

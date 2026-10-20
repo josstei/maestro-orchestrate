@@ -51,44 +51,38 @@ function resolveStateDirUnder(base, stateDir) {
  * absolute, not yet resolved against the workspace): the override when given,
  * else MAESTRO_STATE_DIR (environment, then the workspace .env, then the
  * extension .env), else DEFAULT_STATE_DIR.
- * @param {string} [cwd] - Workspace root; defaults to process.cwd()
+ * @param {string} root - Workspace root
  * @param {string} [stateDirOverride]
  * @returns {string}
  */
-function resolveStateDirSetting(cwd, stateDirOverride) {
-  return (
-    stateDirOverride ||
-    resolveSetting('MAESTRO_STATE_DIR', cwd || process.cwd()) ||
-    DEFAULT_STATE_DIR
-  );
+function resolveStateDirSetting(root, stateDirOverride) {
+  return stateDirOverride || resolveSetting('MAESTRO_STATE_DIR', root) || DEFAULT_STATE_DIR;
 }
 
 /**
- * Resolve the absolute state dir for a workspace from the setting chosen by
- * resolveStateDirSetting.
- * @param {string} [cwd] - Workspace root; defaults to process.cwd()
- * @param {string} [stateDirOverride]
+ * Resolve the workspace's absolute state dir from its configured setting.
+ * @param {string} root - Workspace root
  * @returns {string}
+ * @throws {Error} when the setting escapes the workspace root
  */
-function resolveStateDirPath(cwd, stateDirOverride) {
-  const root = cwd || process.cwd();
-  return resolveStateDirUnder(root, resolveStateDirSetting(root, stateDirOverride));
+function resolveStateDirPath(root) {
+  return resolveStateDirUnder(root, resolveStateDirSetting(root));
 }
 
 function activeSessionFile(basePath) {
   return path.join(basePath, ACTIVE_SESSION_REL);
 }
 
-function resolveActiveSessionPath(cwd) {
-  return activeSessionFile(resolveStateDirPath(cwd));
+function resolveActiveSessionPath(root) {
+  return activeSessionFile(resolveStateDirPath(root));
 }
 
-function readState(relativePath, basePath) {
-  return fs.readFileSync(joinRelative(basePath, relativePath), 'utf8');
+function readState(root, relativePath) {
+  return fs.readFileSync(joinRelative(root, relativePath), 'utf8');
 }
 
-function writeState(relativePath, content, basePath) {
-  atomicWriteSync(joinRelative(basePath, relativePath), content);
+function writeState(root, relativePath, content) {
+  atomicWriteSync(joinRelative(root, relativePath), content);
 }
 
 /**
@@ -118,12 +112,12 @@ function readSessionAt(basePath) {
   return { basePath, state: data, body };
 }
 
-function readActiveSession(cwd) {
-  return readSessionAt(resolveStateDirPath(cwd));
+function readActiveSession(root) {
+  return readSessionAt(resolveStateDirPath(root));
 }
 
-function readActiveSessionOrNull(cwd) {
-  const basePath = resolveStateDirPath(cwd);
+function readActiveSessionOrNull(root) {
+  const basePath = resolveStateDirPath(root);
   if (!fs.existsSync(activeSessionFile(basePath))) {
     return null;
   }
@@ -143,8 +137,8 @@ function writeActiveSession(basePath, state, body) {
  * one ISO timestamp per call, so a mutator can reuse it for other fields. A
  * throwing mutator leaves the session file untouched.
  */
-function withSessionState(cwd, mutator) {
-  const session = readActiveSession(cwd);
+function withSessionState(root, mutator) {
+  const session = readActiveSession(root);
   const now = new Date().toISOString();
   const result = mutator(session, now);
   session.state.updated = now;
@@ -189,10 +183,19 @@ function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found
   return phase;
 }
 
-function ensureWorkspace(stateDir, basePath) {
-  const fullBase = resolveStateDirUnder(basePath, stateDir);
-  ensurePrivateDir(fullBase, 'STATE_DIR must not be a symlink');
-  for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
+/**
+ * Create the workspace scaffold under `<root>/<stateDirSetting>`: the
+ * WORKSPACE_SUBDIRS (mode 0o700) and a `state/.gitignore` for the session files.
+ * @param {string} root - Workspace root
+ * @param {string} stateDirSetting - Configured state dir, relative or absolute
+ * @returns {boolean} whether `<state_dir>/state` already existed
+ * @throws {Error} when the state dir escapes the root, is a symlink, or cannot be created or written
+ */
+function ensureWorkspace(root, stateDirSetting) {
+  const stateDir = resolveStateDirUnder(root, stateDirSetting);
+  const alreadyExisted = fs.existsSync(path.join(stateDir, 'state'));
+  ensurePrivateDir(stateDir, 'STATE_DIR must not be a symlink');
+  for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(stateDir, subdir))) {
     try {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     } catch {
@@ -204,10 +207,11 @@ function ensureWorkspace(stateDir, basePath) {
       throw new Error('Workspace directory not writable');
     }
   }
-  const stateGitignore = path.join(fullBase, 'state', '.gitignore');
+  const stateGitignore = path.join(stateDir, 'state', '.gitignore');
   try {
     fs.writeFileSync(stateGitignore, 'active-session.md\narchive/\n', { mode: 0o600, flag: 'wx' });
   } catch {}
+  return alreadyExisted;
 }
 
 module.exports = {

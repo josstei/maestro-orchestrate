@@ -10,7 +10,7 @@ if (!stateFile) {
 }
 
 try {
-  const content = readState(stateFile, process.cwd());
+  const content = readState(process.cwd(), stateFile);
   process.stdout.write(content);
 } catch (err) {
   fatal(err.message);
