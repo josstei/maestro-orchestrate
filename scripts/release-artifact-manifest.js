@@ -49,7 +49,6 @@ const DENIED_ARTIFACT_PATHS = [
   'tests',
   'tmp',
   'temp',
-  'hooks/permissions.json',
 ];
 
 const DENIED_ARTIFACT_PATTERNS = [
