@@ -64,5 +64,6 @@ function singlePhase(files, overrides = {}) {
 module.exports = {
   approveDesignGate,
   createInitializedSessionServer,
+  createSessionServer,
   singlePhase,
 };

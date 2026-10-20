@@ -9,7 +9,6 @@ const {
   describeShape: describeDownstreamContextShape,
 } = require('../contracts/downstream-context');
 const { ValidationError, StateError } = require('../../lib/errors');
-const { readGateForCreateSession, removeDesignGate } = require('./design-gate');
 const {
   resolveStateDirPath,
   readActiveSessionOrNull,
@@ -24,9 +23,68 @@ const {
   writePlansDocument,
   archivePlansDocuments,
 } = require('../../state/session-documents');
+const {
+  GATE_FILENAME,
+  readGate,
+  removeGate,
+  approvedGateSessionIds,
+} = require('../../state/design-gate');
 const { readDocumentInput } = require('../contracts/document-input');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
+
+/**
+ * Enforce create_session's design-gate preconditions and return the design
+ * document recorded by the session's approved gate.
+ *
+ * The orchestrator must use one session_id from enter_design_gate through
+ * archive_session. When this session has no gate but another session has an
+ * approved one, the orchestrator either drifted from the id it entered the
+ * gate with or left a prior run unfinished; proceeding would strand the
+ * approved design document, because create_session looks the gate up by
+ * session_id. So the call fails fast, naming the orphaned ids and the stale
+ * gate files so the caller can align on the original id or delete them. The
+ * scan runs only when this session has no gate: a current-session gate
+ * (approved or not) is the normal approve-then-create flow, and a leftover
+ * gate from a prior workflow is benign alongside it.
+ *
+ * @param {string} stateDir - Resolved state dir
+ * @param {string} sessionId
+ * @returns {string | null} the approved gate's design document path, or null when the session has no approved gate
+ * @throws {ValidationError} DESIGN_GATE_SESSION_MISMATCH when the session has no gate and another session has an approved one
+ * @throws {StateError} DESIGN_GATE_UNAPPROVED when the gate was entered but not approved
+ */
+function approvedDesignDocumentPath(stateDir, sessionId) {
+  const gate = readGate(stateDir, sessionId);
+  if (gate === null) {
+    const orphanedIds = approvedGateSessionIds(stateDir);
+    if (orphanedIds.length > 0) {
+      const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
+      const stalePaths = orphanedIds
+        .map((id) => `<state_dir>/state/${id}${GATE_FILENAME}`)
+        .join(', ');
+      throw new ValidationError(
+        `Approved design gate exists for session ${idList} but create_session was called with '${sessionId}'. Session IDs must match across enter_design_gate, record_design_approval, and create_session. Either call create_session with the matching session_id, or delete the stale gate file(s) at ${stalePaths} and re-enter the gate with '${sessionId}'.`,
+        {
+          code: 'DESIGN_GATE_SESSION_MISMATCH',
+          details: {
+            current_session_id: sessionId,
+            orphaned_session_ids: orphanedIds,
+          },
+        }
+      );
+    }
+  }
+
+  if (gate && gate.entered_at && !gate.approved_at) {
+    throw new StateError(
+      'Design gate entered but not approved. Call record_design_approval before create_session.',
+      { code: 'DESIGN_GATE_UNAPPROVED' }
+    );
+  }
+
+  return gate?.approved_at ? gate.design_document_path : null;
+}
 
 /**
  * Mark `phase` in_progress, started at `now`.
@@ -97,8 +155,7 @@ function phaseIdsWithStatus(phases, status) {
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
   const stateDir = resolveStateDirPath(projectRoot);
-
-  const gate = readGateForCreateSession(projectRoot, params.session_id);
+  const approvedDesignDocument = approvedDesignDocumentPath(stateDir, params.session_id);
 
   const phasesValidation = validatePhases(params.phases);
   if (!phasesValidation.valid) {
@@ -115,13 +172,10 @@ function handleCreateSession(params, projectRoot) {
     );
   }
 
-  const designDocumentCandidate =
-    params.design_document ||
-    (gate && gate.approved_at ? gate.design_document_path : null);
   const resolvedDesignDocument = materializeSessionDocument(
     projectRoot,
     stateDir,
-    designDocumentCandidate,
+    params.design_document || approvedDesignDocument,
     'design_document'
   );
   const plan = readDocumentInput(params, 'implementation_plan', 'implementation_plan');
@@ -341,7 +395,7 @@ function handleArchiveSession(params, projectRoot) {
     ]),
   ];
 
-  removeDesignGate(projectRoot, params.session_id);
+  removeGate(stateDir, params.session_id);
 
   return {
     success: true,

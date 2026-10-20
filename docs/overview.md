@@ -49,7 +49,7 @@ maestro-orchestrate/
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Settings catalog, setting resolution, and the .env parser
 │   ├── core/                     # Shared runtime helpers and resolvers
-│   ├── state/                    # Session-state and plan-document helpers
+│   ├── state/                    # Session-state, plan-document and design-gate stores
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
