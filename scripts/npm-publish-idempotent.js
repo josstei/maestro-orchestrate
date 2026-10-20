@@ -20,12 +20,12 @@ Usage:
 
 function parseArgs(argv) {
   const options = parseFlagArgs(argv, {
-    defaults: { access: 'public', tag: null },
     flags: { '--access': 'access', '--tag': 'tag' },
     printHelp,
   });
 
-  if (!options.access) {
+  // Without this, `--access ''` would silently publish with the default access.
+  if (options.access === '') {
     throw new Error('Missing value for --access');
   }
 
@@ -140,64 +140,43 @@ function validatePublishTag(pkg, tag) {
   }
 }
 
-function moveLatest(pkg, runner, logger, latest, target, reason) {
+function moveLatest(pkg, runner, logger, latest, target) {
   runner('npm', ['dist-tag', 'add', `${pkg.name}@${target}`, 'latest'], {
     stdio: 'inherit',
   });
   logger.log(`Moved npm latest dist-tag from ${latest || '<unset>'} to stable ${target}.`);
-  return {
-    latest,
-    reason,
-    status: 'moved',
-    target,
-  };
 }
 
+/**
+ * Keeps npm's latest dist-tag on a stable version. A stable publish moves
+ * latest to itself. A prerelease publish never takes latest, but moves it back
+ * to the highest stable version if an earlier prerelease holds it, or warns
+ * when no stable version exists yet. Latest is never removed.
+ */
 function ensureLatestTagPolicy(pkg, runner, logger) {
-  const tags = queryNpm(runner, ['dist-tag', 'ls', pkg.name], parseDistTagOutput, {});
-  const latest = tags.latest || null;
+  const latest = queryNpm(runner, ['dist-tag', 'ls', pkg.name], parseDistTagOutput, {}).latest || null;
 
-  if (isPrereleaseVersion(pkg.version)) {
-    if (!latest || !isPrereleaseVersion(latest)) {
-      return {
-        latest,
-        reason: latest
-          ? `latest already points to stable version ${latest}.`
-          : 'latest dist-tag is not set.',
-        status: 'ok',
-        target: null,
-      };
+  if (!isPrereleaseVersion(pkg.version)) {
+    if (latest !== pkg.version) {
+      moveLatest(pkg, runner, logger, latest, pkg.version);
     }
+    return;
+  }
 
-    const stableVersion = highestStableVersion(
-      queryNpm(runner, ['view', pkg.name, 'versions', '--json'], parseVersionsOutput, [])
+  if (!latest || !isPrereleaseVersion(latest)) {
+    return;
+  }
+
+  const stableVersion = highestStableVersion(
+    queryNpm(runner, ['view', pkg.name, 'versions', '--json'], parseVersionsOutput, [])
+  );
+  if (stableVersion) {
+    moveLatest(pkg, runner, logger, latest, stableVersion);
+  } else {
+    logger.warn(
+      `Warning: latest points to prerelease ${latest}, but no stable versions are published; stable release must move latest.`
     );
-    if (stableVersion) {
-      const reason = `latest pointed to prerelease ${latest}; moved it back to stable ${stableVersion}.`;
-      return moveLatest(pkg, runner, logger, latest, stableVersion, reason);
-    }
-
-    const reason = `latest points to prerelease ${latest}, but no stable versions are published; stable release must move latest.`;
-    logger.warn(`Warning: ${reason}`);
-    return {
-      latest,
-      reason,
-      status: 'deferred',
-      target: null,
-    };
   }
-
-  if (latest !== pkg.version) {
-    const reason = `latest pointed to ${latest || '<unset>'}; moved it to stable ${pkg.version}.`;
-    return moveLatest(pkg, runner, logger, latest, pkg.version, reason);
-  }
-
-  return {
-    latest,
-    reason: `latest already points to stable version ${pkg.version}.`,
-    status: 'ok',
-    target: pkg.version,
-  };
 }
 
 function publishIfNeeded(options = {}) {
@@ -228,8 +207,9 @@ function publishIfNeeded(options = {}) {
     });
   }
 
+  ensureLatestTagPolicy(pkg, runner, logger);
+
   return {
-    latestPolicy: ensureLatestTagPolicy(pkg, runner, logger),
     packageSpec,
     published: !alreadyPublished,
   };
@@ -248,9 +228,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  highestStableVersion,
-  isNpmNotFoundError,
-  parseDistTagOutput,
   parseArgs,
   publishIfNeeded,
 };
