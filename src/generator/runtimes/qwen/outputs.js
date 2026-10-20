@@ -1,11 +1,8 @@
 'use strict';
 
-/**
- * What the generator writes for Qwen Code. Build-time only: the generator reads
- * it, and no detached payload ships it.
- */
+/** What the generator writes for Qwen Code. */
 
-const { MAESTRO_SETTINGS } = require('../../config/settings-catalog');
+const { MAESTRO_SETTINGS } = require('../../../config/settings-catalog');
 const { buildPolicyPackToml } = require('./policy-pack');
 
 // Qwen Code runs the !{...} shell block when the command is invoked, so

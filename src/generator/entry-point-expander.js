@@ -7,7 +7,7 @@ const { RUNTIME_NAMES } = require('../platforms/runtime-config-map');
 const entryPointRegistry = require('../entry-points/registry');
 const coreCommandRegistry = require('../entry-points/core-command-registry');
 
-const PLATFORMS_DIR = path.join(__dirname, '..', 'platforms');
+const RUNTIMES_DIR = path.join(__dirname, 'runtimes');
 
 /**
  * Render names as a comma-separated list of double-quoted strings, for the
@@ -56,13 +56,13 @@ const KINDS = {
 };
 
 /**
- * A runtime's template for one kind: src/platforms/<runtime>/templates/
- * <kind>.<ext>.tmpl, where <ext> is the format of the files it renders.
+ * A runtime's template for one kind: runtimes/<runtime>/<kind>.<ext>.tmpl,
+ * where <ext> is the format of the files it renders.
  */
 function readTemplate(runtimeName, kind) {
-  const templatesDir = path.join(PLATFORMS_DIR, runtimeName, 'templates');
-  const file = fs.readdirSync(templatesDir).find((name) => name.startsWith(`${kind}.`));
-  return fs.readFileSync(path.join(templatesDir, file), 'utf8');
+  const runtimeDir = path.join(RUNTIMES_DIR, runtimeName);
+  const file = fs.readdirSync(runtimeDir).find((name) => name.startsWith(`${kind}.`));
+  return fs.readFileSync(path.join(runtimeDir, file), 'utf8');
 }
 
 /**
@@ -76,7 +76,7 @@ function applySubstitutions(template, substitutions) {
 
 /**
  * Render every registry entry of one kind for one runtime, through the
- * runtime's template and its outputs.js `entryPoints`.
+ * runtime's template and its runtimes/<runtime>/outputs.js `entryPoints`.
  * @param {'entry-point'|'core-command'} kind
  * @param {string} runtimeName
  * @returns {Array<{ outputPath: string, content: string }>}
@@ -88,7 +88,7 @@ function expand(kind, runtimeName) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
 
-  const { outputPath, reservedNames, preamble } = require(`../platforms/${runtimeName}/outputs`).entryPoints;
+  const { outputPath, reservedNames, preamble } = require(`./runtimes/${runtimeName}/outputs`).entryPoints;
   const { registry, substitutions } = KINDS[kind];
   const template = readTemplate(runtimeName, kind);
   return registry.map((entry) => {

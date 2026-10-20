@@ -1,9 +1,6 @@
 'use strict';
 
-/**
- * What the generator writes for Antigravity. Build-time only: the generator reads
- * it, and no detached payload ships it.
- */
+/** What the generator writes for Antigravity. */
 
 const ANTIGRAVITY_DELEGATION_LINE = 'Delegate with `invoke_subagent`: one `Subagents` entry per agent, with `TypeName` set to the agent name, a 2-5 word `Role`, and the full delegation prompt as `Prompt`. The call returns at once and each agent\'s final response arrives later as a system message, so end your turn without further tool calls until it does.';
 

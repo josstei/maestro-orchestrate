@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { buildPlatformMetadataOutputs } = require('../../src/generator/platform-metadata');
-const { buildPolicyPackToml } = require('../../src/platforms/qwen/policy-pack');
+const { buildPolicyPackToml } = require('../../src/generator/runtimes/qwen/policy-pack');
 const { DENY_RULES, ASK_RULES } = require('../../src/platforms/shared/policy-rules');
 const HOOK_REGISTRY = require('../../src/generated/hook-registry.json');
 const { hookCommands } = require('../support/generated-files');

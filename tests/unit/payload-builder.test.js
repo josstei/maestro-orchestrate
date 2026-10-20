@@ -11,7 +11,7 @@ const { RUNTIME_NAMES } = require('../../src/platforms/runtime-config-map');
 const { makeTempDir, readJson, writeJson, writeTree } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
 
-const outputsOf = (runtimeName) => require(`../../src/platforms/${runtimeName}/outputs`);
+const outputsOf = (runtimeName) => require(`../../src/generator/runtimes/${runtimeName}/outputs`);
 
 /** One file under every src/ prefix every payload ships. */
 const BASE_FILES = [
@@ -35,20 +35,20 @@ const EXTRA_FILES = [
   'scripts/read-state.js',
 ];
 
-/** Each runtime's platform modules plus the build-time files beside them. */
+/** Each runtime's platform modules. */
 const PLATFORM_FILES = RUNTIME_NAMES.flatMap((runtimeName) => [
   'hook-adapter.js',
-  'outputs.js',
   'policy-enforcer.js',
   'runtime-config.js',
-  'templates/entry-point.md.tmpl',
 ].map((file) => `platforms/${runtimeName}/${file}`));
 
-/** Build-time sources no payload ships. */
+/** Build-time sources no payload ships, including each runtime's generator module and template. */
 const BUILD_ONLY_FILES = [
   'entry-points/registry.js',
   'generator/manifest.js',
-  'platforms/qwen/policy-pack.js',
+  'generator/runtimes/qwen/policy-pack.js',
+  ...RUNTIME_NAMES.flatMap((runtimeName) => ['outputs.js', 'entry-point.md.tmpl']
+    .map((file) => `generator/runtimes/${runtimeName}/${file}`)),
 ];
 
 const platformModules = (runtimeName) => ['hook-adapter.js', 'policy-enforcer.js', 'runtime-config.js']

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { formatJson } = require('../src/lib/io');
-const { codexMarketplace, codexMarketplacePlugin } = require('../src/platforms/codex/outputs');
+const { codexMarketplace, codexMarketplacePlugin } = require('../src/generator/runtimes/codex/outputs');
 const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');

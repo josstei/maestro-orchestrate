@@ -49,7 +49,7 @@ Agent(subagent_type: "maestro:architect", prompt: "...")
 - `execute/SKILL.md`
 - `resume-session/SKILL.md`
 
-**Entry-point (9)** — from registry (`review`, `debug`, `resume` are remapped to `review-code`, `debug-workflow`, `resume-session` because they collide with Claude Code built-in commands; see `entryPoints.reservedNames` in `src/platforms/claude/outputs.js` and each registry entry's `hostSafeName`):
+**Entry-point (9)** — from registry (`review`, `debug`, `resume` are remapped to `review-code`, `debug-workflow`, `resume-session` because they collide with Claude Code built-in commands; see `entryPoints.reservedNames` in `src/generator/runtimes/claude/outputs.js` and each registry entry's `hostSafeName`):
 - `review-code/SKILL.md`, `debug-workflow/SKILL.md`, `archive/SKILL.md`, `status/SKILL.md`
 - `security-audit/SKILL.md`, `perf-check/SKILL.md`, `seo-audit/SKILL.md`
 - `a11y-audit/SKILL.md`, `compliance-check/SKILL.md`

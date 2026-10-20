@@ -4,8 +4,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const { RUNTIME_NAMES } = require('../../src/platforms/runtime-config-map');
 const { writeTree } = require('../support/fs');
+const { SRC_ROOT } = require('../support/paths');
 const { runGenerator, withTempRepoCopy } = require('./helpers');
+
+describe('generator runtimes', () => {
+  it('holds build outputs for exactly the runtimes src/platforms/ declares', () => {
+    assert.deepEqual(fs.readdirSync(path.join(SRC_ROOT, 'generator', 'runtimes')).sort(), RUNTIME_NAMES);
+  });
+});
 
 describe('generator read-only modes', () => {
   it('--dry-run and --diff do not rewrite registry files even when registry content would change', () => {

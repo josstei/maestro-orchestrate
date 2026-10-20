@@ -7,10 +7,10 @@
  * render.
  *
  * Content lives here once; src/generator/entry-point-expander.js renders it
- * through each runtime's templates/entry-point.<ext>.tmpl. An optional
- * `title` replaces the display title otherwise derived from the name, and
- * `hostSafeName` replaces the name on runtimes that reserve it for a
- * built-in host command (their outputs.js `entryPoints.reservedNames`).
+ * through each runtime's src/generator/runtimes/<runtime>/entry-point.<ext>.tmpl.
+ * An optional `title` replaces the display title otherwise derived from the
+ * name, and `hostSafeName` replaces the name on runtimes that reserve it for
+ * a built-in host command (their outputs.js `entryPoints.reservedNames`).
  */
 
 module.exports = [

@@ -2,7 +2,8 @@
 
 /**
  * Core-command registry -- the orchestrate, execute and resume commands,
- * rendered through each runtime's templates/core-command.<ext>.tmpl.
+ * rendered through each runtime's
+ * src/generator/runtimes/<runtime>/core-command.<ext>.tmpl.
  * `hostSafeName` works as in registry.js.
  */
 

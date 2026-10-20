@@ -38,7 +38,7 @@ function listCanonicalAgents() {
  *   an entry's hostSafeName where the runtime reserves its name
  */
 function publicSkillNames(runtime) {
-  const { reservedNames } = require(`../../src/platforms/${runtime}/outputs`).entryPoints;
+  const { reservedNames } = require(`../../src/generator/runtimes/${runtime}/outputs`).entryPoints;
   return [...entryPointRegistry, ...coreCommandRegistry]
     .map((entry) => (reservedNames.includes(entry.name) ? entry.hostSafeName : entry.name))
     .sort();

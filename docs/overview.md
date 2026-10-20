@@ -44,6 +44,7 @@ maestro-orchestrate/
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
 │   ├── generator/                # Build-time only: file-mapping manifest, transforms (agent-stub, skill-discovery-stub), entry-point expansion, registries, platform metadata, pruning, payloads
+│   │   └── runtimes/             # Per runtime: outputs.js (owned dirs, payload, entry-point surface, metadata files), entry-point templates, and the Qwen policy-pack renderer
 │   ├── generated/                # [generated] Agent, resource, and hook registries
 │   ├── entry-points/             # 9 entry-point + 3 core-command registries
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
@@ -53,7 +54,7 @@ maestro-orchestrate/
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, the canonical shell policy rules, Antigravity and Claude policy enforcers, and each runtime's build-time outputs.js (owned dirs, payload, entry-point surface, metadata files) and templates/, with the Qwen policy-pack renderer
+│   ├── platforms/                # Runtime code only: runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, the canonical shell policy rules, and the Antigravity and Claude policy enforcers
 │   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
 ├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)

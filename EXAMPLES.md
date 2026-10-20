@@ -4,7 +4,7 @@ This guide is a scenario catalog for Maestro public entry points across Antigrav
 
 Canonical sources for this page:
 
-- Command names and runtime remapping: `src/entry-points/core-command-registry.js`, `src/entry-points/registry.js`, `src/generator/entry-point-expander.js`, and each runtime's `src/platforms/<runtime>/outputs.js`
+- Command names and runtime remapping: `src/entry-points/core-command-registry.js`, `src/entry-points/registry.js`, `src/generator/entry-point-expander.js`, and each runtime's `src/generator/runtimes/<runtime>/outputs.js`
 - Orchestration behavior: `src/references/orchestration-steps.md` and `docs/flow.md`
 - Quick-start task wording: `README.md`
 - Standalone entry-point behavior: `src/entry-points/registry.js`

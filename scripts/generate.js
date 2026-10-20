@@ -26,7 +26,7 @@ const readOnlyMode = dryRun || diffMode;
 function main() {
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
   const runtimeOutputs = Object.fromEntries(
-    RUNTIME_NAMES.map((name) => [name, require(`../src/platforms/${name}/outputs`)])
+    RUNTIME_NAMES.map((name) => [name, require(`../src/generator/runtimes/${name}/outputs`)])
   );
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);

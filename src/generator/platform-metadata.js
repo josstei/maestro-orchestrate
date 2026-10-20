@@ -30,7 +30,7 @@ const DEFAULT_PROMPTS = [
 
 /**
  * Every runtime's manifests, marketplace files, hook registrations and policy
- * pack: the [outputPath, value] pairs each src/platforms/<runtime>/outputs.js
+ * pack: the [outputPath, value] pairs each runtimes/<runtime>/outputs.js
  * `metadataFiles` returns, in runtime order. String values are written as-is;
  * anything else is written as JSON.
  * @param {object} pkg - Parsed package.json
@@ -51,7 +51,7 @@ function buildPlatformMetadataOutputs(pkg) {
   };
 
   return RUNTIME_NAMES.flatMap((runtimeName) =>
-    require(`../platforms/${runtimeName}/outputs`).metadataFiles(context).map(([outputPath, value]) => ({
+    require(`./runtimes/${runtimeName}/outputs`).metadataFiles(context).map(([outputPath, value]) => ({
       outputPath,
       content: typeof value === 'string' ? value : formatJson(value),
     }))

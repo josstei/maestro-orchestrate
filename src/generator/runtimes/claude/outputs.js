@@ -1,9 +1,6 @@
 'use strict';
 
-/**
- * What the generator writes for Claude Code. Build-time only: the generator reads
- * it, and no detached payload ships it.
- */
+/** What the generator writes for Claude Code. */
 
 const CLAUDE_HOOKS_PATH = 'hooks/claude-hooks.json';
 
