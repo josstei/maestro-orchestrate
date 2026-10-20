@@ -71,7 +71,7 @@ describe('skill-discovery-stub transform', () => {
     assert.ok(result.includes('"delegation"'));
   });
 
-  it('is fed a name and a description by every canonical shared skill', () => {
+  it('gets the name and description it emits from every canonical shared skill', () => {
     const sharedDir = path.join(SRC_ROOT, 'skills', 'shared');
     const skills = fs.readdirSync(sharedDir);
     assert.equal(skills.length, SHARED_SKILL_COUNT);

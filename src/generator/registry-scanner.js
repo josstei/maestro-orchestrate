@@ -71,11 +71,11 @@ function buildResourceRegistry(srcDir) {
 function buildHookRegistry(srcDir) {
   const hooks = globFiles(srcDir, 'hooks/logic/*-logic.js').map((relativePath) => ({
     id: path.posix.basename(relativePath).replace(/-logic\.js$/, ''),
-    module: relativePath,
+    relativePath,
   }));
 
   return Object.fromEntries(
-    sortById(hooks).map(({ id, module }) => [id, { module, fn: `handle${toPascalCase(id)}` }])
+    sortById(hooks).map(({ id, relativePath }) => [id, { module: relativePath, fn: `handle${toPascalCase(id)}` }])
   );
 }
 
