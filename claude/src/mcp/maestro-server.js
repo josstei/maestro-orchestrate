@@ -1,6 +1,6 @@
 'use strict';
 
-const { log, fatal } = require('../core/logger');
+const { log } = require('../core/logger');
 const { resolveVersion } = require('../core/version');
 const { createServer, toolFailure } = require('./core/create-server');
 const { createLineDispatcher } = require('./core/line-reader');
@@ -23,11 +23,8 @@ const TOOLS = [...workspaceTools, ...sessionTools, ...contentTools];
 function runtimeUnidentified(session) {
   let reason = 'MCP client has not sent initialize yet';
   if (session) {
-    const clientName = session.clientInfo && typeof session.clientInfo.name === 'string'
-      ? session.clientInfo.name
-      : null;
-    reason = clientName
-      ? `MCP client "${clientName}" is not one Maestro recognizes`
+    reason = session.clientName
+      ? `MCP client "${session.clientName}" is not one Maestro recognizes`
       : 'MCP client sent no clientInfo.name';
   }
   return toolFailure(
@@ -50,20 +47,19 @@ function main() {
   const explicitRuntimeConfig = process.env.MAESTRO_RUNTIME
     ? getRuntimeConfig(process.env.MAESTRO_RUNTIME)
     : null;
+  const cache = createProjectRootCache({
+    requestClientRoots: () => protocol.requestFromClient('roots/list', {}),
+  });
   let session = null;
 
-  function startSession(clientInfo = null) {
-    const runtimeConfig = explicitRuntimeConfig || findRuntimeConfigForClient(clientInfo);
-    const cache = createProjectRootCache({
-      runtimeConfig,
-      requestClientRoots: () => handlers.requestFromClient('roots/list', {}),
-    });
+  function startSession(clientName = null) {
+    const runtimeConfig = explicitRuntimeConfig || findRuntimeConfigForClient(clientName);
     // Without a runtime the tools are still listed, but no handler runs.
     const server = createServer({ runtimeConfig: runtimeConfig || {}, workspace: cache, tools: TOOLS });
 
-    const started = { runtimeConfig, clientInfo, cache, server };
+    const started = { runtimeConfig, clientName, server };
     if (runtimeConfig) {
-      const source = explicitRuntimeConfig ? 'MAESTRO_RUNTIME' : `MCP client "${clientInfo.name}"`;
+      const source = explicitRuntimeConfig ? 'MAESTRO_RUNTIME' : `MCP client "${clientName}"`;
       log('info', `Runtime ${runtimeConfig.name}, identified from ${source}`);
     } else {
       log('error', runtimeUnidentified(started).error);
@@ -73,57 +69,42 @@ function main() {
 
   const server = {
     getToolSchemas: () => (session ? session.server.getToolSchemas() : []),
-    callTool(name, args, projectRoot) {
+    callTool(name, args) {
       if (!session || !session.runtimeConfig) {
         return runtimeUnidentified(session);
       }
-      return session.server.callTool(name, args, projectRoot);
+      return session.server.callTool(name, args, cache.getProjectRoot());
     },
   };
 
   // An explicit MAESTRO_RUNTIME is known before the client connects.
   if (explicitRuntimeConfig) session = startSession();
 
-  async function refreshClientRoots() {
-    if (session) await session.cache.refreshClientRoots();
-  }
-
-  const handlers = createProtocolHandlers(
-    server,
-    () => (session ? session.cache.getProjectRoot() : null),
-    process.stdout,
-    {
-      serverInfo: SERVER_INFO,
-      callbacks: {
-        onInitialize(params) {
-          session = session || startSession(params.clientInfo);
-          session.cache.setClientSupportsRoots(Boolean(params.capabilities && params.capabilities.roots));
-        },
-        onInitialized: refreshClientRoots,
-        // Re-read the roots instead of only forgetting them: Antigravity sends
-        // list_changed again right after answering roots/list, which would
-        // otherwise leave the suggestion on the server cwd (the plugin dir).
-        onRootsListChanged: refreshClientRoots,
+  const protocol = createProtocolHandlers(server, process.stdout, {
+    serverInfo: SERVER_INFO,
+    callbacks: {
+      onInitialize(params) {
+        const { clientInfo } = params;
+        const clientName = clientInfo && typeof clientInfo.name === 'string' ? clientInfo.name : null;
+        session = session || startSession(clientName);
+        cache.setClientSupportsRoots(Boolean(params.capabilities && params.capabilities.roots));
       },
-    }
-  );
+      onInitialized: cache.refreshClientRoots,
+      // Re-read the roots instead of only forgetting them: Antigravity sends
+      // list_changed again right after answering roots/list, which would
+      // otherwise leave the suggestion on the server cwd (the plugin dir).
+      onRootsListChanged: cache.refreshClientRoots,
+    },
+  });
 
   createLineDispatcher(process.stdin, (message) => {
-    handlers.respond(message).catch((error) => {
+    protocol.respond(message).catch((error) => {
       log('error', `Failed to handle MCP message: ${error.message}`);
     });
   });
 
   log('info', 'MCP server starting');
   log('info', 'MCP server connected');
-}
-
-if (require.main === module) {
-  try {
-    main();
-  } catch (error) {
-    fatal(error && error.message ? error.message : String(error));
-  }
 }
 
 module.exports = {

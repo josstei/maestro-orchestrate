@@ -17,7 +17,7 @@ function createFullServer() {
   const runtimeConfig = getRuntimeConfig('qwen');
   return createServer({
     runtimeConfig,
-    workspace: createProjectRootCache({ runtimeConfig, requestClientRoots: async () => ({}) }),
+    workspace: createProjectRootCache({ requestClientRoots: async () => ({}) }),
     tools: [...workspaceTools, ...sessionTools, ...contentTools],
   });
 }

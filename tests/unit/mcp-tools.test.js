@@ -52,7 +52,7 @@ describe('MCP tool catalog', () => {
   it('serves the content tools for the runtime the server was built with', async () => {
     const server = createServer({
       runtimeConfig: getRuntimeConfig('claude'),
-      workspace: createProjectRootCache({ runtimeConfig: getRuntimeConfig('claude'), requestClientRoots: async () => ({}) }),
+      workspace: createProjectRootCache({ requestClientRoots: async () => ({}) }),
       tools: contentTools,
     });
 

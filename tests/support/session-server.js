@@ -15,7 +15,7 @@ function createSessionServer() {
   const runtimeConfig = getRuntimeConfig('codex');
   return createServer({
     runtimeConfig,
-    workspace: createProjectRootCache({ runtimeConfig, requestClientRoots: async () => ({}) }),
+    workspace: createProjectRootCache({ requestClientRoots: async () => ({}) }),
     tools: [...workspaceTools, ...sessionTools],
   });
 }

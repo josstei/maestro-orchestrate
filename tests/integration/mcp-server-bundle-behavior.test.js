@@ -77,6 +77,20 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
+  it('says the client sent no usable clientInfo.name when it sends none', async () => {
+    for (const clientInfo of [{ version: '1.0.0' }, { name: 7, version: '1.0.0' }]) {
+      await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
+        const result = await client.callTool('get_runtime_context');
+
+        assert.equal(result.parsed.code, 'RUNTIME_UNIDENTIFIED');
+        assert.equal(
+          result.parsed.error,
+          'Maestro could not identify its host runtime: MAESTRO_RUNTIME is not set and the MCP client sent no clientInfo.name.'
+        );
+      });
+    }
+  });
+
   it('says the client has not sent initialize when a tool is called before it', async () => {
     const client = spawnMcpServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' });
     try {
@@ -262,6 +276,22 @@ describe('mcp server bundle behavior', () => {
         assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
       }
     );
+  });
+
+  it('lets a call pipelined right after initialize_workspace use the workspace it records', async () => {
+    const workspaceRoot = makeTempDir('maestro-pipelined-workspace-');
+
+    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.codex }, async (client) => {
+      // Both requests are written before either reply is read.
+      const [init, status] = await Promise.all([
+        client.callTool('initialize_workspace', { workspace_path: workspaceRoot }),
+        client.callTool('get_session_status', {}),
+      ]);
+
+      assert.equal(init.parsed.success, true);
+      assert.equal(status.raw.isError, undefined, status.parsed.error);
+      assert.equal(status.parsed.exists, false);
+    });
   });
 
   it('keeps following the client roots when Antigravity sends roots/list_changed after initialization', async () => {

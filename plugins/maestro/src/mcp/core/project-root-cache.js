@@ -8,22 +8,20 @@ const { isExtensionCachePath } = require('../../core/cache-path-rejector');
 const { isConcretePath } = require('../../core/project-root-resolver');
 
 /**
- * Project-root cache for the MCP session.
+ * Project-root cache for the MCP server.
  *
  * The project root handed to tools is the workspace path the orchestrator
  * passed to `initialize_workspace`; until then it is null, and tools that
  * require a workspace reject with a structured error.
  *
  * The cache also computes a `workspace_suggestion` from, in order, the env var
- * named by the runtime config's `env.workspacePath`, the first existing
- * `file://` MCP client root, and the server's cwd, skipping extension-cache
- * paths. The suggestion is exposed through `get_runtime_context` so the
- * orchestrator can pass it into `initialize_workspace`. It is never used as a
- * fallback for other tools.
+ * the caller names (the runtime config's `env.workspacePath`), the first
+ * existing `file://` MCP client root, and the server's cwd, skipping
+ * extension-cache paths. The suggestion is exposed through
+ * `get_runtime_context` so the orchestrator can pass it into
+ * `initialize_workspace`. It is never used as a fallback for other tools.
  */
-function createProjectRootCache(options) {
-  const { runtimeConfig, requestClientRoots } = options;
-
+function createProjectRootCache({ requestClientRoots }) {
   let explicitWorkspacePath = null;
   let clientRoots = [];
   let clientSupportsRoots = false;
@@ -33,10 +31,7 @@ function createProjectRootCache(options) {
     return fs.existsSync(candidate) && !isExtensionCachePath(candidate) ? candidate : null;
   }
 
-  function envSuggestion() {
-    const envVarName =
-      runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
-    if (!envVarName) return null;
+  function envSuggestion(envVarName) {
     const value = process.env[envVarName];
     if (!isConcretePath(value)) return null;
     return usableDir(path.resolve(value));
@@ -59,9 +54,8 @@ function createProjectRootCache(options) {
   }
 
   function cwdSuggestion() {
-    const cwd = path.resolve(process.cwd());
-    if (isExtensionCachePath(cwd)) return null;
-    return cwd;
+    const cwd = process.cwd();
+    return isExtensionCachePath(cwd) ? null : cwd;
   }
 
   async function refreshClientRoots() {
@@ -77,24 +71,17 @@ function createProjectRootCache(options) {
     }
   }
 
-  function workspaceSuggestion() {
-    return envSuggestion() || rootsSuggestion() || cwdSuggestion();
-  }
-
-  function setExplicitWorkspacePath(value) {
-    explicitWorkspacePath = value || null;
-  }
-
-  function getProjectRoot() {
-    return explicitWorkspacePath;
-  }
-
   return {
-    getProjectRoot,
-    setExplicitWorkspacePath,
-    workspaceSuggestion,
+    getProjectRoot: () => explicitWorkspacePath,
+    setExplicitWorkspacePath(workspacePath) {
+      explicitWorkspacePath = workspacePath;
+    },
+    /** @param {string} envVarName - the runtime config's `env.workspacePath` */
+    workspaceSuggestion(envVarName) {
+      return envSuggestion(envVarName) || rootsSuggestion() || cwdSuggestion();
+    },
     setClientSupportsRoots(supports) {
-      clientSupportsRoots = Boolean(supports);
+      clientSupportsRoots = supports;
     },
     refreshClientRoots,
   };

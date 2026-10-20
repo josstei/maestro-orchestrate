@@ -14,7 +14,7 @@ const { makeTempDir } = require('../support/fs');
 
 function createWorkspaceToolsServer() {
   const runtimeConfig = getRuntimeConfig('codex');
-  const workspace = createProjectRootCache({ runtimeConfig, requestClientRoots: async () => ({}) });
+  const workspace = createProjectRootCache({ requestClientRoots: async () => ({}) });
   return { server: createServer({ runtimeConfig, workspace, tools }), workspace };
 }
 

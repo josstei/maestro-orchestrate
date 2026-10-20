@@ -38,7 +38,7 @@ function toolResult(payload, isError = false) {
  *   respond: (message: object) => Promise<void>
  * }}
  */
-function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
+function createProtocolHandlers(server, stdout, options = {}) {
   const {
     serverInfo,
     callbacks = {},
@@ -148,9 +148,12 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
           params && params.arguments && typeof params.arguments === 'object'
             ? params.arguments
             : {};
-        const projectRoot = await getProjectRoot();
+        // Messages are handled concurrently. Yield once so that what an
+        // earlier message resolved (such as the roots/list reply a roots
+        // refresh awaits) is applied before the tool reads that state.
+        await null;
         // A failure outcome is already the wire payload plus `ok`.
-        const { ok, result, ...failure } = await server.callTool(name, args, projectRoot);
+        const { ok, result, ...failure } = await server.callTool(name, args);
 
         if (!ok) {
           log('error', `Tool ${name || '(unknown)'} failed: ${failure.error}`);

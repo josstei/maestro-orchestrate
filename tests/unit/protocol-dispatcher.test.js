@@ -30,12 +30,11 @@ function makeHandlers(serverOverrides = {}, dispatcherOverrides = {}) {
   const stdout = new PassThrough();
   const frames = captureWrites(stdout);
   const server = makeServerStub(serverOverrides);
-  const getProjectRoot = dispatcherOverrides.getProjectRoot || (async () => '/tmp/ws');
   const options = {
     serverInfo: { name: 'maestro-test', version: '0.0.0' },
     ...dispatcherOverrides.options,
   };
-  const handlers = createProtocolHandlers(server, getProjectRoot, stdout, options);
+  const handlers = createProtocolHandlers(server, stdout, options);
   return { handlers, frames, stdout, server };
 }
 
@@ -59,7 +58,7 @@ describe('createProtocolHandlers.respond', () => {
     const stdout = new PassThrough();
     const chunks = [];
     stdout.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
-    const handlers = createProtocolHandlers(makeServerStub(), async () => null, stdout, {});
+    const handlers = createProtocolHandlers(makeServerStub(), stdout, {});
     await handlers.respond({ jsonrpc: '2.0', id: 1, method: 'ping' });
     assert.equal(chunks.join(''), '{"jsonrpc":"2.0","id":1,"result":{}}\n');
   });
@@ -168,7 +167,6 @@ describe('createProtocolHandlers.respond', () => {
     const frames = captureWrites(stdout);
     const handlers = createProtocolHandlers(
       createServer({ runtimeConfig: {}, workspace: null, tools: [] }),
-      async () => null,
       stdout,
       {}
     );
@@ -199,34 +197,26 @@ describe('createProtocolHandlers.respond', () => {
     assert.deepEqual(captured, {});
   });
 
-  it('passes the project root from getProjectRoot to callTool', async () => {
-    let sawRoot;
-    const { handlers } = makeHandlers(
-      {
-        callTool: async (_n, _a, root) => {
-          sawRoot = root;
-          return { ok: true, result: {} };
-        },
+  it('runs a tool call only after what an earlier client reply resolved is applied', async () => {
+    let roots = null;
+    let seenRoots;
+    const { handlers, frames } = makeHandlers({
+      callTool: async () => {
+        seenRoots = roots;
+        return { ok: true, result: {} };
       },
-      { getProjectRoot: async () => '/ws/alpha' }
-    );
-    await handlers.respond({ id: 8, method: 'tools/call', params: { name: 'echo' } });
-    assert.equal(sawRoot, '/ws/alpha');
-  });
+    });
+    handlers.requestFromClient('roots/list').then((result) => {
+      roots = result.roots;
+    });
 
-  it('passes a null project root through when no workspace is initialized', async () => {
-    let sawRoot = 'sentinel';
-    const { handlers } = makeHandlers(
-      {
-        callTool: async (_n, _a, root) => {
-          sawRoot = root;
-          return { ok: true, result: {} };
-        },
-      },
-      { getProjectRoot: async () => null }
-    );
-    await handlers.respond({ id: 9, method: 'tools/call', params: { name: 'echo' } });
-    assert.equal(sawRoot, null);
+    // The reply and the call are dispatched back to back, as two lines of one chunk are.
+    await Promise.all([
+      handlers.respond({ jsonrpc: '2.0', id: frames[0].id, result: { roots: ['file:///ws'] } }),
+      handlers.respond({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'echo' } }),
+    ]);
+
+    assert.deepEqual(seenRoots, ['file:///ws']);
   });
 
   it('silently consumes notifications/initialized, cancelled, and $/cancelRequest', async () => {

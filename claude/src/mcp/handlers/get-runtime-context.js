@@ -23,7 +23,7 @@ function handleGetRuntimeContext(_params, _projectRoot, { runtimeConfig, workspa
     agents: runtimeConfig.agentNaming === 'snake_case' ? KNOWN_AGENTS : AGENT_NAMES,
     agent_capabilities: AGENT_CAPABILITIES,
     plan_mode_native: runtimeConfig.planModeNative,
-    workspace_suggestion: workspace.workspaceSuggestion(),
+    workspace_suggestion: workspace.workspaceSuggestion(runtimeConfig.env.workspacePath),
   };
 }
 
