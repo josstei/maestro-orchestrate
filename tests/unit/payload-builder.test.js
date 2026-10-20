@@ -9,6 +9,7 @@ const { buildDetachedPayload } = require('../../src/generator/payload-builder');
 const { globFiles } = require('../../src/generator/glob-files');
 const { RUNTIME_NAMES } = require('../../src/platforms/runtime-config-map');
 const { makeTempDir, readJson, writeJson, writeTree } = require('../support/fs');
+const { SRC_ROOT } = require('../support/paths');
 
 const outputsOf = (runtimeName) => require(`../../src/platforms/${runtimeName}/outputs`);
 
@@ -76,6 +77,23 @@ describe('detached payload contents', () => {
       const outputDir = makeTempDir(`maestro-payload-${runtimeName}-`);
       buildDetachedPayload(srcDir, outputDir, runtimeName, outputsOf(runtimeName).payload, '1.0.0');
       assert.deepEqual(globFiles(outputDir, '**/*'), [...files, 'version.json'].sort(), runtimeName);
+    }
+  });
+
+  it('ships every module the payload requires, so an installed plugin loads without the repo', () => {
+    for (const runtimeName of RUNTIME_NAMES.filter((name) => outputsOf(name).payload !== null)) {
+      const outputDir = makeTempDir(`maestro-payload-${runtimeName}-`);
+      buildDetachedPayload(SRC_ROOT, outputDir, runtimeName, outputsOf(runtimeName).payload, '1.0.0');
+
+      for (const file of globFiles(outputDir, '**/*.js')) {
+        const fromDir = path.dirname(path.join(outputDir, file));
+        for (const [, request] of fs.readFileSync(path.join(outputDir, file), 'utf8').matchAll(/require\('(\.{1,2}\/[^']+)'\)/g)) {
+          assert.doesNotThrow(
+            () => require.resolve(request, { paths: [fromDir] }),
+            `${runtimeName} payload: ${file} requires ${request}`
+          );
+        }
+      }
     }
   });
 });
