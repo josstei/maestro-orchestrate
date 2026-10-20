@@ -190,6 +190,9 @@ describe('hook entrypoints', () => {
       [[], usage],
       [['qwen'], usage],
       [['qwen', 'nope'], 'Unknown hook: nope\n'],
+      // Object members are not hooks (this used to crash with a TypeError).
+      [['qwen', 'constructor'], 'Unknown hook: constructor\n'],
+      [['qwen', '__proto__'], 'Unknown hook: __proto__\n'],
       [['bogus', 'nope'], 'Unknown runtime: bogus\n'],
     ];
 

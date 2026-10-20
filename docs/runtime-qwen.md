@@ -87,11 +87,10 @@ Qwen validates each subagent's handoff report after delegation:
 | `session_id` | `sessionId` |
 | `cwd` | `cwd` |
 | `agent_type` | `agentName` |
-| (hardcoded null) | `agentInput` |
-| `last_assistant_message` (`SubagentStop` only) | `agentResult` |
+| `last_assistant_message` | `agentResult` |
 | `stop_hook_active` | `stopHookActive` |
 
-Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string, hookSpecificOutput?: { additionalContext: string } }`. A deny emits `continue: false` with `decision: "block"` and exits with code 2; an allow that carries a reason emits `decision: "allow"`; any context message goes in `hookSpecificOutput.additionalContext`. If the hook fails, the runner emits `{ continue: true, decision: "allow" }`.
+Output format: `{ continue?: false, decision?: "block", reason?: string, hookSpecificOutput?: { additionalContext: string } }`. A deny emits `continue: false` with `decision: "block"` and exits with code 2; any context message goes in `hookSpecificOutput.additionalContext`. If the hook fails, the runner emits `{ continue: true, decision: "allow" }`.
 
 ## Policies
 

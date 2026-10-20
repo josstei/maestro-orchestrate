@@ -32,7 +32,7 @@ function knownAgent(name) {
  * The agent a delegation is for: the prompt's `agent:` header, then
  * MAESTRO_CURRENT_AGENT, then the first agent the prompt delegates to or
  * @mentions. '' when none names a registered agent.
- * @param {string|null} prompt
+ * @param {string|null|undefined} prompt
  * @returns {string} snake_case agent name or ''
  */
 function detectAgentFromPrompt(prompt) {
@@ -58,7 +58,8 @@ function detectAgentFromPrompt(prompt) {
 
 /**
  * Builds the `key=value` context parts from active-session.md. Sessions created
- * through MCP use JSON frontmatter; legacy hand-written files use YAML-style lines.
+ * through MCP use JSON frontmatter; sessions written from the served
+ * session-state template (the MCP-unavailable fallback) use YAML lines.
  * @param {string} content
  * @returns {string[]}
  */
@@ -98,21 +99,17 @@ function readSessionSummary(cwd) {
 }
 
 /**
- * Before-agent hook logic (runtime-agnostic).
- *
- * Field name mapping: each runtime's hook adapter
- * (src/platforms/<runtime>/hook-adapter.js) fills ctx.agentInput and/or
- * ctx.agentName from its host payload before calling this function (Claude:
- * tool_input.prompt and tool_input.subagent_type; Qwen: agent_type only;
- * Antigravity, which runs it at SessionStart: neither, so only the session
- * context line is produced).
+ * Before-agent hook logic (runtime-agnostic). Each runtime's hook adapter
+ * (src/platforms/<runtime>/hook-adapter.js) supplies whichever of agentInput
+ * and agentName its host payload has; with neither, only the session context
+ * line is produced.
  *
  * @param {object} ctx - Internal context contract
  * @param {string} ctx.sessionId
  * @param {string} ctx.cwd
- * @param {string|null} ctx.agentInput  - the agent prompt text
- * @param {string|null} ctx.agentName   - the dispatched agent's name
- * @returns {{ action: string, message: string|null, reason: null }}
+ * @param {string|null} [ctx.agentInput] - the agent prompt text
+ * @param {string|null} [ctx.agentName] - the dispatched agent's name
+ * @returns {{ action: 'allow', message: string|null, reason: null }}
  */
 function handleBeforeAgent(ctx) {
   hookState.pruneStale();

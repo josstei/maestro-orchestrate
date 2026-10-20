@@ -24,10 +24,6 @@ function normalizeInput(raw) {
   return {
     sessionId: raw.conversationId || '',
     cwd: workspacePaths.find((p) => typeof p === 'string' && p) || '',
-    agentName: null,
-    agentInput: null,
-    agentResult: null,
-    stopHookActive: false,
   };
 }
 
@@ -39,8 +35,6 @@ function formatOutput(result) {
   return { injectSteps: [{ systemMessage: { systemMessage: result.message } }] };
 }
 
-function errorFallback() {
-  return {};
-}
+const errorFallback = Object.freeze({});
 
 module.exports = { normalizeInput, formatOutput, errorFallback };

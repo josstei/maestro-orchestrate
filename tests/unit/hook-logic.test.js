@@ -328,9 +328,9 @@ describe('handleSessionStart', () => {
     hookState.removeSessionDir(SESSION_ID);
   });
 
-  it('returns advisory with null message/reason', () => {
+  it('returns allow with null message/reason', () => {
     const result = handleSessionStart({ sessionId: SESSION_ID, cwd: fakeCwd });
-    assert.equal(result.action, 'advisory');
+    assert.equal(result.action, 'allow');
     assert.equal(result.message, null);
     assert.equal(result.reason, null);
   });
@@ -355,9 +355,9 @@ describe('handleSessionStart', () => {
 });
 
 describe('handleSessionEnd', () => {
-  it('returns advisory with null message/reason', () => {
+  it('returns allow with null message/reason', () => {
     const result = handleSessionEnd({ sessionId: SESSION_ID });
-    assert.equal(result.action, 'advisory');
+    assert.equal(result.action, 'allow');
     assert.equal(result.message, null);
     assert.equal(result.reason, null);
   });

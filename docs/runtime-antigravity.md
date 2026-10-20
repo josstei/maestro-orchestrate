@@ -122,10 +122,6 @@ Antigravity reads hook timeouts in seconds and runs hook commands from the plugi
 |-------------------|----------------|
 | `conversationId` | `sessionId` |
 | `workspacePaths[0]` | `cwd` |
-| (hardcoded null) | `agentName` |
-| (hardcoded null) | `agentInput` |
-| (hardcoded null) | `agentResult` |
-| (hardcoded false) | `stopHookActive` |
 
 Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: string } }] }` when the hook has a context message. Antigravity parses stdout strictly, so the runner prints nothing else and exits with code 0. If the hook fails, the runner emits `{}`.
 

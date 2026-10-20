@@ -7,12 +7,12 @@ const path = require('node:path');
 const antigravityAdapter = require('../../src/platforms/antigravity/hook-adapter');
 const claudeAdapter = require('../../src/platforms/claude/hook-adapter');
 const qwenAdapter = require('../../src/platforms/qwen/hook-adapter');
+const { RUNTIME_NAMES } = require('../../src/platforms/runtime-config-map');
 const { SRC_ROOT } = require('../support/paths');
 
 const PLATFORMS_DIR = path.join(SRC_ROOT, 'platforms');
-const ADAPTER_RUNTIMES = fs.readdirSync(PLATFORMS_DIR)
-  .filter((name) => fs.existsSync(path.join(PLATFORMS_DIR, name, 'hook-adapter.js')))
-  .sort();
+const ADAPTER_RUNTIMES = RUNTIME_NAMES
+  .filter((name) => fs.existsSync(path.join(PLATFORMS_DIR, name, 'hook-adapter.js')));
 
 describe('hook adapter contract', () => {
   it('ships hook adapters for antigravity, claude and qwen only', () => {
@@ -20,11 +20,12 @@ describe('hook adapter contract', () => {
   });
 
   for (const runtime of ADAPTER_RUNTIMES) {
-    it(`${runtime} exports normalizeInput, formatOutput and errorFallback`, () => {
+    it(`${runtime} exports normalizeInput, formatOutput and a frozen errorFallback object`, () => {
       const adapter = require(path.join(PLATFORMS_DIR, runtime, 'hook-adapter.js'));
-      for (const fn of ['normalizeInput', 'formatOutput', 'errorFallback']) {
-        assert.equal(typeof adapter[fn], 'function', `${runtime} adapter must export ${fn}`);
-      }
+      assert.equal(typeof adapter.normalizeInput, 'function');
+      assert.equal(typeof adapter.formatOutput, 'function');
+      assert.equal(Object.getPrototypeOf(adapter.errorFallback), Object.prototype);
+      assert.ok(Object.isFrozen(adapter.errorFallback));
     });
   }
 });
@@ -52,16 +53,13 @@ describe('antigravity hook-adapter', () => {
       assert.equal(result.cwd, '/workspace/app');
     });
 
-    it('leaves the agent fields null because the payload names no agent', () => {
+    it('supplies only sessionId and cwd because the payload names no agent', () => {
       const result = antigravityAdapter.normalizeInput({
         conversationId: 'conv-1',
         workspacePaths: ['/workspace/app'],
       });
 
-      assert.equal(result.agentName, null);
-      assert.equal(result.agentInput, null);
-      assert.equal(result.agentResult, null);
-      assert.equal(result.stopHookActive, false);
+      assert.deepEqual(Object.keys(result), ['sessionId', 'cwd']);
     });
 
     it('handles missing fields and a non-array workspacePaths with empty-string defaults', () => {
@@ -76,7 +74,6 @@ describe('antigravity hook-adapter', () => {
 
   describe('formatOutput', () => {
     it('returns {} when there is no message', () => {
-      assert.deepEqual(antigravityAdapter.formatOutput({ action: 'advisory', message: null, reason: null }), {});
       assert.deepEqual(antigravityAdapter.formatOutput({ action: 'allow', message: null, reason: null }), {});
     });
 
@@ -94,8 +91,8 @@ describe('antigravity hook-adapter', () => {
   });
 
   describe('errorFallback', () => {
-    it('returns {}', () => {
-      assert.deepEqual(antigravityAdapter.errorFallback(), {});
+    it('is {}', () => {
+      assert.deepEqual(antigravityAdapter.errorFallback, {});
     });
   });
 
@@ -135,30 +132,10 @@ describe('claude hook-adapter', () => {
       assert.equal(result.agentInput, 'Implement the feature.');
     });
 
-    it('maps tool_result to agentResult', () => {
-      const raw = {
-        tool_result: 'The agent returned this output.',
-      };
-
-      const result = claudeAdapter.normalizeInput(raw);
-
-      assert.equal(result.agentResult, 'The agent returned this output.');
-    });
-
-    it('always sets stopHookActive to false', () => {
-      const result = claudeAdapter.normalizeInput({ stop_hook_active: true });
-
-      assert.equal(result.stopHookActive, false);
-    });
-
     it('handles missing fields with defaults of empty string or null', () => {
       const result = claudeAdapter.normalizeInput({});
 
-      assert.equal(result.sessionId, '');
-      assert.equal(result.cwd, '');
-      assert.equal(result.agentName, null);
-      assert.equal(result.agentInput, null);
-      assert.equal(result.agentResult, null);
+      assert.deepEqual(result, { sessionId: '', cwd: '', agentName: null, agentInput: null });
     });
   });
 
@@ -191,10 +168,8 @@ describe('claude hook-adapter', () => {
   });
 
   describe('errorFallback', () => {
-    it('returns { continue: false, decision: "block" }', () => {
-      const result = claudeAdapter.errorFallback();
-
-      assert.deepEqual(result, { continue: false, decision: 'block' });
+    it('is { continue: false, decision: "block" }', () => {
+      assert.deepEqual(claudeAdapter.errorFallback, { continue: false, decision: 'block' });
     });
   });
 
@@ -220,18 +195,16 @@ describe('qwen hook-adapter', () => {
       assert.equal(result.cwd, '/workspace/app');
     });
 
-    it('maps agent_type to agentName and leaves agentInput null for SubagentStart', () => {
+    it('maps agent_type to agentName', () => {
       const result = qwenAdapter.normalizeInput({
         hook_event_name: 'SubagentStart',
         agent_type: 'coder',
       });
 
       assert.equal(result.agentName, 'coder');
-      assert.equal(result.agentInput, null);
-      assert.equal(result.agentResult, null);
     });
 
-    it('maps last_assistant_message to agentResult for SubagentStop', () => {
+    it('maps last_assistant_message to agentResult', () => {
       const result = qwenAdapter.normalizeInput({
         hook_event_name: 'SubagentStop',
         agent_type: 'coder',
@@ -239,7 +212,6 @@ describe('qwen hook-adapter', () => {
       });
 
       assert.equal(result.agentName, 'coder');
-      assert.equal(result.agentInput, null);
       assert.equal(result.agentResult, '## Task Report\nDone.\n\n## Downstream Context\nNext steps.');
     });
 
@@ -258,25 +230,25 @@ describe('qwen hook-adapter', () => {
 
   describe('formatOutput', () => {
     it('maps deny action to block output', () => {
-      const result = qwenAdapter.formatOutput({ action: 'deny', reason: 'Blocked.' });
+      const result = qwenAdapter.formatOutput({ action: 'deny', message: null, reason: 'Blocked.' });
 
-      assert.equal(result.continue, false);
-      assert.equal(result.decision, 'block');
-      assert.equal(result.reason, 'Blocked.');
+      assert.deepEqual(result, { continue: false, decision: 'block', reason: 'Blocked.' });
+    });
+
+    it('emits {} for an allow without a message', () => {
+      assert.deepEqual(qwenAdapter.formatOutput({ action: 'allow', message: null, reason: null }), {});
     });
 
     it('stores message in hookSpecificOutput.additionalContext', () => {
-      const result = qwenAdapter.formatOutput({ action: 'allow', message: 'Context.' });
+      const result = qwenAdapter.formatOutput({ action: 'allow', message: 'Context.', reason: null });
 
-      assert.deepEqual(result.hookSpecificOutput, { additionalContext: 'Context.' });
+      assert.deepEqual(result, { hookSpecificOutput: { additionalContext: 'Context.' } });
     });
   });
 
   describe('errorFallback', () => {
-    it('returns { continue: true, decision: "allow" }', () => {
-      const result = qwenAdapter.errorFallback();
-
-      assert.deepEqual(result, { continue: true, decision: 'allow' });
+    it('is { continue: true, decision: "allow" }', () => {
+      assert.deepEqual(qwenAdapter.errorFallback, { continue: true, decision: 'allow' });
     });
   });
 

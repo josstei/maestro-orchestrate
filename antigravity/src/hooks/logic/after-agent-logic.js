@@ -6,17 +6,14 @@ const hookState = require('./hook-state');
 const REQUIRED_SECTIONS = ['Task Report', 'Downstream Context'];
 
 /**
- * After-agent hook logic (runtime-agnostic).
- *
- * Field name mapping: each runtime's hook adapter
- * (src/platforms/<runtime>/hook-adapter.js) fills ctx.agentResult from its
- * host payload before calling this function.
+ * After-agent hook logic (runtime-agnostic): checks the finished agent's
+ * response for the handoff report headings.
  *
  * @param {object} ctx - Internal context contract
  * @param {string} ctx.sessionId
- * @param {string|null} ctx.agentResult  - the agent response text
- * @param {boolean} ctx.stopHookActive
- * @returns {{ action: string, message: null, reason: string|null }}
+ * @param {unknown} [ctx.agentResult] - the agent response text
+ * @param {boolean} [ctx.stopHookActive]
+ * @returns {{ action: 'allow'|'deny', message: null, reason: string|null }}
  */
 function handleAfterAgent(ctx) {
   const agentName = hookState.getActiveAgent(ctx.sessionId);

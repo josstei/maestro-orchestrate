@@ -4,6 +4,10 @@
  * Claude Code hook I/O adapter.
  * Normalizes Claude Code stdin JSON to the internal context contract
  * and formats internal responses for Claude Code stdout.
+ *
+ * Maestro registers session-start, before-agent (PreToolUse on Agent) and
+ * session-end through this adapter (see claude/hooks/claude-hooks.json); there
+ * is no after-agent hook.
  */
 
 function normalizeInput(raw) {
@@ -12,8 +16,6 @@ function normalizeInput(raw) {
     cwd: raw.cwd || '',
     agentName: raw.tool_input?.subagent_type || null,
     agentInput: raw.tool_input?.prompt || null,
-    agentResult: raw.tool_result || null,
-    stopHookActive: false,
   };
 }
 
@@ -26,8 +28,6 @@ function formatOutput(result) {
   };
 }
 
-function errorFallback() {
-  return { continue: false, decision: 'block' };
-}
+const errorFallback = Object.freeze({ continue: false, decision: 'block' });
 
 module.exports = { normalizeInput, formatOutput, errorFallback };
