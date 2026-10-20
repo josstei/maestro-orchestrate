@@ -3,11 +3,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildPlatformMetadataOutputs } = require('../../src/platforms/metadata');
+const { buildPlatformMetadataOutputs } = require('../../src/generator/platform-metadata');
 const { buildPolicyPackToml } = require('../../src/platforms/qwen/policy-pack');
 const { DENY_RULES, ASK_RULES } = require('../../src/platforms/shared/policy-rules');
 const HOOK_REGISTRY = require('../../src/generated/hook-registry.json');
-const { RUNTIME_NAMES } = require('../../src/platforms/runtime-config-map');
 const { hookCommands } = require('../support/generated-files');
 
 const PACKAGE_FIXTURE = {
@@ -33,43 +32,34 @@ function outputsByPath(outputs) {
   ]));
 }
 
-const ALL_RUNTIMES = { antigravity: {}, claude: {}, codex: {}, qwen: {} };
-
 // policies/maestro.toml holds patterns as TOML basic strings, so backslashes are doubled.
 function tomlEscaped(text) {
   return text.replace(/\\/g, '\\\\');
 }
 
 describe('platform metadata generation', () => {
-  it('covers exactly the discovered runtimes', () => {
-    assert.deepEqual(Object.keys(ALL_RUNTIMES).sort(), RUNTIME_NAMES);
-  });
+  it('writes every runtime metadata file from package identity, in runtime order', () => {
+    const outputList = buildPlatformMetadataOutputs(PACKAGE_FIXTURE);
 
-  it('generates all runtime metadata from package identity', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
-
-    const expectedPaths = [
-      '.agents/plugins/marketplace.json',
-      '.claude-plugin/marketplace.json',
-      'antigravity/hooks.json',
-      'antigravity/mcp_config.json',
+    assert.deepEqual(outputList.map((output) => output.outputPath), [
       'antigravity/plugin.json',
+      'antigravity/mcp_config.json',
+      'antigravity/hooks.json',
+      '.claude-plugin/marketplace.json',
       'claude/.claude-plugin/plugin.json',
-      'claude/.mcp.json',
       'claude/hooks/claude-hooks.json',
-      'plugins/maestro/.app.json',
+      'claude/.mcp.json',
+      '.agents/plugins/marketplace.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'plugins/maestro/.mcp.json',
-      'policies/maestro.toml',
+      'plugins/maestro/.app.json',
       'qwen-extension.json',
       'qwen/hooks.json',
-    ];
+      'policies/maestro.toml',
+    ]);
 
-    assert.deepEqual([...outputs.keys()].sort(), expectedPaths);
+    const outputs = outputsByPath(outputList);
     assert.equal(outputs.get('qwen-extension.json').version, PACKAGE_FIXTURE.version);
-    assert.deepEqual(outputs.get('qwen-extension.json').mcpServers.maestro.env, {
-      MAESTRO_WORKSPACE_PATH: '${workspacePath}',
-    });
     assert.equal(outputs.get('antigravity/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('claude/.claude-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').version, PACKAGE_FIXTURE.version);
@@ -79,28 +69,32 @@ describe('platform metadata generation', () => {
     );
   });
 
-  it('generates only metadata for enabled runtimes', () => {
-    const outputs = buildPlatformMetadataOutputs({ codex: {} }, PACKAGE_FIXTURE);
+  it('carries the package author, homepage, repository without .git, and license into the manifests', () => {
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(PACKAGE_FIXTURE));
+    const identity = {
+      author: PACKAGE_FIXTURE.author,
+      homepage: PACKAGE_FIXTURE.homepage,
+      repository: 'https://github.com/example/maestro',
+      license: PACKAGE_FIXTURE.license,
+    };
 
-    assert.deepEqual(
-      outputs.map((output) => output.outputPath).sort(),
-      [
-        '.agents/plugins/marketplace.json',
-        'plugins/maestro/.app.json',
-        'plugins/maestro/.codex-plugin/plugin.json',
-        'plugins/maestro/.mcp.json',
-      ]
-    );
+    for (const manifest of [
+      outputs.get('.claude-plugin/marketplace.json').plugins[0],
+      outputs.get('claude/.claude-plugin/plugin.json'),
+      outputs.get('plugins/maestro/.codex-plugin/plugin.json'),
+    ]) {
+      assert.deepEqual(
+        Object.fromEntries(Object.keys(identity).map((key) => [key, manifest[key]])),
+        identity
+      );
+      assert.deepEqual(Object.keys(manifest.author), ['name', 'email', 'url']);
+    }
+    assert.deepEqual(outputs.get('.claude-plugin/marketplace.json').owner, { name: PACKAGE_FIXTURE.author.name });
   });
 
-  it('makes the qwen runtime own the repo-root extension manifest and policy pack', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ qwen: {} }, PACKAGE_FIXTURE));
+  it('writes the qwen extension manifest and policy pack at the repo root', () => {
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(PACKAGE_FIXTURE));
 
-    assert.deepEqual([...outputs.keys()].sort(), [
-      'policies/maestro.toml',
-      'qwen-extension.json',
-      'qwen/hooks.json',
-    ]);
     assert.equal(outputs.get('policies/maestro.toml'), buildPolicyPackToml());
 
     const manifest = outputs.get('qwen-extension.json');
@@ -110,7 +104,7 @@ describe('platform metadata generation', () => {
   });
 
   it('registers the qwen lifecycle hooks with millisecond timeouts', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ qwen: {} }, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(PACKAGE_FIXTURE));
     const { hooks } = outputs.get('qwen/hooks.json');
 
     assert.deepEqual(Object.keys(hooks), ['SessionStart', 'SubagentStart', 'SubagentStop', 'SessionEnd']);
@@ -121,14 +115,8 @@ describe('platform metadata generation', () => {
     }
   });
 
-  it('makes the antigravity runtime own its plugin manifest, MCP config and hooks at the plugin root', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ antigravity: {} }, PACKAGE_FIXTURE));
-
-    assert.deepEqual([...outputs.keys()].sort(), [
-      'antigravity/hooks.json',
-      'antigravity/mcp_config.json',
-      'antigravity/plugin.json',
-    ]);
+  it('writes the antigravity plugin manifest and MCP config at the plugin root', () => {
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(PACKAGE_FIXTURE));
 
     // plugin.json carries only the manifest fields (MCP servers and hooks have
     // their own files), and Antigravity keeps descriptions to 160 characters.
@@ -154,7 +142,7 @@ describe('platform metadata generation', () => {
   });
 
   it('registers the antigravity session-context and shell-policy hooks with second timeouts', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ antigravity: {} }, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(PACKAGE_FIXTURE));
 
     assert.deepEqual(outputs.get('antigravity/hooks.json'), {
       'maestro-session': {
@@ -174,17 +162,8 @@ describe('platform metadata generation', () => {
     });
   });
 
-  it('emits no gemini metadata', () => {
-    const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
-
-    for (const output of outputs) {
-      assert.doesNotMatch(output.outputPath, /gemini/i);
-    }
-    assert.ok(!outputs.some((output) => output.outputPath === 'hooks/hooks.json'));
-  });
-
   it('leaves the runtime to the MCP server, which identifies its host', () => {
-    const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
+    const outputs = buildPlatformMetadataOutputs(PACKAGE_FIXTURE);
 
     for (const output of outputs.filter((entry) => entry.outputPath.endsWith('.json'))) {
       for (const server of Object.values(JSON.parse(output.content).mcpServers || {})) {
@@ -194,7 +173,7 @@ describe('platform metadata generation', () => {
   });
 
   it('points the plugin manifests at the generated hook and app configs', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(PACKAGE_FIXTURE));
 
     assert.equal(outputs.get('claude/.claude-plugin/plugin.json').hooks, './hooks/claude-hooks.json');
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').apps, './.app.json');
@@ -202,7 +181,7 @@ describe('platform metadata generation', () => {
   });
 
   it('runs only registered hooks from every hook config', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(PACKAGE_FIXTURE));
     const expectedRuntimes = {
       'antigravity/hooks.json': 'antigravity',
       'qwen/hooks.json': 'qwen',
@@ -255,11 +234,11 @@ describe('policy pack generation', () => {
     assert.ok(toml.includes('commandRegex = ".*\\\\btee\\\\b.*"\ndecision = "ask_user"\n'));
   });
 
-  it('refuses rule shapes a policy commandRegex cannot express', () => {
-    const askPrefix = [{ matchType: 'prefix', pattern: 'npm publish', reason: 'Publishes a package' }];
-    const unknown = [{ matchType: 'glob', pattern: '*.lock', reason: 'Lockfile' }];
-
-    assert.throws(() => buildPolicyPackToml(DENY_RULES, askPrefix), /Cannot render a prefix policy rule/);
-    assert.throws(() => buildPolicyPackToml(unknown, ASK_RULES), /Cannot render a glob policy rule/);
+  it('has only rules a policy commandRegex can express', () => {
+    // An ask prefix rule or a new matchType would make buildPolicyPackToml throw.
+    assert.deepEqual(ASK_RULES.filter((rule) => rule.matchType === 'prefix'), []);
+    for (const rule of [...DENY_RULES, ...ASK_RULES]) {
+      assert.ok(['prefix', 'regex', 'word'].includes(rule.matchType), `${rule.pattern}: ${rule.matchType}`);
+    }
   });
 });

@@ -2,8 +2,8 @@
 
 /**
  * Renders the Qwen Code shell policy pack (policies/maestro.toml) from the
- * canonical rules in src/platforms/shared/policy-rules.js. Called by the qwen builder in
- * src/platforms/metadata.js, which scripts/generate.js runs.
+ * canonical rules in src/platforms/shared/policy-rules.js. Build-time only:
+ * Qwen's metadataFiles (src/platforms/qwen/outputs.js) call it.
  */
 
 const { DENY_RULES, ASK_RULES } = require('../shared/policy-rules');
@@ -39,18 +39,20 @@ function policyRule(lines) {
 }
 
 /**
- * Render the Qwen Code policy pack from the canonical rules that
- * the Claude policy enforcer applies: ask rules first, then one deny block for
- * every prefix rule, then one deny block per remaining deny rule.
- * @throws {Error} When a rule cannot be expressed as a policy commandRegex
+ * Render the Qwen Code policy pack from the canonical rules that the
+ * Antigravity and Claude policy enforcers apply: ask rules first, then one
+ * deny block for every prefix rule, then one deny block per remaining deny
+ * rule.
+ * @throws {Error} When a rule cannot be expressed as a policy commandRegex (an
+ *   ask prefix rule, or a new matchType), so generation fails loudly
  */
-function buildPolicyPackToml(denyRules = DENY_RULES, askRules = ASK_RULES) {
-  const prefixRules = denyRules.filter((rule) => rule.matchType === 'prefix');
-  const regexDenyRules = denyRules.filter((rule) => rule.matchType !== 'prefix');
+function buildPolicyPackToml() {
+  const prefixRules = DENY_RULES.filter((rule) => rule.matchType === 'prefix');
+  const regexDenyRules = DENY_RULES.filter((rule) => rule.matchType !== 'prefix');
 
   return [
     POLICY_PACK_HEADER,
-    ...askRules.map((rule) => policyRule([
+    ...ASK_RULES.map((rule) => policyRule([
       `commandRegex = ${JSON.stringify(policyCommandRegex(rule))}`,
       'decision = "ask_user"',
       'priority = 850',

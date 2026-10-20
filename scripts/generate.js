@@ -10,7 +10,7 @@ const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entr
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
-const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
+const { buildPlatformMetadataOutputs } = require('../src/generator/platform-metadata');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/platforms/runtime-config-map');
 const { runCli } = require('./lib/cli');
 
@@ -54,7 +54,7 @@ function main() {
       entryPointPaths.push(...outputs.map(({ outputPath }) => outputPath));
     }
   }
-  writer.writeAll(buildPlatformMetadataOutputs(runtimes, packageMetadata));
+  writer.writeAll(buildPlatformMetadataOutputs(packageMetadata));
 
   const stats = writer.getStats();
 
