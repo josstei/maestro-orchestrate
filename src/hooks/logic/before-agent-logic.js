@@ -3,7 +3,6 @@
 const { log } = require('../../core/logger');
 const { detectAgentFromPrompt, normalizeAgentName } = require('../../core/agent-registry');
 const { readFileSafe } = require('../../lib/io');
-const markdownState = require('../../core/markdown-state');
 const { resolveHookWorkspaceRoot } = require('../../core/project-root-resolver');
 const hookState = require('./hook-state');
 const state = require('../../state/session-state');
@@ -16,7 +15,7 @@ const state = require('../../state/session-state');
  */
 function summarizeSession(content) {
   try {
-    const { data } = markdownState.parse(content);
+    const { data } = state.parseSessionFile(content);
     return [['current_phase', data.current_phase], ['status', data.status]]
       .filter(([, value]) => value !== null && value !== undefined && value !== '')
       .map(([key, value]) => `${key}=${value}`);

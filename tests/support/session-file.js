@@ -3,8 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const markdownState = require('../../src/core/markdown-state');
-const { writeFile } = require('./fs');
+const { parseSessionFile, writeActiveSession } = require('../../src/state/session-state');
 
 /**
  * Returns the path of a workspace's active session file.
@@ -24,7 +23,7 @@ function activeSessionPath(workspace, stateDir = 'docs/maestro') {
  * @returns {Object} The parsed session state
  */
 function readSessionState(workspace) {
-  return markdownState.parse(fs.readFileSync(activeSessionPath(workspace), 'utf8')).data;
+  return parseSessionFile(fs.readFileSync(activeSessionPath(workspace), 'utf8')).data;
 }
 
 /**
@@ -36,8 +35,8 @@ function readSessionState(workspace) {
  * @param {string} [stateDir] - State directory relative to `workspace` (default `docs/maestro`)
  * @returns {string} Absolute path of the written session file
  */
-function writeSessionState(workspace, data, stateDir) {
-  return writeFile(activeSessionPath(workspace, stateDir), markdownState.serialize(data, '# Session\n'));
+function writeSessionState(workspace, data, stateDir = 'docs/maestro') {
+  return writeActiveSession(path.join(workspace, stateDir), data, '# Session\n');
 }
 
 module.exports = {

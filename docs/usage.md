@@ -121,7 +121,7 @@ docs/maestro/
 
 ### Session State Format
 
-Active sessions are a frontmatter block followed by a Markdown log. MCP `create_session` writes the frontmatter as JSON (`src/core/markdown-state.js`), and the MCP session tools read it back as JSON. The example below uses the YAML layout of the session-state template (`src/templates/session-state.md`), which direct-write fallbacks follow:
+Active sessions are a frontmatter block followed by a Markdown log. MCP `create_session` writes the frontmatter as JSON (`src/state/session-state.js`), and the MCP session tools read it back as JSON. The example below uses the YAML layout of the session-state template (`src/templates/session-state.md`), which direct-write fallbacks follow:
 
 ```yaml
 ---

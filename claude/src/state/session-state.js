@@ -4,12 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { atomicWriteSync, ensurePrivateDir } = require('../lib/io');
 const { StateError, NotFoundError } = require('../lib/errors');
-const markdownState = require('../core/markdown-state');
 const { resolveSetting } = require('../config/setting-resolver');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 const WORKSPACE_SUBDIRS = Object.freeze(['state', 'state/archive', 'plans', 'plans/archive']);
+const SESSION_FILE_PATTERN = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
 function validateRelativePath(filePath) {
   if (path.isAbsolute(filePath)) {
@@ -91,9 +91,30 @@ function writeState(relativePath, content, basePath) {
   atomicWriteSync(joinRelative(basePath, relativePath), content);
 }
 
+/**
+ * Parse a session file: a JSON frontmatter block between `---` lines, followed
+ * by the Markdown log.
+ *
+ * @param {string} content
+ * @returns {{ data: object, body: string }}
+ * @throws {Error} when the content has no frontmatter block
+ */
+function parseSessionFile(content) {
+  const match = content.match(SESSION_FILE_PATTERN);
+  if (!match) {
+    // The frontmatter is JSON, but this text is part of the MCP error contract.
+    throw new Error('No YAML frontmatter found in session state');
+  }
+  return { data: JSON.parse(match[1]), body: match[2] };
+}
+
+function serializeSessionFile(data, body) {
+  return `---\n${JSON.stringify(data, null, 2)}\n---\n${body}`;
+}
+
 function readSessionAt(basePath) {
   const sessionPath = activeSessionFile(basePath);
-  const { data, body } = markdownState.parse(fs.readFileSync(sessionPath, 'utf8'));
+  const { data, body } = parseSessionFile(fs.readFileSync(sessionPath, 'utf8'));
   return { basePath, state: data, body };
 }
 
@@ -111,7 +132,7 @@ function readActiveSessionOrNull(cwd) {
 
 function writeActiveSession(basePath, state, body) {
   const sessionPath = activeSessionFile(basePath);
-  atomicWriteSync(sessionPath, markdownState.serialize(state, body));
+  atomicWriteSync(sessionPath, serializeSessionFile(state, body));
   return sessionPath;
 }
 
@@ -195,6 +216,7 @@ module.exports = {
   resolveStateDirSetting,
   resolveStateDirPath,
   resolveActiveSessionPath,
+  parseSessionFile,
   readState,
   writeState,
   readActiveSession,
