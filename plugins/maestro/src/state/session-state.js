@@ -65,15 +65,6 @@ function resolveActiveSessionPath(cwd, stateDirOverride) {
   return activeSessionFile(resolveStateDirPath(cwd, stateDirOverride));
 }
 
-function hasActiveSession(cwd) {
-  try {
-    const sessionPath = resolveActiveSessionPath(cwd);
-    return fs.existsSync(sessionPath);
-  } catch {
-    return false;
-  }
-}
-
 function readState(relativePath, basePath) {
   validateRelativePath(relativePath);
   const fullPath = path.join(basePath, relativePath);
@@ -172,7 +163,6 @@ module.exports = {
   WORKSPACE_SUBDIRS,
   resolveStateDirPath,
   resolveActiveSessionPath,
-  hasActiveSession,
   readState,
   writeState,
   readActiveSession,

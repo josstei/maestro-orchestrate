@@ -17,23 +17,19 @@ describe('hook-state', () => {
     state = createHookState(baseDir);
   });
 
-  describe('ensureSessionDir', () => {
-    it('creates a directory for a valid session ID', () => {
-      const result = state.ensureSessionDir('session-abc123');
-      assert.equal(result, true);
-      assert.ok(fs.existsSync(path.join(baseDir, 'session-abc123')));
-    });
-
-    it('returns false for an invalid session ID', () => {
-      const result = state.ensureSessionDir('../hack');
-      assert.equal(result, false);
-    });
-  });
-
   describe('setActiveAgent', () => {
     it('writes the agent name and returns true', () => {
       const result = state.setActiveAgent('sess1', 'coder');
       assert.equal(result, true);
+    });
+
+    it('creates the missing session directory as private (0o700)', {
+      skip: process.platform === 'win32' && 'Windows does not report POSIX modes',
+    }, () => {
+      state.setActiveAgent('session-abc123', 'coder');
+      const stat = fs.statSync(path.join(baseDir, 'session-abc123'));
+      assert.ok(stat.isDirectory());
+      assert.equal(stat.mode & 0o777, 0o700);
     });
 
     it('returns false for an invalid session ID', () => {
@@ -71,7 +67,7 @@ describe('hook-state', () => {
 
   describe('removeSessionDir', () => {
     it('removes the entire session directory', () => {
-      state.ensureSessionDir('sess5');
+      state.setActiveAgent('sess5', 'coder');
       const result = state.removeSessionDir('sess5');
       assert.equal(result, true);
       assert.equal(fs.existsSync(path.join(baseDir, 'sess5')), false);
@@ -90,7 +86,7 @@ describe('hook-state', () => {
 
   describe('pruneStale', () => {
     it('does not remove freshly created directories', () => {
-      state.ensureSessionDir('fresh-session');
+      state.setActiveAgent('fresh-session', 'coder');
       state.pruneStale();
       assert.ok(fs.existsSync(path.join(baseDir, 'fresh-session')));
     });
