@@ -4,7 +4,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { handleGetRuntimeContext } = require('../../src/mcp/handlers/get-runtime-context');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
-const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
+const { AGENT_NAMES } = require('../../src/core/agent-registry');
+const { toSnakeCase } = require('../../src/lib/naming');
 
 // The get_runtime_context response is a contract the runtime prompts rely on,
 // so the expected values are written out here instead of read from the configs.
@@ -65,7 +66,7 @@ const EXPECTED_CONTEXT = {
     plan_mode_native: false,
     agent_dispatch: { pattern: '{{agent}}(query: "...")', naming: 'snake_case', prefix: '' },
     constraints: SYNCHRONOUS_CONSTRAINTS,
-    agents: KNOWN_AGENTS,
+    agents: AGENT_NAMES.map(toSnakeCase),
     paths: { skills: '${extensionPath}/skills/', hooks: '${extensionPath}/hooks/' },
     tools: {
       read_file: 'read_file',

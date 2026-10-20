@@ -235,17 +235,55 @@ describe('handleBeforeAgent', () => {
     assert.deepEqual(result, { action: 'allow', message: null, reason: null });
   });
 
-  it('detects agent from prompt and sets active agent', () => {
+  /** The active agent handleBeforeAgent records for a prompt and adapter agent name. */
+  function detectedAgent(agentInput, agentName = null) {
     hookState.clearActiveAgent(SESSION_ID);
+    handleBeforeAgent({ sessionId: SESSION_ID, cwd: fakeCwd, agentName, agentInput });
+    return hookState.getActiveAgent(SESSION_ID);
+  }
 
-    handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentInput: 'agent: coder\nPlease implement the feature.',
-    });
+  it('detects the agent from an "agent:" header', () => {
+    assert.equal(detectedAgent('agent: coder\nPlease implement the feature.'), 'coder');
+  });
 
-    const activeAgent = hookState.getActiveAgent(SESSION_ID);
-    assert.equal(activeAgent, 'coder');
+  it('normalizes a kebab-case header agent to snake_case', () => {
+    assert.equal(detectedAgent('agent: code-reviewer\n\nReview this PR.'), 'code_reviewer');
+  });
+
+  it('detects an @mention', () => {
+    assert.equal(detectedAgent('Please ask @code_reviewer to check this.'), 'code_reviewer');
+  });
+
+  it('detects "delegate to" and "hand off to" phrasing', () => {
+    assert.equal(detectedAgent('delegate to coder for implementation'), 'coder');
+    assert.equal(detectedAgent('hand off to debugger for investigation'), 'debugger');
+  });
+
+  it('records no agent for an empty, missing or agent-free prompt', () => {
+    assert.equal(detectedAgent(''), '');
+    assert.equal(detectedAgent(null), '');
+    assert.equal(detectedAgent('Just a normal message with no agent.'), '');
+  });
+
+  it('falls back to MAESTRO_CURRENT_AGENT when the prompt has no header', () => {
+    const agent = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
+      detectedAgent('Run all tests please.')
+    );
+    assert.equal(agent, 'tester');
+  });
+
+  it('prefers the header agent over MAESTRO_CURRENT_AGENT', () => {
+    const agent = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
+      detectedAgent('agent: coder\n\nImplement the feature.')
+    );
+    assert.equal(agent, 'coder');
+  });
+
+  it('ignores a header or MAESTRO_CURRENT_AGENT that names no registered agent', () => {
+    const agent = withEnv({ MAESTRO_CURRENT_AGENT: 'constructor' }, () =>
+      detectedAgent('agent: wizard\ninvoke refactor now')
+    );
+    assert.equal(agent, 'refactor');
   });
 
   it('returns the session context without recording an agent when the payload names none', () => {

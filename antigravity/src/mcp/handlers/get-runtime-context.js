@@ -1,6 +1,7 @@
 'use strict';
 
-const { AGENT_NAMES, KNOWN_AGENTS, AGENT_CAPABILITIES } = require('../../core/agent-registry');
+const { AGENT_NAMES, AGENT_CAPABILITIES } = require('../../core/agent-registry');
+const { toNamingConvention } = require('../../lib/naming');
 
 function handleGetRuntimeContext(_params, _projectRoot, { runtimeConfig, workspace }) {
   const { delegation } = runtimeConfig;
@@ -20,7 +21,7 @@ function handleGetRuntimeContext(_params, _projectRoot, { runtimeConfig, workspa
     },
     mcp_prefix: runtimeConfig.mcpPrefix,
     paths: runtimeConfig.paths,
-    agents: runtimeConfig.agentNaming === 'snake_case' ? KNOWN_AGENTS : AGENT_NAMES,
+    agents: AGENT_NAMES.map((name) => toNamingConvention(name, runtimeConfig.agentNaming)),
     agent_capabilities: AGENT_CAPABILITIES,
     plan_mode_native: runtimeConfig.planModeNative,
     workspace_suggestion: workspace.workspaceSuggestion(runtimeConfig.env.workspacePath),
