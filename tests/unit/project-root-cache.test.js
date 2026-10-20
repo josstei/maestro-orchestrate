@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
-const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
+const { createProjectRootCache } = require('../../src/mcp/project-root-cache');
 const { withCwd, withEnv } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
 

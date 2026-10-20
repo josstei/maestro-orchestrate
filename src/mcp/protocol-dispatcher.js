@@ -2,7 +2,7 @@
 
 const readline = require('node:readline');
 
-const { log } = require('../../core/logger');
+const { log } = require('../core/logger');
 
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
 const DEFAULT_CLIENT_REQUEST_TIMEOUT_MS = 5000;

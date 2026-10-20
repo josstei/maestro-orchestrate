@@ -1,6 +1,6 @@
 'use strict';
 
-const { MaestroError } = require('../../lib/errors');
+const { MaestroError } = require('../lib/errors');
 
 // Recovery guidance for a failed call, by tool name and error message.
 const RECOVERY_HINTS = [

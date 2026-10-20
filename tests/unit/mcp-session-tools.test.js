@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
+const { createServer } = require('../../src/mcp/create-server');
 const { tools } = require('../../src/mcp/tools/session');
 const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { ensureWorkspace } = require('../../src/state/session-state');

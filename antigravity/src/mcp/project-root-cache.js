@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { fileURLToPath } = require('node:url');
 
-const { isExtensionCachePath } = require('../../core/cache-path-rejector');
-const { isConcretePath } = require('../../core/project-root-resolver');
+const { isExtensionCachePath } = require('../core/cache-path-rejector');
+const { isConcretePath } = require('../core/project-root-resolver');
 
 /**
  * Project-root cache for the MCP server.

@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createServer } = require('../../src/mcp/core/create-server');
+const { createServer } = require('../../src/mcp/create-server');
 const { ValidationError } = require('../../src/lib/errors');
 
 const tool = (name, handler = () => ({ ok: true })) => ({ name, handler });

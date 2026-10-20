@@ -1,7 +1,7 @@
 'use strict';
 
-const { createServer } = require('../../src/mcp/core/create-server');
-const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
+const { createServer } = require('../../src/mcp/create-server');
+const { createProjectRootCache } = require('../../src/mcp/project-root-cache');
 const { tools: sessionTools } = require('../../src/mcp/tools/session');
 const { tools: workspaceTools } = require('../../src/mcp/tools/workspace');
 const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');

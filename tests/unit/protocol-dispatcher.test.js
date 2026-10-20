@@ -4,8 +4,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
 
-const { createProtocolHandlers } = require('../../src/mcp/core/protocol-dispatcher');
-const { createServer } = require('../../src/mcp/core/create-server');
+const { createProtocolHandlers } = require('../../src/mcp/protocol-dispatcher');
+const { createServer } = require('../../src/mcp/create-server');
 
 function captureWrites(stream) {
   const frames = [];

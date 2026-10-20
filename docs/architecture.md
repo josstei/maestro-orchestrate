@@ -117,11 +117,10 @@ The MCP server is authored directly in modular source under `src/mcp/`. Each run
 ```
 src/mcp/
 ├── maestro-server.js           # Server entry-point (main) + tool order
+├── create-server.js            # Tool dispatch, error sanitization + recovery hints
+├── protocol-dispatcher.js      # JSON-RPC routing + stdio line framing
+├── project-root-cache.js       # Workspace path + workspace_suggestion
 ├── contracts/                  # Plan schema + complexity tiers, document input and handoff contracts
-├── core/
-│   ├── create-server.js        # Tool dispatch, error sanitization + recovery hints
-│   ├── protocol-dispatcher.js  # JSON-RPC routing + stdio line framing
-│   └── project-root-cache.js   # Workspace path + workspace_suggestion
 ├── handlers/                   # 9 handler implementations
 │   ├── content.js              # get_agent + get_skill_content serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
@@ -165,7 +164,7 @@ The server identifies its host runtime instead of assuming one. It takes `MAESTR
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
-When a runtime config sets `mcpToolMeta`, `src/mcp/core/create-server.js` lists it as every tool schema's `_meta`. Antigravity's `antigravity/alwaysLoad` marks the tools to register as native tools (`mcp_maestro_maestro_<tool>`) instead of loading them on demand.
+When a runtime config sets `mcpToolMeta`, `src/mcp/create-server.js` lists it as every tool schema's `_meta`. Antigravity's `antigravity/alwaysLoad` marks the tools to register as native tools (`mcp_maestro_maestro_<tool>`) instead of loading them on demand.
 
 ### Workspace Resolution
 
@@ -177,7 +176,7 @@ To help the orchestrator choose that path, `get_runtime_context` returns a `work
 2. the first existing `file://` root in the MCP client's `roots/list` response
 3. the server's `cwd`
 
-When the client supports roots, the server requests them after `notifications/initialized` and again on every `notifications/roots/list_changed` (Antigravity sends these repeatedly, sometimes right after answering `roots/list`). Candidates inside an extension cache (`.codex/plugins`, `.claude/plugins`, and Antigravity's `~/.gemini/config/plugins` and `~/.gemini/antigravity-cli/plugins`; `src/core/cache-path-rejector.js`) are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/core/project-root-cache.js`).
+When the client supports roots, the server requests them after `notifications/initialized` and again on every `notifications/roots/list_changed` (Antigravity sends these repeatedly, sometimes right after answering `roots/list`). Candidates inside an extension cache (`.codex/plugins`, `.claude/plugins`, and Antigravity's `~/.gemini/config/plugins` and `~/.gemini/antigravity-cli/plugins`; `src/core/cache-path-rejector.js`) are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/project-root-cache.js`).
 
 ### Tool Catalog
 

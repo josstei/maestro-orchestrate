@@ -5,8 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
-const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
+const { createServer } = require('../../src/mcp/create-server');
+const { createProjectRootCache } = require('../../src/mcp/project-root-cache');
 const { tools } = require('../../src/mcp/tools/workspace');
 const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { withEnv } = require('../support/env');
