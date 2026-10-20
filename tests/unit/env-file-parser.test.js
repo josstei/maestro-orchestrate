@@ -4,7 +4,7 @@ const { describe, it, before } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const { parseEnvFile } = require('../../src/core/env-file-parser');
+const { parseEnvFile } = require('../../src/config/env-file-parser');
 const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('parseEnvFile', () => {

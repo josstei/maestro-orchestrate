@@ -32,16 +32,17 @@ describe('resolveVersion', () => {
     const entrypointDir = path.join(tempDir, 'sandbox');
     const copiedModulePath = path.join(coreDir, 'version.js');
 
-    const libIoDir = path.join(srcDir, 'lib', 'io');
+    const libDir = path.join(srcDir, 'lib');
+    const copiedIoPath = path.join(libDir, 'io.js');
     fs.mkdirSync(coreDir, { recursive: true });
     fs.mkdirSync(entrypointDir, { recursive: true });
-    fs.mkdirSync(libIoDir, { recursive: true });
+    fs.mkdirSync(libDir, { recursive: true });
     writeJson(path.join(srcDir, 'version.json'), { version: '9.9.9' });
     fs.copyFileSync(path.join(ROOT, 'src', 'core', 'version.js'), copiedModulePath);
-    fs.copyFileSync(path.join(ROOT, 'src', 'lib', 'io', 'index.js'), path.join(libIoDir, 'index.js'));
+    fs.copyFileSync(path.join(ROOT, 'src', 'lib', 'io.js'), copiedIoPath);
 
     delete require.cache[copiedModulePath];
-    delete require.cache[path.join(libIoDir, 'index.js')];
+    delete require.cache[copiedIoPath];
     const { resolveVersion: resolveVersionFromTemp } = require(copiedModulePath);
 
     assert.equal(resolveVersionFromTemp(entrypointDir), '9.9.9');

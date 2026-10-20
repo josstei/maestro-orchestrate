@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const skillDiscoveryStub = require('../../src/transforms/skill-discovery-stub');
+const skillDiscoveryStub = require('../../src/generator/transforms/skill-discovery-stub');
 
 describe('skill-discovery-stub transform', () => {
   const antigravityRuntime = { name: 'antigravity' };

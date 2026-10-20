@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { DENY_RULES, ASK_RULES, matchRule, checkCommand } = require('../../src/core/policy-rules');
+const { DENY_RULES, ASK_RULES, matchRule, checkCommand } = require('../../src/platforms/shared/policy-rules');
 
 const VALID_MATCH_TYPES = new Set(['prefix', 'regex', 'word']);
 const DOLLAR = '$';

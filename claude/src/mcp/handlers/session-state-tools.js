@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 
-const { assertSessionId } = require('../../lib/validation');
+const { assertSessionId } = require('../../lib/session-id');
 const { validatePhases } = require('../contracts/plan-schema');
 const {
   createEmptyDownstreamContext,

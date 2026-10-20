@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { assertSessionId, isValidSessionId } = require('../../src/lib/validation');
+const { assertSessionId, isValidSessionId } = require('../../src/lib/session-id');
 
 const { ValidationError } = require('../../src/lib/errors');
 

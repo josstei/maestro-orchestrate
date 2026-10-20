@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { isValidSessionId } = require('../../lib/validation');
+const { isValidSessionId } = require('../../lib/session-id');
 const { atomicWriteSync, ensurePrivateDir, readFileSafe } = require('../../lib/io');
 
 const HOOK_STATE_TTL_MS = 2 * 60 * 60 * 1000;

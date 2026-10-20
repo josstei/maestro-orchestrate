@@ -26,7 +26,7 @@ const readOnlyMode = dryRun || diffMode;
 function main() {
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const manifestRules = require('../src/manifest');
+  const manifestRules = require('../src/generator/manifest');
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   assertNoMirroredSharedOutputs(manifest);
   const manifestOutputPaths = manifest.flatMap((entry) => Object.values(entry.outputs));

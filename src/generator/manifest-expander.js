@@ -4,7 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { collectFiles, patternToRegex } = require('../lib/discovery');
 const { toNamingConvention } = require('../lib/naming');
-const { resolve: resolveTransform } = require('../transforms');
+const { resolve: resolveTransform } = require('./transforms');
 
 const FORBIDDEN_OUTPUTS = [
   'mcp/maestro-server-core.js',

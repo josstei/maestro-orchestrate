@@ -43,20 +43,18 @@ maestro-orchestrate/
 │   ├── skills/shared/            # 7 shared methodology modules + protocols
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
-│   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
-│   ├── generator/                # Generator modules (manifest and entry-point expansion, registries, pruning, payloads)
+│   ├── generator/                # Build-time only: file-mapping manifest, transforms (agent-stub, skill-discovery-stub), entry-point expansion, registries, pruning, payloads
 │   ├── generated/                # [generated] Agent, resource, and hook registries
 │   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 8 templates
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
-│   ├── config/                   # Canonical config helpers
+│   ├── config/                   # Settings catalog, setting resolution, and the .env parser
 │   ├── core/                     # Shared runtime helpers and resolvers
 │   ├── state/                    # Session-state and plan-document helpers
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, Antigravity and Claude policy enforcers, Qwen policy-pack renderer, metadata.js builders
-│   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
-│   └── manifest.js               # Declarative file mapping rules
+│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, the canonical shell policy rules, Antigravity and Claude policy enforcers, Qwen policy-pack renderer, metadata.js builders
+│   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
 ├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)
 ├── tests/                        # Unit, transform, and integration suites + shared helpers

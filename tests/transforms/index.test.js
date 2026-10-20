@@ -2,8 +2,8 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { resolve } = require('../../src/transforms');
-const manifestRules = require('../../src/manifest');
+const { resolve } = require('../../src/generator/transforms');
+const manifestRules = require('../../src/generator/manifest');
 
 describe('transforms/index resolve', () => {
   it('resolves every transform the manifest uses', () => {

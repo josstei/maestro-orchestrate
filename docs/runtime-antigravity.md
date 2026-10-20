@@ -131,7 +131,7 @@ Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: strin
 
 ## Policies
 
-`src/platforms/antigravity/policy-enforcer.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` with `checkCommand()` from `src/core/policy-rules.js`, the same rules the Claude policy enforcer and `policies/maestro.toml` apply:
+`src/platforms/antigravity/policy-enforcer.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` with `checkCommand()` from `src/platforms/shared/policy-rules.js`, the same rules the Claude policy enforcer and `policies/maestro.toml` apply:
 
 **Deny** (`deny`, which blocks in every permission mode, including `--dangerously-skip-permissions`):
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`

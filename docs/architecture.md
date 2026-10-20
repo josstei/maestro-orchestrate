@@ -31,7 +31,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads every runtime config (`src/platforms/<runtime>/runtime-config.js`, discovered by `src/platforms/runtime-config-map.js`)
 2. Scans `src/agents/`, `src/skills/shared/`, `src/templates/`, `src/references/`, and `src/hooks/logic/` into `src/generated/agent-registry.json`, `resource-registry.json`, and `hook-registry.json` (`src/generator/registry-scanner.js`)
-3. Expands the rules in `src/manifest.js` and runs their transforms (`src/generator/manifest-expander.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
+3. Expands the rules in `src/generator/manifest.js` and runs their transforms (`src/generator/manifest-expander.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
 4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Antigravity, Claude, and Codex skills and Qwen TOML commands (`commands/maestro/`)
 5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`, which takes the policy pack from `src/platforms/qwen/policy-pack.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
 6. Prunes stale files from the directories it owns (`agents/`, `antigravity/agents/`, `antigravity/skills/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
@@ -41,7 +41,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 ### Manifest System
 
-`src/manifest.js` declares how source files map to outputs. Each entry specifies:
+`src/generator/manifest.js` declares how source files map to outputs. Each entry specifies:
 
 ```javascript
 {
@@ -67,7 +67,7 @@ Each output path is the source path under the runtime's `outputDir`, with `skill
 
 ### Transform Pipeline
 
-The generator exposes 2 transforms, registered by name in `src/transforms/index.js`:
+The generator exposes 2 transforms, registered by name in `src/generator/transforms/index.js`:
 
 | Transform | Purpose |
 |-----------|---------|
@@ -239,13 +239,13 @@ Hooks fire at session and agent boundaries to inject context and validate output
 
 ### Policy Enforcement
 
-Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
+Antigravity, Claude, and Qwen apply the same rules from `src/platforms/shared/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
 
 - **Antigravity**: `src/platforms/antigravity/policy-enforcer.js`, run on `run_command` through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It answers `deny` for a deny rule, `force_ask` for an ask rule, and `ask` for any other command, which leaves the user's own permission settings in charge; it answers `deny` when the check cannot run
 - **Claude**: `src/platforms/claude/policy-enforcer.js`, run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
 - **Qwen**: the TOML policy pack `policies/maestro.toml`, rendered from those rules by `src/platforms/qwen/policy-pack.js` for the Qwen builder in `src/platforms/metadata.js`
 
-Both JavaScript enforcers run `checkCommand()` from `src/core/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with the bounded collector in `src/core/stdin-reader.js` and formats every decision; they differ only in where they read the command and what they name each decision.
+Both JavaScript enforcers run `checkCommand()` from `src/platforms/shared/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with the bounded collector in `src/core/stdin-reader.js` and formats every decision; they differ only in where they read the command and what they name each decision.
 
 ### Hook State
 

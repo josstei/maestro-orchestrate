@@ -1,9 +1,9 @@
 'use strict';
 
-const { toNamingConvention } = require('../lib/naming');
-const { parse, escapeYaml } = require('../lib/frontmatter');
-const { emitBlockList } = require('../lib/yaml-emit');
-const { mapTools } = require('../core/agent-tools');
+const { toNamingConvention } = require('../../lib/naming');
+const { parse, escapeYaml } = require('../../lib/frontmatter');
+const { emitBlockList } = require('../../lib/yaml-emit');
+const { mapTools } = require('../../core/agent-tools');
 
 /**
  * Per-field emitters, keyed by the names runtime configs list in

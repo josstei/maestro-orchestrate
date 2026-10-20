@@ -2,11 +2,11 @@
 
 /**
  * Renders the Qwen Code shell policy pack (policies/maestro.toml) from the
- * canonical rules in src/core/policy-rules.js. Called by the qwen builder in
+ * canonical rules in src/platforms/shared/policy-rules.js. Called by the qwen builder in
  * src/platforms/metadata.js, which scripts/generate.js runs.
  */
 
-const { DENY_RULES, ASK_RULES } = require('../../core/policy-rules');
+const { DENY_RULES, ASK_RULES } = require('../shared/policy-rules');
 
 const POLICY_PACK_HEADER = [
   '# Maestro extension policy pack.',

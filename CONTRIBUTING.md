@@ -74,7 +74,7 @@ Shared code and content live in `src/`. The generator (`just generate`) builds m
 | `QWEN.md` | Qwen Code context file |
 | `README.md`, `antigravity/README.md`, `claude/README.md`, `plugins/maestro/README.md` | READMEs; `scripts/update-versions.js` stamps the version badge in `README.md` and `claude/README.md` |
 
-The generator reads `src/manifest.js`, applies the transforms in `src/transforms/`, expands the entry-point registries, and builds the manifests and hook registrations in `src/platforms/metadata.js` and the Qwen policy pack in `src/platforms/qwen/policy-pack.js`. [docs/architecture.md](docs/architecture.md#generator-pipeline) lists every step.
+The generator reads `src/generator/manifest.js`, applies the transforms in `src/generator/transforms/`, expands the entry-point registries, and builds the manifests and hook registrations in `src/platforms/metadata.js` and the Qwen policy pack in `src/platforms/qwen/policy-pack.js`. [docs/architecture.md](docs/architecture.md#generator-pipeline) lists every step.
 
 ## Making Changes
 

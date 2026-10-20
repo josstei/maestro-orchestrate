@@ -10,7 +10,7 @@ const {
   assertNoMirroredSharedOutputs,
   expandManifest,
 } = require('../../src/generator/manifest-expander');
-const manifestRules = require('../../src/manifest');
+const manifestRules = require('../../src/generator/manifest');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { AGENT_COUNT, SHARED_SKILL_COUNT } = require('../support/catalog');
 const { makeTempDir, writeTree } = require('../support/fs');

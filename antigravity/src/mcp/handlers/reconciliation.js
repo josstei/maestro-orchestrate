@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { assertSessionId } = require('../../lib/validation');
+const { assertSessionId } = require('../../lib/session-id');
 const { ValidationError, StateError } = require('../../lib/errors');
 const {
   DEFAULT_STATE_DIR,

@@ -1,12 +1,12 @@
 'use strict';
 
-const { checkCommand } = require('../../core/policy-rules');
+const { checkCommand } = require('./policy-rules');
 const { collectStdin } = require('../../core/stdin-reader');
 
 /**
  * Run a host's PreToolUse shell-policy hook: read the hook payload from stdin,
  * check the shell command it carries against the canonical policy rules
- * (src/core/policy-rules.js), and write the host's decision to stdout as
+ * (src/platforms/shared/policy-rules.js), and write the host's decision to stdout as
  * `{ decision, reason }`, leaving out `reason` when the result has none.
  *
  * A payload over the shared 1 MiB stdin cap (src/core/stdin-reader.js),

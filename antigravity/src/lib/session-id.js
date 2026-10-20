@@ -1,6 +1,6 @@
 'use strict';
 
-const { ValidationError } = require('../errors');
+const { ValidationError } = require('./errors');
 
 const SESSION_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 

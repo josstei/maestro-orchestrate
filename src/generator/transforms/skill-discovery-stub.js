@@ -1,6 +1,6 @@
 'use strict';
 
-const { parse } = require('../lib/frontmatter');
+const { parse } = require('../../lib/frontmatter');
 
 function skillDiscoveryStub(content, runtime) {
   const { frontmatter } = parse(content);
