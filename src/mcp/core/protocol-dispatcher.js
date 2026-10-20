@@ -1,5 +1,7 @@
 'use strict';
 
+const readline = require('node:readline');
+
 const { log } = require('../../core/logger');
 
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
@@ -27,32 +29,29 @@ function toolResult(payload, isError = false) {
 }
 
 /**
- * Create a JSON-RPC 2.0 dispatcher for the MCP wire protocol.
+ * Create a JSON-RPC 2.0 dispatcher for the MCP stdio transport: one JSON
+ * message per line in each direction.
  *
  * Handles `initialize`, `tools/list`, `tools/call`, `ping`, notification
  * methods, and outbound server-to-client requests (via `requestFromClient`).
- * Unknown methods get a -32601 response.
+ * Unknown methods get a -32601 response. `callbacks` supplies
+ * `onInitialize(params)`, `onInitialized()` and `onRootsListChanged()`.
  *
  * @returns {{
+ *   listen: (stdin: import('node:stream').Readable) => import('node:readline').Interface,
  *   requestFromClient: (method: string, params?: object) => Promise<any>,
  *   respond: (message: object) => Promise<void>
  * }}
  */
-function createProtocolHandlers(server, stdout, options = {}) {
+function createProtocolHandlers(server, stdout, options) {
   const {
     serverInfo,
-    callbacks = {},
+    callbacks,
     clientRequestTimeoutMs = DEFAULT_CLIENT_REQUEST_TIMEOUT_MS,
   } = options;
 
   const pendingClientRequests = new Map();
   let nextClientRequestId = 1;
-
-  async function callIfDefined(callback, ...args) {
-    if (typeof callback === 'function') {
-      await callback(...args);
-    }
-  }
 
   function settleClientRequest(message) {
     if (!message || message.id == null) {
@@ -112,7 +111,7 @@ function createProtocolHandlers(server, stdout, options = {}) {
 
     switch (method) {
       case 'initialize':
-        await callIfDefined(callbacks.onInitialize, params || {});
+        await callbacks.onInitialize(params || {});
         reply({
           protocolVersion: (params && params.protocolVersion) || DEFAULT_PROTOCOL_VERSION,
           capabilities: {
@@ -123,11 +122,11 @@ function createProtocolHandlers(server, stdout, options = {}) {
         return;
 
       case 'notifications/initialized':
-        await callIfDefined(callbacks.onInitialized);
+        await callbacks.onInitialized();
         return;
 
       case 'notifications/roots/list_changed':
-        await callIfDefined(callbacks.onRootsListChanged);
+        await callbacks.onRootsListChanged();
         return;
 
       case 'notifications/cancelled':
@@ -176,7 +175,36 @@ function createProtocolHandlers(server, stdout, options = {}) {
     }
   }
 
-  return { requestFromClient, respond };
+  /**
+   * Handle each non-blank line of `stdin` as a message, without waiting for
+   * the previous one. A line that is not JSON, or whose handling fails, is
+   * logged and dropped.
+   */
+  function listen(stdin) {
+    const lines = readline.createInterface({ input: stdin, crlfDelay: Infinity });
+
+    lines.on('line', (line) => {
+      if (!line.trim()) {
+        return;
+      }
+
+      let message;
+      try {
+        message = JSON.parse(line);
+      } catch (error) {
+        log('error', `Failed to parse MCP message: ${error.message}`);
+        return;
+      }
+
+      respond(message).catch((error) => {
+        log('error', `Failed to handle MCP message: ${error.message}`);
+      });
+    });
+
+    return lines;
+  }
+
+  return { listen, requestFromClient, respond };
 }
 
 module.exports = {

@@ -118,9 +118,8 @@ src/mcp/
 ├── contracts/                  # Plan schema + complexity tiers, document input and handoff contracts
 ├── core/
 │   ├── create-server.js        # Tool dispatch + error sanitization
-│   ├── protocol-dispatcher.js  # JSON-RPC routing + tool result framing
+│   ├── protocol-dispatcher.js  # JSON-RPC routing + stdio line framing
 │   ├── project-root-cache.js   # Workspace path + workspace_suggestion
-│   ├── line-reader.js          # stdin line → JSON message dispatch
 │   └── recovery-hints.js       # Error → recovery guidance mapping
 ├── handlers/                   # 9 handler implementations
 │   ├── content.js              # get_agent + get_skill_content serving

@@ -3,7 +3,6 @@
 const { log } = require('../core/logger');
 const { resolveVersion } = require('../core/version');
 const { createServer, toolFailure } = require('./core/create-server');
-const { createLineDispatcher } = require('./core/line-reader');
 const { createProjectRootCache } = require('./core/project-root-cache');
 const { createProtocolHandlers } = require('./core/protocol-dispatcher');
 const { tools: workspaceTools } = require('./tools/workspace');
@@ -97,11 +96,7 @@ function main() {
     },
   });
 
-  createLineDispatcher(process.stdin, (message) => {
-    protocol.respond(message).catch((error) => {
-      log('error', `Failed to handle MCP message: ${error.message}`);
-    });
-  });
+  protocol.listen(process.stdin);
 
   log('info', 'MCP server starting');
   log('info', 'MCP server connected');

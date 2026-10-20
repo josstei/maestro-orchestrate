@@ -26,16 +26,34 @@ function makeServerStub(overrides = {}) {
   };
 }
 
+const NO_OP_CALLBACKS = { onInitialize() {}, onInitialized() {}, onRootsListChanged() {} };
+
 function makeHandlers(serverOverrides = {}, dispatcherOverrides = {}) {
   const stdout = new PassThrough();
   const frames = captureWrites(stdout);
   const server = makeServerStub(serverOverrides);
-  const options = {
+  const { callbacks, ...options } = dispatcherOverrides.options || {};
+  const handlers = createProtocolHandlers(server, stdout, {
     serverInfo: { name: 'maestro-test', version: '0.0.0' },
-    ...dispatcherOverrides.options,
-  };
-  const handlers = createProtocolHandlers(server, stdout, options);
+    ...options,
+    callbacks: { ...NO_OP_CALLBACKS, ...callbacks },
+  });
   return { handlers, frames, stdout, server };
+}
+
+/**
+ * Feeds `chunks` to `listen` on a fresh dispatcher's stdin and returns the
+ * reply frames once the input has ended and been handled.
+ */
+async function listenTo(...chunks) {
+  const { handlers, frames } = makeHandlers();
+  const stdin = new PassThrough();
+  const closed = new Promise((resolve) => handlers.listen(stdin).once('close', resolve));
+  for (const chunk of chunks) stdin.write(chunk);
+  stdin.end();
+  await closed;
+  await new Promise(setImmediate);
+  return frames;
 }
 
 describe('createProtocolHandlers.respond', () => {
@@ -284,6 +302,50 @@ describe('createProtocolHandlers.respond', () => {
     const { handlers, frames } = makeHandlers();
     await handlers.respond({ method: 'unknown/notification' });
     assert.equal(frames.length, 0);
+  });
+});
+
+describe('createProtocolHandlers.listen', () => {
+  it('handles a single JSON line', async () => {
+    assert.deepEqual(await listenTo('{"jsonrpc":"2.0","id":1,"method":"ping"}\n'), [
+      { jsonrpc: '2.0', id: 1, result: {} },
+    ]);
+  });
+
+  it('handles newline-delimited messages in order', async () => {
+    const frames = await listenTo('{"id":1,"method":"ping"}\n{"id":2,"method":"ping"}\n{"id":3,"method":"ping"}\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [1, 2, 3]);
+  });
+
+  it('skips blank lines', async () => {
+    const frames = await listenTo('\n   \n{"id":7,"method":"ping"}\n\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [7]);
+  });
+
+  it('drops malformed JSON and keeps handling the following lines', async () => {
+    const frames = await listenTo('{not json}\n{"id":42,"method":"ping"}\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [42]);
+  });
+
+  it('handles CRLF line endings', async () => {
+    const frames = await listenTo('{"id":1,"method":"ping"}\r\n{"id":2,"method":"ping"}\r\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [1, 2]);
+  });
+
+  it('buffers a partial line until its newline arrives', async () => {
+    const { handlers, frames } = makeHandlers();
+    const stdin = new PassThrough();
+    const closed = new Promise((resolve) => handlers.listen(stdin).once('close', resolve));
+
+    stdin.write('{"id":');
+    stdin.write('99,"method":"ping"}');
+    await new Promise(setImmediate);
+    assert.equal(frames.length, 0, 'must not handle a line before its newline');
+
+    stdin.end('\n');
+    await closed;
+    await new Promise(setImmediate);
+    assert.deepEqual(frames.map((frame) => frame.id), [99]);
   });
 });
 
