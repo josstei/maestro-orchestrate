@@ -9,7 +9,6 @@ const {
   DEFAULT_STATE_DIR,
   resolveStateDirPath,
   resolveActiveSessionPath,
-  hasActiveSession,
   readState,
   writeState,
   ensureWorkspace,
@@ -80,11 +79,10 @@ describe('session-state', () => {
     assert.equal(result, path.join(tmpRoot, 'env/state'));
   });
 
-  it('hasActiveSession finds a session under the state dir named in the workspace .env', () => {
+  it('resolveActiveSessionPath finds the session under the state dir named in the workspace .env', () => {
     fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
-    fs.mkdirSync(path.join(tmpRoot, '.maestro', 'state'), { recursive: true });
-    fs.writeFileSync(path.join(tmpRoot, '.maestro', 'state', 'active-session.md'), '---\n{}\n---\n');
-    assert.equal(withEnv({ MAESTRO_STATE_DIR: null }, () => hasActiveSession(tmpRoot)), true);
+    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => resolveActiveSessionPath(tmpRoot));
+    assert.equal(result, path.join(tmpRoot, '.maestro', 'state', 'active-session.md'));
   });
 
   it('resolveStateDirPath rejects absolute paths outside root via validateContainment', () => {
@@ -98,17 +96,6 @@ describe('session-state', () => {
   it('resolveActiveSessionPath returns correct path', () => {
     const result = withEnv({ MAESTRO_STATE_DIR: null }, () => resolveActiveSessionPath(tmpRoot));
     assert.equal(result, path.join(tmpRoot, DEFAULT_STATE_DIR, 'state', 'active-session.md'));
-  });
-
-  it('hasActiveSession returns false when no session file exists', () => {
-    assert.equal(hasActiveSession(tmpRoot), false);
-  });
-
-  it('hasActiveSession returns true when session file exists', () => {
-    const sessionPath = resolveActiveSessionPath(tmpRoot);
-    fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
-    fs.writeFileSync(sessionPath, '---\nphase: planning\n---\n');
-    assert.equal(hasActiveSession(tmpRoot), true);
   });
 
   it('readState reads file content from basePath', () => {

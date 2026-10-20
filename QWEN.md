@@ -263,7 +263,7 @@ Maestro uses Qwen Code hooks from `qwen/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
-| SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale sessions, initialize hook state when active session exists |
+| SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale sessions, initialize hook state |
 | SubagentStart | `hooks/hook-runner.js qwen before-agent` | Prune stale sessions, track active agent, inject compact session context |
 | SubagentStop | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
 | SessionEnd | `hooks/hook-runner.js qwen session-end` | Clean up hook state for ended session |
