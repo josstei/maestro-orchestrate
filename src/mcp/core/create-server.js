@@ -72,12 +72,12 @@ function normalizeToolError(toolName, error) {
 /**
  * Build a server that lists `tools` and dispatches calls to them. Each tool
  * is its listed schema plus a `handler(args, projectRoot, context)`, where
- * `context` is `{ runtimeConfig, workspace }` (the session's project-root
- * cache); the handler is not part of the listed schema. A tool that sets
- * `requiresWorkspace` fails with WORKSPACE_NOT_INITIALIZED while there is no
- * project root. A runtime config's `mcpToolMeta` is listed as every tool
- * schema's `_meta` (Antigravity loads tools marked `antigravity/alwaysLoad`
- * as native tools instead of on demand).
+ * `context` is `{ runtimeConfig, workspace }` and `workspace` is the server's
+ * project-root cache; the handler is not part of the listed schema. A tool
+ * that sets `requiresWorkspace` fails with WORKSPACE_NOT_INITIALIZED while
+ * there is no project root. A runtime config's `mcpToolMeta` is listed as
+ * every tool schema's `_meta` (Antigravity loads tools marked
+ * `antigravity/alwaysLoad` as native tools instead of on demand).
  */
 function createServer({ runtimeConfig, workspace, tools }) {
   const context = { runtimeConfig, workspace };
