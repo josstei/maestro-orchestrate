@@ -496,6 +496,24 @@ describe('handleValidatePlan with strict phase schema', () => {
     assert.equal(result.violations[0].detail, 'Phase p1 field "name" invalid field_type');
   });
 
+  it('reports every required field missing for a phase that is not an object', () => {
+    for (const notAnObject of [5, 'x', true]) {
+      const result = handleValidatePlan({
+        plan: { phases: [notAnObject, phase('p2')] },
+        task_complexity: 'simple',
+      });
+      assert.equal(result.valid, false);
+      assert.equal(result.parallelization_profile, null);
+      assert.deepEqual(
+        result.violations.map(({ rule, detail }) => [rule, detail]),
+        ['id', 'name', 'agent', 'parallel', 'blocked_by'].map((field) => [
+          'missing_required_field',
+          `Phase ? field "${field}" missing required_field`,
+        ])
+      );
+    }
+  });
+
   it('accepts a plan with fully-populated phases', () => {
     const result = handleValidatePlan({
       plan: {

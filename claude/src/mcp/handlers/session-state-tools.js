@@ -155,12 +155,10 @@ function handleCreateSession(params, projectRoot) {
   const stateDir = resolveStateDirPath(projectRoot);
   const approvedDesignDocument = approvedDesignDocumentPath(stateDir, params.session_id);
 
-  const phasesValidation = validatePhases(params.phases);
-  if (!phasesValidation.valid) {
-    const rules = phasesValidation.violations.map((v) => v.rule).join(', ');
-    throw new ValidationError(`Invalid phases payload: ${rules}`, {
-      details: phasesValidation.violations,
-    });
+  const phaseViolations = validatePhases(params.phases);
+  if (phaseViolations.length > 0) {
+    const rules = phaseViolations.map((v) => v.rule).join(', ');
+    throw new ValidationError(`Invalid phases payload: ${rules}`, { details: phaseViolations });
   }
 
   const existing = readActiveSessionOrNull(stateDir);

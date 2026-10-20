@@ -28,7 +28,7 @@ function checkStructure(plan) {
   if (!plan || typeof plan !== 'object' || !Array.isArray(plan.phases)) {
     return [violation('invalid_plan', 'plan must be an object with a phases array')];
   }
-  return validatePhases(plan.phases).violations.map(({ rule, phase_id, field }) => ({
+  return validatePhases(plan.phases).map(({ rule, phase_id, field }) => ({
     ...violation(rule, `Phase ${phase_id ?? '?'} field "${field}" ${rule.replace('_', ' ')}`),
     phase_id,
     field,

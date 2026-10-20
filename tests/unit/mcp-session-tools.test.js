@@ -105,6 +105,30 @@ describe('session tools', () => {
     assert.match(outcome.error || '', /missing_required_field|agent|parallel|blocked_by/i);
   });
 
+  it('rejects create_session with a validation error when a phase is not an object', async () => {
+    const { projectRoot, server } = setup('maestro-session-');
+    const fields = ['id', 'name', 'agent', 'parallel', 'blocked_by'];
+
+    const outcome = await server.callTool(
+      'create_session',
+      { session_id: 'primitive-phase', task: 'primitive phase test', phases: [5] },
+      projectRoot
+    );
+
+    assert.deepEqual(outcome, {
+      ok: false,
+      error: `Invalid phases payload: ${fields.map(() => 'missing_required_field').join(', ')}`,
+      recovery_hint: null,
+      code: 'VALIDATION_ERROR',
+      details: fields.map((field) => ({
+        rule: 'missing_required_field',
+        phase_id: null,
+        field,
+        severity: 'error',
+      })),
+    });
+  });
+
   it('preserves string phase ids end-to-end through create_session and transition_phase', async () => {
     const { projectRoot, server } = setup('maestro-string-id-');
 
