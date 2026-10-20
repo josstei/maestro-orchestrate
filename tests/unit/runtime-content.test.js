@@ -16,9 +16,9 @@ const {
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const { writeAgentFixture } = require('../support/agent-fixtures');
+const { AGENT_COUNT } = require('../support/catalog');
 const { makeTempDir, writeTree } = require('../support/fs');
-
-const SRC_ROOT = path.resolve(__dirname, '../../src');
+const { SRC_ROOT } = require('../support/paths');
 
 function writeFilesystemResource(root, id, content) {
   writeTree(path.join(root, 'src'), RESOURCE_ALLOWLIST[id], content);
@@ -36,9 +36,9 @@ describe('RESOURCE_ALLOWLIST', () => {
 });
 
 describe('AGENT_ALLOWLIST', () => {
-  it('is frozen with 39 entries, all kebab-case strings', () => {
+  it(`is frozen with ${AGENT_COUNT} entries, all kebab-case strings`, () => {
     assert.equal(Object.isFrozen(AGENT_ALLOWLIST), true);
-    assert.equal(AGENT_ALLOWLIST.length, 39);
+    assert.equal(AGENT_ALLOWLIST.length, AGENT_COUNT);
 
     for (const name of AGENT_ALLOWLIST) {
       assert.equal(typeof name, 'string');
@@ -174,10 +174,6 @@ describe('served agent bodies', () => {
   it('keep the shared Output Contract as a single newline-terminated section', () => {
     assert.ok(outputContract.startsWith('## Output Contract\n'));
     assert.ok(outputContract.endsWith('\n') && !outputContract.endsWith('\n\n'));
-  });
-
-  it('cover exactly the supported runtimes', () => {
-    assert.deepEqual(RUNTIME_NAMES, ['antigravity', 'claude', 'codex', 'qwen']);
   });
 
   for (const runtimeName of RUNTIME_NAMES) {

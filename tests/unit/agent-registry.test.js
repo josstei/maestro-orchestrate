@@ -12,6 +12,7 @@ const {
   getAgentCapability,
   canCreateFiles,
 } = require('../../src/core/agent-registry');
+const { AGENT_COUNT } = require('../support/catalog');
 const { withEnv } = require('../support/env');
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
@@ -21,8 +22,8 @@ describe('KNOWN_AGENTS', () => {
     assert.equal(Object.isFrozen(KNOWN_AGENTS), true);
   });
 
-  it('has exactly 39 entries', () => {
-    assert.equal(KNOWN_AGENTS.length, 39);
+  it(`has exactly ${AGENT_COUNT} entries`, () => {
+    assert.equal(KNOWN_AGENTS.length, AGENT_COUNT);
   });
 
   it('contains only strings', () => {

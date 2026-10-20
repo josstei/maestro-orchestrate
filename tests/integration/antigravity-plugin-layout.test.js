@@ -7,16 +7,21 @@ const path = require('node:path');
 
 const { ROOT } = require('./helpers');
 const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
+const {
+  AGENT_COUNT,
+  PUBLIC_SKILL_COUNT,
+  SHARED_SKILL_COUNT,
+  listCanonicalAgents,
+  publicSkillNames,
+} = require('../support/catalog');
 const { readJson } = require('../support/fs');
-const entryPointRegistry = require('../../src/entry-points/registry');
-const coreCommandRegistry = require('../../src/entry-points/core-command-registry');
+const { readStubFrontmatter } = require('../support/generated-files');
 const hookRegistry = require('../../src/generated/hook-registry.json');
 
 // `agy plugin install` copies the directory holding plugin.json to
 // ~/.gemini/config/plugins/<name>/ and loads mcp_config.json, hooks.json,
 // agents/ and skills/ from that root, so the plugin must be self-contained.
 const PLUGIN_DIR = path.join(ROOT, 'antigravity');
-const SRC_AGENTS_DIR = path.join(ROOT, 'src', 'agents');
 const SRC_SHARED_SKILLS_DIR = path.join(ROOT, 'src', 'skills', 'shared');
 
 const HOOK_EVENTS = ['SessionStart', 'PreToolUse', 'PostToolUse', 'PreInvocation', 'PostInvocation', 'Stop'];
@@ -34,29 +39,6 @@ function listSubdirs(dir) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
-}
-
-/** Reads the scalar keys (raw, quotes kept) and block lists of a generated frontmatter block. */
-function readFrontmatter(filePath) {
-  const lines = fs.readFileSync(filePath, 'utf8').split('\n');
-  assert.equal(lines[0], '---', `${filePath}: missing opening frontmatter fence`);
-  const closingIdx = lines.indexOf('---', 1);
-  assert.notEqual(closingIdx, -1, `${filePath}: missing closing frontmatter fence`);
-
-  const frontmatter = {};
-  let listKey = null;
-  for (const line of lines.slice(1, closingIdx)) {
-    const item = line.match(/^ {2}- (.+)$/);
-    if (item && listKey) {
-      frontmatter[listKey].push(item[1]);
-      continue;
-    }
-    const [, key, value] = line.match(/^([A-Za-z_-]+):\s*(.*)$/) || [];
-    assert.ok(key, `${filePath}: unexpected frontmatter line ${JSON.stringify(line)}`);
-    listKey = value === '' ? key : null;
-    frontmatter[key] = value === '' ? [] : value;
-  }
-  return frontmatter;
 }
 
 /** Every hook handler in hooks.json, with the event it is registered for. */
@@ -171,12 +153,8 @@ describe('antigravity plugin layout', () => {
   });
 
   it('generates one subagent stub per canonical agent, with Antigravity tool names only', () => {
-    const canonicalAgents = fs
-      .readdirSync(SRC_AGENTS_DIR)
-      .filter((file) => file.endsWith('.md'))
-      .map((file) => path.basename(file, '.md'))
-      .sort();
-    assert.equal(canonicalAgents.length, 39);
+    const canonicalAgents = listCanonicalAgents();
+    assert.equal(canonicalAgents.length, AGENT_COUNT);
 
     const agentsDir = path.join(PLUGIN_DIR, 'agents');
     const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
@@ -188,7 +166,7 @@ describe('antigravity plugin layout', () => {
 
     for (const name of canonicalAgents) {
       const stubPath = path.join(agentsDir, `${name}.md`);
-      const frontmatter = readFrontmatter(stubPath);
+      const frontmatter = readStubFrontmatter(stubPath);
 
       assert.deepEqual(
         Object.keys(frontmatter),
@@ -215,13 +193,11 @@ describe('antigravity plugin layout', () => {
     }
   });
 
-  it('generates the 12 public skills and the 7 shared skills, one SKILL.md per folder named after it', () => {
-    const publicSkills = [...entryPointRegistry, ...coreCommandRegistry]
-      .map((entry) => entry.runtimeNames?.antigravity || entry.name)
-      .sort();
-    assert.equal(publicSkills.length, 12);
+  it(`generates the ${PUBLIC_SKILL_COUNT} public skills and the ${SHARED_SKILL_COUNT} shared skills, one SKILL.md per folder named after it`, () => {
+    const publicSkills = publicSkillNames('antigravity');
+    assert.equal(publicSkills.length, PUBLIC_SKILL_COUNT);
     const sharedSkills = listSubdirs(SRC_SHARED_SKILLS_DIR);
-    assert.equal(sharedSkills.length, 7);
+    assert.equal(sharedSkills.length, SHARED_SKILL_COUNT);
 
     const skillsDir = path.join(PLUGIN_DIR, 'skills');
     assert.deepEqual(listSubdirs(skillsDir), [...publicSkills, ...sharedSkills].sort());
@@ -231,7 +207,7 @@ describe('antigravity plugin layout', () => {
       assert.deepEqual(fs.readdirSync(skillDir), ['SKILL.md'], skillDir);
 
       const skillPath = path.join(skillDir, 'SKILL.md');
-      const frontmatter = readFrontmatter(skillPath);
+      const frontmatter = readStubFrontmatter(skillPath);
       assert.equal(frontmatter.name, folder, skillPath);
       assert.ok(frontmatter.description, `${skillPath}: missing description`);
 

@@ -5,7 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const WORKFLOWS_DIR = path.resolve(__dirname, '..', '..', '.github', 'workflows');
+const { ROOT } = require('../support/paths');
+
+const WORKFLOWS_DIR = path.join(ROOT, '.github', 'workflows');
 const WORKFLOW_FILES = fs
   .readdirSync(WORKFLOWS_DIR)
   .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))

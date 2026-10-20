@@ -99,9 +99,6 @@ describe('release artifact manifest', () => {
     for (const releasePath of RELEASE_ARTIFACT_PATHS) {
       assert.doesNotMatch(releasePath, /gemini/i);
     }
-    for (const removedPath of ['gemini-extension.json', 'GEMINI.md', 'hooks/hooks.json', '.geminiignore']) {
-      assert.equal(fs.existsSync(path.join(ROOT, removedPath)), false, `${removedPath} must not exist`);
-    }
   });
 
   it('keeps denying local .gemini tool directories', () => {

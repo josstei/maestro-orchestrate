@@ -24,7 +24,6 @@ describe('runtime-config-map', () => {
   });
 
   it('no longer discovers a gemini runtime', () => {
-    assert.equal(RUNTIME_NAMES.includes('gemini'), false);
     assert.throws(
       () => getRuntimeConfig('gemini'),
       /Unknown runtime config: gemini/

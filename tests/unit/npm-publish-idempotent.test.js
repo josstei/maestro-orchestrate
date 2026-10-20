@@ -13,6 +13,7 @@ const {
   publishIfNeeded,
 } = require('../../scripts/npm-publish-idempotent');
 const { makeTempDir, writeJson } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 
 const SILENT_LOGGER = { log() {}, warn() {} };
 
@@ -280,7 +281,7 @@ describe('idempotent npm publish', () => {
 
   it('does not remove latest through npm dist-tag policy', () => {
     const source = fs.readFileSync(
-      path.resolve(__dirname, '..', '..', 'scripts', 'npm-publish-idempotent.js'),
+      path.join(ROOT, 'scripts', 'npm-publish-idempotent.js'),
       'utf8'
     );
 

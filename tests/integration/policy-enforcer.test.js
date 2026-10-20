@@ -7,7 +7,7 @@ const test = require('node:test');
 
 const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
 
-const SCRIPT_PATH = path.resolve(__dirname, '..', '..', 'claude', 'scripts', 'policy-enforcer.js');
+const SCRIPT_PATH = path.join(ROOT, 'claude', 'scripts', 'policy-enforcer.js');
 const ANTIGRAVITY_SCRIPT_PATH = path.join(ROOT, 'antigravity', 'hooks', 'policy-enforcer.js');
 const DOLLAR = '$';
 const BACKTICK = '`';

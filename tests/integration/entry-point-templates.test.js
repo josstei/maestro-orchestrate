@@ -4,6 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { expandCoreCommands, expandEntryPoints } = require('../../src/generator/entry-point-expander');
 const entryPointRegistry = require('../../src/entry-points/registry');
+const { PUBLIC_SKILL_COUNT } = require('../support/catalog');
 
 /** Host command names each public-skill runtime must remap, and which expansion emits the remap. */
 const HOST_NAME_REMAPS = [
@@ -218,7 +219,7 @@ describe('entry-point and core-command skills for antigravity', () => {
   const coreCommands = expandCoreCommands('antigravity');
   const publicSkills = [...entryPoints, ...coreCommands];
 
-  it('emits the 12 public skills at antigravity/skills/<name>/SKILL.md', () => {
+  it(`emits the ${PUBLIC_SKILL_COUNT} public skills at antigravity/skills/<name>/SKILL.md`, () => {
     assert.deepEqual(
       publicSkills.map((r) => r.outputPath).sort(),
       [

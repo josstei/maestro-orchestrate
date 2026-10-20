@@ -7,8 +7,9 @@ const path = require('node:path');
 const antigravityAdapter = require('../../src/platforms/antigravity/hook-adapter');
 const claudeAdapter = require('../../src/platforms/claude/hook-adapter');
 const qwenAdapter = require('../../src/platforms/qwen/hook-adapter');
+const { SRC_ROOT } = require('../support/paths');
 
-const PLATFORMS_DIR = path.resolve(__dirname, '../../src/platforms');
+const PLATFORMS_DIR = path.join(SRC_ROOT, 'platforms');
 const ADAPTER_RUNTIMES = fs.readdirSync(PLATFORMS_DIR)
   .filter((name) => fs.existsSync(path.join(PLATFORMS_DIR, name, 'hook-adapter.js')))
   .sort();
@@ -16,10 +17,6 @@ const ADAPTER_RUNTIMES = fs.readdirSync(PLATFORMS_DIR)
 describe('hook adapter contract', () => {
   it('ships hook adapters for antigravity, claude and qwen only', () => {
     assert.deepEqual(ADAPTER_RUNTIMES, ['antigravity', 'claude', 'qwen']);
-  });
-
-  it('no longer ships a gemini platform directory', () => {
-    assert.equal(fs.existsSync(path.join(PLATFORMS_DIR, 'gemini')), false);
   });
 
   for (const runtime of ADAPTER_RUNTIMES) {

@@ -9,8 +9,7 @@ const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/ge
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir, writeTree } = require('../support/fs');
-
-const SRC_ROOT = path.resolve(__dirname, '../../src');
+const { SRC_ROOT } = require('../support/paths');
 
 describe('get_skill_content handler', () => {
   it('reads canonical src content and applies skill transforms', () => {

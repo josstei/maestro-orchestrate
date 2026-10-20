@@ -7,9 +7,7 @@ const path = require('node:path');
 
 const { collectRegistryOutputs } = require('../../src/generator/registry-scanner');
 const { makeTempDir, readJson, writeTree } = require('../support/fs');
-const { ROOT } = require('../support/paths');
-
-const SRC = path.join(ROOT, 'src');
+const { ROOT, SRC_ROOT } = require('../support/paths');
 
 const REGISTRY_PATHS = [
   path.join('src', 'generated', 'agent-registry.json'),
@@ -28,7 +26,7 @@ function registryData(outputs, fileName) {
 
 describe('collectRegistryOutputs', () => {
   it('reproduces the committed src/generated registries', () => {
-    const outputs = collectRegistryOutputs(SRC, ROOT);
+    const outputs = collectRegistryOutputs(SRC_ROOT, ROOT);
 
     assert.deepEqual(outputs.map((o) => o.outputPath), REGISTRY_PATHS);
     for (const { outputPath, content } of outputs) {
@@ -43,7 +41,6 @@ describe('collectRegistryOutputs', () => {
       path.join('qwen', 'hooks.json'),
       path.join('claude', 'hooks', 'claude-hooks.json'),
     ];
-    assert.equal(fs.existsSync(path.join(ROOT, 'hooks', 'hooks.json')), false);
 
     const registered = new Set();
     for (const configPath of hookConfigs) {

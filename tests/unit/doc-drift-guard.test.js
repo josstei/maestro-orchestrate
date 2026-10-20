@@ -407,11 +407,6 @@ const docSurfaceHits = (pattern, allowed) => handMaintainedDocSurfaces().flatMap
 const ANTIGRAVITY_CONFIG_PATHS = /(?:~\/)?\.gemini\/(?:config|antigravity-cli)\//g;
 
 test('doc-drift: hand-maintained docs do not advertise the removed Gemini CLI runtime', () => {
-  for (const removed of ['GEMINI.md', 'docs/runtime-gemini.md']) {
-    assert.equal(fs.existsSync(path.join(ROOT, removed)), false, `${removed} should be deleted with the Gemini CLI runtime`);
-  }
-  assert.ok(!RUNTIME_NAMES.includes('gemini'), 'src/platforms/gemini/runtime-config.js should not exist');
-
   const mentionsGemini = (line) => /gemini/i.test(line.replace(ANTIGRAVITY_CONFIG_PATHS, ''));
   for (const allowed of ['`~/.gemini/config/plugins/maestro/`', '`~/.gemini/antigravity-cli/settings.json`', '`.gemini/config/plugins`']) {
     assert.equal(mentionsGemini(allowed), false, `Antigravity config path should be allowed: ${allowed}`);

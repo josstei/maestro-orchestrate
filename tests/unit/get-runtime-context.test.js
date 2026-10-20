@@ -19,6 +19,8 @@ const EXPECTED_CONTEXT = {
       naming: 'kebab-case',
       prefix: '',
     },
+    // invoke_subagent returns conversation IDs; each child's final response
+    // arrives later as a system message.
     constraints: { result_surface: 'notified', child_cannot_prompt_user: false },
     agents: AGENT_NAMES,
     tools: {

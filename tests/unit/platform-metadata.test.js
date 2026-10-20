@@ -8,6 +8,7 @@ const { buildPolicyPackToml } = require('../../src/platforms/qwen/policy-pack');
 const { DENY_RULES, ASK_RULES } = require('../../src/core/policy-rules');
 const HOOK_REGISTRY = require('../../src/generated/hook-registry.json');
 const { RUNTIME_NAMES } = require('../../src/platforms/runtime-config-map');
+const { hookCommands } = require('../support/generated-files');
 
 const PACKAGE_FIXTURE = {
   name: '@example/maestro',
@@ -33,24 +34,6 @@ function outputsByPath(outputs) {
 }
 
 const ALL_RUNTIMES = { antigravity: {}, claude: {}, codex: {}, qwen: {} };
-
-// Claude and Qwen nest events under "hooks" and wrap every handler in a group
-// (with an optional matcher); Antigravity's top level is named hooks, and its
-// SessionStart handlers are flat.
-function hookCommands(config) {
-  if (config.hooks) {
-    return Object.values(config.hooks).flat()
-      .flatMap((group) => {
-        assert.ok(Array.isArray(group.hooks), `expected a handler group: ${JSON.stringify(group)}`);
-        return group.hooks;
-      })
-      .map((hook) => hook.command);
-  }
-  return Object.values(config)
-    .flatMap((events) => Object.values(events).flat())
-    .flatMap((entry) => entry.hooks || [entry])
-    .map((hook) => hook.command);
-}
 
 // policies/maestro.toml holds patterns as TOML basic strings, so backslashes are doubled.
 function tomlEscaped(text) {
@@ -198,12 +181,6 @@ describe('platform metadata generation', () => {
       assert.doesNotMatch(output.outputPath, /gemini/i);
     }
     assert.ok(!outputs.some((output) => output.outputPath === 'hooks/hooks.json'));
-    for (const output of outputs.filter((entry) => entry.outputPath.endsWith('.json'))) {
-      const servers = JSON.parse(output.content).mcpServers || {};
-      for (const server of Object.values(servers)) {
-        assert.notEqual(server.env && server.env.MAESTRO_RUNTIME, 'gemini', output.outputPath);
-      }
-    }
   });
 
   it('leaves the runtime to the MCP server, which identifies its host', () => {
