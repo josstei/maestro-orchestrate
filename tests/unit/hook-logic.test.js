@@ -111,6 +111,28 @@ describe('handleAfterAgent', () => {
     assert.equal(result.action, 'allow');
   });
 
+  it('accepts single-# headings', () => {
+    seedActiveAgent();
+    const result = handleAfterAgent({
+      sessionId: SESSION_ID,
+      agentResult: '# Task Report\nDone.\n\n# Downstream Context\nContext info.',
+    });
+    assert.equal(result.action, 'allow');
+  });
+
+  it('treats a missing or non-text response as one without headings and clears the agent', () => {
+    // Hook stdin is arbitrary JSON: a number used to throw (leaving the agent
+    // recorded) and an array of heading strings used to pass.
+    for (const agentResult of [undefined, 42, { text: VALID_RESULT }, ['## Task Report', '## Downstream Context']]) {
+      seedActiveAgent();
+      const result = handleAfterAgent({ sessionId: SESSION_ID, agentResult });
+      assert.equal(result.action, 'deny', JSON.stringify(agentResult));
+      assert.ok(result.reason.includes('Missing Task Report section'));
+      assert.ok(result.reason.includes('Missing Downstream Context section'));
+      assert.equal(hookState.getActiveAgent(SESSION_ID), '');
+    }
+  });
+
   it('clears active agent after processing', () => {
     seedActiveAgent();
     handleAfterAgent({ sessionId: SESSION_ID, agentResult: VALID_RESULT, stopHookActive: false });
@@ -212,6 +234,15 @@ describe('handleBeforeAgent', () => {
     assert.equal(result.message, 'Active session: current_phase=4, status=in_progress');
   });
 
+  it('reads the session under the raw process cwd when the payload has no cwd and that cwd is not a concrete path', () => {
+    const workspace = path.join(fs.realpathSync(makeTempDir('maestro-nocwd-placeholder-')), '${workspace}');
+    writeSessionState(workspace, { status: 'in_progress', current_phase: 6 });
+    const result = withCwd(workspace, () =>
+      handleBeforeAgent({ sessionId: SESSION_ID, cwd: undefined, agentInput: null })
+    );
+    assert.equal(result.message, 'Active session: current_phase=6, status=in_progress');
+  });
+
   it('allows with no context for a non-string cwd instead of throwing', () => {
     const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: 42, agentInput: null });
     assert.deepEqual(result, { action: 'allow', message: null, reason: null });
@@ -226,17 +257,55 @@ describe('handleBeforeAgent', () => {
     assert.deepEqual(result, { action: 'allow', message: null, reason: null });
   });
 
-  it('detects agent from prompt and sets active agent', () => {
+  /** The active agent handleBeforeAgent records for a prompt when the adapter names no agent. */
+  function detectedAgent(agentInput) {
     hookState.clearActiveAgent(SESSION_ID);
+    handleBeforeAgent({ sessionId: SESSION_ID, cwd: fakeCwd, agentName: null, agentInput });
+    return hookState.getActiveAgent(SESSION_ID);
+  }
 
-    handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentInput: 'agent: coder\nPlease implement the feature.',
-    });
+  it('detects the agent from an "agent:" header', () => {
+    assert.equal(detectedAgent('agent: coder\nPlease implement the feature.'), 'coder');
+  });
 
-    const activeAgent = hookState.getActiveAgent(SESSION_ID);
-    assert.equal(activeAgent, 'coder');
+  it('normalizes a kebab-case header agent to snake_case', () => {
+    assert.equal(detectedAgent('agent: code-reviewer\n\nReview this PR.'), 'code_reviewer');
+  });
+
+  it('detects an @mention', () => {
+    assert.equal(detectedAgent('Please ask @code_reviewer to check this.'), 'code_reviewer');
+  });
+
+  it('detects "delegate to" and "hand off to" phrasing', () => {
+    assert.equal(detectedAgent('delegate to coder for implementation'), 'coder');
+    assert.equal(detectedAgent('hand off to debugger for investigation'), 'debugger');
+  });
+
+  it('records no agent for an empty, missing or agent-free prompt', () => {
+    assert.equal(detectedAgent(''), '');
+    assert.equal(detectedAgent(null), '');
+    assert.equal(detectedAgent('Just a normal message with no agent.'), '');
+  });
+
+  it('falls back to MAESTRO_CURRENT_AGENT when the prompt has no header', () => {
+    const agent = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
+      detectedAgent('Run all tests please.')
+    );
+    assert.equal(agent, 'tester');
+  });
+
+  it('prefers the header agent over MAESTRO_CURRENT_AGENT', () => {
+    const agent = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
+      detectedAgent('agent: coder\n\nImplement the feature.')
+    );
+    assert.equal(agent, 'coder');
+  });
+
+  it('ignores a header or MAESTRO_CURRENT_AGENT that names no registered agent', () => {
+    const agent = withEnv({ MAESTRO_CURRENT_AGENT: 'constructor' }, () =>
+      detectedAgent('agent: wizard\ninvoke refactor now')
+    );
+    assert.equal(agent, 'refactor');
   });
 
   it('returns the session context without recording an agent when the payload names none', () => {
@@ -281,9 +350,9 @@ describe('handleSessionStart', () => {
     hookState.removeSessionDir(SESSION_ID);
   });
 
-  it('returns advisory with null message/reason', () => {
+  it('returns allow with null message/reason', () => {
     const result = handleSessionStart({ sessionId: SESSION_ID, cwd: fakeCwd });
-    assert.equal(result.action, 'advisory');
+    assert.equal(result.action, 'allow');
     assert.equal(result.message, null);
     assert.equal(result.reason, null);
   });
@@ -308,9 +377,9 @@ describe('handleSessionStart', () => {
 });
 
 describe('handleSessionEnd', () => {
-  it('returns advisory with null message/reason', () => {
+  it('returns allow with null message/reason', () => {
     const result = handleSessionEnd({ sessionId: SESSION_ID });
-    assert.equal(result.action, 'advisory');
+    assert.equal(result.action, 'allow');
     assert.equal(result.message, null);
     assert.equal(result.reason, null);
   });

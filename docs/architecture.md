@@ -86,6 +86,8 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 
 `src/platforms/<runtime>/` holds only code the runtime loads at run time: its `runtime-config.js`, a `hook-adapter.js` when its host runs Maestro's hooks, and a `policy-enforcer.js` when its host runs the shell policy as a hook (Antigravity and Claude). What the generator writes for a runtime is declared in the build-only `src/generator/runtimes/<runtime>/`, which the generator finds by the runtime names `src/platforms/runtime-config-map.js` discovers: an `outputs.js` that declares `ownedDirs` (pruned in step 6), `payload` (step 7), `entryPoints` (see [Entry-Point Registry](#entry-point-registry)), and `metadataFiles(context)` (step 5), the runtime's `entry-point.<ext>.tmpl` and `core-command.<ext>.tmpl`, and, for Qwen, the policy-pack renderer `policy-pack.js`.
 
+Each config also declares its `tools` map, `features` flags and `paths`. Only `agentPrefix`, `mcpToolMeta` and `agentFrontmatter` are optional (— above). Every other field is required, so its consumers need no fallback; `tests/unit/runtime-config-constraints.test.js` pins them.
+
 ### Entry-Point Registry
 
 9 entry-points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
@@ -109,41 +111,32 @@ The MCP server is authored directly in modular source under `src/mcp/`. Each run
 
 ```
 src/mcp/
-├── maestro-server.js           # Server entry-point (main) + default tool pack order
-├── content/
-│   └── runtime-content.js      # Runtime-specific content resolution
+├── maestro-server.js           # Server entry-point (main) + tool order
+├── create-server.js            # Tool dispatch, error sanitization + recovery hints
+├── protocol-dispatcher.js      # JSON-RPC routing + stdio line framing
+├── project-root-cache.js       # Workspace path + workspace_suggestion
 ├── contracts/                  # Plan schema + complexity tiers, document input and handoff contracts
-├── core/
-│   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
-│   ├── protocol-dispatcher.js  # JSON-RPC routing + tool result framing
-│   ├── project-root-cache.js   # Workspace path + workspace_suggestion
-│   ├── line-reader.js          # stdin line → JSON message dispatch
-│   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 10 handler implementations
-│   ├── get-agent.js            # Agent methodology serving
-│   ├── get-skill-content.js    # Skill/template/reference serving
+├── handlers/                   # 9 handler implementations
+│   ├── content.js              # get_agent + get_skill_content serving
 │   ├── get-runtime-context.js  # Runtime config snapshot
 │   ├── initialize-workspace.js # Directory setup
 │   ├── assess-task-complexity.js # Repo analysis signals
-│   ├── validate-plan.js        # Plan validation + dependency DAG
+│   ├── validate-plan.js        # validate_plan: schema, ids, agents, dependency DAG, file overlap
 │   ├── resolve-settings.js     # Config resolution
 │   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   └── reconciliation.js       # Phase reconciliation (2 tools)
-├── tool-packs/
-│   ├── workspace/index.js      # 4 tools
-│   ├── session/index.js        # 10 tools
-│   └── content/index.js        # 3 tools
-├── utils/
-│   └── extension-root.js       # Canonical src/ resolution
-└── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
+└── tools/                      # Tool definitions: listed schema + handler
+    ├── workspace.js            # 4 tools
+    ├── session.js              # 10 tools
+    └── content.js              # 3 tools
 ```
 
 The runtime config registry the server and the generator share, `src/platforms/runtime-config-map.js`, sits with the platform configs it discovers, outside `src/mcp/`.
 
 ### Content Serving and Path Resolution
 
-The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime: `src/mcp/content/runtime-content.js` reads the requested agent or resource from the resolved canonical `src/` directory and applies the runtime's transforms, with no registry fallback.
+The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime: `src/mcp/handlers/content.js` reads the requested agent or resource from the `src/` directory the server runs from (the tree its resource registry and agent names come from) and applies the runtime's transforms, with no registry fallback.
 
 This makes the source-of-truth rules explicit:
 
@@ -166,7 +159,7 @@ The server identifies its host runtime instead of assuming one. It takes `MAESTR
 
 There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
-When a runtime config sets `mcpToolMeta`, `src/mcp/core/create-server.js` lists it as every tool schema's `_meta`. Antigravity's `antigravity/alwaysLoad` marks the tools to register as native tools (`mcp_maestro_maestro_<tool>`) instead of loading them on demand.
+When a runtime config sets `mcpToolMeta`, `src/mcp/create-server.js` lists it as every tool schema's `_meta`. Antigravity's `antigravity/alwaysLoad` marks the tools to register as native tools (`mcp_maestro_maestro_<tool>`) instead of loading them on demand.
 
 ### Workspace Resolution
 
@@ -178,7 +171,7 @@ To help the orchestrator choose that path, `get_runtime_context` returns a `work
 2. the first existing `file://` root in the MCP client's `roots/list` response
 3. the server's `cwd`
 
-When the client supports roots, the server requests them after `notifications/initialized` and again on every `notifications/roots/list_changed` (Antigravity sends these repeatedly, sometimes right after answering `roots/list`). Candidates inside an extension cache (`.codex/plugins`, `.claude/plugins`, and Antigravity's `~/.gemini/config/plugins` and `~/.gemini/antigravity-cli/plugins`; `src/core/cache-path-rejector.js`) are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/core/project-root-cache.js`).
+When the client supports roots, the server requests them after `notifications/initialized` and again on every `notifications/roots/list_changed` (Antigravity sends these repeatedly, sometimes right after answering `roots/list`). Candidates inside an extension cache (`.codex/plugins`, `.claude/plugins`, and Antigravity's `~/.gemini/config/plugins` and `~/.gemini/antigravity-cli/plugins`; `src/core/cache-path-rejector.js`) are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/project-root-cache.js`).
 
 ### Tool Catalog
 
@@ -240,7 +233,7 @@ Antigravity, Claude, and Qwen apply the same rules from `src/platforms/shared/po
 - **Claude**: `src/platforms/claude/policy-enforcer.js`, run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
 - **Qwen**: the TOML policy pack `policies/maestro.toml`, rendered from those rules at build time by `src/generator/runtimes/qwen/policy-pack.js`
 
-Both JavaScript enforcers run `checkCommand()` from `src/platforms/shared/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with the bounded collector in `src/core/stdin-reader.js` and formats every decision; they differ only in where they read the command and what they name each decision.
+Both JavaScript enforcers run `checkCommand()` from `src/platforms/shared/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with `readStdin()` from `src/lib/io.js` (capped at 1 MiB) and formats every decision; they differ only in where they read the command and what they name each decision.
 
 ### Hook State
 

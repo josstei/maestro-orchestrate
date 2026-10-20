@@ -1,26 +1,25 @@
 'use strict';
 
-const { describe, it, beforeEach } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createHookState } = require('../../src/hooks/logic/hook-state');
 const { makeTempDir } = require('../support/fs');
 
+// hook-state reads MAESTRO_HOOKS_DIR once, at load; each test uses its own session id.
+// The base dir is nested in a private temp dir, so a removeSessionDir('..') that
+// slipped past session-id validation could only delete that dir, not os.tmpdir().
+const baseDir = path.join(makeTempDir('maestro-hook-state-test-'), 'hooks');
+process.env.MAESTRO_HOOKS_DIR = baseDir;
+const state = require('../../src/hooks/logic/hook-state');
+
 describe('hook-state', () => {
-  let baseDir;
-  let state;
-
-  beforeEach(() => {
-    baseDir = makeTempDir('maestro-hook-state-test-');
-    state = createHookState(baseDir);
-  });
-
   describe('setActiveAgent', () => {
     it('writes the agent name and returns true', () => {
       const result = state.setActiveAgent('sess1', 'coder');
       assert.equal(result, true);
+      assert.equal(fs.readFileSync(path.join(baseDir, 'sess1', 'active-agent'), 'utf8'), 'coder');
     });
 
     it('creates the missing session directory as private (0o700)', {
@@ -68,19 +67,19 @@ describe('hook-state', () => {
   describe('removeSessionDir', () => {
     it('removes the entire session directory', () => {
       state.setActiveAgent('sess5', 'coder');
-      const result = state.removeSessionDir('sess5');
-      assert.equal(result, true);
+      state.removeSessionDir('sess5');
       assert.equal(fs.existsSync(path.join(baseDir, 'sess5')), false);
     });
 
-    it('returns false for an invalid session ID', () => {
-      const result = state.removeSessionDir('../hack');
-      assert.equal(result, false);
+    it('leaves the base directory alone for an invalid session ID', () => {
+      state.setActiveAgent('sess6', 'coder');
+      assert.doesNotThrow(() => state.removeSessionDir('..'));
+      assert.doesNotThrow(() => state.removeSessionDir('../hack'));
+      assert.equal(state.getActiveAgent('sess6'), 'coder');
     });
 
-    it('returns true and is safe to call when the directory does not exist', () => {
-      const result = state.removeSessionDir('nonexistent-session');
-      assert.equal(result, true);
+    it('is safe to call when the directory does not exist', () => {
+      assert.doesNotThrow(() => state.removeSessionDir('nonexistent-session'));
     });
   });
 

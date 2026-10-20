@@ -89,8 +89,6 @@ Infrastructure skills set `user-invocable: false`: they stay out of the `/` menu
 | `cwd` | `cwd` |
 | `tool_input.subagent_type` | `agentName` |
 | `tool_input.prompt` | `agentInput` |
-| `tool_result` | `agentResult` |
-| (hardcoded false) | `stopHookActive` |
 
 Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?: string, reason?: string }`
 

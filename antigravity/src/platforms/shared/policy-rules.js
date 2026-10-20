@@ -36,22 +36,19 @@ const ASK_RULES = Object.freeze([
 ]);
 
 /**
- * Test one command segment against a rule, ignoring leading whitespace.
- * @param {{ matchType: string, pattern: string }} rule
+ * Test one trimmed command segment against a rule.
+ * @param {{ matchType: 'prefix' | 'regex' | 'word', pattern: string }} rule
  * @param {string} command
  * @returns {boolean}
  */
 function matchRule(rule, command) {
-  const trimmed = command.trimStart();
   switch (rule.matchType) {
     case 'prefix':
-      return trimmed.startsWith(rule.pattern);
+      return command.startsWith(rule.pattern);
     case 'regex':
-      return new RegExp(rule.pattern).test(trimmed);
+      return new RegExp(rule.pattern).test(command);
     case 'word':
-      return new RegExp('\\b' + rule.pattern + '\\b').test(trimmed);
-    default:
-      return false;
+      return new RegExp('\\b' + rule.pattern + '\\b').test(command);
   }
 }
 
@@ -60,13 +57,13 @@ function matchRule(rule, command) {
  * Quoted text, `(...)`/`{...}` groups and command substitutions stay inside
  * their segment.
  * @param {string} command
- * @param {(body: string) => void} [onSubshell] - called, as the scan reaches
+ * @param {(body: string) => void} onSubshell - called, as the scan reaches
  *   it, with the trimmed, non-empty body of each top-level `$(...)` or
  *   backtick substitution
  * @returns {string[]} The trimmed, non-empty segments
  * @throws {Error} When a command substitution is never closed
  */
-function splitCommands(command, onSubshell = () => {}) {
+function splitCommands(command, onSubshell) {
   const parts = [];
   let depth = 0;
   let current = '';
@@ -263,4 +260,4 @@ function checkCommand(command) {
   return { action: 'allow' };
 }
 
-module.exports = { DENY_RULES, ASK_RULES, matchRule, checkCommand };
+module.exports = { DENY_RULES, ASK_RULES, checkCommand };

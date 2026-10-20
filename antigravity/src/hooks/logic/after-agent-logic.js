@@ -6,33 +6,28 @@ const hookState = require('./hook-state');
 const REQUIRED_SECTIONS = ['Task Report', 'Downstream Context'];
 
 /**
- * After-agent hook logic (runtime-agnostic).
- *
- * Field name mapping: each runtime's hook adapter
- * (src/platforms/<runtime>/hook-adapter.js) fills ctx.agentResult from its
- * host payload before calling this function.
+ * After-agent hook logic (runtime-agnostic): checks the finished agent's
+ * response for the handoff report headings.
  *
  * @param {object} ctx - Internal context contract
  * @param {string} ctx.sessionId
- * @param {string|null} ctx.agentResult  - the agent response text
- * @param {boolean} ctx.stopHookActive
- * @returns {{ action: string, message: null, reason: string|null }}
+ * @param {unknown} [ctx.agentResult] - the agent response text
+ * @param {boolean} [ctx.stopHookActive]
+ * @returns {{ action: 'allow'|'deny', message: null, reason: string|null }}
  */
 function handleAfterAgent(ctx) {
   const agentName = hookState.getActiveAgent(ctx.sessionId);
+  hookState.clearActiveAgent(ctx.sessionId);
   if (!agentName) {
-    hookState.clearActiveAgent(ctx.sessionId);
     return { action: 'allow', message: null, reason: null };
   }
 
-  // agentResult comes straight from hook stdin JSON: for an array '## X' does
-  // not imply '# X', and a non-string without includes() must throw before the
-  // active agent is cleared, so keep both checks ahead of clearActiveAgent.
-  const agentResult = ctx.agentResult || '';
+  // The response comes straight from hook stdin JSON; one that is not text has
+  // no headings. '# X' also finds the '## X' heading.
+  const agentResult = typeof ctx.agentResult === 'string' ? ctx.agentResult : '';
   const warnings = REQUIRED_SECTIONS
-    .filter((section) => !agentResult.includes(`## ${section}`) && !agentResult.includes(`# ${section}`))
+    .filter((section) => !agentResult.includes(`# ${section}`))
     .map((section) => `Missing ${section} section (expected ## ${section} heading)`);
-  hookState.clearActiveAgent(ctx.sessionId);
 
   if (warnings.length > 0) {
     const reason = warnings.join('; ');

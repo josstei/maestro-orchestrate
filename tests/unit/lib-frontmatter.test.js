@@ -3,11 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const {
-  parse,
-  escapeYaml,
-  splitAtBoundary,
-} = require('../../src/lib/frontmatter');
+const { parse, escapeYaml } = require('../../src/lib/frontmatter');
 
 /** Parse `raw` as the inner text of a double-quoted frontmatter value. */
 const valueOf = (raw) => parse(`---\nk: "${raw}"\n---\n`).frontmatter.k;
@@ -34,82 +30,23 @@ describe('parse double-quoted values', () => {
   }
 });
 
-describe('splitAtBoundary', () => {
-  it('splits content with valid frontmatter', () => {
-    const content = '---\nname: test\ntier: full\n---\nBody text.';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, 'name: test\ntier: full');
-    assert.equal(result.body, 'Body text.');
-  });
+describe('parse frontmatter boundaries', () => {
+  const cases = [
+    ['ignores an opening delimiter that is never closed', '---\nname: orphan\nno closing', {}, null],
+    ['handles an empty frontmatter block', '---\n---\nBody only.', {}, 'Body only.'],
+    ['handles an empty frontmatter block with no body', '---\n---', {}, ''],
+    ['does not treat --- inside the body as a delimiter', '---\nname: test\n---\nBody with ---\nin it.', { name: 'test' }, 'Body with ---\nin it.'],
+    ['requires the opening --- on the first line', 'preamble\n---\nkey: val\n---\nBody.', {}, null],
+    ['returns empty frontmatter and body for an empty string', '', {}, ''],
+    ['parses keys with empty values as empty strings', '---\nname:\ndescription:\n---\nBody.', { name: '', description: '' }, 'Body.'],
+  ];
 
-  it('returns empty raw and full content as body when no opening delimiter', () => {
-    const content = 'No frontmatter here.';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, '');
-    assert.equal(result.body, content);
-  });
-
-  it('returns empty raw and full content as body when no closing delimiter', () => {
-    const content = '---\nname: orphan\nno closing';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, '');
-    assert.equal(result.body, content);
-  });
-
-  it('handles empty frontmatter block', () => {
-    const content = '---\n---\nBody only.';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, '');
-    assert.equal(result.body, 'Body only.');
-  });
-
-  it('handles content with no trailing newline after closing delimiter', () => {
-    const content = '---\nname: test\n---';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, 'name: test');
-    assert.equal(result.body, '');
-  });
-
-  it('handles empty frontmatter with no body', () => {
-    const content = '---\n---';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, '');
-    assert.equal(result.body, '');
-  });
-
-  it('handles multiline body after frontmatter', () => {
-    const content = '---\nkey: val\n---\nLine 1\nLine 2\nLine 3';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, 'key: val');
-    assert.equal(result.body, 'Line 1\nLine 2\nLine 3');
-  });
-
-  it('does not treat --- inside body as delimiter', () => {
-    const content = '---\nname: test\n---\nBody with ---\nin it.';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, 'name: test');
-    assert.equal(result.body, 'Body with ---\nin it.');
-  });
-
-  it('handles frontmatter with empty value lines', () => {
-    const content = '---\nname:\ndescription:\n---\nBody.';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, 'name:\ndescription:');
-    assert.equal(result.body, 'Body.');
-  });
-
-  it('returns full content as body for empty string', () => {
-    const result = splitAtBoundary('');
-    assert.equal(result.raw, '');
-    assert.equal(result.body, '');
-  });
-
-  it('handles --- not on the first line', () => {
-    const content = 'preamble\n---\nkey: val\n---\nBody.';
-    const result = splitAtBoundary(content);
-    assert.equal(result.raw, '');
-    assert.equal(result.body, content);
-  });
+  for (const [title, content, frontmatter, body] of cases) {
+    it(title, () => {
+      // A null body means the whole content is the body.
+      assert.deepEqual(parse(content), { frontmatter, body: body === null ? content : body });
+    });
+  }
 });
 
 describe('parse', () => {

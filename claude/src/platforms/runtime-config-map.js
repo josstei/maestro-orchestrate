@@ -6,9 +6,8 @@ const path = require('node:path');
 const PLATFORMS_DIR = __dirname;
 
 const RUNTIME_NAMES = fs.readdirSync(PLATFORMS_DIR, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && entry.name !== 'shared')
   .filter((entry) =>
-    fs.existsSync(path.join(PLATFORMS_DIR, entry.name, 'runtime-config.js'))
+    entry.isDirectory() && fs.existsSync(path.join(PLATFORMS_DIR, entry.name, 'runtime-config.js'))
   )
   .map((entry) => entry.name)
   .sort();
@@ -32,15 +31,14 @@ function matchesClientName(pattern, clientName) {
  * The runtime whose config lists the MCP client's `clientInfo.name` (sent by
  * the host in `initialize`) among its `mcpClientNames`, or null when no
  * runtime claims that client.
- * @param {{ name?: unknown } | null | undefined} clientInfo
+ * @param {string | null} clientName
  * @returns {object | null} Runtime config
  */
-function findRuntimeConfigForClient(clientInfo) {
-  const clientName = clientInfo && typeof clientInfo.name === 'string' ? clientInfo.name : null;
+function findRuntimeConfigForClient(clientName) {
   if (!clientName) return null;
 
   const runtimeName = RUNTIME_NAMES.find((name) =>
-    (getRuntimeConfig(name).mcpClientNames || []).some((pattern) => matchesClientName(pattern, clientName))
+    getRuntimeConfig(name).mcpClientNames.some((pattern) => matchesClientName(pattern, clientName))
   );
   return runtimeName ? getRuntimeConfig(runtimeName) : null;
 }

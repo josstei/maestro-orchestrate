@@ -190,6 +190,9 @@ describe('hook entrypoints', () => {
       [[], usage],
       [['qwen'], usage],
       [['qwen', 'nope'], 'Unknown hook: nope\n'],
+      // Object members are not hooks (this used to crash with a TypeError).
+      [['qwen', 'constructor'], 'Unknown hook: constructor\n'],
+      [['qwen', '__proto__'], 'Unknown hook: __proto__\n'],
       [['bogus', 'nope'], 'Unknown runtime: bogus\n'],
     ];
 
@@ -212,6 +215,14 @@ describe('hook entrypoints', () => {
     assert.equal(result.status, 0);
     assert.match(result.stderr, /^Hook error: /);
     assert.deepEqual(JSON.parse(result.stdout), { continue: true, decision: 'allow' });
+  });
+
+  it('answers with the adapter error fallback when stdin exceeds 1 MiB', () => {
+    const result = runHook('claude/scripts/hook-runner.js', 'claude', 'session-start', 'x'.repeat(1024 * 1024 + 1));
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, 'Hook error: Stdin payload too large\n');
+    assert.equal(result.stdout, '{"continue":false,"decision":"block"}\n');
   });
 
   it('starts a session when a file blocks its per-session hook-state path', () => {
@@ -282,6 +293,25 @@ describe('hook entrypoints', () => {
       decision: 'block',
       reason: 'Handoff report validation failed: Missing Task Report section (expected ## Task Report heading); Missing Downstream Context section (expected ## Downstream Context heading). Please include both a ## Task Report section and a ## Downstream Context section in your response.',
     });
+  });
+
+  it('denies a qwen after-agent response that is not text and clears the agent', () => {
+    // A numeric last_assistant_message used to crash the hook (allow fallback,
+    // agent left recorded) and an array of heading strings used to pass.
+    const payload = { cwd: ROOT, session_id: 'hook-non-text-session', hook_event_name: 'SubagentStop', agent_type: 'coder' };
+    for (const message of [42, ['## Task Report', '## Downstream Context']]) {
+      const start = runHook('hooks/hook-runner.js', 'qwen', 'before-agent', { ...payload, hook_event_name: 'SubagentStart' });
+      assert.equal(start.status, 0, start.stderr);
+
+      const result = runHook('hooks/hook-runner.js', 'qwen', 'after-agent', { ...payload, last_assistant_message: message });
+      assert.equal(result.status, 2, result.stderr);
+      assert.equal(JSON.parse(result.stdout).decision, 'block');
+      assert.ok(!result.stderr.includes('Hook error'), result.stderr);
+
+      const again = runHook('hooks/hook-runner.js', 'qwen', 'after-agent', { ...payload, last_assistant_message: message });
+      assert.equal(again.status, 0, 'the first after-agent cleared the agent');
+      assert.deepEqual(JSON.parse(again.stdout), {});
+    }
   });
 
   it('keeps hook state under <os.tmpdir()>/maestro-hooks-<uid> when MAESTRO_HOOKS_DIR is unset', {

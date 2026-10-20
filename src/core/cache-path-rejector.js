@@ -2,16 +2,14 @@
 
 const path = require('node:path');
 
-const CACHE_PATH_SEGMENTS = [
-  path.join('.codex', 'plugins'),
-  path.join('.claude', 'plugins'),
+const CACHE_DIRS = [
+  ['.codex', 'plugins'],
+  ['.claude', 'plugins'],
   // Antigravity installs plugins to ~/.gemini/config/plugins/<name>/ and
   // links its older ~/.gemini/antigravity-cli/plugins/ location there.
-  path.join('.gemini', 'config', 'plugins'),
-  path.join('.gemini', 'antigravity-cli', 'plugins'),
+  ['.gemini', 'config', 'plugins'],
+  ['.gemini', 'antigravity-cli', 'plugins'],
 ];
-
-const CACHE_PATH_WINDOWS = CACHE_PATH_SEGMENTS.map((entry) => entry.split(path.sep));
 
 /**
  * Returns true when the given path falls inside a host extension cache directory.
@@ -22,16 +20,13 @@ const CACHE_PATH_WINDOWS = CACHE_PATH_SEGMENTS.map((entry) => entry.split(path.s
  * @returns {boolean}
  */
 function isExtensionCachePath(candidate) {
-  if (typeof candidate !== 'string' || candidate.length === 0) {
-    return false;
-  }
   const segments = path
     .resolve(candidate)
     .split(path.sep)
     .filter((segment) => segment.length > 0);
-  return CACHE_PATH_WINDOWS.some((window) =>
+  return CACHE_DIRS.some((window) =>
     segments.some((_, start) => window.every((part, offset) => segments[start + offset] === part))
   );
 }
 
-module.exports = { CACHE_PATH_SEGMENTS, isExtensionCachePath };
+module.exports = { isExtensionCachePath };

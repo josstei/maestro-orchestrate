@@ -1,0 +1,82 @@
+'use strict';
+
+const { handleInitializeWorkspace } = require('../handlers/initialize-workspace');
+const { handleAssessTaskComplexity } = require('../handlers/assess-task-complexity');
+const { handleValidatePlan } = require('../handlers/validate-plan');
+const { handleResolveSettings } = require('../handlers/resolve-settings');
+const { TASK_COMPLEXITY_SCHEMA } = require('../contracts/plan-schema');
+
+module.exports = {
+  tools: [
+    {
+      name: 'initialize_workspace',
+      description:
+        'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workspace_path: {
+            type: 'string',
+            description:
+              'Absolute path to the user workspace. Required. Must not be inside an extension cache directory.',
+          },
+          state_dir: {
+            type: 'string',
+            description:
+              'State directory relative to workspace_path. Defaults to docs/maestro.',
+          },
+        },
+        required: ['workspace_path'],
+      },
+      handler: handleInitializeWorkspace,
+    },
+    {
+      name: 'assess_task_complexity',
+      description:
+        'Analyze repo structure and return factual signals for complexity classification. Does NOT classify — returns signals for the model to interpret.',
+      requiresWorkspace: true,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          task_description: {
+            type: 'string',
+            description:
+              'The task description (reserved for future keyword analysis).',
+          },
+        },
+      },
+      handler: handleAssessTaskComplexity,
+    },
+    {
+      name: 'validate_plan',
+      description:
+        'Validate an implementation plan against complexity constraints, file ownership, dependency cycles, and agent registry.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          plan: { type: 'object' },
+          task_complexity: TASK_COMPLEXITY_SCHEMA,
+        },
+        required: ['plan', 'task_complexity'],
+      },
+      handler: handleValidatePlan,
+    },
+    {
+      name: 'resolve_settings',
+      description:
+        'Resolve Maestro settings using script-accurate precedence (env var > workspace .env > extension .env). Returns resolved values for requested or all known settings.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          settings: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Setting names to resolve (e.g., ["MAESTRO_DISABLED_AGENTS"]). If empty or omitted, resolves all known settings.',
+          },
+        },
+      },
+      handler: handleResolveSettings,
+    },
+  ],
+};

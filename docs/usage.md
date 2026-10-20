@@ -75,7 +75,7 @@ All settings are resolved with precedence: environment variable > workspace `.en
 | Variable | Runtime | Purpose |
 |----------|---------|---------|
 | `MAESTRO_WORKSPACE_PATH` | Antigravity | First source for `workspace_suggestion` when exported before starting `agy`; otherwise the suggestion comes from MCP `roots/list` |
-| `MAESTRO_EXTENSION_PATH` | Qwen | Override extension root path |
+| `MAESTRO_EXTENSION_PATH` | Qwen | Extension root holding the extension `.env` used for setting resolution, and the `read-active-session.js` script `/maestro:resume` runs (defaults to `~/.qwen/extensions/maestro`) |
 | `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
 | `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
@@ -121,7 +121,7 @@ docs/maestro/
 
 ### Session State Format
 
-Active sessions are a frontmatter block followed by a Markdown log. MCP `create_session` writes the frontmatter as JSON (`src/core/markdown-state.js`), and the MCP session tools read it back as JSON. The example below uses the YAML layout of the session-state template (`src/templates/session-state.md`), which direct-write fallbacks follow:
+Active sessions are a frontmatter block followed by a Markdown log. MCP `create_session` writes the frontmatter as JSON (`src/state/session-state.js`), and the MCP session tools read it back as JSON. The example below uses the YAML layout of the session-state template (`src/templates/session-state.md`), which direct-write fallbacks follow:
 
 ```yaml
 ---

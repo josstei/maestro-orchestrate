@@ -50,7 +50,7 @@ maestro-orchestrate/
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Settings catalog, setting resolution, and the .env parser
 │   ├── core/                     # Shared runtime helpers and resolvers
-│   ├── state/                    # Session-state and plan-document helpers
+│   ├── state/                    # Session-state, plan-document and design-gate stores
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
@@ -119,7 +119,7 @@ maestro-orchestrate/
 
 ### MCP Server
 
-A bundled Model Context Protocol server providing 17 tools across 3 packs:
+A bundled Model Context Protocol server providing 17 tools in three groups:
 
 - **Workspace** (4): initialize_workspace, assess_task_complexity, validate_plan, resolve_settings
 - **Session** (10): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase

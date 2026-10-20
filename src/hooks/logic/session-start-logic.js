@@ -8,11 +8,11 @@ const hookState = require('./hook-state');
  * is created by before-agent when it records the active agent, and removed by
  * session-end.
  *
- * @returns {{ action: string, message: null, reason: null }}
+ * @returns {{ action: 'allow', message: null, reason: null }}
  */
 function handleSessionStart() {
   hookState.pruneStale();
-  return { action: 'advisory', message: null, reason: null };
+  return { action: 'allow', message: null, reason: null };
 }
 
 module.exports = { handleSessionStart };

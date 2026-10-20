@@ -14,19 +14,13 @@
  *   - any other command is `ask`, which leaves the user's permission settings
  *     and "Always Allow" choices in charge, exactly as without this hook
  *
- * Run through antigravity/hooks/policy-enforcer.js, which calls main() from
- * the repo src/ or, for installed copies, from the bundled antigravity/src/.
+ * Runs when required by antigravity/hooks/policy-enforcer.js, which loads it
+ * from the repo src/ or, for installed copies, from the bundled antigravity/src/.
  */
 
 const { runPolicyEnforcer } = require('../shared/policy-enforcer');
 
-const ANTIGRAVITY_DECISIONS = { deny: 'deny', ask: 'force_ask', allow: 'ask' };
-
-function main() {
-  runPolicyEnforcer({
-    readCommand: (input) => input.toolCall && input.toolCall.args && input.toolCall.args.CommandLine,
-    decisions: ANTIGRAVITY_DECISIONS,
-  });
-}
-
-module.exports = { main };
+runPolicyEnforcer({
+  readCommand: (input) => input.toolCall?.args?.CommandLine,
+  decisions: { deny: 'deny', ask: 'force_ask', allow: 'ask' },
+});

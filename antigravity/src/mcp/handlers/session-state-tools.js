@@ -1,17 +1,13 @@
 'use strict';
 
-const fs = require('node:fs');
-
 const { assertSessionId } = require('../../lib/session-id');
 const { validatePhases } = require('../contracts/plan-schema');
 const {
-  createEmptyDownstreamContext,
+  DOWNSTREAM_CONTEXT_SHAPE,
   normalizeDownstreamContext,
-  isDownstreamContextPopulated,
-  describeShape: describeDownstreamContextShape,
+  readDownstreamContext,
 } = require('../contracts/downstream-context');
-const { ValidationError, StateError, NotFoundError } = require('../../lib/errors');
-const { readGateForCreateSession, removeDesignGate } = require('./design-gate');
+const { ValidationError, StateError } = require('../../lib/errors');
 const {
   resolveStateDirPath,
   readActiveSessionOrNull,
@@ -22,42 +18,71 @@ const {
   findPhaseOrThrow,
 } = require('../../state/session-state');
 const {
-  toWorkspacePath,
-  ensureDesignDocumentInPlans,
+  materializeSessionDocument,
+  writePlansDocument,
   archivePlansDocuments,
 } = require('../../state/session-documents');
-const { resolveDocumentInput } = require('../contracts/document-input');
+const {
+  GATE_FILENAME,
+  readGate,
+  removeGate,
+  approvedGateSessionIds,
+} = require('../../state/design-gate');
+const { readDocumentInput } = require('../contracts/document-input');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
 
 /**
- * Materialize a session document (design or plan) into `<state_dir>/plans/`.
- * Mirrors the design-gate contract so both documents are reachable by
- * `archive_session` regardless of where Plan Mode wrote them.
+ * Enforce create_session's design-gate preconditions and return the design
+ * document recorded by the session's approved gate.
  *
- * Used at `create_session` time rather than `record_design_approval` because
- * a runtime's parallel dispatch can fire a write and an MCP tool in the same
- * turn; the write isn't yet visible when the MCP handler runs. Deferring the
- * copy to `create_session` guarantees the file has settled on disk.
+ * The orchestrator must use one session_id from enter_design_gate through
+ * archive_session. When this session has no gate but another session has an
+ * approved one, the orchestrator either drifted from the id it entered the
+ * gate with or left a prior run unfinished; proceeding would strand the
+ * approved design document, because create_session looks the gate up by
+ * session_id. So the call fails fast, naming the orphaned ids and the stale
+ * gate files so the caller can align on the original id or delete them. The
+ * scan runs only when this session has no gate: a current-session gate
+ * (approved or not) is the normal approve-then-create flow, and a leftover
+ * gate from a prior workflow is benign alongside it.
  *
- * @param {string} projectRoot
- * @param {string} documentPath - absolute or workspace-relative path
- * @param {'design_document' | 'implementation_plan'} documentKind
- * @returns {string | null} absolute path to the canonical location inside plans/, or null if documentPath was absent
+ * @param {string} stateDir - Resolved state dir
+ * @param {string} sessionId
+ * @returns {string | null} the approved gate's design document path, or null when the session has no approved gate
+ * @throws {ValidationError} DESIGN_GATE_SESSION_MISMATCH when the session has no gate and another session has an approved one
+ * @throws {StateError} DESIGN_GATE_UNAPPROVED when the gate was entered but not approved
  */
-function materializeSessionDocument(projectRoot, documentPath, documentKind) {
-  if (typeof documentPath !== 'string' || documentPath.length === 0) {
-    return null;
+function approvedDesignDocumentPath(stateDir, sessionId) {
+  const gate = readGate(stateDir, sessionId);
+  if (gate === null) {
+    const orphanedIds = approvedGateSessionIds(stateDir);
+    if (orphanedIds.length > 0) {
+      const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
+      const stalePaths = orphanedIds
+        .map((id) => `<state_dir>/state/${id}${GATE_FILENAME}`)
+        .join(', ');
+      throw new ValidationError(
+        `Approved design gate exists for session ${idList} but create_session was called with '${sessionId}'. Session IDs must match across enter_design_gate, record_design_approval, and create_session. Either call create_session with the matching session_id, or delete the stale gate file(s) at ${stalePaths} and re-enter the gate with '${sessionId}'.`,
+        {
+          code: 'DESIGN_GATE_SESSION_MISMATCH',
+          details: {
+            current_session_id: sessionId,
+            orphaned_session_ids: orphanedIds,
+          },
+        }
+      );
+    }
   }
-  const absolutePath = toWorkspacePath(projectRoot, documentPath);
-  if (!fs.existsSync(absolutePath)) {
-    const context =
-      documentKind === 'design_document'
-        ? ' (recorded via record_design_approval but not found at create_session time — confirm the file was materialized after Plan Mode exit)'
-        : ' (confirm the plan was written to disk before calling create_session)';
-    throw new NotFoundError(`${documentKind} does not exist: ${absolutePath}${context}`);
+
+  if (gate && gate.entered_at && !gate.approved_at) {
+    throw new StateError(
+      'Design gate entered but not approved. Call record_design_approval before create_session.',
+      { code: 'DESIGN_GATE_UNAPPROVED' }
+    );
   }
-  return ensureDesignDocumentInPlans(projectRoot, absolutePath);
+
+  return gate?.approved_at ? gate.design_document_path : null;
 }
 
 /**
@@ -87,12 +112,11 @@ function completePhase(phase, params, now) {
   const filesDeleted = params.files_deleted ?? [];
   const hasFiles =
     filesCreated.length + filesModified.length + filesDeleted.length > 0;
-  const normalizedContext = normalizeDownstreamContext(params.downstream_context);
-  const contextProvided = isDownstreamContextPopulated(normalizedContext);
+  const { context, populated } = readDownstreamContext(params.downstream_context);
 
-  if (hasFiles && !contextProvided) {
+  if (hasFiles && !populated) {
     throw new ValidationError(
-      `Phase ${phase.id} produced files but downstream_context is empty after normalization. ${describeDownstreamContextShape()}`,
+      `Phase ${phase.id} produced files but downstream_context is empty after normalization. ${DOWNSTREAM_CONTEXT_SHAPE}`,
       {
         code: 'HANDOFF_INCOMPLETE',
         details: {
@@ -108,11 +132,11 @@ function completePhase(phase, params, now) {
 
   phase.status = 'completed';
   phase.completed = now;
-  phase.downstream_context = normalizedContext;
+  phase.downstream_context = context;
   phase.files_created = filesCreated;
   phase.files_modified = filesModified;
   phase.files_deleted = filesDeleted;
-  phase.requires_reconciliation = !hasFiles && !contextProvided;
+  phase.requires_reconciliation = !hasFiles && !populated;
 }
 
 /**
@@ -128,39 +152,35 @@ function phaseIdsWithStatus(phases, status) {
 
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
+  const stateDir = resolveStateDirPath(projectRoot);
+  const approvedDesignDocument = approvedDesignDocumentPath(stateDir, params.session_id);
 
-  const gate = readGateForCreateSession(projectRoot, params.session_id);
-
-  const phasesValidation = validatePhases(params.phases);
-  if (!phasesValidation.valid) {
-    const rules = phasesValidation.violations.map((v) => v.rule).join(', ');
-    throw new ValidationError(`Invalid phases payload: ${rules}`, {
-      details: phasesValidation.violations,
-    });
+  const phaseViolations = validatePhases(params.phases);
+  if (phaseViolations.length > 0) {
+    const rules = phaseViolations.map((v) => v.rule).join(', ');
+    throw new ValidationError(`Invalid phases payload: ${rules}`, { details: phaseViolations });
   }
 
-  const basePath = resolveStateDirPath(projectRoot);
-  const existing = readActiveSessionOrNull(projectRoot);
+  const existing = readActiveSessionOrNull(stateDir);
   if (existing && existing.state.status === 'in_progress') {
     throw new StateError(
       `Active session '${existing.state.session_id}' already exists (status: in_progress). Archive it first with archive_session.`
     );
   }
 
-  const designDocumentCandidate =
-    params.design_document ||
-    (gate && gate.approved_at ? gate.design_document_path : null);
   const resolvedDesignDocument = materializeSessionDocument(
     projectRoot,
-    designDocumentCandidate,
+    stateDir,
+    params.design_document || approvedDesignDocument,
     'design_document'
   );
-  const resolvedImplementationPlan = resolveDocumentInput(params, projectRoot, {
-    pathKey: 'implementation_plan',
-    prefix: 'implementation_plan',
-    fromPath: (planPath) =>
-      materializeSessionDocument(projectRoot, planPath, 'implementation_plan'),
-  });
+  const plan = readDocumentInput(params, 'implementation_plan', 'implementation_plan');
+  let resolvedImplementationPlan = null;
+  if (plan) {
+    resolvedImplementationPlan = plan.path
+      ? materializeSessionDocument(projectRoot, stateDir, plan.path, 'implementation_plan')
+      : writePlansDocument(stateDir, plan.filename, plan.content);
+  }
 
   const now = new Date().toISOString();
   const state = {
@@ -197,7 +217,7 @@ function handleCreateSession(params, projectRoot) {
       files_modified: [],
       files_deleted: [],
       planned_files: phase.files || [],
-      downstream_context: createEmptyDownstreamContext(),
+      downstream_context: normalizeDownstreamContext(),
       errors: [],
       retry_count: 0,
     })),
@@ -208,7 +228,7 @@ function handleCreateSession(params, projectRoot) {
   }
 
   const sessionPath = writeActiveSession(
-    basePath,
+    stateDir,
     state,
     `# ${params.task} Orchestration Log\n`
   );
@@ -220,7 +240,7 @@ function handleCreateSession(params, projectRoot) {
 }
 
 function handleGetSessionStatus(_params, projectRoot) {
-  const session = readActiveSessionOrNull(projectRoot);
+  const session = readActiveSessionOrNull(resolveStateDirPath(projectRoot));
   if (!session) {
     return {
       exists: false,
@@ -270,7 +290,7 @@ function handleTransitionPhase(params, projectRoot) {
     );
   }
 
-  return withSessionState(projectRoot, ({ state }, now) => {
+  return withSessionState(resolveStateDirPath(projectRoot), (state, now) => {
     assertSessionMatch(state, params.session_id);
 
     const completedPhase = hasCompletedPhase
@@ -343,11 +363,12 @@ function handleTransitionPhase(params, projectRoot) {
 
 function handleArchiveSession(params, projectRoot) {
   assertSessionId(params.session_id);
+  const stateDir = resolveStateDirPath(projectRoot);
 
-  const { state, basePath } = withSessionState(projectRoot, (session) => {
-    assertSessionMatch(session.state, params.session_id, 'requested');
+  const archived = withSessionState(stateDir, (state) => {
+    assertSessionMatch(state, params.session_id, 'requested');
 
-    const pendingRec = (session.state.phases || []).find(
+    const pendingRec = (state.phases || []).find(
       (phase) => phase.requires_reconciliation === true
     );
     if (pendingRec) {
@@ -357,20 +378,20 @@ function handleArchiveSession(params, projectRoot) {
       );
     }
 
-    session.state.status = 'completed';
-    return session;
+    state.status = 'completed';
+    return state;
   });
 
-  const archivePath = archiveActiveSession(basePath, params.session_id);
+  const archivePath = archiveActiveSession(stateDir, params.session_id);
   const archivedFiles = [
     archivePath,
-    ...archivePlansDocuments(projectRoot, basePath, [
-      state.design_document,
-      state.implementation_plan,
+    ...archivePlansDocuments(projectRoot, stateDir, [
+      archived.design_document,
+      archived.implementation_plan,
     ]),
   ];
 
-  removeDesignGate(projectRoot, params.session_id);
+  removeGate(stateDir, params.session_id);
 
   return {
     success: true,
@@ -382,7 +403,7 @@ function handleArchiveSession(params, projectRoot) {
 function handleUpdateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  return withSessionState(projectRoot, ({ state }) => {
+  return withSessionState(resolveStateDirPath(projectRoot), (state) => {
     assertSessionMatch(state, params.session_id);
 
     const updatedFields = [];

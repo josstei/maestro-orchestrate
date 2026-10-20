@@ -2,9 +2,10 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
+const { handleGetRuntimeContext } = require('../../src/mcp/handlers/get-runtime-context');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
-const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
+const { AGENT_NAMES } = require('../../src/core/agent-registry');
+const { toSnakeCase } = require('../../src/lib/naming');
 
 // The get_runtime_context response is a contract the runtime prompts rely on,
 // so the expected values are written out here instead of read from the configs.
@@ -23,6 +24,7 @@ const EXPECTED_CONTEXT = {
     // arrives later as a system message.
     constraints: { result_surface: 'notified', child_cannot_prompt_user: false },
     agents: AGENT_NAMES,
+    paths: { skills: '${PLUGIN_ROOT}/skills/', hooks: '${PLUGIN_ROOT}/hooks/' },
     tools: {
       read_file: 'view_file',
       read_many_files: 'view_file',
@@ -43,6 +45,7 @@ const EXPECTED_CONTEXT = {
     },
     constraints: SYNCHRONOUS_CONSTRAINTS,
     agents: AGENT_NAMES,
+    paths: { skills: '${CLAUDE_PLUGIN_ROOT}/skills/', hooks: '${CLAUDE_PLUGIN_ROOT}/scripts/' },
     tools: { read_file: 'Read', write_file: 'Write' },
   },
   codex: {
@@ -55,6 +58,7 @@ const EXPECTED_CONTEXT = {
       child_cannot_prompt_user: true,
     },
     agents: AGENT_NAMES,
+    paths: { skills: './skills/', hooks: './scripts/' },
     tools: { read_file: 'direct file reads', run_shell_command: 'exec_command' },
   },
   qwen: {
@@ -62,7 +66,8 @@ const EXPECTED_CONTEXT = {
     plan_mode_native: false,
     agent_dispatch: { pattern: '{{agent}}(query: "...")', naming: 'snake_case', prefix: '' },
     constraints: SYNCHRONOUS_CONSTRAINTS,
-    agents: KNOWN_AGENTS,
+    agents: AGENT_NAMES.map(toSnakeCase),
+    paths: { skills: '${extensionPath}/skills/', hooks: '${extensionPath}/hooks/' },
     tools: {
       read_file: 'read_file',
       replace: 'edit',
@@ -75,10 +80,17 @@ const EXPECTED_CONTEXT = {
   },
 };
 
+function runtimeContext(runtime, workspaceSuggestion = null) {
+  return handleGetRuntimeContext({}, null, {
+    runtimeConfig: getRuntimeConfig(runtime),
+    workspace: { workspaceSuggestion: () => workspaceSuggestion },
+  });
+}
+
 describe('get_runtime_context handler', () => {
   for (const [runtime, expected] of Object.entries(EXPECTED_CONTEXT)) {
     it(`reports the shipped ${runtime} runtime context`, () => {
-      const result = createHandler(getRuntimeConfig(runtime))({});
+      const result = runtimeContext(runtime);
 
       assert.equal(result.runtime, runtime);
       assert.equal(result.mcp_prefix, expected.mcp_prefix);
@@ -89,6 +101,7 @@ describe('get_runtime_context handler', () => {
         constraints: expected.constraints,
       });
       assert.deepEqual(result.agents, expected.agents);
+      assert.deepEqual(result.paths, expected.paths);
       assert.equal(result.workspace_suggestion, null);
       for (const [tool, mapped] of Object.entries(expected.tools)) {
         assert.deepEqual(result.tools[tool], mapped, `${runtime} tools.${tool}`);
@@ -101,27 +114,28 @@ describe('get_runtime_context handler', () => {
   });
 
   it('reports agent capabilities from the agent registry', () => {
-    const result = createHandler(getRuntimeConfig('claude'))({});
+    const result = runtimeContext('claude');
 
     assert.equal(result.agent_capabilities.architect, 'read_only');
     assert.equal(result.agent_capabilities.coder, 'full');
   });
 
   it('passes the workspace suggestion through', () => {
-    const handler = createHandler(getRuntimeConfig('codex'), () => '/workspace/suggestion');
-
-    assert.equal(handler({}).workspace_suggestion, '/workspace/suggestion');
+    assert.equal(runtimeContext('codex', '/workspace/suggestion').workspace_suggestion, '/workspace/suggestion');
   });
 
-  it('defaults to kebab-case agents and empty runtime facts for a bare config', () => {
-    const result = createHandler({ name: 'custom' })({});
-
-    assert.deepEqual(result.agents, AGENT_NAMES);
-    assert.deepEqual(result.agent_dispatch, { pattern: '', naming: 'kebab-case', prefix: '' });
-    assert.deepEqual(result.delegation, { pattern: '', constraints: {} });
-    assert.equal(result.mcp_prefix, '');
-    assert.equal(result.plan_mode_native, false);
-    assert.deepEqual(result.tools, {});
-    assert.deepEqual(result.paths, {});
+  it('reports its fields in a stable order', () => {
+    assert.deepEqual(Object.keys(runtimeContext('claude')), [
+      'runtime',
+      'tools',
+      'agent_dispatch',
+      'delegation',
+      'mcp_prefix',
+      'paths',
+      'agents',
+      'agent_capabilities',
+      'plan_mode_native',
+      'workspace_suggestion',
+    ]);
   });
 });

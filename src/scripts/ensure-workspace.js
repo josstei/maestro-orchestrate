@@ -4,11 +4,11 @@
 const { ensureWorkspace, DEFAULT_STATE_DIR } = require('../state/session-state');
 const { fatal } = require('../core/logger');
 
-const stateDir = process.argv[2] || DEFAULT_STATE_DIR;
-const basePath = process.cwd();
+const stateDirSetting = process.argv[2] || DEFAULT_STATE_DIR;
+const root = process.cwd();
 
 try {
-  ensureWorkspace(stateDir, basePath);
+  ensureWorkspace(root, stateDirSetting);
 } catch (err) {
   fatal(err.message);
 }

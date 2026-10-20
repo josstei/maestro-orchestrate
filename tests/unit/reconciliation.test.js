@@ -163,6 +163,44 @@ describe('scan_phase_changes', () => {
     assert.ok(created.includes('top.js'));
   });
 
+  it('excludes the MAESTRO_SCAN_IGNORE path prefixes and counts them as ignored', async () => {
+    const workspace = makeTempDir('maestro-recon-ignore-');
+    const server = await bootstrap(workspace);
+
+    await waitForMtime();
+    writeTree(workspace, 'dist/out.js', '// hi\n');
+    writeTree(workspace, 'build/cache/x.js', '// hi\n');
+    writeTree(workspace, 'build/kept.js', '// hi\n');
+    writeTree(workspace, 'top.js', '// hi\n');
+
+    const plain = await withEnv({ MAESTRO_SCAN_IGNORE: null }, () => scan(server, workspace));
+    const ignoring = await withEnv({ MAESTRO_SCAN_IGNORE: ' dist : build/cache ' }, () => scan(server, workspace));
+    assert.equal(plain.ok, true);
+    assert.equal(ignoring.ok, true);
+    assert.ok(plain.result.candidates.created.includes(path.join('dist', 'out.js')));
+    assert.deepEqual(ignoring.result.candidates.created.sort(), [path.join('build', 'kept.js'), 'top.js']);
+    assert.equal(ignoring.result.ignored_count, plain.result.ignored_count + 2);
+  });
+
+  it('stops at MAESTRO_SCAN_MAX_FILES files and reports the scan as truncated', async () => {
+    const workspace = makeTempDir('maestro-recon-max-');
+    const server = await bootstrap(workspace);
+
+    await waitForMtime();
+    writeTree(workspace, 'a.js', '// hi\n');
+    writeTree(workspace, 'b.js', '// hi\n');
+
+    const full = await withEnv({ MAESTRO_SCAN_MAX_FILES: null }, () => scan(server, workspace));
+    assert.equal(full.result.truncated, false);
+    assert.equal(full.result.max_files, 5000);
+
+    const capped = await withEnv({ MAESTRO_SCAN_MAX_FILES: '1' }, () => scan(server, workspace));
+    assert.equal(capped.ok, true);
+    assert.equal(capped.result.truncated, true);
+    assert.equal(capped.result.max_files, 1);
+    assert.equal(capped.result.candidates.created.length, 1);
+  });
+
   it('excludes extension cache directories inside the workspace', async () => {
     const workspace = makeTempDir('maestro-recon-cache-');
     const server = await bootstrap(workspace);

@@ -54,7 +54,7 @@ describe('findRuntimeConfigForClient', () => {
       assert.ok(Array.isArray(mcpClientNames) && mcpClientNames.length > 0, `${runtimeName} declares no mcpClientNames`);
       for (const pattern of mcpClientNames) {
         const clientName = pattern.replace(/\*$/, 'maestro');
-        assert.equal(findRuntimeConfigForClient({ name: clientName, version: '1.0.0' }).name, runtimeName, clientName);
+        assert.equal(findRuntimeConfigForClient(clientName).name, runtimeName, clientName);
         for (const other of RUNTIME_NAMES.filter((name) => name !== runtimeName)) {
           for (const otherPattern of getRuntimeConfig(other).mcpClientNames) {
             const prefix = otherPattern.replace(/\*$/, '');
@@ -71,27 +71,24 @@ describe('findRuntimeConfigForClient', () => {
   it('identifies the hosts by the clientInfo.name they send in initialize', () => {
     assert.deepEqual(Object.keys(HOST_CLIENTS).sort(), RUNTIME_NAMES);
     for (const [runtime, clientInfo] of Object.entries(HOST_CLIENTS)) {
-      assert.equal(findRuntimeConfigForClient(clientInfo).name, runtime, clientInfo.name);
+      assert.equal(findRuntimeConfigForClient(clientInfo.name).name, runtime, clientInfo.name);
     }
     // Qwen Code suffixes the server's key in mcpServers, so another key still identifies it.
     const name = 'qwen-cli-mcp-client-orchestrator';
-    assert.equal(findRuntimeConfigForClient({ name, version: '0.0.1' }).name, 'qwen', name);
+    assert.equal(findRuntimeConfigForClient(name).name, 'qwen', name);
   });
 
   it('identifies no runtime for an unknown, empty or missing client name', () => {
-    for (const clientInfo of [
-      { name: 'maestro-test' },
-      { name: 'Claude-Code' },
-      { name: 'claude-code-extra' },
-      { name: 'qwen-cli-mcp-client' },
-      { name: 'gemini-cli-mcp-client-maestro' },
-      { name: '' },
-      { name: 7 },
-      {},
+    for (const clientName of [
+      'maestro-test',
+      'Claude-Code',
+      'claude-code-extra',
+      'qwen-cli-mcp-client',
+      'gemini-cli-mcp-client-maestro',
+      '',
       null,
-      undefined,
     ]) {
-      assert.equal(findRuntimeConfigForClient(clientInfo), null, JSON.stringify(clientInfo));
+      assert.equal(findRuntimeConfigForClient(clientName), null, JSON.stringify(clientName));
     }
   });
 });

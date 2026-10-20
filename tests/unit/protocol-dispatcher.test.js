@@ -4,8 +4,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
 
-const { createProtocolHandlers } = require('../../src/mcp/core/protocol-dispatcher');
-const { createServer } = require('../../src/mcp/core/create-server');
+const { createProtocolHandlers } = require('../../src/mcp/protocol-dispatcher');
+const { createServer } = require('../../src/mcp/create-server');
 
 function captureWrites(stream) {
   const frames = [];
@@ -26,17 +26,34 @@ function makeServerStub(overrides = {}) {
   };
 }
 
+const NO_OP_CALLBACKS = { onInitialize() {}, onInitialized() {}, onRootsListChanged() {} };
+
 function makeHandlers(serverOverrides = {}, dispatcherOverrides = {}) {
   const stdout = new PassThrough();
   const frames = captureWrites(stdout);
   const server = makeServerStub(serverOverrides);
-  const getProjectRoot = dispatcherOverrides.getProjectRoot || (async () => '/tmp/ws');
-  const options = {
+  const { callbacks, ...options } = dispatcherOverrides.options || {};
+  const handlers = createProtocolHandlers(server, stdout, {
     serverInfo: { name: 'maestro-test', version: '0.0.0' },
-    ...dispatcherOverrides.options,
-  };
-  const handlers = createProtocolHandlers(server, getProjectRoot, stdout, options);
+    ...options,
+    callbacks: { ...NO_OP_CALLBACKS, ...callbacks },
+  });
   return { handlers, frames, stdout, server };
+}
+
+/**
+ * Feeds `chunks` to `listen` on a fresh dispatcher's stdin and returns the
+ * reply frames once the input has ended and been handled.
+ */
+async function listenTo(...chunks) {
+  const { handlers, frames } = makeHandlers();
+  const stdin = new PassThrough();
+  const closed = new Promise((resolve) => handlers.listen(stdin).once('close', resolve));
+  for (const chunk of chunks) stdin.write(chunk);
+  stdin.end();
+  await closed;
+  await new Promise(setImmediate);
+  return frames;
 }
 
 describe('createProtocolHandlers.respond', () => {
@@ -59,7 +76,7 @@ describe('createProtocolHandlers.respond', () => {
     const stdout = new PassThrough();
     const chunks = [];
     stdout.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
-    const handlers = createProtocolHandlers(makeServerStub(), async () => null, stdout, {});
+    const handlers = createProtocolHandlers(makeServerStub(), stdout, {});
     await handlers.respond({ jsonrpc: '2.0', id: 1, method: 'ping' });
     assert.equal(chunks.join(''), '{"jsonrpc":"2.0","id":1,"result":{}}\n');
   });
@@ -167,8 +184,7 @@ describe('createProtocolHandlers.respond', () => {
     const stdout = new PassThrough();
     const frames = captureWrites(stdout);
     const handlers = createProtocolHandlers(
-      createServer({ toolPacks: [] }),
-      async () => null,
+      createServer({ runtimeConfig: {}, workspace: null, tools: [] }),
       stdout,
       {}
     );
@@ -199,34 +215,26 @@ describe('createProtocolHandlers.respond', () => {
     assert.deepEqual(captured, {});
   });
 
-  it('passes the project root from getProjectRoot to callTool', async () => {
-    let sawRoot;
-    const { handlers } = makeHandlers(
-      {
-        callTool: async (_n, _a, root) => {
-          sawRoot = root;
-          return { ok: true, result: {} };
-        },
+  it('runs a tool call only after what an earlier client reply resolved is applied', async () => {
+    let roots = null;
+    let seenRoots;
+    const { handlers, frames } = makeHandlers({
+      callTool: async () => {
+        seenRoots = roots;
+        return { ok: true, result: {} };
       },
-      { getProjectRoot: async () => '/ws/alpha' }
-    );
-    await handlers.respond({ id: 8, method: 'tools/call', params: { name: 'echo' } });
-    assert.equal(sawRoot, '/ws/alpha');
-  });
+    });
+    handlers.requestFromClient('roots/list').then((result) => {
+      roots = result.roots;
+    });
 
-  it('passes a null project root through when no workspace is initialized', async () => {
-    let sawRoot = 'sentinel';
-    const { handlers } = makeHandlers(
-      {
-        callTool: async (_n, _a, root) => {
-          sawRoot = root;
-          return { ok: true, result: {} };
-        },
-      },
-      { getProjectRoot: async () => null }
-    );
-    await handlers.respond({ id: 9, method: 'tools/call', params: { name: 'echo' } });
-    assert.equal(sawRoot, null);
+    // The reply and the call are dispatched back to back, as two lines of one chunk are.
+    await Promise.all([
+      handlers.respond({ jsonrpc: '2.0', id: frames[0].id, result: { roots: ['file:///ws'] } }),
+      handlers.respond({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'echo' } }),
+    ]);
+
+    assert.deepEqual(seenRoots, ['file:///ws']);
   });
 
   it('silently consumes notifications/initialized, cancelled, and $/cancelRequest', async () => {
@@ -294,6 +302,50 @@ describe('createProtocolHandlers.respond', () => {
     const { handlers, frames } = makeHandlers();
     await handlers.respond({ method: 'unknown/notification' });
     assert.equal(frames.length, 0);
+  });
+});
+
+describe('createProtocolHandlers.listen', () => {
+  it('handles a single JSON line', async () => {
+    assert.deepEqual(await listenTo('{"jsonrpc":"2.0","id":1,"method":"ping"}\n'), [
+      { jsonrpc: '2.0', id: 1, result: {} },
+    ]);
+  });
+
+  it('handles newline-delimited messages in order', async () => {
+    const frames = await listenTo('{"id":1,"method":"ping"}\n{"id":2,"method":"ping"}\n{"id":3,"method":"ping"}\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [1, 2, 3]);
+  });
+
+  it('skips blank lines', async () => {
+    const frames = await listenTo('\n   \n{"id":7,"method":"ping"}\n\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [7]);
+  });
+
+  it('drops malformed JSON and keeps handling the following lines', async () => {
+    const frames = await listenTo('{not json}\n{"id":42,"method":"ping"}\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [42]);
+  });
+
+  it('handles CRLF line endings', async () => {
+    const frames = await listenTo('{"id":1,"method":"ping"}\r\n{"id":2,"method":"ping"}\r\n');
+    assert.deepEqual(frames.map((frame) => frame.id), [1, 2]);
+  });
+
+  it('buffers a partial line until its newline arrives', async () => {
+    const { handlers, frames } = makeHandlers();
+    const stdin = new PassThrough();
+    const closed = new Promise((resolve) => handlers.listen(stdin).once('close', resolve));
+
+    stdin.write('{"id":');
+    stdin.write('99,"method":"ping"}');
+    await new Promise(setImmediate);
+    assert.equal(frames.length, 0, 'must not handle a line before its newline');
+
+    stdin.end('\n');
+    await closed;
+    await new Promise(setImmediate);
+    assert.deepEqual(frames.map((frame) => frame.id), [99]);
   });
 });
 

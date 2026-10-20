@@ -3,6 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const MAX_STDIN_BYTES = 1024 * 1024;
+
 let counter = 0;
 
 /**
@@ -54,6 +56,30 @@ function readJsonSafe(filePath, fallback = null) {
   } catch {
     return fallback;
   }
+}
+
+/**
+ * Reads all of stdin, up to 1 MiB. The raw chunks are decoded as UTF-8 once at
+ * the end, so a multi-byte sequence split across chunks decodes intact.
+ *
+ * @returns {Promise<string>} Rejects with `Stdin payload too large`, and stops
+ *   reading, once the payload exceeds the cap
+ */
+function readStdin() {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalBytes = 0;
+    process.stdin.on('data', (chunk) => {
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_STDIN_BYTES) {
+        process.stdin.destroy();
+        reject(new Error('Stdin payload too large'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    process.stdin.on('end', () => resolve(Buffer.concat(chunks).toString()));
+  });
 }
 
 /**
@@ -109,5 +135,6 @@ module.exports = {
   formatJson,
   readFileSafe,
   readJsonSafe,
+  readStdin,
   writeIfChanged,
 };

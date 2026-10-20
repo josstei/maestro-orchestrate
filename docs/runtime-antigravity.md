@@ -28,7 +28,7 @@ Antigravity substitutes `${PLUGIN_ROOT}` in `args` and starts the server with th
 
 ### MCP Tool Naming
 
-Antigravity registers the plugin's server as `maestro_maestro` (`<plugin directory>_<server>`). By default it loads MCP tools on demand: the model reads a tool's schema file and calls it through `call_mcp_tool` (`ServerName`, `ToolName`, `Arguments`). The Maestro server lists every tool with `_meta: { "antigravity/alwaysLoad": true }` (the runtime config's `mcpToolMeta`, attached in `src/mcp/core/create-server.js`), so Antigravity registers all 17 tools as native tools named `mcp_maestro_maestro_<tool>`, which matches `mcpPrefix`. Antigravity adds a required `toolSummary` argument to each declared schema and strips it before calling the server.
+Antigravity registers the plugin's server as `maestro_maestro` (`<plugin directory>_<server>`). By default it loads MCP tools on demand: the model reads a tool's schema file and calls it through `call_mcp_tool` (`ServerName`, `ToolName`, `Arguments`). The Maestro server lists every tool with `_meta: { "antigravity/alwaysLoad": true }` (the runtime config's `mcpToolMeta`, attached in `src/mcp/create-server.js`), so Antigravity registers all 17 tools as native tools named `mcp_maestro_maestro_<tool>`, which matches `mcpPrefix`. Antigravity adds a required `toolSummary` argument to each declared schema and strips it before calling the server.
 
 The generated skills fall back to `call_mcp_tool` with `ServerName: "maestro_maestro"` when the native tools are missing. If Antigravity asks before each Maestro tool call, allow them with `"mcp(maestro_maestro/*)"` under `permissions.allow` in `~/.gemini/antigravity-cli/settings.json`.
 
@@ -122,10 +122,6 @@ Antigravity reads hook timeouts in seconds and runs hook commands from the plugi
 |-------------------|----------------|
 | `conversationId` | `sessionId` |
 | `workspacePaths[0]` | `cwd` |
-| (hardcoded null) | `agentName` |
-| (hardcoded null) | `agentInput` |
-| (hardcoded null) | `agentResult` |
-| (hardcoded false) | `stopHookActive` |
 
 Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: string } }] }` when the hook has a context message. Antigravity parses stdout strictly, so the runner prints nothing else and exits with code 0. If the hook fails, the runner emits `{}`.
 

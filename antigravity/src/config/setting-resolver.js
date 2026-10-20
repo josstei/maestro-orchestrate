@@ -3,7 +3,17 @@
 const path = require('node:path');
 const { parseEnvFile } = require('./env-file-parser');
 
+/**
+ * The first non-empty value of `varName` from the process environment, then
+ * `<projectRoot>/.env`, then the extension's `.env`; each `.env` is parsed
+ * only when every earlier source came up empty.
+ * @param {string} varName
+ * @param {string|null|undefined} projectRoot
+ * @returns {string|undefined}
+ */
 function resolveSetting(varName, projectRoot) {
+  if (process.env[varName]) return process.env[varName];
+
   // Intentionally bypasses the runtime-config abstraction: setting
   // resolution runs before a runtime is selected, so it cannot ask a
   // runtime-config for `env.extensionPath`. MAESTRO_EXTENSION_PATH is
@@ -12,21 +22,11 @@ function resolveSetting(varName, projectRoot) {
   // loader.
   const extensionRoot = process.env.MAESTRO_EXTENSION_PATH || process.env.CLAUDE_PLUGIN_ROOT;
 
-  // Sources in precedence order; each .env file is parsed only when every
-  // earlier source came up empty. Skipped sources yield null (not {}) so no
-  // prototype lookup happens for them.
-  const sources = [
-    () => process.env,
-    () => (typeof projectRoot === 'string' && projectRoot.length > 0
-      ? parseEnvFile(path.join(projectRoot, '.env'))
-      : null),
-    () => (extensionRoot ? parseEnvFile(path.join(extensionRoot, '.env')) : null),
-  ];
-  for (const readSource of sources) {
-    const value = readSource()?.[varName];
-    if (value !== undefined && value !== '') return value;
+  for (const root of [projectRoot, extensionRoot]) {
+    if (!root) continue;
+    const value = parseEnvFile(path.join(root, '.env'))[varName];
+    if (value) return value;
   }
-
   return undefined;
 }
 

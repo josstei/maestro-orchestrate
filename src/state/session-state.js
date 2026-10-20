@@ -4,12 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { atomicWriteSync, ensurePrivateDir } = require('../lib/io');
 const { StateError, NotFoundError } = require('../lib/errors');
-const markdownState = require('../core/markdown-state');
 const { resolveSetting } = require('../config/setting-resolver');
 
 const DEFAULT_STATE_DIR = 'docs/maestro';
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 const WORKSPACE_SUBDIRS = Object.freeze(['state', 'state/archive', 'plans', 'plans/archive']);
+const SESSION_FILE_PATTERN = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
 function validateRelativePath(filePath) {
   if (path.isAbsolute(filePath)) {
@@ -21,9 +21,9 @@ function validateRelativePath(filePath) {
   }
 }
 
-function joinRelative(basePath, relativePath) {
+function joinRelative(root, relativePath) {
   validateRelativePath(relativePath);
-  return path.join(basePath, relativePath);
+  return path.join(root, relativePath);
 }
 
 function validateContainment(absolutePath, rootDir) {
@@ -38,12 +38,12 @@ function validateContainment(absolutePath, rootDir) {
   return resolved;
 }
 
-function resolveStateDirUnder(base, stateDir) {
-  if (path.isAbsolute(stateDir)) {
-    return validateContainment(stateDir, base);
+function resolveStateDirUnder(root, stateDirSetting) {
+  if (path.isAbsolute(stateDirSetting)) {
+    return validateContainment(stateDirSetting, root);
   }
 
-  return joinRelative(base, stateDir);
+  return joinRelative(root, stateDirSetting);
 }
 
 /**
@@ -51,96 +51,117 @@ function resolveStateDirUnder(base, stateDir) {
  * absolute, not yet resolved against the workspace): the override when given,
  * else MAESTRO_STATE_DIR (environment, then the workspace .env, then the
  * extension .env), else DEFAULT_STATE_DIR.
- * @param {string} [cwd] - Workspace root; defaults to process.cwd()
+ * @param {string} root - Workspace root
  * @param {string} [stateDirOverride]
  * @returns {string}
  */
-function resolveStateDirSetting(cwd, stateDirOverride) {
-  return (
-    stateDirOverride ||
-    resolveSetting('MAESTRO_STATE_DIR', cwd || process.cwd()) ||
-    DEFAULT_STATE_DIR
-  );
+function resolveStateDirSetting(root, stateDirOverride) {
+  return stateDirOverride || resolveSetting('MAESTRO_STATE_DIR', root) || DEFAULT_STATE_DIR;
 }
 
 /**
- * Resolve the absolute state dir for a workspace from the setting chosen by
- * resolveStateDirSetting.
- * @param {string} [cwd] - Workspace root; defaults to process.cwd()
- * @param {string} [stateDirOverride]
+ * Resolve the workspace's absolute state dir from its configured setting.
+ * @param {string} root - Workspace root
  * @returns {string}
+ * @throws {Error} when the setting escapes the workspace root
  */
-function resolveStateDirPath(cwd, stateDirOverride) {
-  const root = cwd || process.cwd();
-  return resolveStateDirUnder(root, resolveStateDirSetting(root, stateDirOverride));
+function resolveStateDirPath(root) {
+  return resolveStateDirUnder(root, resolveStateDirSetting(root));
 }
 
-function activeSessionFile(basePath) {
-  return path.join(basePath, ACTIVE_SESSION_REL);
+function activeSessionFile(stateDir) {
+  return path.join(stateDir, ACTIVE_SESSION_REL);
 }
 
-function resolveActiveSessionPath(cwd) {
-  return activeSessionFile(resolveStateDirPath(cwd));
+function resolveActiveSessionPath(root) {
+  return activeSessionFile(resolveStateDirPath(root));
 }
 
-function readState(relativePath, basePath) {
-  return fs.readFileSync(joinRelative(basePath, relativePath), 'utf8');
+function readState(root, relativePath) {
+  return fs.readFileSync(joinRelative(root, relativePath), 'utf8');
 }
 
-function writeState(relativePath, content, basePath) {
-  atomicWriteSync(joinRelative(basePath, relativePath), content);
+function writeState(root, relativePath, content) {
+  atomicWriteSync(joinRelative(root, relativePath), content);
 }
 
-function readSessionAt(basePath) {
-  const sessionPath = activeSessionFile(basePath);
-  const { data, body } = markdownState.parse(fs.readFileSync(sessionPath, 'utf8'));
-  return { basePath, state: data, body };
-}
-
-function readActiveSession(cwd) {
-  return readSessionAt(resolveStateDirPath(cwd));
-}
-
-function readActiveSessionOrNull(cwd) {
-  const basePath = resolveStateDirPath(cwd);
-  if (!fs.existsSync(activeSessionFile(basePath))) {
-    return null;
+/**
+ * Parse a session file: a JSON frontmatter block between `---` lines, followed
+ * by the Markdown log.
+ *
+ * @param {string} content
+ * @returns {{ data: object, body: string }}
+ * @throws {Error} when the content has no frontmatter block
+ */
+function parseSessionFile(content) {
+  const match = content.match(SESSION_FILE_PATTERN);
+  if (!match) {
+    // The frontmatter is JSON, but this text is part of the MCP error contract.
+    throw new Error('No YAML frontmatter found in session state');
   }
-  return readSessionAt(basePath);
+  return { data: JSON.parse(match[1]), body: match[2] };
 }
 
-function writeActiveSession(basePath, state, body) {
-  const sessionPath = activeSessionFile(basePath);
-  atomicWriteSync(sessionPath, markdownState.serialize(state, body));
+function serializeSessionFile(data, body) {
+  return `---\n${JSON.stringify(data, null, 2)}\n---\n${body}`;
+}
+
+/**
+ * @param {string} stateDir - Resolved state dir
+ * @returns {{ state: object, body: string }} the active session's frontmatter state and log body
+ * @throws {Error} when the session file is missing or malformed
+ */
+function readActiveSession(stateDir) {
+  const { data, body } = parseSessionFile(fs.readFileSync(activeSessionFile(stateDir), 'utf8'));
+  return { state: data, body };
+}
+
+/**
+ * @param {string} stateDir - Resolved state dir
+ * @returns {{ state: object, body: string } | null} the active session, or null when there is none
+ */
+function readActiveSessionOrNull(stateDir) {
+  return fs.existsSync(activeSessionFile(stateDir)) ? readActiveSession(stateDir) : null;
+}
+
+/**
+ * @param {string} stateDir - Resolved state dir
+ * @param {object} state
+ * @param {string} body
+ * @returns {string} the session file path
+ */
+function writeActiveSession(stateDir, state, body) {
+  const sessionPath = activeSessionFile(stateDir);
+  atomicWriteSync(sessionPath, serializeSessionFile(state, body));
   return sessionPath;
 }
 
 /**
- * Read the active session, run `mutator(session, now)` against it (mutating
- * `session.state` in place), stamp `state.updated = now`, persist the state
- * with the original body, and return whatever the mutator returned. `now` is
- * one ISO timestamp per call, so a mutator can reuse it for other fields. A
- * throwing mutator leaves the session file untouched.
+ * Read the active session under `stateDir`, run `mutator(state, now)` against
+ * its state (mutating it in place), stamp `state.updated = now`, persist the
+ * state with the original body, and return whatever the mutator returned.
+ * `now` is one ISO timestamp per call, so a mutator can reuse it for other
+ * fields. A throwing mutator leaves the session file untouched.
  */
-function withSessionState(cwd, mutator) {
-  const session = readActiveSession(cwd);
+function withSessionState(stateDir, mutator) {
+  const { state, body } = readActiveSession(stateDir);
   const now = new Date().toISOString();
-  const result = mutator(session, now);
-  session.state.updated = now;
-  writeActiveSession(session.basePath, session.state, session.body);
+  const result = mutator(state, now);
+  state.updated = now;
+  writeActiveSession(stateDir, state, body);
   return result;
 }
 
 /**
  * Move the active session file to `state/archive/<sessionId>.md`.
- * @param {string} basePath - Resolved state dir
+ * @param {string} stateDir - Resolved state dir
  * @param {string} sessionId - Already validated by assertSessionId
  * @returns {string} the archive path
  */
-function archiveActiveSession(basePath, sessionId) {
-  const archivePath = path.join(basePath, 'state', 'archive', `${sessionId}.md`);
+function archiveActiveSession(stateDir, sessionId) {
+  const archivePath = path.join(stateDir, 'state', 'archive', `${sessionId}.md`);
   fs.mkdirSync(path.dirname(archivePath), { recursive: true });
-  fs.renameSync(activeSessionFile(basePath), archivePath);
+  fs.renameSync(activeSessionFile(stateDir), archivePath);
   return archivePath;
 }
 
@@ -168,10 +189,19 @@ function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found
   return phase;
 }
 
-function ensureWorkspace(stateDir, basePath) {
-  const fullBase = resolveStateDirUnder(basePath, stateDir);
-  ensurePrivateDir(fullBase, 'STATE_DIR must not be a symlink');
-  for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
+/**
+ * Create the workspace scaffold under `<root>/<stateDirSetting>`: the
+ * WORKSPACE_SUBDIRS (mode 0o700) and a `state/.gitignore` for the session files.
+ * @param {string} root - Workspace root
+ * @param {string} stateDirSetting - Configured state dir, relative or absolute
+ * @returns {boolean} whether `<state_dir>/state` already existed
+ * @throws {Error} when the state dir escapes the root, is a symlink, or cannot be created or written
+ */
+function ensureWorkspace(root, stateDirSetting) {
+  const stateDir = resolveStateDirUnder(root, stateDirSetting);
+  const alreadyExisted = fs.existsSync(path.join(stateDir, 'state'));
+  ensurePrivateDir(stateDir, 'STATE_DIR must not be a symlink');
+  for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(stateDir, subdir))) {
     try {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     } catch {
@@ -183,10 +213,11 @@ function ensureWorkspace(stateDir, basePath) {
       throw new Error('Workspace directory not writable');
     }
   }
-  const stateGitignore = path.join(fullBase, 'state', '.gitignore');
+  const stateGitignore = path.join(stateDir, 'state', '.gitignore');
   try {
     fs.writeFileSync(stateGitignore, 'active-session.md\narchive/\n', { mode: 0o600, flag: 'wx' });
   } catch {}
+  return alreadyExisted;
 }
 
 module.exports = {
@@ -195,6 +226,7 @@ module.exports = {
   resolveStateDirSetting,
   resolveStateDirPath,
   resolveActiveSessionPath,
+  parseSessionFile,
   readState,
   writeState,
   readActiveSession,

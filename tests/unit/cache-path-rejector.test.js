@@ -2,23 +2,10 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 
-const {
-  CACHE_PATH_SEGMENTS,
-  isExtensionCachePath,
-} = require('../../src/core/cache-path-rejector');
+const { isExtensionCachePath } = require('../../src/core/cache-path-rejector');
 
 describe('cache-path-rejector', () => {
-  it('exposes the canonical segment set', () => {
-    assert.deepEqual(CACHE_PATH_SEGMENTS, [
-      path.join('.codex', 'plugins'),
-      path.join('.claude', 'plugins'),
-      path.join('.gemini', 'config', 'plugins'),
-      path.join('.gemini', 'antigravity-cli', 'plugins'),
-    ]);
-  });
-
   it('rejects Codex plugin cache paths', () => {
     assert.equal(
       isExtensionCachePath('/Users/me/.codex/plugins/cache/foo/bar'),

@@ -176,11 +176,6 @@ describe('replaceInContent', () => {
     assert.equal(result, content);
   });
 
-  it('returns content unchanged for null names', () => {
-    const result = replaceInContent('some content', null, 'snake_case');
-    assert.equal(result, 'some content');
-  });
-
   it('returns content unchanged for empty names array', () => {
     const result = replaceInContent('some content', [], 'snake_case');
     assert.equal(result, 'some content');

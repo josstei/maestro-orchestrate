@@ -3,8 +3,52 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } = require('../../lib/framework-detection');
 const { readJsonSafe } = require('../../lib/io');
+
+const CONFIG_FILES = [
+  '.eslintrc',
+  '.prettierrc',
+  'tsconfig.json',
+  'webpack.config.js',
+  'vite.config.js',
+  'next.config.js',
+  '.env',
+  'docker-compose.yml',
+  'Dockerfile',
+  'Makefile',
+];
+
+// Dependency, build and cache directories left out of the file count.
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  '__pycache__',
+  'venv',
+  '.venv',
+  'target',
+  'vendor',
+  '.cache',
+  '.output',
+  'coverage',
+  '.nyc_output',
+  '.pytest_cache',
+]);
+
+// A framework is detected when package.json depends on any of its packages.
+const FRAMEWORK_INDICATORS = {
+  react: ['react', 'react-dom'],
+  vue: ['vue'],
+  angular: ['@angular/core'],
+  next: ['next'],
+  express: ['express'],
+  fastify: ['fastify'],
+  django: ['django'],
+  flask: ['flask'],
+  rails: ['rails'],
+};
 
 // First band whose `max` is >= the file count wins.
 const SIZE_BANDS = [
@@ -14,9 +58,10 @@ const SIZE_BANDS = [
   { max: Infinity, size: 'large', loc: 'high' },
 ];
 const TEST_DIRS = ['tests', '__tests__', 'test'];
+const MAX_DEPTH = 10;
 
-function countFiles(directory, depth, depthLimit) {
-  if (depth > depthLimit) {
+function countFiles(directory, depth) {
+  if (depth > MAX_DEPTH) {
     return { count: 0, deepestLevel: depth };
   }
 
@@ -37,11 +82,7 @@ function countFiles(directory, depth, depthLimit) {
       }
 
       if (entry.isDirectory()) {
-        const nested = countFiles(
-          path.join(directory, entry.name),
-          depth + 1,
-          depthLimit
-        );
+        const nested = countFiles(path.join(directory, entry.name), depth + 1);
         count += nested.count;
         deepestLevel = Math.max(deepestLevel, nested.deepestLevel);
       }
@@ -70,7 +111,7 @@ function detectFrameworks(directory) {
 }
 
 function handleAssessTaskComplexity(_params, projectRoot) {
-  const { count: fileCount, deepestLevel } = countFiles(projectRoot, 0, 10);
+  const { count: fileCount, deepestLevel } = countFiles(projectRoot, 0);
   const configFiles = CONFIG_FILES.filter((file) =>
     fs.existsSync(path.join(projectRoot, file))
   );

@@ -6,19 +6,13 @@
  * checks tool_input.command against deny and ask patterns,
  * and outputs a decision JSON to stdout.
  *
- * Run through claude/scripts/policy-enforcer.js, which calls main() from the
- * repo src/ or, for detached installs, from the bundled claude/src/ copy.
+ * Runs when required by claude/scripts/policy-enforcer.js, which loads it from
+ * the repo src/ or, for detached installs, from the bundled claude/src/ copy.
  */
 
 const { runPolicyEnforcer } = require('../shared/policy-enforcer');
 
-const CLAUDE_DECISIONS = { deny: 'block', ask: 'ask', allow: 'approve' };
-
-function main() {
-  runPolicyEnforcer({
-    readCommand: (input) => input.tool_input && input.tool_input.command,
-    decisions: CLAUDE_DECISIONS,
-  });
-}
-
-module.exports = { main };
+runPolicyEnforcer({
+  readCommand: (input) => input.tool_input?.command,
+  decisions: { deny: 'block', ask: 'ask', allow: 'approve' },
+});

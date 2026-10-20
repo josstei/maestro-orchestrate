@@ -43,7 +43,6 @@ function defineErrorType(name, defaultCode) {
 
 module.exports = {
   MaestroError,
-  defineErrorType,
   /** Raised when input data or arguments fail validation constraints. */
   ValidationError: defineErrorType('ValidationError', 'VALIDATION_ERROR'),
   /** Raised when a requested resource (agent, session, file, etc.) does not exist. */

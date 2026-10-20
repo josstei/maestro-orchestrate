@@ -14,15 +14,25 @@
  * entries in session state.
  */
 
-const CANONICAL_FIELDS = Object.freeze([
+const CANONICAL_FIELDS = [
   'key_interfaces_introduced',
   'patterns_established',
   'integration_points',
   'assumptions',
   'warnings',
-]);
+];
 
 const EMPTY_VALUE_TOKENS = new Set(['', 'none', 'n/a', 'not applicable']);
+
+/**
+ * Human-readable description of the contract, embedded in the
+ * HANDOFF_INCOMPLETE error so callers can adapt without reading source.
+ */
+const DOWNSTREAM_CONTEXT_SHAPE =
+  'downstream_context must contain at least one of: ' +
+  CANONICAL_FIELDS.join(', ') +
+  '. Each field accepts a non-empty string or a non-empty array of strings. ' +
+  'Empty strings and the tokens "none" / "n/a" / "not applicable" are treated as absent.';
 
 function normalizeFieldValue(value) {
   return (Array.isArray(value) ? value : [value])
@@ -32,15 +42,9 @@ function normalizeFieldValue(value) {
 }
 
 /**
- * @returns {Object<string, string[]>} a fresh empty canonical context.
- */
-function createEmptyDownstreamContext() {
-  return normalizeDownstreamContext(null);
-}
-
-/**
  * Normalize any input to the canonical `{ field: string[] }` shape.
  * Accepts null, arrays-of-strings, strings, and unknown keys are dropped.
+ * Called with no input, it returns a fresh empty context.
  *
  * @param {unknown} input
  * @returns {Object<string, string[]>}
@@ -54,33 +58,19 @@ function normalizeDownstreamContext(input) {
 }
 
 /**
- * True when the normalized context has at least one non-empty field.
+ * Normalize a handoff's downstream_context and report whether any field kept
+ * a value after normalization.
+ *
  * @param {unknown} input
- * @returns {boolean}
+ * @returns {{ context: Object<string, string[]>, populated: boolean }}
  */
-function isDownstreamContextPopulated(input) {
-  const normalized = normalizeDownstreamContext(input);
-  return CANONICAL_FIELDS.some((field) => normalized[field].length > 0);
-}
-
-/**
- * Human-readable description of the contract, suitable for embedding in error
- * messages so callers can adapt without reading source.
- * @returns {string}
- */
-function describeShape() {
-  return (
-    'downstream_context must contain at least one of: ' +
-    CANONICAL_FIELDS.join(', ') +
-    '. Each field accepts a non-empty string or a non-empty array of strings. ' +
-    'Empty strings and the tokens "none" / "n/a" / "not applicable" are treated as absent.'
-  );
+function readDownstreamContext(input) {
+  const context = normalizeDownstreamContext(input);
+  return { context, populated: CANONICAL_FIELDS.some((field) => context[field].length > 0) };
 }
 
 module.exports = {
-  CANONICAL_FIELDS,
-  createEmptyDownstreamContext,
+  DOWNSTREAM_CONTEXT_SHAPE,
   normalizeDownstreamContext,
-  isDownstreamContextPopulated,
-  describeShape,
+  readDownstreamContext,
 };

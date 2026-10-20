@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { DENY_RULES, ASK_RULES, matchRule, checkCommand } = require('../../src/platforms/shared/policy-rules');
+const { DENY_RULES, ASK_RULES, checkCommand } = require('../../src/platforms/shared/policy-rules');
 
 const VALID_MATCH_TYPES = new Set(['prefix', 'regex', 'word']);
 const DOLLAR = '$';
@@ -17,6 +17,12 @@ const RULE_LISTS = {
 const HEREDOC_RULE = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
 const TEE_RULE = ASK_RULES.find(r => r.matchType === 'word' && r.pattern === 'tee');
 const REDIRECT_RULE = ASK_RULES.find(r => r.matchType === 'regex' && r.pattern.includes('>>?'));
+const prefixRule = (pattern) => DENY_RULES.find(r => r.matchType === 'prefix' && r.pattern === pattern);
+
+// Every rule has a distinct reason (pinned below), so checkCommand's reason names the rule that matched.
+const denied = (rule) => ({ action: 'deny', reason: rule.reason });
+const asked = (rule) => ({ action: 'ask', reason: rule.reason });
+const ALLOW = { action: 'allow' };
 
 describe('policy-rules', () => {
   for (const [name, { rules, count }] of Object.entries(RULE_LISTS)) {
@@ -54,6 +60,11 @@ describe('policy-rules', () => {
     });
   }
 
+  it('gives every rule a distinct reason', () => {
+    const reasons = [...DENY_RULES, ...ASK_RULES].map((rule) => rule.reason);
+    assert.equal(new Set(reasons).size, reasons.length);
+  });
+
   describe('DENY_RULES', () => {
     it('prefix rules match commands that start with the pattern', () => {
       const prefixCases = [
@@ -70,82 +81,65 @@ describe('policy-rules', () => {
       ];
 
       for (const { pattern, command } of prefixCases) {
-        const rule = DENY_RULES.find(r => r.matchType === 'prefix' && r.pattern === pattern);
-        assert.ok(rule, `No prefix rule found for pattern: ${pattern}`);
-        assert.ok(matchRule(rule, command), `Expected "${command}" to match prefix rule "${pattern}"`);
+        assert.deepEqual(checkCommand(command), denied(prefixRule(pattern)), command);
       }
     });
 
     it('prefix rules do not match when the command does not start with the pattern', () => {
-      const negativeCases = [
-        { pattern: 'rm -rf',           command: 'removing files with rm -rf' },
-        { pattern: 'rm -fr',           command: 'removing files with rm -fr' },
-        { pattern: 'git reset --hard', command: 'echo git reset --hard' },
-        { pattern: 'git clean -fd',    command: 'ls && git clean -fd' },
-      ];
-
-      for (const { pattern, command } of negativeCases) {
-        const rule = DENY_RULES.find(r => r.matchType === 'prefix' && r.pattern === pattern);
-        assert.ok(rule, `No prefix rule found for pattern: ${pattern}`);
-        assert.equal(matchRule(rule, command), false, `Expected "${command}" NOT to match prefix rule "${pattern}"`);
+      for (const command of [
+        'removing files with rm -rf',
+        'removing files with rm -fr',
+        'echo git reset --hard',
+        'echo git clean -fd',
+      ]) {
+        assert.deepEqual(checkCommand(command), ALLOW, command);
       }
     });
 
+    it('prefix rules ignore leading whitespace', () => {
+      assert.deepEqual(checkCommand('  rm -rf /tmp'), denied(prefixRule('rm -rf')));
+    });
+
     it('regex rule for heredoc matches <<EOF and << EOF', () => {
-      assert.ok(HEREDOC_RULE, 'No heredoc regex rule found');
-      assert.ok(matchRule(HEREDOC_RULE, '<<EOF'), 'Expected "<<EOF" to match heredoc rule');
-      assert.ok(matchRule(HEREDOC_RULE, '<< EOF'), 'Expected "<< EOF" to match heredoc rule');
-      assert.ok(matchRule(HEREDOC_RULE, 'cat <<EOF'), 'Expected "cat <<EOF" to match heredoc rule');
+      for (const command of ['<<EOF', '<< EOF', 'cat <<EOF']) {
+        assert.deepEqual(checkCommand(command), denied(HEREDOC_RULE), command);
+      }
     });
 
     it('regex rule for heredoc matches quoted, escaped and tab-stripping delimiters', () => {
       for (const command of ["cat <<'EOF'", 'cat << "EOF"', 'cat <<-EOF', 'cat <<\\EOF', 'cat<<EOF', 'python3 - <<PY', 'cat <<END_OF_TEXT > notes.md']) {
-        assert.ok(matchRule(HEREDOC_RULE, command), `Expected ${JSON.stringify(command)} to match heredoc rule`);
+        assert.deepEqual(checkCommand(command), denied(HEREDOC_RULE), command);
       }
     });
 
     it('regex rule for heredoc ignores here-strings, shifts and <<=', () => {
       for (const command of ['echo $((1<<4))', 'python3 -c "print(1 << 3)"', 'cat <<<"$value"', 'cat <<< "$value"', 'cat <<<word', 'x <<= 2']) {
-        assert.equal(matchRule(HEREDOC_RULE, command), false, `Expected ${JSON.stringify(command)} NOT to match heredoc rule`);
+        assert.deepEqual(checkCommand(command), ALLOW, command);
       }
     });
   });
 
   describe('ASK_RULES', () => {
     it('word rule for tee matches commands containing the word tee', () => {
-      assert.ok(TEE_RULE, 'No word rule found for "tee"');
-      assert.ok(matchRule(TEE_RULE, 'echo hi | tee file.txt'), 'Expected "echo hi | tee file.txt" to match');
-      assert.ok(matchRule(TEE_RULE, 'tee output.log'), 'Expected "tee output.log" to match');
+      assert.deepEqual(checkCommand('echo hi | tee file.txt'), asked(TEE_RULE));
+      assert.deepEqual(checkCommand('tee output.log'), asked(TEE_RULE));
     });
 
     it('word rule for tee does not match substrings like teeming or committee', () => {
-      assert.equal(matchRule(TEE_RULE, 'teeming with ideas'), false, 'Expected "teeming" NOT to match tee word rule');
-      assert.equal(matchRule(TEE_RULE, 'committee vote'), false, 'Expected "committee" NOT to match tee word rule');
+      assert.deepEqual(checkCommand('teeming with ideas'), ALLOW);
+      assert.deepEqual(checkCommand('committee vote'), ALLOW);
     });
 
     it('regex rule for redirection matches output redirection operators', () => {
-      assert.ok(REDIRECT_RULE, 'No regex redirection rule found');
-      assert.ok(matchRule(REDIRECT_RULE, 'echo foo > file'), 'Expected "echo foo > file" to match');
-      assert.ok(matchRule(REDIRECT_RULE, 'echo foo >> file'), 'Expected "echo foo >> file" to match');
-      assert.ok(matchRule(REDIRECT_RULE, '2> /dev/null'), 'Expected "2> /dev/null" to match');
-      assert.ok(matchRule(REDIRECT_RULE, 'cmd >> log.txt'), 'Expected "cmd >> log.txt" to match');
+      for (const command of ['echo foo > file', 'echo foo >> file', '2> /dev/null', 'cmd >> log.txt']) {
+        assert.deepEqual(checkCommand(command), asked(REDIRECT_RULE), command);
+      }
     });
 
     it('regex rule for redirection does not match strings without redirection operators', () => {
-      assert.equal(matchRule(REDIRECT_RULE, 'echo hello world'), false, 'Expected plain echo to not match');
-      assert.equal(matchRule(REDIRECT_RULE, 'git status'), false, 'Expected "git status" to not match');
-      assert.equal(matchRule(REDIRECT_RULE, 'ls -la'), false, 'Expected "ls -la" to not match');
-    });
-  });
-
-  describe('matchRule', () => {
-    it('ignores leading whitespace before matching', () => {
-      const rule = { matchType: 'prefix', pattern: 'rm -rf', reason: 'test' };
-      assert.equal(matchRule(rule, '  rm -rf /tmp'), true);
-    });
-
-    it('never matches an unknown matchType', () => {
-      assert.equal(matchRule({ matchType: 'glob', pattern: '*', reason: 'test' }, 'anything'), false);
+      for (const command of ['echo hello world', 'git status', 'ls -la']) {
+        assert.deepEqual(checkCommand(command), ALLOW, command);
+      }
     });
   });
 
