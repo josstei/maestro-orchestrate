@@ -7,10 +7,11 @@ const path = require('node:path');
 const {
   expandGlob,
   computeOutputPath,
-  assertNoMirroredSharedOutputs,
   expandManifest,
 } = require('../../src/generator/manifest-expander');
 const manifestRules = require('../../src/generator/manifest');
+const agentStub = require('../../src/generator/transforms/agent-stub');
+const skillDiscoveryStub = require('../../src/generator/transforms/skill-discovery-stub');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { AGENT_COUNT, SHARED_SKILL_COUNT } = require('../support/catalog');
 const { makeTempDir, writeTree } = require('../support/fs');
@@ -147,35 +148,6 @@ describe('manifest-expander', () => {
     });
   });
 
-  describe('assertNoMirroredSharedOutputs', () => {
-    it('does not throw for valid output paths', () => {
-      const manifest = [
-        { outputs: { qwen: 'agents/foo.md', claude: 'claude/agents/foo.md' } },
-      ];
-
-      assert.doesNotThrow(() => assertNoMirroredSharedOutputs(manifest));
-    });
-
-    it('throws for outputs that mirror shared code', () => {
-      const forbiddenOutputs = [
-        ['qwen', 'mcp/maestro-server-core.js'],
-        ['claude', 'claude/mcp/maestro-server-core.js'],
-        ['codex', 'plugins/maestro/mcp/maestro-server-core.js'],
-        ['qwen', 'lib/something.js'],
-        ['claude', 'claude/lib/registry.js'],
-        ['codex', 'plugins/maestro/lib/agent-registry.js'],
-        ['qwen', 'lib/mcp/generated/resource-registry.js'],
-      ];
-
-      for (const [runtime, outputPath] of forbiddenOutputs) {
-        assert.throws(
-          () => assertNoMirroredSharedOutputs([{ outputs: { [runtime]: outputPath } }]),
-          { message: `Manifest output is not allowed in src-first mode: "${outputPath}"` }
-        );
-      }
-    });
-  });
-
   describe('expandManifest', () => {
     const runtimes = {
       qwen: { name: 'qwen', agentNaming: 'snake_case', outputDir: './' },
@@ -186,7 +158,7 @@ describe('manifest-expander', () => {
     it('expands glob rules into per-file entries', () => {
       const rule = {
         glob: 'agents/*.md',
-        transforms: ['agent-stub'],
+        transform: agentStub,
         runtimes: ['qwen', 'claude'],
       };
 
@@ -202,80 +174,10 @@ describe('manifest-expander', () => {
       assert.equal(fooEntry.outputs.claude, 'claude/agents/foo-bar.md');
     });
 
-    it('expands explicit src rules', () => {
-      const rule = {
-        src: 'skills/shared/delegation/SKILL.md',
-        transforms: ['skill-discovery-stub'],
-        runtimes: ['claude', 'codex'],
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      assert.equal(result.length, 1);
-      assert.equal(result[0].src, 'skills/shared/delegation/SKILL.md');
-      assert.equal(result[0].outputs.claude, 'claude/skills/delegation/SKILL.md');
-      assert.equal(result[0].outputs.codex, 'plugins/maestro/skills/delegation/SKILL.md');
-    });
-
-    it('produces separate entries for same source with different transforms', () => {
-      const rules = [
-        { glob: 'agents/*.md', transforms: ['agent-stub'], runtimes: ['qwen', 'claude'] },
-        { glob: 'agents/*.md', transforms: ['skill-discovery-stub'], runtimes: ['codex'] },
-      ];
-
-      const result = expandManifest(rules, runtimes, tmpDir);
-
-      const fooEntries = result.filter((e) => e.src === 'agents/foo-bar.md');
-      assert.equal(fooEntries.length, 2, 'foo-bar.md appears in both rules');
-
-      const qwenClaudeEntry = fooEntries.find((e) => e.outputs.qwen);
-      assert.deepEqual(qwenClaudeEntry.transforms, ['agent-stub']);
-      assert.deepEqual(qwenClaudeEntry.outputs, {
-        qwen: 'agents/foo_bar.md',
-        claude: 'claude/agents/foo-bar.md',
-      });
-
-      const codexEntry = fooEntries.find((e) => e.outputs.codex);
-      assert.deepEqual(codexEntry.transforms, ['skill-discovery-stub']);
-      assert.deepEqual(codexEntry.outputs, { codex: 'plugins/maestro/agents/foo-bar.md' });
-    });
-
-    it('throws when rule is missing runtimes', () => {
-      const rule = { glob: 'agents/*.md', transforms: ['agent-stub'] };
-
-      assert.throws(
-        () => expandManifest([rule], runtimes, tmpDir),
-        /missing "runtimes"/
-      );
-    });
-
-    it('throws when rule has neither glob nor src', () => {
-      const rule = { transforms: ['agent-stub'], runtimes: ['qwen'] };
-
-      assert.throws(
-        () => expandManifest([rule], runtimes, tmpDir),
-        /needs "glob" or "src"/
-      );
-    });
-
-    it('preserves transforms array on expanded entries', () => {
-      const rule = {
-        glob: 'agents/*.md',
-        transforms: ['agent-stub', 'skill-discovery-stub'],
-        runtimes: ['qwen'],
-      };
-
-      const result = expandManifest([rule], runtimes, tmpDir);
-
-      for (const entry of result) {
-        assert.deepEqual(entry.transforms, ['agent-stub', 'skill-discovery-stub']);
-      }
-    });
-
     it('applies recursive glob with runtimes correctly', () => {
       const rule = {
         glob: 'skills/shared/**/SKILL.md',
-        transforms: ['skill-discovery-stub'],
+        transform: skillDiscoveryStub,
         runtimes: ['claude', 'codex'],
       };
 
@@ -294,7 +196,7 @@ describe('manifest-expander', () => {
       );
 
       it('expands the agents glob into one entry per agent with per-runtime outputs', () => {
-        const rule = { glob: 'agents/*.md', transforms: ['agent-stub'], runtimes: ['claude', 'qwen'] };
+        const rule = { glob: 'agents/*.md', transform: agentStub, runtimes: ['claude', 'qwen'] };
 
         const result = expandManifest([rule], realRuntimes, SRC_ROOT);
 
@@ -304,7 +206,7 @@ describe('manifest-expander', () => {
         assert.equal(coderEntries.length, 1, 'coder.md should appear once for this rule');
         assert.equal(coderEntries[0].outputs.qwen, 'agents/coder.md');
         assert.equal(coderEntries[0].outputs.claude, 'claude/agents/coder.md');
-        assert.deepEqual(coderEntries[0].transforms, ['agent-stub']);
+        assert.equal(coderEntries[0].transform, agentStub);
 
         const codeReviewerEntry = result.find((e) => e.src === 'agents/code-reviewer.md');
         assert.ok(codeReviewerEntry, 'code-reviewer.md should be in entries');
@@ -315,9 +217,7 @@ describe('manifest-expander', () => {
       it('stubs agents for antigravity, claude and qwen only, with the qwen stubs in the repo-root agents/ directory', () => {
         const result = expandManifest(manifestRules, realRuntimes, SRC_ROOT);
 
-        assert.doesNotThrow(() => assertNoMirroredSharedOutputs(result));
-
-        const agentEntries = result.filter((e) => e.transforms.includes('agent-stub'));
+        const agentEntries = result.filter((e) => e.transform === agentStub);
         assert.equal(agentEntries.length, AGENT_COUNT);
         for (const entry of agentEntries) {
           assert.deepEqual(Object.keys(entry.outputs), ['antigravity', 'claude', 'qwen'], entry.src);
@@ -342,7 +242,7 @@ describe('manifest-expander', () => {
       it('stubs shared skills for antigravity, claude and codex only, one folder per skill', () => {
         const result = expandManifest(manifestRules, realRuntimes, SRC_ROOT);
 
-        const skillEntries = result.filter((e) => e.transforms.includes('skill-discovery-stub'));
+        const skillEntries = result.filter((e) => e.transform === skillDiscoveryStub);
         assert.equal(skillEntries.length, SHARED_SKILL_COUNT);
         for (const entry of skillEntries) {
           const skillPath = entry.src.split(path.sep).join('/').replace(/^skills\/shared\//, 'skills/');

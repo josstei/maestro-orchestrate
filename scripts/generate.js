@@ -4,7 +4,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { createFileWriter } = require('../src/generator/file-writer');
-const { expandManifest, assertNoMirroredSharedOutputs, renderManifest } = require('../src/generator/manifest-expander');
+const { expandManifest, renderManifest } = require('../src/generator/manifest-expander');
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
@@ -28,7 +28,6 @@ function main() {
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const manifestRules = require('../src/generator/manifest');
   const manifest = expandManifest(manifestRules, runtimes, SRC);
-  assertNoMirroredSharedOutputs(manifest);
   const manifestOutputPaths = manifest.flatMap((entry) => Object.values(entry.outputs));
 
   const writer = createFileWriter({ rootDir: ROOT, dryRun, diffMode });

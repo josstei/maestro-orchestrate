@@ -4,15 +4,6 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { collectFiles, patternToRegex } = require('../lib/discovery');
 const { toNamingConvention } = require('../lib/naming');
-const { resolve: resolveTransform } = require('./transforms');
-
-const FORBIDDEN_OUTPUTS = [
-  'mcp/maestro-server-core.js',
-  'claude/mcp/maestro-server-core.js',
-  'plugins/maestro/mcp/maestro-server-core.js',
-];
-
-const FORBIDDEN_OUTPUT_PREFIXES = ['lib/', 'claude/lib/', 'plugins/maestro/lib/'];
 
 /**
  * Expand a glob pattern relative to srcDir.
@@ -69,72 +60,32 @@ function computeOutputPath(srcRelPath, runtime) {
 }
 
 /**
- * Validate that no manifest entries produce forbidden output paths.
- * Throws if any entry targets a path reserved for src-first mode.
- * @param {Array<{ outputs: Record<string, string> }>} manifest - Expanded manifest entries
- */
-function assertNoMirroredSharedOutputs(manifest) {
-  for (const entry of manifest) {
-    for (const outputPath of Object.values(entry.outputs)) {
-      if (
-        FORBIDDEN_OUTPUTS.includes(outputPath) ||
-        FORBIDDEN_OUTPUT_PREFIXES.some((prefix) => outputPath.startsWith(prefix))
-      ) {
-        throw new Error(`Manifest output is not allowed in src-first mode: "${outputPath}"`);
-      }
-    }
-  }
-}
-
-/**
- * Expand convention-based manifest rules into explicit entries.
- *
- * Two rule formats:
- *   1. Explicit src + runtimes: has `src` and `runtimes` (no `glob`) -- expands to outputs per runtime
- *   2. Glob: has `glob` and `runtimes` -- scans srcDir, produces one entry per matched file
- *
- * Does NOT merge entries for the same source file -- different rules may have different transforms.
- * @param {Array<Object>} rules - Manifest rules to expand
+ * Expand the manifest rules into one entry per matched source file, with
+ * that file's output path in each of the rule's runtimes.
+ * @param {Array<{ glob: string, transform: Function, runtimes: string[] }>} rules - Manifest rules to expand
  * @param {Record<string, Object>} runtimes - Runtime configurations keyed by name
  * @param {string} srcDir - Absolute path to source directory
- * @returns {Array<{ src: string, transforms: string[], outputs: Record<string, string> }>}
+ * @returns {Array<{ src: string, transform: Function, outputs: Record<string, string> }>}
  */
 function expandManifest(rules, runtimes, srcDir) {
-  const entries = [];
-
-  for (const rule of rules) {
-    if (!Array.isArray(rule.runtimes)) {
-      throw new Error(`Manifest rule missing "runtimes": ${JSON.stringify(rule)}`);
-    }
-    if (!rule.glob && !rule.src) {
-      throw new Error(`Manifest rule needs "glob" or "src": ${JSON.stringify(rule)}`);
-    }
-
-    const srcFiles = rule.glob ? expandGlob(rule.glob, srcDir) : [rule.src];
-
-    for (const srcRelPath of srcFiles) {
-      const outputs = {};
-      for (const runtimeName of rule.runtimes) {
-        outputs[runtimeName] = computeOutputPath(srcRelPath, runtimes[runtimeName]);
-      }
-      entries.push({
-        src: srcRelPath,
-        transforms: rule.transforms,
-        outputs,
-      });
-    }
-  }
-
-  return entries;
+  return rules.flatMap((rule) =>
+    expandGlob(rule.glob, srcDir).map((src) => ({
+      src,
+      transform: rule.transform,
+      outputs: Object.fromEntries(
+        rule.runtimes.map((runtimeName) => [runtimeName, computeOutputPath(src, runtimes[runtimeName])])
+      ),
+    }))
+  );
 }
 
 /**
  * Render every output of the expanded manifest entries by running each
- * entry's transforms over its source file. Lazy, so a consumer that writes
+ * entry's transform over its source file. Lazy, so a consumer that writes
  * each output as it is yielded keeps reads, writes and reported errors in
- * manifest order. A missing source or a failing transform is passed to
- * reportError and skipped; an unreadable source throws.
- * @param {Array<{ src: string, transforms: string[], outputs: Record<string, string> }>} manifest - Expanded manifest entries
+ * manifest order. A failing transform is passed to reportError and skipped;
+ * an unreadable source throws.
+ * @param {Array<{ src: string, transform: Function, outputs: Record<string, string> }>} manifest - Expanded manifest entries
  * @param {Record<string, Object>} runtimes - Runtime configurations keyed by name
  * @param {string} srcDir - Absolute path to source directory
  * @param {(message: string, error?: Error) => void} reportError - Logs and counts a non-fatal failure
@@ -142,21 +93,11 @@ function expandManifest(rules, runtimes, srcDir) {
  */
 function* renderManifest(manifest, runtimes, srcDir, reportError) {
   for (const entry of manifest) {
-    const srcPath = path.join(srcDir, entry.src);
-    if (!fs.existsSync(srcPath)) {
-      reportError(`Source not found: ${entry.src}`);
-      continue;
-    }
-
-    const sourceContent = fs.readFileSync(srcPath, 'utf8');
+    const sourceContent = fs.readFileSync(path.join(srcDir, entry.src), 'utf8');
     for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
-      const runtime = runtimes[runtimeName];
-      let content = sourceContent;
+      let content;
       try {
-        for (const transformName of entry.transforms) {
-          const fn = resolveTransform(transformName);
-          content = fn(content, runtime);
-        }
+        content = entry.transform(sourceContent, runtimes[runtimeName]);
       } catch (err) {
         reportError(`processing ${entry.src} -> ${outputPath}`, err);
         continue;
@@ -169,7 +110,6 @@ function* renderManifest(manifest, runtimes, srcDir, reportError) {
 module.exports = {
   expandGlob,
   computeOutputPath,
-  assertNoMirroredSharedOutputs,
   expandManifest,
   renderManifest,
 };

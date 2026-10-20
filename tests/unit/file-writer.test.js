@@ -140,13 +140,13 @@ describe('FileWriter reportError', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
     t.mock.method(console, 'error', () => {});
     writer.write('../../../etc/passwd', 'malicious');
-    writer.reportError('Source not found: missing.md');
+    writer.reportError('cleaning generated files');
     writer.reportError('processing a.md -> b.md', new Error('boom'));
     const logged = console.error.mock.calls.map((c) => c.arguments[0]);
 
     assert.equal(writer.getStats().errors, 3);
     assert.deepEqual(logged.slice(1), [
-      'ERROR: Source not found: missing.md',
+      'ERROR: cleaning generated files',
       'ERROR: processing a.md -> b.md: boom',
     ]);
   });

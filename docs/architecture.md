@@ -31,7 +31,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads every runtime config (`src/platforms/<runtime>/runtime-config.js`, discovered by `src/platforms/runtime-config-map.js`)
 2. Scans `src/agents/`, `src/skills/shared/`, `src/templates/`, `src/references/`, and `src/hooks/logic/` into `src/generated/agent-registry.json`, `resource-registry.json`, and `hook-registry.json` (`src/generator/registry-scanner.js`)
-3. Expands the rules in `src/generator/manifest.js` and runs their transforms (`src/generator/manifest-expander.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
+3. Expands the rules in `src/generator/manifest.js` and runs each rule's transform (`src/generator/manifest-expander.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
 4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Antigravity, Claude, and Codex skills and Qwen TOML commands (`commands/maestro/`)
 5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`, which takes the policy pack from `src/platforms/qwen/policy-pack.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
 6. Prunes stale files from the directories it owns (`agents/`, `antigravity/agents/`, `antigravity/skills/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
@@ -41,23 +41,13 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 ### Manifest System
 
-`src/generator/manifest.js` declares how source files map to outputs. Each entry specifies:
-
-```javascript
-{
-  src: 'agents/architect.md',                  // Source file
-  transforms: ['agent-stub'],                  // Transform pipeline
-  runtimes: ['antigravity', 'claude', 'qwen'], // Target runtimes
-}
-```
-
-Or with glob patterns:
+`src/generator/manifest.js` declares how source files map to outputs. Each rule globs source files under `src/` and names the transform that renders them and the runtimes that receive the result:
 
 ```javascript
 {
   glob: 'agents/*.md',
-  transforms: ['agent-stub'],
-  runtimes: ['antigravity', 'claude', 'qwen'],
+  transform: agentStub,                        // require('./transforms/agent-stub')
+  runtimes: ['antigravity', 'claude', 'qwen'], // Target runtimes
 }
 ```
 
@@ -67,12 +57,12 @@ Each output path is the source path under the runtime's `outputDir`, with `skill
 
 ### Transform Pipeline
 
-The generator exposes 2 transforms, registered by name in `src/generator/transforms/index.js`:
+The generator has 2 transforms in `src/generator/transforms/`, each a `(content, runtime) => content` function that a manifest rule references directly:
 
 | Transform | Purpose |
 |-----------|---------|
-| `agent-stub` | Emit the runtime's agent frontmatter (the fields its `agentFrontmatter.fields` lists, with tools in that runtime's names, each listed once, and, when `features.exampleBlocks` is on, the body's `<example>` blocks folded into the description), followed by a one-line body that points at `get_agent()` |
-| `skill-discovery-stub` | Replace a shared skill body with a stub that points at `get_skill_content()`; Claude stubs also set `user-invocable: false` and Antigravity stubs `disable-slash-command: true` |
+| `agent-stub.js` | Emit the runtime's agent frontmatter (the fields its `agentFrontmatter.fields` lists, with tools in that runtime's names, each listed once, and, when `features.exampleBlocks` is on, the body's `<example>` blocks folded into the description), followed by a one-line body that points at `get_agent()` |
+| `skill-discovery-stub.js` | Replace a shared skill body with a stub that points at `get_skill_content()`; Claude stubs also set `user-invocable: false` and Antigravity stubs `disable-slash-command: true` |
 
 ### Runtime Definitions
 
