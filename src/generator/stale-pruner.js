@@ -5,6 +5,18 @@ const path = require('node:path');
 const { globFiles } = require('./glob-files');
 
 /**
+ * Reorder paths the way a depth-first walk of name-sorted directories meets
+ * them, the order the generator has always printed PRUNED lines in. Plain
+ * string order puts 'maestro.toml' before 'maestro/x.toml', because '.' sorts
+ * below '/'; sorting with '/' as the lowest character does not.
+ * @param {string[]} paths - Posix paths
+ * @returns {string[]}
+ */
+function inWalkOrder(paths) {
+  return paths.map((p) => p.replaceAll('/', '\0')).sort().map((key) => key.replaceAll('\0', '/'));
+}
+
+/**
  * Remove dir and then each parent that removing it leaves empty, stopping
  * below ownedDir (which is never removed) or at the first non-empty or
  * already-removed directory.
@@ -30,12 +42,13 @@ function removeEmptyDirs(rootDir, dir, ownedDir) {
  * @param {string} opts.rootDir - Absolute path to the project root
  * @param {Set<string>} opts.manifestPaths - Every current output path (posix, relative to rootDir)
  * @param {string[]} opts.ownedDirs - Posix directories relative to rootDir that the generator owns ('' for rootDir itself)
- * @returns {string[]} The pruned files (posix, relative to rootDir)
+ * @returns {string[]} The pruned files (posix, relative to rootDir), by owned
+ *   directory, each in walk order
  */
 function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
   return ownedDirs.flatMap((ownedDir) => {
-    const stale = globFiles(rootDir, ownedDir ? `${ownedDir}/**/*` : '**/*')
-      .filter((filePath) => !manifestPaths.has(filePath));
+    const stale = inWalkOrder(globFiles(rootDir, ownedDir ? `${ownedDir}/**/*` : '**/*')
+      .filter((filePath) => !manifestPaths.has(filePath)));
     for (const filePath of stale) {
       fs.unlinkSync(path.join(rootDir, filePath));
     }

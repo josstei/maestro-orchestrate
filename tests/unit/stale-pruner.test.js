@@ -128,6 +128,20 @@ describe('pruneStaleFiles', () => {
     assert.deepEqual(result, ['agents/stale-agent.md', 'commands/stale-cmd.toml']);
   });
 
+  it('lists a stale subdirectory\'s files at the subdirectory name\'s position', () => {
+    writeTree(rootDir, 'commands/maestro.toml', 'stale');
+    writeTree(rootDir, 'commands/maestro-old.toml', 'stale');
+    writeTree(rootDir, 'commands/maestro/review.toml', 'stale');
+
+    const result = pruneStaleFiles({ rootDir, manifestPaths: new Set(), ownedDirs: ['commands'] });
+
+    assert.deepEqual(result, [
+      'commands/maestro/review.toml',
+      'commands/maestro-old.toml',
+      'commands/maestro.toml',
+    ]);
+  });
+
   it('leaves files outside the owned directories untouched', () => {
     writeTree(rootDir, 'agents/stale.md', 'stale');
     writeTree(rootDir, 'qwen/hooks.json', '{}');
