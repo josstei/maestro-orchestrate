@@ -11,6 +11,7 @@ const {
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
+  releaseArchivePath,
 } = require('../../scripts/lib/release');
 const { editJson, makeTempDir, readJson, writeTree } = require('../support/fs');
 const { ROOT } = require('../support/paths');
@@ -136,6 +137,17 @@ describe('release artifact manifest', () => {
       () => assertReleaseArtifactContents(artifactTree('claude/scripts/policy-enforcer.test.js')),
       /Release artifact contains denied paths: claude\/scripts\/policy-enforcer\.test\.js/
     );
+  });
+
+  it('writes the archive under dist/release unless given another out dir', () => {
+    const root = path.join(path.sep, 'repo');
+    const archiveName = 'maestro-v1.2.3-rc.1-extension.tar.gz';
+
+    for (const outDir of [undefined, '']) {
+      assert.equal(releaseArchivePath(root, '1.2.3-rc.1', outDir), path.join(root, 'dist', 'release', archiveName));
+    }
+    assert.equal(releaseArchivePath(root, '1.2.3-rc.1', 'out'), path.join(root, 'out', archiveName));
+    assert.equal(releaseArchivePath(root, '1.2.3-rc.1', path.join(root, 'abs')), path.join(root, 'abs', archiveName));
   });
 
   it('fails clearly when a required artifact path is missing', () => {

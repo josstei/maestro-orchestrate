@@ -66,8 +66,17 @@ const DENIED_ARTIFACT_PATTERNS = [
 
 const RELEASE_OUT_DIR = 'dist/release';
 
-function releaseArchiveName(version) {
-  return `maestro-v${version}-extension.tar.gz`;
+/**
+ * Path of the release archive for `version`. An unset or empty `outDir`
+ * means dist/release; a relative one resolves against `root`.
+ *
+ * @param {string} root - Absolute path of the repo the archive is built from
+ * @param {string} version - Release version
+ * @param {string} [outDir] - Output directory
+ * @returns {string} Absolute archive path
+ */
+function releaseArchivePath(root, version, outDir) {
+  return path.join(path.resolve(root, outDir || RELEASE_OUT_DIR), `maestro-v${version}-extension.tar.gz`);
 }
 
 function isDeniedPath(relativePath) {
@@ -316,11 +325,10 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
 module.exports = {
   RELEASE_ARTIFACT_PATHS,
-  RELEASE_OUT_DIR,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
   readJson,
-  releaseArchiveName,
+  releaseArchivePath,
 };

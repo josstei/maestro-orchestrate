@@ -7,12 +7,11 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   RELEASE_ARTIFACT_PATHS,
-  RELEASE_OUT_DIR,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
   readJson,
-  releaseArchiveName,
+  releaseArchivePath,
 } = require('./lib/release');
 const { parseFlagArgs, runCli } = require('./lib/cli');
 
@@ -33,7 +32,6 @@ Options:
 
 function parseArgs(argv) {
   return parseFlagArgs(argv, {
-    defaults: { version: null, outDir: RELEASE_OUT_DIR },
     flags: { '--version': 'version', '--out-dir': 'outDir' },
     printHelp,
   });
@@ -69,8 +67,7 @@ function createTarball(stagingRoot, archivePath) {
 function packageReleaseArtifacts(options = {}) {
   const root = options.root || ROOT;
   const version = resolveVersion(root, options.version);
-  const outDir = path.resolve(root, options.outDir || RELEASE_OUT_DIR);
-  const archivePath = path.join(outDir, releaseArchiveName(version));
+  const archivePath = releaseArchivePath(root, version, options.outDir);
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-artifact-'));
   const stagingRoot = path.join(tempRoot, 'maestro');
 

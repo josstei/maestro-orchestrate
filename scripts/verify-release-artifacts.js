@@ -6,12 +6,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
-  RELEASE_OUT_DIR,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   readJson,
-  releaseArchiveName,
+  releaseArchivePath,
 } = require('./lib/release');
 const { runCli } = require('./lib/cli');
 
@@ -38,25 +37,13 @@ function parseArgs(argv) {
     throw new Error('Expected at most one archive path');
   }
 
-  return {
-    archivePath: argv[0] || null,
-  };
+  return argv[0];
 }
 
-function defaultArchivePath(root) {
-  const version = readJson(root, 'package.json').version;
-  return path.join(root, RELEASE_OUT_DIR, releaseArchiveName(version));
-}
-
-function extractArchive(archivePath, targetRoot) {
-  execFileSync('tar', ['-xzf', archivePath, '-C', targetRoot], {
-    stdio: 'inherit',
-  });
-}
-
-function verifyReleaseArtifact(archivePath, options = {}) {
-  const root = options.root || ROOT;
-  const resolvedArchivePath = path.resolve(root, archivePath || defaultArchivePath(root));
+function verifyReleaseArtifact(archivePath) {
+  const resolvedArchivePath = archivePath
+    ? path.resolve(ROOT, archivePath)
+    : releaseArchivePath(ROOT, readJson(ROOT, 'package.json').version);
 
   if (!fs.existsSync(resolvedArchivePath)) {
     throw new Error(`Release artifact not found: ${resolvedArchivePath}`);
@@ -65,7 +52,9 @@ function verifyReleaseArtifact(archivePath, options = {}) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-verify-'));
 
   try {
-    extractArchive(resolvedArchivePath, tempRoot);
+    execFileSync('tar', ['-xzf', resolvedArchivePath, '-C', tempRoot], {
+      stdio: 'inherit',
+    });
     assertRequiredArtifactPaths(tempRoot);
     assertReleaseArtifactContents(tempRoot);
     const version = assertRuntimeManifestShape(tempRoot);
@@ -81,8 +70,7 @@ function verifyReleaseArtifact(archivePath, options = {}) {
 
 if (require.main === module) {
   runCli('release artifact verification failed', () => {
-    const args = parseArgs(process.argv.slice(2));
-    const result = verifyReleaseArtifact(args.archivePath);
+    const result = verifyReleaseArtifact(parseArgs(process.argv.slice(2)));
     console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
   });
 }

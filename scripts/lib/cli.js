@@ -5,7 +5,7 @@
  * (the generator, release and installer scripts).
  */
 
-function parseFlagArgs(argv, { defaults, flags, printHelp }) {
+function parseFlagArgs(argv, { defaults = {}, flags, printHelp }) {
   const options = { ...defaults };
 
   for (let index = 0; index < argv.length; index += 1) {

@@ -48,7 +48,7 @@ describe('release artifact packaging', () => {
 
   before(() => {
     repoRoot = createTempRepoCopy('maestro-release-artifact-');
-    packaged = packageReleaseArtifacts({ root: repoRoot, outDir: 'dist/release' });
+    packaged = packageReleaseArtifacts({ root: repoRoot });
   });
 
   after(() => {
@@ -59,7 +59,7 @@ describe('release artifact packaging', () => {
 
   it('builds and verifies a self-contained release archive from a repo copy', () => {
     const { archivePath, version } = packaged;
-    const result = verifyReleaseArtifact(archivePath, { root: repoRoot });
+    const result = verifyReleaseArtifact(archivePath);
 
     assert.equal(result.version, version);
     assert.equal(fs.existsSync(archivePath), true);
@@ -92,7 +92,7 @@ describe('release artifact packaging', () => {
         },
         (corruptArchivePath) => {
           assert.throws(
-            () => verifyReleaseArtifact(corruptArchivePath, { root: repoRoot }),
+            () => verifyReleaseArtifact(corruptArchivePath),
             { message: `Release manifest version mismatch; expected ${packaged.version}: ${manifestPath}=0.0.0` }
           );
         }
@@ -109,7 +109,7 @@ describe('release artifact packaging', () => {
       },
       (extraArchivePath) => {
         assert.throws(
-          () => verifyReleaseArtifact(extraArchivePath, { root: repoRoot }),
+          () => verifyReleaseArtifact(extraArchivePath),
           /Release artifact contains unallowlisted paths: unexpected-local-file\.txt/
         );
       }
@@ -121,7 +121,7 @@ describe('release artifact packaging', () => {
       fs.rmSync(path.join(missingRoot, 'qwen-extension.json'));
 
       assert.throws(
-        () => packageReleaseArtifacts({ root: missingRoot, outDir: 'dist/release' }),
+        () => packageReleaseArtifacts({ root: missingRoot }),
         /Required release artifact paths are missing: qwen-extension\.json/
       );
     });
