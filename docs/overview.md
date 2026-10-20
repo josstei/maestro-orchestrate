@@ -44,7 +44,7 @@ maestro-orchestrate/
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
 │   ├── generator/                # Build-time only: file-mapping manifest, transforms (agent-stub, skill-discovery-stub), entry-point expansion, registries, platform metadata, pruning, payloads
-│   │   └── runtimes/             # Per runtime: outputs.js (owned dirs, payload, entry-point surface, metadata files), entry-point templates, and the Qwen policy-pack renderer
+│   │   └── runtimes/             # Per runtime: outputs.js (owned dirs, payload, entry-point surface, metadata files), entry-point and core-command templates, and the Qwen policy-pack renderer
 │   ├── generated/                # [generated] Agent, resource, and hook registries
 │   ├── entry-points/             # 9 entry-point + 3 core-command registries
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
