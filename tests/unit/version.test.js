@@ -7,44 +7,30 @@ const path = require('node:path');
 
 const { resolveVersion } = require('../../src/core/version');
 const { makeTempDir, writeJson } = require('../support/fs');
-const { ROOT } = require('../support/paths');
+const { SRC_ROOT } = require('../support/paths');
+
+/** A copy of version.js (and the lib/io it needs) in a temp src/ tree with no package.json above it. */
+function detachedResolveVersion(stampedVersion) {
+  const srcDir = path.join(makeTempDir('maestro-version-'), 'src');
+  for (const file of ['core/version.js', 'lib/io.js']) {
+    fs.mkdirSync(path.join(srcDir, path.dirname(file)), { recursive: true });
+    fs.copyFileSync(path.join(SRC_ROOT, file), path.join(srcDir, file));
+  }
+  if (stampedVersion) writeJson(path.join(srcDir, 'version.json'), { version: stampedVersion });
+  return require(path.join(srcDir, 'core', 'version.js')).resolveVersion();
+}
 
 describe('resolveVersion', () => {
-  it('resolves version from package.json when called from the repo', () => {
+  it('resolves the version from the package.json above src/', () => {
     const pkg = require('../../package.json');
-    assert.equal(resolveVersion(__dirname), pkg.version);
+    assert.equal(resolveVersion(), pkg.version);
   });
 
-  it('resolves version from src/mcp directory', () => {
-    const pkg = require('../../package.json');
-    assert.equal(resolveVersion(path.join(ROOT, 'src', 'mcp')), pkg.version);
+  it('reads <src>/version.json when no package.json is found', () => {
+    assert.equal(detachedResolveVersion('9.9.9'), '9.9.9');
   });
 
-  it('returns unknown when no package.json or version.json is found', () => {
-    assert.equal(resolveVersion('/'), 'unknown');
-  });
-
-  it('reads version.json when package.json lookup fails', () => {
-    const tempDir = makeTempDir('maestro-version-');
-
-    const srcDir = path.join(tempDir, 'src');
-    const coreDir = path.join(srcDir, 'core');
-    const entrypointDir = path.join(tempDir, 'sandbox');
-    const copiedModulePath = path.join(coreDir, 'version.js');
-
-    const libDir = path.join(srcDir, 'lib');
-    const copiedIoPath = path.join(libDir, 'io.js');
-    fs.mkdirSync(coreDir, { recursive: true });
-    fs.mkdirSync(entrypointDir, { recursive: true });
-    fs.mkdirSync(libDir, { recursive: true });
-    writeJson(path.join(srcDir, 'version.json'), { version: '9.9.9' });
-    fs.copyFileSync(path.join(ROOT, 'src', 'core', 'version.js'), copiedModulePath);
-    fs.copyFileSync(path.join(ROOT, 'src', 'lib', 'io.js'), copiedIoPath);
-
-    delete require.cache[copiedModulePath];
-    delete require.cache[copiedIoPath];
-    const { resolveVersion: resolveVersionFromTemp } = require(copiedModulePath);
-
-    assert.equal(resolveVersionFromTemp(entrypointDir), '9.9.9');
+  it('returns unknown when neither package.json nor version.json is found', () => {
+    assert.equal(detachedResolveVersion(null), 'unknown');
   });
 });

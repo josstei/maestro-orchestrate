@@ -12,7 +12,7 @@ const { RUNTIME_NAMES, getRuntimeConfig, findRuntimeConfigForClient } = require(
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
-  version: resolveVersion(__dirname),
+  version: resolveVersion(),
 });
 
 // The listed tool order: workspace, session, then content tools.
