@@ -3,12 +3,12 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const markdownState = require('../../src/core/markdown-state');
+const { ISOLATED_GIT_ENV } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
+const { writeSessionState } = require('../support/session-file');
 const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
 
 // Hooks keep per-session state under MAESTRO_HOOKS_DIR; give them a private
@@ -54,10 +54,7 @@ const BOOT_CASES = [
 const ANTIGRAVITY_PLUGIN_ROOT = path.join(ROOT, 'antigravity');
 
 function runAntigravityHook(pluginRoot, hookName, input) {
-  return runHook('hooks/hook-runner.js', 'antigravity', hookName, input, pluginRoot, {
-    // Keep temp workspaces from resolving to an enclosing checkout.
-    GIT_CEILING_DIRECTORIES: fs.realpathSync(os.tmpdir()),
-  });
+  return runHook('hooks/hook-runner.js', 'antigravity', hookName, input, pluginRoot, ISOLATED_GIT_ENV);
 }
 
 // Each workspace gets its own conversation, named after its unique temp dir.
@@ -73,11 +70,7 @@ function antigravityPayload(workspace) {
 
 function makeWorkspace(prefix, session = null) {
   const workspace = makeTempDir(prefix);
-  if (session) {
-    const sessionFilePath = path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md');
-    fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
-    fs.writeFileSync(sessionFilePath, markdownState.serialize(session, '# Session\n'), 'utf8');
-  }
+  if (session) writeSessionState(workspace, session);
   return workspace;
 }
 

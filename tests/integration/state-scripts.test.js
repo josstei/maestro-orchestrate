@@ -4,9 +4,9 @@ const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
+const { ISOLATED_GIT_ENV } = require('../support/env');
 const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT } = require('./helpers');
 
@@ -34,7 +34,7 @@ function runScript(script, args, { cwd, input = '', env = {} }) {
   for (const key of SCRUBBED_ENV) delete childEnv[key];
   Object.assign(childEnv, {
     PWD: cwd,
-    GIT_CEILING_DIRECTORIES: fs.realpathSync(os.tmpdir()),
+    ...ISOLATED_GIT_ENV,
     ...env,
   });
   return spawnSync(process.execPath, [path.join(SCRIPTS_DIR, script), ...args], {

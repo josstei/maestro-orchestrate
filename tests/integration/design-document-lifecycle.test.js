@@ -6,9 +6,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { makeTempDir } = require('../support/fs');
+const { readSessionState } = require('../support/session-file');
 const {
+  approveDesignGate,
   createInitializedSessionServer,
-  readSessionState,
+  singlePhase,
 } = require('../support/session-server');
 
 function writeFile(filePath, content) {
@@ -23,13 +25,9 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
 
     const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'ddl-1' }, workspace);
-
-    const approval = await server.callTool(
-      'record_design_approval',
-      { session_id: 'ddl-1', design_document_path: tmpDesignPath },
-      workspace
-    );
+    const approval = await approveDesignGate(server, workspace, 'ddl-1', {
+      design_document_path: tmpDesignPath,
+    });
 
     assert.equal(
       approval.ok,
@@ -50,12 +48,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
 
     const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'ddl-late' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      { session_id: 'ddl-late', design_document_path: tmpDesignPath },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'ddl-late', { design_document_path: tmpDesignPath });
 
     writeFile(tmpDesignPath, '# Design (written after approval)\n');
 
@@ -65,9 +58,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         session_id: 'ddl-late',
         task: 'late materialize',
         task_complexity: 'simple',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['index.html'] },
-        ],
+        phases: singlePhase(['index.html']),
       },
       workspace
     );
@@ -87,12 +78,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
 
     const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'ddl-missing' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      { session_id: 'ddl-missing', design_document_path: phantomPath },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'ddl-missing', { design_document_path: phantomPath });
 
     const create = await server.callTool(
       'create_session',
@@ -100,9 +86,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         session_id: 'ddl-missing',
         task: 'phantom design',
         task_complexity: 'simple',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['index.html'] },
-        ],
+        phases: singlePhase(['index.html']),
       },
       workspace
     );
@@ -124,12 +108,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     writeFile(tmpDesignPath, '# Auto Design\n');
 
     const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'ddl-auto' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      { session_id: 'ddl-auto', design_document_path: tmpDesignPath },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'ddl-auto', { design_document_path: tmpDesignPath });
 
     const create = await server.callTool(
       'create_session',
@@ -137,9 +116,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         session_id: 'ddl-auto',
         task: 'auto lifecycle',
         task_complexity: 'simple',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['index.html'] },
-        ],
+        phases: singlePhase(['index.html']),
       },
       workspace
     );
@@ -166,12 +143,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     writeFile(tmpPlanPath, '# Plan\n');
 
     const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'ddl-arc' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      { session_id: 'ddl-arc', design_document_path: tmpDesignPath },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'ddl-arc', { design_document_path: tmpDesignPath });
     await server.callTool(
       'create_session',
       {
@@ -179,9 +151,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         task: 'archive lifecycle',
         task_complexity: 'simple',
         implementation_plan: tmpPlanPath,
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['index.html'] },
-        ],
+        phases: singlePhase(['index.html']),
       },
       workspace
     );
@@ -222,12 +192,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     writeFile(designPath, '# Design\n');
 
     const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'ddl-cleanup' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      { session_id: 'ddl-cleanup', design_document_path: designPath },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'ddl-cleanup', { design_document_path: designPath });
 
     const gatePath = path.join(
       workspace,
@@ -244,9 +209,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         session_id: 'ddl-cleanup',
         task: 'gate cleanup',
         task_complexity: 'simple',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['f.txt'] },
-        ],
+        phases: singlePhase(['f.txt']),
       },
       workspace
     );
@@ -296,9 +259,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         task: 'in-place plan',
         task_complexity: 'simple',
         implementation_plan: planPath,
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['foo.txt'] },
-        ],
+        phases: singlePhase(['foo.txt']),
       },
       workspace
     );
@@ -314,17 +275,10 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     const planBody = '# Plan (inline)\n\nPassed as content.\n';
 
     const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'ddl-content' }, workspace);
-
-    const approval = await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'ddl-content',
-        design_document_content: designBody,
-        design_document_filename: 'design-content.md',
-      },
-      workspace
-    );
+    const approval = await approveDesignGate(server, workspace, 'ddl-content', {
+      design_document_content: designBody,
+      design_document_filename: 'design-content.md',
+    });
     assert.equal(approval.ok, true);
     const canonicalDesign = path.join(
       workspace,
@@ -344,9 +298,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         task_complexity: 'simple',
         implementation_plan_content: planBody,
         implementation_plan_filename: 'plan-content.md',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
-        ],
+        phases: singlePhase(['x.txt']),
       },
       workspace
     );
@@ -409,9 +361,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         implementation_plan: planPath,
         implementation_plan_content: '# Plan\n',
         implementation_plan_filename: 'plan.md',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
-        ],
+        phases: singlePhase(['x.txt']),
       },
       workspace
     );
@@ -430,9 +380,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         task: 'plan partial',
         task_complexity: 'simple',
         implementation_plan_content: '# Plan\n',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
-        ],
+        phases: singlePhase(['x.txt']),
       },
       workspace
     );
@@ -450,9 +398,7 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
         session_id: 'ddl-noplan',
         task: 'no plan',
         task_complexity: 'simple',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x.txt'] },
-        ],
+        phases: singlePhase(['x.txt']),
       },
       workspace
     );

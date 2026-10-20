@@ -1,5 +1,55 @@
 'use strict';
 
+const fs = require('node:fs');
+const os = require('node:os');
+
+/**
+ * Keep temp workspaces from resolving to an enclosing checkout: git (and the
+ * hooks and scripts that ask it for a toplevel) stops searching at the real
+ * temp root, so a fixture dir never resolves to a repo the temp dir happens to
+ * live inside.
+ */
+const ISOLATED_GIT_ENV = Object.freeze({
+  GIT_CEILING_DIRECTORIES: fs.realpathSync(os.tmpdir()),
+});
+
+/**
+ * Runs `fn` and calls `restore` once it is done. When `fn` returns a promise,
+ * `restore` runs once that promise settles and the chained promise is
+ * returned. When `fn` throws synchronously, `restore` runs and the error is
+ * rethrown.
+ *
+ * @template T
+ * @param {() => T} fn - Callback to run
+ * @param {() => void} restore - Cleanup to run after `fn` finishes
+ * @returns {T} The callback's result
+ */
+function runThenRestore(fn, restore) {
+  let result;
+  try {
+    result = fn();
+  } catch (error) {
+    restore();
+    throw error;
+  }
+
+  if (result && typeof result.then === 'function') {
+    return result.then(
+      (value) => {
+        restore();
+        return value;
+      },
+      (error) => {
+        restore();
+        throw error;
+      }
+    );
+  }
+
+  restore();
+  return result;
+}
+
 /**
  * Runs `fn` with `process.env` temporarily overridden, then restores every
  * overridden key to its previous value. A null or undefined override deletes
@@ -36,31 +86,28 @@ function withEnv(overrides, fn) {
     }
   }
 
-  let result;
-  try {
-    result = fn();
-  } catch (error) {
-    restore();
-    throw error;
-  }
+  return runThenRestore(fn, restore);
+}
 
-  if (result && typeof result.then === 'function') {
-    return result.then(
-      (value) => {
-        restore();
-        return value;
-      },
-      (error) => {
-        restore();
-        throw error;
-      }
-    );
-  }
-
-  restore();
-  return result;
+/**
+ * Runs `fn` with the process cwd changed to `dir`, then changes back to the
+ * previous cwd. When `fn` returns a promise, the cwd is restored once that
+ * promise settles and the chained promise is returned. When `fn` throws
+ * synchronously, the cwd is restored and the error is rethrown.
+ *
+ * @template T
+ * @param {string} dir - Directory to run `fn` in
+ * @param {() => T} fn - Callback to run while `dir` is the cwd
+ * @returns {T} The callback's result
+ */
+function withCwd(dir, fn) {
+  const previous = process.cwd();
+  process.chdir(dir);
+  return runThenRestore(fn, () => process.chdir(previous));
 }
 
 module.exports = {
+  ISOLATED_GIT_ENV,
+  withCwd,
   withEnv,
 };

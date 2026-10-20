@@ -9,7 +9,7 @@ const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/session');
 const { ensureWorkspace } = require('../../src/state/session-state');
 const { makeTempDir } = require('../support/fs');
-const { readSessionState } = require('../support/session-server');
+const { activeSessionPath, readSessionState } = require('../support/session-file');
 
 function createSessionPackServer() {
   return createServer({
@@ -220,10 +220,7 @@ describe('session tool pack', () => {
     );
 
     assert.equal(archiveResult.ok, true);
-    assert.equal(
-      fs.existsSync(path.join(projectRoot, 'docs/maestro/state/active-session.md')),
-      false
-    );
+    assert.equal(fs.existsSync(activeSessionPath(projectRoot)), false);
     assert.equal(
       fs.existsSync(
         path.join(

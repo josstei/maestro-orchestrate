@@ -1,16 +1,16 @@
 'use strict';
 
-const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { ISOLATED_GIT_ENV, withCwd, withEnv } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
 
 const hooksDir = makeTempDir('maestro-hooks-test-');
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
 // Hooks resolve the git toplevel of their cwd; keep fixture dirs from resolving
 // to an enclosing checkout when the temp dir happens to live inside one.
-process.env.GIT_CEILING_DIRECTORIES = fs.realpathSync(os.tmpdir());
+Object.assign(process.env, ISOLATED_GIT_ENV);
 // Agent detection falls back to MAESTRO_CURRENT_AGENT; keep an inherited value
 // out of the detection tests.
 delete process.env.MAESTRO_CURRENT_AGENT;
@@ -24,8 +24,7 @@ const { handleAfterAgent } = require('../../src/hooks/logic/after-agent-logic');
 const { handleBeforeAgent } = require('../../src/hooks/logic/before-agent-logic');
 const { handleSessionStart } = require('../../src/hooks/logic/session-start-logic');
 const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
-const markdownState = require('../../src/core/markdown-state');
-const { withEnv } = require('../support/env');
+const { writeSessionState } = require('../support/session-file');
 
 const SESSION_ID = 'test-session-abc123';
 
@@ -35,12 +34,6 @@ function makeGitWorkspace(prefix) {
   const subdir = path.join(root, 'pkg', 'sub');
   fs.mkdirSync(subdir, { recursive: true });
   return { root, subdir };
-}
-
-function writeMcpSession(stateDir, data) {
-  const sessionFilePath = path.join(stateDir, 'state', 'active-session.md');
-  fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
-  fs.writeFileSync(sessionFilePath, markdownState.serialize(data, '# Session\n'), 'utf8');
 }
 
 const VALID_RESULT = '## Task Report\nDone.\n\n## Downstream Context\nContext info.';
@@ -168,7 +161,7 @@ describe('handleBeforeAgent', () => {
 
   it('reads phase/status from the JSON frontmatter that create_session writes', () => {
     const cwd = makeTempDir('maestro-json-session-');
-    writeMcpSession(path.join(cwd, 'docs', 'maestro'), {
+    writeSessionState(cwd, {
       session_id: 's1',
       status: 'in_progress',
       current_phase: 1,
@@ -181,21 +174,21 @@ describe('handleBeforeAgent', () => {
 
   it('omits a null current_phase from JSON frontmatter', () => {
     const cwd = makeTempDir('maestro-json-null-');
-    writeMcpSession(path.join(cwd, 'docs', 'maestro'), { status: 'in_progress', current_phase: null });
+    writeSessionState(cwd, { status: 'in_progress', current_phase: null });
     const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
     assert.equal(result.message, 'Active session: status=in_progress');
   });
 
   it('finds the session at the git root when fired from a subdirectory', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-subdir-');
-    writeMcpSession(path.join(root, 'docs', 'maestro'), { status: 'in_progress', current_phase: 2 });
+    writeSessionState(root, { status: 'in_progress', current_phase: 2 });
     const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null });
     assert.equal(result.message, 'Active session: current_phase=2, status=in_progress');
   });
 
   it('resolves an absolute MAESTRO_STATE_DIR from a subdirectory without throwing', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-absstate-');
-    writeMcpSession(path.join(root, '.maestro'), { status: 'in_progress', current_phase: 3 });
+    writeSessionState(root, { status: 'in_progress', current_phase: 3 }, '.maestro');
     const result = withEnv({ MAESTRO_STATE_DIR: path.join(root, '.maestro') }, () =>
       handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
     );
@@ -205,15 +198,11 @@ describe('handleBeforeAgent', () => {
 
   it('resolves the git root from the process cwd when the payload has no cwd', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-nocwd-');
-    const originalCwd = process.cwd();
-    try {
-      writeMcpSession(path.join(root, 'docs', 'maestro'), { status: 'in_progress', current_phase: 4 });
-      process.chdir(subdir);
-      const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: '', agentInput: null });
-      assert.equal(result.message, 'Active session: current_phase=4, status=in_progress');
-    } finally {
-      process.chdir(originalCwd);
-    }
+    writeSessionState(root, { status: 'in_progress', current_phase: 4 });
+    const result = withCwd(subdir, () =>
+      handleBeforeAgent({ sessionId: SESSION_ID, cwd: '', agentInput: null })
+    );
+    assert.equal(result.message, 'Active session: current_phase=4, status=in_progress');
   });
 
   it('allows with no context when the state dir cannot be resolved', () => {
@@ -242,7 +231,7 @@ describe('handleBeforeAgent', () => {
     // Antigravity runs before-agent on SessionStart, whose payload has no agent name or prompt.
     hookState.clearActiveAgent(SESSION_ID);
     const cwd = makeTempDir('maestro-json-noagent-');
-    writeMcpSession(path.join(cwd, 'docs', 'maestro'), { status: 'in_progress', current_phase: 2 });
+    writeSessionState(cwd, { status: 'in_progress', current_phase: 2 });
 
     const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentName: null, agentInput: null });
 
@@ -307,7 +296,7 @@ describe('handleSessionStart', () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-start-');
     const sessionId = 'subdir-start-session';
     try {
-      writeMcpSession(path.join(root, 'docs', 'maestro'), { status: 'in_progress', current_phase: 1 });
+      writeSessionState(root, { status: 'in_progress', current_phase: 1 });
       handleSessionStart({ sessionId, cwd: subdir });
       assert.ok(fs.existsSync(path.join(hooksDir, sessionId)));
     } finally {

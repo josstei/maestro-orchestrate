@@ -1,9 +1,5 @@
 'use strict';
 
-const fs = require('node:fs');
-const path = require('node:path');
-
-const markdownState = require('../../src/core/markdown-state');
 const { createServer } = require('../../src/mcp/core/create-server');
 const {
   createToolPack: createSessionPack,
@@ -35,19 +31,35 @@ async function createInitializedSessionServer(workspace) {
 }
 
 /**
- * Reads and parses the JSON frontmatter of a workspace's active session file
- * at `docs/maestro/state/active-session.md`.
+ * Enters the design gate for `sessionId` and records its approval. The
+ * `enter_design_gate` outcome is not inspected.
  *
- * @param {string} workspace - Absolute path of a workspace holding an active session
- * @returns {Object} The parsed session state
+ * @param {{ callTool: Function }} server - Server with the session tool pack mounted
+ * @param {string} workspace - Absolute path of the workspace
+ * @param {string} sessionId - Session whose gate to enter and approve
+ * @param {Object} design - The record_design_approval document fields: either
+ *   `{ design_document_path }` or `{ design_document_content, design_document_filename }`
+ * @returns {Promise<Object>} The `record_design_approval` outcome
  */
-function readSessionState(workspace) {
-  const sessionPath = path.join(workspace, 'docs', 'maestro', 'state', 'active-session.md');
-  return markdownState.parse(fs.readFileSync(sessionPath, 'utf8')).data;
+async function approveDesignGate(server, workspace, sessionId, design) {
+  await server.callTool('enter_design_gate', { session_id: sessionId }, workspace);
+  return server.callTool('record_design_approval', { session_id: sessionId, ...design }, workspace);
+}
+
+/**
+ * Builds a one-phase `phases` payload for create_session. Each call returns a
+ * fresh array and phase object.
+ *
+ * @param {string[]} files - The phase's planned files
+ * @param {Object} [overrides={}] - Phase fields to replace (e.g. `name`)
+ * @returns {Object[]} A single-element phases array
+ */
+function singlePhase(files, overrides = {}) {
+  return [{ id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files, ...overrides }];
 }
 
 module.exports = {
+  approveDesignGate,
   createInitializedSessionServer,
-  createSessionServer,
-  readSessionState,
+  singlePhase,
 };

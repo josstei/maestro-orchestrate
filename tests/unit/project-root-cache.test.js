@@ -7,7 +7,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
-const { withEnv } = require('../support/env');
+const { withCwd, withEnv } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
 
 const ENV_VAR = 'MAESTRO_TEST_WORKSPACE_SUGGESTION';
@@ -33,16 +33,6 @@ const HOST_CACHE_DIRS = {
 /** Creates a host plugin-cache directory, which must never be suggested as a workspace. */
 function makeCacheDir(host = 'claude') {
   return makeDir(...HOST_CACHE_DIRS[host]);
-}
-
-function withCwd(dir, fn) {
-  const previous = process.cwd();
-  process.chdir(dir);
-  try {
-    return fn();
-  } finally {
-    process.chdir(previous);
-  }
 }
 
 /**
