@@ -21,9 +21,9 @@ function validateRelativePath(filePath) {
   }
 }
 
-function joinRelative(basePath, relativePath) {
+function joinRelative(root, relativePath) {
   validateRelativePath(relativePath);
-  return path.join(basePath, relativePath);
+  return path.join(root, relativePath);
 }
 
 function validateContainment(absolutePath, rootDir) {
@@ -38,12 +38,12 @@ function validateContainment(absolutePath, rootDir) {
   return resolved;
 }
 
-function resolveStateDirUnder(base, stateDir) {
-  if (path.isAbsolute(stateDir)) {
-    return validateContainment(stateDir, base);
+function resolveStateDirUnder(root, stateDirSetting) {
+  if (path.isAbsolute(stateDirSetting)) {
+    return validateContainment(stateDirSetting, root);
   }
 
-  return joinRelative(base, stateDir);
+  return joinRelative(root, stateDirSetting);
 }
 
 /**
