@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/content');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir } = require('../support/fs');
 const { ROOT } = require('../support/paths');

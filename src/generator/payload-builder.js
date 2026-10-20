@@ -18,6 +18,7 @@ const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
   'config/',
   'hooks/',
   'mcp/',
+  'platforms/runtime-config-map.js',
   'platforms/shared/',
   'state/',
   'agents/',

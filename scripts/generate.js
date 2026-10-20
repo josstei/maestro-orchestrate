@@ -9,7 +9,7 @@ const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/platforms/runtime-config-map');
 const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');

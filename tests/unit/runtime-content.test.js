@@ -13,7 +13,7 @@ const {
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir, writeTree } = require('../support/fs');

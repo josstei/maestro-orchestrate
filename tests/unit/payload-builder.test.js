@@ -23,6 +23,7 @@ describe('DETACHED_PAYLOAD_BASE_ALLOWLIST', () => {
       'config/',
       'hooks/',
       'mcp/',
+      'platforms/runtime-config-map.js',
       'platforms/shared/',
       'state/',
       'agents/',
@@ -42,6 +43,7 @@ describe('shouldIncludeInPayload', () => {
     assert.ok(shouldIncludeInPayload('mcp/handlers/workspace.js', allowlist));
     assert.ok(shouldIncludeInPayload('hooks/shared/hook-logic.js', allowlist));
     assert.ok(shouldIncludeInPayload('generated/agent-registry.json', allowlist));
+    assert.ok(shouldIncludeInPayload('platforms/runtime-config-map.js', allowlist));
   });
 
   it('rejects files under non-allowlisted prefixes', () => {
@@ -50,6 +52,7 @@ describe('shouldIncludeInPayload', () => {
     assert.ok(!shouldIncludeInPayload('transforms/copy.js', allowlist));
     assert.ok(!shouldIncludeInPayload('manifest.js', allowlist));
     assert.ok(!shouldIncludeInPayload('platforms/claude/runtime-config.js', allowlist));
+    assert.ok(!shouldIncludeInPayload('platforms/metadata.js', allowlist));
   });
 
   it('uses custom allowlist when provided', () => {

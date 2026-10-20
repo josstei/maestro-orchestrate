@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PLATFORMS_DIR = path.resolve(__dirname, '..', '..', 'platforms');
+const PLATFORMS_DIR = __dirname;
 
 const RUNTIME_NAMES = fs.readdirSync(PLATFORMS_DIR, { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && entry.name !== 'shared')

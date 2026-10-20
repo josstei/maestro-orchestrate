@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const agentStub = require('../../src/transforms/agent-stub');
 const { parse } = require('../../src/lib/frontmatter');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 
 const SRC_AGENTS_DIR = path.resolve(__dirname, '../../src/agents');
 

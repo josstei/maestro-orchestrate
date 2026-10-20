@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const configMapPath = path.resolve(__dirname, '../../src/mcp/runtime/runtime-config-map.js');
+const configMapPath = path.resolve(__dirname, '../../src/platforms/runtime-config-map.js');
 
 describe('runtime-config-map', () => {
   it('discovers runtimes from platforms/ directory', () => {

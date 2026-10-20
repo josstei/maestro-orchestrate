@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createServer } = require('../../src/mcp/core/create-server');
-const { getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { DEFAULT_TOOL_PACKS } = require('../../src/mcp/maestro-server');
 
 describe('mcp pack composition', () => {

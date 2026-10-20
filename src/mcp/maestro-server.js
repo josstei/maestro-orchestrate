@@ -9,7 +9,7 @@ const { createProtocolHandlers } = require('./core/protocol-dispatcher');
 const { createToolPack: createWorkspaceToolPack } = require('./tool-packs/workspace');
 const { createToolPack: createSessionToolPack } = require('./tool-packs/session');
 const { createToolPack: createContentToolPack } = require('./tool-packs/content');
-const { RUNTIME_NAMES, getRuntimeConfig, findRuntimeConfigForClient } = require('./runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig, findRuntimeConfigForClient } = require('../platforms/runtime-config-map');
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',

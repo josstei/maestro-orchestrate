@@ -11,7 +11,7 @@ const {
   expandManifest,
 } = require('../../src/generator/manifest-expander');
 const manifestRules = require('../../src/manifest');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('manifest-expander', () => {
