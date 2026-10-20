@@ -63,13 +63,14 @@ describe('collectRegistryOutputs', () => {
       srcDir = path.join(rootDir, 'src');
     });
 
-    it('derives each agent tool tier from its tools, ignoring any declared capabilities', () => {
+    it('derives each agent tool tier from its tools list, ignoring any declared capabilities', () => {
       writeTree(srcDir, 'agents/reader.md', agentSource('reader', ['read_file', 'glob'], ['capabilities: full']));
       writeTree(srcDir, 'agents/runner.md', agentSource('runner', ['read_file', 'run_shell_command']));
       writeTree(srcDir, 'agents/editor.md', agentSource('editor', ['read_file', 'replace']));
       writeTree(srcDir, 'agents/writer.md', agentSource('writer', ['write_file']));
       writeTree(srcDir, 'agents/builder.md', agentSource('builder', ['write_file', 'run_shell_command']));
       writeTree(srcDir, 'agents/unnamed.md', '---\ndescription: "No name or tools."\n---\nBody.\n');
+      writeTree(srcDir, 'agents/scalar.md', '---\nname: scalar\ntools: write_file\n---\nBody.\n');
 
       const outputs = collectRegistryOutputs(srcDir, rootDir);
 
@@ -78,6 +79,8 @@ describe('collectRegistryOutputs', () => {
         { name: 'editor', capabilities: 'read_write' },
         { name: 'reader', capabilities: 'read_only' },
         { name: 'runner', capabilities: 'read_shell' },
+        // A scalar `tools:` gives the agent no tools in its stubs or get_agent, so it is not tiered by it.
+        { name: 'scalar', capabilities: 'read_only' },
         { name: 'unnamed', capabilities: 'read_only' },
         { name: 'writer', capabilities: 'read_write' },
       ]);

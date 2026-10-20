@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { mapTools } = require('../../src/core/agent-tools');
+const { declaredTools, mapTools } = require('../../src/core/agent-tools');
 
 describe('mapTools', () => {
   it('maps canonical tool names through runtimeConfig.tools', () => {
@@ -60,5 +60,23 @@ describe('mapTools', () => {
     assert.deepEqual(mapTools({ tools: ['a', '', 'b'] }, runtimeConfig), ['a', 'b']);
     assert.deepEqual(mapTools({ tools: 'a, b' }, runtimeConfig), []);
     assert.deepEqual(mapTools({}, runtimeConfig), []);
+  });
+});
+
+describe('declaredTools', () => {
+  const frontmatter = { tools: ['read_file', '', 'write_file'], 'tools.claude': ['Read'] };
+
+  it('reads the runtime override when one is declared, else the canonical tools', () => {
+    assert.deepEqual(declaredTools(frontmatter, 'claude'), ['Read']);
+    assert.deepEqual(declaredTools(frontmatter, 'qwen'), ['read_file', 'write_file']);
+  });
+
+  it('reads the canonical tools when no runtime is named', () => {
+    assert.deepEqual(declaredTools(frontmatter), ['read_file', 'write_file']);
+  });
+
+  it('declares no tools for a missing or non-list value', () => {
+    assert.deepEqual(declaredTools({}), []);
+    assert.deepEqual(declaredTools({ tools: 'write_file' }), []);
   });
 });

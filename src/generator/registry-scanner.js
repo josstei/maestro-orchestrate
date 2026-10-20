@@ -5,6 +5,7 @@ const path = require('node:path');
 const { parse } = require('../lib/frontmatter');
 const { formatJson } = require('../lib/io');
 const { toPascalCase } = require('../lib/naming');
+const { declaredTools } = require('../core/agent-tools');
 const { globFiles } = require('./glob-files');
 
 /**
@@ -37,9 +38,7 @@ function buildAgentRegistry(srcDir) {
   const agents = globFiles(srcDir, 'agents/*.md').map((relativePath) => {
     const { frontmatter } = parse(fs.readFileSync(path.join(srcDir, relativePath), 'utf8'));
     const id = path.posix.basename(relativePath, '.md');
-    const rawTools = frontmatter.tools || [];
-    const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-    return { id, name: frontmatter.name || id, capabilities: capabilityTier(tools) };
+    return { id, name: frontmatter.name || id, capabilities: capabilityTier(declaredTools(frontmatter)) };
   });
 
   return sortById(agents).map(({ name, capabilities }) => ({ name, capabilities }));
