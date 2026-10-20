@@ -6,9 +6,9 @@ const { createServer, toolFailure } = require('./core/create-server');
 const { createLineDispatcher } = require('./core/line-reader');
 const { createProjectRootCache } = require('./core/project-root-cache');
 const { createProtocolHandlers } = require('./core/protocol-dispatcher');
-const { createToolPack: createWorkspaceToolPack } = require('./tool-packs/workspace');
-const { createToolPack: createSessionToolPack } = require('./tool-packs/session');
-const { createToolPack: createContentToolPack } = require('./tool-packs/content');
+const { tools: workspaceTools } = require('./tools/workspace');
+const { tools: sessionTools } = require('./tools/session');
+const { tools: contentTools } = require('./tools/content');
 const { RUNTIME_NAMES, getRuntimeConfig, findRuntimeConfigForClient } = require('../platforms/runtime-config-map');
 
 const SERVER_INFO = Object.freeze({
@@ -16,11 +16,8 @@ const SERVER_INFO = Object.freeze({
   version: resolveVersion(__dirname),
 });
 
-const DEFAULT_TOOL_PACKS = Object.freeze([
-  createWorkspaceToolPack,
-  createSessionToolPack,
-  createContentToolPack,
-]);
+// The listed tool order: workspace, session, then content tools.
+const TOOLS = [...workspaceTools, ...sessionTools, ...contentTools];
 
 /** The RUNTIME_UNIDENTIFIED failure, saying why `session` has no runtime. */
 function runtimeUnidentified(session) {
@@ -61,14 +58,8 @@ function main() {
       runtimeConfig,
       requestClientRoots: () => handlers.requestFromClient('roots/list', {}),
     });
-    const server = createServer({
-      runtimeConfig: runtimeConfig || {},
-      services: {
-        workspaceSuggestion: cache.workspaceSuggestion,
-        setWorkspacePath: cache.setExplicitWorkspacePath,
-      },
-      toolPacks: DEFAULT_TOOL_PACKS,
-    });
+    // Without a runtime the tools are still listed, but no handler runs.
+    const server = createServer({ runtimeConfig: runtimeConfig || {}, workspace: cache, tools: TOOLS });
 
     const started = { runtimeConfig, clientInfo, cache, server };
     if (runtimeConfig) {
@@ -136,6 +127,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  DEFAULT_TOOL_PACKS,
   main,
 };

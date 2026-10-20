@@ -23,9 +23,7 @@ const agentsWithCapabilities = (...capabilities) => AGENT_REGISTRY
   .filter((agent) => capabilities.includes(agent.capabilities))
   .map((agent) => agent.name)
   .sort();
-const packToolNames = (pack) => require(`../../src/mcp/tool-packs/${pack}`)
-  .createToolPack({ runtimeConfig: getRuntimeConfig('qwen'), services: {} })
-  .tools.map((tool) => tool.name);
+const toolNames = (file) => require(`../../src/mcp/tools/${file}`).tools.map((tool) => tool.name);
 /** Every `.md` file under `dir` (repo-relative), walking subdirectories. */
 const listMdRecursive = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })
   .flatMap((entry) => {
@@ -232,10 +230,10 @@ test('doc-drift: Qwen extension layout documented as the repo root with agent st
   }
 });
 
-test('doc-drift: docs/usage.md MCP Quick Reference includes every session-pack tool', () => {
+test('doc-drift: docs/usage.md MCP Quick Reference includes every session tool', () => {
   const body = read('docs/usage.md');
-  const sessionTools = packToolNames('session');
-  assert.ok(sessionTools.length > 0, 'session tool pack declares no tools');
+  const sessionTools = toolNames('session');
+  assert.ok(sessionTools.length > 0, 'src/mcp/tools/session.js declares no tools');
   for (const tool of sessionTools) {
     assert.ok(body.includes(`\`${tool}\``), `docs/usage.md Quick Reference missing \`${tool}\``);
   }
@@ -285,7 +283,7 @@ test('doc-drift: runtime docs use generated-version placeholders', () => {
   }
 });
 
-test('doc-drift: docs/architecture.md module tree shows correct handler + tool-pack counts', () => {
+test('doc-drift: docs/architecture.md module tree shows correct handler + tool counts', () => {
   const body = read('docs/architecture.md');
   const claims = (pattern) => [...body.matchAll(pattern)].map((match) => Number(match[1]));
   const handlerCount = listDir('src/mcp/handlers').filter((f) => f.endsWith('.js')).length;
@@ -294,12 +292,12 @@ test('doc-drift: docs/architecture.md module tree shows correct handler + tool-p
     [handlerCount],
     `docs/architecture.md: module tree should report ${handlerCount} handler implementations`
   );
-  for (const pack of listSubdirs('src/mcp/tool-packs')) {
-    const toolCount = packToolNames(pack).length;
+  for (const file of listDir('src/mcp/tools').filter((f) => f.endsWith('.js'))) {
+    const toolCount = toolNames(file).length;
     assert.deepEqual(
-      claims(new RegExp(`${pack}/index\\.js\\s+# (\\d+) tools`, 'g')),
+      claims(new RegExp(`${file.replace('.', '\\.')}\\s+# (\\d+) tools`, 'g')),
       [toolCount],
-      `docs/architecture.md: module tree should report ${toolCount} tools for ${pack}/index.js`
+      `docs/architecture.md: module tree should report ${toolCount} tools for tools/${file}`
     );
   }
 });

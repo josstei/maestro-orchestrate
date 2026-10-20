@@ -114,10 +114,10 @@ The MCP server is authored directly in modular source under `src/mcp/`. Each run
 
 ```
 src/mcp/
-├── maestro-server.js           # Server entry-point (main) + default tool pack order
+├── maestro-server.js           # Server entry-point (main) + tool order
 ├── contracts/                  # Plan schema + complexity tiers, document input and handoff contracts
 ├── core/
-│   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
+│   ├── create-server.js        # Tool dispatch + error sanitization
 │   ├── protocol-dispatcher.js  # JSON-RPC routing + tool result framing
 │   ├── project-root-cache.js   # Workspace path + workspace_suggestion
 │   ├── line-reader.js          # stdin line → JSON message dispatch
@@ -132,10 +132,10 @@ src/mcp/
 │   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   └── reconciliation.js       # Phase reconciliation (2 tools)
-├── tool-packs/
-│   ├── workspace/index.js      # 4 tools
-│   ├── session/index.js        # 10 tools
-│   └── content/index.js        # 3 tools
+├── tools/                      # Tool definitions: listed schema + handler
+│   ├── workspace.js            # 4 tools
+│   ├── session.js              # 10 tools
+│   └── content.js              # 3 tools
 └── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
 ```
 

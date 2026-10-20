@@ -1,20 +1,23 @@
 'use strict';
 
 const { createServer } = require('../../src/mcp/core/create-server');
-const {
-  createToolPack: createSessionPack,
-} = require('../../src/mcp/tool-packs/session');
-const {
-  createToolPack: createWorkspacePack,
-} = require('../../src/mcp/tool-packs/workspace');
+const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
+const { tools: sessionTools } = require('../../src/mcp/tools/session');
+const { tools: workspaceTools } = require('../../src/mcp/tools/workspace');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 
 /**
- * Creates an MCP server with the workspace and session tool packs mounted.
+ * Creates a Codex MCP server with the workspace and session tools.
  *
- * @returns {{ getToolSchemas: () => object[], callTool: Function }} The composed server
+ * @returns {{ getToolSchemas: () => object[], callTool: Function }} The server
  */
 function createSessionServer() {
-  return createServer({ toolPacks: [createWorkspacePack, createSessionPack] });
+  const runtimeConfig = getRuntimeConfig('codex');
+  return createServer({
+    runtimeConfig,
+    workspace: createProjectRootCache({ runtimeConfig, requestClientRoots: async () => ({}) }),
+    tools: [...workspaceTools, ...sessionTools],
+  });
 }
 
 /**
@@ -34,7 +37,7 @@ async function createInitializedSessionServer(workspace) {
  * Enters the design gate for `sessionId` and records its approval. The
  * `enter_design_gate` outcome is not inspected.
  *
- * @param {{ callTool: Function }} server - Server with the session tool pack mounted
+ * @param {{ callTool: Function }} server - Server with the session tools
  * @param {string} workspace - Absolute path of the workspace
  * @param {string} sessionId - Session whose gate to enter and approve
  * @param {Object} design - The record_design_approval document fields: either

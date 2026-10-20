@@ -6,46 +6,21 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
-const { createToolPack } = require('../../src/mcp/tool-packs/session');
+const { tools } = require('../../src/mcp/tools/session');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { ensureWorkspace } = require('../../src/state/session-state');
 const { makeTempDir } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
 
-function createSessionPackServer() {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createToolPack],
-  });
-}
-
 function setup(prefix) {
   const projectRoot = makeTempDir(prefix);
   ensureWorkspace('docs/maestro', projectRoot);
-  return { projectRoot, server: createSessionPackServer() };
+  // The session tools use neither the runtime config nor the workspace cache.
+  const server = createServer({ runtimeConfig: getRuntimeConfig('codex'), workspace: null, tools });
+  return { projectRoot, server };
 }
 
-describe('session tool pack', () => {
-  it('registers the session lifecycle tools through the kernel', () => {
-    const server = createSessionPackServer();
-
-    assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
-      [
-        'create_session',
-        'get_session_status',
-        'update_session',
-        'transition_phase',
-        'archive_session',
-        'enter_design_gate',
-        'record_design_approval',
-        'get_design_gate_status',
-        'scan_phase_changes',
-        'reconcile_phase',
-      ]
-    );
-  });
-
+describe('session tools', () => {
   it('creates, updates, and transitions session state on disk', async () => {
     const { projectRoot, server } = setup('maestro-session-');
     fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/design.md'), '# Design\n');
@@ -91,8 +66,8 @@ describe('session tool pack', () => {
         files_modified: ['src/existing.js'],
         downstream_context: {
           key_interfaces_introduced: ['createServer(options)'],
-          patterns_established: ['pack-based composition'],
-          integration_points: ['session pack'],
+          patterns_established: ['static tool lists'],
+          integration_points: ['session tools'],
           assumptions: ['phases are sequential'],
           warnings: [],
         },

@@ -6,33 +6,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { createServer } = require('../../src/mcp/core/create-server');
-const { createToolPack } = require('../../src/mcp/tool-packs/workspace');
+const { createProjectRootCache } = require('../../src/mcp/core/project-root-cache');
+const { tools } = require('../../src/mcp/tools/workspace');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { withEnv } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
 
-function createWorkspacePackServer() {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createToolPack],
-  });
+function createWorkspaceToolsServer() {
+  const runtimeConfig = getRuntimeConfig('codex');
+  const workspace = createProjectRootCache({ runtimeConfig, requestClientRoots: async () => ({}) });
+  return { server: createServer({ runtimeConfig, workspace, tools }), workspace };
 }
 
-describe('workspace tool pack', () => {
-  it('registers the workspace and planning tool surface through the kernel', () => {
-    const server = createWorkspacePackServer();
-
-    assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
-      [
-        'initialize_workspace',
-        'assess_task_complexity',
-        'validate_plan',
-        'resolve_settings',
-      ]
-    );
-  });
-
+describe('workspace tools', () => {
   it('resolves settings from the workspace env file', async () => {
     const projectRoot = makeTempDir('maestro-settings-');
     fs.writeFileSync(
@@ -40,7 +26,7 @@ describe('workspace tool pack', () => {
       'MAESTRO_DISABLED_AGENTS=architect, tester\n'
     );
 
-    const server = createWorkspacePackServer();
+    const { server } = createWorkspaceToolsServer();
 
     // An inherited MAESTRO_DISABLED_AGENTS would take precedence over the .env file.
     const result = await withEnv({ MAESTRO_DISABLED_AGENTS: null }, () =>
@@ -59,10 +45,10 @@ describe('workspace tool pack', () => {
     assert.deepEqual(result.result.disabled_agents, ['architect', 'tester']);
   });
 
-  it('initializes the workspace directories under the provided project root', async () => {
+  it('initializes the workspace directories under the provided project root and records it', async () => {
     const projectRoot = makeTempDir('maestro-workspace-');
 
-    const server = createWorkspacePackServer();
+    const { server, workspace } = createWorkspaceToolsServer();
 
     const result = await server.callTool(
       'initialize_workspace',
@@ -80,10 +66,22 @@ describe('workspace tool pack', () => {
       fs.existsSync(path.join(projectRoot, 'docs/maestro/plans/archive')),
       true
     );
+    assert.equal(workspace.getProjectRoot(), projectRoot);
+  });
+
+  it('keeps the recorded workspace when initialize_workspace fails', async () => {
+    const projectRoot = makeTempDir('maestro-workspace-');
+    const { server, workspace } = createWorkspaceToolsServer();
+    await server.callTool('initialize_workspace', { workspace_path: projectRoot });
+
+    const failed = await server.callTool('initialize_workspace', { workspace_path: path.join(projectRoot, 'missing') });
+
+    assert.equal(failed.code, 'WORKSPACE_NOT_FOUND');
+    assert.equal(workspace.getProjectRoot(), projectRoot);
   });
 
   it('reports overlapping files for parallel phases', async () => {
-    const server = createWorkspacePackServer();
+    const { server } = createWorkspaceToolsServer();
 
     const result = await server.callTool(
       'validate_plan',

@@ -6,6 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { tools: workspaceTools } = require('../../src/mcp/tools/workspace');
+const { tools: sessionTools } = require('../../src/mcp/tools/session');
+const { tools: contentTools } = require('../../src/mcp/tools/content');
 const { makeTempDir } = require('../support/fs');
 const { HOST_CLIENTS } = require('../support/host-clients');
 const { ROOT, withIsolatedAntigravityPlugin } = require('./helpers');
@@ -142,12 +145,14 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
-  it('marks every listed tool always-loaded on the antigravity bundles only', async () => {
+  it('lists the workspace, session and content tools in order, always-loaded on the antigravity bundles only', async () => {
+    const toolNames = [...workspaceTools, ...sessionTools, ...contentTools].map((tool) => tool.name);
+
     await forEachRuntimeBundle(async (client, bundle) => {
       const tools = await client.listTools();
       const label = path.join(bundle.cwd, bundle.relativePath);
 
-      assert.ok(tools.length > 0, label);
+      assert.deepEqual(tools.map((tool) => tool.name), toolNames, label);
       for (const tool of tools) {
         if (bundle.runtime === 'antigravity') {
           assert.deepEqual(tool._meta, { 'antigravity/alwaysLoad': true }, `${label}: ${tool.name}`);

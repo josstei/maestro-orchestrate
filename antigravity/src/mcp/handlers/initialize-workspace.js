@@ -13,7 +13,7 @@ const {
   requireExplicitWorkspaceRoot,
 } = require('../../core/project-root-resolver');
 
-async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
+async function handleInitializeWorkspace(params = {}, cachedProjectRoot, context) {
   const workspacePath =
     params.workspace_path || cachedProjectRoot || null;
 
@@ -26,6 +26,9 @@ async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
   const alreadyExisted = fs.existsSync(path.join(fullStatePath, 'state'));
 
   ensureWorkspace(stateDir, resolvedWorkspace);
+  // Recorded only once the workspace exists, so a failed call keeps the
+  // previous project root.
+  context.workspace.setExplicitWorkspacePath(resolvedWorkspace);
 
   return {
     success: true,

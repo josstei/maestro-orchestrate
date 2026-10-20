@@ -8,6 +8,44 @@ const codex = require('../../src/platforms/codex/runtime-config');
 const claude = require('../../src/platforms/claude/runtime-config');
 const qwen = require('../../src/platforms/qwen/runtime-config');
 
+const RUNTIME_CONFIGS = { antigravity, claude, codex, qwen };
+
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isNonEmptyString = (value) => typeof value === 'string' && value.length > 0;
+
+describe('runtime-config required fields', () => {
+  // Consumers (MCP server, content serving, generator) read these fields
+  // without a fallback. agentPrefix, mcpToolMeta and agentFrontmatter are
+  // optional.
+  it('every runtime-config defines the fields its consumers read without a fallback', () => {
+    for (const [name, config] of Object.entries(RUNTIME_CONFIGS)) {
+      assert.equal(config.name, name);
+      assert.ok(isNonEmptyString(config.outputDir), `${name}.outputDir`);
+      assert.ok(['kebab-case', 'snake_case'].includes(config.agentNaming), `${name}.agentNaming`);
+      assert.ok(Array.isArray(config.mcpClientNames) && config.mcpClientNames.length > 0, `${name}.mcpClientNames`);
+      assert.equal(typeof config.mcpPrefix, 'string', `${name}.mcpPrefix`);
+      assert.equal(typeof config.planModeNative, 'boolean', `${name}.planModeNative`);
+      assert.ok(isNonEmptyString(config.env.extensionPath), `${name}.env.extensionPath`);
+      assert.ok(isNonEmptyString(config.env.workspacePath), `${name}.env.workspacePath`);
+      assert.ok(isPlainObject(config.tools), `${name}.tools`);
+      assert.ok(isNonEmptyString(config.delegation.pattern), `${name}.delegation.pattern`);
+      assert.ok(isPlainObject(config.delegation.constraints), `${name}.delegation.constraints`);
+      assert.ok(isPlainObject(config.paths), `${name}.paths`);
+      assert.ok(isPlainObject(config.features), `${name}.features`);
+      for (const [flag, enabled] of Object.entries(config.features)) {
+        assert.equal(typeof enabled, 'boolean', `${name}.features.${flag}`);
+      }
+    }
+  });
+
+  it('every runtime-config declares the same feature flags', () => {
+    const flags = Object.keys(codex.features).sort();
+    for (const [name, config] of Object.entries(RUNTIME_CONFIGS)) {
+      assert.deepEqual(Object.keys(config.features).sort(), flags, name);
+    }
+  });
+});
+
 describe('runtime-config host bindings', () => {
   it('every runtime-config binds workspacePath to the env var its host provides', () => {
     assert.deepEqual(

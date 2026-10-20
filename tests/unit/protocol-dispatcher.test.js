@@ -167,7 +167,7 @@ describe('createProtocolHandlers.respond', () => {
     const stdout = new PassThrough();
     const frames = captureWrites(stdout);
     const handlers = createProtocolHandlers(
-      createServer({ toolPacks: [] }),
+      createServer({ runtimeConfig: {}, workspace: null, tools: [] }),
       async () => null,
       stdout,
       {}
