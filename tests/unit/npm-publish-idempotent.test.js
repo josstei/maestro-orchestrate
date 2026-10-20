@@ -202,15 +202,12 @@ describe('idempotent npm publish', () => {
 
   it('fails on npm errors other than a missing version', () => {
     withPackageRoot('1.2.3', (root) => {
-      assert.throws(
-        () => publishIfNeeded({
-          root,
-          execFileSync: () => {
-            throw npmError('npm ERR! code E401\nnpm ERR! Incorrect or missing password');
-          },
-        }),
-        /Command failed/
-      );
+      const npm = fakeNpm(() => {
+        throw npmError('npm ERR! code E401\nnpm ERR! Incorrect or missing password');
+      });
+
+      assert.throws(() => publishIfNeeded({ root, execFileSync: npm.execFileSync }), /Command failed/);
+      assert.deepEqual(npm.calls, [['npm', ['view', '@josstei/maestro@1.2.3', 'version']]]);
     });
   });
 

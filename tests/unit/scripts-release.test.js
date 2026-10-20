@@ -143,6 +143,7 @@ describe('release artifact manifest', () => {
 
   it('keeps denying local .gemini tool directories', () => {
     for (const deniedPath of ['.gemini', '.gemini_security']) {
+      assert.equal(isDeniedPath(deniedPath), true);
       assert.equal(isDeniedPath(`${deniedPath}/settings.json`), true);
     }
   });

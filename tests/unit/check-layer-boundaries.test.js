@@ -25,15 +25,40 @@ function makeLibDir(files = {}) {
 
 const fromCwd = (filePath) => path.relative(process.cwd(), filePath);
 
-describe('check-layer-boundaries (real repo smoke test)', () => {
+const SCRIPT = path.join(ROOT, 'scripts', 'check-layer-boundaries.js');
+
+function runCheck(root) {
+  return spawnSync(process.execPath, [path.join(root, 'scripts', 'check-layer-boundaries.js')], {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
+  });
+}
+
+describe('check-layer-boundaries CLI', () => {
   it('passes against the real src/lib tree', () => {
-    const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'check-layer-boundaries.js')], {
-      cwd: ROOT,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      encoding: 'utf8',
-    });
+    const result = runCheck(ROOT);
     assert.equal(result.status, 0, `stderr: ${result.stderr}`);
     assert.match(result.stdout, /Layer boundaries clean: \d+ files scanned, 0 violations\./);
+  });
+
+  it('lists every violation on stderr and exits 1', () => {
+    // The CLI checks the src/lib beside its own scripts/ dir, so run a copy inside a fixture repo.
+    const root = makeTempDir('maestro-lint-');
+    writeTree(root, 'scripts/check-layer-boundaries.js', fs.readFileSync(SCRIPT, 'utf8'));
+    writeTree(root, 'src/lib/leaky.js', "require('lodash');\nrequire('../core/x');\n");
+    const leaky = path.join('src', 'lib', 'leaky.js');
+
+    const result = runCheck(root);
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr, [
+      'Layer boundary violations in src/lib/:',
+      `  ${leaky}: require('lodash') — non-relative, non-node import`,
+      `  ${leaky}: require('../core/x') — resolves to ${path.join('src', 'core', 'x')}`,
+      '',
+    ].join('\n'));
   });
 });
 
