@@ -14,16 +14,17 @@ const AGENT_ALLOWLIST = AGENT_NAMES;
 
 const HYPHENATED_AGENT_NAMES = AGENT_ALLOWLIST.filter((name) => name.includes('-'));
 
+/**
+ * Rewrite `${extensionPath}` in served markdown to the runtime's extension-root
+ * variable (runtimeConfig.env.extensionPath). No other placeholder is
+ * substituted.
+ */
 function applyReplacePaths(content, runtimeConfig) {
   let result = content;
   const env = runtimeConfig.env || {};
 
   if (env.extensionPath) {
     result = result.replace(/\$\{extensionPath\}/g, '${' + env.extensionPath + '}');
-  }
-
-  if (env.workspacePath) {
-    result = result.replace(/\$\{workspacePath\}/g, '${' + env.workspacePath + '}');
   }
 
   return result;

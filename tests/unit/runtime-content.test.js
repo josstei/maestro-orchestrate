@@ -54,16 +54,22 @@ describe('applyReplacePaths', () => {
     assert.equal(result, 'load from ${EXTENSION_DIR}/foo');
   });
 
-  it('replaces ${workspacePath} with ${ENV_VAR_NAME} from runtimeConfig.env.workspacePath', () => {
-    const content = 'root is ${workspacePath}/bar';
-    const result = applyReplacePaths(content, { env: { workspacePath: 'WORKSPACE_DIR' } });
-    assert.equal(result, 'root is ${WORKSPACE_DIR}/bar');
-  });
-
   it('returns content unchanged when no placeholders present', () => {
     const content = 'no placeholders here';
-    const result = applyReplacePaths(content, { env: { extensionPath: 'EXT', workspacePath: 'WS' } });
+    const result = applyReplacePaths(content, { env: { extensionPath: 'EXT' } });
     assert.equal(result, content);
+  });
+
+  it('covers every ${...Path} placeholder the served resources use', () => {
+    for (const relativePath of Object.values(RESOURCE_ALLOWLIST)) {
+      const content = fs.readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
+      const placeholders = content.match(/\$\{[A-Za-z]+Path\}/g) || [];
+      assert.deepEqual(
+        placeholders.filter((placeholder) => placeholder !== '${extensionPath}'),
+        [],
+        `${relativePath} uses a placeholder applyReplacePaths does not substitute`
+      );
+    }
   });
 });
 
