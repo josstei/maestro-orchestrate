@@ -75,7 +75,7 @@ A parallel batch is one `invoke_subagent` call whose `Subagents` array holds the
 
 19 Markdown skills in `antigravity/skills/`. Antigravity turns plugin skills into slash commands under the plugin namespace, `/maestro:<skill>`; the 7 infrastructure skills opt out.
 
-Antigravity has a built-in `/resume`, so `review`, `debug`, and `resume` are remapped to `review-code`, `debug-workflow`, and `resume-session`, as in Claude Code and Codex (see `src/generator/entry-point-expander.js` `HOST_RESERVED_NAMES`).
+Antigravity has a built-in `/resume`, so `review`, `debug`, and `resume` are remapped to `review-code`, `debug-workflow`, and `resume-session`, as in Claude Code and Codex (see `entryPoints.reservedNames` in `src/platforms/antigravity/outputs.js` and each registry entry's `hostSafeName`).
 
 **Core (3)** — generated public entry points from the core command registry, invoked as `/maestro:<name>`:
 - `orchestrate/SKILL.md`

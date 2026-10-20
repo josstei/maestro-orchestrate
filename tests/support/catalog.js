@@ -33,12 +33,14 @@ function listCanonicalAgents() {
 }
 
 /**
- * @param {string} runtime - Runtime whose runtimeNames override applies
- * @returns {string[]} Sorted public skill (or command) names on that runtime
+ * @param {string} runtime - Runtime whose reserved host command names apply
+ * @returns {string[]} Sorted public skill (or command) names on that runtime:
+ *   an entry's hostSafeName where the runtime reserves its name
  */
 function publicSkillNames(runtime) {
+  const { reservedNames } = require(`../../src/platforms/${runtime}/outputs`).entryPoints;
   return [...entryPointRegistry, ...coreCommandRegistry]
-    .map((entry) => entry.runtimeNames?.[runtime] || entry.name)
+    .map((entry) => (reservedNames.includes(entry.name) ? entry.hostSafeName : entry.name))
     .sort();
 }
 

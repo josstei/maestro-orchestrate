@@ -45,7 +45,7 @@ maestro-orchestrate/
 │   ├── references/               # Architecture ref, orchestration steps
 │   ├── generator/                # Build-time only: file-mapping manifest, transforms (agent-stub, skill-discovery-stub), entry-point expansion, registries, platform metadata, pruning, payloads
 │   ├── generated/                # [generated] Agent, resource, and hook registries
-│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 8 templates
+│   ├── entry-points/             # 9 entry-point + 3 core-command registries
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Settings catalog, setting resolution, and the .env parser
 │   ├── core/                     # Shared runtime helpers and resolvers
@@ -53,7 +53,7 @@ maestro-orchestrate/
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, the canonical shell policy rules, Antigravity and Claude policy enforcers, and each runtime's build-time outputs.js (owned dirs, payload, metadata files) with the Qwen policy-pack renderer
+│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, the canonical shell policy rules, Antigravity and Claude policy enforcers, and each runtime's build-time outputs.js (owned dirs, payload, entry-point surface, metadata files) and templates/, with the Qwen policy-pack renderer
 │   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
 ├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)

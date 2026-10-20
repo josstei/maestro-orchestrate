@@ -7,6 +7,8 @@
 
 const CLAUDE_HOOKS_PATH = 'hooks/claude-hooks.json';
 
+const DELEGATION_PROTOCOL = '## Protocol\n\nBefore delegating, call `get_skill_content` with resources: ["delegation"] and follow the returned methodology.\n';
+
 // Claude Code reads hook timeouts in seconds.
 function claudeHookCommand(script, timeout) {
   return {
@@ -35,6 +37,19 @@ module.exports = {
   // src/ prefixes claude/src/ ships beyond the shared base: the plugin's hooks
   // run the bundled hook logic through the shared hook and policy runners.
   payload: ['hooks/', 'platforms/shared/'],
+
+  entryPoints: {
+    outputPath: (name) => `claude/skills/${name}/SKILL.md`,
+    // /review shadows Claude Code's built-in PR review command; debug and
+    // resume are reserved defensively.
+    reservedNames: ['review', 'debug', 'resume'],
+    preamble: {
+      // The entry-point template loads the architecture skill itself; entries
+      // that delegate add the delegation protocol.
+      'entry-point': (entry) => (entry.agents.length > 0 ? DELEGATION_PROTOCOL : ''),
+      'core-command': () => '',
+    },
+  },
 
   metadataFiles: (context) => [
     ['.claude-plugin/marketplace.json', {

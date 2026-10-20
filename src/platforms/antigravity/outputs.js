@@ -5,6 +5,8 @@
  * reads it, and no detached payload ships it.
  */
 
+const ANTIGRAVITY_DELEGATION_LINE = 'Delegate with `invoke_subagent`: one `Subagents` entry per agent, with `TypeName` set to the agent name, a 2-5 word `Role`, and the full delegation prompt as `Prompt`. The call returns at once and each agent\'s final response arrives later as a system message, so end your turn without further tool calls until it does.';
+
 // Antigravity's plugin cards and Marketplace listing keep descriptions to 160
 // characters.
 const ANTIGRAVITY_DESCRIPTION = 'Multi-agent development orchestration: 39 specialist subagents, design-plan-execute workflows with persistent sessions, and review, debug and audit skills';
@@ -47,6 +49,20 @@ module.exports = {
   // runners, and the served script-based state contract runs
   // `node ${PLUGIN_ROOT}/src/scripts/...` against the installed plugin.
   payload: ['scripts/', 'hooks/', 'platforms/shared/'],
+
+  entryPoints: {
+    // Antigravity turns every plugin skill into a /maestro:<name> command.
+    outputPath: (name) => `antigravity/skills/${name}/SKILL.md`,
+    // Antigravity has a built-in /resume; review and debug are reserved
+    // defensively.
+    reservedNames: ['review', 'debug', 'resume'],
+    preamble: {
+      'entry-point': (entry, { skillContentLine, agentLine }) =>
+        [skillContentLine, ...(agentLine ? [agentLine, ANTIGRAVITY_DELEGATION_LINE] : [])].join('\n'),
+      // The core-command template carries the Antigravity runtime preamble.
+      'core-command': () => '',
+    },
+  },
 
   // Antigravity loads only plugin.json's own fields; MCP servers and hooks are
   // read from mcp_config.json and hooks.json at the plugin root.

@@ -3,139 +3,106 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { toTitleCase } = require('../lib/naming');
+const { RUNTIME_NAMES } = require('../platforms/runtime-config-map');
 const entryPointRegistry = require('../entry-points/registry');
 const coreCommandRegistry = require('../entry-points/core-command-registry');
-const { preambleBuilders, quotedList } = require('../entry-points/preamble-builders');
 
-const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
-
-/**
- * Host command names that must never appear as public skill names. Claude
- * /review shadows the built-in PR review command and Codex review, debug and
- * resume conflict with built-ins; Antigravity has a built-in /resume; Claude
- * debug and resume and Antigravity review and debug are reserved defensively.
- */
-const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
+const PLATFORMS_DIR = path.join(__dirname, '..', 'platforms');
 
 /**
- * Per-runtime entry-point surface. Entry points and core commands share one
- * output location per runtime.
+ * Render names as a comma-separated list of double-quoted strings, for the
+ * `resources: [...]` and `agents: [...]` arguments in generated tool calls.
+ * Names are not escaped: they are registry identifiers.
+ * @param {string[]} items
+ * @returns {string}
  */
-const RUNTIME_ENTRY_POINTS = {
-  // Antigravity turns every plugin skill into a /maestro:<name> command.
-  antigravity: {
-    outputPath: (e) => `antigravity/skills/${e.name}/SKILL.md`,
-    templates: {
-      'entry-point': 'antigravity-skill.md.tmpl',
-      'core-command': 'antigravity-core-command.md.tmpl',
-    },
-    reservedNames: HOST_RESERVED_NAMES,
-  },
-  claude: {
-    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
-    templates: {
-      'entry-point': 'claude-skill.md.tmpl',
-      'core-command': 'claude-core-command.md.tmpl',
-    },
-    reservedNames: HOST_RESERVED_NAMES,
-  },
-  codex: {
-    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-    templates: {
-      'entry-point': 'codex-skill.md.tmpl',
-      'core-command': 'codex-core-command.md.tmpl',
-    },
-    reservedNames: HOST_RESERVED_NAMES,
-  },
-  // The repo root is Qwen Code's extension dir, so its TOML commands live there.
-  qwen: {
-    outputPath: (e) => `commands/maestro/${e.name}.toml`,
-    templates: {
-      'entry-point': 'qwen-command.toml.tmpl',
-      'core-command': 'qwen-core-command.toml.tmpl',
-    },
-    reservedNames: null,
-  },
-};
-
-const QWEN_SESSION_STATE_BLOCK = `The current session state is provided below:
-
-<session-state>
-!{extension_root="\${MAESTRO_EXTENSION_PATH:-$HOME/.qwen/extensions/maestro}"; script="$extension_root/src/scripts/read-active-session.js"; if [[ -f "$script" ]]; then node "$script"; else echo "No active session"; fi}
-</session-state>
-
-Use the injected session state above as the source of truth for resume position.
-
-`;
+function quotedList(items) {
+  return items.map((item) => `"${item}"`).join(', ');
+}
 
 /**
  * Expansion kinds: the registry each renders and the template placeholder
- * values for one registry entry, given its runtime-resolved name.
+ * values for one registry entry, given its runtime-resolved name and the
+ * runtime's preamble builder for the kind. Entry-point preambles get the
+ * entry's get_skill_content line and, when it has agents, its get_agent line.
  */
 const KINDS = {
   'entry-point': {
     registry: entryPointRegistry,
-    substitutions: (entry, runtimeName) => ({
+    substitutions: (entry, preamble) => ({
       name: entry.name,
       title: entry.title || toTitleCase(entry.name),
       description: entry.description,
       workflowNumbered: entry.workflow.map((step, i) => `${i + 1}. ${step}`).join('\n'),
-      constraintsList: (entry.constraints || []).map((c) => `- ${c}`).join('\n'),
-      preamble: preambleBuilders[runtimeName](entry),
+      constraintsList: entry.constraints.map((c) => `- ${c}`).join('\n'),
+      preamble: preamble(entry, {
+        skillContentLine: `Call \`get_skill_content\` with resources: [${quotedList(['architecture', ...entry.skills])}].`,
+        agentLine: entry.agents.length > 0 ? `Call \`get_agent\` with agents: [${quotedList(entry.agents)}].` : null,
+      }),
     }),
   },
   'core-command': {
     registry: coreCommandRegistry,
-    substitutions: (entry) => ({
+    substitutions: (entry, preamble) => ({
       name: entry.name,
       description: entry.description,
       firstLine: entry.firstLine,
       requestType: entry.requestType,
       executeInstructions: entry.executeInstructions,
       preloadList: quotedList(entry.preload),
-      sessionStateBlock: entry.qwenSessionStateInjection ? QWEN_SESSION_STATE_BLOCK : '',
+      preamble: preamble(entry),
     }),
   },
 };
 
-function applySubstitutions(template, substitutions) {
-  let content = template;
-  for (const [key, value] of Object.entries(substitutions)) {
-    content = content.replaceAll(`{{${key}}}`, value);
-  }
-  return content;
+/**
+ * A runtime's template for one kind: src/platforms/<runtime>/templates/
+ * <kind>.<ext>.tmpl, where <ext> is the format of the files it renders.
+ */
+function readTemplate(runtimeName, kind) {
+  const templatesDir = path.join(PLATFORMS_DIR, runtimeName, 'templates');
+  const file = fs.readdirSync(templatesDir).find((name) => name.startsWith(`${kind}.`));
+  return fs.readFileSync(path.join(templatesDir, file), 'utf8');
 }
 
 /**
- * Render every registry entry of one kind for one runtime.
+ * Fill each {{key}} placeholder that has a substitution, in one pass so no
+ * value is rescanned; others (Qwen's {{args}}) stay for the host.
+ */
+function applySubstitutions(template, substitutions) {
+  return template.replace(/\{\{(\w+)\}\}/g, (placeholder, key) =>
+    (Object.hasOwn(substitutions, key) ? substitutions[key] : placeholder));
+}
+
+/**
+ * Render every registry entry of one kind for one runtime, through the
+ * runtime's template and its outputs.js `entryPoints`.
  * @param {'entry-point'|'core-command'} kind
  * @param {string} runtimeName
  * @returns {Array<{ outputPath: string, content: string }>}
- * @throws {Error} For an unknown runtime, or a resolved name that collides
- *   with a reserved host command
+ * @throws {Error} For an unknown runtime, or an entry the runtime reserves
+ *   that has no hostSafeName
  */
 function expand(kind, runtimeName) {
-  const config = RUNTIME_ENTRY_POINTS[runtimeName];
-  if (!config) {
+  if (!RUNTIME_NAMES.includes(runtimeName)) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
 
+  const { outputPath, reservedNames, preamble } = require(`../platforms/${runtimeName}/outputs`).entryPoints;
   const { registry, substitutions } = KINDS[kind];
-  const template = fs.readFileSync(path.join(TEMPLATES_DIR, config.templates[kind]), 'utf8');
+  const template = readTemplate(runtimeName, kind);
   return registry.map((entry) => {
-    const runtimeEntry = {
-      ...entry,
-      name: entry.runtimeNames?.[runtimeName] || entry.name,
-    };
-    if (config.reservedNames && config.reservedNames.has(runtimeEntry.name)) {
+    const reserved = reservedNames.includes(entry.name);
+    if (reserved && !entry.hostSafeName) {
       throw new Error(
-        `Reserved ${runtimeName} host command name "${runtimeEntry.name}" conflicts with a built-in — ` +
-        'add a runtimeNames entry to the registry to remap it'
+        `Reserved ${runtimeName} host command name "${entry.name}" conflicts with a built-in — ` +
+        'add a hostSafeName to the registry entry'
       );
     }
+    const runtimeEntry = { ...entry, name: reserved ? entry.hostSafeName : entry.name };
     return {
-      outputPath: config.outputPath(runtimeEntry),
-      content: applySubstitutions(template, substitutions(runtimeEntry, runtimeName)),
+      outputPath: outputPath(runtimeEntry.name),
+      content: applySubstitutions(template, substitutions(runtimeEntry, preamble[kind])),
     };
   });
 }

@@ -1,5 +1,11 @@
 'use strict';
 
+/**
+ * Core-command registry -- the orchestrate, execute and resume commands,
+ * rendered through each runtime's templates/core-command.<ext>.tmpl.
+ * `hostSafeName` works as in registry.js.
+ */
+
 module.exports = [
   {
     name: 'orchestrate',
@@ -24,7 +30,7 @@ module.exports = [
   },
   {
     name: 'resume',
-    runtimeNames: { antigravity: 'resume-session', codex: 'resume-session', claude: 'resume-session' },
+    hostSafeName: 'resume-session',
     description:
       'Resume an interrupted Maestro session using the existing active-session file and shared phase tracking',
     preload: ['session-management', 'execution', 'delegation', 'validation'],
@@ -32,6 +38,5 @@ module.exports = [
     requestType: 'additional context',
     executeInstructions:
       'Read the active session state, summarize completed and pending phases, then resume from the first pending or failed phase following the loaded methodology.',
-    qwenSessionStateInjection: true,
   },
 ];

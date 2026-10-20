@@ -6,15 +6,17 @@
  * and constraints that the Antigravity, Claude, Codex, and Qwen runtimes
  * render.
  *
- * Content lives here once; format-specific rendering (TOML commands,
- * SKILL.md files) is handled by templates + the generator. An optional
- * `title` replaces the display title otherwise derived from the name.
+ * Content lives here once; src/generator/entry-point-expander.js renders it
+ * through each runtime's templates/entry-point.<ext>.tmpl. An optional
+ * `title` replaces the display title otherwise derived from the name, and
+ * `hostSafeName` replaces the name on runtimes that reserve it for a
+ * built-in host command (their outputs.js `entryPoints.reservedNames`).
  */
 
 module.exports = [
   {
     name: 'review',
-    runtimeNames: { antigravity: 'review-code', codex: 'review-code', claude: 'review-code' },
+    hostSafeName: 'review-code',
     description:
       'Perform a Maestro-style code review with findings ordered by severity and concrete file references',
     agents: ['code-reviewer'],
@@ -35,7 +37,7 @@ module.exports = [
 
   {
     name: 'debug',
-    runtimeNames: { antigravity: 'debug-workflow', codex: 'debug-workflow', claude: 'debug-workflow' },
+    hostSafeName: 'debug-workflow',
     description:
       'Run the Maestro debugging workflow for investigation-heavy tasks',
     agents: ['debugger'],

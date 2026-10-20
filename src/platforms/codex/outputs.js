@@ -40,6 +40,17 @@ module.exports = {
   // Codex registers no hooks, so plugins/maestro/src/ ships only the shared base.
   payload: [],
 
+  entryPoints: {
+    outputPath: (name) => `plugins/maestro/skills/${name}/SKILL.md`,
+    // Codex has built-in review, debug and resume commands.
+    reservedNames: ['review', 'debug', 'resume'],
+    preamble: {
+      'entry-point': (entry, { skillContentLine, agentLine }) =>
+        [skillContentLine, ...(agentLine ? [agentLine] : [])].join('\n'),
+      'core-command': () => '',
+    },
+  },
+
   metadataFiles: (context) => [
     ['.agents/plugins/marketplace.json', codexMarketplace([codexMarketplacePlugin('./plugins/maestro')])],
     ['plugins/maestro/.codex-plugin/plugin.json', {

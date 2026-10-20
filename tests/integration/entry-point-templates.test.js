@@ -129,18 +129,20 @@ describe('expandEntryPoints', () => {
     assert.ok(debug.content.includes('2. '));
   });
 
-  it('rejects a registry name that resolves to a reserved host command', () => {
+  it('rejects a reserved host command name without a hostSafeName', () => {
     const review = entryPointRegistry.find((entry) => entry.name === 'review');
-    const { runtimeNames } = review;
-    review.runtimeNames = { codex: 'review-code' };
+    const { hostSafeName } = review;
+    delete review.hostSafeName;
     try {
       assert.throws(() => expandEntryPoints('claude'), {
         message:
           'Reserved claude host command name "review" conflicts with a built-in — ' +
-          'add a runtimeNames entry to the registry to remap it',
+          'add a hostSafeName to the registry entry',
       });
+      // Qwen reserves no names, so it still renders the bare name.
+      assert.ok(expandEntryPoints('qwen').some((r) => r.outputPath === 'commands/maestro/review.toml'));
     } finally {
-      review.runtimeNames = runtimeNames;
+      review.hostSafeName = hostSafeName;
     }
   });
 
@@ -267,7 +269,7 @@ describe('entry-point and core-command skills for antigravity', () => {
 
   it('delegates with invoke_subagent only from entries that declare agents', () => {
     for (const entry of entryPointRegistry) {
-      const name = entry.runtimeNames?.antigravity || entry.name;
+      const name = entry.hostSafeName || entry.name;
       const { content } = entryPoints.find((r) => r.outputPath === `${SKILLS_ROOT}/${name}/SKILL.md`);
       if (entry.agents.length > 0) {
         assert.ok(
