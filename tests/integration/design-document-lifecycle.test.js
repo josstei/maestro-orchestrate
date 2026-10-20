@@ -5,18 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeFile } = require('../support/fs');
 const { readSessionState } = require('../support/session-file');
 const {
   approveDesignGate,
   createInitializedSessionServer,
   singlePhase,
 } = require('../support/session-server');
-
-function writeFile(filePath, content) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content);
-}
 
 describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive', () => {
   it('record_design_approval records the path without requiring the file to exist (Plan Mode parallel-dispatch tolerance)', async () => {

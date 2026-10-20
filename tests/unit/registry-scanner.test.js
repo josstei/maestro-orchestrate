@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { collectRegistryOutputs } = require('../../src/generator/registry-scanner');
-const { makeTempDir, writeTree } = require('../support/fs');
+const { makeTempDir, readJson, writeTree } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 
 const SRC = path.join(ROOT, 'src');
@@ -37,9 +37,7 @@ describe('collectRegistryOutputs', () => {
   });
 
   it('registers every committed hook handler with a remaining runtime hook config', () => {
-    const hookRegistry = JSON.parse(
-      fs.readFileSync(path.join(ROOT, 'src', 'generated', 'hook-registry.json'), 'utf8')
-    );
+    const hookRegistry = readJson(path.join(ROOT, 'src', 'generated', 'hook-registry.json'));
     const hookConfigs = [
       path.join('antigravity', 'hooks.json'),
       path.join('qwen', 'hooks.json'),

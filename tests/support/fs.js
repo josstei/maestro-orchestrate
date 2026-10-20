@@ -51,6 +51,19 @@ function makeTempDir(prefix = 'maestro-test-') {
 }
 
 /**
+ * Writes `content` to `filePath`, creating missing parent directories first.
+ *
+ * @param {string} filePath - Absolute path of the file to write
+ * @param {string} [content=''] - File content
+ * @returns {string} The path that was written
+ */
+function writeFile(filePath, content = '') {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content);
+  return filePath;
+}
+
+/**
  * Writes `content` to `relPath` under `base`, creating missing parent
  * directories first.
  *
@@ -60,14 +73,52 @@ function makeTempDir(prefix = 'maestro-test-') {
  * @returns {string} Absolute path of the written file
  */
 function writeTree(base, relPath, content = '') {
-  const filePath = path.join(base, relPath);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content);
-  return filePath;
+  return writeFile(path.join(base, relPath), content);
+}
+
+/**
+ * Reads and parses a JSON file. Unlike src/lib/io's readJsonSafe, a missing
+ * file or malformed JSON throws, so a broken fixture fails the test.
+ *
+ * @param {string} filePath - Absolute path of the JSON file
+ * @returns {*} The parsed value
+ */
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+/**
+ * Writes `value` as two-space-indented JSON with a trailing newline, creating
+ * missing parent directories first.
+ *
+ * @param {string} filePath - Absolute path of the file to write
+ * @param {*} value - Value to serialize
+ * @returns {string} The path that was written
+ */
+function writeJson(filePath, value) {
+  return writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+/**
+ * Reads a JSON file, passes the parsed value to `edit` to mutate in place, and
+ * writes it back with writeJson.
+ *
+ * @param {string} filePath - Absolute path of the JSON file
+ * @param {(value: *) => void} edit - Mutates the parsed value
+ * @returns {string} The path that was written
+ */
+function editJson(filePath, edit) {
+  const value = readJson(filePath);
+  edit(value);
+  return writeJson(filePath, value);
 }
 
 module.exports = {
+  editJson,
   makeTempDir,
+  readJson,
   removeDir,
+  writeFile,
+  writeJson,
   writeTree,
 };

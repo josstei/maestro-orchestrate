@@ -12,17 +12,13 @@ const {
   parseDistTagOutput,
   publishIfNeeded,
 } = require('../../scripts/npm-publish-idempotent');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeJson } = require('../support/fs');
 
 const SILENT_LOGGER = { log() {}, warn() {} };
 
 function withPackageRoot(version, fn) {
   const root = makeTempDir('maestro-publish-');
-  fs.writeFileSync(
-    path.join(root, 'package.json'),
-    `${JSON.stringify({ name: '@josstei/maestro', version }, null, 2)}\n`,
-    'utf8'
-  );
+  writeJson(path.join(root, 'package.json'), { name: '@josstei/maestro', version });
   return fn(root);
 }
 

@@ -49,44 +49,28 @@ describe('atomicWriteSync', () => {
     assert.equal(tmpFiles.length, 0);
   });
 
-  it('uses temp-file-then-rename strategy', () => {
-    const original = fs.renameSync;
-    let renameCalled = false;
-    let renameArgs = [];
+  it('uses temp-file-then-rename strategy', (t) => {
+    t.mock.method(fs, 'renameSync');
 
-    fs.renameSync = function (src, dest) {
-      renameCalled = true;
-      renameArgs = [src, dest];
-      return original.call(fs, src, dest);
-    };
-
-    try {
-      const filePath = path.join(tempRoot, 'strategy.txt');
-      atomicWriteSync(filePath, 'verify strategy');
-      assert.ok(renameCalled, 'renameSync must be called');
-      assert.equal(renameArgs[1], filePath);
-      assert.ok(renameArgs[0].includes('.tmp.'), 'source must be a temp file');
-      assert.ok(renameArgs[0].includes(`${process.pid}`), 'temp file must include pid');
-    } finally {
-      fs.renameSync = original;
-    }
+    const filePath = path.join(tempRoot, 'strategy.txt');
+    atomicWriteSync(filePath, 'verify strategy');
+    assert.ok(fs.renameSync.mock.callCount() > 0, 'renameSync must be called');
+    const [src, dest] = fs.renameSync.mock.calls.at(-1).arguments;
+    assert.equal(dest, filePath);
+    assert.ok(src.includes('.tmp.'), 'source must be a temp file');
+    assert.ok(src.includes(`${process.pid}`), 'temp file must include pid');
   });
 
-  it('cleans up temp file when writeFileSync throws', () => {
-    const originalWrite = fs.writeFileSync;
-    fs.writeFileSync = function () {
+  it('cleans up temp file when writeFileSync throws', (t) => {
+    t.mock.method(fs, 'writeFileSync', () => {
       throw new Error('disk full');
-    };
+    });
 
-    try {
-      const filePath = path.join(tempRoot, 'fail.txt');
-      assert.throws(() => atomicWriteSync(filePath, 'content'), /disk full/);
-      const files = fs.readdirSync(path.dirname(filePath));
-      const tmpFiles = files.filter((f) => f.includes('.tmp.'));
-      assert.equal(tmpFiles.length, 0);
-    } finally {
-      fs.writeFileSync = originalWrite;
-    }
+    const filePath = path.join(tempRoot, 'fail.txt');
+    assert.throws(() => atomicWriteSync(filePath, 'content'), /disk full/);
+    const files = fs.readdirSync(path.dirname(filePath));
+    const tmpFiles = files.filter((f) => f.includes('.tmp.'));
+    assert.equal(tmpFiles.length, 0);
   });
 
   it('handles empty content', () => {
@@ -95,25 +79,16 @@ describe('atomicWriteSync', () => {
     assert.equal(fs.readFileSync(filePath, 'utf8'), '');
   });
 
-  it('generates unique temp file names across sequential calls', () => {
-    const original = fs.renameSync;
-    const tempNames = [];
+  it('generates unique temp file names across sequential calls', (t) => {
+    t.mock.method(fs, 'renameSync');
 
-    fs.renameSync = function (src, dest) {
-      tempNames.push(src);
-      return original.call(fs, src, dest);
-    };
-
-    try {
-      const fileA = path.join(tempRoot, 'a.txt');
-      const fileB = path.join(tempRoot, 'b.txt');
-      atomicWriteSync(fileA, 'a');
-      atomicWriteSync(fileB, 'b');
-      assert.equal(tempNames.length, 2);
-      assert.notEqual(tempNames[0], tempNames[1]);
-    } finally {
-      fs.renameSync = original;
-    }
+    const fileA = path.join(tempRoot, 'a.txt');
+    const fileB = path.join(tempRoot, 'b.txt');
+    atomicWriteSync(fileA, 'a');
+    atomicWriteSync(fileB, 'b');
+    const tempNames = fs.renameSync.mock.calls.map((c) => c.arguments[0]);
+    assert.equal(tempNames.length, 2);
+    assert.notEqual(tempNames[0], tempNames[1]);
   });
 });
 

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { ISOLATED_GIT_ENV, withCwd, withEnv } = require('../support/env');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeFile } = require('../support/fs');
 
 const hooksDir = makeTempDir('maestro-hooks-test-');
 process.env.MAESTRO_HOOKS_DIR = hooksDir;
@@ -144,8 +144,7 @@ describe('handleBeforeAgent', () => {
 
   it('returns allow with context message when session file has phase/status info', () => {
     const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
-    fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
-    fs.writeFileSync(sessionFilePath, '---\ncurrent_phase: implementation\nstatus: active\n---\n', 'utf8');
+    writeFile(sessionFilePath, '---\ncurrent_phase: implementation\nstatus: active\n---\n');
 
     const result = handleBeforeAgent({
       sessionId: SESSION_ID,
@@ -278,8 +277,7 @@ describe('handleSessionStart', () => {
 
   it('ensures session dir when active session exists', () => {
     const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
-    fs.mkdirSync(path.dirname(sessionFilePath), { recursive: true });
-    fs.writeFileSync(sessionFilePath, '---\nstatus: active\n---\n', 'utf8');
+    writeFile(sessionFilePath, '---\nstatus: active\n---\n');
 
     handleSessionStart({ sessionId: SESSION_ID, cwd: fakeCwd });
 

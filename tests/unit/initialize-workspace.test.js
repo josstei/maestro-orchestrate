@@ -14,7 +14,7 @@ const {
 const {
   WorkspaceResolutionError,
 } = require('../../src/core/project-root-resolver');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, readJson } = require('../support/fs');
 
 describe('handleInitializeWorkspace', () => {
   it('accepts explicit workspace_path and returns the resolved root', async () => {
@@ -28,9 +28,7 @@ describe('handleInitializeWorkspace', () => {
   it('writes a workspace marker to <workspace>/docs/maestro', async () => {
     const workspace = makeTempDir('maestro-init-');
     await handleInitializeWorkspace({ workspace_path: workspace });
-    const marker = JSON.parse(
-      fs.readFileSync(path.join(workspace, 'docs', 'maestro', MARKER_FILENAME), 'utf8')
-    );
+    const marker = readJson(path.join(workspace, 'docs', 'maestro', MARKER_FILENAME));
     assert.equal(marker.workspace_path, workspace);
     assert.equal(marker.schema_version, 1);
   });

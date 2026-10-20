@@ -59,8 +59,7 @@ function collectRunBlocks(content) {
 describe('workflow shell security', () => {
   it('does not interpolate GitHub expressions directly inside run blocks', () => {
     for (const fileName of WORKFLOW_FILES) {
-      const filePath = path.join(WORKFLOWS_DIR, fileName);
-      const content = fs.readFileSync(filePath, 'utf8');
+      const content = readWorkflow(fileName);
       const runBlocks = collectRunBlocks(content);
 
       assert.ok(runBlocks.length > 0, `${fileName} should contain at least one run block`);

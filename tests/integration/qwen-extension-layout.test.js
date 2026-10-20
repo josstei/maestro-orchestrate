@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { readJson } = require('../support/fs');
 const { ROOT } = require('./helpers');
 const qwenRuntime = require('../../src/platforms/qwen/runtime-config');
 const entryPointRegistry = require('../../src/entry-points/registry');
@@ -49,9 +50,7 @@ function readStubFrontmatter(filePath) {
 }
 
 describe('qwen extension layout', () => {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(EXTENSION_DIR, 'qwen-extension.json'), 'utf8')
-  );
+  const manifest = readJson(path.join(EXTENSION_DIR, 'qwen-extension.json'));
 
   it('keeps qwen-extension.json and its context file at the extension root', () => {
     assert.equal(manifest.name, 'maestro');

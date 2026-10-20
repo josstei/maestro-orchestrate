@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { withCwd, withEnv } = require('../support/env');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeTree } = require('../support/fs');
 const { createInitializedSessionServer } = require('../support/session-server');
 
 // An initialized workspace holding the one-phase 'recon-test' session.
@@ -70,9 +70,8 @@ describe('scan_phase_changes', () => {
     const server = await bootstrap(workspace);
 
     await waitForMtime();
-    fs.mkdirSync(path.join(workspace, 'src'), { recursive: true });
-    fs.writeFileSync(path.join(workspace, 'src', 'foo.js'), '// hi\n');
-    fs.writeFileSync(path.join(workspace, 'src', 'bar.js'), '// hi\n');
+    writeTree(workspace, 'src/foo.js', '// hi\n');
+    writeTree(workspace, 'src/bar.js', '// hi\n');
 
     const outcome = await scan(server, workspace);
     assert.equal(outcome.ok, true);
@@ -86,9 +85,8 @@ describe('scan_phase_changes', () => {
     const server = await bootstrap(workspace);
 
     await waitForMtime();
-    fs.mkdirSync(path.join(workspace, '.git'), { recursive: true });
-    fs.writeFileSync(path.join(workspace, '.git', 'HEAD'), '...');
-    fs.writeFileSync(path.join(workspace, 'docs', 'maestro', 'notes.md'), '...');
+    writeTree(workspace, '.git/HEAD', '...');
+    writeTree(workspace, 'docs/maestro/notes.md', '...');
 
     const outcome = await scan(server, workspace);
     assert.equal(outcome.ok, true);
@@ -108,9 +106,8 @@ describe('scan_phase_changes', () => {
     const server = await bootstrap(workspace);
 
     await waitForMtime();
-    fs.mkdirSync(path.join(workspace, 'src', 'lib'), { recursive: true });
-    fs.writeFileSync(path.join(workspace, 'src', 'lib', 'nested.js'), '// hi\n');
-    fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
+    writeTree(workspace, 'src/lib/nested.js', '// hi\n');
+    writeTree(workspace, 'top.js', '// hi\n');
 
     const outcome = await withCwd(pluginCwd, () => scan(server, workspace));
     assert.equal(outcome.ok, true);
@@ -125,8 +122,8 @@ describe('scan_phase_changes', () => {
       const server = await bootstrap(workspace);
 
       await waitForMtime();
-      fs.writeFileSync(path.join(workspace, '.maestro', 'state', 'notes.md'), '...');
-      fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
+      writeTree(workspace, '.maestro/state/notes.md', '...');
+      writeTree(workspace, 'top.js', '// hi\n');
 
       return scan(server, workspace);
     });
@@ -151,8 +148,8 @@ describe('scan_phase_changes', () => {
         const server = await bootstrap(workspace);
 
         await waitForMtime();
-        fs.writeFileSync(path.join(workspace, '.maestro', 'state', 'notes.md'), '...');
-        fs.writeFileSync(path.join(workspace, 'top.js'), '// hi\n');
+        writeTree(workspace, '.maestro/state/notes.md', '...');
+        writeTree(workspace, 'top.js', '// hi\n');
 
         return scan(server, workspace);
       }
@@ -172,11 +169,9 @@ describe('scan_phase_changes', () => {
 
     await waitForMtime();
     for (const cacheDir of [['.codex', 'plugins'], ['.claude', 'plugins']]) {
-      fs.mkdirSync(path.join(workspace, ...cacheDir, 'x'), { recursive: true });
-      fs.writeFileSync(path.join(workspace, ...cacheDir, 'x', 'cached.js'), '// hi\n');
+      writeTree(workspace, path.join(...cacheDir, 'x', 'cached.js'), '// hi\n');
     }
-    fs.mkdirSync(path.join(workspace, '.codex', 'config'), { recursive: true });
-    fs.writeFileSync(path.join(workspace, '.codex', 'config', 'kept.toml'), '# hi\n');
+    writeTree(workspace, '.codex/config/kept.toml', '# hi\n');
 
     const outcome = await scan(server, workspace);
     assert.equal(outcome.ok, true);

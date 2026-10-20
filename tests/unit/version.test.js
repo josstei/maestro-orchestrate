@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { resolveVersion } = require('../../src/core/version');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeJson } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 
 describe('resolveVersion', () => {
@@ -36,11 +36,7 @@ describe('resolveVersion', () => {
     fs.mkdirSync(coreDir, { recursive: true });
     fs.mkdirSync(entrypointDir, { recursive: true });
     fs.mkdirSync(libIoDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(srcDir, 'version.json'),
-      JSON.stringify({ version: '9.9.9' }, null, 2) + '\n',
-      'utf8'
-    );
+    writeJson(path.join(srcDir, 'version.json'), { version: '9.9.9' });
     fs.copyFileSync(path.join(ROOT, 'src', 'core', 'version.js'), copiedModulePath);
     fs.copyFileSync(path.join(ROOT, 'src', 'lib', 'io', 'index.js'), path.join(libIoDir, 'index.js'));
 

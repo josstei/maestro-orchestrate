@@ -2,10 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeTree } = require('../support/fs');
 const { createInitializedSessionServer } = require('../support/session-server');
 
 describe('reconciliation flow', () => {
@@ -34,9 +31,8 @@ describe('reconciliation flow', () => {
     );
 
     await new Promise((r) => setTimeout(r, 30));
-    fs.writeFileSync(path.join(workspace, 'index.html'), '<html/>');
-    fs.mkdirSync(path.join(workspace, 'assets', 'css'), { recursive: true });
-    fs.writeFileSync(path.join(workspace, 'assets', 'css', 'styles.css'), 'body{}');
+    writeTree(workspace, 'index.html', '<html/>');
+    writeTree(workspace, 'assets/css/styles.css', 'body{}');
 
     await server.callTool(
       'transition_phase',

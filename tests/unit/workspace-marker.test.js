@@ -9,7 +9,7 @@ const {
   MARKER_FILENAME,
   writeWorkspaceMarker,
 } = require('../../src/mcp/contracts/workspace-marker');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, readJson } = require('../support/fs');
 
 describe('workspace-marker', () => {
   it('exposes the marker filename', () => {
@@ -24,7 +24,7 @@ describe('workspace-marker', () => {
     writeWorkspaceMarker(stateDir, workspace);
 
     const markerPath = path.join(stateDir, MARKER_FILENAME);
-    const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+    const marker = readJson(markerPath);
     assert.equal(marker.workspace_path, workspace);
     assert.equal(marker.schema_version, 1);
     assert.match(marker.written_at, /^\d{4}-\d{2}-\d{2}T/);

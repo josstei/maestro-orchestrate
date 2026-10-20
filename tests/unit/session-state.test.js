@@ -15,7 +15,7 @@ const {
   ensureWorkspace,
 } = require('../../src/state/session-state');
 const { withEnv } = require('../support/env');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeFile } = require('../support/fs');
 
 describe('session-state', () => {
   let tmpRoot;
@@ -82,8 +82,7 @@ describe('session-state', () => {
 
   it('hasActiveSession finds a session under the state dir named in the workspace .env', () => {
     fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
-    fs.mkdirSync(path.join(tmpRoot, '.maestro', 'state'), { recursive: true });
-    fs.writeFileSync(path.join(tmpRoot, '.maestro', 'state', 'active-session.md'), '---\n{}\n---\n');
+    writeFile(path.join(tmpRoot, '.maestro', 'state', 'active-session.md'), '---\n{}\n---\n');
     assert.equal(withEnv({ MAESTRO_STATE_DIR: null }, () => hasActiveSession(tmpRoot)), true);
   });
 
@@ -106,8 +105,7 @@ describe('session-state', () => {
 
   it('hasActiveSession returns true when session file exists', () => {
     const sessionPath = resolveActiveSessionPath(tmpRoot);
-    fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
-    fs.writeFileSync(sessionPath, '---\nphase: planning\n---\n');
+    writeFile(sessionPath, '---\nphase: planning\n---\n');
     assert.equal(hasActiveSession(tmpRoot), true);
   });
 

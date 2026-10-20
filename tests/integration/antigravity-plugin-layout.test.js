@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const { ROOT } = require('./helpers');
 const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
+const { readJson } = require('../support/fs');
 const entryPointRegistry = require('../../src/entry-points/registry');
 const coreCommandRegistry = require('../../src/entry-points/core-command-registry');
 const hookRegistry = require('../../src/generated/hook-registry.json');
@@ -21,10 +22,10 @@ const SRC_SHARED_SKILLS_DIR = path.join(ROOT, 'src', 'skills', 'shared');
 const HOOK_EVENTS = ['SessionStart', 'PreToolUse', 'PostToolUse', 'PreInvocation', 'PostInvocation', 'Stop'];
 const GROUPED_HOOK_EVENTS = new Set(['PreToolUse', 'PostToolUse']);
 
-const PACKAGE_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+const PACKAGE_VERSION = readJson(path.join(ROOT, 'package.json')).version;
 
-function readJson(relPath) {
-  return JSON.parse(fs.readFileSync(path.join(PLUGIN_DIR, relPath), 'utf8'));
+function readPluginJson(relPath) {
+  return readJson(path.join(PLUGIN_DIR, relPath));
 }
 
 function listSubdirs(dir) {
@@ -87,7 +88,7 @@ describe('antigravity plugin layout', () => {
   });
 
   it('keeps plugin.json to the manifest fields, at the package version', () => {
-    const manifest = readJson('plugin.json');
+    const manifest = readPluginJson('plugin.json');
     assert.deepEqual(Object.keys(manifest), ['name', 'displayName', 'version', 'description', 'suggestedPrompts']);
     assert.equal(manifest.name, 'maestro');
     assert.equal(manifest.displayName, 'Maestro');
@@ -105,7 +106,7 @@ describe('antigravity plugin layout', () => {
   });
 
   it('launches the bundled MCP server from mcp_config.json against the plugin root', () => {
-    const { mcpServers } = readJson('mcp_config.json');
+    const { mcpServers } = readPluginJson('mcp_config.json');
     assert.deepEqual(mcpServers, {
       maestro: {
         command: 'node',
@@ -124,7 +125,7 @@ describe('antigravity plugin layout', () => {
       'Antigravity reads hooks.json from the plugin root, not hooks/'
     );
 
-    const hooks = readJson('hooks.json');
+    const hooks = readPluginJson('hooks.json');
     assert.equal(hooks.hooks, undefined, 'hooks.json has no "hooks" wrapper; its top level is named hooks');
     for (const [hookName, events] of Object.entries(hooks)) {
       for (const event of Object.keys(events)) {
@@ -245,7 +246,7 @@ describe('antigravity plugin layout', () => {
   });
 
   it('bundles a src/ payload at the package version, with only the antigravity and shared platform dirs', () => {
-    assert.deepEqual(readJson('src/version.json'), { version: PACKAGE_VERSION });
+    assert.deepEqual(readPluginJson('src/version.json'), { version: PACKAGE_VERSION });
     assert.deepEqual(listSubdirs(path.join(PLUGIN_DIR, 'src', 'platforms')), ['antigravity', 'shared']);
   });
 

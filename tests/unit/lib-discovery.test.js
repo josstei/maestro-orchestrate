@@ -143,28 +143,20 @@ describe('discover', () => {
     assert.equal(entries[0].capabilities, 'full');
   });
 
-  it('does not read file content when metadata callback is absent', () => {
+  it('does not read file content when metadata callback is absent', (t) => {
     writeTree(tempRoot, 'noop.md', 'content');
 
-    const originalReadFileSync = fs.readFileSync;
-    let readCalled = false;
-    fs.readFileSync = function (...args) {
-      if (typeof args[0] === 'string' && args[0].includes('noop.md')) {
-        readCalled = true;
-      }
-      return originalReadFileSync.apply(fs, args);
-    };
+    t.mock.method(fs, 'readFileSync');
 
-    try {
-      discover({
-        dir: tempRoot,
-        pattern: '*.md',
-        identity: (fp) => path.basename(fp, '.md'),
-      });
-      assert.equal(readCalled, false);
-    } finally {
-      fs.readFileSync = originalReadFileSync;
-    }
+    discover({
+      dir: tempRoot,
+      pattern: '*.md',
+      identity: (fp) => path.basename(fp, '.md'),
+    });
+    const readCalled = fs.readFileSync.mock.calls.some(
+      (c) => typeof c.arguments[0] === 'string' && c.arguments[0].includes('noop.md')
+    );
+    assert.equal(readCalled, false);
   });
 
   it('handles recursive scanning via **/ pattern prefix', () => {

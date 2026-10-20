@@ -12,7 +12,7 @@ const {
   shouldIncludeInPayload,
   buildDetachedPayload,
 } = require('../../src/generator/payload-builder');
-const { makeTempDir, writeTree } = require('../support/fs');
+const { makeTempDir, readJson, writeJson, writeTree } = require('../support/fs');
 
 describe('DETACHED_PAYLOAD_BASE_ALLOWLIST', () => {
   it('is the frozen list of payload src/ prefixes', () => {
@@ -169,7 +169,7 @@ describe('buildDetachedPayload', () => {
 
   it('does not rewrite version.json when the version is unchanged', () => {
     writeTree(srcDir, 'core/logger.js', 'content');
-    writeTree(outputDir, 'version.json', JSON.stringify({ version: '1.5.0' }, null, 2) + '\n');
+    writeJson(path.join(outputDir, 'version.json'), { version: '1.5.0' });
     const mtimeBefore = fs.statSync(path.join(outputDir, 'version.json')).mtimeMs;
 
     buildDetachedPayload(srcDir, outputDir, 'claude', '1.5.0');
@@ -179,11 +179,11 @@ describe('buildDetachedPayload', () => {
 
   it('overwrites version.json when the version differs', () => {
     writeTree(srcDir, 'core/logger.js', 'content');
-    writeTree(outputDir, 'version.json', JSON.stringify({ version: '1.0.0' }, null, 2) + '\n');
+    writeJson(path.join(outputDir, 'version.json'), { version: '1.0.0' });
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '2.0.0');
 
-    const content = JSON.parse(fs.readFileSync(path.join(outputDir, 'version.json'), 'utf8'));
+    const content = readJson(path.join(outputDir, 'version.json'));
     assert.deepEqual(content, { version: '2.0.0' });
     assert.equal(stats.removed, 0);
   });

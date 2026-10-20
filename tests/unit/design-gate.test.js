@@ -9,7 +9,7 @@ const {
   findOrphanedApprovedGates,
   readGate,
 } = require('../../src/mcp/handlers/design-gate');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeFile } = require('../support/fs');
 const {
   approveDesignGate,
   createInitializedSessionServer,
@@ -64,8 +64,7 @@ describe('design gate tools', () => {
     const { workspace, server } = await gatedServer();
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
-    fs.mkdirSync(path.dirname(designPath), { recursive: true });
-    fs.writeFileSync(designPath, '# Design\n\nA real design document.\n');
+    writeFile(designPath, '# Design\n\nA real design document.\n');
 
     const outcome = await server.callTool(
       'record_design_approval',
@@ -226,8 +225,7 @@ describe('design gate tools', () => {
     const { workspace, server } = await gatedServer();
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
-    fs.mkdirSync(path.dirname(designPath), { recursive: true });
-    fs.writeFileSync(designPath, '# Design\n');
+    writeFile(designPath, '# Design\n');
     await server.callTool(
       'record_design_approval',
       { session_id: 'alpha', design_document_path: designPath },
