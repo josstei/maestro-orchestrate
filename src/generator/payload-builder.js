@@ -100,7 +100,7 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName, version) {
     rootDir: outputDir,
     manifestPaths: keptOutputs,
     ownedDirs: [''],
-  }).pruned.length;
+  }).length;
   return { copied, removed };
 }
 

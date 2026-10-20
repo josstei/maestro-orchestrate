@@ -2,71 +2,48 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { globFiles } = require('./glob-files');
 
 /**
- * Recursively collect all file and subdirectory paths under a directory.
- * Paths are relative to rootDir with forward-slash separators. Subdirectories
- * are recorded after their contents (leaf-first within each subtree).
- * @param {string} dir - Relative directory path (forward-slash separated; '' for rootDir itself)
+ * Remove dir and then each parent that removing it leaves empty, stopping
+ * below ownedDir (which is never removed) or at the first non-empty or
+ * already-removed directory.
  * @param {string} rootDir - Absolute path to the project root
- * @param {{ files: string[], dirs: string[] }} out - Accumulator for file and subdirectory paths
+ * @param {string} dir - Posix directory relative to rootDir
+ * @param {string} ownedDir - Posix owned directory that contains dir ('' for rootDir)
  */
-function walk(dir, rootDir, out) {
-  const absDir = path.join(rootDir, dir);
-  if (!fs.existsSync(absDir)) {
-    return;
-  }
-  const entries = fs.readdirSync(absDir, { withFileTypes: true });
-  for (const entry of entries) {
-    const relPath = dir ? `${dir}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
-      walk(relPath, rootDir, out);
-      out.dirs.push(relPath);
-    } else {
-      out.files.push(relPath);
+function removeEmptyDirs(rootDir, dir, ownedDir) {
+  for (let current = dir; current !== ownedDir && current !== '.'; current = path.posix.dirname(current)) {
+    const absDir = path.join(rootDir, current);
+    if (!fs.existsSync(absDir) || fs.readdirSync(absDir).length > 0) {
+      return;
     }
+    fs.rmdirSync(absDir);
   }
 }
 
 /**
- * Prune stale generated files and empty directories from owned directories.
- *
- * Walks each owned directory, identifies files not present in the manifest path set,
- * deletes them, then removes any empty directories left behind (deepest first).
+ * Delete the files under each owned directory that are not in manifestPaths,
+ * then remove the subdirectories that deleting them left empty.
  *
  * @param {Object} opts
  * @param {string} opts.rootDir - Absolute path to the project root
- * @param {Set<string>} opts.manifestPaths - Set of all valid manifest output paths (forward-slash relative)
- * @param {string[]} opts.ownedDirs - Relative directory paths the generator owns
- * @returns {{ pruned: string[], emptyDirsRemoved: string[] }}
+ * @param {Set<string>} opts.manifestPaths - Every current output path (posix, relative to rootDir)
+ * @param {string[]} opts.ownedDirs - Posix directories relative to rootDir that the generator owns ('' for rootDir itself)
+ * @returns {string[]} The pruned files (posix, relative to rootDir)
  */
 function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
-  const emptyDirsRemoved = [];
-
-  const owned = { files: [], dirs: [] };
-  for (const dir of ownedDirs) {
-    walk(dir, rootDir, owned);
-  }
-
-  const pruned = owned.files.filter((filePath) => !manifestPaths.has(filePath));
-  for (const filePath of pruned) {
-    fs.unlinkSync(path.join(rootDir, filePath));
-  }
-
-  const ownedSubdirs = owned.dirs.sort((a, b) => b.length - a.length);
-
-  for (const dir of ownedSubdirs) {
-    const absDir = path.join(rootDir, dir);
-    if (!fs.existsSync(absDir)) {
-      continue;
+  return ownedDirs.flatMap((ownedDir) => {
+    const stale = globFiles(rootDir, ownedDir ? `${ownedDir}/**/*` : '**/*')
+      .filter((filePath) => !manifestPaths.has(filePath));
+    for (const filePath of stale) {
+      fs.unlinkSync(path.join(rootDir, filePath));
     }
-    if (fs.readdirSync(absDir).length === 0) {
-      fs.rmdirSync(absDir);
-      emptyDirsRemoved.push(dir);
+    for (const filePath of stale) {
+      removeEmptyDirs(rootDir, path.posix.dirname(filePath), ownedDir);
     }
-  }
-
-  return { pruned, emptyDirsRemoved };
+    return stale;
+  });
 }
 
 module.exports = { pruneStaleFiles };

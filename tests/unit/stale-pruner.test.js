@@ -28,9 +28,7 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['agents'],
     });
 
-    assert.ok(result.pruned.includes('agents/beta.md'));
-    assert.ok(result.pruned.includes('agents/gamma.md'));
-    assert.equal(result.pruned.length, 2);
+    assert.deepEqual(result, ['agents/beta.md', 'agents/gamma.md']);
     assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'alpha.md')));
     assert.ok(!fs.existsSync(path.join(rootDir, 'agents', 'beta.md')));
     assert.ok(!fs.existsSync(path.join(rootDir, 'agents', 'gamma.md')));
@@ -53,8 +51,7 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['agents', 'commands'],
     });
 
-    assert.equal(result.pruned.length, 0);
-    assert.equal(result.emptyDirsRemoved.length, 0);
+    assert.deepEqual(result, []);
     assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'one.md')));
     assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'two.md')));
     assert.ok(fs.existsSync(path.join(rootDir, 'commands', 'cmd.toml')));
@@ -72,9 +69,7 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['agents'],
     });
 
-    assert.ok(result.pruned.includes('agents/nested/deep/stale.md'));
-    assert.ok(result.emptyDirsRemoved.includes('agents/nested/deep'));
-    assert.ok(result.emptyDirsRemoved.includes('agents/nested'));
+    assert.deepEqual(result, ['agents/nested/deep/stale.md']);
     assert.ok(!fs.existsSync(path.join(rootDir, 'agents', 'nested', 'deep')));
     assert.ok(!fs.existsSync(path.join(rootDir, 'agents', 'nested')));
     assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'kept.md')));
@@ -91,12 +86,11 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['agents', 'nonexistent-dir', 'another/missing/path'],
     });
 
-    assert.equal(result.pruned.length, 0);
-    assert.equal(result.emptyDirsRemoved.length, 0);
+    assert.deepEqual(result, []);
     assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'valid.md')));
   });
 
-  it('returns lists of pruned files and removed directories', () => {
+  it('returns the pruned files and removes the subdirectories they leave empty', () => {
     writeTree(rootDir, 'commands/keep.toml', 'keep');
     writeTree(rootDir, 'commands/stale.toml', 'stale');
     writeTree(rootDir, 'commands/sub/orphan.toml', 'orphan');
@@ -109,11 +103,8 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['commands'],
     });
 
-    assert.ok(Array.isArray(result.pruned));
-    assert.ok(Array.isArray(result.emptyDirsRemoved));
-    assert.ok(result.pruned.includes('commands/stale.toml'));
-    assert.ok(result.pruned.includes('commands/sub/orphan.toml'));
-    assert.ok(result.emptyDirsRemoved.includes('commands/sub'));
+    assert.deepEqual(result, ['commands/stale.toml', 'commands/sub/orphan.toml']);
+    assert.ok(!fs.existsSync(path.join(rootDir, 'commands', 'sub')));
     assert.ok(fs.existsSync(path.join(rootDir, 'commands', 'keep.toml')));
   });
 
@@ -134,9 +125,7 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['agents', 'commands'],
     });
 
-    assert.equal(result.pruned.length, 2);
-    assert.ok(result.pruned.includes('agents/stale-agent.md'));
-    assert.ok(result.pruned.includes('commands/stale-cmd.toml'));
+    assert.deepEqual(result, ['agents/stale-agent.md', 'commands/stale-cmd.toml']);
   });
 
   it('leaves files outside the owned directories untouched', () => {
@@ -150,9 +139,8 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['agents'],
     });
 
-    assert.deepEqual(result.pruned, ['agents/stale.md']);
-    assert.deepEqual(result.emptyDirsRemoved, []);
-    assert.ok(fs.existsSync(path.join(rootDir, 'agents')));
+    assert.deepEqual(result, ['agents/stale.md']);
+    assert.ok(fs.existsSync(path.join(rootDir, 'agents')), 'an owned directory is never removed');
     assert.ok(fs.existsSync(path.join(rootDir, 'qwen', 'hooks.json')));
     assert.ok(fs.existsSync(path.join(rootDir, 'claude', 'agents', 'legacy.md')));
   });
@@ -175,11 +163,12 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['antigravity/agents', 'antigravity/skills'],
     });
 
-    assert.deepEqual(result.pruned.sort(), [
+    assert.deepEqual(result, [
       'antigravity/agents/retired.md',
       'antigravity/skills/retired/SKILL.md',
     ]);
-    assert.deepEqual(result.emptyDirsRemoved, ['antigravity/skills/retired']);
+    assert.ok(!fs.existsSync(path.join(rootDir, 'antigravity', 'skills', 'retired')));
+    assert.ok(fs.existsSync(path.join(rootDir, 'antigravity', 'skills', 'orchestrate')));
     for (const kept of ['hooks/hook-runner.js', 'mcp/maestro-server.js', 'README.md']) {
       assert.ok(fs.existsSync(path.join(rootDir, 'antigravity', kept)), kept);
     }
@@ -197,10 +186,27 @@ describe('pruneStaleFiles', () => {
       ownedDirs: ['agents'],
     });
 
-    assert.equal(result.pruned.length, 1);
-    assert.ok(result.pruned.includes('agents/sub/stale.md'));
-    assert.equal(result.emptyDirsRemoved.length, 0);
+    assert.deepEqual(result, ['agents/sub/stale.md']);
     assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'sub')));
     assert.ok(fs.existsSync(path.join(rootDir, 'agents', 'sub', 'keep.md')));
+  });
+
+  it('prunes the whole tree for the root owned directory without removing the root', () => {
+    writeTree(rootDir, 'payload/version.json', '{}');
+    writeTree(rootDir, 'payload/lib/kept.js', 'kept');
+    writeTree(rootDir, 'payload/lib/orphaned-dir/gone.js', 'gone');
+    writeTree(rootDir, 'payload/stale.js', 'stale');
+    const payloadDir = path.join(rootDir, 'payload');
+
+    const result = pruneStaleFiles({
+      rootDir: payloadDir,
+      manifestPaths: new Set(['version.json', 'lib/kept.js']),
+      ownedDirs: [''],
+    });
+
+    assert.deepEqual(result, ['lib/orphaned-dir/gone.js', 'stale.js']);
+    assert.ok(!fs.existsSync(path.join(payloadDir, 'lib', 'orphaned-dir')));
+    assert.ok(fs.existsSync(path.join(payloadDir, 'lib', 'kept.js')));
+    assert.ok(fs.existsSync(payloadDir));
   });
 });

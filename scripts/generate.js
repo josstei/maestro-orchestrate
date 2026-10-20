@@ -67,7 +67,7 @@ function main() {
 
   if (!readOnlyMode) {
     const manifestPaths = new Set([...manifestOutputPaths, ...entryPointPaths]);
-    const { pruned } = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS });
+    const pruned = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS });
     if (pruned.length > 0) {
       console.log('\nPruning stale files (not in manifest):');
       for (const f of pruned) console.log(`  PRUNED: ${f}`);
