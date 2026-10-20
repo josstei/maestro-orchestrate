@@ -9,6 +9,7 @@ const {
   parsePackJson,
   verifyPackageEntries,
 } = require('../../scripts/verify-npm-pack');
+const { readJson } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 
 const REQUIRED_PACKAGE_FILES = [
@@ -17,6 +18,10 @@ const REQUIRED_PACKAGE_FILES = [
   'claude/.claude-plugin/plugin.json',
   'plugins/maestro/.codex-plugin/plugin.json',
   'qwen-extension.json',
+  'scripts/install-codex-plugin.js',
+  'scripts/lib/cli.js',
+  'src/generator/runtimes/codex/outputs.js',
+  'src/lib/io.js',
   'src/mcp/maestro-server.js',
 ];
 
@@ -49,6 +54,14 @@ describe('verify npm pack', () => {
   it('requires only files that exist in the repo', () => {
     for (const requiredPath of REQUIRED_PACKAGE_FILES) {
       assert.ok(fs.existsSync(path.join(ROOT, requiredPath)), `${requiredPath} is missing from the repo`);
+    }
+  });
+
+  it('requires every package.json bin target', () => {
+    const { bin } = readJson(path.join(ROOT, 'package.json'));
+
+    for (const target of Object.values(bin)) {
+      assert.ok(REQUIRED_PACKAGE_FILES.includes(path.posix.normalize(target)), `${target} must be required`);
     }
   });
 

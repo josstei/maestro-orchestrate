@@ -10,13 +10,17 @@ const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
-// Every runtime manifest, plus the maestro-mcp-server bin and the server it starts.
+// Every runtime manifest, plus each package.json bin and the modules it requires directly.
 const REQUIRED_PACKAGE_FILES = [
   'antigravity/plugin.json',
   'bin/maestro-mcp-server.js',
   'claude/.claude-plugin/plugin.json',
   'plugins/maestro/.codex-plugin/plugin.json',
   'qwen-extension.json',
+  'scripts/install-codex-plugin.js',
+  'scripts/lib/cli.js',
+  'src/generator/runtimes/codex/outputs.js',
+  'src/lib/io.js',
   'src/mcp/maestro-server.js',
 ];
 
