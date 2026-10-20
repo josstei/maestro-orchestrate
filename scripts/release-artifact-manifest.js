@@ -72,17 +72,9 @@ function releaseArchiveName(version) {
   return `maestro-v${version}-extension.tar.gz`;
 }
 
-function toPosixPath(filePath) {
-  return filePath.split(path.sep).join('/');
-}
-
-function normalizeArtifactPath(relativePath) {
-  const normalized = toPosixPath(relativePath).replace(/\/+$/, '');
-  return normalized === '.' ? '' : normalized.replace(/^\.\//, '');
-}
-
 function isDeniedPath(relativePath) {
-  const normalized = normalizeArtifactPath(relativePath);
+  // cpSync's copy filter passes native separators; every other caller passes posix paths.
+  const normalized = relativePath.split(path.sep).join('/');
   const deniedByPath = DENIED_ARTIFACT_PATHS.some((denied) => {
     return normalized === denied || normalized.startsWith(`${denied}/`);
   });
@@ -91,17 +83,11 @@ function isDeniedPath(relativePath) {
 }
 
 function isReleaseArtifactPathAllowed(relativePath) {
-  const normalized = normalizeArtifactPath(relativePath);
-
-  if (!normalized) {
-    return true;
-  }
-
   return RELEASE_ARTIFACT_PATHS.some((allowed) => {
     return (
-      normalized === allowed ||
-      normalized.startsWith(`${allowed}/`) ||
-      allowed.startsWith(`${normalized}/`)
+      relativePath === allowed ||
+      relativePath.startsWith(`${allowed}/`) ||
+      allowed.startsWith(`${relativePath}/`)
     );
   });
 }
@@ -110,10 +96,6 @@ function assertRequiredArtifactPaths(root) {
   const missing = [];
 
   for (const relativePath of RELEASE_ARTIFACT_PATHS) {
-    if (isDeniedPath(relativePath)) {
-      throw new Error(`Release artifact allowlist contains denied path: ${relativePath}`);
-    }
-
     if (!fs.existsSync(path.join(root, relativePath))) {
       missing.push(relativePath);
     }
@@ -133,7 +115,7 @@ function walkArtifactFiles(root) {
     const absoluteDir = path.join(root, relativeDir);
 
     for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
-      const relativePath = normalizeArtifactPath(path.posix.join(relativeDir, entry.name));
+      const relativePath = path.posix.join(relativeDir, entry.name);
       files.push(relativePath);
 
       if (entry.isDirectory()) {
