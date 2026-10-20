@@ -19,7 +19,7 @@ function buildClaudePreamble(entry) {
 
 // The skill-content line, then (for entries with agents) the get_agent line
 // followed by any runtime-specific delegation lines.
-function buildMcpPreamble(entry, delegationLines = []) {
+function buildSkillAndAgentRefs(entry, delegationLines = []) {
   const refs = [buildSkillContentLine(entry)];
   if (entry.agents && entry.agents.length > 0) {
     refs.push(`Call \`get_agent\` with agents: [${emitInlineQuotedList(entry.agents)}].`, ...delegationLines);
@@ -29,8 +29,8 @@ function buildMcpPreamble(entry, delegationLines = []) {
 }
 
 module.exports = {
-  antigravity: (entry) => buildMcpPreamble(entry, [ANTIGRAVITY_DELEGATION_LINE]),
+  antigravity: (entry) => buildSkillAndAgentRefs(entry, [ANTIGRAVITY_DELEGATION_LINE]),
   claude: buildClaudePreamble,
-  codex: (entry) => buildMcpPreamble(entry),
+  codex: (entry) => buildSkillAndAgentRefs(entry),
   qwen: buildSkillContentLine,
 };

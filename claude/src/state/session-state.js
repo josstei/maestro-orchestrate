@@ -103,7 +103,7 @@ function writeState(relativePath, content, basePath) {
 function readSessionAt(basePath) {
   const sessionPath = activeSessionFile(basePath);
   const { data, body } = markdownState.parse(fs.readFileSync(sessionPath, 'utf8'));
-  return { basePath, sessionPath, state: data, body };
+  return { basePath, state: data, body };
 }
 
 function readActiveSession(cwd) {

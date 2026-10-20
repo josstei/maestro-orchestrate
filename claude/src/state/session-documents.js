@@ -3,7 +3,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { ValidationError } = require('../lib/errors');
 const { atomicWriteSync } = require('../lib/io');
 const { resolveStateDirPath } = require('./session-state');
 
@@ -35,12 +34,12 @@ function toWorkspacePath(projectRoot, documentPath) {
 }
 
 /**
- * @param {string} projectRoot
+ * @param {string} plansDir - the plans directory
  * @param {string} resolvedPath - absolute, already `path.resolve`d path
- * @returns {boolean} true when the path lies inside `<state_dir>/plans/`
+ * @returns {boolean} true when the path lies inside `plansDir`
  */
-function isInsidePlansDir(projectRoot, resolvedPath) {
-  return resolvedPath.startsWith(path.resolve(plansDirPath(projectRoot)) + path.sep);
+function isInsidePlansDir(plansDir, resolvedPath) {
+  return resolvedPath.startsWith(path.resolve(plansDir) + path.sep);
 }
 
 /**
@@ -57,7 +56,7 @@ function ensureDesignDocumentInPlans(projectRoot, sourcePath) {
   const plansDir = plansDirPath(projectRoot);
   const resolvedSource = path.resolve(sourcePath);
 
-  if (isInsidePlansDir(projectRoot, resolvedSource)) {
+  if (isInsidePlansDir(plansDir, resolvedSource)) {
     return resolvedSource;
   }
 
@@ -68,65 +67,24 @@ function ensureDesignDocumentInPlans(projectRoot, sourcePath) {
 }
 
 /**
- * Resolve a document supplied either by path (`params[pathKey]`) or by inline
- * content (`<prefix>_content` + `<prefix>_filename`); the two variants are
- * mutually exclusive. The content variant is written atomically to
- * `<state_dir>/plans/<filename>` immediately. It exists for callers whose write
- * surface resolves paths against a different filesystem root than the MCP
- * server's workspace (e.g. a Plan Mode that writes to a host tmp directory)
- * and so cannot pass a path the server can find.
+ * Write `content` atomically to `<state_dir>/plans/<filename>`.
  *
- * @param {object} params - tool params holding the document keys
  * @param {string} projectRoot
- * @param {{ pathKey: string, prefix: string, fromPath: (documentPath: string) => string | null }} keys
- * @returns {string | null} canonical path of the written content, `fromPath(params[pathKey])` for the path variant, or null when neither variant was supplied
- * @throws {ValidationError} when both variants are supplied, the content variant is incomplete, or the filename is not a pure basename
+ * @param {string} filename - pure basename, already validated by the caller
+ * @param {string} content
+ * @returns {string} absolute path of the written document
  */
-function resolveDocumentInput(params, projectRoot, { pathKey, prefix, fromPath }) {
-  const contentKey = `${prefix}_content`;
-  const filenameKey = `${prefix}_filename`;
-  const isSet = (key) => typeof params[key] === 'string' && params[key].length > 0;
-  const hasPath = isSet(pathKey);
-  const hasContent = isSet(contentKey);
-  const hasFilename = isSet(filenameKey);
-
-  if (hasPath && (hasContent || hasFilename)) {
-    throw new ValidationError(
-      `${pathKey} is mutually exclusive with ${contentKey}/${filenameKey}`
-    );
-  }
-
-  if (!hasContent && !hasFilename) {
-    return hasPath ? fromPath(params[pathKey]) : null;
-  }
-  if (!hasContent) {
-    throw new ValidationError(`${contentKey} is required`);
-  }
-  if (!hasFilename) {
-    throw new ValidationError(`${filenameKey} is required`);
-  }
-
-  const filename = params[filenameKey];
-  if (filename.includes('\0')) {
-    throw new ValidationError(`${filenameKey} contains null bytes`, {
-      details: { value: filename },
-    });
-  }
-  if (filename !== path.basename(filename) || filename === '..' || filename === '.') {
-    throw new ValidationError(
-      `${filenameKey} must be a pure basename (no path separators, no '.' or '..')`,
-      { details: { value: filename } }
-    );
-  }
+function writePlansDocument(projectRoot, filename, content) {
   const destination = path.join(plansDirPath(projectRoot), filename);
-  atomicWriteSync(destination, params[contentKey]);
+  atomicWriteSync(destination, content);
   return destination;
 }
 
 /**
- * Move a session's documents into `<basePath>/plans/archive/`. Creates the
- * archive directory even when there is nothing to move. Documents outside
- * `<state_dir>/plans/` or missing on disk are left alone.
+ * Move a session's documents that lie inside `<basePath>/plans/` into
+ * `<basePath>/plans/archive/`. Creates the archive directory even when there
+ * is nothing to move. Documents outside the plans directory or missing on disk
+ * are left alone.
  *
  * @param {string} projectRoot
  * @param {string} basePath - Resolved state dir
@@ -134,14 +92,15 @@ function resolveDocumentInput(params, projectRoot, { pathKey, prefix, fromPath }
  * @returns {string[]} archive destinations of the moved documents, in input order
  */
 function archivePlansDocuments(projectRoot, basePath, documentPaths) {
-  const plansArchiveDir = path.join(basePath, 'plans', 'archive');
+  const plansDir = path.join(basePath, 'plans');
+  const plansArchiveDir = path.join(plansDir, 'archive');
   fs.mkdirSync(plansArchiveDir, { recursive: true });
 
   const archivedFiles = [];
   for (const documentPath of documentPaths.filter(Boolean)) {
     const absoluteDocumentPath = path.resolve(toWorkspacePath(projectRoot, documentPath));
     if (
-      !isInsidePlansDir(projectRoot, absoluteDocumentPath) ||
+      !isInsidePlansDir(plansDir, absoluteDocumentPath) ||
       !fs.existsSync(absoluteDocumentPath)
     ) {
       continue;
@@ -160,6 +119,6 @@ function archivePlansDocuments(projectRoot, basePath, documentPaths) {
 module.exports = {
   toWorkspacePath,
   ensureDesignDocumentInPlans,
-  resolveDocumentInput,
+  writePlansDocument,
   archivePlansDocuments,
 };

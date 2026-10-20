@@ -6,7 +6,8 @@ const path = require('node:path');
 const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, StateError } = require('../../lib/errors');
 const { resolveStateDirPath } = require('../../state/session-state');
-const { toWorkspacePath, resolveDocumentInput } = require('../../state/session-documents');
+const { toWorkspacePath } = require('../../state/session-documents');
+const { resolveDocumentInput } = require('../contracts/document-input');
 const { atomicWriteSync, readJsonSafe } = require('../../lib/io');
 
 const GATE_FILENAME = '.design-gate.json';

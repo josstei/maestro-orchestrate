@@ -61,7 +61,7 @@ Or with glob patterns:
 }
 ```
 
-A glob may use `*` only in its final (file name) segment; a `**` segment directly before it also matches files in subdirectories. Any other wildcard fails generation with `Unsupported manifest glob`.
+A glob may use `*` only in its final (file name) segment; a `**` segment directly before it also matches files in subdirectories. Any other use of `*` fails generation with `Unsupported manifest glob`, and other glob characters such as `?` and `[...]` are matched literally.
 
 Each output path is the source path under the runtime's `outputDir`, with `skills/shared/` flattened to `skills/` and agent filenames converted to snake_case for snake_case runtimes.
 
@@ -117,7 +117,7 @@ src/mcp/
 ├── maestro-server.js           # Server entry-point (main) + default tool pack order
 ├── content/
 │   └── runtime-content.js      # Runtime-specific content resolution
-├── contracts/                  # Plan schema + complexity tiers, workspace marker and handoff contracts
+├── contracts/                  # Plan schema + complexity tiers, document input, workspace marker and handoff contracts
 ├── core/
 │   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
 │   ├── protocol-dispatcher.js  # JSON-RPC routing + tool result framing

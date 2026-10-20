@@ -24,9 +24,9 @@ const {
 const {
   toWorkspacePath,
   ensureDesignDocumentInPlans,
-  resolveDocumentInput,
   archivePlansDocuments,
 } = require('../../state/session-documents');
+const { resolveDocumentInput } = require('../contracts/document-input');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
 

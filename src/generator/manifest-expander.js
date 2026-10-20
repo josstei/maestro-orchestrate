@@ -3,7 +3,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { collectFiles, patternToRegex } = require('../lib/discovery');
-const { toSnakeCase } = require('../lib/naming');
+const { toNamingConvention } = require('../lib/naming');
 const { resolve: resolveTransform } = require('../transforms');
 
 const FORBIDDEN_OUTPUTS = [
@@ -23,8 +23,8 @@ const FORBIDDEN_OUTPUT_PREFIXES = ['lib/', 'claude/lib/', 'plugins/maestro/lib/'
  * @param {string} pattern - Glob pattern to expand
  * @param {string} srcDir - Absolute path to source directory
  * @returns {string[]} Sorted array of matched relative paths
- * @throws {Error} When the final segment is `**` or any other directory
- *   segment holds a wildcard
+ * @throws {Error} When the final segment is `**` or a directory segment
+ *   contains `*`
  */
 function expandGlob(pattern, srcDir) {
   const segments = pattern.split('/');
@@ -57,8 +57,8 @@ function computeOutputPath(srcRelPath, runtime) {
     outPath = 'skills/' + outPath.slice('skills/shared/'.length);
   }
 
-  if (outPath.startsWith('agents/') && runtime.agentNaming === 'snake_case') {
-    outPath = path.dirname(outPath) + '/' + toSnakeCase(path.basename(outPath));
+  if (outPath.startsWith('agents/')) {
+    outPath = path.dirname(outPath) + '/' + toNamingConvention(path.basename(outPath), runtime.agentNaming);
   }
 
   if (!runtime.outputDir || runtime.outputDir === './') {

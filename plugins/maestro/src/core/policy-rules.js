@@ -229,19 +229,6 @@ function readDollarSubshell(command, startIndex) {
 }
 
 /**
- * Collect the body of every command substitution in `command`, nested ones
- * included, in pre-order: each body, then the bodies nested inside it.
- * @param {string} command
- * @returns {string[]}
- * @throws {Error} When a command substitution is never closed
- */
-function extractSubshells(command) {
-  const bodies = [];
-  splitCommands(command, (body) => bodies.push(body, ...extractSubshells(body)));
-  return bodies;
-}
-
-/**
  * Check a shell command line against the canonical rules. Every segment
  * (split on `;`, `|`, `&&`, `||`) and every `$(...)` or backtick subshell is
  * tested; the first deny rule that matches any part wins, then the first ask
@@ -253,8 +240,17 @@ function extractSubshells(command) {
 function checkCommand(command) {
   const topLevel = [];
   const segments = splitCommands(command, (body) => topLevel.push(body));
-  const subshells = topLevel.flatMap((body) => [body, ...extractSubshells(body)]);
-  const allParts = [...new Set([...segments, ...subshells, ...subshells.flatMap((s) => splitCommands(s))])];
+  // Every substitution body is split once, as the scan of its enclosing body
+  // reaches it, so nested bodies are visited in pre-order. The top-level scan
+  // finishes first, so its unterminated-substitution error takes precedence.
+  const subshells = [];
+  const subshellSegments = [];
+  const visit = (body) => {
+    const index = subshells.push(body) - 1;
+    subshellSegments[index] = splitCommands(body, visit);
+  };
+  topLevel.forEach(visit);
+  const allParts = [...new Set([...segments, ...subshells, ...subshellSegments.flat()])];
 
   for (const [rules, action] of [[DENY_RULES, 'deny'], [ASK_RULES, 'ask']]) {
     for (const part of allParts) {
