@@ -79,7 +79,7 @@ function toNamingConvention(name, targetCase) {
  * @returns {string} Content with names converted to the target convention
  */
 function replaceInContent(content, names, targetCase) {
-  if (targetCase !== 'snake_case' || !names) {
+  if (targetCase !== 'snake_case') {
     return content;
   }
 

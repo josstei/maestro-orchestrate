@@ -86,34 +86,12 @@ function splitAtBoundary(content) {
 }
 
 /**
- * Parse frontmatter key-value lines into an object, coercing each value via
- * {@link parseValue}.
- *
- * @param {string[]} lines - Lines between frontmatter delimiters.
- * @returns {Object} Parsed frontmatter object.
- */
-function parseLines(lines) {
-  const frontmatter = {};
-
-  for (const line of lines) {
-    const colonIndex = line.indexOf(':');
-    if (colonIndex === -1) continue;
-
-    const key = line.substring(0, colonIndex).trim();
-    const rawValue = line.substring(colonIndex + 1).trim();
-
-    frontmatter[key] = parseValue(rawValue);
-  }
-
-  return frontmatter;
-}
-
-/**
  * Parse frontmatter with type coercion.
  *
- * Splits content on `---` delimiters and parses key-value pairs with type
- * coercion via {@link parseValue}. Arrays, numbers, and quoted strings are
- * converted to their native types.
+ * Splits content on `---` delimiters and parses the `key: value` lines
+ * between them (lines without a colon are skipped) with type coercion via
+ * {@link parseValue}. Arrays, numbers, and quoted strings are converted to
+ * their native types.
  *
  * Returns empty frontmatter and the full content as body when no valid
  * frontmatter block is found (missing opening or closing `---`).
@@ -123,7 +101,13 @@ function parseLines(lines) {
  */
 function parse(content) {
   const { raw, body } = splitAtBoundary(content);
-  return { frontmatter: parseLines(raw.split('\n')), body };
+  const frontmatter = {};
+  for (const line of raw.split('\n')) {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex === -1) continue;
+    frontmatter[line.substring(0, colonIndex).trim()] = parseValue(line.substring(colonIndex + 1).trim());
+  }
+  return { frontmatter, body };
 }
 
 /**
@@ -143,5 +127,4 @@ function escapeYaml(value) {
 module.exports = {
   parse,
   escapeYaml,
-  splitAtBoundary,
 };
