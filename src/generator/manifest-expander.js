@@ -2,7 +2,9 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const { collectFiles, patternToRegex } = require('../lib/discovery');
 const { toSnakeCase } = require('../lib/naming');
+const { resolve: resolveTransform } = require('../transforms');
 
 const FORBIDDEN_OUTPUTS = [
   'mcp/maestro-server-core.js',
@@ -14,57 +16,30 @@ const FORBIDDEN_OUTPUT_PREFIXES = ['lib/', 'claude/lib/', 'plugins/maestro/lib/'
 
 /**
  * Expand a glob pattern relative to srcDir.
- * Supports `*` (wildcard within a single directory) and `**` (recursive).
- * Returns sorted relative paths (posix separators).
+ * `*` is a wildcard within the final (file name) segment only; a `**` segment
+ * directly before it also matches files in any subdirectory. Every other
+ * segment is a literal directory name.
+ * Returns sorted relative paths (platform separators).
  * @param {string} pattern - Glob pattern to expand
  * @param {string} srcDir - Absolute path to source directory
  * @returns {string[]} Sorted array of matched relative paths
+ * @throws {Error} When the final segment is `**` or any other directory
+ *   segment holds a wildcard
  */
 function expandGlob(pattern, srcDir) {
   const segments = pattern.split('/');
-  const results = [];
-
-  function walk(dir, segIndex) {
-    if (segIndex >= segments.length) return;
-
-    const segment = segments[segIndex];
-    const isLast = segIndex === segments.length - 1;
-
-    if (segment === '**') {
-      walk(dir, segIndex + 1);
-      let entries;
-      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          walk(path.join(dir, entry.name), segIndex);
-        }
-      }
-    } else {
-      const re = new RegExp(
-        '^' + segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*') + '$'
-      );
-
-      let entries;
-      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-      for (const entry of entries) {
-        if (!re.test(entry.name)) continue;
-
-        const fullPath = path.join(dir, entry.name);
-        if (isLast) {
-          if (entry.isFile()) {
-            results.push(path.relative(srcDir, fullPath));
-          }
-        } else {
-          if (entry.isDirectory()) {
-            walk(fullPath, segIndex + 1);
-          }
-        }
-      }
-    }
+  const fileName = segments.pop();
+  const recursive = segments[segments.length - 1] === '**';
+  if (recursive) segments.pop();
+  if (fileName === '**' || segments.some((segment) => segment.includes('*'))) {
+    throw new Error(`Unsupported manifest glob: ${pattern}`);
   }
 
-  walk(srcDir, 0);
-  return results.sort();
+  const fileRegex = patternToRegex(fileName);
+  return collectFiles(path.join(srcDir, ...segments), recursive)
+    .filter((filePath) => fileRegex.test(path.basename(filePath)))
+    .map((filePath) => path.relative(srcDir, filePath))
+    .sort();
 }
 
 /**
@@ -153,9 +128,48 @@ function expandManifest(rules, runtimes, srcDir) {
   return entries;
 }
 
+/**
+ * Render every output of the expanded manifest entries by running each
+ * entry's transforms over its source file. Lazy, so a consumer that writes
+ * each output as it is yielded keeps reads, writes and reported errors in
+ * manifest order. A missing source or a failing transform is passed to
+ * reportError and skipped; an unreadable source throws.
+ * @param {Array<{ src: string, transforms: string[], outputs: Record<string, string> }>} manifest - Expanded manifest entries
+ * @param {Record<string, Object>} runtimes - Runtime configurations keyed by name
+ * @param {string} srcDir - Absolute path to source directory
+ * @param {(message: string, error?: Error) => void} reportError - Logs and counts a non-fatal failure
+ * @returns {Generator<{ outputPath: string, content: string }>}
+ */
+function* renderManifest(manifest, runtimes, srcDir, reportError) {
+  for (const entry of manifest) {
+    const srcPath = path.join(srcDir, entry.src);
+    if (!fs.existsSync(srcPath)) {
+      reportError(`Source not found: ${entry.src}`);
+      continue;
+    }
+
+    const sourceContent = fs.readFileSync(srcPath, 'utf8');
+    for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
+      const runtime = runtimes[runtimeName];
+      let content = sourceContent;
+      try {
+        for (const transformName of entry.transforms) {
+          const fn = resolveTransform(transformName);
+          content = fn(content, runtime);
+        }
+      } catch (err) {
+        reportError(`processing ${entry.src} -> ${outputPath}`, err);
+        continue;
+      }
+      yield { outputPath, content };
+    }
+  }
+}
+
 module.exports = {
   expandGlob,
   computeOutputPath,
   assertNoMirroredSharedOutputs,
   expandManifest,
+  renderManifest,
 };

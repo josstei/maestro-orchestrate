@@ -7,7 +7,6 @@ const path = require('node:path');
 
 const {
   discover,
-  serializeRegistry,
   collectFiles,
 } = require('../../src/lib/discovery');
 
@@ -280,28 +279,5 @@ describe('discover', () => {
 
     assert.equal(entries[0].extra, 'value');
     assert.equal(entries[0].count, 42);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// serializeRegistry
-// ---------------------------------------------------------------------------
-
-describe('serializeRegistry', () => {
-  it('serializes a JSON array with trailing newline', () => {
-    const content = serializeRegistry([{ id: 'a' }, { id: 'b' }]);
-    assert.ok(content.endsWith('\n'));
-    assert.deepEqual(JSON.parse(content), [{ id: 'a' }, { id: 'b' }]);
-  });
-
-  it('serializes a JSON object with trailing newline', () => {
-    const content = serializeRegistry({ 'session-start': { module: 'm', fn: 'f' } });
-    assert.ok(content.endsWith('\n'));
-    assert.deepEqual(JSON.parse(content), { 'session-start': { module: 'm', fn: 'f' } });
-  });
-
-  it('uses 2-space indentation', () => {
-    const content = serializeRegistry({ key: 'value' });
-    assert.ok(content.includes('  "key"'));
   });
 });

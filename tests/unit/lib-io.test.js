@@ -8,6 +8,7 @@ const path = require('node:path');
 const {
   atomicWriteSync,
   ensurePrivateDir,
+  formatJson,
   readFileSafe,
   readJsonSafe,
   writeIfChanged,
@@ -267,6 +268,25 @@ describe('writeIfChanged', () => {
     fs.writeFileSync(filePath, '', 'utf8');
     const result = writeIfChanged(filePath, '');
     assert.equal(result, false);
+  });
+});
+
+describe('formatJson', () => {
+  it('serializes a JSON array with trailing newline', () => {
+    const content = formatJson([{ id: 'a' }, { id: 'b' }]);
+    assert.ok(content.endsWith('\n'));
+    assert.deepEqual(JSON.parse(content), [{ id: 'a' }, { id: 'b' }]);
+  });
+
+  it('serializes a JSON object with trailing newline', () => {
+    const content = formatJson({ 'session-start': { module: 'm', fn: 'f' } });
+    assert.ok(content.endsWith('\n'));
+    assert.deepEqual(JSON.parse(content), { 'session-start': { module: 'm', fn: 'f' } });
+  });
+
+  it('uses 2-space indentation', () => {
+    const content = formatJson({ key: 'value' });
+    assert.ok(content.includes('  "key"'));
   });
 });
 

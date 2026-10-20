@@ -90,7 +90,7 @@ function executeWrite(absOutputPath, content, stats) {
 /**
  * @typedef {Object} FileWriter
  * @property {(outputPath: string, content: string) => void} write
- * @property {(outputs: Array<{ outputPath: string, content: string }>) => void} writeAll
+ * @property {(outputs: Iterable<{ outputPath: string, content: string }>) => void} writeAll
  * @property {(outputPaths: string[]) => void} clean
  * @property {(message: string, error?: Error) => void} reportError
  * @property {() => FileWriterStats} getStats
@@ -128,7 +128,7 @@ function createFileWriter(opts) {
   }
 
   /**
-   * @param {Array<{ outputPath: string, content: string }>} outputs
+   * @param {Iterable<{ outputPath: string, content: string }>} outputs
    */
   function writeAll(outputs) {
     for (const output of outputs) {

@@ -3,14 +3,14 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { resolve: resolveTransform } = require('../src/transforms');
 const { createFileWriter } = require('../src/generator/file-writer');
-const { expandManifest, assertNoMirroredSharedOutputs } = require('../src/generator/manifest-expander');
+const { expandManifest, assertNoMirroredSharedOutputs, renderManifest } = require('../src/generator/manifest-expander');
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { buildDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/mcp/runtime/runtime-config-map');
+const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -22,29 +22,6 @@ const dryRun = args.includes('--dry-run');
 const diffMode = args.includes('--diff');
 const cleanMode = args.includes('--clean');
 const readOnlyMode = dryRun || diffMode;
-
-function processManifestEntry(entry, runtimes, writer) {
-  const srcPath = path.join(SRC, entry.src);
-  if (!fs.existsSync(srcPath)) {
-    writer.reportError(`Source not found: ${entry.src}`);
-    return;
-  }
-
-  const sourceContent = fs.readFileSync(srcPath, 'utf8');
-  for (const [runtimeName, outputPath] of Object.entries(entry.outputs)) {
-    const runtime = runtimes[runtimeName];
-    try {
-      let content = sourceContent;
-      for (const transformName of entry.transforms) {
-        const fn = resolveTransform(transformName);
-        content = fn(content, runtime);
-      }
-      writer.write(outputPath, content);
-    } catch (err) {
-      writer.reportError(`processing ${entry.src} -> ${outputPath}`, err);
-    }
-  }
-}
 
 function main() {
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
@@ -66,12 +43,10 @@ function main() {
     if (!readOnlyMode) console.log('Cleaned generated agent and shared-skill stubs.');
   }
 
-  for (const entry of manifest) {
-    processManifestEntry(entry, runtimes, writer);
-  }
+  writer.writeAll(renderManifest(manifest, runtimes, SRC, writer.reportError));
 
   // Required here, not at the top, so a broken src/entry-points module is
-  // reported through main()'s 'Generator failed:' handler like the manifest.
+  // reported with runCli's 'Generator failed' prefix like the manifest.
   const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
   const entryPointPaths = [];
   for (const expand of [expandEntryPoints, expandCoreCommands]) {
@@ -115,9 +90,4 @@ function main() {
   if (stats.errors > 0) process.exit(1);
 }
 
-try {
-  main();
-} catch (err) {
-  console.error('Generator failed:', err.message);
-  process.exit(1);
-}
+runCli('Generator failed', main);

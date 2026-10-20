@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { formatJson } = require('../src/lib/io');
 const { codexMarketplace, codexMarketplacePlugin } = require('../src/platforms/metadata');
 const { runCli } = require('./lib/cli');
 
@@ -107,7 +108,7 @@ function upsertPluginEntry(marketplace) {
 
 function writeMarketplace(marketplace) {
   fs.mkdirSync(path.dirname(MARKETPLACE_FILE), { recursive: true });
-  fs.writeFileSync(MARKETPLACE_FILE, `${JSON.stringify(marketplace, null, 2)}\n`);
+  fs.writeFileSync(MARKETPLACE_FILE, formatJson(marketplace));
 }
 
 function installPluginCopy() {
