@@ -8,82 +8,54 @@ const { globFiles } = require('./glob-files');
 const { pruneStaleFiles } = require('./stale-pruner');
 
 /**
- * Base allowlist of src/ prefixes included in detached payloads.
- * Each entry is a directory prefix (trailing slash) or a specific file path.
- * @type {ReadonlyArray<string>}
+ * src/ prefixes every detached payload ships: the MCP server, the modules it
+ * loads and the content it serves. Each entry is a directory prefix (trailing
+ * slash) or a file path.
  */
-const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
+const BASE_PREFIXES = [
   'core/',
   'lib/',
   'config/',
-  'hooks/',
   'mcp/',
   'platforms/runtime-config-map.js',
-  'platforms/shared/',
   'state/',
   'agents/',
   'skills/',
   'references/',
   'templates/',
   'generated/',
-]);
+];
 
 /**
- * src/ prefixes a runtime's payload carries beyond the base allowlist and its
- * platform dir. Antigravity serves the script-based state contract rooted at
- * its installed plugin dir (`${PLUGIN_ROOT}/src/scripts/...`), so its payload
- * ships the state scripts.
- * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ * The files of a runtime's platform dir that its host loads at run time; the
+ * build-time outputs.js and templates/ stay out of the payload.
  */
-const RUNTIME_PAYLOAD_EXTRAS = Object.freeze({
-  antigravity: Object.freeze(['scripts/']),
-});
+const PLATFORM_RUNTIME_FILES = ['runtime-config.js', 'hook-adapter.js', 'policy-enforcer.js'];
 
 /**
- * Build a payload allowlist for a specific runtime by extending the base
- * allowlist with that runtime's platform dir (its runtime config plus any
- * runtime-specific modules such as a hook adapter) and any
- * RUNTIME_PAYLOAD_EXTRAS entries.
- * @param {string} runtimeName
- * @returns {string[]}
- */
-function buildPayloadAllowlist(runtimeName) {
-  return [
-    ...DETACHED_PAYLOAD_BASE_ALLOWLIST,
-    `platforms/${runtimeName}/`,
-    ...(RUNTIME_PAYLOAD_EXTRAS[runtimeName] || []),
-  ];
-}
-
-/**
- * Determine whether a file at the given relative path should be included
- * in a detached payload based on the provided allowlist.
- * @param {string} relativePath - Posix-style relative path from src/
- * @param {string[]} allowlist - Allowlist to check against
- * @returns {boolean}
- */
-function shouldIncludeInPayload(relativePath, allowlist) {
-  return allowlist.some((prefix) => relativePath.startsWith(prefix));
-}
-
-/**
- * Copy the allowlisted files of srcDir for one runtime into outputDir, stamp
- * version.json, then remove stale files from outputDir that are no longer
- * present in the source.
+ * Copy the files of srcDir that one runtime's payload ships into outputDir,
+ * stamp version.json, then remove stale files from outputDir that are no
+ * longer present in the source.
  * @param {string} srcDir - Absolute path to the source directory
  * @param {string} outputDir - Absolute path to the output payload directory
- * @param {string} runtimeName - Runtime whose platform dir the payload carries
+ * @param {string} runtimeName - Runtime whose platform files the payload carries
+ * @param {string[]} extraPrefixes - src/ prefixes the runtime ships beyond the
+ *   base (its outputs.js `payload`)
  * @param {string} version - Package version to stamp into version.json
  * @returns {{ copied: number, removed: number }} copied counts updated source
  *   files only; version.json is not counted
  */
-function buildDetachedPayload(srcDir, outputDir, runtimeName, version) {
-  const allowlist = buildPayloadAllowlist(runtimeName);
+function buildDetachedPayload(srcDir, outputDir, runtimeName, extraPrefixes, version) {
+  const prefixes = [
+    ...BASE_PREFIXES,
+    ...PLATFORM_RUNTIME_FILES.map((file) => `platforms/${runtimeName}/${file}`),
+    ...extraPrefixes,
+  ];
   const keptOutputs = new Set([VERSION_JSON_FILENAME]);
   let copied = 0;
 
   for (const relativePath of globFiles(srcDir, '**/*')) {
-    if (!shouldIncludeInPayload(relativePath, allowlist)) {
+    if (!prefixes.some((prefix) => relativePath.startsWith(prefix))) {
       continue;
     }
 
@@ -104,10 +76,4 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName, version) {
   return { copied, removed };
 }
 
-module.exports = {
-  DETACHED_PAYLOAD_BASE_ALLOWLIST,
-  RUNTIME_PAYLOAD_EXTRAS,
-  buildPayloadAllowlist,
-  shouldIncludeInPayload,
-  buildDetachedPayload,
-};
+module.exports = { buildDetachedPayload };

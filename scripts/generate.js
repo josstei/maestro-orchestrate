@@ -16,8 +16,6 @@ const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const OWNED_DIRS = ['agents', 'antigravity/agents', 'antigravity/skills', 'claude/agents', 'claude/skills', 'plugins/maestro/skills', 'commands'];
-const PAYLOAD_RUNTIMES = ['antigravity', 'claude', 'codex'];
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -27,6 +25,9 @@ const readOnlyMode = dryRun || diffMode;
 
 function main() {
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
+  const runtimeOutputs = Object.fromEntries(
+    RUNTIME_NAMES.map((name) => [name, require(`../src/platforms/${name}/outputs`)])
+  );
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const manifest = expandManifest(manifestRules, runtimes, SRC);
   const manifestOutputPaths = manifest.flatMap((entry) => Object.values(entry.outputs));
@@ -65,18 +66,22 @@ function main() {
 
   if (!readOnlyMode) {
     const manifestPaths = new Set([...manifestOutputPaths, ...entryPointPaths]);
-    const pruned = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS });
+    const ownedDirs = RUNTIME_NAMES.flatMap((name) => runtimeOutputs[name].ownedDirs);
+    const pruned = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs });
     if (pruned.length > 0) {
       console.log('\nPruning stale files (not in manifest):');
       for (const f of pruned) console.log(`  PRUNED: ${f}`);
     }
 
-    const payloadSummaries = PAYLOAD_RUNTIMES.map((runtimeName) => {
+    // A runtime without a payload loads the repo's own src/.
+    const payloadRuntimes = RUNTIME_NAMES.filter((name) => runtimeOutputs[name].payload !== null);
+    const payloadSummaries = payloadRuntimes.map((runtimeName) => {
       const label = `${runtimes[runtimeName].outputDir}src`;
       const { copied, removed } = buildDetachedPayload(
         SRC,
         path.join(ROOT, label),
         runtimeName,
+        runtimeOutputs[runtimeName].payload,
         packageMetadata.version
       );
       return `${label} (${copied} updated, ${removed} removed)`;
