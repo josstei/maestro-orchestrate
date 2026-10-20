@@ -11,16 +11,11 @@ const {
 } = require('../../src/platforms/runtime-config-map');
 
 describe('runtime-config-map', () => {
-  it('discovers runtimes from platforms/ directory', () => {
-    const expected = ['antigravity', 'claude', 'codex', 'qwen'];
-    for (const name of expected) {
-      const config = getRuntimeConfig(name);
-      assert.equal(config.name, name, `Expected config.name to be '${name}'`);
-    }
-  });
-
-  it('lists runtime names alphabetically', () => {
+  it('discovers the runtimes from platforms/ and lists them alphabetically', () => {
     assert.deepEqual(RUNTIME_NAMES, ['antigravity', 'claude', 'codex', 'qwen']);
+    for (const name of RUNTIME_NAMES) {
+      assert.equal(getRuntimeConfig(name).name, name, `Expected config.name to be '${name}'`);
+    }
   });
 
   it('no longer discovers a gemini runtime', () => {

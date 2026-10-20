@@ -245,12 +245,12 @@ function spawnMcpServer(options) {
     };
   }
 
-  function rootsAnswered(count, timeoutMs = ROOTS_TIMEOUT_MS) {
+  function rootsAnswered(count) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         rootsWaiters.delete(check);
         reject(new Error(`Expected roots/list request #${count}, got ${rootsRequests}`));
-      }, timeoutMs);
+      }, ROOTS_TIMEOUT_MS);
       function check() {
         if (rootsRequests < count) return;
         clearTimeout(timer);

@@ -21,11 +21,10 @@ function activeSessionPath(workspace, stateDir = 'docs/maestro') {
  * Reads and parses the JSON frontmatter of a workspace's active session file.
  *
  * @param {string} workspace - Absolute path of a workspace holding an active session
- * @param {string} [stateDir] - State directory relative to `workspace` (default `docs/maestro`)
  * @returns {Object} The parsed session state
  */
-function readSessionState(workspace, stateDir) {
-  return markdownState.parse(fs.readFileSync(activeSessionPath(workspace, stateDir), 'utf8')).data;
+function readSessionState(workspace) {
+  return markdownState.parse(fs.readFileSync(activeSessionPath(workspace), 'utf8')).data;
 }
 
 /**
