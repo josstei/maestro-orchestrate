@@ -61,7 +61,7 @@ const KINDS = {
  */
 function readTemplate(runtimeName, kind) {
   const runtimeDir = path.join(RUNTIMES_DIR, runtimeName);
-  const file = fs.readdirSync(runtimeDir).find((name) => name.startsWith(`${kind}.`));
+  const file = fs.readdirSync(runtimeDir).find((name) => name.startsWith(`${kind}.`) && name.endsWith('.tmpl'));
   return fs.readFileSync(path.join(runtimeDir, file), 'utf8');
 }
 
