@@ -129,18 +129,12 @@ describe('repo git hooks', () => {
     assert.equal(result.status, 0, result.stderr);
   });
 
-  it('hand-written allowed-type lists match SEMANTIC_TYPES in semantic-git.sh', () => {
-    const branchTypes = execFileSync(
+  it('hand-written allowed-type lists match SEMANTIC_COMMIT_TYPES in semantic-git.sh', () => {
+    const commitTypes = execFileSync(
       'bash',
-      ['-c', 'source "$1"; printf %s "$SEMANTIC_TYPES"', 'bash', hookPath('lib/semantic-git.sh')],
+      ['-c', 'source "$1"; printf %s "$SEMANTIC_COMMIT_TYPES"', 'bash', hookPath('lib/semantic-git.sh')],
       { encoding: 'utf8' },
     ).split('|');
-    const commitTypes = [...branchTypes, 'release'];
-
-    const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'commit-message-check.yml'), 'utf8');
-    const printed = [...workflow.matchAll(/echo "Allowed types: ([^"]*)"\n\s*echo " +([^"]*)\."/g)]
-      .map(([, first, rest]) => `${first} ${rest}`.split(/,\s*/));
-    assert.deepEqual(printed, [commitTypes, branchTypes, commitTypes]);
 
     const commitMsg = fs.readFileSync(hookPath('commit-msg'), 'utf8');
     const hookBlock = commitMsg.split('echo "Allowed types:"')[1].split('echo ""')[0];

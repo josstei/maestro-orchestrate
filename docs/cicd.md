@@ -155,7 +155,7 @@ None produced or consumed.
 
 ### Key Behaviors
 
-- All three jobs source `.githooks/lib/semantic-git.sh`, the same library the local `commit-msg`, `pre-commit`, and `pre-push` hooks source, so local-pass and CI-pass agree. Branch names are checked locally before committing, locally before pushing, and in CI before merging.
+- All three jobs source `.githooks/lib/semantic-git.sh`, the same library the local `commit-msg`, `pre-commit`, and `pre-push` hooks source, so local-pass and CI-pass agree. Their failure messages take the allowed-type list (`SEMANTIC_COMMIT_TYPES`) and the branch-name guidance (`semantic_print_branch_name_error`) from that library too. Branch names are checked locally before committing, locally before pushing, and in CI before merging.
 - The PR-title job tests `SEMANTIC_COMMIT_PATTERN` directly, so it has no pass-throughs. The commit-subjects job uses `semantic_commit_subject_is_valid`, which accepts the git-generated `Merge `, `Revert `, `fixup!`, `squash!`, and `amend!` subjects (interactive rebases, merges, reverts) exactly as the `commit-msg` and `pre-push` hooks do.
 - Bot-authored release commits (`release: vX.Y.Z` from Prepare Release) match the regex without exception.
 - The `push` trigger means even a direct admin push to `main` is validated post-hoc — failures appear as red checks on the commit on `main`.

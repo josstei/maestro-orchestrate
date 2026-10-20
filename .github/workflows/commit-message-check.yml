@@ -35,8 +35,7 @@ jobs:
               echo ""
               echo "Required format: <type>(<optional-scope>)<!>: <description>"
               echo ""
-              echo "Allowed types: feat, fix, chore, docs, test, refactor, perf, style,"
-              echo "               build, ci, revert, release."
+              echo "Allowed types: ${SEMANTIC_COMMIT_TYPES//|/, }."
               echo ""
               echo "Examples:"
               echo "  feat(api): add idempotency-key header"
@@ -69,25 +68,8 @@ jobs:
             exit 0
           fi
 
-          {
-            echo "::error title=PR branch invalid::PR branch does not match the semantic branch convention"
-            echo ""
-            echo "PR branch: $HEAD_REF"
-            echo ""
-            echo "Required branch format:"
-            echo "  <type>/<slug>"
-            echo "  <namespace>/<type>/<slug>"
-            echo "  release/vX.Y.Z"
-            echo ""
-            echo "Allowed types: feat, fix, chore, docs, test, refactor, perf, style,"
-            echo "               build, ci, revert."
-            echo ""
-            echo "Examples:"
-            echo "  feat/semantic-git-hooks"
-            echo "  fix/pre-push-range"
-            echo "  codex/chore/enforce-git-conventions"
-            echo "  release/v1.7.0"
-          } >&2
+          echo "::error title=PR branch invalid::PR branch does not match the semantic branch convention" >&2
+          semantic_print_branch_name_error "branch-name-check" "$HEAD_REF"
           exit 1
 
   check-commits:
@@ -133,8 +115,7 @@ jobs:
               echo "One or more commit subjects do not match Conventional Commits."
               echo ""
               echo "Required format: <type>(<optional-scope>)<!>: <description>"
-              echo "Allowed types: feat, fix, chore, docs, test, refactor, perf, style,"
-              echo "               build, ci, revert, release."
+              echo "Allowed types: ${SEMANTIC_COMMIT_TYPES//|/, }."
               echo ""
               echo "Examples:"
               echo "  feat(api): add idempotency-key header"

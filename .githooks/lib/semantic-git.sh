@@ -2,10 +2,11 @@
 #
 # Shared semantic git convention checks for repo-local hooks.
 
-# Change types shared by commit subjects and branch names; commit subjects
-# additionally accept `release`.
+# Change types allowed in branch names; commit subjects additionally accept
+# `release`.
 SEMANTIC_TYPES='feat|fix|chore|docs|test|refactor|perf|style|build|ci|revert'
-SEMANTIC_COMMIT_PATTERN="^(${SEMANTIC_TYPES}|release)(\\([a-z0-9_./-]+\\))?!?: .+"
+SEMANTIC_COMMIT_TYPES="${SEMANTIC_TYPES}|release"
+SEMANTIC_COMMIT_PATTERN="^(${SEMANTIC_COMMIT_TYPES})(\\([a-z0-9_./-]+\\))?!?: .+"
 SEMANTIC_BRANCH_PATTERN="^([a-z0-9][a-z0-9._-]*/)?(${SEMANTIC_TYPES})/[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*\$"
 SEMANTIC_RELEASE_BRANCH_PATTERN='^release/v[0-9]+\.[0-9]+\.[0-9]+$'
 SEMANTIC_ZERO_SHA_PATTERN='^0{40}$'
@@ -125,8 +126,8 @@ semantic_push_commit_range() {
 }
 
 semantic_validate_pushed_refs() {
-  local remote_name="${1:-origin}"
-  local hook_name="${2:-pre-push}"
+  local remote_name="$1"
+  local hook_name="$2"
   local fail=0
   local local_ref local_sha remote_ref remote_sha
   local branch range line sha subject
