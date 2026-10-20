@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { formatJson } = require('../src/lib/io');
 const { codexMarketplace, codexMarketplacePlugin } = require('../src/generator/runtimes/codex/outputs');
-const { runCli } = require('./lib/cli');
+const { exitOnHelp, parseFlagArgs, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE_PLUGIN_DIR = path.join(ROOT, 'plugins', 'maestro');
@@ -27,22 +27,8 @@ Options:
 }
 
 function parseArgs(argv) {
-  const args = new Set(argv);
-
-  if (args.has('--help') || args.has('-h')) {
-    printHelp();
-    process.exit(0);
-  }
-
-  for (const arg of args) {
-    if (arg !== '--dry-run') {
-      throw new Error(`Unknown argument: ${arg}`);
-    }
-  }
-
-  return {
-    dryRun: args.has('--dry-run'),
-  };
+  exitOnHelp(argv, printHelp);
+  return parseFlagArgs(argv, { booleans: { '--dry-run': 'dryRun' }, printHelp });
 }
 
 function assertSourcePlugin() {

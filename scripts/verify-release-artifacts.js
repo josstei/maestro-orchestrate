@@ -12,7 +12,7 @@ const {
   readJson,
   releaseArchivePath,
 } = require('./lib/release');
-const { runCli } = require('./lib/cli');
+const { exitOnHelp, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -28,10 +28,7 @@ If archive is omitted, the verifier checks:
 }
 
 function parseArgs(argv) {
-  if (argv.includes('--help') || argv.includes('-h')) {
-    printHelp();
-    process.exit(0);
-  }
+  exitOnHelp(argv, printHelp);
 
   if (argv.length > 1) {
     throw new Error('Expected at most one archive path');

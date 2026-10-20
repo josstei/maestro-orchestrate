@@ -5,7 +5,25 @@
  * (the generator, release and installer scripts).
  */
 
-function parseFlagArgs(argv, { defaults = {}, flags, printHelp }) {
+/**
+ * Prints help and exits 0 if --help or -h appears anywhere in argv. Call it
+ * before parsing so help wins over any invalid argument.
+ */
+function exitOnHelp(argv, printHelp) {
+  if (argv.includes('--help') || argv.includes('-h')) {
+    printHelp();
+    process.exit(0);
+  }
+}
+
+/**
+ * Parses argv left to right into `defaults` plus the given flags. A `flags`
+ * entry ({ '--flag': 'option' }) takes the next argument as the option's
+ * value, whatever it looks like; a `booleans` entry sets its option to true.
+ * Reaching --help or -h prints help and exits 0. Any other argument, or a
+ * value flag at the end of argv, throws.
+ */
+function parseFlagArgs(argv, { defaults = {}, flags = {}, booleans = {}, printHelp }) {
   const options = { ...defaults };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -14,6 +32,11 @@ function parseFlagArgs(argv, { defaults = {}, flags, printHelp }) {
     if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
+    }
+
+    if (Object.hasOwn(booleans, arg)) {
+      options[booleans[arg]] = true;
+      continue;
     }
 
     if (!Object.hasOwn(flags, arg)) {
@@ -41,6 +64,7 @@ function runCli(failurePrefix, main) {
 }
 
 module.exports = {
+  exitOnHelp,
   parseFlagArgs,
   runCli,
 };
