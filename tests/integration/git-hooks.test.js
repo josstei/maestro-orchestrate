@@ -128,4 +128,25 @@ describe('repo git hooks', () => {
 
     assert.equal(result.status, 0, result.stderr);
   });
+
+  it('hand-written allowed-type lists match SEMANTIC_TYPES in semantic-git.sh', () => {
+    const branchTypes = execFileSync(
+      'bash',
+      ['-c', 'source "$1"; printf %s "$SEMANTIC_TYPES"', 'bash', hookPath('lib/semantic-git.sh')],
+      { encoding: 'utf8' },
+    ).split('|');
+    const commitTypes = [...branchTypes, 'release'];
+
+    const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'commit-message-check.yml'), 'utf8');
+    const printed = [...workflow.matchAll(/echo "Allowed types: ([^"]*)"\n\s*echo " +([^"]*)\."/g)]
+      .map(([, first, rest]) => `${first} ${rest}`.split(/,\s*/));
+    assert.deepEqual(printed, [commitTypes, branchTypes, commitTypes]);
+
+    const commitMsg = fs.readFileSync(hookPath('commit-msg'), 'utf8');
+    const hookBlock = commitMsg.split('echo "Allowed types:"')[1].split('echo ""')[0];
+    assert.deepEqual([...hookBlock.matchAll(/echo " {4}([a-z]+) /g)].map((m) => m[1]), commitTypes);
+
+    const contributing = fs.readFileSync(path.join(ROOT, 'CONTRIBUTING.md'), 'utf8');
+    assert.deepEqual([...contributing.matchAll(/^\| `([a-z]+)` \|/gm)].map((m) => m[1]), commitTypes);
+  });
 });
