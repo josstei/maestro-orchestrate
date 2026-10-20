@@ -14,6 +14,15 @@ beforeEach(() => {
   tempRoot = makeTempDir('maestro-fw-');
 });
 
+/**
+ * A file beside tempRoot for the path-traversal tests, so a broken guard
+ * would write or delete this scratch path rather than a system file.
+ * @returns {string}
+ */
+function outsideRoot() {
+  return `${tempRoot}-outside.txt`;
+}
+
 describe('FileWriter write', () => {
   it('creates a new file in the correct directory', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
@@ -69,16 +78,19 @@ describe('FileWriter write', () => {
 
   it('refuses relative and absolute paths that escape the root, counting each as an error', (t) => {
     t.mock.method(console, 'error', () => {});
+    const outside = outsideRoot();
+    const escape = path.relative(tempRoot, outside);
     const writer = createFileWriter({ rootDir: tempRoot });
-    writer.write('../../../etc/passwd', 'malicious');
-    writer.write('/etc/passwd', 'malicious');
+    writer.write(escape, 'malicious');
+    writer.write(outside, 'malicious');
 
     const stats = writer.getStats();
     assert.equal(stats.errors, 2);
     assert.equal(stats.written, 0);
+    assert.equal(fs.existsSync(outside), false);
     assert.deepEqual(console.error.mock.calls.map((c) => c.arguments[0]), [
-      'ERROR writing ../../../etc/passwd: Path traversal detected: "../../../etc/passwd" resolves outside project root',
-      'ERROR writing /etc/passwd: Path traversal detected: "/etc/passwd" resolves outside project root',
+      `ERROR writing ${escape}: Path traversal detected: "${escape}" resolves outside project root`,
+      `ERROR writing ${outside}: Path traversal detected: "${outside}" resolves outside project root`,
     ]);
   });
 });
@@ -119,7 +131,7 @@ describe('FileWriter reportError', () => {
   it('aggregates reported errors with write errors', (t) => {
     const writer = createFileWriter({ rootDir: tempRoot });
     t.mock.method(console, 'error', () => {});
-    writer.write('../../../etc/passwd', 'malicious');
+    writer.write(path.relative(tempRoot, outsideRoot()), 'malicious');
     writer.reportError('cleaning generated files');
     writer.reportError('processing a.md -> b.md', new Error('boom'));
     const logged = console.error.mock.calls.map((c) => c.arguments[0]);
@@ -261,7 +273,7 @@ describe('FileWriter clean', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
 
     assert.throws(
-      () => writer.clean(['../../../etc/passwd']),
+      () => writer.clean([path.relative(tempRoot, outsideRoot())]),
       /Path traversal detected/
     );
   });
