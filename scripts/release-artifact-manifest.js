@@ -199,6 +199,18 @@ function findNamedPlugin(marketplace, name, relativePath) {
   return plugin;
 }
 
+function assertLaunchesMaestroServer(mcpConfig, command, requiredArgs, message) {
+  const server = mcpConfig.mcpServers && mcpConfig.mcpServers.maestro;
+  if (
+    !server ||
+    server.command !== command ||
+    !Array.isArray(server.args) ||
+    !requiredArgs.every((arg) => server.args.includes(arg))
+  ) {
+    throw new Error(message);
+  }
+}
+
 function assertRuntimeManifestShape(root, expectedVersion = null) {
   const pkg = readJson(root, 'package.json');
   const antigravityPlugin = readJson(root, 'antigravity/plugin.json');
@@ -279,38 +291,27 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     throw new Error('antigravity/plugin.json must name the plugin maestro');
   }
 
-  const antigravityServer = antigravityMcp.mcpServers && antigravityMcp.mcpServers.maestro;
-  if (
-    !antigravityServer ||
-    antigravityServer.command !== 'node' ||
-    !Array.isArray(antigravityServer.args) ||
-    !antigravityServer.args.includes('${PLUGIN_ROOT}/mcp/maestro-server.js')
-  ) {
-    throw new Error('antigravity/mcp_config.json must launch the bundled Maestro MCP server');
-  }
+  assertLaunchesMaestroServer(
+    antigravityMcp,
+    'node',
+    ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
+    'antigravity/mcp_config.json must launch the bundled Maestro MCP server'
+  );
 
-  const claudeServer = claudeMcp.mcpServers && claudeMcp.mcpServers.maestro;
-  if (
-    !claudeServer ||
-    claudeServer.command !== 'node' ||
-    !Array.isArray(claudeServer.args) ||
-    !claudeServer.args.includes('${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js')
-  ) {
-    throw new Error('claude/.mcp.json must launch the bundled Maestro MCP server');
-  }
+  assertLaunchesMaestroServer(
+    claudeMcp,
+    'node',
+    ['${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js'],
+    'claude/.mcp.json must launch the bundled Maestro MCP server'
+  );
 
-  const codexServer = codexMcp.mcpServers && codexMcp.mcpServers.maestro;
   const expectedPackageSpec = `${packageName}@${version}`;
-  if (
-    !codexServer ||
-    codexServer.command !== 'npx' ||
-    !Array.isArray(codexServer.args) ||
-    !codexServer.args.includes('-p') ||
-    !codexServer.args.includes(expectedPackageSpec) ||
-    !codexServer.args.includes('maestro-mcp-server')
-  ) {
-    throw new Error(`plugins/maestro/.mcp.json must launch ${expectedPackageSpec}`);
-  }
+  assertLaunchesMaestroServer(
+    codexMcp,
+    'npx',
+    ['-p', expectedPackageSpec, 'maestro-mcp-server'],
+    `plugins/maestro/.mcp.json must launch ${expectedPackageSpec}`
+  );
 
   const requiredRuntimeFiles = [
     'antigravity/hooks.json',
@@ -346,5 +347,4 @@ module.exports = {
   isReleaseArtifactPathAllowed,
   readJson,
   releaseArchiveName,
-  toPosixPath,
 };
