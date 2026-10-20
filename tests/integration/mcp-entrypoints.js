@@ -67,8 +67,8 @@ const PLUGIN_COPIES = Object.freeze({
  * @returns {Promise<T>} The callback's result
  */
 async function withEntrypointCwd(entry, fn) {
-  const withPluginCopy = PLUGIN_COPIES[entry.plugin];
-  return withPluginCopy ? withPluginCopy(fn) : fn(ROOT);
+  const withIsolatedPlugin = PLUGIN_COPIES[entry.plugin];
+  return withIsolatedPlugin ? withIsolatedPlugin(fn) : fn(ROOT);
 }
 
 module.exports = {

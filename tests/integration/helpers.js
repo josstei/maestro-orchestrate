@@ -25,6 +25,10 @@ function runGeneratorExpectFailure(args = [], options = {}) {
     encoding: 'utf8',
   });
 
+  if (result.error) {
+    throw result.error;
+  }
+
   if (result.status === 0) {
     throw new Error('Expected generator command to fail');
   }

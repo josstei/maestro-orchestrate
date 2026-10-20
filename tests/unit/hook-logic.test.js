@@ -24,7 +24,7 @@ const { handleAfterAgent } = require('../../src/hooks/logic/after-agent-logic');
 const { handleBeforeAgent } = require('../../src/hooks/logic/before-agent-logic');
 const { handleSessionStart } = require('../../src/hooks/logic/session-start-logic');
 const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
-const { writeSessionState } = require('../support/session-file');
+const { activeSessionPath, writeSessionState } = require('../support/session-file');
 
 const SESSION_ID = 'test-session-abc123';
 
@@ -143,8 +143,7 @@ describe('handleBeforeAgent', () => {
   });
 
   it('returns allow with context message when session file has phase/status info', () => {
-    const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
-    writeFile(sessionFilePath, '---\ncurrent_phase: implementation\nstatus: active\n---\n');
+    writeFile(activeSessionPath(fakeCwd), '---\ncurrent_phase: implementation\nstatus: active\n---\n');
 
     const result = handleBeforeAgent({
       sessionId: SESSION_ID,
@@ -276,8 +275,7 @@ describe('handleSessionStart', () => {
   });
 
   it('ensures session dir when active session exists', () => {
-    const sessionFilePath = path.join(fakeCwd, 'docs', 'maestro', 'state', 'active-session.md');
-    writeFile(sessionFilePath, '---\nstatus: active\n---\n');
+    writeFile(activeSessionPath(fakeCwd), '---\nstatus: active\n---\n');
 
     handleSessionStart({ sessionId: SESSION_ID, cwd: fakeCwd });
 

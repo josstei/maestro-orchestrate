@@ -16,13 +16,14 @@ const {
 } = require('../support/catalog');
 const { readJson } = require('../support/fs');
 const { readStubFrontmatter } = require('../support/generated-files');
+const { SRC_ROOT } = require('../support/paths');
 const hookRegistry = require('../../src/generated/hook-registry.json');
 
 // `agy plugin install` copies the directory holding plugin.json to
 // ~/.gemini/config/plugins/<name>/ and loads mcp_config.json, hooks.json,
 // agents/ and skills/ from that root, so the plugin must be self-contained.
 const PLUGIN_DIR = path.join(ROOT, 'antigravity');
-const SRC_SHARED_SKILLS_DIR = path.join(ROOT, 'src', 'skills', 'shared');
+const SRC_SHARED_SKILLS_DIR = path.join(SRC_ROOT, 'skills', 'shared');
 
 const HOOK_EVENTS = ['SessionStart', 'PreToolUse', 'PostToolUse', 'PreInvocation', 'PostInvocation', 'Stop'];
 const GROUPED_HOOK_EVENTS = new Set(['PreToolUse', 'PostToolUse']);
@@ -229,7 +230,7 @@ describe('antigravity plugin layout', () => {
   it('bundles every state script the served architecture reference tells Antigravity to run', () => {
     // runtime-config enables scriptBasedStateContract, which is served as
     // `node ${PLUGIN_ROOT}/src/scripts/<script>` against the installed plugin.
-    const architecture = fs.readFileSync(path.join(ROOT, 'src', 'references', 'architecture.md'), 'utf8');
+    const architecture = fs.readFileSync(path.join(SRC_ROOT, 'references', 'architecture.md'), 'utf8');
     const scripts = [...architecture.matchAll(/\$\{extensionPath\}\/src\/scripts\/([\w-]+\.js)/g)].map(([, script]) => script);
     assert.ok(scripts.length > 0, 'architecture.md names no state scripts');
     for (const script of scripts) {
