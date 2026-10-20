@@ -68,6 +68,21 @@ describe('get_skill_content handler', () => {
     });
   });
 
+  it('reports Object.prototype key ids as unknown instead of failing the call', () => {
+    const ids = ['constructor', '__proto__', 'toString', 'delegation'];
+    const result = serveSkills('codex', ids);
+
+    assert.deepEqual(Object.keys(result.contents), ['delegation']);
+    assert.deepEqual(Object.keys(result.errors), ['constructor', '__proto__', 'toString']);
+    for (const id of ['constructor', '__proto__', 'toString']) {
+      assert.equal(
+        Object.getOwnPropertyDescriptor(result.errors, id).value,
+        `Unknown resource identifier: "${id}". Known identifiers: ${RESOURCE_IDS.join(', ')}`
+      );
+    }
+    assert.ok(JSON.stringify(result.errors).startsWith('{"constructor":"Unknown resource identifier: \\"constructor\\".'));
+  });
+
   it('serves every resource on every runtime', () => {
     for (const runtime of RUNTIME_NAMES) {
       const result = serveSkills(runtime, RESOURCE_IDS);
@@ -199,6 +214,17 @@ describe('get_agent handler', () => {
       nope: `Unknown agent identifier: "nope". Known identifiers: ${known}`,
       '(empty)': `Unknown agent identifier: "". Known identifiers: ${known}`,
     });
+  });
+
+  it("reports an agent requested as '__proto__' instead of dropping it", () => {
+    const result = serveAgents('codex', ['__proto__', 'coder']);
+
+    assert.deepEqual(Object.keys(result.agents), ['coder']);
+    assert.deepEqual(Object.keys(result.errors), ['__proto__']);
+    assert.equal(
+      JSON.parse(JSON.stringify(result)).errors.__proto__,
+      `Unknown agent identifier: "__proto__". Known identifiers: ${AGENT_NAMES.join(', ')}`
+    );
   });
 
   it('keys each agent by the trimmed requested name and names it for the runtime', () => {

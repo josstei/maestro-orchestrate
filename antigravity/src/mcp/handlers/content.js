@@ -46,26 +46,26 @@ function stripFeatureBlocks(content, features) {
     .replace(/\n{3,}/g, '\n\n');
 }
 
-/** Apply the runtime's transforms to a served resource, in this order. */
-function renderResource(content, relativePath, runtimeConfig) {
-  let result = content;
+/** Read a resource and apply the runtime's transforms, in this order. */
+function renderResource(relativePath, runtimeConfig) {
+  let content = fs.readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
 
   if (relativePath === 'references/architecture.md') {
-    result = stripFeatureBlocks(result, runtimeConfig.features);
+    content = stripFeatureBlocks(content, runtimeConfig.features);
   }
 
   if (AGENT_NAME_RESOURCES.has(relativePath)) {
-    result = replaceInContent(result, HYPHENATED_AGENT_NAMES, runtimeConfig.agentNaming);
+    content = replaceInContent(content, HYPHENATED_AGENT_NAMES, runtimeConfig.agentNaming);
   }
 
   // `${extensionPath}` is the only placeholder served content uses.
-  result = result.replace(/\$\{extensionPath\}/g, '${' + runtimeConfig.env.extensionPath + '}');
+  content = content.replace(/\$\{extensionPath\}/g, '${' + runtimeConfig.env.extensionPath + '}');
 
   if (runtimeConfig.name === 'claude' && relativePath.endsWith('SKILL.md')) {
-    result = result.replace(/^(---\n[\s\S]*?)(^---)/m, '$1user-invocable: false\n$2');
+    content = content.replace(/^(---\n[\s\S]*?)(^---)/m, '$1user-invocable: false\n$2');
   }
 
-  return result;
+  return content;
 }
 
 /**
@@ -100,25 +100,25 @@ function requireIdList(ids, message) {
 function handleGetSkillContent(params, _projectRoot, { runtimeConfig }) {
   requireIdList(params.resources, 'resources must be a non-empty array of resource identifiers');
 
-  const contents = {};
-  const errors = {};
+  const contents = [];
+  const errors = [];
 
   for (const id of params.resources) {
-    const relativePath = RESOURCES[id];
-    if (!relativePath) {
-      errors[id] = `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCES).join(', ')}`;
+    if (!Object.hasOwn(RESOURCES, id)) {
+      errors.push([id, `Unknown resource identifier: "${id}". Known identifiers: ${Object.keys(RESOURCES).join(', ')}`]);
       continue;
     }
 
-    const filePath = path.join(SRC_ROOT, relativePath);
     try {
-      contents[id] = renderResource(fs.readFileSync(filePath, 'utf8'), relativePath, runtimeConfig);
+      contents.push([id, renderResource(RESOURCES[id], runtimeConfig)]);
     } catch (err) {
-      errors[id] = `Failed to read resource "${id}": ${err.code || 'UNKNOWN'}`;
+      errors.push([id, `Failed to read resource "${id}": ${err.code || 'UNKNOWN'}`]);
     }
   }
 
-  return { contents, errors };
+  // Object.fromEntries makes every id an own key, so an id such as
+  // '__proto__' is reported instead of hitting the prototype setter.
+  return { contents: Object.fromEntries(contents), errors: Object.fromEntries(errors) };
 }
 
 /**
@@ -129,27 +129,29 @@ function handleGetSkillContent(params, _projectRoot, { runtimeConfig }) {
 function handleGetAgent(params, _projectRoot, { runtimeConfig }) {
   requireIdList(params.agents, 'agents must be a non-empty array of agent identifiers');
 
-  const agents = {};
-  const errors = {};
+  const agents = [];
+  const errors = [];
 
   for (const rawName of params.agents) {
     const inputName = String(rawName || '').trim();
     const name = toKebabCase(inputName);
 
     if (!AGENT_NAMES.includes(name)) {
-      errors[inputName || '(empty)'] =
-        `Unknown agent identifier: "${inputName}". Known identifiers: ${AGENT_NAMES.join(', ')}`;
+      errors.push([
+        inputName || '(empty)',
+        `Unknown agent identifier: "${inputName}". Known identifiers: ${AGENT_NAMES.join(', ')}`,
+      ]);
       continue;
     }
 
     try {
-      agents[inputName] = renderAgent(name, runtimeConfig);
+      agents.push([inputName, renderAgent(name, runtimeConfig)]);
     } catch (err) {
-      errors[inputName] = `Failed to read agent "${name}": ${err.code || 'UNKNOWN'}`;
+      errors.push([inputName, `Failed to read agent "${name}": ${err.code || 'UNKNOWN'}`]);
     }
   }
 
-  return { agents, errors };
+  return { agents: Object.fromEntries(agents), errors: Object.fromEntries(errors) };
 }
 
 module.exports = {
