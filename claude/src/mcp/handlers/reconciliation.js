@@ -27,34 +27,6 @@ const DEFAULT_IGNORE_DIRS = new Set([
 const DOCS_MAESTRO = path.join(DEFAULT_STATE_DIR);
 
 /**
- * @returns {string[]}
- */
-function parseIgnoreEnv() {
-  const raw = process.env.MAESTRO_SCAN_IGNORE;
-  if (!raw) return [];
-  return raw
-    .split(':')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-/**
- * @param {string} relPath - Workspace-relative path, used for workspace-anchored rules.
- * @param {string} name
- * @param {string} absPath - Absolute path. The cache check must not use relPath:
- *   isExtensionCachePath resolves relative paths against process.cwd(), which for
- *   Claude is the plugin install dir, itself a cache path.
- * @param {string|null} stateDir - Workspace-relative path of the resolved Maestro state dir.
- * @returns {boolean}
- */
-function shouldSkipDir(relPath, name, absPath, stateDir) {
-  if (DEFAULT_IGNORE_DIRS.has(name)) return true;
-  if (relPath === DOCS_MAESTRO || relPath === stateDir) return true;
-  if (isExtensionCachePath(absPath)) return true;
-  return false;
-}
-
-/**
  * Workspace-relative path of the state dir, compared on realpaths so a symlinked
  * workspace or state dir still matches the walk's logical paths. Null when the
  * state dir is the workspace root itself or lies outside it.
@@ -72,14 +44,16 @@ function workspaceRelativeStateDir(workspace, stateDir) {
 }
 
 /**
+ * Walk `workspace` for files created or modified since `startedAt`, visiting
+ * at most `maxFiles` files.
+ *
  * @param {string} workspace
  * @param {string} startedAt
  * @param {number} maxFiles
- * @param {string[]} extraIgnore
- * @param {string|null} stateDir - Workspace-relative path of the resolved Maestro state dir.
+ * @param {(relPath: string, name: string, absPath: string) => boolean} skipDir - true for a directory the walk must not enter
  * @returns {{ created: string[], modified: string[], ignoredCount: number, truncated: boolean }}
  */
-function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
+function scanWorkspace(workspace, startedAt, maxFiles, skipDir) {
   const startedMs = Date.parse(startedAt);
   let ignoredCount = 0;
   const created = [];
@@ -88,10 +62,6 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
   let seen = 0;
 
   function walk(dir, relDir) {
-    if (seen >= maxFiles) {
-      truncated = true;
-      return;
-    }
     let entries;
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -106,7 +76,7 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
       const absPath = path.join(dir, entry.name);
       const relPath = relDir ? path.join(relDir, entry.name) : entry.name;
       if (entry.isDirectory()) {
-        if (shouldSkipDir(relPath, entry.name, absPath, stateDir) || extraIgnore.some((i) => relPath.startsWith(i))) {
+        if (skipDir(relPath, entry.name, absPath)) {
           ignoredCount += 1;
           continue;
         }
@@ -167,14 +137,22 @@ function handleScanPhaseChanges(params, projectRoot) {
     );
   }
   const maxFiles = Number(process.env.MAESTRO_SCAN_MAX_FILES || 5000);
-  const extraIgnore = parseIgnoreEnv();
-  const result = scanWorkspace(
-    projectRoot,
-    phase.started,
-    maxFiles,
-    extraIgnore,
-    workspaceRelativeStateDir(projectRoot, stateDir)
-  );
+  const extraIgnore = (process.env.MAESTRO_SCAN_IGNORE || '')
+    .split(':')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const stateDirRel = workspaceRelativeStateDir(projectRoot, stateDir);
+  // relPath is workspace-relative, for the workspace-anchored rules. The cache
+  // check must use absPath: isExtensionCachePath resolves relative paths
+  // against process.cwd(), which for Claude is the plugin install dir, itself
+  // a cache path.
+  const skipDir = (relPath, name, absPath) =>
+    DEFAULT_IGNORE_DIRS.has(name) ||
+    relPath === DOCS_MAESTRO ||
+    relPath === stateDirRel ||
+    extraIgnore.some((prefix) => relPath.startsWith(prefix)) ||
+    isExtensionCachePath(absPath);
+  const result = scanWorkspace(projectRoot, phase.started, maxFiles, skipDir);
 
   return {
     phase_id: phase.id,
