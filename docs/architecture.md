@@ -239,7 +239,7 @@ Antigravity, Claude, and Qwen apply the same rules from `src/platforms/shared/po
 - **Claude**: `src/platforms/claude/policy-enforcer.js`, run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
 - **Qwen**: the TOML policy pack `policies/maestro.toml`, rendered from those rules by `src/platforms/qwen/policy-pack.js` for the Qwen builder in `src/platforms/metadata.js`
 
-Both JavaScript enforcers run `checkCommand()` from `src/platforms/shared/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with the bounded collector in `src/core/stdin-reader.js` and formats every decision; they differ only in where they read the command and what they name each decision.
+Both JavaScript enforcers run `checkCommand()` from `src/platforms/shared/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with `readStdin()` from `src/lib/io.js` (capped at 1 MiB) and formats every decision; they differ only in where they read the command and what they name each decision.
 
 ### Hook State
 

@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { readBoundedJson } = require('../../core/stdin-reader');
+const { readStdin } = require('../../lib/io');
 const { RUNTIME_NAMES } = require('../runtime-config-map');
 const HOOK_MAP = require('../../generated/hook-registry.json');
 
@@ -38,8 +38,8 @@ if (!hookEntry) {
 const adapter = require(adapterPath);
 const handler = require(path.resolve(__dirname, '../../', hookEntry.module))[hookEntry.fn];
 
-readBoundedJson()
-  .then((raw) => handler(adapter.normalizeInput(raw)))
+readStdin()
+  .then((raw) => handler(adapter.normalizeInput(JSON.parse(raw))))
   .then((result) => {
     process.stdout.write(JSON.stringify(adapter.formatOutput(result)) + '\n');
     process.exitCode = adapter.getExitCode ? adapter.getExitCode(result) : 0;

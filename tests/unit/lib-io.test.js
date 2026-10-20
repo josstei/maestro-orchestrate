@@ -4,6 +4,7 @@ const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const {
   atomicWriteSync,
@@ -14,6 +15,7 @@ const {
   writeIfChanged,
 } = require('../../src/lib/io');
 const { makeTempDir } = require('../support/fs');
+const { SRC_ROOT } = require('../support/paths');
 
 let tempRoot;
 
@@ -281,5 +283,39 @@ describe('ensurePrivateDir', () => {
       () => ensurePrivateDir(link, 'must not be a symlink'),
       { message: 'must not be a symlink' }
     );
+  });
+});
+
+describe('readStdin', () => {
+  // stdin is per process, so each case reads it in a child.
+  function readStdinFrom(input) {
+    const script = `require(${JSON.stringify(path.join(SRC_ROOT, 'lib', 'io.js'))}).readStdin().then(
+      (text) => process.stdout.write(JSON.stringify({ text })),
+      (err) => process.stdout.write(JSON.stringify({ error: err.message })));`;
+    const result = spawnSync(process.execPath, ['-e', script], {
+      input: Buffer.from(input, 'utf8'),
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    assert.equal(result.status, 0, result.stderr.toString());
+    assert.equal(result.stderr.toString(), '');
+    return JSON.parse(result.stdout.toString());
+  }
+
+  it('returns the full piped payload', () => {
+    assert.deepEqual(readStdinFrom('hello world'), { text: 'hello world' });
+  });
+
+  it('returns an empty string for empty stdin', () => {
+    assert.deepEqual(readStdinFrom(''), { text: '' });
+  });
+
+  it('rejects when the payload exceeds the 1 MiB cap', () => {
+    assert.deepEqual(readStdinFrom('a'.repeat(1024 * 1024 + 10)), { error: 'Stdin payload too large' });
+  });
+
+  it('counts the cap in raw UTF-8 bytes and decodes multi-byte input intact', () => {
+    // 'é' is 2 bytes: 512 KiB of them is exactly the cap, one more exceeds it.
+    assert.deepEqual(readStdinFrom('é'.repeat(512 * 1024)), { text: 'é'.repeat(512 * 1024) });
+    assert.deepEqual(readStdinFrom('é'.repeat(512 * 1024 + 1)), { error: 'Stdin payload too large' });
   });
 });

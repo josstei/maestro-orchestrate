@@ -135,6 +135,19 @@ describe('state scripts', () => {
       assert.equal(result.status, 1);
       assert.equal(result.stderr, 'ERROR: Path traversal not allowed\n');
     });
+
+    it('exits 1 without writing when stdin exceeds 1 MiB', () => {
+      const result = runScript('write-state.js', ['notes.md'], {
+        cwd: workspace,
+        input: 'x'.repeat(1024 * 1024 + 1),
+      });
+      assert.equal(result.status, 1);
+      assert.equal(
+        result.stderr,
+        '[ERROR] maestro: Stdin payload exceeds maximum size\nERROR: Stdin payload too large\n'
+      );
+      assert.equal(fs.existsSync(path.join(workspace, 'notes.md')), false);
+    });
   });
 
   describe('read-active-session.js', () => {

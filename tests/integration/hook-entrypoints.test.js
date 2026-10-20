@@ -217,6 +217,14 @@ describe('hook entrypoints', () => {
     assert.deepEqual(JSON.parse(result.stdout), { continue: true, decision: 'allow' });
   });
 
+  it('answers with the adapter error fallback when stdin exceeds 1 MiB', () => {
+    const result = runHook('claude/scripts/hook-runner.js', 'claude', 'session-start', 'x'.repeat(1024 * 1024 + 1));
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, 'Hook error: Stdin payload too large\n');
+    assert.equal(result.stdout, '{"continue":false,"decision":"block"}\n');
+  });
+
   it('starts a session when a file blocks its per-session hook-state path', () => {
     // session-start used to create <MAESTRO_HOOKS_DIR>/<session> while a session
     // was active, so a file in the way made it fail (Claude: continue false).
