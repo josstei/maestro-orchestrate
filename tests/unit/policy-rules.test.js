@@ -14,6 +14,10 @@ const RULE_LISTS = {
   ASK_RULES: { rules: ASK_RULES, count: 2 },
 };
 
+const HEREDOC_RULE = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
+const TEE_RULE = ASK_RULES.find(r => r.matchType === 'word' && r.pattern === 'tee');
+const REDIRECT_RULE = ASK_RULES.find(r => r.matchType === 'regex' && r.pattern.includes('>>?'));
+
 describe('policy-rules', () => {
   for (const [name, { rules, count }] of Object.entries(RULE_LISTS)) {
     describe(`${name} shape`, () => {
@@ -88,58 +92,49 @@ describe('policy-rules', () => {
     });
 
     it('regex rule for heredoc matches <<EOF and << EOF', () => {
-      const heredocRule = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
-      assert.ok(heredocRule, 'No heredoc regex rule found');
-      assert.ok(matchRule(heredocRule, '<<EOF'), 'Expected "<<EOF" to match heredoc rule');
-      assert.ok(matchRule(heredocRule, '<< EOF'), 'Expected "<< EOF" to match heredoc rule');
-      assert.ok(matchRule(heredocRule, 'cat <<EOF'), 'Expected "cat <<EOF" to match heredoc rule');
+      assert.ok(HEREDOC_RULE, 'No heredoc regex rule found');
+      assert.ok(matchRule(HEREDOC_RULE, '<<EOF'), 'Expected "<<EOF" to match heredoc rule');
+      assert.ok(matchRule(HEREDOC_RULE, '<< EOF'), 'Expected "<< EOF" to match heredoc rule');
+      assert.ok(matchRule(HEREDOC_RULE, 'cat <<EOF'), 'Expected "cat <<EOF" to match heredoc rule');
     });
 
     it('regex rule for heredoc matches quoted, escaped and tab-stripping delimiters', () => {
-      const heredocRule = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
       for (const command of ["cat <<'EOF'", 'cat << "EOF"', 'cat <<-EOF', 'cat <<\\EOF', 'cat<<EOF', 'python3 - <<PY', 'cat <<END_OF_TEXT > notes.md']) {
-        assert.ok(matchRule(heredocRule, command), `Expected ${JSON.stringify(command)} to match heredoc rule`);
+        assert.ok(matchRule(HEREDOC_RULE, command), `Expected ${JSON.stringify(command)} to match heredoc rule`);
       }
     });
 
     it('regex rule for heredoc ignores here-strings, shifts and <<=', () => {
-      const heredocRule = DENY_RULES.find(r => r.matchType === 'regex' && r.reason.startsWith('Heredoc'));
       for (const command of ['echo $((1<<4))', 'python3 -c "print(1 << 3)"', 'cat <<<"$value"', 'cat <<< "$value"', 'cat <<<word', 'x <<= 2']) {
-        assert.equal(matchRule(heredocRule, command), false, `Expected ${JSON.stringify(command)} NOT to match heredoc rule`);
+        assert.equal(matchRule(HEREDOC_RULE, command), false, `Expected ${JSON.stringify(command)} NOT to match heredoc rule`);
       }
     });
   });
 
   describe('ASK_RULES', () => {
     it('word rule for tee matches commands containing the word tee', () => {
-      const teeRule = ASK_RULES.find(r => r.matchType === 'word' && r.pattern === 'tee');
-      assert.ok(teeRule, 'No word rule found for "tee"');
-      assert.ok(matchRule(teeRule, 'echo hi | tee file.txt'), 'Expected "echo hi | tee file.txt" to match');
-      assert.ok(matchRule(teeRule, 'tee output.log'), 'Expected "tee output.log" to match');
+      assert.ok(TEE_RULE, 'No word rule found for "tee"');
+      assert.ok(matchRule(TEE_RULE, 'echo hi | tee file.txt'), 'Expected "echo hi | tee file.txt" to match');
+      assert.ok(matchRule(TEE_RULE, 'tee output.log'), 'Expected "tee output.log" to match');
     });
 
     it('word rule for tee does not match substrings like teeming or committee', () => {
-      const teeRule = ASK_RULES.find(r => r.matchType === 'word' && r.pattern === 'tee');
-      assert.ok(teeRule, 'No word rule found for "tee"');
-      assert.equal(matchRule(teeRule, 'teeming with ideas'), false, 'Expected "teeming" NOT to match tee word rule');
-      assert.equal(matchRule(teeRule, 'committee vote'), false, 'Expected "committee" NOT to match tee word rule');
+      assert.equal(matchRule(TEE_RULE, 'teeming with ideas'), false, 'Expected "teeming" NOT to match tee word rule');
+      assert.equal(matchRule(TEE_RULE, 'committee vote'), false, 'Expected "committee" NOT to match tee word rule');
     });
 
     it('regex rule for redirection matches output redirection operators', () => {
-      const redirectRule = ASK_RULES.find(r => r.matchType === 'regex' && r.pattern.includes('>>?'));
-      assert.ok(redirectRule, 'No regex redirection rule found');
-      assert.ok(matchRule(redirectRule, 'echo foo > file'), 'Expected "echo foo > file" to match');
-      assert.ok(matchRule(redirectRule, 'echo foo >> file'), 'Expected "echo foo >> file" to match');
-      assert.ok(matchRule(redirectRule, '2> /dev/null'), 'Expected "2> /dev/null" to match');
-      assert.ok(matchRule(redirectRule, 'cmd >> log.txt'), 'Expected "cmd >> log.txt" to match');
+      assert.ok(REDIRECT_RULE, 'No regex redirection rule found');
+      assert.ok(matchRule(REDIRECT_RULE, 'echo foo > file'), 'Expected "echo foo > file" to match');
+      assert.ok(matchRule(REDIRECT_RULE, 'echo foo >> file'), 'Expected "echo foo >> file" to match');
+      assert.ok(matchRule(REDIRECT_RULE, '2> /dev/null'), 'Expected "2> /dev/null" to match');
+      assert.ok(matchRule(REDIRECT_RULE, 'cmd >> log.txt'), 'Expected "cmd >> log.txt" to match');
     });
 
     it('regex rule for redirection does not match strings without redirection operators', () => {
-      const redirectRule = ASK_RULES.find(r => r.matchType === 'regex' && r.pattern.includes('>>?'));
-      assert.ok(redirectRule, 'No regex redirection rule found');
-      assert.equal(matchRule(redirectRule, 'echo hello world'), false, 'Expected plain echo to not match');
-      assert.equal(matchRule(redirectRule, 'git status'), false, 'Expected "git status" to not match');
-      assert.equal(matchRule(redirectRule, 'ls -la'), false, 'Expected "ls -la" to not match');
+      assert.equal(matchRule(REDIRECT_RULE, 'echo hello world'), false, 'Expected plain echo to not match');
+      assert.equal(matchRule(REDIRECT_RULE, 'git status'), false, 'Expected "git status" to not match');
+      assert.equal(matchRule(REDIRECT_RULE, 'ls -la'), false, 'Expected "ls -la" to not match');
     });
   });
 

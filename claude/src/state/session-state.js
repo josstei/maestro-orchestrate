@@ -21,6 +21,11 @@ function validateRelativePath(filePath) {
   }
 }
 
+function joinRelative(basePath, relativePath) {
+  validateRelativePath(relativePath);
+  return path.join(basePath, relativePath);
+}
+
 function validateContainment(absolutePath, rootDir) {
   let resolved = path.resolve(absolutePath);
   let resolvedRoot = path.resolve(rootDir);
@@ -38,49 +43,58 @@ function resolveStateDirUnder(base, stateDir) {
     return validateContainment(stateDir, base);
   }
 
-  validateRelativePath(stateDir);
-  return path.join(base, stateDir);
+  return joinRelative(base, stateDir);
 }
 
 /**
- * Resolve the absolute state dir for a workspace: the override when given,
- * else MAESTRO_STATE_DIR with the same precedence initialize_workspace uses
- * (environment, then the workspace .env, then the extension .env), else
- * DEFAULT_STATE_DIR.
+ * Resolve the configured state dir for a workspace, as written (relative or
+ * absolute, not yet resolved against the workspace): the override when given,
+ * else MAESTRO_STATE_DIR (environment, then the workspace .env, then the
+ * extension .env), else DEFAULT_STATE_DIR.
+ * @param {string} [cwd] - Workspace root; defaults to process.cwd()
+ * @param {string} [stateDirOverride]
+ * @returns {string}
+ */
+function resolveStateDirSetting(cwd, stateDirOverride) {
+  return (
+    stateDirOverride ||
+    resolveSetting('MAESTRO_STATE_DIR', cwd || process.cwd()) ||
+    DEFAULT_STATE_DIR
+  );
+}
+
+/**
+ * Resolve the absolute state dir for a workspace from the setting chosen by
+ * resolveStateDirSetting.
  * @param {string} [cwd] - Workspace root; defaults to process.cwd()
  * @param {string} [stateDirOverride]
  * @returns {string}
  */
 function resolveStateDirPath(cwd, stateDirOverride) {
   const root = cwd || process.cwd();
-  const stateDir = stateDirOverride || resolveSetting('MAESTRO_STATE_DIR', root) || DEFAULT_STATE_DIR;
-  return resolveStateDirUnder(root, stateDir);
+  return resolveStateDirUnder(root, resolveStateDirSetting(root, stateDirOverride));
 }
 
 function activeSessionFile(basePath) {
   return path.join(basePath, ACTIVE_SESSION_REL);
 }
 
-function resolveActiveSessionPath(cwd, stateDirOverride) {
-  return activeSessionFile(resolveStateDirPath(cwd, stateDirOverride));
+function resolveActiveSessionPath(cwd) {
+  return activeSessionFile(resolveStateDirPath(cwd));
 }
 
 function readState(relativePath, basePath) {
-  validateRelativePath(relativePath);
-  const fullPath = path.join(basePath, relativePath);
-  return fs.readFileSync(fullPath, 'utf8');
+  return fs.readFileSync(joinRelative(basePath, relativePath), 'utf8');
 }
 
 function writeState(relativePath, content, basePath) {
-  validateRelativePath(relativePath);
-  const fullPath = path.join(basePath, relativePath);
-  atomicWriteSync(fullPath, content);
+  atomicWriteSync(joinRelative(basePath, relativePath), content);
 }
 
 function readSessionAt(basePath) {
   const sessionPath = activeSessionFile(basePath);
   const { data, body } = markdownState.parse(fs.readFileSync(sessionPath, 'utf8'));
-  return { basePath, sessionPath, state: data, body };
+  return { basePath, state: data, body };
 }
 
 function readActiveSession(cwd) {
@@ -102,15 +116,32 @@ function writeActiveSession(basePath, state, body) {
 }
 
 /**
- * Read the active session, run `mutator` against it (mutating `session.state`
- * in place), persist the state with the original body, and return whatever
- * the mutator returned. A throwing mutator leaves the session file untouched.
+ * Read the active session, run `mutator(session, now)` against it (mutating
+ * `session.state` in place), stamp `state.updated = now`, persist the state
+ * with the original body, and return whatever the mutator returned. `now` is
+ * one ISO timestamp per call, so a mutator can reuse it for other fields. A
+ * throwing mutator leaves the session file untouched.
  */
 function withSessionState(cwd, mutator) {
   const session = readActiveSession(cwd);
-  const result = mutator(session);
+  const now = new Date().toISOString();
+  const result = mutator(session, now);
+  session.state.updated = now;
   writeActiveSession(session.basePath, session.state, session.body);
   return result;
+}
+
+/**
+ * Move the active session file to `state/archive/<sessionId>.md`.
+ * @param {string} basePath - Resolved state dir
+ * @param {string} sessionId - Already validated by assertSessionId
+ * @returns {string} the archive path
+ */
+function archiveActiveSession(basePath, sessionId) {
+  const archivePath = path.join(basePath, 'state', 'archive', `${sessionId}.md`);
+  fs.mkdirSync(path.dirname(archivePath), { recursive: true });
+  fs.renameSync(activeSessionFile(basePath), archivePath);
+  return archivePath;
 }
 
 function assertSessionMatch(state, sessionId, verb = 'got') {
@@ -161,6 +192,7 @@ function ensureWorkspace(stateDir, basePath) {
 module.exports = {
   DEFAULT_STATE_DIR,
   WORKSPACE_SUBDIRS,
+  resolveStateDirSetting,
   resolveStateDirPath,
   resolveActiveSessionPath,
   readState,
@@ -169,6 +201,7 @@ module.exports = {
   readActiveSessionOrNull,
   writeActiveSession,
   withSessionState,
+  archiveActiveSession,
   assertSessionMatch,
   findPhaseOrThrow,
   ensureWorkspace,

@@ -2,26 +2,22 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 
 const { createHandler: createSkillContentHandler } = require('../../src/mcp/handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../src/mcp/handlers/get-agent');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
-const { makeTempDir } = require('../support/fs');
-
-const SRC_ROOT = path.resolve(__dirname, '../../src');
+const { makeTempDir, writeTree } = require('../support/fs');
+const { SRC_ROOT } = require('../support/paths');
 
 describe('get_skill_content handler', () => {
   it('reads canonical src content and applies skill transforms', () => {
     const root = makeTempDir('maestro-skill-content-');
-    const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(skillDir, 'SKILL.md'),
-      '---\nname: delegation\ndescription: Demo skill\n---\nUse ${extensionPath} here.\n',
-      'utf8'
+    writeTree(
+      root,
+      'src/skills/shared/delegation/SKILL.md',
+      '---\nname: delegation\ndescription: Demo skill\n---\nUse ${extensionPath} here.\n'
     );
 
     const handler = createSkillContentHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
@@ -36,10 +32,9 @@ describe('get_skill_content handler', () => {
 
   it('applies architecture feature stripping and agent-name replacement', () => {
     const root = makeTempDir('maestro-architecture-');
-    const refDir = path.join(root, 'src', 'references');
-    fs.mkdirSync(refDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(refDir, 'architecture.md'),
+    writeTree(
+      root,
+      'src/references/architecture.md',
       [
         '<!-- @feature scriptBasedStateContract -->',
         'Qwen uses ${extensionPath} and code-reviewer.',
@@ -47,8 +42,7 @@ describe('get_skill_content handler', () => {
         '<!-- @feature codexStateContract -->',
         'Codex keeps code-reviewer.',
         '<!-- @end-feature -->',
-      ].join('\n'),
-      'utf8'
+      ].join('\n')
     );
 
     const handler = createSkillContentHandler({
@@ -98,12 +92,10 @@ describe('get_skill_content handler', () => {
 
   it('applies agent-name replacement to delegation skill for snake_case runtimes', () => {
     const root = makeTempDir('maestro-delegation-names-');
-    const skillDir = path.join(root, 'src', 'skills', 'shared', 'delegation');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(skillDir, 'SKILL.md'),
-      '---\nname: delegation\ndescription: test\n---\nDelegate to `code-reviewer` and `ux-designer`.\n',
-      'utf8'
+    writeTree(
+      root,
+      'src/skills/shared/delegation/SKILL.md',
+      '---\nname: delegation\ndescription: test\n---\nDelegate to `code-reviewer` and `ux-designer`.\n'
     );
 
     const handler = createSkillContentHandler(

@@ -5,6 +5,7 @@ const path = require('node:path');
 const { parse } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
 const { stripFeatureBlocks } = require('../../core/feature-blocks');
+const { mapTools } = require('../../core/agent-tools');
 const { AGENT_NAMES } = require('../../core/agent-registry');
 
 const RESOURCE_ALLOWLIST = Object.freeze(require('../../generated/resource-registry.json'));
@@ -13,16 +14,17 @@ const AGENT_ALLOWLIST = AGENT_NAMES;
 
 const HYPHENATED_AGENT_NAMES = AGENT_ALLOWLIST.filter((name) => name.includes('-'));
 
+/**
+ * Rewrite `${extensionPath}` in served markdown to the runtime's extension-root
+ * variable (runtimeConfig.env.extensionPath). No other placeholder is
+ * substituted.
+ */
 function applyReplacePaths(content, runtimeConfig) {
   let result = content;
   const env = runtimeConfig.env || {};
 
   if (env.extensionPath) {
     result = result.replace(/\$\{extensionPath\}/g, '${' + env.extensionPath + '}');
-  }
-
-  if (env.workspacePath) {
-    result = result.replace(/\$\{workspacePath\}/g, '${' + env.workspacePath + '}');
   }
 
   return result;
@@ -62,20 +64,6 @@ function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
   result = applySkillMetadata(result, runtimeConfig, resourcePath);
 
   return result;
-}
-
-/**
- * Resolve an agent's declared tools for a runtime: the `tools.<runtime>`
- * override when present, else `tools`, each name mapped (and flattened)
- * through runtimeConfig.tools, without duplicates. Unmapped names pass
- * through unchanged.
- */
-function mapTools(frontmatter, runtimeConfig) {
-  const declared = frontmatter[`tools.${runtimeConfig.name}`] || frontmatter.tools;
-
-  return [...new Set((Array.isArray(declared) ? declared : [])
-    .filter(Boolean)
-    .flatMap((toolName) => (runtimeConfig.tools && runtimeConfig.tools[toolName]) || toolName))];
 }
 
 function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
@@ -137,7 +125,6 @@ module.exports = {
   AGENT_ALLOWLIST,
   applyReplacePaths,
   applySkillMetadata,
-  mapTools,
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 };

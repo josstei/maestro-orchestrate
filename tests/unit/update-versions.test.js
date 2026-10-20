@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { updateVersions } = require('../../scripts/update-versions');
-const { makeTempDir, writeTree } = require('../support/fs');
+const { makeTempDir, readJson, writeJson, writeTree } = require('../support/fs');
 
 function createTempProject(version) {
   const root = makeTempDir('maestro-update-versions-');
@@ -50,15 +50,18 @@ function createTempProject(version) {
   };
 
   for (const [relativePath, value] of Object.entries(files)) {
-    const content = typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n';
-    writeTree(root, relativePath, content);
+    if (typeof value === 'string') {
+      writeTree(root, relativePath, value);
+    } else {
+      writeJson(path.join(root, relativePath), value);
+    }
   }
 
   return root;
 }
 
-function readJson(root, relativePath) {
-  return JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8'));
+function readProjectJson(root, relativePath) {
+  return readJson(path.join(root, relativePath));
 }
 
 describe('updateVersions', () => {
@@ -71,13 +74,13 @@ describe('updateVersions', () => {
   it('updates only canonical stable release inputs', () => {
     updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' });
 
-    const pkg = readJson(tempRoot, 'package.json');
-    const antigravityPlugin = readJson(tempRoot, 'antigravity/plugin.json');
-    const qwen = readJson(tempRoot, 'qwen-extension.json');
-    const claudePlugin = readJson(tempRoot, 'claude/.claude-plugin/plugin.json');
-    const codexPlugin = readJson(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json');
-    const codexMcp = readJson(tempRoot, 'plugins/maestro/.mcp.json');
-    const marketplace = readJson(tempRoot, '.claude-plugin/marketplace.json');
+    const pkg = readProjectJson(tempRoot, 'package.json');
+    const antigravityPlugin = readProjectJson(tempRoot, 'antigravity/plugin.json');
+    const qwen = readProjectJson(tempRoot, 'qwen-extension.json');
+    const claudePlugin = readProjectJson(tempRoot, 'claude/.claude-plugin/plugin.json');
+    const codexPlugin = readProjectJson(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json');
+    const codexMcp = readProjectJson(tempRoot, 'plugins/maestro/.mcp.json');
+    const marketplace = readProjectJson(tempRoot, '.claude-plugin/marketplace.json');
 
     assert.equal(pkg.version, '1.7.0');
     assert.equal(antigravityPlugin.version, '1.6.1');

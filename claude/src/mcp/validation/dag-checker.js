@@ -3,6 +3,12 @@
 const { StateError } = require('../../lib/errors');
 const { violation } = require('./violation');
 
+/** The ids `id` is blocked by; empty for root phases and for ids no phase declares. */
+function blockersOf(phaseById, id) {
+  const phase = phaseById.get(id);
+  return (phase && phase.blocked_by) || [];
+}
+
 /**
  * Compute the topological depth (longest incoming dependency chain) for
  * each phase. Throws if a cycle is reached — callers should run cycle
@@ -18,15 +24,15 @@ function computeDepths(phases, phaseById) {
       return depthMap[id];
     }
 
-    const phase = phaseById.get(id);
-    if (!phase || !phase.blocked_by || phase.blocked_by.length === 0) {
+    const blockers = blockersOf(phaseById, id);
+    if (blockers.length === 0) {
       depthMap[id] = 0;
       return 0;
     }
 
     depthMap[id] = -1;
     const maxBlockerDepth = Math.max(
-      ...phase.blocked_by.map((blockedPhaseId) => {
+      ...blockers.map((blockedPhaseId) => {
         const depth = getDepth(blockedPhaseId);
         if (depth === -1) {
           throw new StateError('computeDepths: unexpected cycle detected');
@@ -54,14 +60,8 @@ function getTransitiveDependencies(phaseId, phaseById, memo) {
     return memo[phaseId];
   }
 
-  const phase = phaseById.get(phaseId);
-  if (!phase || !phase.blocked_by || phase.blocked_by.length === 0) {
-    memo[phaseId] = new Set();
-    return memo[phaseId];
-  }
-
   const result = new Set();
-  for (const dependencyId of phase.blocked_by) {
+  for (const dependencyId of blockersOf(phaseById, phaseId)) {
     result.add(dependencyId);
     for (const transitiveDependency of getTransitiveDependencies(
       dependencyId,
@@ -96,12 +96,9 @@ function checkCycles(phases, phaseById) {
     visited.add(id);
     inStack.add(id);
 
-    const phase = phaseById.get(id);
-    if (phase) {
-      for (const dependencyId of phase.blocked_by || []) {
-        if (hasCycle(dependencyId)) {
-          return true;
-        }
+    for (const dependencyId of blockersOf(phaseById, id)) {
+      if (hasCycle(dependencyId)) {
+        return true;
       }
     }
 
@@ -127,28 +124,22 @@ function checkRedundantDependencies(phases, phaseById) {
   const memo = {};
 
   for (const phase of phases) {
-    const dependencies = phase.blocked_by || [];
-    // At most one redundant edge is reported per phase.
-    phaseScan: for (const dependencyId of dependencies) {
-      for (const otherDependencyId of dependencies) {
-        if (otherDependencyId === dependencyId) {
-          continue;
-        }
-        const transitiveDependencies = getTransitiveDependencies(
-          otherDependencyId,
-          phaseById,
-          memo
+    const dependencies = phase.blocked_by;
+    for (const dependencyId of dependencies) {
+      const viaId = dependencies.find(
+        (otherId) =>
+          otherId !== dependencyId &&
+          getTransitiveDependencies(otherId, phaseById, memo).has(dependencyId)
+      );
+      if (viaId !== undefined) {
+        violations.push(
+          violation(
+            'redundant_dependency',
+            `Phase ${phase.id}: dependency on phase ${dependencyId} is redundant (already reachable via phase ${viaId})`,
+            'warning'
+          )
         );
-        if (transitiveDependencies.has(dependencyId)) {
-          violations.push(
-            violation(
-              'redundant_dependency',
-              `Phase ${phase.id}: dependency on phase ${dependencyId} is redundant (already reachable via phase ${otherDependencyId})`,
-              'warning'
-            )
-          );
-          break phaseScan;
-        }
+        break; // At most one redundant edge is reported per phase.
       }
     }
   }

@@ -79,6 +79,16 @@ function writeIfChanged(filePath, content) {
 }
 
 /**
+ * Serialize a value to stable, newline-terminated JSON.
+ *
+ * @param {*} value - Any JSON-serializable value
+ * @returns {string} JSON content ready to write
+ */
+function formatJson(value) {
+  return JSON.stringify(value, null, 2) + '\n';
+}
+
+/**
  * Creates a directory (and its parents) with mode 0o700, then refuses to use it
  * if it is a symlink.
  *
@@ -96,6 +106,7 @@ function ensurePrivateDir(dir, symlinkMessage) {
 module.exports = {
   atomicWriteSync,
   ensurePrivateDir,
+  formatJson,
   readFileSafe,
   readJsonSafe,
   writeIfChanged,

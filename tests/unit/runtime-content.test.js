@@ -10,16 +10,15 @@ const {
   AGENT_ALLOWLIST,
   applyReplacePaths,
   applySkillMetadata,
-  mapTools,
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const { writeAgentFixture } = require('../support/agent-fixtures');
+const { AGENT_COUNT } = require('../support/catalog');
 const { makeTempDir, writeTree } = require('../support/fs');
-
-const SRC_ROOT = path.resolve(__dirname, '../../src');
+const { SRC_ROOT } = require('../support/paths');
 
 function writeFilesystemResource(root, id, content) {
   writeTree(path.join(root, 'src'), RESOURCE_ALLOWLIST[id], content);
@@ -37,9 +36,9 @@ describe('RESOURCE_ALLOWLIST', () => {
 });
 
 describe('AGENT_ALLOWLIST', () => {
-  it('is frozen with 39 entries, all kebab-case strings', () => {
+  it(`is frozen with ${AGENT_COUNT} entries, all kebab-case strings`, () => {
     assert.equal(Object.isFrozen(AGENT_ALLOWLIST), true);
-    assert.equal(AGENT_ALLOWLIST.length, 39);
+    assert.equal(AGENT_ALLOWLIST.length, AGENT_COUNT);
 
     for (const name of AGENT_ALLOWLIST) {
       assert.equal(typeof name, 'string');
@@ -55,16 +54,22 @@ describe('applyReplacePaths', () => {
     assert.equal(result, 'load from ${EXTENSION_DIR}/foo');
   });
 
-  it('replaces ${workspacePath} with ${ENV_VAR_NAME} from runtimeConfig.env.workspacePath', () => {
-    const content = 'root is ${workspacePath}/bar';
-    const result = applyReplacePaths(content, { env: { workspacePath: 'WORKSPACE_DIR' } });
-    assert.equal(result, 'root is ${WORKSPACE_DIR}/bar');
-  });
-
   it('returns content unchanged when no placeholders present', () => {
     const content = 'no placeholders here';
-    const result = applyReplacePaths(content, { env: { extensionPath: 'EXT', workspacePath: 'WS' } });
+    const result = applyReplacePaths(content, { env: { extensionPath: 'EXT' } });
     assert.equal(result, content);
+  });
+
+  it('covers every ${...Path} placeholder the served resources use', () => {
+    for (const relativePath of Object.values(RESOURCE_ALLOWLIST)) {
+      const content = fs.readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
+      const placeholders = content.match(/\$\{[A-Za-z]+Path\}/g) || [];
+      assert.deepEqual(
+        placeholders.filter((placeholder) => placeholder !== '${extensionPath}'),
+        [],
+        `${relativePath} uses a placeholder applyReplacePaths does not substitute`
+      );
+    }
   });
 });
 
@@ -87,64 +92,6 @@ describe('applySkillMetadata', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
     const result = applySkillMetadata(content, { name: 'claude' }, 'references/architecture.md');
     assert.equal(result, content);
-  });
-});
-
-describe('mapTools', () => {
-  it('maps canonical tool names through runtimeConfig.tools', () => {
-    const frontmatter = { tools: ['read_file', 'write_file'] };
-    const runtimeConfig = { name: 'qwen', tools: { read_file: 'ReadFile', write_file: 'WriteFile' } };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['ReadFile', 'WriteFile']);
-  });
-
-  it('uses per-runtime tool override when present', () => {
-    const frontmatter = {
-      tools: ['read_file', 'write_file'],
-      'tools.claude': ['Read', 'Write'],
-    };
-    const runtimeConfig = { name: 'claude', tools: { Read: 'Read', Write: 'Write' } };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['Read', 'Write']);
-  });
-
-  it('maps the per-runtime override through runtimeConfig.tools as well', () => {
-    const frontmatter = {
-      tools: ['read_file'],
-      'tools.qwen': ['write_todos'],
-    };
-    const runtimeConfig = { name: 'qwen', tools: { write_todos: 'todo_write' } };
-    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['todo_write']);
-  });
-
-  it('flattens array tool mappings', () => {
-    const frontmatter = { tools: ['bash'] };
-    const runtimeConfig = { name: 'qwen', tools: { bash: ['Bash', 'Terminal'] } };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['Bash', 'Terminal']);
-  });
-
-  it('drops duplicate mapped names, keeping the first occurrence', () => {
-    const frontmatter = { tools: ['read_file', 'grep_search', 'read_many_files', 'activate_skill'] };
-    const runtimeConfig = {
-      name: 'antigravity',
-      tools: { read_file: 'view_file', read_many_files: 'view_file', activate_skill: 'view_file' },
-    };
-    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['view_file', 'grep_search']);
-  });
-
-  it('keeps unmapped tool names as-is', () => {
-    const frontmatter = { tools: ['custom_tool'] };
-    const runtimeConfig = { name: 'qwen', tools: {} };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['custom_tool']);
-  });
-
-  it('drops empty entries and ignores non-array tool values', () => {
-    const runtimeConfig = { name: 'qwen', tools: {} };
-    assert.deepEqual(mapTools({ tools: ['a', '', 'b'] }, runtimeConfig), ['a', 'b']);
-    assert.deepEqual(mapTools({ tools: 'a, b' }, runtimeConfig), []);
-    assert.deepEqual(mapTools({}, runtimeConfig), []);
   });
 });
 
@@ -233,10 +180,6 @@ describe('served agent bodies', () => {
   it('keep the shared Output Contract as a single newline-terminated section', () => {
     assert.ok(outputContract.startsWith('## Output Contract\n'));
     assert.ok(outputContract.endsWith('\n') && !outputContract.endsWith('\n\n'));
-  });
-
-  it('cover exactly the supported runtimes', () => {
-    assert.deepEqual(RUNTIME_NAMES, ['antigravity', 'claude', 'codex', 'qwen']);
   });
 
   for (const runtimeName of RUNTIME_NAMES) {

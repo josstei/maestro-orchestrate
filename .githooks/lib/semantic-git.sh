@@ -53,7 +53,7 @@ semantic_print_branch_name_error() {
     echo "    release/vX.Y.Z"
     echo ""
     echo "Allowed types:"
-    echo "    feat, fix, chore, docs, test, refactor, perf, style, build, ci, revert"
+    echo "    ${SEMANTIC_TYPES//|/, }"
     echo ""
     echo "Slug rules:"
     echo "    lowercase letters, numbers, dots, underscores, and hyphens only"

@@ -5,10 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { AGENT_COUNT, PUBLIC_SKILL_COUNT, listCanonicalAgents, publicSkillNames } = require('../support/catalog');
+const { readJson } = require('../support/fs');
+const { readStubFrontmatter } = require('../support/generated-files');
 const { ROOT } = require('./helpers');
 const qwenRuntime = require('../../src/platforms/qwen/runtime-config');
-const entryPointRegistry = require('../../src/entry-points/registry');
-const coreCommandRegistry = require('../../src/entry-points/core-command-registry');
 const { toSnakeCase } = require('../../src/lib/naming');
 
 // Qwen Code's extension manager reads an installed extension's subagents only
@@ -16,7 +17,6 @@ const { toSnakeCase } = require('../../src/lib/naming');
 // where <extension> is the directory holding qwen-extension.json. For Maestro
 // that directory is the repo root.
 const EXTENSION_DIR = ROOT;
-const SRC_AGENTS_DIR = path.join(ROOT, 'src', 'agents');
 
 function listFiles(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -25,33 +25,8 @@ function listFiles(dir) {
   });
 }
 
-/** Reads the scalar keys and the `tools:` block list of a generated agent stub. */
-function readStubFrontmatter(filePath) {
-  const lines = fs.readFileSync(filePath, 'utf8').split('\n');
-  assert.equal(lines[0], '---', `${filePath}: missing opening frontmatter fence`);
-  const closingIdx = lines.indexOf('---', 1);
-  assert.notEqual(closingIdx, -1, `${filePath}: missing closing frontmatter fence`);
-
-  const frontmatter = {};
-  let listKey = null;
-  for (const line of lines.slice(1, closingIdx)) {
-    const item = line.match(/^ {2}- (.+)$/);
-    if (item && listKey) {
-      frontmatter[listKey].push(item[1]);
-      continue;
-    }
-    const [, key, value] = line.match(/^([A-Za-z_]+):\s*(.*)$/) || [];
-    assert.ok(key, `${filePath}: unexpected frontmatter line ${JSON.stringify(line)}`);
-    listKey = value === '' ? key : null;
-    frontmatter[key] = value === '' ? [] : value;
-  }
-  return frontmatter;
-}
-
 describe('qwen extension layout', () => {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(EXTENSION_DIR, 'qwen-extension.json'), 'utf8')
-  );
+  const manifest = readJson(path.join(EXTENSION_DIR, 'qwen-extension.json'));
 
   it('keeps qwen-extension.json and its context file at the extension root', () => {
     assert.equal(manifest.name, 'maestro');
@@ -63,12 +38,8 @@ describe('qwen extension layout', () => {
   });
 
   it('generates one snake_case agent stub per canonical agent in <extension>/agents/', () => {
-    const canonicalAgents = fs
-      .readdirSync(SRC_AGENTS_DIR)
-      .filter((file) => file.endsWith('.md'))
-      .map((file) => toSnakeCase(path.basename(file, '.md')))
-      .sort();
-    assert.equal(canonicalAgents.length, 39);
+    const canonicalAgents = listCanonicalAgents().map(toSnakeCase).sort();
+    assert.equal(canonicalAgents.length, AGENT_COUNT);
 
     const agentsDir = path.join(EXTENSION_DIR, 'agents');
     const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
@@ -92,7 +63,8 @@ describe('qwen extension layout', () => {
 
     for (const name of canonicalAgents) {
       const stubPath = path.join(agentsDir, `${name}.md`);
-      const frontmatter = readStubFrontmatter(stubPath);
+      // Qwen stub keys are snake_case, so a hyphenated key is rejected.
+      const frontmatter = readStubFrontmatter(stubPath, { keyPattern: /^([A-Za-z_]+):\s*(.*)$/ });
 
       assert.equal(frontmatter.name, name, stubPath);
       assert.equal(frontmatter.kind, 'local', stubPath);
@@ -120,11 +92,9 @@ describe('qwen extension layout', () => {
     );
   });
 
-  it('generates the 12 TOML commands in <extension>/commands/maestro/', () => {
-    const expectedCommands = [...entryPointRegistry, ...coreCommandRegistry]
-      .map((entry) => entry.runtimeNames?.qwen || entry.name)
-      .sort();
-    assert.equal(expectedCommands.length, 12);
+  it(`generates the ${PUBLIC_SKILL_COUNT} TOML commands in <extension>/commands/maestro/`, () => {
+    const expectedCommands = publicSkillNames('qwen');
+    assert.equal(expectedCommands.length, PUBLIC_SKILL_COUNT);
 
     const commandsDir = path.join(EXTENSION_DIR, 'commands', 'maestro');
     assert.deepEqual(

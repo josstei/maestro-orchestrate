@@ -50,11 +50,11 @@ maestro-orchestrate/
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
-│   ├── state/                    # Session-state helpers
+│   ├── state/                    # Session-state and plan-document helpers
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime configs, hook adapters, shared hook and policy-enforcer runners, Antigravity and Claude policy enforcers, metadata.js builders
+│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, Antigravity and Claude policy enforcers, Qwen policy-pack renderer, metadata.js builders
 │   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling

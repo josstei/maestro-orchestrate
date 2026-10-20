@@ -25,11 +25,7 @@ const ANTIGRAVITY_DECISIONS = { deny: 'deny', ask: 'force_ask', allow: 'ask' };
 function main() {
   runPolicyEnforcer({
     readCommand: (input) => input.toolCall && input.toolCall.args && input.toolCall.args.CommandLine,
-    formatDecision: ({ action, reason }) =>
-      reason
-        ? { decision: ANTIGRAVITY_DECISIONS[action], reason }
-        : { decision: ANTIGRAVITY_DECISIONS[action] },
-    failure: (reason) => ({ decision: 'deny', reason }),
+    decisions: ANTIGRAVITY_DECISIONS,
   });
 }
 

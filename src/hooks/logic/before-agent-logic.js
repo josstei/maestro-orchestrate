@@ -2,7 +2,6 @@
 
 const { log } = require('../../core/logger');
 const { detectAgentFromPrompt, normalizeAgentName } = require('../../core/agent-registry');
-const { isValidSessionId } = require('../../lib/validation');
 const { readFileSafe } = require('../../lib/io');
 const markdownState = require('../../core/markdown-state');
 const { resolveHookWorkspaceRoot } = require('../../core/project-root-resolver');
@@ -72,8 +71,7 @@ function handleBeforeAgent(ctx) {
 
   const agentName = detectAgentFromPrompt(ctx.agentInput) || normalizeAgentName(ctx.agentName);
 
-  if (agentName && isValidSessionId(ctx.sessionId)) {
-    hookState.setActiveAgent(ctx.sessionId, agentName);
+  if (agentName && hookState.setActiveAgent(ctx.sessionId, agentName)) {
     log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }
 

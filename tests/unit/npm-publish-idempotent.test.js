@@ -12,17 +12,14 @@ const {
   parseDistTagOutput,
   publishIfNeeded,
 } = require('../../scripts/npm-publish-idempotent');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeJson } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 
 const SILENT_LOGGER = { log() {}, warn() {} };
 
 function withPackageRoot(version, fn) {
   const root = makeTempDir('maestro-publish-');
-  fs.writeFileSync(
-    path.join(root, 'package.json'),
-    `${JSON.stringify({ name: '@josstei/maestro', version }, null, 2)}\n`,
-    'utf8'
-  );
+  writeJson(path.join(root, 'package.json'), { name: '@josstei/maestro', version });
   return fn(root);
 }
 
@@ -284,7 +281,7 @@ describe('idempotent npm publish', () => {
 
   it('does not remove latest through npm dist-tag policy', () => {
     const source = fs.readFileSync(
-      path.resolve(__dirname, '..', '..', 'scripts', 'npm-publish-idempotent.js'),
+      path.join(ROOT, 'scripts', 'npm-publish-idempotent.js'),
       'utf8'
     );
 

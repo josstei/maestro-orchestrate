@@ -97,18 +97,8 @@ function discover({ dir, pattern, identity, metadata }) {
   return entries;
 }
 
-/**
- * Serialize registry data to stable, newline-terminated JSON.
- *
- * @param {*} data - Any JSON-serializable registry value
- * @returns {string} JSON content ready to write
- */
-function serializeRegistry(data) {
-  return JSON.stringify(data, null, 2) + '\n';
-}
-
 module.exports = {
   collectFiles,
   discover,
-  serializeRegistry,
+  patternToRegex,
 };

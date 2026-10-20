@@ -2,7 +2,7 @@
 
 const { AGENT_ALLOWLIST, readAgentFromFilesystem } = require('../content/runtime-content');
 const { ValidationError } = require('../../lib/errors');
-const { toSnakeCase, toKebabCase } = require('../../lib/naming');
+const { toKebabCase, toNamingConvention } = require('../../lib/naming');
 
 function createHandler(runtimeConfig, srcRoot) {
   return function handleGetAgent(params) {
@@ -30,12 +30,10 @@ function createHandler(runtimeConfig, srcRoot) {
         continue;
       }
 
-      const toolName =
-        runtimeConfig.agentNaming === 'snake_case'
-          ? toSnakeCase(canonicalName)
-          : canonicalName;
-
-      agents[inputName] = { ...result.agent, tool_name: toolName };
+      agents[inputName] = {
+        ...result.agent,
+        tool_name: toNamingConvention(canonicalName, runtimeConfig.agentNaming),
+      };
     }
 
     return { agents, errors };

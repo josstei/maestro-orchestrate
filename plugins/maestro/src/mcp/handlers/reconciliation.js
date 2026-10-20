@@ -234,7 +234,6 @@ function handleReconcilePhase(params, projectRoot) {
     if (params.reason) {
       phase.reconciliation_reason = params.reason;
     }
-    state.updated = new Date().toISOString();
     return {
       success: true,
       phase_id: phase.id,

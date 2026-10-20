@@ -4,10 +4,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { makeTempDir } = require('../support/fs');
-const {
-  createInitializedSessionServer,
-  readSessionState,
-} = require('../support/session-server');
+const { readSessionState } = require('../support/session-file');
+const { createInitializedSessionServer } = require('../support/session-server');
 
 async function prepareSession(phaseId = 1) {
   const workspace = makeTempDir('maestro-hv-');

@@ -50,6 +50,21 @@ function escapeRegExp(value) {
 }
 
 /**
+ * Convert a canonical kebab-case name to the target naming convention.
+ *
+ * When targetCase is 'snake_case', the name is converted to snake_case.
+ * Any other targetCase (such as 'kebab-case') returns the name unchanged
+ * since kebab-case is the canonical format.
+ *
+ * @param {string} name - Canonical kebab-case name (e.g. 'api-designer')
+ * @param {string} targetCase - Target convention: 'snake_case' or 'kebab-case'
+ * @returns {string|undefined} Name in the target convention (a missing name passes through unless converting to snake_case)
+ */
+function toNamingConvention(name, targetCase) {
+  return targetCase === 'snake_case' ? toSnakeCase(name) : name;
+}
+
+/**
  * Replace all occurrences of canonical kebab-case names in content
  * with the target naming convention.
  *
@@ -82,5 +97,6 @@ module.exports = {
   toPascalCase,
   toTitleCase,
   escapeRegExp,
+  toNamingConvention,
   replaceInContent,
 };

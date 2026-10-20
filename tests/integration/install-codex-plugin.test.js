@@ -3,24 +3,31 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { execFileSync, spawnSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 const { describe, it } = require('node:test');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, readJson, writeJson } = require('../support/fs');
 const { ROOT } = require('./helpers');
 
-function runInstaller(homeDir, args = []) {
-  return execFileSync(process.execPath, ['scripts/install-codex-plugin.js', ...args], {
+function runInstaller(homeDir, args) {
+  return spawnSync(process.execPath, ['scripts/install-codex-plugin.js', ...args], {
     cwd: ROOT,
     env: { ...process.env, HOME: homeDir },
     encoding: 'utf8',
   });
 }
 
+// Runs the installer, fails the test unless it exits 0, and returns its stdout.
+function runInstallerOk(homeDir, args = []) {
+  const result = runInstaller(homeDir, args);
+  assert.equal(result.status, 0, `installer failed: ${result.stderr}`);
+  return result.stdout;
+}
+
 describe('codex installer integration', () => {
   it('installs the plugin into the personal Codex marketplace', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
 
-    const output = runInstaller(homeDir);
+    const output = runInstallerOk(homeDir);
     const pluginManifest = path.join(homeDir, '.codex', 'plugins', 'maestro', '.codex-plugin', 'plugin.json');
     const pluginSrcEntry = path.join(
       homeDir,
@@ -40,7 +47,7 @@ describe('codex installer integration', () => {
     );
     assert.ok(fs.existsSync(marketplaceFile), 'Expected installer to create the personal marketplace file');
 
-    const marketplace = JSON.parse(fs.readFileSync(marketplaceFile, 'utf8'));
+    const marketplace = readJson(marketplaceFile);
     const plugin = marketplace.plugins.find((entry) => entry.name === 'maestro');
 
     assert.equal(marketplace.name, 'maestro-orchestrator');
@@ -59,8 +66,7 @@ describe('codex installer integration', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
     const marketplaceFile = path.join(homeDir, '.agents', 'plugins', 'marketplace.json');
 
-    fs.mkdirSync(path.dirname(marketplaceFile), { recursive: true });
-    fs.writeFileSync(marketplaceFile, `${JSON.stringify({
+    writeJson(marketplaceFile, {
       name: 'personal-plugins',
       interface: { displayName: 'Personal Plugins' },
       plugins: [
@@ -77,11 +83,11 @@ describe('codex installer integration', () => {
           category: 'Coding',
         },
       ],
-    }, null, 2)}\n`);
+    });
 
-    runInstaller(homeDir);
+    runInstallerOk(homeDir);
 
-    const marketplace = JSON.parse(fs.readFileSync(marketplaceFile, 'utf8'));
+    const marketplace = readJson(marketplaceFile);
 
     assert.equal(marketplace.name, 'personal-plugins');
     assert.equal(marketplace.interface.displayName, 'Personal Plugins');
@@ -101,7 +107,7 @@ describe('codex installer integration', () => {
   it('supports a dry run without writing files', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
 
-    const output = runInstaller(homeDir, ['--dry-run']);
+    const output = runInstallerOk(homeDir, ['--dry-run']);
 
     assert.match(output, /Dry run complete\./);
     assert.equal(fs.existsSync(path.join(homeDir, '.codex')), false);
@@ -111,11 +117,7 @@ describe('codex installer integration', () => {
   it('reports unknown arguments as a one-line failure without writing files', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
 
-    const result = spawnSync(process.execPath, ['scripts/install-codex-plugin.js', '--foo'], {
-      cwd: ROOT,
-      env: { ...process.env, HOME: homeDir },
-      encoding: 'utf8',
-    });
+    const result = runInstaller(homeDir, ['--foo']);
 
     assert.equal(result.status, 1);
     assert.equal(result.stdout, '');

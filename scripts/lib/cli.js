@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Shared argv parsing and failure handling for the release and installer
- * scripts' CLIs.
+ * Shared argv parsing and failure handling for the CLIs under scripts/
+ * (the generator, release and installer scripts).
  */
 
 function parseFlagArgs(argv, { defaults, flags, printHelp }) {

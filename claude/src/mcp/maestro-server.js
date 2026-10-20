@@ -2,14 +2,14 @@
 
 const { log, fatal } = require('../core/logger');
 const { resolveVersion } = require('../core/version');
-const { createServer } = require('./core/create-server');
+const { createServer, toolFailure } = require('./core/create-server');
 const { createLineDispatcher } = require('./core/line-reader');
 const { createProjectRootCache } = require('./core/project-root-cache');
 const { createProtocolHandlers } = require('./core/protocol-dispatcher');
 const { createToolPack: createWorkspaceToolPack } = require('./tool-packs/workspace');
 const { createToolPack: createSessionToolPack } = require('./tool-packs/session');
 const { createToolPack: createContentToolPack } = require('./tool-packs/content');
-const { RUNTIME_NAMES, getRuntimeConfig, findRuntimeConfigForClient } = require('./runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig, findRuntimeConfigForClient } = require('../platforms/runtime-config-map');
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
@@ -22,6 +22,7 @@ const DEFAULT_TOOL_PACKS = Object.freeze([
   createContentToolPack,
 ]);
 
+/** The RUNTIME_UNIDENTIFIED failure, saying why `session` has no runtime. */
 function runtimeUnidentified(session) {
   let reason = 'MCP client has not sent initialize yet';
   if (session) {
@@ -32,12 +33,11 @@ function runtimeUnidentified(session) {
       ? `MCP client "${clientName}" is not one Maestro recognizes`
       : 'MCP client sent no clientInfo.name';
   }
-  return {
-    ok: false,
-    error: `Maestro could not identify its host runtime: MAESTRO_RUNTIME is not set and the ${reason}.`,
-    recovery_hint: `Set MAESTRO_RUNTIME to one of: ${RUNTIME_NAMES.join(', ')}.`,
-    code: 'RUNTIME_UNIDENTIFIED',
-  };
+  return toolFailure(
+    `Maestro could not identify its host runtime: MAESTRO_RUNTIME is not set and the ${reason}.`,
+    'RUNTIME_UNIDENTIFIED',
+    `Set MAESTRO_RUNTIME to one of: ${RUNTIME_NAMES.join(', ')}.`
+  );
 }
 
 /**
@@ -93,6 +93,10 @@ function main() {
   // An explicit MAESTRO_RUNTIME is known before the client connects.
   if (explicitRuntimeConfig) session = startSession();
 
+  async function refreshClientRoots() {
+    if (session) await session.cache.refreshClientRoots();
+  }
+
   const handlers = createProtocolHandlers(
     server,
     () => (session ? session.cache.getProjectRoot() : null),
@@ -104,15 +108,11 @@ function main() {
           session = session || startSession(params.clientInfo);
           session.cache.setClientSupportsRoots(Boolean(params.capabilities && params.capabilities.roots));
         },
-        async onInitialized() {
-          if (session) await session.cache.refreshClientRoots();
-        },
+        onInitialized: refreshClientRoots,
         // Re-read the roots instead of only forgetting them: Antigravity sends
         // list_changed again right after answering roots/list, which would
         // otherwise leave the suggestion on the server cwd (the plugin dir).
-        async onRootsListChanged() {
-          if (session) await session.cache.refreshClientRoots();
-        },
+        onRootsListChanged: refreshClientRoots,
       },
     }
   );

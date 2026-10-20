@@ -8,36 +8,7 @@ const codex = require('../../src/platforms/codex/runtime-config');
 const claude = require('../../src/platforms/claude/runtime-config');
 const qwen = require('../../src/platforms/qwen/runtime-config');
 
-describe('runtime-config delegation.constraints', () => {
-  it('codex declares fork incompatibility and deferred result surface', () => {
-    assert.deepEqual(codex.delegation.constraints.fork_full_context_incompatible_with, [
-      'agent_type',
-      'model',
-      'reasoning_effort',
-    ]);
-    assert.equal(codex.delegation.constraints.result_surface, 'deferred');
-    assert.equal(codex.delegation.constraints.child_cannot_prompt_user, true);
-  });
-
-  it('claude declares synchronous result surface', () => {
-    assert.equal(claude.delegation.constraints.result_surface, 'synchronous');
-    assert.equal(claude.delegation.constraints.child_cannot_prompt_user, false);
-  });
-
-  it('qwen declares synchronous result surface', () => {
-    assert.equal(qwen.delegation.constraints.result_surface, 'synchronous');
-    assert.equal(qwen.delegation.constraints.child_cannot_prompt_user, false);
-  });
-
-  it('antigravity declares notified result surface', () => {
-    // invoke_subagent returns conversation IDs; each child's final response
-    // arrives later as a system message.
-    assert.deepEqual(antigravity.delegation.constraints, {
-      result_surface: 'notified',
-      child_cannot_prompt_user: false,
-    });
-  });
-
+describe('runtime-config host bindings', () => {
   it('every runtime-config binds workspacePath to the env var its host provides', () => {
     assert.deepEqual(
       {

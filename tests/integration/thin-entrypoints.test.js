@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { readJson } = require('../support/fs');
+const { hookCommands } = require('../support/generated-files');
 const { ROOT } = require('./helpers');
 
 describe('thin entrypoint design', () => {
@@ -39,21 +41,10 @@ describe('thin entrypoint design', () => {
     }
   });
 
-  it('Antigravity plugin config launches the plugin MCP shim', () => {
-    const { mcpServers } = JSON.parse(
-      fs.readFileSync(path.join(ROOT, 'antigravity/mcp_config.json'), 'utf8')
-    );
-    assert.deepEqual(mcpServers.maestro.args, ['${PLUGIN_ROOT}/mcp/maestro-server.js']);
-    assert.equal(fs.existsSync(path.join(ROOT, 'antigravity/mcp/maestro-server.js')), true);
-  });
-
   it('Antigravity hook shims back every hooks.json command with repo-first / bundled-fallback resolution', () => {
-    const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'antigravity/hooks.json'), 'utf8'));
+    const hooks = readJson(path.join(ROOT, 'antigravity/hooks.json'));
     // SessionStart holds handlers directly; PreToolUse groups them under a matcher.
-    const commands = Object.values(hooks)
-      .flatMap((events) => Object.values(events).flat())
-      .flatMap((entry) => (entry.hooks ? entry.hooks : [entry]))
-      .map((hook) => hook.command);
+    const commands = hookCommands(hooks);
 
     assert.ok(commands.length > 0);
     for (const command of commands) {
@@ -86,10 +77,7 @@ describe('thin entrypoint design', () => {
       'Expected hooks/hook-runner.js to require the shared hook runner directly from src/'
     );
 
-    const { hooks } = JSON.parse(fs.readFileSync(path.join(ROOT, 'qwen/hooks.json'), 'utf8'));
-    const commands = Object.values(hooks).flatMap((groups) =>
-      groups.flatMap((group) => group.hooks.map((hook) => hook.command))
-    );
+    const commands = hookCommands(readJson(path.join(ROOT, 'qwen/hooks.json')));
     const hookNames = commands.map((command) => {
       const match = command.match(/^node \$\{extensionPath\}\/hooks\/hook-runner\.js qwen ([a-z-]+)$/);
       assert.ok(match, `Expected qwen hook command to run the repo-root shim: ${command}`);

@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
 
 // The get_runtime_context response is a contract the runtime prompts rely on,
@@ -19,6 +19,8 @@ const EXPECTED_CONTEXT = {
       naming: 'kebab-case',
       prefix: '',
     },
+    // invoke_subagent returns conversation IDs; each child's final response
+    // arrives later as a system message.
     constraints: { result_surface: 'notified', child_cannot_prompt_user: false },
     agents: AGENT_NAMES,
     tools: {

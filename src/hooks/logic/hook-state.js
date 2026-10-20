@@ -3,7 +3,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { log } = require('../../core/logger');
 const { isValidSessionId } = require('../../lib/validation');
 const { atomicWriteSync, ensurePrivateDir, readFileSafe } = require('../../lib/io');
 
@@ -43,10 +42,7 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   // Nothing else creates `<baseDir>/<sessionId>/`: atomicWriteSync makes the
   // session directory (mode 0o700) before the first write.
   function setActiveAgent(sessionId, agentName) {
-    if (!isValidSessionId(sessionId)) {
-      log('ERROR', 'Invalid session_id: contains unsafe characters');
-      return false;
-    }
+    if (!isValidSessionId(sessionId)) return false;
     atomicWriteSync(activeAgentFile(sessionId), agentName);
     return true;
   }

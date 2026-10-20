@@ -6,9 +6,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const agentStub = require('../../src/transforms/agent-stub');
 const { parse } = require('../../src/lib/frontmatter');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/mcp/runtime/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
+const { AGENT_COUNT, listCanonicalAgents } = require('../support/catalog');
+const { splitFrontmatter } = require('../support/generated-files');
+const { SRC_ROOT } = require('../support/paths');
 
-const SRC_AGENTS_DIR = path.resolve(__dirname, '../../src/agents');
+const SRC_AGENTS_DIR = path.join(SRC_ROOT, 'agents');
 
 describe('agent-stub transform', () => {
   const canonicalAgent = [
@@ -53,16 +56,8 @@ describe('agent-stub transform', () => {
   }
 
   function parseDocument(result) {
-    const lines = result.split('\n');
-    assert.equal(lines[0], '---');
-
-    const closingIdx = lines.indexOf('---', 1);
-    assert.notEqual(closingIdx, -1, 'Expected a closing frontmatter fence');
-
-    return {
-      frontmatter: lines.slice(1, closingIdx),
-      body: lines.slice(closingIdx + 1).join('\n'),
-    };
+    const { lines, body } = splitFrontmatter(result);
+    return { frontmatter: lines, body };
   }
 
   function assertDocument(result, expectedFrontmatter, expectedBody) {
@@ -381,8 +376,8 @@ describe('agent-stub transform', () => {
     });
 
     it('is no longer declared by any canonical agent, nor emitted into its stubs', () => {
-      const agentFiles = fs.readdirSync(SRC_AGENTS_DIR).filter((file) => file.endsWith('.md'));
-      assert.equal(agentFiles.length, 39);
+      const agentFiles = listCanonicalAgents().map((name) => `${name}.md`);
+      assert.equal(agentFiles.length, AGENT_COUNT);
 
       for (const file of agentFiles) {
         const content = fs.readFileSync(path.join(SRC_AGENTS_DIR, file), 'utf8');

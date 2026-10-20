@@ -1,8 +1,9 @@
 'use strict';
 
 const path = require('node:path');
-const { discover, serializeRegistry } = require('../lib/discovery');
+const { discover } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
+const { formatJson } = require('../lib/io');
 const { toPascalCase } = require('../lib/naming');
 
 /**
@@ -95,7 +96,7 @@ function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
 
   return registries.map(({ fileName, data }) => ({
     outputPath: path.relative(rootDir, path.join(generatedDir, fileName)),
-    content: serializeRegistry(data),
+    content: formatJson(data),
   }));
 }
 

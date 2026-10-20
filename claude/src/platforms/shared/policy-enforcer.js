@@ -1,42 +1,43 @@
 'use strict';
 
 const { checkCommand } = require('../../core/policy-rules');
-
-const MAX_STDIN_BYTES = 1024 * 1024;
+const { collectStdin } = require('../../core/stdin-reader');
 
 /**
  * Run a host's PreToolUse shell-policy hook: read the hook payload from stdin,
  * check the shell command it carries against the canonical policy rules
- * (src/core/policy-rules.js), and write the host-formatted decision to stdout.
+ * (src/core/policy-rules.js), and write the host's decision to stdout as
+ * `{ decision, reason }`, leaving out `reason` when the result has none.
  *
- * A payload over 1 MiB, unparseable JSON, or an unterminated command
- * substitution yields the host's failure decision (fail closed).
+ * A payload over the shared 1 MiB stdin cap (src/core/stdin-reader.js),
+ * unparseable JSON, or an unterminated command substitution yields the host's
+ * `deny` decision (fail closed).
  *
  * @param {object} host
  * @param {(input: object) => string} host.readCommand - shell command in the payload
- * @param {(result: { action: 'deny'|'ask'|'allow', reason?: string }) => object} host.formatDecision
- * @param {(reason: string) => object} host.failure - decision emitted when the check cannot run
+ * @param {{ deny: string, ask: string, allow: string }} host.decisions - the host's
+ *   decision name for each policy action; `deny` is also answered when the check cannot run
+ * @returns {Promise<void>}
  */
-function runPolicyEnforcer(host) {
-  const chunks = [];
-  let totalBytes = 0;
-  process.stdin.on('data', (chunk) => {
-    totalBytes += chunk.length;
-    if (totalBytes > MAX_STDIN_BYTES) {
+function runPolicyEnforcer({ readCommand, decisions }) {
+  const emit = (action, reason) => {
+    const decision = reason ? { decision: decisions[action], reason } : { decision: decisions[action] };
+    process.stdout.write(JSON.stringify(decision) + '\n');
+  };
+
+  return collectStdin({
+    onOverflow: () => {
       process.stderr.write('Policy enforcer: stdin payload too large\n');
-      process.stdout.write(JSON.stringify(host.failure('Payload too large')) + '\n');
+      emit('deny', 'Payload too large');
       process.exit(1);
-    }
-    chunks.push(chunk);
-  });
-  process.stdin.on('end', () => {
+    },
+  }).then((raw) => {
     try {
-      const input = JSON.parse(Buffer.concat(chunks).toString());
-      const result = checkCommand(host.readCommand(input) || '');
-      process.stdout.write(JSON.stringify(host.formatDecision(result)) + '\n');
+      const { action, reason } = checkCommand(readCommand(JSON.parse(raw)) || '');
+      emit(action, reason);
     } catch (err) {
       process.stderr.write('Policy enforcer error: ' + err.message + '\n');
-      process.stdout.write(JSON.stringify(host.failure('Policy enforcer internal error')) + '\n');
+      emit('deny', 'Policy enforcer internal error');
     }
   });
 }

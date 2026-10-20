@@ -7,24 +7,31 @@ const path = require('node:path');
 
 const { ROOT } = require('./helpers');
 const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
-const entryPointRegistry = require('../../src/entry-points/registry');
-const coreCommandRegistry = require('../../src/entry-points/core-command-registry');
+const {
+  AGENT_COUNT,
+  PUBLIC_SKILL_COUNT,
+  SHARED_SKILL_COUNT,
+  listCanonicalAgents,
+  publicSkillNames,
+} = require('../support/catalog');
+const { readJson } = require('../support/fs');
+const { readStubFrontmatter } = require('../support/generated-files');
+const { SRC_ROOT } = require('../support/paths');
 const hookRegistry = require('../../src/generated/hook-registry.json');
 
 // `agy plugin install` copies the directory holding plugin.json to
 // ~/.gemini/config/plugins/<name>/ and loads mcp_config.json, hooks.json,
 // agents/ and skills/ from that root, so the plugin must be self-contained.
 const PLUGIN_DIR = path.join(ROOT, 'antigravity');
-const SRC_AGENTS_DIR = path.join(ROOT, 'src', 'agents');
-const SRC_SHARED_SKILLS_DIR = path.join(ROOT, 'src', 'skills', 'shared');
+const SRC_SHARED_SKILLS_DIR = path.join(SRC_ROOT, 'skills', 'shared');
 
 const HOOK_EVENTS = ['SessionStart', 'PreToolUse', 'PostToolUse', 'PreInvocation', 'PostInvocation', 'Stop'];
 const GROUPED_HOOK_EVENTS = new Set(['PreToolUse', 'PostToolUse']);
 
-const PACKAGE_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+const PACKAGE_VERSION = readJson(path.join(ROOT, 'package.json')).version;
 
-function readJson(relPath) {
-  return JSON.parse(fs.readFileSync(path.join(PLUGIN_DIR, relPath), 'utf8'));
+function readPluginJson(relPath) {
+  return readJson(path.join(PLUGIN_DIR, relPath));
 }
 
 function listSubdirs(dir) {
@@ -33,29 +40,6 @@ function listSubdirs(dir) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
-}
-
-/** Reads the scalar keys (raw, quotes kept) and block lists of a generated frontmatter block. */
-function readFrontmatter(filePath) {
-  const lines = fs.readFileSync(filePath, 'utf8').split('\n');
-  assert.equal(lines[0], '---', `${filePath}: missing opening frontmatter fence`);
-  const closingIdx = lines.indexOf('---', 1);
-  assert.notEqual(closingIdx, -1, `${filePath}: missing closing frontmatter fence`);
-
-  const frontmatter = {};
-  let listKey = null;
-  for (const line of lines.slice(1, closingIdx)) {
-    const item = line.match(/^ {2}- (.+)$/);
-    if (item && listKey) {
-      frontmatter[listKey].push(item[1]);
-      continue;
-    }
-    const [, key, value] = line.match(/^([A-Za-z_-]+):\s*(.*)$/) || [];
-    assert.ok(key, `${filePath}: unexpected frontmatter line ${JSON.stringify(line)}`);
-    listKey = value === '' ? key : null;
-    frontmatter[key] = value === '' ? [] : value;
-  }
-  return frontmatter;
 }
 
 /** Every hook handler in hooks.json, with the event it is registered for. */
@@ -87,7 +71,7 @@ describe('antigravity plugin layout', () => {
   });
 
   it('keeps plugin.json to the manifest fields, at the package version', () => {
-    const manifest = readJson('plugin.json');
+    const manifest = readPluginJson('plugin.json');
     assert.deepEqual(Object.keys(manifest), ['name', 'displayName', 'version', 'description', 'suggestedPrompts']);
     assert.equal(manifest.name, 'maestro');
     assert.equal(manifest.displayName, 'Maestro');
@@ -105,7 +89,7 @@ describe('antigravity plugin layout', () => {
   });
 
   it('launches the bundled MCP server from mcp_config.json against the plugin root', () => {
-    const { mcpServers } = readJson('mcp_config.json');
+    const { mcpServers } = readPluginJson('mcp_config.json');
     assert.deepEqual(mcpServers, {
       maestro: {
         command: 'node',
@@ -124,7 +108,7 @@ describe('antigravity plugin layout', () => {
       'Antigravity reads hooks.json from the plugin root, not hooks/'
     );
 
-    const hooks = readJson('hooks.json');
+    const hooks = readPluginJson('hooks.json');
     assert.equal(hooks.hooks, undefined, 'hooks.json has no "hooks" wrapper; its top level is named hooks');
     for (const [hookName, events] of Object.entries(hooks)) {
       for (const event of Object.keys(events)) {
@@ -170,12 +154,8 @@ describe('antigravity plugin layout', () => {
   });
 
   it('generates one subagent stub per canonical agent, with Antigravity tool names only', () => {
-    const canonicalAgents = fs
-      .readdirSync(SRC_AGENTS_DIR)
-      .filter((file) => file.endsWith('.md'))
-      .map((file) => path.basename(file, '.md'))
-      .sort();
-    assert.equal(canonicalAgents.length, 39);
+    const canonicalAgents = listCanonicalAgents();
+    assert.equal(canonicalAgents.length, AGENT_COUNT);
 
     const agentsDir = path.join(PLUGIN_DIR, 'agents');
     const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
@@ -187,7 +167,7 @@ describe('antigravity plugin layout', () => {
 
     for (const name of canonicalAgents) {
       const stubPath = path.join(agentsDir, `${name}.md`);
-      const frontmatter = readFrontmatter(stubPath);
+      const frontmatter = readStubFrontmatter(stubPath);
 
       assert.deepEqual(
         Object.keys(frontmatter),
@@ -214,13 +194,11 @@ describe('antigravity plugin layout', () => {
     }
   });
 
-  it('generates the 12 public skills and the 7 shared skills, one SKILL.md per folder named after it', () => {
-    const publicSkills = [...entryPointRegistry, ...coreCommandRegistry]
-      .map((entry) => entry.runtimeNames?.antigravity || entry.name)
-      .sort();
-    assert.equal(publicSkills.length, 12);
+  it(`generates the ${PUBLIC_SKILL_COUNT} public skills and the ${SHARED_SKILL_COUNT} shared skills, one SKILL.md per folder named after it`, () => {
+    const publicSkills = publicSkillNames('antigravity');
+    assert.equal(publicSkills.length, PUBLIC_SKILL_COUNT);
     const sharedSkills = listSubdirs(SRC_SHARED_SKILLS_DIR);
-    assert.equal(sharedSkills.length, 7);
+    assert.equal(sharedSkills.length, SHARED_SKILL_COUNT);
 
     const skillsDir = path.join(PLUGIN_DIR, 'skills');
     assert.deepEqual(listSubdirs(skillsDir), [...publicSkills, ...sharedSkills].sort());
@@ -230,7 +208,7 @@ describe('antigravity plugin layout', () => {
       assert.deepEqual(fs.readdirSync(skillDir), ['SKILL.md'], skillDir);
 
       const skillPath = path.join(skillDir, 'SKILL.md');
-      const frontmatter = readFrontmatter(skillPath);
+      const frontmatter = readStubFrontmatter(skillPath);
       assert.equal(frontmatter.name, folder, skillPath);
       assert.ok(frontmatter.description, `${skillPath}: missing description`);
 
@@ -245,14 +223,14 @@ describe('antigravity plugin layout', () => {
   });
 
   it('bundles a src/ payload at the package version, with only the antigravity and shared platform dirs', () => {
-    assert.deepEqual(readJson('src/version.json'), { version: PACKAGE_VERSION });
+    assert.deepEqual(readPluginJson('src/version.json'), { version: PACKAGE_VERSION });
     assert.deepEqual(listSubdirs(path.join(PLUGIN_DIR, 'src', 'platforms')), ['antigravity', 'shared']);
   });
 
   it('bundles every state script the served architecture reference tells Antigravity to run', () => {
     // runtime-config enables scriptBasedStateContract, which is served as
     // `node ${PLUGIN_ROOT}/src/scripts/<script>` against the installed plugin.
-    const architecture = fs.readFileSync(path.join(ROOT, 'src', 'references', 'architecture.md'), 'utf8');
+    const architecture = fs.readFileSync(path.join(SRC_ROOT, 'references', 'architecture.md'), 'utf8');
     const scripts = [...architecture.matchAll(/\$\{extensionPath\}\/src\/scripts\/([\w-]+\.js)/g)].map(([, script]) => script);
     assert.ok(scripts.length > 0, 'architecture.md names no state scripts');
     for (const script of scripts) {

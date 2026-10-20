@@ -4,25 +4,13 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const readline = require('node:readline');
-const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 
 const { makeTempDir } = require('../support/fs');
-const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
+const { HOST_CLIENTS } = require('../support/host-clients');
+const { ROOT, withIsolatedAntigravityPlugin } = require('./helpers');
+const { MCP_ENTRYPOINTS, withEntrypointCwd } = require('./mcp-entrypoints');
 const { spawnMcpServer } = require('./mcp-stdio-client');
-
-const ROOTS_TIMEOUT_MS = 5000;
-
-// The clientInfo each host sends in `initialize`, from which the server
-// identifies its runtime.
-const HOST_CLIENTS = Object.freeze({
-  antigravity: { name: 'antigravity-client', version: 'v1.0.0' },
-  claude: { name: 'claude-code', version: '2.1.303' },
-  codex: { name: 'codex-mcp-client', title: 'Codex', version: '0.163.0' },
-  // Qwen Code suffixes the server's key in mcpServers.
-  qwen: { name: 'qwen-cli-mcp-client-maestro', version: '0.0.1' },
-});
 
 async function withServer(options, fn) {
   const client = spawnMcpServer(options);
@@ -36,152 +24,20 @@ async function withServer(options, fn) {
 }
 
 /**
- * Spawns the MCP server of the Antigravity plugin at `cwd` and lets a test
- * drive it the way the Antigravity CLI (agy 1.4.2) does: `server/discover`
- * before `initialize`, the roots capability, and
- * `notifications/roots/list_changed` even after roots/list was answered.
- * Every roots/list request is answered with `client.roots`;
- * `rootsAnswered(n)` resolves once n requests have been answered.
- */
-function spawnAntigravityClient({ cwd, roots }) {
-  const child = spawn(process.execPath, ['mcp/maestro-server.js'], {
-    cwd,
-    env: { ...process.env, MAESTRO_RUNTIME: '', MAESTRO_WORKSPACE_PATH: '' },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  const pending = new Map();
-  const rootsWaiters = new Set();
-  let rootsRequests = 0;
-  let nextId = 0;
-  let stderr = '';
-
-  const send = (message) => child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\n');
-
-  child.stderr.on('data', (chunk) => {
-    stderr += chunk;
-  });
-  child.on('exit', (code) => {
-    for (const { reject } of pending.values()) {
-      reject(new Error(`Server exited (code=${code}).\nSTDERR:\n${stderr}`));
-    }
-    pending.clear();
-  });
-  readline.createInterface({ input: child.stdout }).on('line', (line) => {
-    const message = JSON.parse(line);
-    if (message.method === 'roots/list') {
-      send({ id: message.id, result: { roots: client.roots } });
-      rootsRequests += 1;
-      for (const waiter of rootsWaiters) waiter();
-      return;
-    }
-    const entry = pending.get(message.id);
-    if (entry) {
-      pending.delete(message.id);
-      entry.resolve(message);
-    }
-  });
-
-  const client = {
-    roots,
-    request(method, params = {}) {
-      const id = nextId++;
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          pending.delete(id);
-          reject(new Error(`No reply to ${method} within ${ROOTS_TIMEOUT_MS}ms.\nSTDERR:\n${stderr}`));
-        }, ROOTS_TIMEOUT_MS);
-        pending.set(id, {
-          resolve: (message) => { clearTimeout(timer); resolve(message); },
-          reject: (error) => { clearTimeout(timer); reject(error); },
-        });
-        send({ id, method, params });
-      });
-    },
-    notify(method, params = {}) {
-      send({ method, params });
-    },
-    rootsAnswered(count) {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          rootsWaiters.delete(check);
-          reject(new Error(`Expected roots/list request #${count}, got ${rootsRequests}`));
-        }, ROOTS_TIMEOUT_MS);
-        function check() {
-          if (rootsRequests < count) return;
-          clearTimeout(timer);
-          rootsWaiters.delete(check);
-          resolve();
-        }
-        rootsWaiters.add(check);
-        check();
-      });
-    },
-    async callTool(name, args = {}) {
-      const { result } = await client.request('tools/call', { name, arguments: args });
-      return JSON.parse(result.content[0].text);
-    },
-    close() {
-      child.kill('SIGTERM');
-    },
-  };
-  return client;
-}
-
-/**
- * Runs `fn` against a server booted from every runtime bundle: the Qwen
- * (repo-root), Claude, Codex and Antigravity entrypoints in the repo plus
- * isolated copies of the installed Claude and Antigravity plugins. Each
- * bundle is driven by the host that launches it, named by `runtime` and
- * identified from that host's clientInfo, and names the `expectSkill` text
- * its delegation skill content must contain.
+ * Runs `fn` against a server booted from every MCP_ENTRYPOINTS entry, each
+ * isolated plugin from a fresh copy. Each bundle is driven by the host that
+ * launches it, named by `runtime` and identified from that host's clientInfo,
+ * and `fn` receives the entry with the `cwd` it was launched from.
  */
 async function forEachRuntimeBundle(fn) {
-  await withIsolatedClaudePlugin((pluginRoot) =>
-    withIsolatedAntigravityPlugin(async (antigravityPluginRoot) => {
-      const bundles = [
-        {
-          cwd: ROOT,
-          relativePath: 'mcp/maestro-server.js',
-          runtime: 'qwen',
-          expectSkill: '# Delegation Skill',
-        },
-        {
-          cwd: ROOT,
-          relativePath: 'claude/mcp/maestro-server.js',
-          runtime: 'claude',
-          expectSkill: 'user-invocable: false',
-        },
-        {
-          cwd: ROOT,
-          relativePath: 'bin/maestro-mcp-server.js',
-          runtime: 'codex',
-          expectSkill: '# Delegation Skill',
-        },
-        {
-          cwd: pluginRoot,
-          relativePath: 'mcp/maestro-server.js',
-          runtime: 'claude',
-          expectSkill: 'user-invocable: false',
-        },
-        {
-          cwd: ROOT,
-          relativePath: 'antigravity/mcp/maestro-server.js',
-          runtime: 'antigravity',
-          expectSkill: '# Delegation Skill',
-        },
-        {
-          cwd: antigravityPluginRoot,
-          relativePath: 'mcp/maestro-server.js',
-          runtime: 'antigravity',
-          expectSkill: '# Delegation Skill',
-        },
-      ];
-
-      for (const bundle of bundles) {
-        await withServer({ ...bundle, clientInfo: HOST_CLIENTS[bundle.runtime] }, (client) => fn(client, bundle));
-      }
-    })
-  );
+  for (const entry of MCP_ENTRYPOINTS) {
+    await withEntrypointCwd(entry, (cwd) =>
+      withServer(
+        { cwd, relativePath: entry.relativePath, clientInfo: HOST_CLIENTS[entry.runtime] },
+        (client) => fn(client, { ...entry, cwd })
+      )
+    );
+  }
 }
 
 describe('mcp server bundle behavior', () => {
@@ -410,38 +266,50 @@ describe('mcp server bundle behavior', () => {
     // The installed plugin directory is the server cwd and is never
     // suggested, so without client roots there is no suggestion at all.
     await withIsolatedAntigravityPlugin(async (pluginRoot) => {
-      const client = spawnAntigravityClient({
+      // Drive the server the way the Antigravity CLI (agy 1.4.2) does:
+      // requests numbered from 0, `server/discover` before `initialize`, the
+      // roots capability, and `notifications/roots/list_changed` even after
+      // roots/list was answered. MAESTRO_WORKSPACE_PATH is cleared so an
+      // inherited value cannot supply the suggestion.
+      const client = spawnMcpServer({
         cwd: pluginRoot,
+        relativePath: 'mcp/maestro-server.js',
+        env: { MAESTRO_WORKSPACE_PATH: '' },
         roots: [{ uri: pathToFileURL(firstWorkspace).href, name: 'first' }],
+        firstRequestId: 0,
+        requestTimeoutMs: 5000,
       });
       try {
-        const discover = await client.request('server/discover');
-        assert.equal(discover.error.code, -32601);
+        await client.ready;
+        await assert.rejects(client.request('server/discover'), (error) => {
+          assert.equal(JSON.parse(error.message).code, -32601);
+          return true;
+        });
 
         await client.request('initialize', {
           protocolVersion: '2025-06-18',
           capabilities: { roots: { listChanged: true } },
           clientInfo: HOST_CLIENTS.antigravity,
         });
-        assert.equal((await client.callTool('get_runtime_context')).workspace_suggestion, null);
+        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, null);
 
         client.notify('notifications/initialized');
         await client.rootsAnswered(1);
-        assert.equal((await client.callTool('get_runtime_context')).workspace_suggestion, firstWorkspace);
+        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
 
         // Antigravity repeats list_changed after its roots/list reply.
         client.notify('notifications/roots/list_changed');
         await client.rootsAnswered(2);
-        assert.equal((await client.callTool('get_runtime_context')).workspace_suggestion, firstWorkspace);
+        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
 
         client.roots = [{ uri: pathToFileURL(secondWorkspace).href, name: 'second' }];
         client.notify('notifications/roots/list_changed');
         await client.rootsAnswered(3);
-        const context = await client.callTool('get_runtime_context');
+        const context = (await client.callTool('get_runtime_context')).parsed;
         assert.equal(context.runtime, 'antigravity');
         assert.equal(context.workspace_suggestion, secondWorkspace);
       } finally {
-        client.close();
+        await client.close();
       }
     });
   });

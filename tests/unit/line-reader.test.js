@@ -10,27 +10,27 @@ function waitForClose(reader) {
   return new Promise((resolve) => reader.once('close', resolve));
 }
 
+// Writes each chunk to a fresh dispatcher's input, ends it, and returns the
+// messages dispatched once the reader closes.
+async function dispatch(...chunks) {
+  const stdin = new PassThrough();
+  const received = [];
+  const reader = createLineDispatcher(stdin, (msg) => received.push(msg));
+  for (const chunk of chunks) stdin.write(chunk);
+  stdin.end();
+  await waitForClose(reader);
+  return received;
+}
+
 describe('createLineDispatcher', () => {
   it('parses a single JSON line and forwards the object to onMessage', async () => {
-    const stdin = new PassThrough();
-    const received = [];
-    const reader = createLineDispatcher(stdin, (msg) => received.push(msg));
-
-    stdin.write('{"jsonrpc":"2.0","id":1,"method":"ping"}\n');
-    stdin.end();
-    await waitForClose(reader);
+    const received = await dispatch('{"jsonrpc":"2.0","id":1,"method":"ping"}\n');
 
     assert.deepEqual(received, [{ jsonrpc: '2.0', id: 1, method: 'ping' }]);
   });
 
   it('parses multiple newline-delimited JSON messages in order', async () => {
-    const stdin = new PassThrough();
-    const received = [];
-    const reader = createLineDispatcher(stdin, (msg) => received.push(msg));
-
-    stdin.write('{"id":1}\n{"id":2}\n{"id":3}\n');
-    stdin.end();
-    await waitForClose(reader);
+    const received = await dispatch('{"id":1}\n{"id":2}\n{"id":3}\n');
 
     assert.deepEqual(
       received.map((m) => m.id),
@@ -39,38 +39,20 @@ describe('createLineDispatcher', () => {
   });
 
   it('skips blank lines without invoking onMessage', async () => {
-    const stdin = new PassThrough();
-    const received = [];
-    const reader = createLineDispatcher(stdin, (msg) => received.push(msg));
-
-    stdin.write('\n   \n{"id":7}\n\n');
-    stdin.end();
-    await waitForClose(reader);
+    const received = await dispatch('\n   \n{"id":7}\n\n');
 
     assert.equal(received.length, 1);
     assert.equal(received[0].id, 7);
   });
 
   it('drops malformed JSON and keeps dispatching subsequent valid lines', async () => {
-    const stdin = new PassThrough();
-    const received = [];
-    const reader = createLineDispatcher(stdin, (msg) => received.push(msg));
-
-    stdin.write('{not json}\n{"id":42}\n');
-    stdin.end();
-    await waitForClose(reader);
+    const received = await dispatch('{not json}\n{"id":42}\n');
 
     assert.deepEqual(received, [{ id: 42 }]);
   });
 
   it('handles CRLF line endings', async () => {
-    const stdin = new PassThrough();
-    const received = [];
-    const reader = createLineDispatcher(stdin, (msg) => received.push(msg));
-
-    stdin.write('{"id":1}\r\n{"id":2}\r\n');
-    stdin.end();
-    await waitForClose(reader);
+    const received = await dispatch('{"id":1}\r\n{"id":2}\r\n');
 
     assert.deepEqual(
       received.map((m) => m.id),

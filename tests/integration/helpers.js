@@ -1,7 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const { makeTempDir, removeDir } = require('../support/fs');
@@ -20,20 +20,24 @@ function runGenerator(args = [], options = {}) {
 }
 
 function runGeneratorExpectFailure(args = [], options = {}) {
-  try {
-    runGenerator(args, options);
-    throw new Error('Expected generator command to fail');
-  } catch (error) {
-    if (error.message === 'Expected generator command to fail') {
-      throw error;
-    }
+  const result = spawnSync(process.execPath, ['scripts/generate.js', ...args], {
+    cwd: options.cwd || ROOT,
+    encoding: 'utf8',
+  });
 
-    return {
-      status: error.status,
-      stdout: error.stdout ? String(error.stdout) : '',
-      stderr: error.stderr ? String(error.stderr) : '',
-    };
+  if (result.error) {
+    throw result.error;
   }
+
+  if (result.status === 0) {
+    throw new Error('Expected generator command to fail');
+  }
+
+  return {
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
 }
 
 function getGitStatus() {
@@ -60,11 +64,16 @@ function parseDryRunReport(output) {
   };
 }
 
-async function withIsolatedClaudePlugin(fn) {
-  const tempRoot = makeTempDir('maestro-claude-plugin-');
-  const pluginRoot = path.join(tempRoot, 'maestro');
+/**
+ * Copies the repo's `sourceDir` to `installSegments` under a fresh temp dir,
+ * runs `fn` against the copy and removes the temp dir afterwards, even when
+ * `fn` throws or rejects.
+ */
+async function withPluginCopy(prefix, sourceDir, installSegments, fn) {
+  const tempRoot = makeTempDir(prefix);
+  const pluginRoot = path.join(tempRoot, ...installSegments);
 
-  fs.cpSync(path.join(ROOT, 'claude'), pluginRoot, { recursive: true });
+  fs.cpSync(path.join(ROOT, sourceDir), pluginRoot, { recursive: true });
 
   try {
     return await fn(pluginRoot);
@@ -73,22 +82,23 @@ async function withIsolatedClaudePlugin(fn) {
   }
 }
 
+/** Runs `fn` against a copy of claude/ installed as a standalone plugin. */
+function withIsolatedClaudePlugin(fn) {
+  return withPluginCopy('maestro-claude-plugin-', 'claude', ['maestro'], fn);
+}
+
 /**
  * Runs `fn` against a copy of antigravity/ at the path `agy plugin install`
  * uses (~/.gemini/config/plugins/maestro/ under a temp home), where the shim
  * cannot reach the repo src/ and must run the bundled antigravity/src/.
  */
-async function withIsolatedAntigravityPlugin(fn) {
-  const tempHome = makeTempDir('maestro-antigravity-home-');
-  const pluginRoot = path.join(tempHome, '.gemini', 'config', 'plugins', 'maestro');
-
-  fs.cpSync(path.join(ROOT, 'antigravity'), pluginRoot, { recursive: true });
-
-  try {
-    return await fn(pluginRoot);
-  } finally {
-    removeDir(tempHome);
-  }
+function withIsolatedAntigravityPlugin(fn) {
+  return withPluginCopy(
+    'maestro-antigravity-home-',
+    'antigravity',
+    ['.gemini', 'config', 'plugins', 'maestro'],
+    fn
+  );
 }
 
 function createTempRepoCopy(prefix = 'maestro-repo-copy-') {

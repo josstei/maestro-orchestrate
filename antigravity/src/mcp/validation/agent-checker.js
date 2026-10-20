@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * Agent-registry checks for validate_plan. Both checkers expect phases that
+ * already passed `validatePhases`, so `agent` and `name` are non-empty strings.
+ */
+
 const {
   KNOWN_AGENTS,
   normalizeAgentName,
@@ -18,7 +23,7 @@ function checkUnknownAgents(phases) {
   const violations = [];
   for (const phase of phases) {
     const normalizedAgent = normalizeAgentName(phase.agent);
-    if (normalizedAgent && !KNOWN_AGENTS.includes(normalizedAgent)) {
+    if (!KNOWN_AGENTS.includes(normalizedAgent)) {
       violations.push(
         violation(
           'unknown_agent',
@@ -40,17 +45,12 @@ function checkUnknownAgents(phases) {
 function checkAgentCapabilities(phases) {
   const violations = [];
   for (const phase of phases) {
-    const normalizedAgent = normalizeAgentName(phase.agent);
-    if (!normalizedAgent) {
-      continue;
-    }
-
-    const capability = getAgentCapability(normalizedAgent);
+    const capability = getAgentCapability(phase.agent);
     const touchesFiles = ['files', 'files_created', 'files_modified'].some(
       (field) => Array.isArray(phase[field]) && phase[field].length > 0
     );
 
-    if (touchesFiles && !canCreateFiles(normalizedAgent)) {
+    if (touchesFiles && !canCreateFiles(phase.agent)) {
       violations.push(
         violation(
           'agent_capability_mismatch',
@@ -61,11 +61,7 @@ function checkAgentCapabilities(phases) {
     }
 
     // File-touching phases only reach here with write-capable (never read_only) agents.
-    if (
-      capability === 'read_only' &&
-      phase.name &&
-      CREATION_SIGNAL_PATTERNS.test(phase.name)
-    ) {
+    if (capability === 'read_only' && CREATION_SIGNAL_PATTERNS.test(phase.name)) {
       violations.push(
         violation(
           'agent_capability_mismatch',

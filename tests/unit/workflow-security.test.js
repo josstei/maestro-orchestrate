@@ -5,7 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const WORKFLOWS_DIR = path.resolve(__dirname, '..', '..', '.github', 'workflows');
+const { ROOT } = require('../support/paths');
+
+const WORKFLOWS_DIR = path.join(ROOT, '.github', 'workflows');
 const WORKFLOW_FILES = fs
   .readdirSync(WORKFLOWS_DIR)
   .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
@@ -59,8 +61,7 @@ function collectRunBlocks(content) {
 describe('workflow shell security', () => {
   it('does not interpolate GitHub expressions directly inside run blocks', () => {
     for (const fileName of WORKFLOW_FILES) {
-      const filePath = path.join(WORKFLOWS_DIR, fileName);
-      const content = fs.readFileSync(filePath, 'utf8');
+      const content = readWorkflow(fileName);
       const runBlocks = collectRunBlocks(content);
 
       assert.ok(runBlocks.length > 0, `${fileName} should contain at least one run block`);

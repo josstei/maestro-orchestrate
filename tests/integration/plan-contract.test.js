@@ -4,10 +4,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { makeTempDir } = require('../support/fs');
-const {
-  createInitializedSessionServer,
-  readSessionState,
-} = require('../support/session-server');
+const { readSessionState } = require('../support/session-file');
+const { createInitializedSessionServer } = require('../support/session-server');
 
 describe('plan contract round-trip', () => {
   it('validate_plan output is accepted verbatim by create_session', async () => {

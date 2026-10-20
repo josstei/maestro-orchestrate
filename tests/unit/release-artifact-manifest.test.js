@@ -14,7 +14,7 @@ const {
   isDeniedPath,
   isReleaseArtifactPathAllowed,
 } = require('../../scripts/release-artifact-manifest');
-const { makeTempDir, writeTree } = require('../support/fs');
+const { editJson, makeTempDir, readJson, writeTree } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 
 // Every file assertRuntimeManifestShape reads or requires.
@@ -46,13 +46,6 @@ function copyRuntimeManifests() {
     fs.copyFileSync(path.join(ROOT, relativePath), path.join(tempRoot, relativePath));
   }
   return tempRoot;
-}
-
-function editJson(root, relativePath, edit) {
-  const filePath = path.join(root, relativePath);
-  const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  edit(content);
-  fs.writeFileSync(filePath, `${JSON.stringify(content, null, 2)}\n`, 'utf8');
 }
 
 describe('release artifact manifest', () => {
@@ -105,9 +98,6 @@ describe('release artifact manifest', () => {
     }
     for (const releasePath of RELEASE_ARTIFACT_PATHS) {
       assert.doesNotMatch(releasePath, /gemini/i);
-    }
-    for (const removedPath of ['gemini-extension.json', 'GEMINI.md', 'hooks/hooks.json', '.geminiignore']) {
-      assert.equal(fs.existsSync(path.join(ROOT, removedPath)), false, `${removedPath} must not exist`);
     }
   });
 
@@ -188,12 +178,12 @@ describe('release artifact manifest', () => {
   });
 
   it('checks the antigravity plugin and detached payload versions', () => {
-    const pkgVersion = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+    const pkgVersion = readJson(path.join(ROOT, 'package.json')).version;
     assert.equal(assertRuntimeManifestShape(copyRuntimeManifests()), pkgVersion);
 
     for (const relativePath of ['antigravity/plugin.json', 'antigravity/src/version.json']) {
       const tempRoot = copyRuntimeManifests();
-      editJson(tempRoot, relativePath, (content) => {
+      editJson(path.join(tempRoot, relativePath), (content) => {
         content.version = '0.0.0';
       });
 
@@ -206,7 +196,7 @@ describe('release artifact manifest', () => {
 
   it('requires the antigravity plugin to be named maestro', () => {
     const tempRoot = copyRuntimeManifests();
-    editJson(tempRoot, 'antigravity/plugin.json', (manifest) => {
+    editJson(path.join(tempRoot, 'antigravity/plugin.json'), (manifest) => {
       manifest.name = 'maestro-orchestrate';
     });
 
@@ -225,7 +215,7 @@ describe('release artifact manifest', () => {
 
     for (const edit of edits) {
       const tempRoot = copyRuntimeManifests();
-      editJson(tempRoot, 'antigravity/mcp_config.json', edit);
+      editJson(path.join(tempRoot, 'antigravity/mcp_config.json'), edit);
 
       assert.throws(
         () => assertRuntimeManifestShape(tempRoot),

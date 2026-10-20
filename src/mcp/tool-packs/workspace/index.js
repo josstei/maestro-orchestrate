@@ -8,6 +8,7 @@ const {
 } = require('../../handlers/assess-task-complexity');
 const { handleValidatePlan } = require('../../handlers/validate-plan');
 const { handleResolveSettings } = require('../../handlers/resolve-settings');
+const { TASK_COMPLEXITY_SCHEMA } = require('../../contracts/plan-schema');
 
 function createToolPack({ services }) {
   return {
@@ -66,10 +67,7 @@ function createToolPack({ services }) {
           type: 'object',
           properties: {
             plan: { type: 'object' },
-            task_complexity: {
-              type: 'string',
-              enum: ['simple', 'medium', 'complex'],
-            },
+            task_complexity: TASK_COMPLEXITY_SCHEMA,
           },
           required: ['plan', 'task_complexity'],
         },

@@ -9,21 +9,29 @@ const {
   findOrphanedApprovedGates,
   readGate,
 } = require('../../src/mcp/handlers/design-gate');
-const { makeTempDir } = require('../support/fs');
-const { createInitializedSessionServer } = require('../support/session-server');
+const { makeTempDir, writeFile } = require('../support/fs');
+const {
+  approveDesignGate,
+  createInitializedSessionServer,
+  singlePhase,
+} = require('../support/session-server');
+
+// A fresh initialized workspace.
+async function initializedServer() {
+  const workspace = makeTempDir('maestro-gate-');
+  return { workspace, server: await createInitializedSessionServer(workspace) };
+}
 
 // A fresh initialized workspace whose 'alpha' session has entered the design gate.
 async function gatedServer() {
-  const workspace = makeTempDir('maestro-gate-');
-  const server = await createInitializedSessionServer(workspace);
+  const { workspace, server } = await initializedServer();
   await server.callTool('enter_design_gate', { session_id: 'alpha' }, workspace);
   return { workspace, server };
 }
 
 describe('design gate tools', () => {
   it('enter_design_gate records a timestamp on the session-gate store', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
     const outcome = await server.callTool(
       'enter_design_gate',
@@ -36,8 +44,7 @@ describe('design gate tools', () => {
   });
 
   it('enter_design_gate is idempotent', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
     const first = await server.callTool(
       'enter_design_gate',
@@ -57,8 +64,7 @@ describe('design gate tools', () => {
     const { workspace, server } = await gatedServer();
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
-    fs.mkdirSync(path.dirname(designPath), { recursive: true });
-    fs.writeFileSync(designPath, '# Design\n\nA real design document.\n');
+    writeFile(designPath, '# Design\n\nA real design document.\n');
 
     const outcome = await server.callTool(
       'record_design_approval',
@@ -189,8 +195,7 @@ describe('design gate tools', () => {
   });
 
   it('get_design_gate_status returns null when gate was never entered', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
     const outcome = await server.callTool(
       'get_design_gate_status',
       { session_id: 'alpha' },
@@ -208,16 +213,7 @@ describe('design gate tools', () => {
       {
         session_id: 'alpha',
         task: 'should fail',
-        phases: [
-          {
-            id: 1,
-            name: 'x',
-            agent: 'coder',
-            parallel: false,
-            blocked_by: [],
-            files: ['x'],
-          },
-        ],
+        phases: singlePhase(['x'], { name: 'x' }),
       },
       workspace
     );
@@ -229,8 +225,7 @@ describe('design gate tools', () => {
     const { workspace, server } = await gatedServer();
 
     const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
-    fs.mkdirSync(path.dirname(designPath), { recursive: true });
-    fs.writeFileSync(designPath, '# Design\n');
+    writeFile(designPath, '# Design\n');
     await server.callTool(
       'record_design_approval',
       { session_id: 'alpha', design_document_path: designPath },
@@ -242,16 +237,7 @@ describe('design gate tools', () => {
       {
         session_id: 'alpha',
         task: 'should succeed',
-        phases: [
-          {
-            id: 1,
-            name: 'x',
-            agent: 'coder',
-            parallel: false,
-            blocked_by: [],
-            files: ['x'],
-          },
-        ],
+        phases: singlePhase(['x'], { name: 'x' }),
       },
       workspace
     );
@@ -259,18 +245,11 @@ describe('design gate tools', () => {
   });
 
   it('create_session rejects when an approved gate exists for a different session_id and the current session has no gate', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
-    await server.callTool('enter_design_gate', { session_id: 'placeholder-id' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'placeholder-id',
-        design_document_content: '# Design\n',
-        design_document_filename: 'drift-design.md',
-      },
-      workspace
-    );
+    const { workspace, server } = await initializedServer();
+    await approveDesignGate(server, workspace, 'placeholder-id', {
+      design_document_content: '# Design\n',
+      design_document_filename: 'drift-design.md',
+    });
 
     const outcome = await server.callTool(
       'create_session',
@@ -278,9 +257,7 @@ describe('design gate tools', () => {
         session_id: 'real-session-id',
         task: 'drifted session id',
         task_complexity: 'simple',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['x'] },
-        ],
+        phases: singlePhase(['x']),
       },
       workspace
     );
@@ -293,30 +270,17 @@ describe('design gate tools', () => {
   });
 
   it('create_session succeeds when an orphan approved gate exists but the current session also has its own gate', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
-    await server.callTool('enter_design_gate', { session_id: 'prior-abandoned' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'prior-abandoned',
-        design_document_content: '# Old\n',
-        design_document_filename: 'old-design.md',
-      },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'prior-abandoned', {
+      design_document_content: '# Old\n',
+      design_document_filename: 'old-design.md',
+    });
 
-    await server.callTool('enter_design_gate', { session_id: 'fresh-session' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'fresh-session',
-        design_document_content: '# New\n',
-        design_document_filename: 'new-design.md',
-      },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'fresh-session', {
+      design_document_content: '# New\n',
+      design_document_filename: 'new-design.md',
+    });
 
     const outcome = await server.callTool(
       'create_session',
@@ -324,9 +288,7 @@ describe('design gate tools', () => {
         session_id: 'fresh-session',
         task: 'fresh session with abandoned orphan gate in workspace',
         task_complexity: 'simple',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['y'] },
-        ],
+        phases: singlePhase(['y']),
       },
       workspace
     );
@@ -338,8 +300,7 @@ describe('design gate tools', () => {
   });
 
   it('create_session with no gates in the workspace proceeds normally (simple/express tasks skip the design gate)', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
     const outcome = await server.callTool(
       'create_session',
@@ -348,9 +309,7 @@ describe('design gate tools', () => {
         task: 'simple task without gate',
         task_complexity: 'simple',
         workflow_mode: 'express',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['z'] },
-        ],
+        phases: singlePhase(['z']),
       },
       workspace
     );
@@ -358,30 +317,17 @@ describe('design gate tools', () => {
   });
 
   it('findOrphanedApprovedGates enumerates only gates with a non-empty approved_at', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
     await server.callTool('enter_design_gate', { session_id: 'entered-only' }, workspace);
-    await server.callTool('enter_design_gate', { session_id: 'approved-one' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'approved-one',
-        design_document_content: '# A\n',
-        design_document_filename: 'a.md',
-      },
-      workspace
-    );
-    await server.callTool('enter_design_gate', { session_id: 'approved-two' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'approved-two',
-        design_document_content: '# B\n',
-        design_document_filename: 'b.md',
-      },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'approved-one', {
+      design_document_content: '# A\n',
+      design_document_filename: 'a.md',
+    });
+    await approveDesignGate(server, workspace, 'approved-two', {
+      design_document_content: '# B\n',
+      design_document_filename: 'b.md',
+    });
 
     const approved = findOrphanedApprovedGates(workspace, 'absent-session');
     const ids = approved.map((g) => g.session_id).sort();
@@ -398,30 +344,17 @@ describe('design gate tools', () => {
   });
 
   it('findOrphanedApprovedGates excludes the current session and skips unapproved gates', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
-    await server.callTool('enter_design_gate', { session_id: 'current' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'current',
-        design_document_content: '# C\n',
-        design_document_filename: 'c.md',
-      },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'current', {
+      design_document_content: '# C\n',
+      design_document_filename: 'c.md',
+    });
     await server.callTool('enter_design_gate', { session_id: 'orphan-entered-only' }, workspace);
-    await server.callTool('enter_design_gate', { session_id: 'orphan-approved' }, workspace);
-    await server.callTool(
-      'record_design_approval',
-      {
-        session_id: 'orphan-approved',
-        design_document_content: '# O\n',
-        design_document_filename: 'o.md',
-      },
-      workspace
-    );
+    await approveDesignGate(server, workspace, 'orphan-approved', {
+      design_document_content: '# O\n',
+      design_document_filename: 'o.md',
+    });
 
     const orphans = findOrphanedApprovedGates(workspace, 'current');
     assert.deepEqual(
@@ -431,8 +364,7 @@ describe('design gate tools', () => {
   });
 
   it('readGate reflects whether an entered-or-approved gate artifact exists for a session', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
     assert.equal(readGate(workspace, 'never-entered'), null);
 
@@ -452,8 +384,7 @@ describe('design gate tools', () => {
   });
 
   it('create_session with mismatched session_id and an unapproved (entered-only) orphan gate does not fire the mismatch check', async () => {
-    const workspace = makeTempDir('maestro-gate-');
-    const server = await createInitializedSessionServer(workspace);
+    const { workspace, server } = await initializedServer();
 
     await server.callTool('enter_design_gate', { session_id: 'pending-approval' }, workspace);
 
@@ -464,9 +395,7 @@ describe('design gate tools', () => {
         task: 'simple task alongside pending gate for unrelated session',
         task_complexity: 'simple',
         workflow_mode: 'express',
-        phases: [
-          { id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files: ['w'] },
-        ],
+        phases: singlePhase(['w']),
       },
       workspace
     );

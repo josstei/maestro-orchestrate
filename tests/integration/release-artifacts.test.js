@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-const { makeTempDir, removeDir } = require('../support/fs');
+const { editJson, makeTempDir, removeDir } = require('../support/fs');
 const { createTempRepoCopy, withTempRepoCopy } = require('./helpers');
 const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
 const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifacts');
@@ -86,10 +86,9 @@ describe('release artifact packaging', () => {
         packaged.archivePath,
         'maestro-corrupt-extension.tar.gz',
         (extractRoot) => {
-          const manifestFile = path.join(extractRoot, manifestPath);
-          const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
-          manifest.version = '0.0.0';
-          fs.writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+          editJson(path.join(extractRoot, manifestPath), (manifest) => {
+            manifest.version = '0.0.0';
+          });
         },
         (corruptArchivePath) => {
           assert.throws(

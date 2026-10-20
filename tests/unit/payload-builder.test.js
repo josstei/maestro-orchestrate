@@ -12,7 +12,7 @@ const {
   shouldIncludeInPayload,
   buildDetachedPayload,
 } = require('../../src/generator/payload-builder');
-const { makeTempDir, writeTree } = require('../support/fs');
+const { makeTempDir, readJson, writeJson, writeTree } = require('../support/fs');
 
 describe('DETACHED_PAYLOAD_BASE_ALLOWLIST', () => {
   it('is the frozen list of payload src/ prefixes', () => {
@@ -23,13 +23,13 @@ describe('DETACHED_PAYLOAD_BASE_ALLOWLIST', () => {
       'config/',
       'hooks/',
       'mcp/',
+      'platforms/runtime-config-map.js',
       'platforms/shared/',
       'state/',
       'agents/',
       'skills/',
       'references/',
       'templates/',
-      'entry-points/',
       'generated/',
     ]);
   });
@@ -42,6 +42,7 @@ describe('shouldIncludeInPayload', () => {
     assert.ok(shouldIncludeInPayload('mcp/handlers/workspace.js', allowlist));
     assert.ok(shouldIncludeInPayload('hooks/shared/hook-logic.js', allowlist));
     assert.ok(shouldIncludeInPayload('generated/agent-registry.json', allowlist));
+    assert.ok(shouldIncludeInPayload('platforms/runtime-config-map.js', allowlist));
   });
 
   it('rejects files under non-allowlisted prefixes', () => {
@@ -50,6 +51,8 @@ describe('shouldIncludeInPayload', () => {
     assert.ok(!shouldIncludeInPayload('transforms/copy.js', allowlist));
     assert.ok(!shouldIncludeInPayload('manifest.js', allowlist));
     assert.ok(!shouldIncludeInPayload('platforms/claude/runtime-config.js', allowlist));
+    assert.ok(!shouldIncludeInPayload('platforms/metadata.js', allowlist));
+    assert.ok(!shouldIncludeInPayload('entry-points/registry.js', allowlist));
   });
 
   it('uses custom allowlist when provided', () => {
@@ -166,7 +169,7 @@ describe('buildDetachedPayload', () => {
 
   it('does not rewrite version.json when the version is unchanged', () => {
     writeTree(srcDir, 'core/logger.js', 'content');
-    writeTree(outputDir, 'version.json', JSON.stringify({ version: '1.5.0' }, null, 2) + '\n');
+    writeJson(path.join(outputDir, 'version.json'), { version: '1.5.0' });
     const mtimeBefore = fs.statSync(path.join(outputDir, 'version.json')).mtimeMs;
 
     buildDetachedPayload(srcDir, outputDir, 'claude', '1.5.0');
@@ -176,11 +179,11 @@ describe('buildDetachedPayload', () => {
 
   it('overwrites version.json when the version differs', () => {
     writeTree(srcDir, 'core/logger.js', 'content');
-    writeTree(outputDir, 'version.json', JSON.stringify({ version: '1.0.0' }, null, 2) + '\n');
+    writeJson(path.join(outputDir, 'version.json'), { version: '1.0.0' });
 
     const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '2.0.0');
 
-    const content = JSON.parse(fs.readFileSync(path.join(outputDir, 'version.json'), 'utf8'));
+    const content = readJson(path.join(outputDir, 'version.json'));
     assert.deepEqual(content, { version: '2.0.0' });
     assert.equal(stats.removed, 0);
   });

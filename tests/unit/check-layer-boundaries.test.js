@@ -32,17 +32,15 @@ function runScript(root) {
   return spawnSync(process.execPath, [path.join(root, 'scripts', 'check-layer-boundaries.js')], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
   });
 }
 
 describe('check-layer-boundaries (real repo smoke test)', () => {
   it('passes against the real src/lib tree', () => {
-    const result = spawnSync(process.execPath, [SCRIPT], {
-      cwd: ROOT,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    assert.equal(result.status, 0, `stderr: ${result.stderr.toString('utf8')}`);
-    assert.match(result.stdout.toString('utf8'), /Layer boundaries clean: \d+ files scanned, 0 violations\./);
+    const result = runScript(ROOT);
+    assert.equal(result.status, 0, `stderr: ${result.stderr}`);
+    assert.match(result.stdout, /Layer boundaries clean: \d+ files scanned, 0 violations\./);
   });
 });
 
@@ -51,7 +49,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     const root = makeFixtureRepo();
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout.toString('utf8'), /0 files scanned, 0 violations/);
+    assert.match(result.stdout, /0 files scanned, 0 violations/);
   });
 
   it('allows relative imports that stay inside src/lib', () => {
@@ -60,7 +58,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'helper.js', "module.exports = 1;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout.toString('utf8'), /2 files scanned, 0 violations/);
+    assert.match(result.stdout, /2 files scanned, 0 violations/);
   });
 
   it('allows node: built-in imports', () => {
@@ -75,7 +73,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'leaky.js', "const x = require('../core/logger');\n");
     const result = runScript(root);
     assert.equal(result.status, 1);
-    const stderr = result.stderr.toString('utf8');
+    const { stderr } = result;
     assert.match(stderr, /Layer boundary violations/);
     assert.match(stderr, /leaky\.js/);
     assert.match(stderr, /'\.\.\/core\/logger'/);
@@ -86,7 +84,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'sneaky.js', "const x = require('../lib-extra/x');\n");
     const result = runScript(root);
     assert.equal(result.status, 1);
-    assert.match(result.stderr.toString('utf8'), /sneaky\.js: require\('\.\.\/lib-extra\/x'\)/);
+    assert.match(result.stderr, /sneaky\.js: require\('\.\.\/lib-extra\/x'\)/);
   });
 
   it('allows relative imports that resolve to the lib directory itself', () => {
@@ -95,7 +93,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'nested/user.js', "const lib = require('..');\nmodule.exports = lib;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout.toString('utf8'), /2 files scanned, 0 violations/);
+    assert.match(result.stdout, /2 files scanned, 0 violations/);
   });
 
   it('flags non-relative, non-node imports as violations', () => {
@@ -103,7 +101,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'depender.js', "const lodash = require('lodash');\n");
     const result = runScript(root);
     assert.equal(result.status, 1);
-    const stderr = result.stderr.toString('utf8');
+    const { stderr } = result;
     assert.match(stderr, /non-relative, non-node import/);
     assert.match(stderr, /'lodash'/);
   });
@@ -113,7 +111,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'a/b/c/deep.js', "const x = require('lodash');\n");
     const result = runScript(root);
     assert.equal(result.status, 1);
-    assert.match(result.stderr.toString('utf8'), /deep\.js/);
+    assert.match(result.stderr, /deep\.js/);
   });
 
   it('reports multiple violations across several files', () => {
@@ -124,7 +122,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'three-helper.js', "module.exports = 1;\n");
     const result = runScript(root);
     assert.equal(result.status, 1);
-    const stderr = result.stderr.toString('utf8');
+    const { stderr } = result;
     assert.match(stderr, /one\.js/);
     assert.match(stderr, /two\.js/);
     assert.ok(!stderr.includes('three.js:'), 'three.js should be clean');
@@ -137,6 +135,6 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'other.js', "module.exports = 1;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout.toString('utf8'), /2 files scanned, 0 violations/);
+    assert.match(result.stdout, /2 files scanned, 0 violations/);
   });
 });

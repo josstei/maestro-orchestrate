@@ -2,6 +2,15 @@
 
 const PHASE_REQUIRED_FIELDS = ['id', 'name', 'agent', 'parallel', 'blocked_by'];
 
+/** Maximum phases per task_complexity; its keys are the accepted complexity values. */
+const PHASE_LIMITS = {
+  simple: 3,
+  medium: 5,
+  complex: Infinity,
+};
+
+const TASK_COMPLEXITY_SCHEMA = { type: 'string', enum: Object.keys(PHASE_LIMITS) };
+
 const PHASE_ID_SCHEMA = {
   oneOf: [
     { type: 'integer', minimum: 1 },
@@ -63,7 +72,6 @@ const FIELD_RULES = [
  * @returns {{ valid: boolean, violations: Array<object> }}
  */
 function validatePhases(phases) {
-  const violations = [];
   if (!Array.isArray(phases)) {
     return {
       valid: false,
@@ -73,16 +81,15 @@ function validatePhases(phases) {
     };
   }
 
+  const violations = [];
   for (const phase of phases) {
-    const phaseId = phase && phase.id;
+    const phaseId = (phase && phase.id) ?? null;
+    const report = (rule, field) =>
+      violations.push({ rule, phase_id: phaseId, field, severity: 'error' });
+
     for (const field of PHASE_REQUIRED_FIELDS) {
-      if (!phase || !Object.prototype.hasOwnProperty.call(phase, field)) {
-        violations.push({
-          rule: 'missing_required_field',
-          phase_id: phaseId ?? null,
-          field,
-          severity: 'error',
-        });
+      if (!phase || !Object.hasOwn(phase, field)) {
+        report('missing_required_field', field);
       }
     }
 
@@ -90,12 +97,7 @@ function validatePhases(phases) {
 
     for (const [field, rule, isValid] of FIELD_RULES) {
       if (field in phase && !isValid(phase[field])) {
-        violations.push({
-          rule,
-          phase_id: phaseId ?? null,
-          field,
-          severity: 'error',
-        });
+        report(rule, field);
       }
     }
   }
@@ -105,7 +107,9 @@ function validatePhases(phases) {
 
 module.exports = {
   PHASE_ITEM_SCHEMA,
+  PHASE_LIMITS,
   PHASE_REQUIRED_FIELDS,
+  TASK_COMPLEXITY_SCHEMA,
   isValidPhaseId,
   validatePhases,
 };

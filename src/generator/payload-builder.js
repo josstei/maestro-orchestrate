@@ -4,7 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { VERSION_JSON_FILENAME } = require('../core/version');
 const { collectFiles } = require('../lib/discovery');
-const { writeIfChanged } = require('../lib/io');
+const { formatJson, writeIfChanged } = require('../lib/io');
 const { pruneStaleFiles } = require('./stale-pruner');
 
 /**
@@ -18,13 +18,13 @@ const DETACHED_PAYLOAD_BASE_ALLOWLIST = Object.freeze([
   'config/',
   'hooks/',
   'mcp/',
+  'platforms/runtime-config-map.js',
   'platforms/shared/',
   'state/',
   'agents/',
   'skills/',
   'references/',
   'templates/',
-  'entry-points/',
   'generated/',
 ]);
 
@@ -95,10 +95,7 @@ function buildDetachedPayload(srcDir, outputDir, runtimeName, version) {
     }
   }
 
-  writeIfChanged(
-    path.join(outputDir, VERSION_JSON_FILENAME),
-    JSON.stringify({ version }, null, 2) + '\n'
-  );
+  writeIfChanged(path.join(outputDir, VERSION_JSON_FILENAME), formatJson({ version }));
 
   const removed = pruneStaleFiles({
     rootDir: outputDir,

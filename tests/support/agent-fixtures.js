@@ -4,11 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { writeTree } = require('./fs');
+const { SRC_ROOT } = require('./paths');
 
-const OUTPUT_CONTRACT_PATH = path.resolve(
-  __dirname,
-  '../../src/agents/shared/handoff-report.md'
-);
+const OUTPUT_CONTRACT_PATH = path.join(SRC_ROOT, 'agents', 'shared', 'handoff-report.md');
 
 /**
  * Copies the shared Output Contract fragment, which get_agent appends to every
