@@ -9,6 +9,7 @@ const {
   findOrphanedApprovedGates,
   readGate,
 } = require('../../src/mcp/handlers/design-gate');
+const { withEnv } = require('../support/env');
 const { makeTempDir, writeFile } = require('../support/fs');
 const {
   approveDesignGate,
@@ -173,6 +174,22 @@ describe('design gate tools', () => {
     );
     assert.equal(nested.ok, false);
     assert.match(nested.error || '', /basename/i);
+  });
+
+  it('record_design_approval reports invalid document params before an invalid state dir', async () => {
+    const { workspace, server } = await gatedServer();
+    const call = (params) =>
+      withEnv({ MAESTRO_STATE_DIR: makeTempDir('maestro-gate-outside-') }, () =>
+        server.callTool('record_design_approval', { session_id: 'alpha', ...params }, workspace)
+      );
+
+    const invalidParams = await call({ design_document_content: '# Design\n' });
+    assert.equal(invalidParams.code, 'VALIDATION_ERROR');
+    assert.match(invalidParams.error, /design_document_filename is required/);
+
+    const validParams = await call({ design_document_content: '# Design\n', design_document_filename: 'd.md' });
+    assert.equal(validParams.code, 'INTERNAL_TOOL_ERROR');
+    assert.match(validParams.error, /state_dir must be within the project root/);
   });
 
   it('record_design_approval content variant materializes the file atomically under plans/', async () => {

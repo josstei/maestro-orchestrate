@@ -69,8 +69,8 @@ function resolveStateDirPath(root) {
   return resolveStateDirUnder(root, resolveStateDirSetting(root));
 }
 
-function activeSessionFile(basePath) {
-  return path.join(basePath, ACTIVE_SESSION_REL);
+function activeSessionFile(stateDir) {
+  return path.join(stateDir, ACTIVE_SESSION_REL);
 }
 
 function resolveActiveSessionPath(root) {
@@ -106,56 +106,62 @@ function serializeSessionFile(data, body) {
   return `---\n${JSON.stringify(data, null, 2)}\n---\n${body}`;
 }
 
-function readSessionAt(basePath) {
-  const sessionPath = activeSessionFile(basePath);
-  const { data, body } = parseSessionFile(fs.readFileSync(sessionPath, 'utf8'));
-  return { basePath, state: data, body };
+/**
+ * @param {string} stateDir - Resolved state dir
+ * @returns {{ state: object, body: string }} the active session's frontmatter state and log body
+ * @throws {Error} when the session file is missing or malformed
+ */
+function readActiveSession(stateDir) {
+  const { data, body } = parseSessionFile(fs.readFileSync(activeSessionFile(stateDir), 'utf8'));
+  return { state: data, body };
 }
 
-function readActiveSession(root) {
-  return readSessionAt(resolveStateDirPath(root));
+/**
+ * @param {string} stateDir - Resolved state dir
+ * @returns {{ state: object, body: string } | null} the active session, or null when there is none
+ */
+function readActiveSessionOrNull(stateDir) {
+  return fs.existsSync(activeSessionFile(stateDir)) ? readActiveSession(stateDir) : null;
 }
 
-function readActiveSessionOrNull(root) {
-  const basePath = resolveStateDirPath(root);
-  if (!fs.existsSync(activeSessionFile(basePath))) {
-    return null;
-  }
-  return readSessionAt(basePath);
-}
-
-function writeActiveSession(basePath, state, body) {
-  const sessionPath = activeSessionFile(basePath);
+/**
+ * @param {string} stateDir - Resolved state dir
+ * @param {object} state
+ * @param {string} body
+ * @returns {string} the session file path
+ */
+function writeActiveSession(stateDir, state, body) {
+  const sessionPath = activeSessionFile(stateDir);
   atomicWriteSync(sessionPath, serializeSessionFile(state, body));
   return sessionPath;
 }
 
 /**
- * Read the active session, run `mutator(session, now)` against it (mutating
- * `session.state` in place), stamp `state.updated = now`, persist the state
- * with the original body, and return whatever the mutator returned. `now` is
- * one ISO timestamp per call, so a mutator can reuse it for other fields. A
- * throwing mutator leaves the session file untouched.
+ * Read the active session under `stateDir`, run `mutator(state, now)` against
+ * its state (mutating it in place), stamp `state.updated = now`, persist the
+ * state with the original body, and return whatever the mutator returned.
+ * `now` is one ISO timestamp per call, so a mutator can reuse it for other
+ * fields. A throwing mutator leaves the session file untouched.
  */
-function withSessionState(root, mutator) {
-  const session = readActiveSession(root);
+function withSessionState(stateDir, mutator) {
+  const { state, body } = readActiveSession(stateDir);
   const now = new Date().toISOString();
-  const result = mutator(session, now);
-  session.state.updated = now;
-  writeActiveSession(session.basePath, session.state, session.body);
+  const result = mutator(state, now);
+  state.updated = now;
+  writeActiveSession(stateDir, state, body);
   return result;
 }
 
 /**
  * Move the active session file to `state/archive/<sessionId>.md`.
- * @param {string} basePath - Resolved state dir
+ * @param {string} stateDir - Resolved state dir
  * @param {string} sessionId - Already validated by assertSessionId
  * @returns {string} the archive path
  */
-function archiveActiveSession(basePath, sessionId) {
-  const archivePath = path.join(basePath, 'state', 'archive', `${sessionId}.md`);
+function archiveActiveSession(stateDir, sessionId) {
+  const archivePath = path.join(stateDir, 'state', 'archive', `${sessionId}.md`);
   fs.mkdirSync(path.dirname(archivePath), { recursive: true });
-  fs.renameSync(activeSessionFile(basePath), archivePath);
+  fs.renameSync(activeSessionFile(stateDir), archivePath);
   return archivePath;
 }
 

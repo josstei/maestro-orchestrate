@@ -7,6 +7,7 @@ const { assertSessionId } = require('../../lib/session-id');
 const { ValidationError, StateError } = require('../../lib/errors');
 const {
   DEFAULT_STATE_DIR,
+  resolveStateDirPath,
   readActiveSession,
   withSessionState,
   assertSessionMatch,
@@ -158,7 +159,8 @@ function assertPhaseRequest(params) {
  */
 function handleScanPhaseChanges(params, projectRoot) {
   assertPhaseRequest(params);
-  const { state, basePath } = readActiveSession(projectRoot);
+  const stateDir = resolveStateDirPath(projectRoot);
+  const { state } = readActiveSession(stateDir);
   assertSessionMatch(state, params.session_id);
 
   const phase = findPhaseOrThrow(state.phases || [], params.phase_id);
@@ -174,7 +176,7 @@ function handleScanPhaseChanges(params, projectRoot) {
     phase.started,
     maxFiles,
     extraIgnore,
-    workspaceRelativeStateDir(projectRoot, basePath)
+    workspaceRelativeStateDir(projectRoot, stateDir)
   );
 
   return {
@@ -210,7 +212,7 @@ function handleReconcilePhase(params, projectRoot) {
     );
   }
 
-  return withSessionState(projectRoot, ({ state }) => {
+  return withSessionState(resolveStateDirPath(projectRoot), (state) => {
     assertSessionMatch(state, params.session_id);
 
     const phase = findPhaseOrThrow(

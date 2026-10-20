@@ -179,13 +179,10 @@ describe('session-state', () => {
     });
 
     it('round-trips state and body through writeActiveSession and readActiveSession', () => {
-      const unsetStateDir = { MAESTRO_STATE_DIR: null, MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: null };
       for (const body of ['## Progress\n- Step 1 done\n- Step 2 done', '']) {
         const state = { phase: 'execution', step: 3, nested: { tags: ['refactor', 'core'] } };
-        writeActiveSession(path.join(tmpRoot, DEFAULT_STATE_DIR), state, body);
-        const session = withEnv(unsetStateDir, () => readActiveSession(tmpRoot));
-        assert.deepEqual(session.state, state);
-        assert.equal(session.body, body);
+        writeActiveSession(tmpRoot, state, body);
+        assert.deepEqual(readActiveSession(tmpRoot), { state, body });
       }
     });
 

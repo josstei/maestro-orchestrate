@@ -6,8 +6,8 @@ const path = require('node:path');
 const { assertSessionId } = require('../../lib/session-id');
 const { ValidationError, StateError } = require('../../lib/errors');
 const { resolveStateDirPath } = require('../../state/session-state');
-const { toWorkspacePath } = require('../../state/session-documents');
-const { resolveDocumentInput } = require('../contracts/document-input');
+const { toWorkspacePath, writePlansDocument } = require('../../state/session-documents');
+const { readDocumentInput } = require('../contracts/document-input');
 const { atomicWriteSync, readJsonSafe } = require('../../lib/io');
 
 const GATE_FILENAME = '.design-gate.json';
@@ -81,16 +81,16 @@ function handleEnterDesignGate(params, projectRoot) {
  */
 function handleRecordDesignApproval(params, projectRoot) {
   assertSessionId(params.session_id);
-  const absDesignPath = resolveDocumentInput(params, projectRoot, {
-    pathKey: 'design_document_path',
-    prefix: 'design_document',
-    fromPath: (documentPath) => toWorkspacePath(projectRoot, documentPath),
-  });
-  if (absDesignPath === null) {
+  const design = readDocumentInput(params, 'design_document_path', 'design_document');
+  if (design === null) {
     throw new ValidationError(
       'record_design_approval requires either design_document_path or both design_document_content and design_document_filename'
     );
   }
+  const stateDir = resolveStateDirPath(projectRoot);
+  const absDesignPath = design.path
+    ? toWorkspacePath(projectRoot, design.path)
+    : writePlansDocument(stateDir, design.filename, design.content);
 
   const now = new Date().toISOString();
   const gate = readGate(projectRoot, params.session_id) || createGate(params.session_id, now);

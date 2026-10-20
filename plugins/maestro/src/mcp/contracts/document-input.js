@@ -3,24 +3,23 @@
 const path = require('node:path');
 
 const { ValidationError } = require('../../lib/errors');
-const { writePlansDocument } = require('../../state/session-documents');
 
 /**
- * Resolve a document supplied either by path (`params[pathKey]`) or by inline
+ * Read a document supplied either by path (`params[pathKey]`) or by inline
  * content (`<prefix>_content` + `<prefix>_filename`); the two variants are
- * mutually exclusive. The content variant is written atomically to
- * `<state_dir>/plans/<filename>` immediately. It exists for callers whose write
- * surface resolves paths against a different filesystem root than the MCP
- * server's workspace (e.g. a Plan Mode that writes to a host tmp directory)
- * and so cannot pass a path the server can find.
+ * mutually exclusive. The caller writes the content variant to
+ * `<state_dir>/plans/<filename>`. It exists for callers whose write surface
+ * resolves paths against a different filesystem root than the MCP server's
+ * workspace (e.g. a Plan Mode that writes to a host tmp directory) and so
+ * cannot pass a path the server can find.
  *
  * @param {object} params - tool params holding the document keys
- * @param {string} projectRoot
- * @param {{ pathKey: string, prefix: string, fromPath: (documentPath: string) => string | null }} keys
- * @returns {string | null} canonical path of the written content, `fromPath(params[pathKey])` for the path variant, or null when neither variant was supplied
+ * @param {string} pathKey
+ * @param {string} prefix
+ * @returns {{ path: string } | { filename: string, content: string } | null} the supplied variant, or null when neither was supplied
  * @throws {ValidationError} when both variants are supplied, the content variant is incomplete, or the filename is not a pure basename
  */
-function resolveDocumentInput(params, projectRoot, { pathKey, prefix, fromPath }) {
+function readDocumentInput(params, pathKey, prefix) {
   const contentKey = `${prefix}_content`;
   const filenameKey = `${prefix}_filename`;
   const isSet = (key) => typeof params[key] === 'string' && params[key].length > 0;
@@ -35,7 +34,7 @@ function resolveDocumentInput(params, projectRoot, { pathKey, prefix, fromPath }
   }
 
   if (!hasContent && !hasFilename) {
-    return hasPath ? fromPath(params[pathKey]) : null;
+    return hasPath ? { path: params[pathKey] } : null;
   }
   if (!hasContent) {
     throw new ValidationError(`${contentKey} is required`);
@@ -56,9 +55,9 @@ function resolveDocumentInput(params, projectRoot, { pathKey, prefix, fromPath }
       { details: { value: filename } }
     );
   }
-  return writePlansDocument(projectRoot, filename, params[contentKey]);
+  return { filename, content: params[contentKey] };
 }
 
 module.exports = {
-  resolveDocumentInput,
+  readDocumentInput,
 };
