@@ -110,6 +110,24 @@ describe('handleValidatePlan — agent validation', () => {
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
     assert.ok(!result.violations.some((v) => v.rule === 'unknown_agent'));
   });
+
+  it('reports an unknown agent that claims files before its capability mismatch, with a null capability', () => {
+    const phases = [phase('p1', { agent: 'wizard', files: ['a.js'] })];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.deepEqual(result.violations, [
+      {
+        rule: 'unknown_agent',
+        detail: 'Phase p1: unknown agent "wizard" (normalized: "wizard")',
+        severity: 'error',
+      },
+      {
+        rule: 'agent_capability_mismatch',
+        detail:
+          "Phase p1: agent 'wizard' (null) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.",
+        severity: 'error',
+      },
+    ]);
+  });
 });
 
 describe('handleValidatePlan — agent capability mismatch', () => {
@@ -165,6 +183,33 @@ describe('handleValidatePlan — agent capability mismatch', () => {
       )
     );
   });
+
+  it('lets a read_write agent claim files', () => {
+    const phases = [
+      phase('p1', {
+        name: 'Write docs',
+        agent: 'technical-writer',
+        files: ['docs/guide.md'],
+        files_created: ['docs/faq.md'],
+      }),
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.equal(result.valid, true);
+    assert.deepEqual(result.violations, []);
+  });
+
+  it('reports only the error, not the creation-name warning, when a read_only agent claims files', () => {
+    const phases = [phase('p1', { name: 'Implement docs', files: ['a.md'] })];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.deepEqual(result.violations, [
+      {
+        rule: 'agent_capability_mismatch',
+        detail:
+          "Phase p1: agent 'architect' (read_only) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.",
+        severity: 'error',
+      },
+    ]);
+  });
 });
 
 describe('handleValidatePlan — cyclic dependencies', () => {
@@ -196,6 +241,18 @@ describe('handleValidatePlan — cyclic dependencies', () => {
     ];
     const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
     assert.equal(result.parallelization_profile, null);
+  });
+
+  it('names the phase whose walk reached the cycle, even when that phase is not on it', () => {
+    const phases = [
+      phase('X', { blocked_by: ['A'] }),
+      phase('A', { blocked_by: ['B'] }),
+      phase('B', { blocked_by: ['A'] }),
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
+    assert.deepEqual(result.violations, [
+      { rule: 'cyclic_dependency', detail: 'Cycle detected involving phase X', severity: 'error' },
+    ]);
   });
 });
 
@@ -300,6 +357,100 @@ describe('handleValidatePlan — parallelization profile', () => {
     assert.ok(profile !== null);
     assert.equal(profile.parallel_eligible, 2);
   });
+
+  it('keeps dangling blockers in depth_map at depth 0 but out of the batches', () => {
+    const phases = [
+      phase('p1', { blocked_by: ['ghost'] }),
+      phase('p2', { blocked_by: ['p1', 'ghost'] }),
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'simple' });
+    assert.deepEqual(result.parallelization_profile, {
+      total_phases: 2,
+      depth_map: { p1: 1, ghost: 0, p2: 2 },
+      batches: [
+        { depth: 1, phase_ids: ['p1'] },
+        { depth: 2, phase_ids: ['p2'] },
+      ],
+      max_batch_size: 1,
+      parallel_eligible: 0,
+      effective_batches: 2,
+    });
+  });
+
+  it('reports -Infinity as the max_batch_size of an empty plan (null on the wire)', () => {
+    const result = handleValidatePlan({ plan: { phases: [] }, task_complexity: 'simple' });
+    assert.deepEqual(result.parallelization_profile, {
+      total_phases: 0,
+      depth_map: {},
+      batches: [],
+      max_batch_size: -Infinity,
+      parallel_eligible: 0,
+      effective_batches: 0,
+    });
+    assert.equal(JSON.parse(JSON.stringify(result)).parallelization_profile.max_batch_size, null);
+  });
+});
+
+describe('handleValidatePlan — complete result', () => {
+  it('runs every check and reports violations in check order with exact details', () => {
+    const phases = [
+      phase('p1', { agent: 'wizard', blocked_by: ['ghost'] }),
+      // A duplicate id shadows the first phase in the dependency graph.
+      phase('p1', { name: 'Implement docs', files: ['a.md'] }),
+      phase('p2', { name: 'Implement API' }),
+      phase('p3', { agent: 'coder', parallel: true, blocked_by: ['p1'], files: ['s.js'] }),
+      phase('p4', { agent: 'coder', parallel: true, blocked_by: ['p1'], files: ['s.js'] }),
+      phase('p5', { agent: 'tester', blocked_by: ['p1', 'p3'] }),
+    ];
+    const result = handleValidatePlan({ plan: { phases }, task_complexity: 'medium' });
+    assert.deepEqual(result, {
+      valid: false,
+      violations: [
+        { rule: 'phase_count', detail: 'medium tasks allow max 5 phases, got 6', severity: 'error' },
+        { rule: 'duplicate_id', detail: 'Duplicate phase ID: p1', severity: 'error' },
+        {
+          rule: 'dangling_dependency',
+          detail: 'Phase p1 references non-existent dependency: ghost',
+          severity: 'error',
+        },
+        {
+          rule: 'unknown_agent',
+          detail: 'Phase p1: unknown agent "wizard" (normalized: "wizard")',
+          severity: 'error',
+        },
+        {
+          rule: 'agent_capability_mismatch',
+          detail:
+            "Phase p1: agent 'architect' (read_only) cannot deliver file-creating tasks. Use a write-capable agent (coder, data_engineer, etc.) or split into analysis + implementation phases.",
+          severity: 'error',
+        },
+        {
+          rule: 'agent_capability_mismatch',
+          detail:
+            "Phase p2: agent 'architect' (read_only) assigned to phase 'Implement API' which may require file creation. Verify this agent can deliver the phase's requirements.",
+          severity: 'warning',
+        },
+        { rule: 'file_overlap', detail: 'Parallel phases p3 and p4 both touch "s.js"', severity: 'error' },
+        {
+          rule: 'redundant_dependency',
+          detail: 'Phase p5: dependency on phase p1 is redundant (already reachable via phase p3)',
+          severity: 'warning',
+        },
+      ],
+      parallelization_profile: {
+        total_phases: 6,
+        depth_map: { p1: 0, p2: 0, p3: 1, p4: 1, p5: 2 },
+        batches: [
+          { depth: 0, phase_ids: ['p1', 'p1', 'p2'] },
+          { depth: 1, phase_ids: ['p3', 'p4'] },
+          { depth: 2, phase_ids: ['p5'] },
+        ],
+        max_batch_size: 3,
+        parallel_eligible: 5,
+        effective_batches: 3,
+      },
+    });
+  });
 });
 
 describe('handleValidatePlan with strict phase schema', () => {
@@ -315,6 +466,34 @@ describe('handleValidatePlan with strict phase schema', () => {
       (v) => v.rule === 'missing_required_field'
     );
     assert.equal(hasFieldViolation, true);
+  });
+
+  it('reports field violations with their phase id and field, and no profile', () => {
+    const result = handleValidatePlan({
+      plan: {
+        phases: [{ id: 'p1', name: '', agent: 'coder', parallel: 'no', blocked_by: [] }, {}],
+      },
+      task_complexity: 'simple',
+    });
+    const fieldViolation = (rule, phaseId, field) => ({
+      rule,
+      detail: `Phase ${phaseId ?? '?'} field "${field}" ${rule.replace('_', ' ')}`,
+      severity: 'error',
+      phase_id: phaseId,
+      field,
+    });
+    assert.deepEqual(result, {
+      valid: false,
+      violations: [
+        fieldViolation('invalid_field_type', 'p1', 'name'),
+        fieldViolation('invalid_field_type', 'p1', 'parallel'),
+        ...['id', 'name', 'agent', 'parallel', 'blocked_by'].map((field) =>
+          fieldViolation('missing_required_field', null, field)
+        ),
+      ],
+      parallelization_profile: null,
+    });
+    assert.equal(result.violations[0].detail, 'Phase p1 field "name" invalid field_type');
   });
 
   it('accepts a plan with fully-populated phases', () => {
