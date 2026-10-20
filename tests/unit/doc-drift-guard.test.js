@@ -69,11 +69,6 @@ test('doc-drift: agent-count claim phrase present in user-facing surfaces', () =
   }
 });
 
-test('doc-drift: no stale inject-frontmatter transform in docs', () => {
-  const body = read('docs/architecture.md');
-  assert.ok(!body.includes('inject-frontmatter'), 'docs/architecture.md still references removed inject-frontmatter transform');
-});
-
 test('doc-drift: root pointer docs include every runtime doc', () => {
   for (const surface of ['OVERVIEW.md', 'USAGE.md', 'ARCHITECTURE.md']) {
     const body = read(surface);

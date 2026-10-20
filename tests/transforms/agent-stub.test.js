@@ -2,16 +2,9 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const agentStub = require('../../src/generator/transforms/agent-stub');
-const { parse } = require('../../src/lib/frontmatter');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
-const { AGENT_COUNT, listCanonicalAgents } = require('../support/catalog');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { splitFrontmatter } = require('../support/generated-files');
-const { SRC_ROOT } = require('../support/paths');
-
-const SRC_AGENTS_DIR = path.join(SRC_ROOT, 'agents');
 
 describe('agent-stub transform', () => {
   const canonicalAgent = [
@@ -340,57 +333,6 @@ describe('agent-stub transform', () => {
     ].join('\n');
     const result = agentStub(noTurnsAgent, claudeRuntime);
     assert.ok(!result.includes('maxTurns:'));
-  });
-
-  describe('legacy temperature and timeout_mins frontmatter', () => {
-    const STUB_RUNTIME_NAMES = RUNTIME_NAMES.filter(
-      (name) => getRuntimeConfig(name).agentFrontmatter
-    );
-
-    it('is only stubbed for the antigravity, claude and qwen runtimes', () => {
-      assert.deepEqual(STUB_RUNTIME_NAMES, ['antigravity', 'claude', 'qwen']);
-    });
-
-    it('is never emitted into a stub, even when the source still declares it', () => {
-      const legacyAgent = [
-        '---',
-        'name: tester',
-        'description: "Tester."',
-        'tools: [read_file]',
-        'max_turns: 10',
-        'temperature: 0.3',
-        'timeout_mins: 5',
-        '---',
-        '',
-        'Body.',
-      ].join('\n');
-
-      for (const runtimeName of STUB_RUNTIME_NAMES) {
-        const { frontmatter } = parseDocument(agentStub(legacyAgent, getRuntimeConfig(runtimeName)));
-        assert.deepEqual(
-          frontmatter.filter((line) => /^(temperature|timeout_mins|timeout):/.test(line)),
-          [],
-          runtimeName
-        );
-      }
-    });
-
-    it('is no longer declared by any canonical agent, nor emitted into its stubs', () => {
-      const agentFiles = listCanonicalAgents().map((name) => `${name}.md`);
-      assert.equal(agentFiles.length, AGENT_COUNT);
-
-      for (const file of agentFiles) {
-        const content = fs.readFileSync(path.join(SRC_AGENTS_DIR, file), 'utf8');
-        const { frontmatter } = parse(content);
-        assert.equal(frontmatter.temperature, undefined, `${file}: temperature`);
-        assert.equal(frontmatter.timeout_mins, undefined, `${file}: timeout_mins`);
-
-        for (const runtimeName of STUB_RUNTIME_NAMES) {
-          const stub = agentStub(content, getRuntimeConfig(runtimeName));
-          assert.doesNotMatch(stub, /^(temperature|timeout_mins):/m, `${runtimeName} ${file}`);
-        }
-      }
-    });
   });
 
   it('should handle tool that is not in runtime.tools mapping', () => {

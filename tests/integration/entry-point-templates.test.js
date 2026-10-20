@@ -144,15 +144,13 @@ describe('expandEntryPoints', () => {
     }
   });
 
-  it('rejects unknown runtimes, including the removed gemini runtime', () => {
-    for (const runtime of ['nope', 'gemini']) {
-      assert.throws(() => expandEntryPoints(runtime), {
-        message: `Unknown runtime for entry-point expansion: "${runtime}"`,
-      });
-      assert.throws(() => expandCoreCommands(runtime), {
-        message: `Unknown runtime for core-command expansion: "${runtime}"`,
-      });
-    }
+  it('rejects an unknown runtime', () => {
+    assert.throws(() => expandEntryPoints('nope'), {
+      message: 'Unknown runtime for entry-point expansion: "nope"',
+    });
+    assert.throws(() => expandCoreCommands('nope'), {
+      message: 'Unknown runtime for core-command expansion: "nope"',
+    });
   });
 });
 

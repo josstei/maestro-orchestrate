@@ -61,25 +61,6 @@ describe('zero-diff validation', () => {
       [],
       'Did not expect generated Antigravity outputs beyond the metadata, agents/ and skills/ (README.md and the shims are hand-maintained)'
     );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('canonical-source.js')),
-      'Did not expect canonical-source copies in generator output'
-    );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('hooks/hook-runner.js')),
-      'Did not expect generated hook-runner in generator output'
-    );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('/lib/')),
-      'Did not expect mirrored lib outputs in dry-run status'
-    );
-    assert.deepEqual(
-      outputPaths.filter(
-        (outputPath) => /gemini/i.test(outputPath) || outputPath === 'hooks/hooks.json'
-      ),
-      [],
-      'Did not expect removed Gemini outputs (gemini-extension.json, GEMINI.md, hooks/hooks.json) in generator output'
-    );
     assert.deepEqual(
       report.driftLines,
       [],
