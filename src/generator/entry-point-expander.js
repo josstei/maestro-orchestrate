@@ -80,8 +80,8 @@ function applySubstitutions(template, substitutions) {
  * @param {'entry-point'|'core-command'} kind
  * @param {string} runtimeName
  * @returns {Array<{ outputPath: string, content: string }>}
- * @throws {Error} For an unknown runtime, or an entry the runtime reserves
- *   that has no hostSafeName
+ * @throws {Error} For an unknown runtime, or an entry that would render
+ *   under a name the runtime reserves (no hostSafeName, or a reserved one)
  */
 function expand(kind, runtimeName) {
   if (!RUNTIME_NAMES.includes(runtimeName)) {
@@ -92,16 +92,16 @@ function expand(kind, runtimeName) {
   const { registry, substitutions } = KINDS[kind];
   const template = readTemplate(runtimeName, kind);
   return registry.map((entry) => {
-    const reserved = reservedNames.includes(entry.name);
-    if (reserved && !entry.hostSafeName) {
+    const name = reservedNames.includes(entry.name) && entry.hostSafeName ? entry.hostSafeName : entry.name;
+    if (reservedNames.includes(name)) {
       throw new Error(
-        `Reserved ${runtimeName} host command name "${entry.name}" conflicts with a built-in — ` +
-        'add a hostSafeName to the registry entry'
+        `Reserved ${runtimeName} host command name "${name}" conflicts with a built-in — ` +
+        'give the registry entry a hostSafeName the runtime does not reserve'
       );
     }
-    const runtimeEntry = { ...entry, name: reserved ? entry.hostSafeName : entry.name };
+    const runtimeEntry = { ...entry, name };
     return {
-      outputPath: outputPath(runtimeEntry.name),
+      outputPath: outputPath(name),
       content: applySubstitutions(template, substitutions(runtimeEntry, preamble[kind])),
     };
   });

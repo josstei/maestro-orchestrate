@@ -129,18 +129,22 @@ describe('expandEntryPoints', () => {
     assert.ok(debug.content.includes('2. '));
   });
 
-  it('rejects a reserved host command name without a hostSafeName', () => {
+  it('rejects a reserved host command name without a hostSafeName, or with a reserved one', () => {
     const review = entryPointRegistry.find((entry) => entry.name === 'review');
     const { hostSafeName } = review;
-    delete review.hostSafeName;
+    const hint = 'give the registry entry a hostSafeName the runtime does not reserve';
     try {
+      delete review.hostSafeName;
       assert.throws(() => expandEntryPoints('claude'), {
-        message:
-          'Reserved claude host command name "review" conflicts with a built-in — ' +
-          'add a hostSafeName to the registry entry',
+        message: `Reserved claude host command name "review" conflicts with a built-in — ${hint}`,
       });
       // Qwen reserves no names, so it still renders the bare name.
       assert.ok(expandEntryPoints('qwen').some((r) => r.outputPath === 'commands/maestro/review.toml'));
+
+      review.hostSafeName = 'debug';
+      assert.throws(() => expandEntryPoints('codex'), {
+        message: `Reserved codex host command name "debug" conflicts with a built-in — ${hint}`,
+      });
     } finally {
       review.hostSafeName = hostSafeName;
     }
