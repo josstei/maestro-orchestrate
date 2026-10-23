@@ -82,3 +82,4 @@ Local acceptance completed:
 - Every detached runtime executes all 17 tools, 14 resources, 39 agents, and five state scripts without runtime `node_modules`; hooked runtimes also exercise every registry hook and policy outcomes.
 - The canonical graph checks 96 JavaScript files with zero violations. npm-pack verification passes for 778 files; the release archive verifies successfully.
 - Repeated generation reports zero writes, 588 unchanged outputs, zero errors, and zero removals. Detached closures contain 129 Antigravity, 129 Claude, and 118 Codex files.
+- [Cross-platform CI run 39912304064](https://github.com/josstei/maestro-orchestrate/actions/runs/39912304064) passes all six Linux/macOS/Windows × Node 20/24 state jobs and the full source-of-truth/package/archive job. Windows verification also corrected absolute-path identity comparisons for case/short-path aliases and made reconciliation assertions honor unchanged native path output.
