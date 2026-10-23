@@ -279,6 +279,13 @@ describe('idempotent npm publish', () => {
     assert.equal(highestStableVersion(['1.2.9', '1.10.0', '2.0.0-rc.1']), '1.10.0');
   });
 
+  it('selects stable releases without mutating registry order and preserves equivalent-version ties', () => {
+    const versions = Object.freeze(['2.0.0', '1.99.99', '02.0.0', '9.0.0-preview.1']);
+    assert.equal(highestStableVersion(versions), '02.0.0');
+    assert.equal(highestStableVersion([]), null);
+    assert.equal(highestStableVersion(['1.0.0-rc.1', 'invalid']), null);
+  });
+
   it('does not remove latest through npm dist-tag policy', () => {
     const source = fs.readFileSync(
       path.join(ROOT, 'scripts', 'npm-publish-idempotent.js'),

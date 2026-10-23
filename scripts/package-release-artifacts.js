@@ -2,7 +2,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
@@ -15,6 +14,7 @@ const {
   releaseArchiveName,
 } = require('./release-artifact-manifest');
 const { parseFlagArgs, runCli } = require('./lib/cli');
+const { withTempDir } = require('./lib/temp-dir');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -71,10 +71,8 @@ function packageReleaseArtifacts(options = {}) {
   const version = resolveVersion(root, options.version);
   const outDir = path.resolve(root, options.outDir || RELEASE_OUT_DIR);
   const archivePath = path.join(outDir, releaseArchiveName(version));
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-artifact-'));
-  const stagingRoot = path.join(tempRoot, 'maestro');
-
-  try {
+  return withTempDir('maestro-release-artifact-', (tempRoot) => {
+    const stagingRoot = path.join(tempRoot, 'maestro');
     assertRequiredArtifactPaths(root);
     assertRuntimeManifestShape(root, version);
     fs.mkdirSync(stagingRoot, { recursive: true });
@@ -90,9 +88,7 @@ function packageReleaseArtifacts(options = {}) {
       archivePath,
       version,
     };
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
+  });
 }
 
 if (require.main === module) {

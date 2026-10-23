@@ -2,7 +2,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
@@ -14,6 +13,7 @@ const {
   releaseArchiveName,
 } = require('./release-artifact-manifest');
 const { runCli } = require('./lib/cli');
+const { withTempDir } = require('./lib/temp-dir');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -62,9 +62,7 @@ function verifyReleaseArtifact(archivePath, options = {}) {
     throw new Error(`Release artifact not found: ${resolvedArchivePath}`);
   }
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-verify-'));
-
-  try {
+  return withTempDir('maestro-release-verify-', (tempRoot) => {
     extractArchive(resolvedArchivePath, tempRoot);
     assertRequiredArtifactPaths(tempRoot);
     assertReleaseArtifactContents(tempRoot);
@@ -74,9 +72,7 @@ function verifyReleaseArtifact(archivePath, options = {}) {
       archivePath: resolvedArchivePath,
       version,
     };
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
+  });
 }
 
 if (require.main === module) {
