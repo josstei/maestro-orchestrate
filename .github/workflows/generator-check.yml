@@ -69,6 +69,7 @@ jobs:
         run: >-
           node --test
           tests/unit/state-coordinator.test.js
+          tests/unit/state-paths.test.js
           tests/unit/session-state.test.js
           tests/unit/design-gate.test.js
           tests/unit/reconciliation.test.js

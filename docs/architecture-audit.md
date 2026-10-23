@@ -75,7 +75,7 @@ The recorded pre-expansion baseline has 68 tool schemas, four runtime contexts, 
 
 Local acceptance completed:
 
-- 1,152 tests pass on both Node 20.20.2 and Node 24.19.0, with no failures or skips.
+- 1,156 tests pass on both Node 20.20.2 and Node 24.19.0, with no failures or skips.
 - All 68 schemas, four runtime contexts, and 156 agent definitions match the recorded baseline exactly. The 48 unaffected resource results match; the eight changed results are the architecture and session-management instructions across four runtimes.
 - Thirteen generic CLI cases match baseline exit status, stdout, and stderr; 36 launcher selection/invocation combinations match. Successful MCP lifecycle results match after normalizing timestamps and workspace paths.
 - Eighteen killed-worker transaction boundaries, separate-process MCP races, and guarded CLI write races pass. Recovery preserves captured timestamps and document bytes after the external source is removed.

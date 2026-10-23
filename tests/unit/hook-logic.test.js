@@ -192,7 +192,13 @@ describe('handleBeforeAgent', () => {
       handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
     );
     assert.equal(result.action, 'allow');
-    assert.equal(result.message, 'Active session: current_phase=3, status=in_progress');
+    assert.equal(result.message, 'Active session: current_phase=3, status=in_progress', JSON.stringify({
+      root,
+      gitRoot: execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: subdir, encoding: 'utf8' }).trim(),
+      nativeRoot: fs.realpathSync.native(root),
+      statePath: path.join(root, '.maestro'),
+      nativeStatePath: fs.realpathSync.native(path.join(root, '.maestro')),
+    }));
   });
 
   it('reads the session under the state dir named in the workspace .env', async () => {

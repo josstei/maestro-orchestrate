@@ -23,13 +23,30 @@ function joinRelative(basePath, relativePath) {
   return path.join(basePath, relativePath);
 }
 
+function containmentIdentity(filePath) {
+  let existing = filePath;
+  const suffix = [];
+  for (;;) {
+    try { return path.join(fs.realpathSync.native(existing), ...suffix); }
+    catch (error) {
+      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) return filePath;
+      const parent = path.dirname(existing);
+      if (parent === existing) return filePath;
+      suffix.unshift(path.basename(existing));
+      existing = parent;
+    }
+  }
+}
+
 function validateContainment(absolutePath, rootDir) {
   let resolved = path.resolve(absolutePath);
   let resolvedRoot = path.resolve(rootDir);
   try { resolved = fs.realpathSync(resolved); } catch {}
   try { resolvedRoot = fs.realpathSync(resolvedRoot); } catch {}
-  const rootPrefix = resolvedRoot + path.sep;
-  if (!resolved.startsWith(rootPrefix) && resolved !== resolvedRoot) {
+  // Git for Windows can expand 8.3 aliases and change drive-letter casing.
+  // Compare filesystem identities, preserving the caller-visible path spelling.
+  const relative = path.relative(containmentIdentity(resolvedRoot), containmentIdentity(resolved));
+  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
     throw new Error('state_dir must be within the project root');
   }
   return resolved;
