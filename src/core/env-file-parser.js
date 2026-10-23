@@ -31,7 +31,7 @@ function stripInlineComment(value) {
   return value;
 }
 
-function parseEnvFile(filePath) {
+function parseEnvFile(filePath, { onWarning = (message) => console.warn(message) } = {}) {
   const result = {};
   const content = readFileSafe(filePath, null);
   if (content === null) {
@@ -62,7 +62,7 @@ function parseEnvFile(filePath) {
         valueParts.push(nextLine);
       }
       if (!closed) {
-        console.warn(`env-file-parser: unclosed quote for key "${key}", treating accumulated content as value`);
+        onWarning(`env-file-parser: unclosed quote for key "${key}", treating accumulated content as value`);
       }
       result[key] = valueParts.join('\n');
       continue;
