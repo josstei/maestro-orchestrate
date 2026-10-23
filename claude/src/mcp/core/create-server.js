@@ -42,7 +42,7 @@ function normalizeToolError(toolName, error) {
     return toolFailure(
       error.message,
       error.code,
-      getRecoveryHint(toolName, error.message),
+      getRecoveryHint(toolName, error.message, error.code),
       error.details
     );
   }

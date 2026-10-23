@@ -3,31 +3,48 @@
 const path = require('node:path');
 const { parseEnvFile } = require('../core/env-file-parser');
 
-function resolveSetting(varName, projectRoot) {
-  // Intentionally bypasses the runtime-config abstraction: setting
-  // resolution runs before a runtime is selected, so it cannot ask a
-  // runtime-config for `env.extensionPath`. MAESTRO_EXTENSION_PATH is
-  // the documented canonical override; CLAUDE_PLUGIN_ROOT is kept as a
-  // fallback because Claude injects it automatically from the plugin
-  // loader.
-  const extensionRoot = process.env.MAESTRO_EXTENSION_PATH || process.env.CLAUDE_PLUGIN_ROOT;
+/** Lazily snapshot each .env file for one request; process.env remains live. */
+function createSettingResolver(projectRoot, { onWarning = (message) => console.warn(message) } = {}) {
+  const files = new Map();
 
-  // Sources in precedence order; each .env file is parsed only when every
-  // earlier source came up empty. Skipped sources yield null (not {}) so no
-  // prototype lookup happens for them.
-  const sources = [
-    () => process.env,
-    () => (typeof projectRoot === 'string' && projectRoot.length > 0
-      ? parseEnvFile(path.join(projectRoot, '.env'))
-      : null),
-    () => (extensionRoot ? parseEnvFile(path.join(extensionRoot, '.env')) : null),
-  ];
-  for (const readSource of sources) {
-    const value = readSource()?.[varName];
-    if (value !== undefined && value !== '') return value;
+  function readSource(filePath) {
+    if (!files.has(filePath)) {
+      const warnings = [];
+      const values = parseEnvFile(filePath, { onWarning: (message) => warnings.push(message) });
+      files.set(filePath, { values, warnings });
+    }
+    const { values, warnings } = files.get(filePath);
+    // Each logical source lookup used to parse and warn independently, even
+    // when workspace and extension resolve to the same file.
+    for (const warning of warnings) onWarning(warning);
+    return values;
   }
 
-  return undefined;
+  return function resolve(varName) {
+    // Setting resolution can precede runtime selection. Claude's injected
+    // plugin root remains the fallback for the canonical extension override.
+    const extensionRoot = process.env.MAESTRO_EXTENSION_PATH || process.env.CLAUDE_PLUGIN_ROOT;
+
+    // Skip files until higher-priority sources come up empty. Skipped sources
+    // yield null (not {}) so no prototype lookup happens for them.
+    const sources = [
+      () => process.env,
+      () => (typeof projectRoot === 'string' && projectRoot.length > 0
+        ? readSource(path.join(projectRoot, '.env'))
+        : null),
+      () => (extensionRoot ? readSource(path.join(extensionRoot, '.env')) : null),
+    ];
+    for (const source of sources) {
+      const value = source()?.[varName];
+      if (value !== undefined && value !== '') return value;
+    }
+
+    return undefined;
+  };
 }
 
-module.exports = { resolveSetting };
+function resolveSetting(varName, projectRoot) {
+  return createSettingResolver(projectRoot)(varName);
+}
+
+module.exports = { createSettingResolver, resolveSetting };

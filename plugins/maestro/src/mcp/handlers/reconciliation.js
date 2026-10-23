@@ -5,8 +5,9 @@ const path = require('node:path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, StateError } = require('../../lib/errors');
+const { withStateRead } = require('../../state/coordinator');
+const { DEFAULT_STATE_DIR, resolveStateDirPath } = require('../../state/paths');
 const {
-  DEFAULT_STATE_DIR,
   readActiveSession,
   withSessionState,
   assertSessionMatch,
@@ -156,9 +157,10 @@ function assertPhaseRequest(params) {
  * @param {{ session_id: string, phase_id: number }} params
  * @param {string} projectRoot
  */
-function handleScanPhaseChanges(params, projectRoot) {
+async function handleScanPhaseChanges(params, projectRoot) {
   assertPhaseRequest(params);
-  const { state, basePath } = readActiveSession(projectRoot);
+  const basePath = resolveStateDirPath(projectRoot);
+  const { state } = await withStateRead(basePath, () => readActiveSession(basePath));
   assertSessionMatch(state, params.session_id);
 
   const phase = findPhaseOrThrow(state.phases || [], params.phase_id);
@@ -210,7 +212,7 @@ function handleReconcilePhase(params, projectRoot) {
     );
   }
 
-  return withSessionState(projectRoot, ({ state }) => {
+  return withSessionState(projectRoot, 'reconcile_phase', params.session_id, ({ state }) => {
     assertSessionMatch(state, params.session_id);
 
     const phase = findPhaseOrThrow(

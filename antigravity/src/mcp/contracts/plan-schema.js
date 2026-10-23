@@ -1,7 +1,5 @@
 'use strict';
 
-const PHASE_REQUIRED_FIELDS = ['id', 'name', 'agent', 'parallel', 'blocked_by'];
-
 /** Maximum phases per task_complexity; its keys are the accepted complexity values. */
 const PHASE_LIMITS = {
   simple: 3,
@@ -18,20 +16,6 @@ const PHASE_ID_SCHEMA = {
   ],
 };
 
-const PHASE_ITEM_SCHEMA = {
-  type: 'object',
-  properties: {
-    id: PHASE_ID_SCHEMA,
-    name: { type: 'string', minLength: 1 },
-    agent: { type: 'string', minLength: 1 },
-    parallel: { type: 'boolean' },
-    blocked_by: { type: 'array', items: PHASE_ID_SCHEMA },
-    files: { type: 'array', items: { type: 'string', minLength: 1 } },
-  },
-  required: PHASE_REQUIRED_FIELDS,
-  additionalProperties: true,
-};
-
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.length > 0;
 }
@@ -45,15 +29,31 @@ function isArrayOf(isItem) {
   return (value) => Array.isArray(value) && value.every(isItem);
 }
 
-// [field, violation rule, predicate] checked, in order, for each field a phase carries.
-const FIELD_RULES = [
-  ['id', 'invalid_field_type', isValidPhaseId],
-  ['name', 'invalid_field_type', isNonEmptyString],
-  ['agent', 'invalid_field_type', isNonEmptyString],
-  ['parallel', 'invalid_field_type', (value) => typeof value === 'boolean'],
-  ['blocked_by', 'invalid_field_type', isArrayOf(isValidPhaseId)],
-  ['files', 'invalid_field_value', isArrayOf(isNonEmptyString)],
-];
+// Each field owns its advertised schema and runtime validation. Declaration
+// order also determines missing-field and invalid-field violation ordering.
+const PHASE_FIELDS = {
+  id: { schema: PHASE_ID_SCHEMA, isValid: isValidPhaseId },
+  name: { schema: { type: 'string', minLength: 1 }, isValid: isNonEmptyString },
+  agent: { schema: { type: 'string', minLength: 1 }, isValid: isNonEmptyString },
+  parallel: { schema: { type: 'boolean' }, isValid: (value) => typeof value === 'boolean' },
+  blocked_by: { schema: { type: 'array', items: PHASE_ID_SCHEMA }, isValid: isArrayOf(isValidPhaseId) },
+  files: {
+    schema: { type: 'array', items: { type: 'string', minLength: 1 } },
+    isValid: isArrayOf(isNonEmptyString),
+    optional: true,
+    rule: 'invalid_field_value',
+  },
+};
+const FIELD_RULES = Object.entries(PHASE_FIELDS);
+const PHASE_REQUIRED_FIELDS = FIELD_RULES
+  .filter(([, definition]) => !definition.optional)
+  .map(([field]) => field);
+const PHASE_ITEM_SCHEMA = {
+  type: 'object',
+  properties: Object.fromEntries(FIELD_RULES.map(([field, { schema }]) => [field, schema])),
+  required: PHASE_REQUIRED_FIELDS,
+  additionalProperties: true,
+};
 
 /**
  * Validate an array of plan-phase objects against the shared phase schema.
@@ -95,7 +95,7 @@ function validatePhases(phases) {
 
     if (!phase) continue;
 
-    for (const [field, rule, isValid] of FIELD_RULES) {
+    for (const [field, { isValid, rule = 'invalid_field_type' }] of FIELD_RULES) {
       if (field in phase && !isValid(phase[field])) {
         report(rule, field);
       }

@@ -47,7 +47,7 @@ just cleanup-branches
 
 ## Editing Workflow
 
-1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`), the Qwen context file (`QWEN.md`), and the thin MCP-server, hook-runner, and policy-enforcer shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`, `antigravity/mcp/maestro-server.js`, `antigravity/hooks/`, `claude/mcp/maestro-server.js`, `claude/scripts/`, `bin/maestro-mcp-server.js`) directly. Do not edit generator output: agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` payloads.
+1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`) and the Qwen context file (`QWEN.md`) directly. Do not edit generator output: public MCP-server, hook-runner and policy-enforcer wrappers, agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` payloads.
 2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime outputs
 3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
 4. Run `npm test` (or `just test`) before committing
@@ -110,6 +110,7 @@ After running Maestro, the state directory (default: `docs/maestro/`) contains:
 docs/maestro/
 ├── state/
 │   ├── active-session.md         # Current session
+│   ├── .maestro/                 # Private coordination and recovery metadata
 │   └── archive/
 │       └── <session-id>.md       # Archived sessions
 └── plans/
@@ -118,6 +119,21 @@ docs/maestro/
     └── archive/
         └── ...                   # Archived plans
 ```
+
+### Concurrent updates and recovery
+
+MCP state operations and the installed state scripts coordinate access to the configured state directory. Committed operations interrupted by a process crash are completed on the next access. Existing session Markdown and gate JSON formats do not change, and no workspace migration is required. Ordinary reads do not create state directories.
+
+| Error code | Action |
+|------------|--------|
+| `STATE_BUSY` | Wait for the other operation, then inspect current state before retrying. |
+| `STATE_RECOVERED` | A previous operation finished during recovery. Read current state; do not blindly repeat the mutation. |
+| `STATE_RECOVERY_REQUIRED` | Resolve the reported filesystem problem or unexpected edit while preserving the transaction journal. |
+| `STATE_CONFLICT` | Read the latest content and reapply the intended change. |
+
+For a script-based read/modify/write, run `read-state.js <relative-path> --with-digest`. It returns JSON containing `content` and `sha256`. Send the replacement content to `write-state.js <relative-path> --expected-sha256 <digest>` on stdin, using the returned digest. Guarded writes require a target inside the configured state directory; a missing file or changed digest is a conflict. Existing invocations still return raw content or perform an unguarded whole-file write.
+
+Direct editor writes and older Maestro versions do not participate in coordination. Keep those writers separate from active MCP/script operations. Do not remove `state/.maestro/` or downgrade while a committed transaction is pending. Recovery protects process interruptions; power-loss durability depends on the operating system and filesystem.
 
 ### Session State Format
 

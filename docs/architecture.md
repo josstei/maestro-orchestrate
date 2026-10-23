@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Antigravity and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, detached payloads, and entrypoint wrappers that load `src/`. The wrappers are rendered by `src/generator/runtime-entrypoints.js`, preserving their public paths and loading behavior. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
                              ┌─────────────┐
@@ -34,10 +34,15 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 3. Expands the rules in `src/manifest.js` and runs their transforms (`src/generator/manifest-expander.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
 4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Antigravity, Claude, and Codex skills and Qwen TOML commands (`commands/maestro/`)
 5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`, which takes the policy pack from `src/platforms/qwen/policy-pack.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
-6. Prunes stale files from the directories it owns (`agents/`, `antigravity/agents/`, `antigravity/skills/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
-7. Rebuilds the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` (an allowlisted copy of `src/` plus that runtime's `src/platforms/<runtime>/` directory) and stamps each with `version.json`
+6. Renders the nine public MCP, hook-runner, and policy-enforcer entrypoints (`src/generator/runtime-entrypoints.js`), including the executable Codex npm bin
+7. Prunes stale files from the directories it owns (`agents/`, `antigravity/agents/`, `antigravity/skills/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
+8. Rebuilds the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` from deterministic dependency closures and explicit content roots, and stamps each with `version.json`
 
-`--dry-run` and `--diff` write nothing and skip steps 6 and 7. `--clean` deletes the manifest outputs before regenerating them.
+All dependency plans validate before generation writes or prunes files. `--dry-run` and `--diff` write nothing and report payload additions/removals and executable-mode drift. `--clean` deletes the manifest outputs before regenerating them.
+
+The shared build-time graph in `src/generator/dependency-graph.js` parses imports with Acorn and Acorn Walk. It resolves local JavaScript, JSON, and directory indexes without executing modules, checks physical containment, and explicitly classifies runtime-config discovery, hook adapters, and registry-listed hook implementations. Unsupported computed or aliased loading and stale annotations fail the check. Parser packages are development dependencies only.
+
+Detached roots include the MCP server, selected runtime config, all five state scripts, registries, served resources, agent bodies, and the handoff contract. Antigravity and Claude additionally retain their hook and policy roots. Codex retains its local MCP fallback but omits hook/policy-only modules. Payload files preserve canonical paths and bytes; there is no bundling or export pruning.
 
 ### Manifest System
 
@@ -153,10 +158,34 @@ The content tools (`get_agent`, `get_skill_content`) are filesystem-only in ever
 This makes the source-of-truth rules explicit:
 
 - shared logic lives under `src/lib`, `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`
-- `src/lib` may import only other `src/lib` modules and `node:` builtins; `just check-layers` (`scripts/check-layer-boundaries.js`) enforces this, and `npm test` runs the same check
+- `just check-layers` (`scripts/check-layer-boundaries.js`) uses the shared dependency graph to enforce the lower-layer dependencies listed below, reject production cycles and dependencies on build-only modules or external packages, and report apparent orphans for review; `npm test` runs the same check
 - root `src/` is the only human-authored source of truth
 - generator-owned runtime-local mirrors are allowed when a bundled runtime needs self-containment
 - no hand-maintained runtime forks are allowed
+
+All guarded layers may import `node:` builtins. Their allowed source dependencies are:
+
+| Layer | Allowed source dependencies |
+|-------|-----------------------------|
+| `lib` | `lib` |
+| `core` | `lib`, `core`, `generated` |
+| `config` | `lib`, `core`, `config` |
+| `state` | `lib`, `core`, `config`, `state` |
+| `hooks` | `lib`, `core`, `config`, `state`, `hooks` |
+
+`src/state/design-gate.js` owns gate persistence and session-creation preconditions; `src/state/session-documents.js` owns document materialization and archival. MCP handlers depend on those stores directly, without importing persistence operations from another handler. Phase field descriptors in `src/mcp/contracts/plan-schema.js` supply the advertised schema, required fields, and runtime validation in one declaration order.
+
+### State Coordination and Recovery
+
+`src/state/paths.js` resolves the configured state directory independently of coordination. `coordinator.js` serializes logical mutations for its physical path and supplies an explicit transaction context to session, gate, and document stores. Nested helpers stage effects in that context rather than acquiring another lock. MCP reads, managed state scripts, workspace initialization, and before-agent session reads use the same protocol; ephemeral hook tracking remains separate.
+
+Private metadata lives beneath `<state_dir>/state/.maestro/`. Ownership is acquired by renaming a complete candidate directory into place, with a random token, PID, hostname, and protocol version. Contention polls asynchronously every 50 ms for up to five seconds; the before-agent reader has a 250 ms budget. Only a definitively absent same-host PID can be reclaimed. Release removes the observed token file and then the empty directory, never recursively deleting the shared lock.
+
+Mutations validate and stage bytes before publishing a durable current-transaction pointer. That publication commits the operation. A versioned journal records ordered effects, before/after fingerprints, captured content, the result, and progress. Recovery accepts the expected prior state or an already-applied result and finishes committed operations. Unexpected edits stop replay and preserve the journal. Archive effects retain their order: completed session contents, session move, document moves, gate removal.
+
+Readers compare revision and transaction markers around their snapshots and retry if a commit overlaps. Ordinary reads neither create directories nor require write access; a pending committed operation must acquire ownership and recover first. A mutation that recovers earlier work returns `STATE_RECOVERED` without starting another mutation. Other explicit errors are `STATE_BUSY`, `STATE_RECOVERY_REQUIRED`, and `STATE_CONFLICT`; their hints tell callers how to inspect or retry safely.
+
+Session formats require no migration. Files and directory metadata are flushed where supported; process-crash recovery is guaranteed, while power-loss durability depends on the operating system and filesystem. Direct editor writes and older processes do not participate in this protocol. Do not downgrade while a committed journal remains. See [state usage](usage.md#concurrent-updates-and-recovery) for the optional digest-guarded CLI form.
 
 ### MCP Server Packaging
 
@@ -258,6 +287,8 @@ Ephemeral state is stored in `os.tmpdir()/maestro-hooks-<uid>/` (override with `
 ## Settings Resolution
 
 Settings resolve with precedence: environment variable → workspace `.env` → extension `.env` → default. Each setting, its default, and its allowed values are listed in [docs/usage.md](usage.md#settings); `src/config/settings-catalog.js` is the canonical list.
+
+Each `resolve_settings` request creates a lazy resolver that reads each reached `.env` path once, including missing or unreadable files. Logical consultations replay parser warnings in their original order and multiplicity. Environment variables remain live, scalar `resolveSetting` calls remain fresh, and parsed files are snapshots only for the current request. Agent and resource reads likewise remain fresh between requests.
 
 ## CI and Testing
 

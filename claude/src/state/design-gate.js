@@ -1,0 +1,185 @@
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const { ValidationError, StateError } = require('../lib/errors');
+const { readJsonSafe } = require('../lib/io');
+
+const GATE_FILENAME = '.design-gate.json';
+
+/**
+ * Directory holding every session's gate file: `<state_dir>/state`.
+ * @param {string} basePath
+ * @returns {string}
+ */
+function gateDir(basePath) {
+  return path.join(basePath, 'state');
+}
+
+/**
+ * Resolves the filesystem path for the gate file for a given session.
+ * @param {string} basePath
+ * @param {string} sessionId
+ * @returns {string}
+ */
+function gatePath(basePath, sessionId) {
+  return path.join(gateDir(basePath), `${sessionId}${GATE_FILENAME}`);
+}
+
+/**
+ * @param {string} basePath
+ * @param {string} sessionId
+ * @returns {{ session_id: string, entered_at: string | null, approved_at: string | null, design_document_path: string | null } | null}
+ */
+function readGate(basePath, sessionId, tx) {
+  const filePath = gatePath(basePath, sessionId);
+  if (!tx) return readJsonSafe(filePath);
+  try { return JSON.parse(tx.readFile(filePath, 'utf8')); } catch { return null; }
+}
+
+function createGate(sessionId, enteredAt = null) {
+  return {
+    session_id: sessionId,
+    entered_at: enteredAt,
+    approved_at: null,
+    design_document_path: null,
+  };
+}
+
+/**
+ * @param {string} basePath
+ * @param {string} sessionId
+ * @param {object} data
+ */
+function writeGate(basePath, sessionId, data, tx) {
+  const filePath = gatePath(basePath, sessionId);
+  tx.mkdir(path.dirname(filePath), { recursive: true });
+  tx.writeFile(filePath, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Find approved design gates whose session_id does not match the caller's.
+ * The orchestrator must use a single session_id from enter_design_gate through
+ * archive_session; a mismatched approved gate signals either (a) an in-flight
+ * workflow the caller forgot to continue with the original id or (b) an
+ * abandoned prior run. create_session uses this to fail fast rather than
+ * silently discard the approved design document.
+ *
+ * Reads the `state/` directory once and parses each `<session_id>.design-gate.json`
+ * artifact. Corrupt or unapproved gate files are skipped silently.
+ *
+ * @param {string} basePath
+ * @param {string} currentSessionId
+ * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
+ */
+function findOrphanedApprovedGates(basePath, currentSessionId, tx) {
+  const stateDir = gateDir(basePath);
+  let entries;
+  try {
+    entries = fs.readdirSync(stateDir);
+  } catch {
+    return [];
+  }
+  const gates = [];
+  for (const entry of entries) {
+    if (!entry.endsWith(GATE_FILENAME)) continue;
+    const sessionId = entry.slice(0, -GATE_FILENAME.length);
+    if (sessionId.length === 0 || sessionId === currentSessionId) continue;
+    // Unreadable or corrupt gates read as null and are skipped; detection is best-effort.
+    const gate = readJsonSafe(path.join(stateDir, entry));
+    if (gate && typeof gate.approved_at === 'string' && gate.approved_at.length > 0) {
+      gates.push({
+        session_id: sessionId,
+        approved_at: gate.approved_at,
+        design_document_path: gate.design_document_path || null,
+      });
+    }
+  }
+  return gates;
+}
+
+/**
+ * Reject create_session when an approved design gate exists for a different
+ * session_id. This signals the orchestrator drifted away from the session_id
+ * it entered the gate with — silently proceeding would strand the approved
+ * design document because create_session looks the gate up by session_id.
+ * The error names the orphaned ids and describes remediation so the caller
+ * can either align on the original id or delete the stale gate file before
+ * retrying.
+ *
+ * @param {string} basePath
+ * @param {string} currentSessionId
+ * @throws {ValidationError} when an orphaned approved gate is detected
+ */
+function assertNoOrphanedApprovedGate(basePath, currentSessionId, tx) {
+  const orphans = findOrphanedApprovedGates(basePath, currentSessionId, tx);
+  if (orphans.length === 0) return;
+
+  const orphanedIds = orphans.map((gate) => gate.session_id);
+  const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
+  const stalePaths = orphans
+    .map((g) => `<state_dir>/state/${g.session_id}${GATE_FILENAME}`)
+    .join(', ');
+  throw new ValidationError(
+    `Approved design gate exists for session ${idList} but create_session was called with '${currentSessionId}'. Session IDs must match across enter_design_gate, record_design_approval, and create_session. Either call create_session with the matching session_id, or delete the stale gate file(s) at ${stalePaths} and re-enter the gate with '${currentSessionId}'.`,
+    {
+      code: 'DESIGN_GATE_SESSION_MISMATCH',
+      details: {
+        current_session_id: currentSessionId,
+        orphaned_session_ids: orphanedIds,
+      },
+    }
+  );
+}
+
+/**
+ * Read the current session's design gate and enforce create_session's gate
+ * preconditions. The orphaned-gate check runs only when the current session
+ * has no gate: a current-session gate (approved or not) is the normal
+ * approve-then-create flow, and any leftover gate from a prior workflow in the
+ * same workspace is benign alongside the valid one.
+ *
+ * @param {string} basePath
+ * @param {string} sessionId
+ * @returns {ReturnType<typeof readGate>} the current session's gate, or null when none exists
+ * @throws {ValidationError} DESIGN_GATE_SESSION_MISMATCH when an orphaned approved gate is detected
+ * @throws {StateError} DESIGN_GATE_UNAPPROVED when the gate was entered but not approved
+ */
+function readGateForCreateSession(basePath, sessionId, tx) {
+  const gate = readGate(basePath, sessionId, tx);
+  if (gate === null) {
+    assertNoOrphanedApprovedGate(basePath, sessionId, tx);
+  }
+
+  if (gate && gate.entered_at && !gate.approved_at) {
+    throw new StateError(
+      'Design gate entered but not approved. Call record_design_approval before create_session.',
+      { code: 'DESIGN_GATE_UNAPPROVED' }
+    );
+  }
+
+  return gate;
+}
+
+/**
+ * Remove the design-gate artifact for a session. Called by archive_session so
+ * the gate doesn't linger in state/ after the session is archived — otherwise
+ * a future session reusing the same id would inherit a stale "already approved"
+ * gate from the prior run.
+ * @param {string} basePath
+ * @param {string} sessionId
+ */
+function removeDesignGate(basePath, sessionId, tx) {
+  const filePath = gatePath(basePath, sessionId);
+  if (tx.exists(filePath)) tx.unlink(filePath);
+}
+
+module.exports = {
+  createGate,
+  readGate,
+  writeGate,
+  findOrphanedApprovedGates,
+  readGateForCreateSession,
+  removeDesignGate,
+};

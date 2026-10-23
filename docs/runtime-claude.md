@@ -179,7 +179,7 @@ claude/
 ├── agents/                [generated] 39 agent stubs (kebab-case)
 ├── skills/                [generated] 19 skill directories
 ├── hooks/                 [generated] claude-hooks.json
-├── scripts/               hook-runner.js and policy-enforcer.js shims (hand-maintained)
+├── scripts/               generated hook-runner.js and policy-enforcer.js wrappers
 ├── mcp/                   maestro-server.js shim (hand-maintained)
 ├── src/                   [generated] detached runtime payload for isolated installs
 ├── .claude-plugin/        [generated] plugin.json manifest
