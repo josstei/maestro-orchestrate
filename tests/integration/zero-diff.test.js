@@ -35,6 +35,8 @@ describe('zero-diff validation', () => {
       'policies/maestro.toml',
       'commands/maestro/orchestrate.toml',
       'commands/maestro/review.toml',
+      'mcp/maestro-server.js',
+      'hooks/hook-runner.js',
     ]) {
       assert.ok(outputPaths.includes(qwenOwned), `Expected ${qwenOwned} in generator output`);
     }
@@ -49,28 +51,35 @@ describe('zero-diff validation', () => {
       'antigravity/agents/architect.md',
       'antigravity/skills/orchestrate/SKILL.md',
       'antigravity/skills/delegation/SKILL.md',
+      'antigravity/mcp/maestro-server.js',
+      'antigravity/hooks/hook-runner.js',
+      'antigravity/hooks/policy-enforcer.js',
     ]) {
       assert.ok(outputPaths.includes(antigravityOwned), `Expected ${antigravityOwned} in generator output`);
     }
     assert.deepEqual(
       outputPaths.filter(
         (outputPath) =>
-          outputPath.startsWith('antigravity/') &&
-          !/^antigravity\/(plugin\.json|mcp_config\.json|hooks\.json|agents\/[a-z0-9-]+\.md|skills\/[a-z0-9-]+\/SKILL\.md)$/.test(outputPath)
+          outputPath.startsWith('antigravity/') && !outputPath.startsWith('antigravity/src/') &&
+          !/^antigravity\/(plugin\.json|mcp_config\.json|hooks\.json|agents\/[a-z0-9-]+\.md|skills\/[a-z0-9-]+\/SKILL\.md|mcp\/maestro-server\.js|hooks\/(hook-runner|policy-enforcer)\.js)$/.test(outputPath)
       ),
       [],
-      'Did not expect generated Antigravity outputs beyond the metadata, agents/ and skills/ (README.md and the shims are hand-maintained)'
+      'Did not expect generated Antigravity outputs beyond metadata, agents, skills and entrypoints'
     );
     assert.ok(
       report.statusLines.every((line) => !line.includes('canonical-source.js')),
       'Did not expect canonical-source copies in generator output'
     );
+    for (const entrypoint of [
+      'claude/mcp/maestro-server.js',
+      'claude/scripts/hook-runner.js',
+      'claude/scripts/policy-enforcer.js',
+      'bin/maestro-mcp-server.js',
+    ]) {
+      assert.ok(outputPaths.includes(entrypoint), `Expected ${entrypoint} in generator output`);
+    }
     assert.ok(
-      report.statusLines.every((line) => !line.includes('hooks/hook-runner.js')),
-      'Did not expect generated hook-runner in generator output'
-    );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('/lib/')),
+      outputPaths.every((file) => !/^(?:antigravity|claude|plugins\/maestro)\/lib\//.test(file)),
       'Did not expect mirrored lib outputs in dry-run status'
     );
     assert.deepEqual(
@@ -80,6 +89,10 @@ describe('zero-diff validation', () => {
       [],
       'Did not expect removed Gemini outputs (gemini-extension.json, GEMINI.md, hooks/hooks.json) in generator output'
     );
+    for (const payload of ['antigravity/src', 'claude/src', 'plugins/maestro/src']) {
+      assert.ok(outputPaths.includes(`${payload}/mcp/maestro-server.js`));
+      assert.ok(outputPaths.includes(`${payload}/scripts/write-state.js`));
+    }
     assert.deepEqual(
       report.driftLines,
       [],

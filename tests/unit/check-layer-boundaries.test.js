@@ -13,7 +13,7 @@ const SCRIPT = path.join(ROOT, 'scripts', 'check-layer-boundaries.js');
 
 /**
  * Build a scratch repo that mirrors the expected layout so the script's
- * hardcoded `path.resolve(__dirname, '..', 'src', 'lib')` resolves onto
+ * hardcoded source root resolves onto
  * a directory we control.
  */
 function makeFixtureRepo() {
@@ -21,6 +21,7 @@ function makeFixtureRepo() {
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'src', 'lib'), { recursive: true });
   fs.copyFileSync(SCRIPT, path.join(root, 'scripts', 'check-layer-boundaries.js'));
+  writeTree(root, 'src/generator/dependency-graph.js', fs.readFileSync(path.join(ROOT, 'src/generator/dependency-graph.js'), 'utf8'));
   return root;
 }
 
@@ -31,6 +32,7 @@ function writeLibFile(root, relPath, contents) {
 function runScript(root) {
   return spawnSync(process.execPath, [path.join(root, 'scripts', 'check-layer-boundaries.js')], {
     cwd: root,
+    env: { ...process.env, NODE_PATH: path.join(ROOT, 'node_modules') },
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
   });
@@ -45,11 +47,19 @@ describe('check-layer-boundaries (real repo smoke test)', () => {
 });
 
 describe('check-layer-boundaries (fixture cases)', () => {
-  it('exits 0 and reports 0 files scanned for an empty lib directory', () => {
+  it('does not report success when the required lib root is missing', () => {
+    const root = makeFixtureRepo();
+    fs.rmdirSync(path.join(root, 'src', 'lib'));
+    const result = runScript(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /ENOENT/);
+  });
+
+  it('exits 0 and reports the analyzer only for an empty lib directory', () => {
     const root = makeFixtureRepo();
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /0 files scanned, 0 violations/);
+    assert.match(result.stdout, /1 files scanned, 0 violations/);
   });
 
   it('allows relative imports that stay inside src/lib', () => {
@@ -58,7 +68,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'helper.js', "module.exports = 1;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /2 files scanned, 0 violations/);
+    assert.match(result.stdout, /3 files scanned, 0 violations/);
   });
 
   it('allows node: built-in imports', () => {
@@ -70,6 +80,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
 
   it('flags relative imports that escape the lib boundary', () => {
     const root = makeFixtureRepo();
+    writeTree(root, 'src/core/logger.js');
     writeLibFile(root, 'leaky.js', "const x = require('../core/logger');\n");
     const result = runScript(root);
     assert.equal(result.status, 1);
@@ -81,6 +92,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
 
   it('flags relative imports into a sibling directory that shares the lib prefix', () => {
     const root = makeFixtureRepo();
+    writeTree(root, 'src/lib-extra/x.js');
     writeLibFile(root, 'sneaky.js', "const x = require('../lib-extra/x');\n");
     const result = runScript(root);
     assert.equal(result.status, 1);
@@ -93,7 +105,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'nested/user.js', "const lib = require('..');\nmodule.exports = lib;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /2 files scanned, 0 violations/);
+    assert.match(result.stdout, /3 files scanned, 0 violations/);
   });
 
   it('flags non-relative, non-node imports as violations', () => {
@@ -117,6 +129,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
   it('reports multiple violations across several files', () => {
     const root = makeFixtureRepo();
     writeLibFile(root, 'one.js', "require('lodash');\n");
+    writeTree(root, 'src/core/x.js');
     writeLibFile(root, 'two.js', "require('../core/x');\n");
     writeLibFile(root, 'three.js', "require('./three-helper');\n");
     writeLibFile(root, 'three-helper.js', "module.exports = 1;\n");
@@ -135,6 +148,43 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'other.js', "module.exports = 1;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /2 files scanned, 0 violations/);
+    assert.match(result.stdout, /3 files scanned, 0 violations/);
+  });
+
+  it('allows lower layers to depend on their declared shared layers', () => {
+    const root = makeFixtureRepo();
+    for (const [file, imports] of Object.entries({
+      'core/agent-registry.js': ['../lib/naming', '../generated/agent-registry.json'],
+      'config/setting-resolver.js': ['../core/env-file-parser'],
+      'state/design-gate.js': ['../lib/io', '../core/markdown-state', '../config/setting-resolver', './session-state'],
+      'hooks/logic/before-agent-logic.js': ['../../state/session-state', '../../core/logger', './hook-state'],
+    })) {
+      writeTree(path.join(root, 'src'), file, imports.map((name) => `require('${name}');`).join('\n'));
+    }
+    for (const file of ['lib/naming.js', 'lib/io.js', 'core/env-file-parser.js', 'core/markdown-state.js', 'core/logger.js', 'state/session-state.js', 'hooks/logic/hook-state.js']) {
+      writeTree(root, 'src/' + file);
+    }
+    writeTree(root, 'src/generated/agent-registry.json', '[]');
+    const result = runScript(root);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /12 files scanned, 0 violations/);
+  });
+
+  it('rejects reverse dependencies into handlers, host adapters and generation', () => {
+    const root = makeFixtureRepo();
+    for (const [file, dependency] of Object.entries({
+      'core/leaky.js': '../config/setting-resolver',
+      'config/leaky.js': '../state/session-state',
+      'state/leaky.js': '../mcp/handlers/design-gate',
+      'hooks/logic/leaky.js': '../../platforms/claude/hook-adapter',
+      'state/build.js': '../generator/file-writer',
+      'state/prefix.js': '../state-extra/store',
+    })) {
+      writeTree(path.join(root, 'src'), file, `require('${dependency}');\n`);
+      writeTree(root, path.relative(root, path.resolve(root, 'src', path.dirname(file), dependency)) + '.js');
+    }
+    const result = runScript(root);
+    assert.equal(result.status, 1);
+    assert.equal((result.stderr.match(/ — resolves to /g) || []).length, 6);
   });
 });

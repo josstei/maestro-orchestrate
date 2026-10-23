@@ -38,9 +38,10 @@ function walk(dir, rootDir, out) {
  * @param {string} opts.rootDir - Absolute path to the project root
  * @param {Set<string>} opts.manifestPaths - Set of all valid manifest output paths (forward-slash relative)
  * @param {string[]} opts.ownedDirs - Relative directory paths the generator owns
+ * @param {boolean} [opts.dryRun=false] - List stale files without deleting anything
  * @returns {{ pruned: string[], emptyDirsRemoved: string[] }}
  */
-function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
+function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs, dryRun = false }) {
   const emptyDirsRemoved = [];
 
   const owned = { files: [], dirs: [] };
@@ -49,6 +50,7 @@ function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs }) {
   }
 
   const pruned = owned.files.filter((filePath) => !manifestPaths.has(filePath));
+  if (dryRun) return { pruned, emptyDirsRemoved };
   for (const filePath of pruned) {
     fs.unlinkSync(path.join(rootDir, filePath));
   }

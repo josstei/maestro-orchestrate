@@ -238,7 +238,7 @@ describe('antigravity plugin layout', () => {
     }
   });
 
-  it('keeps the hand-maintained shims, each with its bundled entry point', () => {
+  it('keeps the public wrappers, each with its bundled entry point', () => {
     for (const [shim, bundledEntry] of [
       ['mcp/maestro-server.js', 'src/mcp/maestro-server.js'],
       ['hooks/hook-runner.js', 'src/platforms/shared/hook-runner.js'],

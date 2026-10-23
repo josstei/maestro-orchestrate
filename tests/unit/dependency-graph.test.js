@@ -1,0 +1,204 @@
+'use strict';
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { buildDependencyGraph, getDependencyClosure } = require('../../src/generator/dependency-graph');
+const { makeTempDir, writeTree } = require('../support/fs');
+const { SRC_ROOT } = require('../support/paths');
+
+function fixture(files) {
+  const rootDir = makeTempDir('maestro-graph-');
+  for (const [file, source] of Object.entries(files)) writeTree(rootDir, file, source);
+  return rootDir;
+}
+const codes = (graph) => graph.issues.map((issue) => issue.code);
+
+describe('dependency graph', () => {
+  it('finds static CommonJS, require.resolve, ESM, reexports, and literal imports', () => {
+    const rootDir = fixture({
+      'mcp/main.js': [
+        "require('./plain'); require.resolve('./config');",
+        "import x from './esm.js'; export { x } from './esm.js';",
+        "export * from './other.js'; import('./late.js'); require(`./folder`);",
+        'if (require.main === module) console.log(x);',
+      ].join('\n'),
+      'mcp/plain.js': '', 'mcp/config.json': '{}', 'mcp/esm.js': 'export const x = 1;',
+      'mcp/other.js': '', 'mcp/late.js': '', 'mcp/folder/index.js': '',
+    });
+    const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
+    assert.deepEqual(graph.issues, []);
+    assert.deepEqual(graph.reachable, [
+      'mcp/config.json', 'mcp/esm.js', 'mcp/folder/index.js', 'mcp/late.js',
+      'mcp/main.js', 'mcp/other.js', 'mcp/plain.js',
+    ]);
+    assert.deepEqual([...new Set(graph.edges.map((edge) => edge.kind))].sort(), ['import', 'require', 'require.resolve']);
+  });
+
+  it('ignores pretend imports inside comments, strings, regexes, and template text', () => {
+    const rootDir = fixture({ 'lib/main.js': [
+      '// require("./missing")',
+      'const text = "require(\'./missing\')";',
+      'const template = `import("./missing")`;',
+      'const pattern = /require\("missing"\)/;',
+    ].join('\n') });
+    const graph = buildDependencyGraph({ rootDir });
+    assert.deepEqual(graph.issues, []);
+    assert.deepEqual(graph.edges, []);
+  });
+
+  it('still visits actual imports inside template expressions', () => {
+    const rootDir = fixture({ 'lib/main.js': 'const text = `${require("./actual")}`;', 'lib/actual.js': '' });
+    const graph = buildDependencyGraph({ rootDir });
+    assert.deepEqual(graph.issues, []);
+    assert.equal(graph.edges[0].to, 'lib/actual.js');
+  });
+
+  it('rejects missing modules, computed imports, and malformed JavaScript', () => {
+    const rootDir = fixture({
+      'lib/missing.js': "require('./absent');",
+      'lib/computed.js': 'require(name); import(name);',
+      'lib/malformed.js': 'function {',
+    });
+    const graph = buildDependencyGraph({ rootDir });
+    assert.deepEqual(codes(graph).sort(), ['DYNAMIC_DEPENDENCY', 'DYNAMIC_DEPENDENCY', 'MISSING_DEPENDENCY', 'PARSE_ERROR']);
+  });
+
+  for (const [name, source] of Object.entries({
+    alias: "const load = require; load('./missing');",
+    resolveAlias: "const resolve = require.resolve; resolve('./missing');",
+    shadow: "function load(require) { require('./missing'); }",
+    declaration: "const require = () => {}; require('./missing');",
+    reassignment: "require = (name) => name; require('./actual');",
+    indirect: "require['resolve']('./missing');",
+    module: "module.require('./missing');",
+    moduleComputed: "module['require']('./missing');",
+    moduleAlias: "const load = module.require; load('./missing');",
+    moduleDestructured: "const { require: load } = module; load('./missing');",
+    moduleObjectAlias: "const loader = module; loader.require('./missing');",
+    moduleArgument: "function load(m) { m.require('./missing'); } load(module);",
+    moduleSequence: "const loader = (0, module); loader.require('./missing');",
+    moduleParent: "module.parent.require('./missing');",
+    createRequire: "const { createRequire } = require('node:module'); createRequire(__filename)('./missing');",
+    createRequireNamespace: "const loader = require('node:module'); loader.createRequire(__filename)('./missing');",
+    createRequireImport: "import { createRequire as loader } from 'node:module'; loader(import.meta.url)('./missing');",
+  })) {
+    it(`rejects unsupported ${name} require usage`, () => {
+      const rootDir = fixture({ 'lib/main.js': source, 'lib/actual.js': '' });
+      const graph = buildDependencyGraph({ rootDir });
+      assert.ok(codes(graph).includes('UNSUPPORTED_REQUIRE'), JSON.stringify(graph));
+      if (name === 'shadow' || name === 'declaration') assert.deepEqual(graph.edges, []);
+    });
+  }
+
+  it('resolves actual symlink targets before checking layer containment', () => {
+    const rootDir = fixture({ 'lib/main.js': "require('./linked');", 'core/actual.js': '' });
+    fs.symlinkSync(path.join(rootDir, 'core', 'actual.js'), path.join(rootDir, 'lib', 'linked.js'));
+    const graph = buildDependencyGraph({ rootDir, roots: ['lib/main.js'] });
+    assert.ok(codes(graph).includes('LAYER_BOUNDARY'));
+    assert.ok(codes(graph).includes('SYMLINK_DEPENDENCY'));
+    assert.equal(graph.edges[0].to, 'core/actual.js');
+  });
+
+  it('rejects symlink escapes from canonical source', () => {
+    const outside = fixture({ 'outside.js': '' });
+    const rootDir = fixture({ 'lib/main.js': "require('./linked');" });
+    fs.symlinkSync(path.join(outside, 'outside.js'), path.join(rootDir, 'lib', 'linked.js'));
+    assert.deepEqual(codes(buildDependencyGraph({ rootDir })), ['OUTSIDE_ROOT']);
+  });
+
+  it('checks physical containment even when a generated file has fresh override bytes', () => {
+    const outside = fixture({ 'registry.json': '{}' });
+    const rootDir = fixture({ 'core/main.js': "require('../generated/registry.json');" });
+    fs.mkdirSync(path.join(rootDir, 'generated'));
+    fs.symlinkSync(path.join(outside, 'registry.json'), path.join(rootDir, 'generated', 'registry.json'));
+    const graph = buildDependencyGraph({ rootDir, sourceOverrides: new Map([['generated/registry.json', '{}']]) });
+    assert.deepEqual(codes(graph), ['OUTSIDE_ROOT']);
+  });
+
+  it('checks symlink ancestors of not-yet-written override files', () => {
+    const outside = fixture({ 'other.json': '{}' });
+    const rootDir = fixture({ 'core/main.js': "require('../generated/fresh.json');" });
+    fs.symlinkSync(outside, path.join(rootDir, 'generated'), 'dir');
+    const graph = buildDependencyGraph({ rootDir, sourceOverrides: new Map([['generated/fresh.json', '{}']]) });
+    assert.deepEqual(codes(graph), ['OUTSIDE_ROOT']);
+  });
+
+  it('rejects nonexistent Node builtins', () => {
+    const rootDir = fixture({ 'core/main.js': "require('node:definitely-not-real');" });
+    assert.deepEqual(codes(buildDependencyGraph({ rootDir })), ['INVALID_BUILTIN']);
+  });
+
+  it('reports cycles with a deterministic concrete path', () => {
+    const rootDir = fixture({ 'lib/a.js': "require('./b');", 'lib/b.js': "require('./a');" });
+    const first = buildDependencyGraph({ rootDir });
+    assert.deepEqual(first, buildDependencyGraph({ rootDir }));
+    assert.deepEqual(codes(first), ['DEPENDENCY_CYCLE']);
+    assert.match(first.issues[0].message, /lib\/a.js -> lib\/b.js -> lib\/a.js/);
+  });
+
+  it('permits build dependencies but rejects runtime imports of parser/build modules', () => {
+    const rootDir = fixture({
+      'generator/compiler.js': "require('acorn');",
+      'mcp/runtime.js': "require('../generator/compiler'); require('acorn');",
+    });
+    const graph = buildDependencyGraph({ rootDir });
+    assert.deepEqual(codes(graph).sort(), ['EXTERNAL_DEPENDENCY', 'RUNTIME_BUILD_DEPENDENCY']);
+  });
+
+  it('expands finite dynamic targets with a runtime filter and fresh registry overrides', () => {
+    const rootDir = fixture({
+      'platforms/runtime-config-map.js': '// maestro-dependencies: runtime-configs\nrequire(configPath);',
+      'platforms/shared/hook-runner.js': [
+        '// maestro-dependencies: hook-adapters', 'require(adapterPath);',
+        '// maestro-dependencies: hook-handlers', 'require(logicPath);',
+      ].join('\n'),
+      'platforms/claude/runtime-config.js': '', 'platforms/claude/hook-adapter.js': '',
+      'platforms/antigravity/runtime-config.js': '', 'platforms/antigravity/hook-adapter.js': '',
+      'generated/hook-registry.json': '{"stale":{"module":"hooks/stale.js"}}',
+      'hooks/fresh.js': '',
+    });
+    const options = { rootDir, runtime: 'claude', roots: ['platforms/runtime-config-map.js', 'platforms/shared/hook-runner.js'],
+      sourceOverrides: new Map([['generated/hook-registry.json', '{"fresh":{"module":"hooks/fresh.js"}}']]) };
+    const graph = buildDependencyGraph(options);
+    assert.deepEqual(graph.issues, []);
+    assert.ok(graph.reachable.includes('hooks/fresh.js'));
+    assert.ok(graph.reachable.includes('platforms/claude/hook-adapter.js'));
+    assert.ok(!graph.reachable.some((file) => file.includes('antigravity') || file.includes('stale')));
+    const all = buildDependencyGraph({ ...options, runtime: undefined });
+    assert.ok(all.reachable.includes('platforms/antigravity/runtime-config.js'));
+  });
+
+  it('rejects unknown, stale and targetless dynamic annotations', () => {
+    const rootDir = fixture({
+      'mcp/unknown.js': '// maestro-dependencies: magic\nrequire(value);',
+      'mcp/stale.js': '// maestro-dependencies: runtime-configs\nrequire("node:fs");',
+      'mcp/empty.js': '// maestro-dependencies: runtime-configs\nrequire(value);',
+    });
+    const graph = buildDependencyGraph({ rootDir });
+    assert.ok(codes(graph).includes('UNKNOWN_ANNOTATION'));
+    assert.ok(codes(graph).includes('STALE_ANNOTATION'));
+    assert.ok(codes(graph).includes('INVALID_ANNOTATION_TARGETS'));
+  });
+
+  it('keeps content roots and reports only reachable dependencies for payload requests', () => {
+    const rootDir = fixture({ 'mcp/main.js': "require('./helper');", 'mcp/helper.js': '',
+      'agents/coder.md': '# Coder', 'unused.js': 'require(missing);' });
+    const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js', 'agents/coder.md'] });
+    assert.deepEqual(graph.issues, []);
+    assert.deepEqual(graph.reachable, ['agents/coder.md', 'mcp/helper.js', 'mcp/main.js']);
+    assert.deepEqual(getDependencyClosure(graph, ['mcp/main.js']), ['mcp/helper.js', 'mcp/main.js']);
+  });
+
+  it('validates the canonical graph without runtime parser dependencies', () => {
+    const full = buildDependencyGraph({ rootDir: SRC_ROOT });
+    assert.deepEqual(full.issues, []);
+    for (const runtime of ['antigravity', 'claude', 'codex', 'qwen']) {
+      const graph = buildDependencyGraph({ rootDir: SRC_ROOT, runtime, roots: ['mcp/maestro-server.js'] });
+      assert.deepEqual(graph.issues, []);
+      assert.ok(!graph.reachable.some((file) => file.startsWith('generator/')));
+      assert.ok(graph.reachable.includes(`platforms/${runtime}/runtime-config.js`));
+    }
+  });
+});

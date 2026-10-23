@@ -146,6 +146,10 @@ jobs:
             exit 1
           fi
 
+      - name: Install build dependencies
+        if: steps.detect.outputs.is_release == 'true'
+        run: npm ci
+
       - name: Generate runtime adapters
         if: steps.detect.outputs.is_release == 'true'
         run: node scripts/generate.js

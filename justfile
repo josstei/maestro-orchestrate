@@ -18,7 +18,7 @@ help:
     @echo ""
     @echo "CI:"
     @echo "  just check            Generate + verify zero drift"
-    @echo "  just check-layers     Verify lib/ layer boundary"
+    @echo "  just check-layers     Verify shared source layer boundaries"
     @echo "  just ci               Full CI equivalent (check + check-layers + test)"
     @echo ""
     @echo "Maintenance:"
@@ -70,7 +70,7 @@ check: generate
     fi
     echo "No drift detected."
 
-# Verify lib/ layer boundary (no imports outside lib/ or node:*)
+# Verify lower-layer dependencies (lib, core, config, state and hooks)
 check-layers:
     node scripts/check-layer-boundaries.js
 

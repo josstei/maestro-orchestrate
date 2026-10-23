@@ -8,13 +8,21 @@ const { makeTempDir, removeDir } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 
 const DRY_RUN_MARKER = '(dry-run — no files written)';
-const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
+const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED|REMOVE)\] /;
+
+function generatorEnv() {
+  return {
+    ...process.env,
+    NODE_PATH: [path.join(ROOT, 'node_modules'), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+  };
+}
 
 function runGenerator(args = [], options = {}) {
   const cwd = options.cwd || ROOT;
 
   return execFileSync(process.execPath, ['scripts/generate.js', ...args], {
     cwd,
+    env: generatorEnv(),
     encoding: 'utf8',
   });
 }
@@ -22,6 +30,7 @@ function runGenerator(args = [], options = {}) {
 function runGeneratorExpectFailure(args = [], options = {}) {
   const result = spawnSync(process.execPath, ['scripts/generate.js', ...args], {
     cwd: options.cwd || ROOT,
+    env: generatorEnv(),
     encoding: 'utf8',
   });
 
@@ -82,6 +91,11 @@ async function withPluginCopy(prefix, sourceDir, installSegments, fn) {
   }
 }
 
+/** Runs `fn` against a copy of plugins/maestro/ installed as a standalone plugin. */
+function withIsolatedCodexPlugin(fn) {
+  return withPluginCopy('maestro-codex-plugin-', 'plugins/maestro', ['maestro'], fn);
+}
+
 /** Runs `fn` against a copy of claude/ installed as a standalone plugin. */
 function withIsolatedClaudePlugin(fn) {
   return withPluginCopy('maestro-claude-plugin-', 'claude', ['maestro'], fn);
@@ -114,7 +128,7 @@ function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
         return true;
       }
 
-      return !relativePath.split(path.sep).includes('.git');
+      return !relativePath.split(path.sep).some((part) => part === '.git' || part === 'node_modules');
     },
   });
 
@@ -151,5 +165,6 @@ module.exports = {
   runGeneratorExpectFailure,
   withIsolatedAntigravityPlugin,
   withIsolatedClaudePlugin,
+  withIsolatedCodexPlugin,
   withTempRepoCopy,
 };
