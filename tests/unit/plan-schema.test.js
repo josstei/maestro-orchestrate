@@ -52,6 +52,21 @@ describe('plan-schema', () => {
     assert.equal(result.violations[0].field, 'agent');
   });
 
+  it('reports missing fields before invalid values in contract order', () => {
+    const result = validatePhases([{ id: 0, name: '', parallel: null, files: [false] }]);
+    assert.deepEqual(result, {
+      valid: false,
+      violations: [
+        { rule: 'missing_required_field', phase_id: 0, field: 'agent', severity: 'error' },
+        { rule: 'missing_required_field', phase_id: 0, field: 'blocked_by', severity: 'error' },
+        { rule: 'invalid_field_type', phase_id: 0, field: 'id', severity: 'error' },
+        { rule: 'invalid_field_type', phase_id: 0, field: 'name', severity: 'error' },
+        { rule: 'invalid_field_type', phase_id: 0, field: 'parallel', severity: 'error' },
+        { rule: 'invalid_field_value', phase_id: 0, field: 'files', severity: 'error' },
+      ],
+    });
+  });
+
   it('rejects non-string agent values', () => {
     const result = validatePhases([
       { id: 'p1', name: 'A', agent: 42, parallel: false, blocked_by: [] },

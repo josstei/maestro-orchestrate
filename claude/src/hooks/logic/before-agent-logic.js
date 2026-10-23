@@ -6,7 +6,8 @@ const { readFileSafe } = require('../../lib/io');
 const markdownState = require('../../core/markdown-state');
 const { resolveHookWorkspaceRoot } = require('../../core/project-root-resolver');
 const hookState = require('./hook-state');
-const state = require('../../state/session-state');
+const { resolveStateDirPath, activeSessionFile } = require('../../state/paths');
+const { withStateRead } = require('../../state/coordinator');
 
 /**
  * Builds the `key=value` context parts from active-session.md. Sessions created
@@ -35,13 +36,16 @@ function summarizeSession(content) {
  * resolveHookWorkspaceRoot). A state-dir resolution error yields no context
  * rather than failing the hook (which would block the agent).
  * @param {string|undefined} cwd
- * @returns {string[]}
+ * @returns {Promise<string[]>}
  */
-function readSessionSummary(cwd) {
+async function readSessionSummary(cwd) {
   let content;
   try {
     const root = resolveHookWorkspaceRoot(cwd);
-    content = readFileSafe(state.resolveActiveSessionPath(root), '');
+    const basePath = resolveStateDirPath(root);
+    content = await withStateRead(basePath,
+      () => readFileSafe(activeSessionFile(basePath), ''),
+      { timeoutMs: 250 });
   } catch (err) {
     log('WARN', `BeforeAgent: could not resolve session state: ${err.message}`);
     return [];
@@ -64,9 +68,9 @@ function readSessionSummary(cwd) {
  * @param {string} ctx.cwd
  * @param {string|null} ctx.agentInput  - the agent prompt text
  * @param {string|null} ctx.agentName   - the dispatched agent's name
- * @returns {{ action: string, message: string|null, reason: null }}
+ * @returns {Promise<{ action: string, message: string|null, reason: null }>}
  */
-function handleBeforeAgent(ctx) {
+async function handleBeforeAgent(ctx) {
   hookState.pruneStale();
 
   const agentName = detectAgentFromPrompt(ctx.agentInput) || normalizeAgentName(ctx.agentName);
@@ -75,7 +79,7 @@ function handleBeforeAgent(ctx) {
     log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }
 
-  const parts = readSessionSummary(ctx.cwd);
+  const parts = await readSessionSummary(ctx.cwd);
   const message = parts.length > 0 ? `Active session: ${parts.join(', ')}` : null;
   return { action: 'allow', message, reason: null };
 }

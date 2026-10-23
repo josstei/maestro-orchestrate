@@ -3,18 +3,22 @@
 
 const fs = require('node:fs');
 const { resolveProjectRoot } = require('../core/project-root-resolver');
-const { resolveActiveSessionPath } = require('../state/session-state');
+const { activeSessionFile, resolveStateDirPath } = require('../state/paths');
+const { withStateRead } = require('../state/coordinator');
+const { fatal } = require('../core/logger');
+const { stateErrorMessage } = require('./state-access');
 
-function main() {
+async function main() {
   const projectRoot = resolveProjectRoot();
 
   try {
-    const sessionPath = resolveActiveSessionPath(projectRoot);
-    const content = fs.readFileSync(sessionPath, 'utf8');
+    const basePath = resolveStateDirPath(projectRoot);
+    const content = await withStateRead(basePath, () => fs.readFileSync(activeSessionFile(basePath), 'utf8'));
     process.stdout.write(content);
-  } catch {
+  } catch (error) {
+    if (/^STATE_(?:BUSY|RECOVERED|RECOVERY_REQUIRED|CONFLICT)$/.test(error.code)) throw error;
     process.stdout.write('No active session\n');
   }
 }
 
-main();
+main().catch((error) => fatal(stateErrorMessage(error)));

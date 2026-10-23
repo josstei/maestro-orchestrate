@@ -23,6 +23,9 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Install build dependencies
+        run: npm ci
+
       - name: Generate runtime adapters
         run: node scripts/generate.js
 

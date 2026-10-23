@@ -70,14 +70,13 @@ describe('scan_phase_changes', () => {
     const server = await bootstrap(workspace);
 
     await waitForMtime();
-    writeTree(workspace, 'src/foo.js', '// hi\n');
-    writeTree(workspace, 'src/bar.js', '// hi\n');
+    const createdPaths = [path.join('src', 'foo.js'), path.join('src', 'bar.js')];
+    for (const filePath of createdPaths) writeTree(workspace, filePath, '// hi\n');
 
     const outcome = await scan(server, workspace);
     assert.equal(outcome.ok, true);
     const created = outcome.result.candidates.created;
-    assert.ok(created.includes('src/foo.js'));
-    assert.ok(created.includes('src/bar.js'));
+    assert.deepEqual(created, createdPaths.sort());
   });
 
   it('excludes docs/maestro and .git paths', async () => {
@@ -85,14 +84,13 @@ describe('scan_phase_changes', () => {
     const server = await bootstrap(workspace);
 
     await waitForMtime();
-    writeTree(workspace, '.git/HEAD', '...');
-    writeTree(workspace, 'docs/maestro/notes.md', '...');
+    const ignoredPaths = [path.join('.git', 'HEAD'), path.join('docs', 'maestro', 'notes.md')];
+    for (const filePath of ignoredPaths) writeTree(workspace, filePath, '...');
 
     const outcome = await scan(server, workspace);
     assert.equal(outcome.ok, true);
     const created = outcome.result.candidates.created;
-    assert.equal(created.includes('.git/HEAD'), false);
-    assert.equal(created.includes('docs/maestro/notes.md'), false);
+    for (const filePath of ignoredPaths) assert.equal(created.includes(filePath), false);
   });
 
   it('scans nested directories when the server cwd is inside an extension cache', async () => {

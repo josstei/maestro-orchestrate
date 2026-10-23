@@ -38,6 +38,18 @@ describe('safeResolve', () => {
     const resolved = safeResolve('.', tempRoot);
     assert.equal(resolved, tempRoot);
   });
+
+  it('rejects existing and broken symlink outputs and symlink parents', () => {
+    const external = makeTempDir('maestro-fw-external-');
+    fs.symlinkSync(external, path.join(tempRoot, 'linked-dir'), 'dir');
+    assert.throws(() => safeResolve('linked-dir/new.js', tempRoot), /Symlink path is not allowed/);
+    fs.symlinkSync(path.join(external, 'missing.js'), path.join(tempRoot, 'broken.js'));
+    assert.throws(() => safeResolve('broken.js', tempRoot), /Symlink path is not allowed/);
+    fs.writeFileSync(path.join(external, 'existing.js'), 'original');
+    fs.symlinkSync(path.join(external, 'existing.js'), path.join(tempRoot, 'linked.js'));
+    assert.throws(() => safeResolve('linked.js', tempRoot), /Symlink path is not allowed/);
+    assert.equal(fs.readFileSync(path.join(external, 'existing.js'), 'utf8'), 'original');
+  });
 });
 
 describe('FileWriter write', () => {
@@ -164,6 +176,36 @@ describe('FileWriter writeAll', () => {
     assert.equal(fs.readFileSync(path.join(tempRoot, 'nested', 'b.txt'), 'utf8'), 'b');
     assert.equal(writer.getStats().written, 2);
   });
+
+  it('restores executable output permissions and reports mode-only drift without writing in previews', {
+    skip: process.platform === 'win32',
+  }, (t) => {
+    const output = { outputPath: 'bin/command.js', content: '#!/usr/bin/env node\n', mode: 0o755 };
+    const filePath = path.join(tempRoot, output.outputPath);
+    const writer = createFileWriter({ rootDir: tempRoot });
+    writer.writeAll([output]);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o755);
+    fs.chmodSync(filePath, 0o644);
+    const mtime = fs.statSync(filePath).mtimeMs;
+    t.mock.method(console, 'log', () => {});
+
+    for (const options of [{ dryRun: true }, { diffMode: true }]) {
+      createFileWriter({ rootDir: tempRoot, ...options }).writeAll([output]);
+      assert.equal(fs.statSync(filePath).mode & 0o777, 0o644);
+      assert.equal(fs.statSync(filePath).mtimeMs, mtime);
+    }
+    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), [
+      '[UPDATE] bin/command.js',
+      'MODE: bin/command.js -> 755',
+    ]);
+
+    writer.writeAll([output]);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o755);
+    assert.equal(fs.statSync(filePath).mtimeMs, mtime);
+    assert.equal(writer.getStats().written, 2);
+    writer.writeAll([output]);
+    assert.equal(writer.getStats().unchanged, 1);
+  });
 });
 
 describe('FileWriter dryRun mode', () => {
@@ -222,6 +264,17 @@ describe('FileWriter diffMode', () => {
     const dirContents = fs.readdirSync(tempRoot);
     const tmpFiles = dirContents.filter((f) => f.endsWith('.gen-tmp'));
     assert.equal(tmpFiles.length, 0);
+  });
+
+  it('renders an existing-file diff without writing temporary files', (t) => {
+    const filePath = path.join(tempRoot, 'existing.txt');
+    fs.writeFileSync(filePath, 'old\n');
+    t.mock.method(fs, 'writeFileSync', () => { throw new Error('Diff must not write files'); });
+    t.mock.method(console, 'log', () => {});
+    const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
+    writer.write('existing.txt', 'new\n');
+    assert.equal(writer.getStats().errors, 0);
+    assert.ok(console.log.mock.calls.some(({ arguments: args }) => String(args[0]).includes('+new')));
   });
 });
 

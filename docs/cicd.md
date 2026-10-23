@@ -28,7 +28,7 @@ graph LR
     end
 ```
 
-The six source-of-truth workflows share a common validation core: generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release requires the `NPM_TOKEN` secret and publishes with it. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
+The six source-of-truth workflows share a common validation core: install locked build dependencies with `npm ci`, generate runtime adapters, check for drift, and run the full test suite. Source Of Truth Check and stable Release also verify npm package contents and the self-contained release archive. Source Of Truth Check additionally runs focused state concurrency, recovery, CLI, and hook tests on Linux, macOS, and Windows with Node 20 and 24. Nightly Build, Preview Build, and Release Candidate keep best-effort npm publishing gated on `NPM_TOKEN`; stable Release requires the `NPM_TOKEN` secret and publishes with it. Commit Message Check is independent: it does not regenerate or test, it only validates branch naming, PR-title formatting, and commit-subject formatting.
 
 ## Source Of Truth Check
 
@@ -49,7 +49,8 @@ The foundational CI gate. Enforces that all generated runtime adapters (Antigrav
 graph TD
     A["Push or PR to main"] --> B["Checkout repository"]
     B --> C["Setup Node.js 20"]
-    C --> D["Generate runtime adapters"]
+    C --> C2["npm ci"]
+    C2 --> D["Generate runtime adapters"]
     D --> E{"Adapter drift?"}
     E --> |"Yes"| F["Fail: adapters out of sync"]
     E --> |"No"| G["Run full test suite"]
@@ -67,12 +68,15 @@ graph TD
 |------|-------------|
 | Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) |
 | Setup Node.js | Installs Node.js 20 via `actions/setup-node@v4` |
+| Install build dependencies | Runs `npm ci`; parser dependencies are needed for generation and graph checks |
 | Generate runtime adapters | Runs `node scripts/generate.js` to rebuild all runtime outputs |
 | Check adapter drift | Runs `git diff --exit-code --name-only`; fails with annotation if any generated file differs from what is committed |
 | Run full test suite | Runs `npm test` (the `node --test` globs over `tests/unit/`, `tests/transforms/`, and `tests/integration/` in `package.json`) |
 | Verify npm package contents | Runs `npm run pack:verify` to ensure npm dry-run packaging contains required runtime files and no test-only directories |
 | Package release artifact | Runs `npm run release:artifacts` to build the generic GitHub Release archive |
 | Verify release artifact | Runs `npm run release:verify-artifacts` to validate that archive |
+
+**Job: `state-portability`** runs six combinations of `ubuntu-latest`, `macos-latest`, and `windows-latest` with Node 20 and 24. It installs locked dependencies and exercises ownership contention, process termination at journal boundaries, roll-forward recovery, simultaneous MCP mutations, guarded CLI writes, and retained session/hook behavior. Matrix failures do not cancel the other platforms.
 
 ### Environment and Secrets
 

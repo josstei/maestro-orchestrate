@@ -1,263 +1,136 @@
 'use strict';
 
-const { beforeEach, describe, it } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { STATE_SCRIPTS, planDetachedPayload } = require('../../src/generator/payload-builder');
+const { makeTempDir, writeJson, writeTree } = require('../support/fs');
+const { SRC_ROOT } = require('../support/paths');
 
-const {
-  DETACHED_PAYLOAD_BASE_ALLOWLIST,
-  RUNTIME_PAYLOAD_EXTRAS,
-  buildPayloadAllowlist,
-  shouldIncludeInPayload,
-  buildDetachedPayload,
-} = require('../../src/generator/payload-builder');
-const { makeTempDir, readJson, writeJson, writeTree } = require('../support/fs');
+function sourceFixture() {
+  const src = makeTempDir('maestro-payload-source-');
+  writeTree(src, 'mcp/maestro-server.js', "require('../core/runtime');\n");
+  writeTree(src, 'core/runtime.js', "module.exports = 'runtime';\n");
+  for (const runtime of ['antigravity', 'claude', 'codex']) {
+    writeTree(src, `platforms/${runtime}/runtime-config.js`, 'module.exports = {};\n');
+    if (runtime !== 'codex') {
+      writeTree(src, `platforms/${runtime}/hook-adapter.js`, 'module.exports = {};\n');
+      writeTree(src, `platforms/${runtime}/policy-enforcer.js`, 'module.exports = {};\n');
+    }
+  }
+  writeTree(src, 'platforms/shared/hook-runner.js', 'module.exports = {};\n');
+  for (const script of STATE_SCRIPTS) writeTree(src, `scripts/${script}`, "require('../core/runtime');\n");
+  writeJson(path.join(src, 'generated/agent-registry.json'), [{ name: 'coder', capabilities: 'full' }]);
+  writeJson(path.join(src, 'generated/resource-registry.json'), { plan: 'templates/plan.md' });
+  writeJson(path.join(src, 'generated/hook-registry.json'), { after: { module: 'hooks/after.js', fn: 'after' } });
+  writeTree(src, 'agents/coder.md', '# Coder\n');
+  writeTree(src, 'agents/shared/handoff-report.md', '# Handoff\n');
+  writeTree(src, 'templates/plan.md', '# Plan\n');
+  writeTree(src, 'hooks/after.js', 'module.exports = {};\n');
+  return src;
+}
 
-describe('DETACHED_PAYLOAD_BASE_ALLOWLIST', () => {
-  it('is the frozen list of payload src/ prefixes', () => {
-    assert.ok(Object.isFrozen(DETACHED_PAYLOAD_BASE_ALLOWLIST));
-    assert.deepEqual(DETACHED_PAYLOAD_BASE_ALLOWLIST, [
-      'core/',
-      'lib/',
-      'config/',
-      'hooks/',
-      'mcp/',
-      'platforms/runtime-config-map.js',
-      'platforms/shared/',
-      'state/',
-      'agents/',
-      'skills/',
-      'references/',
-      'templates/',
-      'generated/',
-    ]);
-  });
-});
+function plan(src, runtime = 'codex', options = {}) {
+  const output = src === SRC_ROOT
+    ? path.join(path.dirname(src), runtime === 'codex' ? 'plugins/maestro' : runtime, 'src')
+    : makeTempDir('maestro-payload-output-');
+  return planDetachedPayload(src, output, runtime, '1.2.3', options);
+}
 
-describe('shouldIncludeInPayload', () => {
-  it('matches files under known allowlisted prefixes', () => {
-    const allowlist = DETACHED_PAYLOAD_BASE_ALLOWLIST;
-    assert.ok(shouldIncludeInPayload('core/logger.js', allowlist));
-    assert.ok(shouldIncludeInPayload('mcp/handlers/workspace.js', allowlist));
-    assert.ok(shouldIncludeInPayload('hooks/shared/hook-logic.js', allowlist));
-    assert.ok(shouldIncludeInPayload('generated/agent-registry.json', allowlist));
-    assert.ok(shouldIncludeInPayload('platforms/runtime-config-map.js', allowlist));
-  });
-
-  it('rejects files under non-allowlisted prefixes', () => {
-    const allowlist = DETACHED_PAYLOAD_BASE_ALLOWLIST;
-    assert.ok(!shouldIncludeInPayload('scripts/generate.js', allowlist));
-    assert.ok(!shouldIncludeInPayload('transforms/copy.js', allowlist));
-    assert.ok(!shouldIncludeInPayload('manifest.js', allowlist));
-    assert.ok(!shouldIncludeInPayload('platforms/claude/runtime-config.js', allowlist));
-    assert.ok(!shouldIncludeInPayload('platforms/metadata.js', allowlist));
-    assert.ok(!shouldIncludeInPayload('entry-points/registry.js', allowlist));
-  });
-
-  it('uses custom allowlist when provided', () => {
-    const custom = ['custom/'];
-    assert.ok(shouldIncludeInPayload('custom/file.js', custom));
-    assert.ok(!shouldIncludeInPayload('core/logger.js', custom));
-  });
-});
-
-describe('buildPayloadAllowlist', () => {
-  it('extends the base allowlist with the runtime platform dir', () => {
-    const result = buildPayloadAllowlist('claude');
-    assert.ok(result.includes('platforms/claude/'));
-  });
-
-  it('includes all base allowlist entries', () => {
-    const result = buildPayloadAllowlist('codex');
-    for (const prefix of DETACHED_PAYLOAD_BASE_ALLOWLIST) {
-      assert.ok(result.includes(prefix), `Missing base prefix: ${prefix}`);
+describe('detached payload dependency plans', () => {
+  it('preserves runtime entrypoints, every catalog asset and all five state CLIs in real payloads', () => {
+    for (const runtime of ['antigravity', 'claude', 'codex']) {
+      const result = plan(SRC_ROOT, runtime);
+      const files = result.manifestPaths;
+      assert.ok(files.has('mcp/maestro-server.js'));
+      assert.ok(files.has(`platforms/${runtime}/runtime-config.js`));
+      assert.ok(files.has('core/stdin-reader.js'), 'write-state CLI reads stdin');
+      for (const script of STATE_SCRIPTS) assert.ok(files.has(`scripts/${script}`));
+      const resources = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, 'generated/resource-registry.json')));
+      for (const file of Object.values(resources)) assert.ok(files.has(file), file);
+      const agents = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, 'generated/agent-registry.json')));
+      for (const agent of agents) assert.ok(files.has(`agents/${agent.name}.md`));
+      assert.ok(files.has('agents/shared/handoff-report.md'));
+      for (const file of ['lib/discovery/index.js', 'lib/yaml-emit.js', 'generator/dependency-graph.js']) {
+        assert.ok(!files.has(file), `${runtime} must not ship build-only ${file}`);
+      }
+      assert.equal(files.has('core/policy-rules.js'), runtime !== 'codex');
+      assert.equal(files.has('generated/hook-registry.json'), runtime !== 'codex');
+      assert.equal([...files].some((file) => file.startsWith('hooks/')), runtime !== 'codex');
+      for (const other of ['antigravity', 'claude', 'codex', 'qwen'].filter((name) => name !== runtime)) {
+        assert.ok(![...files].some((file) => file.startsWith(`platforms/${other}/`)));
+      }
     }
   });
 
-  it('adds only one additional entry beyond the base', () => {
-    const result = buildPayloadAllowlist('qwen');
-    assert.equal(result.length, DETACHED_PAYLOAD_BASE_ALLOWLIST.length + 1);
+  it('follows new transitive dependencies without copying unrelated source', () => {
+    const src = sourceFixture();
+    writeTree(src, 'core/runtime.js', "require('../lib/new-module');\n");
+    writeTree(src, 'lib/new-module.js', 'module.exports = 42;\n');
+    writeTree(src, 'lib/dead.js', 'this is invalid JavaScript and must not be parsed');
+    const result = plan(src);
+    assert.ok(result.manifestPaths.has('lib/new-module.js'));
+    assert.ok(!result.manifestPaths.has('lib/dead.js'));
+    assert.equal(result.outputs.find((output) => output.outputPath === 'lib/new-module.js').content, 'module.exports = 42;\n');
+    assert.match(result.outputs.find((output) => output.outputPath === 'lib/new-module.js').reason, /core\/runtime\.js/);
   });
 
-  it('constructs the correct platform path for any runtime', () => {
-    const result = buildPayloadAllowlist('test-runtime');
-    assert.ok(result.includes('platforms/test-runtime/'));
+  it('uses fresh in-memory registries without rewriting source or existing payload files', () => {
+    const src = sourceFixture();
+    const outputDir = makeTempDir('maestro-payload-preview-');
+    writeTree(src, 'templates/fresh.md', '# Fresh\n');
+    writeTree(outputDir, 'orphaned/old.js', 'stale');
+    const resourcePath = path.join(src, 'generated/resource-registry.json');
+    const before = fs.readFileSync(resourcePath, 'utf8');
+    const sourceOverrides = new Map([['generated/resource-registry.json', JSON.stringify({ fresh: 'templates/fresh.md' })]]);
+    const result = planDetachedPayload(src, outputDir, 'codex', '9.8.7', { sourceOverrides });
+    assert.ok(result.manifestPaths.has('templates/fresh.md'));
+    assert.ok(!result.manifestPaths.has('templates/plan.md'));
+    assert.deepEqual(result.removedPaths, ['orphaned/old.js']);
+    assert.equal(fs.readFileSync(resourcePath, 'utf8'), before);
+    assert.equal(fs.readFileSync(path.join(outputDir, 'orphaned/old.js'), 'utf8'), 'stale');
+    assert.ok(!fs.existsSync(path.join(outputDir, 'mcp')));
+    assert.equal(result.outputs.find((output) => output.outputPath === 'version.json').content, '{\n  "version": "9.8.7"\n}\n');
   });
 
-  it('adds the state scripts to the antigravity payload only', () => {
-    // Antigravity serves `node ${PLUGIN_ROOT}/src/scripts/...` from its
-    // installed plugin dir, so only its payload carries src/scripts/.
-    assert.ok(Object.isFrozen(RUNTIME_PAYLOAD_EXTRAS));
-    assert.deepEqual(Object.keys(RUNTIME_PAYLOAD_EXTRAS), ['antigravity']);
-    assert.deepEqual(buildPayloadAllowlist('antigravity'), [
-      ...DETACHED_PAYLOAD_BASE_ALLOWLIST,
-      'platforms/antigravity/',
-      'scripts/',
-    ]);
-    for (const runtimeName of ['claude', 'codex']) {
-      assert.ok(!buildPayloadAllowlist(runtimeName).includes('scripts/'), runtimeName);
-    }
-  });
-});
-
-describe('buildDetachedPayload', () => {
-  let srcDir;
-  let outputDir;
-
-  beforeEach(() => {
-    srcDir = makeTempDir('maestro-payload-src-');
-    outputDir = makeTempDir('maestro-payload-out-');
+  it('keeps every registered hook handler even when host metadata does not register that event', () => {
+    const result = plan(sourceFixture(), 'antigravity');
+    assert.ok(result.manifestPaths.has('hooks/after.js'));
   });
 
-  it('copies files matching the allowlist', () => {
-    writeTree(srcDir, 'core/logger.js', 'module.exports = {};');
-    writeTree(srcDir, 'mcp/server.js', 'module.exports = {};');
-    writeTree(srcDir, 'generated/registry.json', '{}');
-
-    const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
-
-    assert.ok(fs.existsSync(path.join(outputDir, 'core', 'logger.js')));
-    assert.ok(fs.existsSync(path.join(outputDir, 'mcp', 'server.js')));
-    assert.ok(fs.existsSync(path.join(outputDir, 'generated', 'registry.json')));
-    assert.ok(stats.copied >= 3);
+  it('rejects missing assets, unknown computed imports and dependencies outside canonical source', () => {
+    const src = sourceFixture();
+    writeJson(path.join(src, 'generated/resource-registry.json'), { missing: 'templates/missing.md' });
+    assert.throws(() => plan(src), /ENOENT/);
+    writeJson(path.join(src, 'generated/resource-registry.json'), {});
+    writeTree(src, 'core/runtime.js', 'require(process.env.MODULE);\n');
+    assert.throws(() => plan(src), /Invalid codex payload dependencies/);
+    writeTree(src, 'core/runtime.js', "require('../../outside.js');\n");
+    assert.throws(() => plan(src), /Invalid codex payload dependencies/);
   });
 
-  it('skips files not matching the allowlist', () => {
-    writeTree(srcDir, 'core/logger.js', 'allowed');
-    writeTree(srcDir, 'scripts/build.js', 'disallowed');
-    writeTree(srcDir, 'transforms/copy.js', 'disallowed');
-
-    const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
-
-    assert.ok(fs.existsSync(path.join(outputDir, 'core', 'logger.js')));
-    assert.ok(!fs.existsSync(path.join(outputDir, 'scripts', 'build.js')));
-    assert.ok(!fs.existsSync(path.join(outputDir, 'transforms', 'copy.js')));
+  it('rejects registry paths and symlinks that escape canonical source', () => {
+    const src = sourceFixture();
+    writeJson(path.join(src, 'generated/resource-registry.json'), { escape: '../outside.md' });
+    assert.throws(() => plan(src), /Path traversal detected/);
+    const external = makeTempDir('maestro-payload-external-');
+    writeTree(external, 'secret.md', 'not payload content');
+    fs.symlinkSync(path.join(external, 'secret.md'), path.join(src, 'templates/link.md'));
+    writeJson(path.join(src, 'generated/resource-registry.json'), { escape: 'templates/link.md' });
+    assert.throws(() => plan(src), /Symlink path is not allowed/);
+    fs.symlinkSync(path.join(src, 'templates/plan.md'), path.join(src, 'templates/internal-link.md'));
+    writeJson(path.join(src, 'generated/resource-registry.json'), { alias: 'templates/internal-link.md' });
+    assert.throws(() => plan(src), /Symlink path is not allowed/);
   });
 
-  it('removes stale files from the output directory', () => {
-    writeTree(srcDir, 'core/logger.js', 'kept');
-    writeTree(outputDir, 'core/old-file.js', 'stale');
-
-    const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
-
-    assert.ok(fs.existsSync(path.join(outputDir, 'core', 'logger.js')));
-    assert.ok(!fs.existsSync(path.join(outputDir, 'core', 'old-file.js')));
-    assert.equal(stats.removed, 1);
-  });
-
-  it('does not rewrite files when content is unchanged', () => {
-    writeTree(srcDir, 'core/logger.js', 'same content');
-    writeTree(outputDir, 'core/logger.js', 'same content');
-
-    const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
-
-    assert.equal(stats.copied, 0);
-  });
-
-  it('stamps version.json without counting it as copied or pruning it', () => {
-    writeTree(srcDir, 'core/logger.js', 'content');
-
-    const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '4.0.0');
-
-    assert.equal(
-      fs.readFileSync(path.join(outputDir, 'version.json'), 'utf8'),
-      JSON.stringify({ version: '4.0.0' }, null, 2) + '\n'
-    );
-    assert.deepEqual(stats, { copied: 1, removed: 0 });
-  });
-
-  it('does not rewrite version.json when the version is unchanged', () => {
-    writeTree(srcDir, 'core/logger.js', 'content');
-    writeJson(path.join(outputDir, 'version.json'), { version: '1.5.0' });
-    const mtimeBefore = fs.statSync(path.join(outputDir, 'version.json')).mtimeMs;
-
-    buildDetachedPayload(srcDir, outputDir, 'claude', '1.5.0');
-
-    assert.equal(fs.statSync(path.join(outputDir, 'version.json')).mtimeMs, mtimeBefore);
-  });
-
-  it('overwrites version.json when the version differs', () => {
-    writeTree(srcDir, 'core/logger.js', 'content');
-    writeJson(path.join(outputDir, 'version.json'), { version: '1.0.0' });
-
-    const stats = buildDetachedPayload(srcDir, outputDir, 'claude', '2.0.0');
-
-    const content = readJson(path.join(outputDir, 'version.json'));
-    assert.deepEqual(content, { version: '2.0.0' });
-    assert.equal(stats.removed, 0);
-  });
-
-  it('copies only the target runtime platform dir', () => {
-    writeTree(srcDir, 'core/logger.js', 'content');
-    writeTree(srcDir, 'platforms/metadata.js', 'metadata');
-    writeTree(srcDir, 'platforms/shared/hook-runner.js', 'runner');
-    writeTree(srcDir, 'platforms/claude/runtime-config.js', 'claude config');
-    writeTree(srcDir, 'platforms/claude/hook-adapter.js', 'claude adapter');
-    writeTree(srcDir, 'platforms/claude/policy-enforcer.js', 'claude enforcer');
-    writeTree(srcDir, 'platforms/qwen/runtime-config.js', 'qwen config');
-    writeTree(srcDir, 'platforms/qwen/hook-adapter.js', 'qwen adapter');
-    writeTree(srcDir, 'platforms/codex/runtime-config.js', 'codex config');
-
-    buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
-
-    const platformsDir = path.join(outputDir, 'platforms');
-    assert.ok(fs.existsSync(path.join(platformsDir, 'shared', 'hook-runner.js')));
-    assert.ok(fs.existsSync(path.join(platformsDir, 'claude', 'runtime-config.js')));
-    assert.ok(fs.existsSync(path.join(platformsDir, 'claude', 'hook-adapter.js')));
-    assert.ok(fs.existsSync(path.join(platformsDir, 'claude', 'policy-enforcer.js')));
-    assert.ok(!fs.existsSync(path.join(platformsDir, 'metadata.js')));
-    assert.ok(!fs.existsSync(path.join(platformsDir, 'qwen')));
-    assert.ok(!fs.existsSync(path.join(platformsDir, 'codex')));
-  });
-
-  it('gives the codex payload its runtime config and no hook adapter', () => {
-    writeTree(srcDir, 'core/logger.js', 'content');
-    writeTree(srcDir, 'platforms/shared/hook-runner.js', 'runner');
-    writeTree(srcDir, 'platforms/codex/runtime-config.js', 'codex config');
-    writeTree(srcDir, 'platforms/claude/runtime-config.js', 'claude config');
-    writeTree(srcDir, 'platforms/claude/hook-adapter.js', 'claude adapter');
-    writeTree(srcDir, 'platforms/qwen/hook-adapter.js', 'qwen adapter');
-
-    buildDetachedPayload(srcDir, outputDir, 'codex', '1.0.0');
-
-    const platformsDir = path.join(outputDir, 'platforms');
-    assert.deepEqual(fs.readdirSync(path.join(platformsDir, 'codex')), ['runtime-config.js']);
-    assert.ok(fs.existsSync(path.join(platformsDir, 'shared', 'hook-runner.js')));
-    assert.ok(!fs.existsSync(path.join(platformsDir, 'claude')));
-    assert.ok(!fs.existsSync(path.join(platformsDir, 'qwen')));
-  });
-
-  it('gives the antigravity payload its platform modules and the shared policy enforcer', () => {
-    writeTree(srcDir, 'core/policy-rules.js', 'rules');
-    writeTree(srcDir, 'platforms/shared/hook-runner.js', 'runner');
-    writeTree(srcDir, 'platforms/shared/policy-enforcer.js', 'shared enforcer');
-    writeTree(srcDir, 'platforms/antigravity/runtime-config.js', 'antigravity config');
-    writeTree(srcDir, 'platforms/antigravity/hook-adapter.js', 'antigravity adapter');
-    writeTree(srcDir, 'platforms/antigravity/policy-enforcer.js', 'antigravity enforcer');
-    writeTree(srcDir, 'platforms/claude/policy-enforcer.js', 'claude enforcer');
-
-    buildDetachedPayload(srcDir, outputDir, 'antigravity', '1.0.0');
-
-    const platformsDir = path.join(outputDir, 'platforms');
-    assert.deepEqual(
-      fs.readdirSync(path.join(platformsDir, 'antigravity')).sort(),
-      ['hook-adapter.js', 'policy-enforcer.js', 'runtime-config.js']
-    );
-    assert.deepEqual(
-      fs.readdirSync(path.join(platformsDir, 'shared')).sort(),
-      ['hook-runner.js', 'policy-enforcer.js']
-    );
-    assert.ok(fs.existsSync(path.join(outputDir, 'core', 'policy-rules.js')));
-    assert.ok(!fs.existsSync(path.join(platformsDir, 'claude')));
-  });
-
-  it('cleans up empty directories after stale file removal', () => {
-    writeTree(srcDir, 'core/logger.js', 'content');
-    writeTree(outputDir, 'orphaned-dir/stale.js', 'stale');
-
-    buildDetachedPayload(srcDir, outputDir, 'claude', '1.0.0');
-
-    assert.ok(!fs.existsSync(path.join(outputDir, 'orphaned-dir')));
+  it('produces deterministic sorted plans with an explanation for every file', () => {
+    const src = sourceFixture();
+    const first = plan(src);
+    const second = plan(src);
+    assert.deepEqual(first.outputs, second.outputs);
+    assert.ok(first.outputs.every((output) => typeof output.reason === 'string' && output.reason.length > 0));
+    assert.deepEqual(first.outputs.map((output) => output.outputPath), [...first.manifestPaths].sort());
+    assert.throws(() => plan(src, 'missing'), /Unknown detached payload runtime/);
   });
 });

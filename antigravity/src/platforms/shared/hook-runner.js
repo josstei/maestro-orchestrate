@@ -39,7 +39,9 @@ if (!hookEntry) {
   process.exit(1);
 }
 
+// maestro-dependencies: hook-adapters
 const adapter = require(path.join(PLATFORMS_DIR, runtime, HOOK_ADAPTER));
+// maestro-dependencies: hook-handlers
 const logicModule = require(path.resolve(__dirname, '../../', hookEntry.module));
 const handler = logicModule[hookEntry.fn];
 

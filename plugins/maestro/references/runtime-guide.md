@@ -26,7 +26,11 @@ The workspace root is the path passed to `initialize_workspace`. To suggest it, 
 2. the first valid local `file://` root returned by the MCP client `roots/list` request
 3. the MCP server's `cwd`
 
-If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root.
+If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root. The installed payload also contains the five state CLI scripts under `src/scripts/`. To use them, derive the absolute plugin root from the loaded skill's path (`<plugin-root>/skills/<skill>/SKILL.md`) and invoke `node "<absolute-plugin-root>/src/scripts/<script>.js"` while keeping the working directory at the workspace root. Do not resolve the plugin from the workspace's current directory. If the loaded skill path is unavailable, keep using direct workspace file operations.
+
+The scripts are `ensure-workspace.js <state_dir>`, `read-active-session.js`, `read-state.js <relative-path>`, `write-state.js <relative-path>` (content on stdin), and `read-setting.js <SETTING_NAME>`. Shared local content remains under the same plugin root's `src/agents`, `src/skills`, `src/references`, and `src/templates` directories.
+
+Prefer MCP tools for state changes. For a read/modify/write operation using the CLI fallback, read with `read-state.js <relative-path> --with-digest`, then pass the returned `sha256` to `write-state.js <relative-path> --expected-sha256 <digest>` with the replacement content on stdin. The path must be inside the configured state directory. If the write reports a conflict, read fresh content and reapply the intended change before retrying.
 
 ## Tool mapping
 

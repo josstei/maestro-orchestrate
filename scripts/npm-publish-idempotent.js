@@ -77,10 +77,11 @@ function compareStableVersions(left, right) {
 }
 
 function highestStableVersion(versions) {
-  return versions
-    .filter(isStableVersion)
-    .sort(compareStableVersions)
-    .at(-1) || null;
+  return versions.reduce((highest, version) => {
+    return isStableVersion(version) && (highest === null || compareStableVersions(version, highest) >= 0)
+      ? version
+      : highest;
+  }, null);
 }
 
 function parseDistTagOutput(output) {

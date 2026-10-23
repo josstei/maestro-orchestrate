@@ -38,7 +38,7 @@ All commands are available via `just`:
 | `just test-transforms` | Run only transform unit tests |
 | `just test-integration` | Run only integration tests |
 | `just check` | Generate + verify zero drift (`git diff --exit-code`) |
-| `just check-layers` | Verify that `src/lib/` imports only `src/lib/` and `node:` builtins |
+| `just check-layers` | Parse the production graph; verify layer boundaries, dependency containment, and absence of cycles |
 | `just ci` | Full CI equivalent: check + check-layers + test |
 | `just dry-run` | Preview changes without writing |
 | `just diff` | Show unified diff of pending changes |
@@ -49,7 +49,7 @@ npm equivalents: `npm run generate` or `npm run build` for `just generate`, and 
 
 ## Architecture: Canonical Source and Generated Runtimes
 
-Shared code and content live in `src/`. The generator (`just generate`) builds most of each runtime's files from it; a few runtime files are thin shims or docs maintained by hand.
+Shared code and content live in `src/`. The generator (`just generate`) builds runtime files, including public entrypoint wrappers, from it; runtime guides and READMEs are maintained by hand.
 
 **Never hand-edit generated files.** They will be overwritten on the next `just generate`.
 
@@ -60,15 +60,17 @@ Shared code and content live in `src/`. The generator (`just generate`) builds m
 | `plugins/maestro/skills/`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `plugins/maestro/src/`, `.agents/plugins/marketplace.json` | Codex |
 | `agents/`, `qwen/hooks.json`, `qwen-extension.json`, `commands/maestro/`, `policies/maestro.toml` | Qwen Code |
 | `src/generated/*.json` (agent, resource, and hook registries) | All |
+| `hooks/hook-runner.js`, `mcp/maestro-server.js` | Qwen Code entrypoints |
+| `antigravity/mcp/maestro-server.js`, `antigravity/hooks/hook-runner.js`, `antigravity/hooks/policy-enforcer.js` | Antigravity entrypoints |
+| `claude/mcp/maestro-server.js`, `claude/scripts/hook-runner.js`, `claude/scripts/policy-enforcer.js` | Claude Code entrypoints |
+| `bin/maestro-mcp-server.js` | Codex npm executable |
 
-`antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` are detached copies of `src/`, stamped with `version.json`, for installs outside the repo.
+`antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` contain dependency closures and explicit content roots from `src/`, stamped with `version.json`, for installs outside the repo. Install the locked development dependencies with `npm ci` before generation or architecture checks; Acorn and Acorn Walk never enter detached payloads. New dynamic loaders need an explicit supported dependency classification; apparent orphan modules require review rather than automatic deletion.
+
+Entrypoint wrappers are rendered by `src/generator/runtime-entrypoints.js`. Their public paths and repo-first, bundled-fallback loading remain stable. Generation also restores the executable mode of the Codex npm bin.
 
 | Hand-maintained (edit in place) | Purpose |
 |---------------------------------|---------|
-| `hooks/hook-runner.js`, `mcp/maestro-server.js` | Qwen Code shims that load the hook runner and MCP server from `src/` |
-| `antigravity/mcp/maestro-server.js`, `antigravity/hooks/hook-runner.js`, `antigravity/hooks/policy-enforcer.js` | Antigravity shims that load the repo `src/`, or the bundled `antigravity/src/` outside the repo |
-| `claude/scripts/hook-runner.js`, `claude/scripts/policy-enforcer.js`, `claude/mcp/maestro-server.js` | Claude Code shims that load the repo `src/`, or the bundled `claude/src/` outside the repo |
-| `bin/maestro-mcp-server.js` | Codex MCP server bin, run via `npx` from `plugins/maestro/.mcp.json` |
 | `claude/mcp-config.example.json` | Example MCP server entry for manual Claude setups |
 | `plugins/maestro/references/runtime-guide.md` | Codex runtime guide, read by the Codex skills |
 | `QWEN.md` | Qwen Code context file |

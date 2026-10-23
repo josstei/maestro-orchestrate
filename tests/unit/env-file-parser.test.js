@@ -94,6 +94,19 @@ describe('parseEnvFile', () => {
     assert.ok(console.warn.mock.calls[0].arguments[0].includes('unclosed quote'));
   });
 
+  it('can collect diagnostics without changing parsed values or writing to stderr', (t) => {
+    t.mock.method(console, 'warn', () => {});
+    const warnings = [];
+    const filePath = writeFixture('captured-quote.env', 'KEY="line one\nline two\n');
+    assert.deepEqual(parseEnvFile(filePath, { onWarning: (message) => warnings.push(message) }), {
+      KEY: 'line one\nline two\n',
+    });
+    assert.deepEqual(warnings, [
+      'env-file-parser: unclosed quote for key "KEY", treating accumulated content as value',
+    ]);
+    assert.equal(console.warn.mock.calls.length, 0);
+  });
+
   it('returns empty object for non-existent file path', () => {
     const result = parseEnvFile(path.join(tmpDir, 'does-not-exist.env'));
     assert.deepEqual(result, {});

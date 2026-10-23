@@ -1,6 +1,6 @@
 'use strict';
 
-const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
+const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin, withIsolatedCodexPlugin } = require('./helpers');
 
 /**
  * Every MCP server entrypoint a runtime bundle ships: the Qwen (repo-root),
@@ -49,12 +49,20 @@ const MCP_ENTRYPOINTS = Object.freeze(
       runtime: 'antigravity',
       expectSkill: '# Delegation Skill',
     },
+    {
+      title: 'starts the local server from an isolated installed Codex payload',
+      relativePath: 'src/mcp/maestro-server.js',
+      plugin: 'codex',
+      runtime: 'codex',
+      expectSkill: '# Delegation Skill',
+    },
   ].map((entry) => Object.freeze(entry))
 );
 
 const PLUGIN_COPIES = Object.freeze({
   antigravity: withIsolatedAntigravityPlugin,
   claude: withIsolatedClaudePlugin,
+  codex: withIsolatedCodexPlugin,
 });
 
 /**
@@ -62,7 +70,7 @@ const PLUGIN_COPIES = Object.freeze({
  * copy of its plugin, removed afterwards, or the repo root.
  *
  * @template T
- * @param {{ plugin?: 'claude' | 'antigravity' }} entry - An MCP_ENTRYPOINTS entry
+ * @param {{ plugin?: 'claude' | 'antigravity' | 'codex' }} entry - An MCP_ENTRYPOINTS entry
  * @param {(cwd: string) => T | Promise<T>} fn - Callback receiving the launch directory
  * @returns {Promise<T>} The callback's result
  */
