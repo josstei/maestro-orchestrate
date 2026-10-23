@@ -6,6 +6,17 @@ const assert = require('node:assert/strict');
 const { getRecoveryHint } = require('../../src/mcp/core/recovery-hints');
 
 describe('getRecoveryHint', () => {
+  it('provides code-specific state recovery instructions before matching old message patterns', () => {
+    for (const [code, instruction] of [
+      ['STATE_BUSY', /Wait for it to finish/],
+      ['STATE_RECOVERED', /inspect the recovered state/],
+      ['STATE_RECOVERY_REQUIRED', /Keep the transaction journal intact/],
+      ['STATE_CONFLICT', /new expected hash/],
+    ]) {
+      assert.match(getRecoveryHint('update_session', 'ENOENT', code), instruction);
+    }
+  });
+
   it('returns hint for create_session "already exists" error', () => {
     const hint = getRecoveryHint('create_session', 'session already exists at this path');
     assert.equal(

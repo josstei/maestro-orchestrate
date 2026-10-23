@@ -19,9 +19,9 @@ function createSessionPackServer() {
   });
 }
 
-function setup(prefix) {
+async function setup(prefix) {
   const projectRoot = makeTempDir(prefix);
-  ensureWorkspace('docs/maestro', projectRoot);
+  await ensureWorkspace('docs/maestro', projectRoot);
   return { projectRoot, server: createSessionPackServer() };
 }
 
@@ -47,7 +47,7 @@ describe('session tool pack', () => {
   });
 
   it('creates, updates, and transitions session state on disk', async () => {
-    const { projectRoot, server } = setup('maestro-session-');
+    const { projectRoot, server } = await setup('maestro-session-');
     fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/design.md'), '# Design\n');
     fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/plan.md'), '# Plan\n');
 
@@ -114,7 +114,7 @@ describe('session tool pack', () => {
   });
 
   it('rejects create_session when a phase is missing required fields', async () => {
-    const { projectRoot, server } = setup('maestro-session-');
+    const { projectRoot, server } = await setup('maestro-session-');
 
     const outcome = await server.callTool(
       'create_session',
@@ -131,7 +131,7 @@ describe('session tool pack', () => {
   });
 
   it('preserves string phase ids end-to-end through create_session and transition_phase', async () => {
-    const { projectRoot, server } = setup('maestro-string-id-');
+    const { projectRoot, server } = await setup('maestro-string-id-');
 
     const createResult = await server.callTool(
       'create_session',
@@ -194,7 +194,7 @@ describe('session tool pack', () => {
   });
 
   it('archives the active session and associated plan files', async () => {
-    const { projectRoot, server } = setup('maestro-archive-');
+    const { projectRoot, server } = await setup('maestro-archive-');
 
     const designPath = path.join(projectRoot, 'docs/maestro/plans/design.md');
     const planPath = path.join(projectRoot, 'docs/maestro/plans/plan.md');
@@ -241,7 +241,7 @@ describe('session tool pack', () => {
   });
 
   it('archive_session blocks when a phase requires reconciliation', async () => {
-    const { projectRoot, server } = setup('maestro-archive-');
+    const { projectRoot, server } = await setup('maestro-archive-');
 
     await server.callTool(
       'create_session',

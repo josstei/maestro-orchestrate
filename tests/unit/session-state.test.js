@@ -8,11 +8,10 @@ const path = require('node:path');
 const {
   DEFAULT_STATE_DIR,
   resolveStateDirPath,
-  resolveActiveSessionPath,
-  readState,
-  writeState,
-  ensureWorkspace,
-} = require('../../src/state/session-state');
+  activeSessionFile,
+} = require('../../src/state/paths');
+const { ensureWorkspace } = require('../../src/state/session-state');
+const { readStateFile, writeStateFile } = require('../../src/scripts/state-access');
 const { withEnv } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
 
@@ -79,9 +78,9 @@ describe('session-state', () => {
     assert.equal(result, path.join(tmpRoot, 'env/state'));
   });
 
-  it('resolveActiveSessionPath finds the session under the state dir named in the workspace .env', () => {
+  it('activeSessionFile finds the session under the state dir named in the workspace .env', () => {
     fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => resolveActiveSessionPath(tmpRoot));
+    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => activeSessionFile(resolveStateDirPath(tmpRoot)));
     assert.equal(result, path.join(tmpRoot, '.maestro', 'state', 'active-session.md'));
   });
 
@@ -93,56 +92,56 @@ describe('session-state', () => {
     );
   });
 
-  it('resolveActiveSessionPath returns correct path', () => {
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => resolveActiveSessionPath(tmpRoot));
+  it('activeSessionFile returns correct path', () => {
+    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => activeSessionFile(resolveStateDirPath(tmpRoot)));
     assert.equal(result, path.join(tmpRoot, DEFAULT_STATE_DIR, 'state', 'active-session.md'));
   });
 
-  it('readState reads file content from basePath', () => {
+  it('readStateFile reads file content from basePath', async () => {
     const content = 'session content';
     const filePath = path.join(tmpRoot, 'state.md');
     fs.writeFileSync(filePath, content);
-    const result = readState('state.md', tmpRoot);
+    const result = await readStateFile('state.md', tmpRoot);
     assert.equal(result, content);
   });
 
-  it('readState throws for absolute paths', () => {
-    assert.throws(
-      () => readState('/etc/passwd', tmpRoot),
+  it('readStateFile rejects absolute paths', async () => {
+    await assert.rejects(
+      () => readStateFile('/etc/passwd', tmpRoot),
       /Path must be relative/
     );
   });
 
-  it('readState throws for paths with ..', () => {
-    assert.throws(
-      () => readState('foo/../bar', tmpRoot),
+  it('readStateFile rejects paths with ..', async () => {
+    await assert.rejects(
+      () => readStateFile('foo/../bar', tmpRoot),
       /Path traversal not allowed/
     );
   });
 
-  it('writeState writes content to basePath atomically', () => {
+  it('writeStateFile writes content to basePath atomically', async () => {
     const content = 'written content';
-    writeState('output.md', content, tmpRoot);
+    await writeStateFile('output.md', content, tmpRoot);
     const written = fs.readFileSync(path.join(tmpRoot, 'output.md'), 'utf8');
     assert.equal(written, content);
   });
 
-  it('writeState throws for absolute paths', () => {
-    assert.throws(
-      () => writeState('/etc/passwd', 'content', tmpRoot),
+  it('writeStateFile rejects absolute paths', async () => {
+    await assert.rejects(
+      () => writeStateFile('/etc/passwd', 'content', tmpRoot),
       /Path must be relative/
     );
   });
 
-  it('writeState throws for paths with ..', () => {
-    assert.throws(
-      () => writeState('foo/../bar', 'content', tmpRoot),
+  it('writeStateFile rejects paths with ..', async () => {
+    await assert.rejects(
+      () => writeStateFile('foo/../bar', 'content', tmpRoot),
       /Path traversal not allowed/
     );
   });
 
-  it('ensureWorkspace creates required directories', () => {
-    ensureWorkspace('workspace', tmpRoot);
+  it('ensureWorkspace creates required directories', async () => {
+    await ensureWorkspace('workspace', tmpRoot);
     const base = path.join(tmpRoot, 'workspace');
     assert.ok(fs.statSync(path.join(base, 'state')).isDirectory());
     assert.ok(fs.statSync(path.join(base, 'state', 'archive')).isDirectory());
@@ -150,15 +149,24 @@ describe('session-state', () => {
     assert.ok(fs.statSync(path.join(base, 'plans', 'archive')).isDirectory());
   });
 
-  it('ensureWorkspace is idempotent', () => {
-    ensureWorkspace('workspace', tmpRoot);
-    assert.doesNotThrow(() => ensureWorkspace('workspace', tmpRoot));
+  it('ensureWorkspace is idempotent', async () => {
+    await ensureWorkspace('workspace', tmpRoot);
+    await assert.doesNotReject(() => ensureWorkspace('workspace', tmpRoot));
   });
 
-  it('ensureWorkspace creates .gitignore in state/ dir', () => {
-    ensureWorkspace('workspace', tmpRoot);
+  it('ensureWorkspace creates .gitignore in state/ dir', async () => {
+    await ensureWorkspace('workspace', tmpRoot);
     const gitignorePath = path.join(tmpRoot, 'workspace', 'state', '.gitignore');
     const content = fs.readFileSync(gitignorePath, 'utf8');
-    assert.equal(content, 'active-session.md\narchive/\n');
+    assert.equal(content, 'active-session.md\narchive/\n.maestro/\n');
+  });
+
+  it('ensureWorkspace appends the private-state ignore once and preserves user additions', async () => {
+    await ensureWorkspace('workspace', tmpRoot);
+    const gitignorePath = path.join(tmpRoot, 'workspace', 'state', '.gitignore');
+    fs.writeFileSync(gitignorePath, 'active-session.md\r\narchive/\r\n# user rule\r\ncustom/');
+    await ensureWorkspace('workspace', tmpRoot);
+    await ensureWorkspace('workspace', tmpRoot);
+    assert.equal(fs.readFileSync(gitignorePath, 'utf8'), 'active-session.md\r\narchive/\r\n# user rule\r\ncustom/\n.maestro/\n');
   });
 });

@@ -8,8 +8,10 @@ const path = require('node:path');
 const {
   findOrphanedApprovedGates,
   readGate,
-} = require('../../src/mcp/handlers/design-gate');
+} = require('../../src/state/design-gate');
 const { makeTempDir, writeFile } = require('../support/fs');
+const { withEnv } = require('../support/env');
+const { resolveStateDirPath } = require('../../src/state/paths');
 const {
   approveDesignGate,
   createInitializedSessionServer,
@@ -30,6 +32,23 @@ async function gatedServer() {
 }
 
 describe('design gate tools', () => {
+  it('validates approval document inputs before resolving an invalid state directory', async () => {
+    const { workspace, server } = await initializedServer();
+    await withEnv({ MAESTRO_STATE_DIR: '../invalid' }, async () => {
+      for (const [document, message] of [
+        [{}, /requires either design_document_path/],
+        [{ design_document_path: 'design.md', design_document_content: '# Design' }, /mutually exclusive/],
+        [{ design_document_content: '# Design' }, /design_document_filename is required/],
+        [{ design_document_content: '# Design', design_document_filename: '../design.md' }, /pure basename/],
+      ]) {
+        const outcome = await server.callTool('record_design_approval', { session_id: 'alpha', ...document }, workspace);
+        assert.equal(outcome.ok, false);
+        assert.equal(outcome.code, 'VALIDATION_ERROR');
+        assert.match(outcome.error, message);
+      }
+    });
+  });
+
   it('enter_design_gate records a timestamp on the session-gate store', async () => {
     const { workspace, server } = await initializedServer();
 
@@ -329,7 +348,7 @@ describe('design gate tools', () => {
       design_document_filename: 'b.md',
     });
 
-    const approved = findOrphanedApprovedGates(workspace, 'absent-session');
+    const approved = findOrphanedApprovedGates(resolveStateDirPath(workspace), 'absent-session');
     const ids = approved.map((g) => g.session_id).sort();
     assert.deepEqual(ids, ['approved-one', 'approved-two']);
     for (const gate of approved) {
@@ -340,7 +359,7 @@ describe('design gate tools', () => {
 
   it('findOrphanedApprovedGates returns an empty list when the state directory is absent', () => {
     const workspace = makeTempDir('maestro-no-state-');
-    assert.deepEqual(findOrphanedApprovedGates(workspace, 'absent-session'), []);
+    assert.deepEqual(findOrphanedApprovedGates(resolveStateDirPath(workspace), 'absent-session'), []);
   });
 
   it('findOrphanedApprovedGates excludes the current session and skips unapproved gates', async () => {
@@ -356,7 +375,7 @@ describe('design gate tools', () => {
       design_document_filename: 'o.md',
     });
 
-    const orphans = findOrphanedApprovedGates(workspace, 'current');
+    const orphans = findOrphanedApprovedGates(resolveStateDirPath(workspace), 'current');
     assert.deepEqual(
       orphans.map((g) => g.session_id),
       ['orphan-approved']
@@ -366,10 +385,10 @@ describe('design gate tools', () => {
   it('readGate reflects whether an entered-or-approved gate artifact exists for a session', async () => {
     const { workspace, server } = await initializedServer();
 
-    assert.equal(readGate(workspace, 'never-entered'), null);
+    assert.equal(readGate(resolveStateDirPath(workspace), 'never-entered'), null);
 
     await server.callTool('enter_design_gate', { session_id: 'just-entered' }, workspace);
-    assert.notEqual(readGate(workspace, 'just-entered'), null);
+    assert.notEqual(readGate(resolveStateDirPath(workspace), 'just-entered'), null);
 
     await server.callTool(
       'record_design_approval',
@@ -380,7 +399,7 @@ describe('design gate tools', () => {
       },
       workspace
     );
-    assert.notEqual(readGate(workspace, 'just-entered'), null);
+    assert.notEqual(readGate(resolveStateDirPath(workspace), 'just-entered'), null);
   });
 
   it('create_session with mismatched session_id and an unapproved (entered-only) orphan gate does not fire the mismatch check', async () => {
