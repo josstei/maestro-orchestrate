@@ -5,7 +5,7 @@ const { emitInlineQuotedList } = require('../lib/yaml-emit');
 const ANTIGRAVITY_DELEGATION_LINE = 'Delegate with `invoke_subagent`: one `Subagents` entry per agent, with `TypeName` set to the agent name, a 2-5 word `Role`, and the full delegation prompt as `Prompt`. The call returns at once and each agent\'s final response arrives later as a system message, so end your turn without further tool calls until it does.';
 
 function buildSkillContentLine(entry) {
-  const resources = ['architecture', ...entry.skills];
+  const resources = ['architecture', ...(entry.agents.length ? ['delegation'] : []), ...(entry.skills || [])];
   return `Call \`get_skill_content\` with resources: [${emitInlineQuotedList(resources)}].`;
 }
 

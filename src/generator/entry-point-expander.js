@@ -87,6 +87,11 @@ function expand(kind, runtimeName) {
     ? `${runtimeName}-core-command.${qwen ? 'toml' : 'md'}.tmpl`
     : `${runtimeName}-${qwen ? 'command.toml' : 'skill.md'}.tmpl`;
   const template = fs.readFileSync(path.join(TEMPLATES_DIR, templateName), 'utf8');
+  // Runtime-config values every template of the runtime may render.
+  const runtimeSubstitutions = {
+    mcpPrefix: runtime.mcpPrefix,
+    agentDispatch: runtime.delegation.pattern.replace('{{agent}}', '<name>'),
+  };
   return registry.map((entry) => {
     const runtimeEntry = {
       ...entry,
@@ -101,7 +106,10 @@ function expand(kind, runtimeName) {
     return {
       outputPath: qwen ? `commands/maestro/${runtimeEntry.name}.toml`
         : `${runtime.outputDir}skills/${runtimeEntry.name}/SKILL.md`,
-      content: applySubstitutions(template, substitutions(runtimeEntry, runtimeName)),
+      content: applySubstitutions(template, {
+        ...runtimeSubstitutions,
+        ...substitutions(runtimeEntry, runtimeName),
+      }),
     };
   });
 }

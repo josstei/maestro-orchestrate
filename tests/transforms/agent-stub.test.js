@@ -122,6 +122,16 @@ describe('agent-stub transform', () => {
     );
   });
 
+  it('throws for a listed frontmatter field that is neither computed nor configured', () => {
+    const runtime = {
+      ...claudeRuntime,
+      agentFrontmatter: { ...claudeRuntime.agentFrontmatter, fields: ['name', 'modle'] },
+    };
+    assert.throws(() => agentStub(canonicalAgent, runtime), {
+      message: 'Unknown agent frontmatter field "modle" for claude',
+    });
+  });
+
   it('uses tools.<runtime> override when present', () => {
     const agentWithOverride = [
       '---',

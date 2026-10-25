@@ -9,6 +9,8 @@
  * Content lives here once; format-specific rendering (TOML commands,
  * SKILL.md files) is handled by templates + the generator. An optional
  * `title` replaces the display title otherwise derived from the name.
+ * Every entry loads the architecture skill and, when it lists agents, the
+ * delegation skill; `skills` names only the skills it loads beyond those.
  */
 
 module.exports = [
@@ -18,7 +20,7 @@ module.exports = [
     description:
       'Perform a Maestro-style code review with findings ordered by severity and concrete file references',
     agents: ['code-reviewer'],
-    skills: ['delegation', 'code-review'],
+    skills: ['code-review'],
     workflow: [
       'Determine review scope: explicit user-provided paths, staged changes, or last commit diff',
       'Delegate to the code-reviewer agent with the diff content and file paths',
@@ -39,7 +41,6 @@ module.exports = [
     description:
       'Run the Maestro debugging workflow for investigation-heavy tasks',
     agents: ['debugger'],
-    skills: ['delegation'],
     workflow: [
       'Establish the failing behavior, repro path, and expected behavior',
       'Form concrete hypotheses (2-3 likely root causes)',
@@ -97,7 +98,6 @@ module.exports = [
     description:
       'Run a Maestro-style security assessment for authentication, authorization, data exposure, secret handling, and exploitability risks',
     agents: ['security-engineer'],
-    skills: ['delegation'],
     workflow: [
       'Define the audit scope from the user request and relevant code paths',
       'Trace trust boundaries, auth flows, secret handling, and data exposure paths',
@@ -118,7 +118,6 @@ module.exports = [
     description:
       'Run a Maestro-style performance assessment for hotspots, regressions, and optimization planning',
     agents: ['performance-engineer'],
-    skills: ['delegation'],
     workflow: [
       'Define the performance target or pain point',
       'Establish the current baseline from available code, metrics, or reproducible commands',
@@ -138,7 +137,6 @@ module.exports = [
     description:
       'Run a Maestro-style SEO assessment for meta tags, structured data, crawlability, and Core Web Vitals',
     agents: ['seo-specialist'],
-    skills: ['delegation'],
     workflow: [
       'Define the SEO audit scope (page or site)',
       'Identify web-facing output files (HTML, templates, routes)',
@@ -158,7 +156,6 @@ module.exports = [
     description:
       'Run a Maestro-style accessibility audit for WCAG compliance, ARIA usage, keyboard navigation, and screen reader compatibility',
     agents: ['accessibility-specialist'],
-    skills: ['delegation'],
     workflow: [
       'Define the accessibility audit scope and target conformance level (A, AA, AAA)',
       'Identify UI components, pages, and interactive elements',
@@ -177,7 +174,6 @@ module.exports = [
     description:
       'Run a Maestro-style regulatory compliance review for GDPR/CCPA, cookie consent, data handling, and licensing',
     agents: ['compliance-reviewer'],
-    skills: ['delegation'],
     workflow: [
       'Identify applicable regulations and define audit scope',
       'Review data handling patterns, user disclosures, consent flows, retention policies, and third-party integrations',

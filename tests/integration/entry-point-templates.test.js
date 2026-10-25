@@ -2,9 +2,13 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { expandCoreCommands, expandEntryPoints } = require('../../src/generator/entry-point-expander');
 const entryPointRegistry = require('../../src/entry-points/registry');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { PUBLIC_SKILL_COUNT } = require('../support/catalog');
+const { ROOT } = require('../support/paths');
 
 /** Host command names each public-skill runtime must remap, and which expansion emits the remap. */
 const HOST_NAME_REMAPS = [
@@ -294,5 +298,22 @@ describe('entry-point and core-command skills for antigravity', () => {
         `Did not expect Gemini wording in ${outputPath}`
       );
     }
+  });
+});
+
+describe('claude core-command compact fallback', () => {
+  it('lists every claude tool mapping, matching the runtime config', () => {
+    const skill = fs.readFileSync(path.join(ROOT, 'claude/skills/orchestrate/SKILL.md'), 'utf8');
+    const toolLines = [...skill.matchAll(/^ {3}- (?:Core|Extended) tools: (.+)$/gm)].map((m) => m[1]);
+    assert.equal(toolLines.length, 2);
+
+    // `key=value` pairs; an array value is written as `[a,b,c]`.
+    const pairs = toolLines.flatMap((line) => line.split(', ')).map((pair) => {
+      const [, key, value] = pair.match(/^(\w+)=(.+)$/);
+      return [key, value.startsWith('[') ? value.slice(1, -1).split(',') : value];
+    });
+    const fallback = Object.fromEntries(pairs);
+    assert.equal(Object.keys(fallback).length, pairs.length, 'a tool is listed twice');
+    assert.deepEqual(fallback, getRuntimeConfig('claude').tools);
   });
 });

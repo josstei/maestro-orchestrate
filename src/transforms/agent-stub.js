@@ -45,10 +45,13 @@ function extractExamples(body) {
  * `<example>` blocks from the body appended to the description when the
  * runtime enables `features.exampleBlocks`) followed by a body that points
  * at the MCP `get_agent` tool. The source methodology body is not emitted.
+ * The name, description, color, tools and turns fields are computed from
+ * the agent; any other listed field emits its `agentFrontmatter` value.
  *
  * @param {string} content  - Full agent file with --- delimited frontmatter
  * @param {object} runtime  - Runtime config (name, agentNaming, agentFrontmatter, tools, features)
  * @returns {string} Stub content
+ * @throws {Error} When a listed field is neither computed nor set in `agentFrontmatter`
  */
 function agentStub(content, runtime) {
   const { frontmatter, body } = parse(content);
@@ -58,15 +61,11 @@ function agentStub(content, runtime) {
   const name = toNamingConvention(frontmatter.name, runtime.agentNaming);
   const baseDescription = frontmatter.description || '';
   const description = examples.length ? baseDescription + '\n\n' + examples.join('\n') : baseDescription;
-  const fields = {
+  const computed = {
     name: name != null && name !== '' ? [`name: ${name}`] : [],
-    kind: fm.kind ? [`kind: ${fm.kind}`] : [],
     description: runtime.features?.exampleBlocks && description.includes('\n')
       ? ['description: |', ...description.split('\n').map((line) => `  ${line}`)]
       : [`description: "${escapeYaml(frontmatter.description || '')}"`],
-    subagent: fm.subagent != null ? [`subagent: ${fm.subagent}`] : [],
-    mainAgent: fm.mainAgent != null ? [`mainAgent: ${fm.mainAgent}`] : [],
-    model: fm.model ? [`model: ${fm.model}`] : [],
     color: frontmatter.color ? [`color: ${frontmatter.color}`] : [],
     tools: emitBlockList('tools', mapTools(frontmatter, runtime)),
     turns: fm.turnsField && frontmatter.max_turns != null
@@ -75,7 +74,13 @@ function agentStub(content, runtime) {
 
   const lines = ['---'];
   for (const fieldName of fm.fields) {
-    lines.push(...fields[fieldName]);
+    if (Object.hasOwn(computed, fieldName)) {
+      lines.push(...computed[fieldName]);
+    } else if (fm[fieldName] != null) {
+      lines.push(`${fieldName}: ${fm[fieldName]}`);
+    } else {
+      throw new Error(`Unknown agent frontmatter field "${fieldName}" for ${runtime.name}`);
+    }
   }
   lines.push(
     '---',
