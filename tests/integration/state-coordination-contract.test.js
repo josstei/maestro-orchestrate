@@ -9,6 +9,7 @@ const { fork } = require('node:child_process');
 const { makeTempDir, writeFile } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
 const { createInitializedSessionServer, sessionParams } = require('../support/session-server');
+const { symlinkOrSkip } = require('../support/state');
 const markdownState = require('../../src/core/markdown-state');
 const { handleGetSessionStatus } = require('../../src/mcp/handlers/session-state-tools');
 const { handleGetDesignGateStatus } = require('../../src/mcp/handlers/design-gate');
@@ -234,11 +235,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     const source = path.join(base, 'plans', 'deep', 'nested', 'design.md');
     fs.mkdirSync(path.dirname(source), { recursive: true });
     const target = path.join('..', '..', '..', 'design-content.md');
-    try { fs.symlinkSync(target, source); }
-    catch (error) {
-      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
-      throw error;
-    }
+    if (!symlinkOrSkip(t, target, source)) return;
     assert.equal((await server.callTool('create_session', sessionParams('symlink-archive', {
       design_document: source,
     }), workspace)).ok, true);
@@ -274,11 +271,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     writeFile(path.join(base, 'design-content.md'), '# Design\n');
     const source = path.join(base, 'plans', 'deep', 'nested', 'design.md');
     fs.mkdirSync(path.dirname(source), { recursive: true });
-    try { fs.symlinkSync(path.join('..', '..', '..', 'design-content.md'), source); }
-    catch (error) {
-      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
-      throw error;
-    }
+    if (!symlinkOrSkip(t, path.join('..', '..', '..', 'design-content.md'), source)) return;
     const plan = writeFile(path.join(base, 'plans', 'archive', 'design.md'), '# Prior plan\n');
     assert.equal((await server.callTool('create_session', sessionParams('symlink-collision', {
       design_document: source, implementation_plan: plan,

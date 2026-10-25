@@ -26,7 +26,7 @@ const { handleSessionStart } = require('../../src/hooks/logic/session-start-logi
 const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
 const { activeSessionPath, writeSessionState } = require('../support/session-file');
 const { acquireStateLock } = require('../../src/state/state-lock');
-const { createTransaction, publishTransaction } = require('../../src/state/transaction');
+const { controlDir, leaveCommitted } = require('../support/state');
 
 const SESSION_ID = 'test-session-abc123';
 
@@ -274,11 +274,7 @@ describe('handleBeforeAgent', () => {
   it('recovers an interrupted session update before summarizing it', async () => {
     const cwd = makeTempDir('maestro-hook-recovery-');
     writeSessionState(cwd, { status: 'in_progress', current_phase: 1 });
-    const base = path.join(cwd, 'docs/maestro');
-    const control = path.join(base, 'state/.maestro');
-    const transaction = createTransaction(base, control);
-    transaction.tx.writeFile(activeSessionPath(cwd), '---\ncurrent_phase: recovered\nstatus: active\n---\n');
-    publishTransaction(transaction, control, { operation: 'interrupted_test_write' });
+    await leaveCommitted(path.join(cwd, 'docs/maestro'), (tx) => tx.writeFile(activeSessionPath(cwd), '---\ncurrent_phase: recovered\nstatus: active\n---\n'));
     const result = await handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
     assert.equal(result.message, 'Active session: current_phase=recovered, status=active');
   });
@@ -287,11 +283,8 @@ describe('handleBeforeAgent', () => {
     const cwd = makeTempDir('maestro-hook-busy-');
     writeSessionState(cwd, { status: 'in_progress', current_phase: 1 });
     const base = path.join(cwd, 'docs/maestro');
-    const control = path.join(base, 'state/.maestro');
-    const release = await acquireStateLock(control);
-    const transaction = createTransaction(base, control);
-    transaction.tx.writeFile(activeSessionPath(cwd), '---\nstatus: complete\n---\n');
-    publishTransaction(transaction, control, { operation: 'pending_test_write' });
+    const release = await acquireStateLock(controlDir(base));
+    await leaveCommitted(base, (tx) => tx.writeFile(activeSessionPath(cwd), '---\nstatus: complete\n---\n'), { operation: 'pending_test_write' });
     const stderr = t.mock.method(process.stderr, 'write', () => true);
     try {
       const result = await handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });

@@ -9,10 +9,11 @@ const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const { withStateMutation, withStateRead } = require('../../src/state/coordinator');
 const { acquireStateLock } = require('../../src/state/state-lock');
-const {
-  contentDigest, checkExpectedDigest, assertPublicStatePath,
-  createTransaction, publishTransaction,
-} = require('../../src/state/transaction');
+const { contentDigest, checkExpectedDigest, assertPublicStatePath } = require('../../src/state/transaction');
+const { DIR_LINK, leaveCommitted, symlinkOrSkip } = require('../support/state');
+
+// Commits the way withStateMutation does: under the state lock, recording a result.
+const COMMIT_OPTIONS = { operation: 'test_operation', result: { success: true }, lock: true };
 
 function workspace(t) {
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-transaction-')));
@@ -57,17 +58,6 @@ async function killAtBoundary(t, base, boundary) {
       if (stdout.includes(`paused:${boundary}\n`)) child.kill('SIGKILL');
     });
   });
-}
-
-async function leaveCommitted(base, mutate) {
-  const control = privatePath(base, '');
-  const release = await acquireStateLock(control);
-  try {
-    const pending = createTransaction(base, control);
-    mutate(pending.tx);
-    publishTransaction(pending, control, { operation: 'test_operation' }, { success: true });
-    return pending;
-  } finally { release(); }
 }
 
 describe('state coordinator', () => {
@@ -199,7 +189,7 @@ describe('state coordinator', () => {
   it('recovers before mutation and asks the caller to inspect state without executing its callback', async (t) => {
     const base = workspace(t);
     const active = path.join(base, 'state', 'active-session.md');
-    await leaveCommitted(base, (tx) => tx.writeFile(active, 'recovered'));
+    await leaveCommitted(base, (tx) => tx.writeFile(active, 'recovered'), COMMIT_OPTIONS);
     await assert.rejects(withStateMutation(base, { operation: 'retry' }, () => assert.fail('must not repeat uncertain mutation')), { code: 'STATE_RECOVERED' });
     assert.equal(fs.readFileSync(active, 'utf8'), 'recovered');
   });
@@ -260,7 +250,7 @@ describe('state coordinator', () => {
     const source = path.join(externalRoot, 'design.md');
     const destination = path.join(base, 'plans', 'captured.md');
     fs.writeFileSync(source, 'approved document');
-    await leaveCommitted(base, (tx) => tx.copyFile(source, destination));
+    await leaveCommitted(base, (tx) => tx.copyFile(source, destination), COMMIT_OPTIONS);
     fs.unlinkSync(source);
     assert.equal(await withStateRead(base, () => fs.readFileSync(destination, 'utf8')), 'approved document');
   });
@@ -330,7 +320,7 @@ describe('state coordinator', () => {
   it('leaves a committed journal intact on an external-content recovery conflict', async (t) => {
     const base = workspace(t);
     const active = path.join(base, 'state', 'active-session.md');
-    await leaveCommitted(base, (tx) => tx.writeFile(active, 'intended'));
+    await leaveCommitted(base, (tx) => tx.writeFile(active, 'intended'), COMMIT_OPTIONS);
     fs.writeFileSync(active, 'external edit');
     await assert.rejects(withStateRead(base, () => fs.readFileSync(active, 'utf8')), { code: 'STATE_RECOVERY_REQUIRED' });
     assert.equal(fs.readFileSync(active, 'utf8'), 'external edit');
@@ -341,7 +331,7 @@ describe('state coordinator', () => {
     for (const corrupt of ['intent', 'stage']) {
       const base = workspace(t);
       const active = path.join(base, 'state', 'active-session.md');
-      const pending = await leaveCommitted(base, (tx) => tx.writeFile(active, 'intended'));
+      const pending = await leaveCommitted(base, (tx) => tx.writeFile(active, 'intended'), COMMIT_OPTIONS);
       const filename = corrupt === 'intent' ? path.join(pending.directory, 'intent.json') : path.join(pending.directory, 'files', '0');
       fs.writeFileSync(filename, 'corrupted');
       await assert.rejects(withStateRead(base, () => 'ignored'), { code: 'STATE_RECOVERY_REQUIRED' });
@@ -431,7 +421,7 @@ describe('state coordinator', () => {
     const destination = path.join(base, 'plans', 'destination');
     fs.mkdirSync(source);
     fs.writeFileSync(path.join(source, 'design.md'), 'approved');
-    await leaveCommitted(base, (tx) => tx.rename(source, destination));
+    await leaveCommitted(base, (tx) => tx.rename(source, destination), COMMIT_OPTIONS);
     fs.rmSync(source, { recursive: true });
     fs.mkdirSync(destination);
     fs.writeFileSync(path.join(destination, 'other.md'), 'unrelated');
@@ -448,11 +438,7 @@ describe('state coordinator', () => {
     fs.writeFileSync(referent, 'preserved');
     const source = path.join(base, 'plans', 'source-link.md');
     const destination = path.join(base, 'plans', 'destination-link.md');
-    try { fs.symlinkSync(referent, source); }
-    catch (error) {
-      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
-      throw error;
-    }
+    if (!symlinkOrSkip(t, referent, source)) return;
     fs.symlinkSync(referent, destination);
     await withStateMutation(base, { operation: 'move_link' }, (tx) => tx.rename(source, destination));
     assert.equal(fs.lstatSync(destination).isSymbolicLink(), true);
@@ -467,11 +453,7 @@ describe('state coordinator', () => {
     const source = path.join(base, 'plans', 'source.md');
     const destination = path.join(base, 'plans', 'nested', 'source.md');
     fs.mkdirSync(path.dirname(destination));
-    try { fs.symlinkSync(path.join('..', 'state', 'active-session.md'), source); }
-    catch (error) {
-      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
-      throw error;
-    }
+    if (!symlinkOrSkip(t, path.join('..', 'state', 'active-session.md'), source)) return;
     await withStateMutation(base, { operation: 'move_link' }, (tx) => {
       assert.equal(tx.exists(source), true);
       tx.rename(source, destination);
@@ -492,8 +474,8 @@ describe('state coordinator', () => {
     t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
     const externalAlias = path.join(base, 'plans', 'external');
     const privateAlias = path.join(base, 'plans', 'private');
-    fs.symlinkSync(outside, externalAlias, process.platform === 'win32' ? 'junction' : 'dir');
-    fs.symlinkSync(privatePath(base, ''), privateAlias, process.platform === 'win32' ? 'junction' : 'dir');
+    fs.symlinkSync(outside, externalAlias, DIR_LINK);
+    fs.symlinkSync(privatePath(base, ''), privateAlias, DIR_LINK);
     for (const [alias, code] of [[externalAlias, 'STATE_PATH_OUTSIDE'], [privateAlias, 'STATE_INTERNAL_PATH']]) {
       for (const operation of ['rename', 'unlink']) {
         await assert.rejects(withStateMutation(base, { operation }, (tx) => {
@@ -512,7 +494,7 @@ describe('state coordinator', () => {
     fs.mkdirSync(preserved);
     fs.writeFileSync(path.join(preserved, 'keep'), 'keep');
     fs.mkdirSync(privatePath(base, ''), { recursive: true });
-    fs.symlinkSync(outside, privatePath(base, 'transactions'), process.platform === 'win32' ? 'junction' : 'dir');
+    fs.symlinkSync(outside, privatePath(base, 'transactions'), DIR_LINK);
     await assert.rejects(withStateMutation(base, { operation: 'write' }, () => assert.fail('must not run')), { code: 'STATE_RECOVERY_REQUIRED' });
     assert.equal(fs.readFileSync(path.join(preserved, 'keep'), 'utf8'), 'keep');
   });
@@ -520,10 +502,10 @@ describe('state coordinator', () => {
   it('rejects private intent symlink ancestors on recovery through a mutation', async (t) => {
     const base = workspace(t);
     const active = path.join(base, 'state', 'active-session.md');
-    const pending = await leaveCommitted(base, (tx) => tx.writeFile(active, 'new'));
+    const pending = await leaveCommitted(base, (tx) => tx.writeFile(active, 'new'), COMMIT_OPTIONS);
     const moved = pending.directory + '-outside';
     fs.renameSync(pending.directory, moved);
-    fs.symlinkSync(moved, pending.directory, process.platform === 'win32' ? 'junction' : 'dir');
+    fs.symlinkSync(moved, pending.directory, DIR_LINK);
     await assert.rejects(withStateMutation(base, { operation: 'retry' }, () => assert.fail('must not run')), { code: 'STATE_RECOVERY_REQUIRED' });
     assert.equal(fs.readFileSync(active, 'utf8'), 'original\n');
   });
@@ -542,8 +524,7 @@ describe('state coordinator', () => {
     const source = path.join(base, 'plans', 'design.md');
     const destination = path.join(base, 'plans', 'new.md');
     const alias = path.join(base, 'plans', 'dangling.md');
-    try { fs.symlinkSync(destination, alias); }
-    catch (error) { if (process.platform === 'win32' && error.code === 'EPERM') return; throw error; }
+    if (!symlinkOrSkip(t, destination, alias)) return;
     await withStateMutation(base, { operation: 'copy' }, (tx) => tx.copyFile(source, alias));
     assert.equal(fs.lstatSync(alias).isSymbolicLink(), true);
     assert.equal(fs.readFileSync(destination, 'utf8'), 'design\n');

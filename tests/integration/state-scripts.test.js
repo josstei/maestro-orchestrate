@@ -10,8 +10,8 @@ const { createHash } = require('node:crypto');
 const { ISOLATED_GIT_ENV, withEnv } = require('../support/env');
 const { readStateFile, writeStateFile } = require('../../src/scripts/state-access');
 const { makeTempDir, writeTree } = require('../support/fs');
+const { DIR_LINK, leaveCommitted } = require('../support/state');
 const { ROOT } = require('./helpers');
-const { createTransaction, publishTransaction } = require('../../src/state/transaction');
 
 const SCRIPTS_DIR = path.join(ROOT, 'src', 'scripts');
 const SETTING = 'MAESTRO_EXECUTION_MODE';
@@ -65,15 +65,6 @@ function startScript(script, args, { cwd, env = {} }) {
     child.once('close', (status) => resolve({ status, stdout, stderr }));
   });
   return { child, result };
-}
-
-function leavePendingWrite(workspace, relativePath, content) {
-  const base = path.join(workspace, 'docs/maestro');
-  const control = path.join(base, 'state/.maestro');
-  const transaction = createTransaction(base, control);
-  transaction.tx.writeFile(path.join(workspace, relativePath), content);
-  publishTransaction(transaction, control, { operation: 'interrupted_test_write' });
-  return transaction.id;
 }
 
 describe('state scripts', () => {
@@ -133,21 +124,17 @@ describe('state scripts', () => {
       const target = path.join(workspace, 'elsewhere');
       fs.mkdirSync(target);
       fs.mkdirSync(path.join(workspace, 'docs'));
-      fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), 'dir');
+      fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), DIR_LINK);
 
       const result = runScript('ensure-workspace.js', ['docs/maestro'], { cwd: workspace });
       assert.equal(result.status, 1);
       assert.equal(result.stderr, 'ERROR: STATE_DIR must not be a symlink\n');
     });
 
-    it('exits 1 without creating the referent when the state directory is a dangling symlink', (t) => {
+    it('exits 1 without creating the referent when the state directory is a dangling symlink', () => {
       const target = path.join(workspace, 'elsewhere');
       fs.mkdirSync(path.join(workspace, 'docs'));
-      try { fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), 'dir'); }
-      catch (error) {
-        if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('Directory symlinks require privileges');
-        throw error;
-      }
+      fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), DIR_LINK);
 
       const result = runScript('ensure-workspace.js', ['docs/maestro'], { cwd: workspace });
       assert.equal(result.status, 1);
@@ -295,10 +282,9 @@ describe('state scripts', () => {
     });
 
     it('preserves generic raw access when an unrelated state root is a proven symlink cycle', () => {
-      const linkType = process.platform === 'win32' ? 'junction' : 'dir';
-      fs.symlinkSync(path.join(workspace, 'self-loop'), path.join(workspace, 'self-loop'), linkType);
-      fs.symlinkSync(path.join(workspace, 'second-loop'), path.join(workspace, 'first-loop'), linkType);
-      fs.symlinkSync(path.join(workspace, 'first-loop'), path.join(workspace, 'second-loop'), linkType);
+      fs.symlinkSync(path.join(workspace, 'self-loop'), path.join(workspace, 'self-loop'), DIR_LINK);
+      fs.symlinkSync(path.join(workspace, 'second-loop'), path.join(workspace, 'first-loop'), DIR_LINK);
+      fs.symlinkSync(path.join(workspace, 'first-loop'), path.join(workspace, 'second-loop'), DIR_LINK);
       fs.writeFileSync(path.join(workspace, '.env'), 'BROKEN="unterminated\n');
       for (const stateDir of ['self-loop', 'first-loop', 'self-loop/state', 'first-loop/nested/state', 'docs/../self-loop']) {
         const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: stateDir } };
@@ -340,23 +326,6 @@ describe('state scripts', () => {
       } finally { fs.realpathSync = realpath; }
     });
 
-    it('keeps metadata aliases inaccessible when the configured state root is cyclic', () => {
-      const privatePath = 'docs/maestro/state/.maestro/private';
-      const linkType = process.platform === 'win32' ? 'junction' : 'dir';
-      writeTree(workspace, privatePath, 'private metadata');
-      fs.symlinkSync(path.join(workspace, 'docs/maestro/state/.maestro'), path.join(workspace, 'metadata-alias'), linkType);
-      fs.symlinkSync(path.join(workspace, 'loop'), path.join(workspace, 'loop'), linkType);
-      const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: 'loop' } };
-      for (const target of [privatePath, 'metadata-alias/private']) {
-        const read = runScript('read-state.js', [target], options);
-        assert.equal(read.status, 1);
-        assert.equal(read.stdout, '');
-        const write = runScript('write-state.js', [target], { ...options, input: 'must not replace' });
-        assert.equal(write.status, 1);
-      }
-      assert.equal(fs.readFileSync(path.join(workspace, privatePath), 'utf8'), 'private metadata');
-    });
-
     it('keeps an invalid managed root from falling back to uncoordinated access', () => {
       writeTree(workspace, 'managed/notes.md', 'original');
       const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: 'docs/../managed' } };
@@ -390,54 +359,49 @@ describe('state scripts', () => {
       assert.equal(fs.readFileSync(path.join(workspace, statePath), 'utf8'), 'original');
     });
 
-    it('denies raw access to coordinator metadata, including directory aliases', () => {
-      const privatePath = 'docs/maestro/state/.maestro/private';
-      writeTree(workspace, privatePath, 'private metadata');
-      fs.symlinkSync(path.join(workspace, 'docs/maestro/state/.maestro'), path.join(workspace, 'metadata-alias'), 'dir');
-      for (const target of [privatePath, 'metadata-alias/private']) {
-        const read = runScript('read-state.js', [target], { cwd: workspace });
-        assert.equal(read.status, 1);
-        assert.equal(read.stdout, '');
-        const write = runScript('write-state.js', [target], { cwd: workspace, input: 'replacement' });
-        assert.equal(write.status, 1);
-      }
-      assert.equal(fs.readFileSync(path.join(workspace, privatePath), 'utf8'), 'private metadata');
-    });
-
-    it('keeps private metadata inaccessible with invalid or different state configuration', () => {
-      const privatePath = 'docs/maestro/state/.maestro/private';
-      writeTree(workspace, privatePath, 'private metadata');
-      fs.symlinkSync(path.join(workspace, 'docs/maestro/state/.maestro'), path.join(workspace, 'metadata-alias'), 'dir');
-      for (const stateDir of [makeTempDir('maestro-cli-other-state-'), '.different-state']) {
+    // Each configuration returns the MAESTRO_STATE_DIR value it sets up.
+    for (const [configuration, configure] of [
+      ['no state root configured', () => undefined],
+      ['a cyclic configured state root', () => {
+        fs.symlinkSync(path.join(workspace, 'loop'), path.join(workspace, 'loop'), DIR_LINK);
+        return 'loop';
+      }],
+      ['an external configured state root', () => makeTempDir('maestro-cli-other-state-')],
+      ['a different configured state root', () => '.different-state'],
+    ]) {
+      it(`denies raw access to coordinator metadata and its directory alias with ${configuration}`, () => {
+        const privatePath = 'docs/maestro/state/.maestro/private';
+        writeTree(workspace, privatePath, 'private metadata');
+        fs.symlinkSync(path.join(workspace, 'docs/maestro/state/.maestro'), path.join(workspace, 'metadata-alias'), DIR_LINK);
+        const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: configure() } };
         for (const target of [privatePath, 'metadata-alias/private']) {
-          const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: stateDir } };
           const read = runScript('read-state.js', [target], options);
           assert.equal(read.status, 1);
           assert.equal(read.stdout, '');
           const write = runScript('write-state.js', [target], { ...options, input: 'replacement' });
           assert.equal(write.status, 1);
         }
-      }
-      assert.equal(fs.readFileSync(path.join(workspace, privatePath), 'utf8'), 'private metadata');
-    });
+        assert.equal(fs.readFileSync(path.join(workspace, privatePath), 'utf8'), 'private metadata');
+      });
+    }
 
-    it('recovers an interrupted managed write before returning raw content', () => {
+    it('recovers an interrupted managed write before returning raw content', async () => {
       const statePath = 'docs/maestro/state/notes.md';
       writeTree(workspace, statePath, 'old content');
-      leavePendingWrite(workspace, statePath, 'recovered content');
+      await leaveCommitted(path.join(workspace, 'docs/maestro'), (tx) => tx.writeFile(path.join(workspace, statePath), 'recovered content'));
       const result = runScript('read-state.js', [statePath], { cwd: workspace });
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stdout, 'recovered content');
     });
 
-    it('reports recovery without running a new mutation after an interrupted write', () => {
+    it('reports recovery without running a new mutation after an interrupted write', async () => {
       const statePath = 'docs/maestro/state/notes.md';
       writeTree(workspace, statePath, 'old content');
-      const transactionId = leavePendingWrite(workspace, statePath, 'recovered content');
+      const transaction = await leaveCommitted(path.join(workspace, 'docs/maestro'), (tx) => tx.writeFile(path.join(workspace, statePath), 'recovered content'));
       const result = runScript('write-state.js', [statePath], { cwd: workspace, input: 'new mutation' });
       assert.equal(result.status, 1);
       assert.match(result.stderr, /STATE_RECOVERED/);
-      assert.ok(result.stderr.includes(`(transaction: ${transactionId})`), result.stderr);
+      assert.ok(result.stderr.includes(`(transaction: ${transaction.id})`), result.stderr);
       assert.equal(fs.readFileSync(path.join(workspace, statePath), 'utf8'), 'recovered content');
     });
   });
@@ -458,10 +422,10 @@ describe('state scripts', () => {
       assert.equal(result.stdout, sessionContent);
     });
 
-    it('recovers before reading the active session', () => {
+    it('recovers before reading the active session', async () => {
       const sessionPath = 'docs/maestro/state/active-session.md';
       writeTree(workspace, sessionPath, 'original session');
-      leavePendingWrite(workspace, sessionPath, 'recovered session');
+      await leaveCommitted(path.join(workspace, 'docs/maestro'), (tx) => tx.writeFile(path.join(workspace, sessionPath), 'recovered session'));
       const result = runScript('read-active-session.js', [], { cwd: workspace });
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stdout, 'recovered session');

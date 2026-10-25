@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-const { editJson, makeTempDir, removeDir } = require('../support/fs');
+const { editJson, makeTempDir, removeDir, writeTree } = require('../support/fs');
 const { ISOLATED_GIT_ENV } = require('../support/env');
 const { createTempRepoCopy, withTempRepoCopy } = require('./helpers');
 const { spawnMcpServer } = require('./mcp-stdio-client');
@@ -16,21 +16,20 @@ const { buildDependencyGraph } = require('../../src/generator/dependency-graph')
 
 /**
  * Extracts `archivePath` into a scratch directory, lets `mutate` edit the
- * extracted tree, repacks it as `name` in that scratch directory and passes
- * the repacked archive path to `fn`. The scratch directory is removed
+ * extracted tree, repacks it in that scratch directory and passes the
+ * repacked archive path to `fn`. The scratch directory is removed
  * afterwards; the source archive is never modified.
  *
  * @template T
  * @param {string} archivePath - Archive to extract
- * @param {string} name - File name for the repacked archive
  * @param {(extractRoot: string) => void} mutate - Edits the extracted tree
  * @param {(repackedPath: string) => T} fn - Synchronous callback receiving the repacked archive path
  * @returns {T} The callback's result
  */
-function withRepackedArchive(archivePath, name, mutate, fn) {
+function withRepackedArchive(archivePath, mutate, fn) {
   const workRoot = makeTempDir('maestro-release-repack-');
   const extractRoot = path.join(workRoot, 'extract');
-  const repackedPath = path.join(workRoot, name);
+  const repackedPath = path.join(workRoot, 'repacked.tar.gz');
 
   try {
     fs.mkdirSync(extractRoot);
@@ -165,23 +164,6 @@ describe('release artifact packaging', () => {
     }
   });
 
-  it('rejects archives with a missing launcher or a directory in its place', () => {
-    const launcher = 'mcp/maestro-server.js';
-    for (const replaceWithDirectory of [false, true]) {
-      withRepackedArchive(packaged.archivePath, 'maestro-missing-launcher.tar.gz', (extractRoot) => {
-        const target = path.join(extractRoot, launcher);
-        fs.rmSync(target);
-        if (replaceWithDirectory) fs.mkdirSync(target);
-      }, (archivePath) => {
-        assert.throws(() => verifyReleaseArtifact(archivePath, { root: repoRoot }), {
-          message: replaceWithDirectory
-            ? `Required runtime file must be a regular file: ${launcher}`
-            : `Required runtime file missing: ${launcher}`,
-        });
-      });
-    }
-  });
-
   it('fails packaging before writing an archive when a public launcher is missing', () => {
     withTempRepoCopy('maestro-release-missing-launcher-', (missingRoot) => {
       fs.rmSync(path.join(missingRoot, 'claude/scripts/hook-runner.js'));
@@ -190,62 +172,6 @@ describe('release artifact packaging', () => {
       });
       assert.equal(fs.existsSync(path.join(missingRoot, 'dist/release')), false);
     });
-  });
-
-  it('rejects an archive with manifest version drift', () => {
-    for (const manifestPath of ['qwen-extension.json', 'antigravity/plugin.json']) {
-      withRepackedArchive(
-        packaged.archivePath,
-        'maestro-corrupt-extension.tar.gz',
-        (extractRoot) => {
-          editJson(path.join(extractRoot, manifestPath), (manifest) => {
-            manifest.version = '0.0.0';
-          });
-        },
-        (corruptArchivePath) => {
-          assert.throws(
-            () => verifyReleaseArtifact(corruptArchivePath, { root: repoRoot }),
-            { message: `Release manifest version mismatch; expected ${packaged.version}: ${manifestPath}=0.0.0` }
-          );
-        }
-      );
-    }
-  });
-
-  it('rejects an archive with extra unallowlisted files', () => {
-    withRepackedArchive(
-      packaged.archivePath,
-      'maestro-extra-extension.tar.gz',
-      (extractRoot) => {
-        fs.writeFileSync(path.join(extractRoot, 'unexpected-local-file.txt'), 'secret\n');
-      },
-      (extraArchivePath) => {
-        assert.throws(
-          () => verifyReleaseArtifact(extraArchivePath, { root: repoRoot }),
-          /Release artifact contains unallowlisted paths: unexpected-local-file\.txt/
-        );
-      }
-    );
-  });
-
-  it('rejects build sources reintroduced into an otherwise valid archive', () => {
-    for (const buildPath of [
-      'src/generator/dependency-graph.js',
-      'src/entry-points/templates/qwen-command.toml.tmpl',
-      'src/generator/stub-outputs.js',
-    ]) {
-      withRepackedArchive(packaged.archivePath, 'maestro-build-source.tar.gz', (extractRoot) => {
-        const target = path.join(extractRoot, buildPath);
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        fs.writeFileSync(target, 'unexpected build source\n');
-      }, (archivePath) => {
-        assert.throws(() => verifyReleaseArtifact(archivePath, { root: repoRoot }), (error) => {
-          assert.match(error.message, /Release artifact contains unallowlisted paths:/);
-          assert.ok(error.message.includes(buildPath), error.message);
-          return true;
-        });
-      });
-    }
   });
 
   it('fails packaging when a required runtime surface is missing', () => {
@@ -271,13 +197,6 @@ describe('release artifact packaging', () => {
       const entries = execFileSync('tar', ['-tzf', archivePath], { encoding: 'utf8' }).trim().split('\n');
       for (const file of forbidden) assert.equal(entries.includes(`./${file}`), false, file);
       assert.equal(verifyReleaseArtifact(archivePath).version, packaged.version);
-    });
-    withRepackedArchive(packaged.archivePath, 'nested-cache.tar.gz', (root) => {
-      const target = path.join(root, forbidden[1]);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.writeFileSync(target, 'fixture only\n');
-    }, (archivePath) => {
-      assert.throws(() => verifyReleaseArtifact(archivePath), /Release artifact contains denied paths:/);
     });
   });
 
@@ -306,14 +225,51 @@ describe('release artifact packaging', () => {
     });
   });
 
-  it('rejects a repacked archive containing a dangling served-resource symlink', () => {
-    withRepackedArchive(packaged.archivePath, 'linked-resource.tar.gz', (root) => {
-      const resource = path.join(root, 'src/references/architecture.md');
-      fs.unlinkSync(resource);
-      fs.symlinkSync(path.join(root, 'missing-resource.md'), resource, 'file');
-    }, (archivePath) => {
-      assert.throws(() => verifyReleaseArtifact(archivePath),
-        /Release artifact contains symbolic link: src\/references\/architecture.md/);
+  // One corruption per verifier stage proves verifyReleaseArtifact runs each
+  // of them; release-artifact-manifest.test.js covers each stage's rules.
+  for (const [name, mutate, expected] of [
+    [
+      'a missing launcher',
+      (root) => fs.rmSync(path.join(root, 'mcp/maestro-server.js')),
+      { message: 'Required runtime file missing: mcp/maestro-server.js' },
+    ],
+    [
+      'manifest version drift',
+      (root) => editJson(path.join(root, 'qwen-extension.json'), (manifest) => { manifest.version = '0.0.0'; }),
+      // A function, because `packaged` is only assigned in before().
+      (error) => {
+        assert.equal(error.message, `Release manifest version mismatch; expected ${packaged.version}: qwen-extension.json=0.0.0`);
+        return true;
+      },
+    ],
+    [
+      'a reintroduced build source',
+      (root) => writeTree(root, 'src/generator/dependency-graph.js', 'unexpected build source\n'),
+      (error) => {
+        assert.match(error.message, /Release artifact contains unallowlisted paths:/);
+        assert.ok(error.message.includes('src/generator/dependency-graph.js'), error.message);
+        return true;
+      },
+    ],
+    [
+      'a nested cache file',
+      (root) => writeTree(root, 'antigravity/.cache/probe.json', 'fixture only\n'),
+      /Release artifact contains denied paths:/,
+    ],
+    [
+      'a dangling served-resource symlink',
+      (root) => {
+        const resource = path.join(root, 'src/references/architecture.md');
+        fs.unlinkSync(resource);
+        fs.symlinkSync(path.join(root, 'missing-resource.md'), resource, 'file');
+      },
+      /Release artifact contains symbolic link: src\/references\/architecture.md/,
+    ],
+  ]) {
+    it(`rejects a repacked archive with ${name}`, () => {
+      withRepackedArchive(packaged.archivePath, mutate, (archivePath) => {
+        assert.throws(() => verifyReleaseArtifact(archivePath, { root: repoRoot }), expected);
+      });
     });
-  });
+  }
 });
