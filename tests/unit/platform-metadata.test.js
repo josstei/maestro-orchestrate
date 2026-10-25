@@ -178,15 +178,6 @@ describe('platform metadata generation', () => {
     });
   });
 
-  it('emits no gemini metadata', () => {
-    const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
-
-    for (const output of outputs) {
-      assert.doesNotMatch(output.outputPath, /gemini/i);
-    }
-    assert.ok(!outputs.some((output) => output.outputPath === 'hooks/hooks.json'));
-  });
-
   it('leaves the runtime to the MCP server, which identifies its host', () => {
     const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
 

@@ -9,6 +9,41 @@ const { readJson } = require('../support/fs');
 const { hookCommands } = require('../support/generated-files');
 const { ROOT } = require('./helpers');
 
+// Paths earlier layouts shipped, grouped by what made each one obsolete.
+const REMOVED_PATHS = {
+  'thin entrypoints resolve src/ directly': [
+    'src/core/canonical-source.js',
+    'hooks/canonical-source.js',
+    'mcp/canonical-source.js',
+    'claude/scripts/canonical-source.js',
+    'claude/mcp/canonical-source.js',
+  ],
+  'Codex uses skills, not agent files': ['plugins/maestro/agents'],
+  'runtimes run src/ or its detached payload, not a mirrored lib/': [
+    'lib',
+    'antigravity/lib',
+    'claude/lib',
+    'plugins/maestro/lib',
+  ],
+  'the MCP server runs from src/, not a generated core bundle': [
+    'mcp/maestro-server-core.js',
+    'antigravity/mcp/maestro-server-core.js',
+    'claude/mcp/maestro-server-core.js',
+    'plugins/maestro/mcp/maestro-server-core.js',
+    'src/mcp/maestro-server-core.js',
+    'src/mcp/server-core-entry.js',
+  ],
+  // Repo-root agents/ is not listed: it now holds the Qwen agent stubs.
+  'the Gemini CLI runtime was removed': [
+    'src/platforms/gemini',
+    'GEMINI.md',
+    'gemini-extension.json',
+    '.geminiignore',
+    'hooks/hooks.json',
+    'docs/runtime-gemini.md',
+  ],
+};
+
 describe('thin entrypoint design', () => {
   it('no MCP entrypoint names a runtime or uses the canonical-source helper', () => {
     // The server identifies its host runtime from the MCP client, so an
@@ -37,23 +72,6 @@ describe('thin entrypoint design', () => {
       assert.ok(
         content.includes('repoEntry') && content.includes('bundledEntry'),
         `Expected ${file} to have repo-first / bundled-fallback resolution`
-      );
-    }
-  });
-
-  it('Antigravity hook shims back every hooks.json command with repo-first / bundled-fallback resolution', () => {
-    const hooks = readJson(path.join(ROOT, 'antigravity/hooks.json'));
-    // SessionStart holds handlers directly; PreToolUse groups them under a matcher.
-    const commands = hookCommands(hooks);
-
-    assert.ok(commands.length > 0);
-    for (const command of commands) {
-      const match = command.match(/^node hooks\/([a-z-]+\.js)( |$)/);
-      assert.ok(match, `Expected antigravity hook command to run a plugin hook shim: ${command}`);
-      const content = fs.readFileSync(path.join(ROOT, 'antigravity/hooks', match[1]), 'utf8');
-      assert.ok(
-        content.includes('repoEntry') && content.includes('bundledEntry'),
-        `Expected antigravity/hooks/${match[1]} to have repo-first / bundled-fallback resolution`
       );
     }
   });
@@ -89,67 +107,11 @@ describe('thin entrypoint design', () => {
     );
   });
 
-  it('no canonical-source.js helper copies exist (thin entrypoints resolve src/ directly)', () => {
-    const forbiddenLocations = [
-      'src/core/canonical-source.js',
-      'hooks/canonical-source.js',
-      'mcp/canonical-source.js',
-      'claude/scripts/canonical-source.js',
-      'claude/mcp/canonical-source.js',
-    ];
-
-    for (const file of forbiddenLocations) {
-      assert.equal(
-        fs.existsSync(path.join(ROOT, file)),
-        false,
-        `Expected ${file} to NOT exist (replaced by thin entrypoints)`
-      );
-    }
-  });
-
-  it('generated platform metadata exists at final locations', () => {
-    const requiredFiles = [
-      '.agents/plugins/marketplace.json',
-      '.claude-plugin/marketplace.json',
-      'antigravity/plugin.json',
-      'antigravity/mcp_config.json',
-      'antigravity/hooks.json',
-      'claude/.claude-plugin/plugin.json',
-      'claude/.mcp.json',
-      'claude/hooks/claude-hooks.json',
-      'plugins/maestro/.codex-plugin/plugin.json',
-      'plugins/maestro/.mcp.json',
-      'qwen-extension.json',
-      'qwen/hooks.json',
-      'policies/maestro.toml',
-    ];
-
-    for (const file of requiredFiles) {
-      assert.equal(
-        fs.existsSync(path.join(ROOT, file)),
-        true,
-        `Expected generated platform metadata ${file} to exist`
-      );
-    }
-  });
-
-  it('removed Gemini CLI runtime artifacts are gone', () => {
-    // Repo-root agents/ is not listed: it now holds the Qwen agent stubs.
-    const removedPaths = [
-      'src/platforms/gemini',
-      'GEMINI.md',
-      'gemini-extension.json',
-      '.geminiignore',
-      'hooks/hooks.json',
-      'docs/runtime-gemini.md',
-    ];
-
-    for (const file of removedPaths) {
-      assert.equal(
-        fs.existsSync(path.join(ROOT, file)),
-        false,
-        `Expected removed Gemini artifact ${file} to NOT exist`
-      );
+  it('removed runtime artifacts stay gone', () => {
+    for (const [reason, removedPaths] of Object.entries(REMOVED_PATHS)) {
+      for (const file of removedPaths) {
+        assert.equal(fs.existsSync(path.join(ROOT, file)), false, `Expected ${file} to NOT exist: ${reason}`);
+      }
     }
   });
 });

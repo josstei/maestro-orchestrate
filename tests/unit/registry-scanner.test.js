@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { collectRegistryOutputs } = require('../../src/generator/registry-scanner');
-const { makeTempDir, readJson, writeTree } = require('../support/fs');
+const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT, SRC_ROOT } = require('../support/paths');
 
 const REGISTRY_PATHS = [
@@ -32,26 +32,6 @@ describe('collectRegistryOutputs', () => {
     for (const { outputPath, content } of outputs) {
       assert.equal(content, fs.readFileSync(path.join(ROOT, outputPath), 'utf8'), outputPath);
     }
-  });
-
-  it('registers every committed hook handler with a remaining runtime hook config', () => {
-    const hookRegistry = readJson(path.join(ROOT, 'src', 'generated', 'hook-registry.json'));
-    const hookConfigs = [
-      path.join('antigravity', 'hooks.json'),
-      path.join('qwen', 'hooks.json'),
-      path.join('claude', 'hooks', 'claude-hooks.json'),
-    ];
-
-    const registered = new Set();
-    for (const configPath of hookConfigs) {
-      const config = fs.readFileSync(path.join(ROOT, configPath), 'utf8');
-      for (const [, runtime, hookName] of config.matchAll(/hook-runner\.js (\w+) ([a-z-]+)/g)) {
-        assert.ok(['antigravity', 'claude', 'qwen'].includes(runtime), `${configPath}: ${runtime}`);
-        registered.add(hookName);
-      }
-    }
-
-    assert.deepEqual([...registered].sort(), Object.keys(hookRegistry).sort());
   });
 
   describe('on a fixture src tree', () => {

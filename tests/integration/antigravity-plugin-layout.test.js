@@ -238,18 +238,22 @@ describe('antigravity plugin layout', () => {
     }
   });
 
-  it('keeps the public wrappers, each with its bundled entry point', () => {
-    for (const [shim, bundledEntry] of [
+  it('keeps the public wrappers, each preferring the repo src/ over its bundled entry point', () => {
+    for (const [shim, entry] of [
       ['mcp/maestro-server.js', 'src/mcp/maestro-server.js'],
       ['hooks/hook-runner.js', 'src/platforms/shared/hook-runner.js'],
       ['hooks/policy-enforcer.js', 'src/platforms/shared/policy-enforcer.js'],
     ]) {
       const shimSource = fs.readFileSync(path.join(PLUGIN_DIR, shim), 'utf8');
       assert.ok(
-        shimSource.includes(`path.resolve(__dirname, '../${bundledEntry}')`),
-        `${shim}: expected a fallback to the bundled ${bundledEntry}`
+        shimSource.includes(`path.resolve(__dirname, '../../${entry}')`),
+        `${shim}: expected the repo checkout's ${entry} first`
       );
-      assert.ok(fs.statSync(path.join(PLUGIN_DIR, bundledEntry)).isFile(), `Expected ${bundledEntry} to exist`);
+      assert.ok(
+        shimSource.includes(`path.resolve(__dirname, '../${entry}')`),
+        `${shim}: expected a fallback to the bundled ${entry}`
+      );
+      assert.ok(fs.statSync(path.join(PLUGIN_DIR, entry)).isFile(), `Expected ${entry} to exist`);
     }
   });
 });
