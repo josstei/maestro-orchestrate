@@ -5,38 +5,25 @@ const { readJsonSafe } = require('../lib/io');
 
 const PACKAGE_NAME = '@josstei/maestro';
 const VERSION_JSON_FILENAME = 'version.json';
+const SRC_ROOT = path.resolve(__dirname, '..');
 
-function findPackageJsonVersion(startDir) {
-  let currentDir = path.resolve(startDir);
-
-  while (true) {
-    const pkg = readJsonSafe(path.join(currentDir, 'package.json'));
-    if (pkg && pkg.name === PACKAGE_NAME && typeof pkg.version === 'string') {
-      return pkg.version;
-    }
-
-    const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) {
-      return null;
-    }
-
-    currentDir = parentDir;
+/**
+ * The version of the install this module runs from: the Maestro package.json
+ * beside its src/ (a checkout or the npm package), else the version.json a
+ * detached payload ships in src/, else 'unknown'.
+ */
+function resolveVersion() {
+  const pkg = readJsonSafe(path.join(SRC_ROOT, '..', 'package.json'));
+  if (pkg && pkg.name === PACKAGE_NAME && typeof pkg.version === 'string') {
+    return pkg.version;
   }
-}
 
-function findVersionJsonFallback() {
-  const versionJsonPath = path.join(__dirname, '..', VERSION_JSON_FILENAME);
-  const versionData = readJsonSafe(versionJsonPath);
-
+  const versionData = readJsonSafe(path.join(SRC_ROOT, VERSION_JSON_FILENAME));
   if (versionData && typeof versionData.version === 'string') {
     return versionData.version;
   }
 
-  return null;
-}
-
-function resolveVersion(startDir) {
-  return findPackageJsonVersion(startDir) || findVersionJsonFallback() || 'unknown';
+  return 'unknown';
 }
 
 module.exports = {

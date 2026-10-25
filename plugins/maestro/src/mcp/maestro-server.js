@@ -13,7 +13,7 @@ const { RUNTIME_NAMES, getRuntimeConfig, findRuntimeConfigForClient } = require(
 
 const SERVER_INFO = Object.freeze({
   name: 'maestro',
-  version: resolveVersion(__dirname),
+  version: resolveVersion(),
 });
 
 const DEFAULT_TOOL_PACKS = Object.freeze([

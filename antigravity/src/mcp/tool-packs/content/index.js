@@ -1,12 +1,15 @@
 'use strict';
 
+const path = require('node:path');
 const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
 const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
 const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
-const { resolveCanonicalSrcFromExtensionRoot } = require('../../utils/extension-root');
+
+// Content comes from the src/ tree this module runs from, like the registries.
+const CANONICAL_SRC_ROOT = path.resolve(__dirname, '..', '..', '..');
 
 function createToolPack({ runtimeConfig, services }) {
-  const srcRoot = services.canonicalSrcRoot || resolveCanonicalSrcFromExtensionRoot();
+  const srcRoot = services.canonicalSrcRoot || CANONICAL_SRC_ROOT;
 
   return {
     name: 'content',

@@ -122,8 +122,6 @@ src/mcp/
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 10 tools
 │   └── content/index.js        # 3 tools
-├── utils/
-│   └── extension-root.js       # Canonical src/ resolution
 └── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
 ```
 

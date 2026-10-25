@@ -176,6 +176,26 @@ describe('mcp server bundle behavior', () => {
     });
   });
 
+  it('serves content from its own src/ tree when MAESTRO_EXTENSION_PATH names an unrelated directory', async () => {
+    // MAESTRO_EXTENSION_PATH only locates the extension .env; content must not
+    // be looked up there.
+    const extensionPath = makeTempDir('maestro-extension-path-');
+
+    await withServer(
+      {
+        cwd: ROOT,
+        relativePath: 'mcp/maestro-server.js',
+        env: { MAESTRO_RUNTIME: 'qwen', MAESTRO_EXTENSION_PATH: extensionPath },
+      },
+      async (client) => {
+        const result = await client.callTool('get_skill_content', { resources: ['delegation'] });
+
+        assert.ok(result.parsed.contents.delegation.includes('# Delegation Skill'));
+        assert.deepEqual(result.parsed.errors, {});
+      }
+    );
+  });
+
   it('keeps Codex session state in the explicit workspace_path when launched from a cwd outside it', async () => {
     const workspaceRoot = makeTempDir('maestro-codex-workspace-');
     const spawnCwd = makeTempDir('maestro-codex-spawn-');
