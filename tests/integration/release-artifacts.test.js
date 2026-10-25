@@ -225,8 +225,9 @@ describe('release artifact packaging', () => {
     });
   });
 
-  // One corruption per verifier stage proves verifyReleaseArtifact runs each
-  // of them; release-artifact-manifest.test.js covers each stage's rules.
+  // Each corruption must reach verifyReleaseArtifact's content and manifest
+  // checks on a real archive; release-artifact-manifest.test.js covers each
+  // check's rules.
   for (const [name, mutate, expected] of [
     [
       'a missing launcher',
