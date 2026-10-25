@@ -271,7 +271,7 @@ describe('FileWriter diffMode', () => {
   it('counts diff exit 2 as failure rather than a rendered difference', { skip: process.platform === 'win32' }, (t) => {
     const filePath = path.join(tempRoot, 'existing.txt');
     fs.writeFileSync(filePath, 'old\n');
-    fs.writeFileSync(path.join(tempRoot, 'diff'), '#!/bin/sh\nexit 2\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(tempRoot, 'diff'), '#!/bin/sh\nwhile IFS= read -r line; do :; done\nexit 2\n', { mode: 0o755 });
     t.mock.method(console, 'error', () => {});
     t.mock.method(console, 'log', () => {});
     const savedPath = process.env.PATH;

@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Lock contention**: tolerate ownership disappearing between a failed acquisition rename and inspection, using the existing polling deadline while retaining persistent filesystem errors.
 - **State edge cases**: recover interrupted relative-symlink archives, preserve missing-document collision results and unrelated raw CLI access with cyclic state configuration, and avoid stranding lock ownership after candidate cleanup errors.
 - **Build validation**: reject indirect or unsupported module loads, nested development artifacts, archive symlinks, and invalid generated file destinations; verify every public launcher and surface diff-command failures.
 - **Windows state paths**: absolute state directories compare filesystem identities, including drive-letter case and short-path aliases, while preserving returned path spelling.

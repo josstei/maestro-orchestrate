@@ -122,13 +122,9 @@ function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
   fs.cpSync(ROOT, repoRoot, {
     recursive: true,
     filter: (source) => {
-      const relativePath = path.relative(ROOT, source);
-
-      if (!relativePath) {
-        return true;
-      }
-
-      return !relativePath.split(path.sep).some((part) => part === '.git' || part === 'node_modules');
+      const parts = path.relative(ROOT, source).split(path.sep);
+      // A repository fixture must not inherit archives from a local release build.
+      return parts[0] !== 'dist' && !parts.some((part) => part === '.git' || part === 'node_modules');
     },
   });
 

@@ -138,28 +138,29 @@ async function acquireStateLockInternal(controlPath, { timeoutMs = 5000 } = {}) 
     for (;;) {
       try {
         fs.renameSync(candidate, lockPath);
-        candidateMoved = true;
-        try { syncDirectory(controlPath); }
-        catch (error) { removeOwnedLock(lockPath, ownerName); throw error; }
-        let released = false;
-        return () => {
-          if (!released) {
-            removeOwnedLock(lockPath, ownerName);
-            released = true;
-          }
-        };
       } catch (error) {
         if (!['EEXIST', 'ENOTEMPTY', 'EPERM', 'EACCES'].includes(error.code)) throw error;
-        if (!fs.existsSync(lockPath)) throw error;
+        // The previous owner can release between a failed rename and this check.
+        reclaimDeadLock(lockPath);
+        if (Date.now() >= deadline) {
+          if (['EPERM', 'EACCES'].includes(error.code) && !fs.existsSync(lockPath)) throw error;
+          throw new StateError('Session state is busy; retry after the active operation completes.', {
+            code: 'STATE_BUSY', details: { retryable: true, timeout_ms: timeoutMs },
+          });
+        }
+        await sleep(Math.min(50, Math.max(1, deadline - Date.now())));
+        continue;
       }
-      reclaimDeadLock(lockPath);
-      if (!fs.existsSync(lockPath)) continue;
-      if (Date.now() >= deadline) {
-        throw new StateError('Session state is busy; retry after the active operation completes.', {
-          code: 'STATE_BUSY', details: { retryable: true, timeout_ms: timeoutMs },
-        });
-      }
-      await sleep(Math.min(50, Math.max(1, deadline - Date.now())));
+      candidateMoved = true;
+      try { syncDirectory(controlPath); }
+      catch (error) { removeOwnedLock(lockPath, ownerName); throw error; }
+      let released = false;
+      return () => {
+        if (!released) {
+          removeOwnedLock(lockPath, ownerName);
+          released = true;
+        }
+      };
     }
   } finally {
     // A successful rename consumed the candidate. Its cleanup must not prevent

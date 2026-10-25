@@ -106,6 +106,73 @@ describe('state coordinator', () => {
     } finally { release(); }
   });
 
+  it('retries acquisition when a contending owner disappears before a Windows rename error is inspected', async (t) => {
+    const base = workspace(t);
+    const control = privatePath(base, '');
+    const lockPath = path.join(control, 'lock');
+    const releaseOwner = await acquireStateLock(control);
+    const rename = fs.renameSync;
+    let attempts = 0;
+    let mutations = 0;
+    fs.renameSync = function (source, destination) {
+      if (destination === lockPath && ++attempts === 1) {
+        assert.equal(fs.existsSync(lockPath), true);
+        releaseOwner();
+        throw Object.assign(new Error('owner released after blocked rename'), { code: 'EPERM' });
+      }
+      return rename.apply(this, arguments);
+    };
+    try {
+      await withStateMutation(base, { operation: 'after_release' }, (tx) => {
+        mutations++;
+        tx.writeFile(path.join(base, 'state', 'active-session.md'), 'updated once');
+      });
+    } finally { fs.renameSync = rename; releaseOwner(); }
+    assert.equal(attempts, 2);
+    assert.equal(mutations, 1);
+    assert.equal(fs.readFileSync(path.join(base, 'state', 'active-session.md'), 'utf8'), 'updated once');
+    assert.equal(fs.existsSync(lockPath), false);
+  });
+
+  it('bounds no-owner permission retries, yields between attempts, and preserves the permission failure', async (t) => {
+    for (const code of ['EPERM', 'EACCES']) {
+      const base = workspace(t);
+      const control = privatePath(base, '');
+      const lockPath = path.join(control, 'lock');
+      const rename = fs.renameSync;
+      const now = Date.now;
+      let clock = now();
+      let attempts = 0;
+      let yielded = false;
+      const timer = setTimeout(() => { yielded = true; }, 0);
+      Date.now = () => clock;
+      fs.renameSync = function (source, destination) {
+        if (destination === lockPath) {
+          if (++attempts === 2) clock += 100;
+          throw Object.assign(new Error(`persistent rename permission failure: ${code}`), { code });
+        }
+        return rename.apply(this, arguments);
+      };
+      try {
+        await assert.rejects(acquireStateLock(control, { timeoutMs: 100 }), (error) => {
+          assert.equal(error.code, 'STATE_RECOVERY_REQUIRED');
+          assert.match(error.message, new RegExp(`persistent rename permission failure: ${code}`));
+          return true;
+        });
+      } finally {
+        fs.renameSync = rename;
+        Date.now = now;
+        clearTimeout(timer);
+      }
+      assert.equal(attempts, 2);
+      assert.equal(yielded, true);
+      assert.equal(fs.existsSync(lockPath), false);
+      assert.deepEqual(fs.readdirSync(path.join(control, 'candidates')), []);
+      const release = await acquireStateLock(control, { timeoutMs: 0 });
+      release();
+    }
+  });
+
   it('recovers before mutation and asks the caller to inspect state without executing its callback', async (t) => {
     const base = workspace(t);
     const active = path.join(base, 'state', 'active-session.md');
@@ -201,18 +268,26 @@ describe('state coordinator', () => {
   });
 
   it('releases a newly acquired lock when syncing ownership fails', async (t) => {
-    const base = workspace(t);
-    const control = privatePath(base, '');
-    const originalFsync = fs.fsyncSync;
-    fs.fsyncSync = function (fd) {
-      if (fs.existsSync(path.join(control, 'lock'))) throw Object.assign(new Error('sync denied'), { code: 'EIO' });
-      return originalFsync.call(this, fd);
-    };
-    try { await assert.rejects(acquireStateLock(control), /sync denied/); }
-    finally { fs.fsyncSync = originalFsync; }
-    assert.equal(fs.existsSync(path.join(control, 'lock')), false);
-    const release = await acquireStateLock(control);
-    release();
+    const codes = process.platform === 'win32' ? ['EIO', 'EACCES'] : ['EIO', 'EPERM', 'EACCES'];
+    for (const code of codes) {
+      const base = workspace(t);
+      const control = privatePath(base, '');
+      const originalFsync = fs.fsyncSync;
+      let failures = 0;
+      fs.fsyncSync = function (fd) {
+        if (fs.existsSync(path.join(control, 'lock'))) {
+          failures++;
+          throw Object.assign(new Error('sync denied'), { code });
+        }
+        return originalFsync.call(this, fd);
+      };
+      try { await assert.rejects(acquireStateLock(control), /sync denied/); }
+      finally { fs.fsyncSync = originalFsync; }
+      assert.equal(failures, 1);
+      assert.equal(fs.existsSync(path.join(control, 'lock')), false);
+      const release = await acquireStateLock(control);
+      release();
+    }
   });
 
   it('supports compare-and-swap, including an expected absent file', async (t) => {

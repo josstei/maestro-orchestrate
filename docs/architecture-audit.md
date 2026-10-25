@@ -75,11 +75,11 @@ Replaced the two-rule manifest and transform dispatcher with direct agent/shared
 
 Session tools share their common schema fields, and plan validation has two explicit schema stages while retaining the separate DAG passes and diagnostic order. Orphan-gate validation collects only the session IDs it needs. Claude agent tools derive from canonical lists and one runtime policy: 34 redundant overrides are removed, with five intentional exceptions retained.
 
-These changes remove 429 handwritten JavaScript lines under `src/` and `scripts/` (10,395 → 9,966), excluding generated mirrors and tests. Four test files separately shrink by 180 lines while preserving all 131 named scenarios and independent expectations. Documentation catalogs with editorial differences, runtime adapters/configuration fields, and independent artifact expectations remain explicit.
+These changes remove 428 handwritten JavaScript lines under `src/` and `scripts/` (10,395 → 9,967), excluding generated mirrors and tests. Four test files separately shrink by 180 lines while preserving all 131 named scenarios and independent expectations. Documentation catalogs with editorial differences, runtime adapters/configuration fields, and independent artifact expectations remain explicit.
 
 Differential checks preserve all 68 ordered schemas, four runtime contexts, 56 served resource results, 156 served agent results, 117 agent stubs, and 3,010 plan-validation outcomes/errors. New direct-collector tests cover stub paths/order, disappearing sources, renderer failures, registry collision precedence, and file-read counts; existing generation preflight and preview tests remain.
 
-Acceptance: all 1,158 current tests pass on Node 20 and 24, without failures or skips. The lower test count reflects the deleted internal manifest API. Isolating the generator changes against `f023f61` preserves all 588 generated paths, bytes, modes, and output ordering. The graph checks 94 modules; npm-pack verifies 776 files; release-archive verification and zero-drift generation pass.
+Acceptance: all 1,160 current tests pass on Node 20 and 24, without failures or skips. The lower test count reflects the deleted internal manifest API. A deterministic contention regression also verifies acquisition when the previous owner disappears between a failed rename and inspection; only acquisition is retried within the existing deadline. Isolating the generator changes against `f023f61` preserves all 588 generated paths, bytes, modes, and output ordering. The graph checks 94 modules; npm-pack verifies 776 files; release-archive verification and zero-drift generation pass.
 
 ### Three additional audits — 2026-10-25
 
