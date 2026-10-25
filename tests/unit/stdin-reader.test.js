@@ -9,12 +9,12 @@ const { ROOT } = require('../support/paths');
 
 const STDIN_READER = path.join(ROOT, 'src', 'core', 'stdin-reader.js');
 
-function runWithStdin(fnName, stdin) {
+function runWithStdin(stdin) {
   const script = `
     const reader = require(${JSON.stringify(STDIN_READER)});
     (async () => {
       try {
-        const result = await reader.${fnName}();
+        const result = await reader.readText();
         process.stdout.write(JSON.stringify({ ok: true, result }));
       } catch (e) {
         process.stdout.write(JSON.stringify({ ok: false, error: e.message }));
@@ -35,53 +35,32 @@ function runWithStdin(fnName, stdin) {
 
 describe('stdin-reader.readText', () => {
   it('returns the full piped payload', () => {
-    const { parsed } = runWithStdin('readText', 'hello world');
+    const { parsed } = runWithStdin('hello world');
     assert.equal(parsed.ok, true);
     assert.equal(parsed.result, 'hello world');
   });
 
   it('returns an empty string for empty stdin', () => {
-    const { parsed } = runWithStdin('readText', '');
+    const { parsed } = runWithStdin('');
     assert.equal(parsed.ok, true);
     assert.equal(parsed.result, '');
   });
 
   it('rejects when payload exceeds the 1 MiB cap', () => {
     const oversize = 'a'.repeat(1024 * 1024 + 10);
-    const { parsed } = runWithStdin('readText', oversize);
+    const { parsed } = runWithStdin(oversize);
     assert.equal(parsed.ok, false);
     assert.match(parsed.error, /Stdin payload too large/);
   });
 
   it('counts the cap in raw UTF-8 bytes and decodes multi-byte input intact', () => {
     // 'é' is 2 bytes: 512 KiB of them is exactly the cap, one more exceeds it.
-    const atCap = runWithStdin('readText', 'é'.repeat(512 * 1024));
+    const atCap = runWithStdin('é'.repeat(512 * 1024));
     assert.equal(atCap.parsed.ok, true);
     assert.equal(atCap.parsed.result, 'é'.repeat(512 * 1024));
 
-    const overCap = runWithStdin('readText', 'é'.repeat(512 * 1024 + 1));
+    const overCap = runWithStdin('é'.repeat(512 * 1024 + 1));
     assert.equal(overCap.parsed.ok, false);
     assert.match(overCap.parsed.error, /Stdin payload too large/);
-  });
-});
-
-describe('stdin-reader.readBoundedJson', () => {
-  it('parses JSON from piped stdin without a TTY guard', () => {
-    const { parsed } = runWithStdin('readBoundedJson', '{"name":"maestro"}');
-    assert.deepEqual(parsed.result, { name: 'maestro' });
-  });
-
-  it('rejects when payload exceeds the 1 MiB cap', () => {
-    const oversize = JSON.stringify({ data: 'a'.repeat(1024 * 1024 + 10) });
-    const { parsed } = runWithStdin('readBoundedJson', oversize);
-    assert.equal(parsed.ok, false);
-    assert.match(parsed.error, /Stdin payload too large/);
-  });
-
-  it('rejects with a SyntaxError on malformed JSON', () => {
-    const { status, parsed } = runWithStdin('readBoundedJson', '{broken');
-    assert.equal(status, 0, 'rejection should propagate via promise, not crash the process');
-    assert.equal(parsed.ok, false);
-    assert.match(parsed.error, /Unexpected token|JSON/i);
   });
 });

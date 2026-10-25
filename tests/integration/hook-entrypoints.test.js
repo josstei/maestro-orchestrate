@@ -115,12 +115,22 @@ describe('hook entrypoints', () => {
     }
   });
 
-  it('answers with the adapter error fallback when stdin is not JSON', () => {
-    const result = runHook('hooks/hook-runner.js', 'qwen', 'session-start', 'not-json');
+  it('answers with the adapter error fallback when stdin is not JSON or over the 1 MiB cap', () => {
+    const oversize = JSON.stringify({ data: 'a'.repeat(1024 * 1024 + 10) });
+    for (const [launcher, runtime, fallback] of [
+      ['antigravity/hooks/hook-runner.js', 'antigravity', {}],
+      ['claude/scripts/hook-runner.js', 'claude', { continue: false, decision: 'block' }],
+      ['hooks/hook-runner.js', 'qwen', { continue: true, decision: 'allow' }],
+    ]) {
+      const notJson = runHook(launcher, runtime, 'session-start', 'not-json');
+      assert.equal(notJson.status, 0, `${runtime}: stdin not JSON`);
+      assert.match(notJson.stderr, /^Hook error: .*JSON/);
+      assert.deepEqual(JSON.parse(notJson.stdout), fallback);
 
-    assert.equal(result.status, 0);
-    assert.match(result.stderr, /^Hook error: /);
-    assert.deepEqual(JSON.parse(result.stdout), { continue: true, decision: 'allow' });
+      expectExit(runHook(launcher, runtime, 'session-start', oversize),
+        { status: 0, stderr: 'Hook error: Stdin payload too large\n', stdout: `${JSON.stringify(fallback)}\n` },
+        `${runtime}: oversize stdin`);
+    }
   });
 
   it('starts a session when a file blocks its per-session hook-state path', () => {

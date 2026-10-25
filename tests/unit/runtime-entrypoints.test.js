@@ -25,7 +25,7 @@ require(fs.existsSync(repoEntry) ? repoEntry : bundledEntry).main();
       },
       {
         outputPath: 'tools/hooks/run.js',
-        content: `${HEADER}require('../../src/platforms/shared/hook-runner');\n`,
+        content: `${HEADER}require('../../src/platforms/shared/hook-runner').main(process.argv[2], process.argv[3]);\n`,
       },
     ]);
   });

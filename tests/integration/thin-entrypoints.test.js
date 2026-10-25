@@ -91,8 +91,8 @@ describe('thin entrypoint design', () => {
   it('repo-root hook runner shim backs every qwen hook registration', () => {
     const shim = fs.readFileSync(path.join(ROOT, 'hooks/hook-runner.js'), 'utf8');
     assert.ok(
-      shim.includes("require('../src/platforms/shared/hook-runner')"),
-      'Expected hooks/hook-runner.js to require the shared hook runner directly from src/'
+      shim.includes("require('../src/platforms/shared/hook-runner').main(process.argv[2], process.argv[3]);"),
+      'Expected hooks/hook-runner.js to start the shared hook runner from src/ with its arguments'
     );
 
     const commands = hookCommands(readJson(path.join(ROOT, 'qwen/hooks.json')));
