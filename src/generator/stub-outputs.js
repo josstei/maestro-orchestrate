@@ -22,10 +22,6 @@ function collectStubOutputs(srcDir, runtimes, reportError) {
   const outputs = [];
   for (const { file, agent } of sources) {
     const source = path.relative(srcDir, file);
-    if (!fs.existsSync(file)) {
-      reportError(`Source not found: ${source}`);
-      continue;
-    }
     const content = fs.readFileSync(file, 'utf8');
     for (const runtime of agent ? agentTargets : skillTargets) {
       const relativeOutput = agent

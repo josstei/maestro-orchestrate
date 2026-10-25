@@ -66,7 +66,7 @@ function planDetachedPayload(srcDir, runtime, version, { sourceOverrides = new M
     throw new Error(`Invalid ${runtime.name} payload dependencies:\n${graph.issues.map((issue) => `${issue.file}: ${issue.message}`).join('\n')}`);
   }
   const dependencyReasons = new Map(graph.edges.map((edge) => [edge.to, `dependency of ${edge.from}`]));
-  const outputs = graph.reachable.map((outputPath) => ({
+  const outputs = graph.nodes.map((outputPath) => ({
     outputPath,
     content: read(outputPath),
     reason: roots.get(outputPath) || dependencyReasons.get(outputPath),

@@ -359,8 +359,6 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
   }
   for (const node of graph.nodes) checkCycles(node, []);
   issues.sort((a, b) => compare(a.file, b.file) || a.line - b.line || compare(a.code, b.code) || compare(a.message, b.message));
-  // Nodes are populated only by visiting the requested roots and their imports.
-  graph.reachable = graph.nodes.slice();
   return graph;
 }
 

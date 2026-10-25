@@ -29,7 +29,7 @@ describe('dependency graph', () => {
     });
     const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
     assert.deepEqual(graph.issues, []);
-    assert.deepEqual(graph.reachable, [
+    assert.deepEqual(graph.nodes, [
       'mcp/config.json', 'mcp/esm.js', 'mcp/folder/index.js', 'mcp/late.js',
       'mcp/main.js', 'mcp/other.js', 'mcp/plain.js',
     ]);
@@ -115,7 +115,7 @@ describe('dependency graph', () => {
     const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
     assert.deepEqual(codes(graph), ['UNSUPPORTED_PACKAGE_MAIN']);
     assert.match(graph.issues[0].message, /import its target file explicitly/);
-    assert.ok(!graph.reachable.includes('mcp/folder/index.js'));
+    assert.ok(!graph.nodes.includes('mcp/folder/index.js'));
   });
 
   for (const suffix of ['', '.md']) {
@@ -137,7 +137,7 @@ describe('dependency graph', () => {
     });
     const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
     assert.deepEqual(graph.issues, []);
-    assert.deepEqual(graph.reachable, ['mcp/guide.md', 'mcp/main.js']);
+    assert.deepEqual(graph.nodes, ['mcp/guide.md', 'mcp/main.js']);
   });
 
   it('rejects symlink escapes from canonical source', () => {
@@ -217,11 +217,11 @@ describe('dependency graph', () => {
       sourceOverrides: new Map([['generated/hook-registry.json', '{"fresh":{"module":"hooks/fresh.js"}}']]) };
     const graph = buildDependencyGraph(options);
     assert.deepEqual(graph.issues, []);
-    assert.ok(graph.reachable.includes('hooks/fresh.js'));
-    assert.ok(graph.reachable.includes('platforms/claude/hook-adapter.js'));
-    assert.ok(!graph.reachable.some((file) => file.includes('antigravity') || file.includes('stale')));
+    assert.ok(graph.nodes.includes('hooks/fresh.js'));
+    assert.ok(graph.nodes.includes('platforms/claude/hook-adapter.js'));
+    assert.ok(!graph.nodes.some((file) => file.includes('antigravity') || file.includes('stale')));
     const all = buildDependencyGraph({ ...options, runtime: undefined });
-    assert.ok(all.reachable.includes('platforms/antigravity/runtime-config.js'));
+    assert.ok(all.nodes.includes('platforms/antigravity/runtime-config.js'));
   });
 
   it('rejects unknown, stale and targetless dynamic annotations', () => {
@@ -241,7 +241,7 @@ describe('dependency graph', () => {
       'agents/coder.md': '# Coder', 'unused.js': 'require(missing);' });
     const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js', 'agents/coder.md'] });
     assert.deepEqual(graph.issues, []);
-    assert.deepEqual(graph.reachable, ['agents/coder.md', 'mcp/helper.js', 'mcp/main.js']);
+    assert.deepEqual(graph.nodes, ['agents/coder.md', 'mcp/helper.js', 'mcp/main.js']);
     assert.deepEqual(getDependencyClosure(graph, ['mcp/main.js']), ['mcp/helper.js', 'mcp/main.js']);
   });
 
@@ -251,8 +251,8 @@ describe('dependency graph', () => {
     for (const runtime of ['antigravity', 'claude', 'codex', 'qwen']) {
       const graph = buildDependencyGraph({ rootDir: SRC_ROOT, runtime, roots: ['mcp/maestro-server.js'] });
       assert.deepEqual(graph.issues, []);
-      assert.ok(!graph.reachable.some((file) => file.startsWith('generator/')));
-      assert.ok(graph.reachable.includes(`platforms/${runtime}/runtime-config.js`));
+      assert.ok(!graph.nodes.some((file) => file.startsWith('generator/')));
+      assert.ok(graph.nodes.includes(`platforms/${runtime}/runtime-config.js`));
     }
   });
 });

@@ -31,17 +31,17 @@ function walk(dir, rootDir, out) {
 /**
  * Prune stale generated files and empty directories from owned directories.
  *
- * Walks each owned directory, identifies files not present in the manifest path set,
+ * Walks each owned directory, identifies files the generator did not produce this run,
  * deletes them, then removes any empty directories left behind (deepest first).
  *
  * @param {Object} opts
  * @param {string} opts.rootDir - Absolute path to the project root
- * @param {Set<string>} opts.manifestPaths - Set of all valid manifest output paths (forward-slash relative)
+ * @param {Set<string>} opts.outputPaths - Paths the generator produced this run (forward-slash relative)
  * @param {string[]} opts.ownedDirs - Relative directory paths the generator owns
  * @param {boolean} [opts.dryRun=false] - List stale files without deleting anything
  * @returns {{ pruned: string[], emptyDirsRemoved: string[] }}
  */
-function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs, dryRun = false }) {
+function pruneStaleFiles({ rootDir, outputPaths, ownedDirs, dryRun = false }) {
   const emptyDirsRemoved = [];
 
   const owned = { files: [], dirs: [] };
@@ -49,7 +49,7 @@ function pruneStaleFiles({ rootDir, manifestPaths, ownedDirs, dryRun = false }) 
     walk(dir, rootDir, owned);
   }
 
-  const pruned = owned.files.filter((filePath) => !manifestPaths.has(filePath));
+  const pruned = owned.files.filter((filePath) => !outputPaths.has(filePath));
   if (dryRun) return { pruned, emptyDirsRemoved };
   for (const filePath of pruned) {
     fs.unlinkSync(path.join(rootDir, filePath));

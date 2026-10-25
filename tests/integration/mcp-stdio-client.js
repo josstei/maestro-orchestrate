@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
-const { ROOT } = require('./helpers');
+const { ROOT } = require('../support/paths');
 
 const STARTUP_TIMEOUT_MS = 5000;
 const ROOTS_TIMEOUT_MS = 5000;
@@ -314,6 +314,5 @@ async function withMcpClient(options, fn, { initialize = true } = {}) {
 }
 
 module.exports = {
-  spawnMcpServer,
   withMcpClient,
 };

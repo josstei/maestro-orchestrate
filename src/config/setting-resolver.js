@@ -18,8 +18,8 @@ function createSettingResolver(projectRoot, { onWarning = (message) => console.w
       files.set(filePath, { values, warnings });
     }
     const { values, warnings } = files.get(filePath);
-    // Each logical source lookup used to parse and warn independently, even
-    // when workspace and extension resolve to the same file.
+    // Replay cached warnings on every lookup so each source warns as if read
+    // on its own, even when workspace and extension resolve to the same file.
     for (const warning of warnings) onWarning(warning);
     return values;
   }

@@ -8,8 +8,9 @@ const { pathToFileURL } = require('node:url');
 
 const { makeTempDir } = require('../support/fs');
 const { HOST_CLIENTS } = require('../support/host-clients');
+const { ROOT } = require('../support/paths');
 const { expectExit, runNode } = require('../support/process');
-const { ROOT, withIsolatedAntigravityPlugin } = require('./helpers');
+const { withIsolatedAntigravityPlugin } = require('./helpers');
 const { withMcpClient } = require('./mcp-stdio-client');
 
 /**

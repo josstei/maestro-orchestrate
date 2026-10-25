@@ -38,8 +38,6 @@ function extractExamples(body) {
 }
 
 /**
- * Transform: agent-stub
- *
  * Builds an agent discovery stub: runtime-specific frontmatter (the fields
  * listed in `runtime.agentFrontmatter.fields`, in that order, with
  * `<example>` blocks from the body appended to the description when the

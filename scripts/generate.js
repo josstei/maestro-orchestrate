@@ -75,10 +75,10 @@ function main() {
     ]),
     ...payloads.map(({ label }) => label),
   ];
-  const manifestPaths = new Set(outputs.map(({ outputPath }) => outputPath));
+  const outputPaths = new Set(outputs.map(({ outputPath }) => outputPath));
   for (const { outputPath } of outputs) safeResolve(outputPath, ROOT, { requireFile: true });
   for (const ownedDir of ownedDirs) safeResolve(ownedDir, ROOT);
-  const removedPaths = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs, dryRun: true }).pruned.sort();
+  const removedPaths = pruneStaleFiles({ rootDir: ROOT, outputPaths, ownedDirs, dryRun: true }).pruned.sort();
 
   if (cleanMode) {
     writer.clean(stubOutputPaths);
@@ -101,7 +101,7 @@ function main() {
     return;
   }
 
-  pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs });
+  pruneStaleFiles({ rootDir: ROOT, outputPaths, ownedDirs });
   for (const file of removedPaths) console.log(`  PRUNED: ${file}`);
   const stats = writer.getStats();
   console.log(`\nGeneration complete: ${stats.written} written, ${stats.unchanged} unchanged, ${stats.errors} errors`);

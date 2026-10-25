@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const { readJson } = require('../support/fs');
 const { hookCommands } = require('../support/generated-files');
-const { ROOT } = require('./helpers');
+const { ROOT } = require('../support/paths');
 
 // Paths earlier layouts shipped, grouped by what made each one obsolete.
 const REMOVED_PATHS = {

@@ -68,7 +68,7 @@ jobs:
 
           echo "VERSION=$NEXT" >> "$GITHUB_ENV"
 
-      - name: Check adapter drift
+      - name: Check generated output drift
         run: node scripts/generate.js --check
 
       - name: Run full test suite

@@ -57,7 +57,7 @@ fi
   echo "    feat(api): add idempotency-key header"
   echo "    fix(core): reject on malformed JSON instead of crashing"
   echo "    chore(deps): bump c8 to ^10.1.4"
-  echo "    refactor(generator): split manifest curator into pure functions"
+  echo "    refactor(generator): derive stub outputs from runtime configs"
   echo "    feat(auth)!: drop legacy session-token support"
   echo "    docs(readme): document the source-of-truth drift check"
   echo ""

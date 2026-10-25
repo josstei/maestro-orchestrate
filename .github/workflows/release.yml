@@ -150,7 +150,7 @@ jobs:
         if: steps.detect.outputs.is_release == 'true'
         run: npm ci
 
-      - name: Check adapter drift
+      - name: Check generated output drift
         if: steps.detect.outputs.is_release == 'true'
         run: node scripts/generate.js --check
 

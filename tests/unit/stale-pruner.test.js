@@ -15,16 +15,16 @@ describe('pruneStaleFiles', () => {
     rootDir = makeTempDir('maestro-stale-pruner-');
   });
 
-  it('removes files not in manifest paths', () => {
+  it('removes files the generator did not produce', () => {
     writeTree(rootDir, 'agents/alpha.md', 'alpha');
     writeTree(rootDir, 'agents/beta.md', 'beta');
     writeTree(rootDir, 'agents/gamma.md', 'gamma');
 
-    const manifestPaths = new Set(['agents/alpha.md']);
+    const outputPaths = new Set(['agents/alpha.md']);
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths,
+      outputPaths,
       ownedDirs: ['agents'],
     });
 
@@ -36,12 +36,12 @@ describe('pruneStaleFiles', () => {
     assert.ok(!fs.existsSync(path.join(rootDir, 'agents', 'gamma.md')));
   });
 
-  it('keeps files that are in manifest paths and reports nothing when no stale files exist', () => {
+  it('keeps generated files and reports nothing when no stale files exist', () => {
     writeTree(rootDir, 'agents/one.md', 'one');
     writeTree(rootDir, 'agents/two.md', 'two');
     writeTree(rootDir, 'commands/cmd.toml', 'cmd');
 
-    const manifestPaths = new Set([
+    const outputPaths = new Set([
       'agents/one.md',
       'agents/two.md',
       'commands/cmd.toml',
@@ -49,7 +49,7 @@ describe('pruneStaleFiles', () => {
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths,
+      outputPaths,
       ownedDirs: ['agents', 'commands'],
     });
 
@@ -64,11 +64,11 @@ describe('pruneStaleFiles', () => {
     writeTree(rootDir, 'agents/nested/deep/stale.md', 'stale');
     writeTree(rootDir, 'agents/kept.md', 'kept');
 
-    const manifestPaths = new Set(['agents/kept.md']);
+    const outputPaths = new Set(['agents/kept.md']);
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths,
+      outputPaths,
       ownedDirs: ['agents'],
     });
 
@@ -83,11 +83,11 @@ describe('pruneStaleFiles', () => {
   it('handles non-existent owned directories gracefully', () => {
     writeTree(rootDir, 'agents/valid.md', 'valid');
 
-    const manifestPaths = new Set(['agents/valid.md']);
+    const outputPaths = new Set(['agents/valid.md']);
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths,
+      outputPaths,
       ownedDirs: ['agents', 'nonexistent-dir', 'another/missing/path'],
     });
 
@@ -101,11 +101,11 @@ describe('pruneStaleFiles', () => {
     writeTree(rootDir, 'commands/stale.toml', 'stale');
     writeTree(rootDir, 'commands/sub/orphan.toml', 'orphan');
 
-    const manifestPaths = new Set(['commands/keep.toml']);
+    const outputPaths = new Set(['commands/keep.toml']);
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths,
+      outputPaths,
       ownedDirs: ['commands'],
     });
 
@@ -123,14 +123,14 @@ describe('pruneStaleFiles', () => {
     writeTree(rootDir, 'commands/cmd.toml', 'cmd');
     writeTree(rootDir, 'commands/stale-cmd.toml', 'stale');
 
-    const manifestPaths = new Set([
+    const outputPaths = new Set([
       'agents/agent.md',
       'commands/cmd.toml',
     ]);
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths,
+      outputPaths,
       ownedDirs: ['agents', 'commands'],
     });
 
@@ -146,7 +146,7 @@ describe('pruneStaleFiles', () => {
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths: new Set(),
+      outputPaths: new Set(),
       ownedDirs: ['agents'],
     });
 
@@ -168,7 +168,7 @@ describe('pruneStaleFiles', () => {
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths: new Set([
+      outputPaths: new Set([
         'antigravity/agents/coder.md',
         'antigravity/skills/orchestrate/SKILL.md',
       ]),
@@ -189,11 +189,11 @@ describe('pruneStaleFiles', () => {
     writeTree(rootDir, 'agents/sub/keep.md', 'keep');
     writeTree(rootDir, 'agents/sub/stale.md', 'stale');
 
-    const manifestPaths = new Set(['agents/sub/keep.md']);
+    const outputPaths = new Set(['agents/sub/keep.md']);
 
     const result = pruneStaleFiles({
       rootDir,
-      manifestPaths,
+      outputPaths,
       ownedDirs: ['agents'],
     });
 

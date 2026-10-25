@@ -4,8 +4,8 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 
+const { ROOT } = require('../support/paths');
 const { runNode, runNodeOk } = require('../support/process');
-const { ROOT } = require('./helpers');
 
 const SCRIPT_PATH = path.join(ROOT, 'claude', 'scripts', 'policy-enforcer.js');
 const ANTIGRAVITY_SCRIPT_PATH = path.join(ROOT, 'antigravity', 'hooks', 'policy-enforcer.js');

@@ -5,8 +5,9 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { ROOT, runGenerator, runGeneratorExpectFailure, withTempRepoCopy } = require('./helpers');
+const { runGenerator, runGeneratorExpectFailure, withTempRepoCopy } = require('./helpers');
 const { makeTempDir, writeTree } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 const { expectExit } = require('../support/process');
 
 function snapshotTree(root) {

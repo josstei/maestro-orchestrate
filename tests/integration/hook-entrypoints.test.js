@@ -7,9 +7,9 @@ const path = require('node:path');
 
 const { ISOLATED_GIT_ENV } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 const { expectExit, runNode } = require('../support/process');
 const { writeSessionState } = require('../support/session-file');
-const { ROOT } = require('./helpers');
 
 // Hooks keep per-session state under MAESTRO_HOOKS_DIR; give them a private
 // one instead of the shared default under os.tmpdir().

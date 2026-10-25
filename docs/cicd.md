@@ -39,7 +39,7 @@ The main job of every source-of-truth workflow runs these steps in this order. A
 | Checkout | Pins `actions/checkout` to SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) |
 | Setup Node.js | Pins `actions/setup-node` to SHA `49933ea5288caeca8642d1e84afbd3f7d6820020` (v4.4.0); Node.js 20 unless the workflow section says otherwise |
 | Install build dependencies | Runs `npm ci`; parser dependencies are needed for generation and graph checks |
-| Check adapter drift | Runs `node scripts/generate.js --check`, which writes nothing, lists each generated file that would be created, updated, or removed, and exits 1 if there are any |
+| Check generated output drift | Runs `node scripts/generate.js --check`, which writes nothing, lists each generated file that would be created, updated, or removed, and exits 1 if there are any |
 | Run full test suite | Runs `npm test` (the `node --test` globs over `tests/unit/`, `tests/transforms/`, and `tests/integration/` in `package.json`), which includes the layer-boundary check |
 
 ### Shared Publish Tail
@@ -331,7 +331,7 @@ graph TD
 |------|-------------|
 | Validate branch | Runs before checkout; fails if not running from `refs/heads/main` |
 | Checkout | Full history (`fetch-depth: 0`) using `RELEASE_TOKEN` for push permissions |
-| Resolve and validate target version | Runs between **Install build dependencies** and **Check adapter drift**. Uses the explicit `version` input if provided; otherwise scans commit logs since the last tag and infers the bump level (`BREAKING CHANGE` or `!:` triggers major, `feat` triggers minor, otherwise patch). Fails unless the result matches the `X.Y.Z` semver pattern, then exports it as `VERSION` for the later steps |
+| Resolve and validate target version | Runs between **Install build dependencies** and **Check generated output drift**. Uses the explicit `version` input if provided; otherwise scans commit logs since the last tag and infers the bump level (`BREAKING CHANGE` or `!:` triggers major, `feat` triggers minor, otherwise patch). Fails unless the result matches the `X.Y.Z` semver pattern, then exports it as `VERSION` for the later steps |
 | Create release branch | Creates `release/vX.Y.Z` from current `main` |
 | Update canonical release inputs | Runs `node scripts/update-versions.js` with the target version to update `package.json`, README badges, and CHANGELOG; fails if the `[Unreleased]` section in `CHANGELOG.md` has no content |
 | Regenerate with new version | Reruns generator to derive runtime metadata from `package.json`, then runs `npm install --package-lock-only` to update lockfile |

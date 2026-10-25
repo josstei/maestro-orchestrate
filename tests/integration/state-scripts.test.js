@@ -10,9 +10,9 @@ const { createHash } = require('node:crypto');
 const { hermeticEnv, withEnv } = require('../support/env');
 const { readStateFile, writeStateFile } = require('../../src/scripts/state-access');
 const { makeTempDir, writeTree } = require('../support/fs');
+const { ROOT } = require('../support/paths');
 const { expectExit, runNode } = require('../support/process');
 const { DIR_LINK, leaveCommitted } = require('../support/state');
-const { ROOT } = require('./helpers');
 
 const SCRIPTS_DIR = path.join(ROOT, 'src', 'scripts');
 const SETTING = 'MAESTRO_EXECUTION_MODE';

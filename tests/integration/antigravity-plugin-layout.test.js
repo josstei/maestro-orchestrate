@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { ROOT } = require('./helpers');
 const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const {
   AGENT_COUNT,
@@ -16,7 +15,7 @@ const {
 } = require('../support/catalog');
 const { readJson } = require('../support/fs');
 const { readStubFrontmatter } = require('../support/generated-files');
-const { SRC_ROOT } = require('../support/paths');
+const { ROOT, SRC_ROOT } = require('../support/paths');
 const hookRegistry = require('../../src/generated/hook-registry.json');
 
 // `agy plugin install` copies the directory holding plugin.json to

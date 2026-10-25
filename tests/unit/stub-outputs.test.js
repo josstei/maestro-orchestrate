@@ -57,16 +57,6 @@ describe('collectStubOutputs', () => {
     assert.equal(fs.readFileSync(path.join(root, 'agents/broken.md'), 'utf8'), broken);
   });
 
-  it('reports a discovered source that disappears before reading', (t) => {
-    const root = makeTempDir('maestro-stubs-missing-');
-    const file = writeTree(root, 'agents/missing.md', source('missing'));
-    const exists = fs.existsSync;
-    t.mock.method(fs, 'existsSync', (candidate) => candidate === file ? false : exists(candidate));
-    const errors = [];
-    assert.deepEqual(collectStubOutputs(root, runtimes, (message) => errors.push(message)), []);
-    assert.deepEqual(errors, [`Source not found: ${path.join('agents', 'missing.md')}`]);
-  });
-
   it('returns no outputs for an empty source tree', () => {
     assert.deepEqual(collectStubOutputs(makeTempDir('maestro-stubs-empty-'), runtimes, unexpectedError), []);
   });

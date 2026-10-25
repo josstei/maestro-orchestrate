@@ -115,7 +115,6 @@ function withTempRepoCopy(prefix, fn) {
 
 module.exports = {
   DRY_RUN_MARKER,
-  ROOT,
   createTempRepoCopy,
   getGitStatus,
   parseDryRunReport,

@@ -7,7 +7,7 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
 const { makeTempDir } = require('../support/fs');
-const { ROOT } = require('./helpers');
+const { ROOT } = require('../support/paths');
 
 const ZERO_SHA = '0000000000000000000000000000000000000000';
 
