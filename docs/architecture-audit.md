@@ -37,7 +37,32 @@ The retained surfaces and their coverage are in [Design decisions](architecture.
 
 ## Verification record
 
-### Handwritten code reduction — 2026-10-25
+### Current head
+
+The dated sections below record each stage as it was measured; this table is the state of the final head.
+
+| Measure | Value |
+|---------|-------|
+| Tests | 1,158 pass with no failures or skips; the CI state matrix runs 170 of them on Linux, macOS, and Windows with Node 20 and 24 |
+| Dependency graph | 90 modules, zero violations |
+| Generated outputs | 580, unchanged on repeated generation; detached closures hold 126 Antigravity, 126 Claude, and 116 Codex files |
+| npm package | 730 files: runtime code plus the Codex installer and the modules it loads |
+| Release archive | Excludes 17 build modules and 10 templates |
+| MCP baseline | 68 tool schemas, four runtime contexts, 56 resource results, and 156 agent results; three resource results changed by approval (Further reduction) |
+
+### Further reduction — 2026-10-25
+
+A second review covered seven areas (runtime platform layer, runtime content, generator and release tooling, state, MCP, docs, and tests); every finding was adversarially verified before implementation, and each change landed as its own commit.
+
+- **Shared runtime structure.** Runtime differences are runtime-config data: `launchers` drive all nine generated public launchers and the detached payload roots, `entrySurface`, `entryAgentRefs`, `skillStubFrontmatter`, and `servedSkillFrontmatter` drive entry-point, stub, and served-skill rendering, and generator stages take runtime configs. No generator or `src/mcp` code branches on a runtime name. The two per-runtime policy enforcers are gone: each hook adapter exports `shellPolicy`, and the shared enforcer's `main(runtime)` runs it.
+- **Reduction.** `src/mcp/utils/extension-root.js`, `src/lib/framework-detection.js`, `src/entry-points/preamble-builders.js`, `writeIfChanged`, the lenient feature-block mode, and 78 `@feature exampleBlocks` marker lines are gone. One `defineTool` helper builds all 17 MCP tools. The generator classifies each output once, and `generate.js --check` replaces eight copied drift checks in CI, the pre-push hook, and `just check`. State stores take the read view or transaction first, and the state lock, journal, and transaction share their busy, recovery, private-JSON, and directory helpers.
+- **Approved behavior fixes.** Qwen's `workspace_suggestion` reads `MAESTRO_WORKSPACE_PATH`; Qwen's served implementation-planning skill names snake_case agents; Claude's served state contract and the Codex fallback resolve `<state_dir>` instead of a fixed `docs/maestro`; Claude entry skills load their declared skills and Claude and Codex entry skills carry the request guard (and Codex its constraints); a dangling `STATE_DIR` symlink is rejected with the documented error; lazily created state directories are private. The changed MCP results are Qwen implementation-planning, Claude architecture, and Codex architecture.
+- **Packaging.** npm ships only runtime code and the Codex installer closure; `pack:verify` allowlists `scripts/` and rejects the build-only trees. The unused `claude/mcp-config.example.json` is removed.
+- **Tests and docs.** Shared process, MCP-client, hermetic-environment, session, and state-fault helpers replace per-file copies; overlapping session, installed-bundle, and artifact-invariant tests each have one owner, with every removed test mapped to its surviving coverage. Runtime Definitions is the one per-runtime fact table, CONTRIBUTING owns the command table, and CI documentation has one shared core.
+
+The 36 commits before this record remove a net 1,476 lines, including 392 doc lines, 387 test lines, 533 payload-mirror lines, and 84 CI, hook, and justfile lines. Handwritten `src/` and `scripts/` JavaScript stays about level (9,967 to 9,964): the removed modules and boilerplate offset the new runtime-config tables, `--check` mode, and focused guards. Each zero-drift commit was checked against a differential harness covering the repository and payload servers for every runtime (tool schemas, runtime context, all resources and agents, and a full session lifecycle), plus npm and archive file lists.
+
+### Handwritten code reduction (a1ac1de, d9ff0e7) — 2026-10-25
 
 Replaced the two-rule manifest and transform dispatcher with direct agent/shared-skill stub collection, removing three internal modules and their obsolete API tests. Discovery now returns matching paths without identity/metadata callbacks or unnecessary resource-content reads. Entry-point paths use runtime configuration; agent frontmatter keeps its ordered configuration with direct field values instead of a separate callback context.
 
@@ -49,7 +74,7 @@ Differential checks preserve all 68 ordered schemas, four runtime contexts, 56 s
 
 Acceptance: all 1,160 current tests pass on Node 20 and 24, without failures or skips. The lower test count reflects the deleted internal manifest API. A deterministic contention regression also verifies acquisition when the previous owner disappears between a failed rename and inspection; only acquisition is retried within the existing deadline. Isolating the generator changes against `f023f61` preserves all 588 generated paths, bytes, modes, and output ordering. The graph checks 94 modules; npm-pack verifies 776 files; release-archive verification and zero-drift generation pass.
 
-### Three additional audits — 2026-10-25
+### Three additional audits (f023f61) — 2026-10-25
 
 Three independent reviews covered dependency analysis and internal boundaries, state/CLI compatibility and recovery, and generated outputs/release artifacts. All 15 confirmed findings have implementations and focused regression coverage:
 
@@ -63,15 +88,15 @@ Acceptance: 1,191 tests pass on both Node 20 and 24 with no failures or skips. T
 
 These changes add no runtime dependencies, migration, compatibility modules, or production fault-injection switches. Normal public outputs remain identical to the preceding PR head: 68 tool schemas, four runtime contexts, 56 resource results, and 156 agent results. Archive symlink and invalid-output fixtures fail before creating an archive or modifying generated files; valid payload paths and bytes remain governed by the existing closure.
 
-### Cleanup follow-up — 2026-10-25
+### Cleanup follow-up (a4820c4) — 2026-10-25
 
 Reviewed the completed implementation for transitional interfaces, unused exports, debugging residue, and development-only files in runtime distributions. Removed coordinator pass-through exports, the agent-catalog alias, test-only helper exports, unused gate arguments/transaction return metadata, the unused encoding overload, the empty-context wrapper, duplicate context normalization, the redundant graph traversal, and unused Map compatibility coercion. Physical path resolution now lives in `state/paths.js`; document materialization belongs entirely to the state store. Temporary Windows test diagnostics and stale handwritten-launcher documentation are gone.
 
-The extension release archive excludes 19 build modules and eight templates that none of its runtime entrypoints load. Independent artifact checks reject their reintroduction; extracted-archive checks exercise every runtime and all five state scripts. npm retains its documented generation/build/prepack and installer sources. Public launchers, root documentation redirects, legacy YAML/CLI behavior, saved journal results, and recovery metadata remain intentional compatibility surfaces. No tracked temporary files, development caches, or production debug/fault-injection switches were found.
+The extension release archive excludes 19 build modules and eight templates that none of its runtime entrypoints load. Independent artifact checks reject their reintroduction; extracted-archive checks exercise every runtime and all five state scripts. npm then retained its generation/build/prepack and installer sources; Further reduction narrowed it to runtime code and the installer. Public launchers, root documentation redirects, legacy YAML/CLI behavior, saved journal results, and recovery metadata remain intentional compatibility surfaces. No tracked temporary files, development caches, or production debug/fault-injection switches were found.
 
 The follow-up passes 1,160 tests on both Node 20 and 24 with zero failures or skips. Comparing the prior PR commit to the cleanup finds all 68 schemas, four runtime contexts, 56 served resource results, and 156 agent results identical.
 
-### Initial remediation acceptance
+### Initial remediation acceptance (06abca7, b105142, 0305bea)
 
 Reproducible acceptance commands: `npm ci`, `npm test`, `node scripts/check-layer-boundaries.js`, `npm run pack:verify`, `npm run release:artifacts`, `npm run release:verify-artifacts`, and repeated `node scripts/generate.js` with zero drift. Full-suite runs use Node 20 and 24. The `state-portability` CI matrix runs focused concurrency, recovery, CLI, and hook contracts on Linux, macOS, and Windows with both Node majors.
 
