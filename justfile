@@ -2,27 +2,7 @@
 
 # List available commands with descriptions
 help:
-    @echo "Maestro Orchestrate — development commands"
-    @echo ""
-    @echo "Generator:"
-    @echo "  just generate         Generate all runtime files from src/"
-    @echo "  just dry-run          Preview what would change without writing"
-    @echo "  just diff             Show unified diff of what would change"
-    @echo "  just clean            Delete generated agent and shared-skill stubs, then regenerate"
-    @echo ""
-    @echo "Testing:"
-    @echo "  just test             Run all tests"
-    @echo "  just test-unit        Run only unit tests"
-    @echo "  just test-transforms  Run only transform unit tests"
-    @echo "  just test-integration Run only integration tests"
-    @echo ""
-    @echo "CI:"
-    @echo "  just check            Generate + verify zero drift"
-    @echo "  just check-layers     Verify shared source layer boundaries"
-    @echo "  just ci               Full CI equivalent (check + check-layers + test)"
-    @echo ""
-    @echo "Maintenance:"
-    @echo "  just cleanup-branches Delete local branches whose remote is gone"
+    @just --list
 
 # Generate all runtime files from src/
 generate:
@@ -41,7 +21,8 @@ clean:
     node scripts/generate.js --clean
 
 # Run all tests
-test: (_node-test "test" "tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js")
+test:
+    npm test
 
 # Run only unit tests (core modules, hooks, handlers)
 test-unit: (_node-test "unit test" "tests/unit/*.test.js")
@@ -60,22 +41,25 @@ _node-test label globs:
     if [ ${#files[@]} -eq 0 ]; then echo "No {{label}} files found"; exit 1; fi
     node --test "${files[@]}"
 
-# Generate and verify zero drift (what CI runs)
-check: generate
-    #!/usr/bin/env bash
-    if ! git diff --exit-code --name-only; then
-        echo "ERROR: Generated files are out of sync with source. Run 'just generate' and commit."
-        git diff --stat
-        exit 1
-    fi
-    echo "No drift detected."
+# Verify generated files match src/ without writing (what CI runs)
+check:
+    node scripts/generate.js --check
 
 # Verify lower-layer dependencies (lib, core, config, state and hooks)
 check-layers:
     node scripts/check-layer-boundaries.js
 
-# Generate, test, and verify — full CI equivalent
-ci: check check-layers test
+# Verify the npm package contents
+pack-verify:
+    npm run pack:verify
+
+# Package the release archive and verify its contents
+release-verify:
+    npm run release:artifacts
+    npm run release:verify-artifacts
+
+# Check drift, test, and verify the package and release archive — full CI equivalent
+ci: check test pack-verify release-verify
 
 # Delete local branches whose remote tracking ref is gone
 cleanup-branches:

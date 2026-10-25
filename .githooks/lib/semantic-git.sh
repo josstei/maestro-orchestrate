@@ -36,6 +36,21 @@ semantic_is_zero_sha() {
   [[ "$sha" =~ $SEMANTIC_ZERO_SHA_PATTERN ]]
 }
 
+semantic_print_commit_subject_format() {
+  {
+    echo "Required commit subject format:"
+    echo "    <type>(<optional-scope>)<!>: <description>"
+    echo ""
+    echo "Allowed types:"
+    echo "    ${SEMANTIC_TYPES//|/, }, release"
+    echo ""
+    echo "Examples that pass:"
+    echo "    feat(api): add idempotency-key header"
+    echo "    fix(core): reject on malformed JSON instead of crashing"
+    echo ""
+  } >&2
+}
+
 semantic_print_branch_name_error() {
   local hook_name="$1"
   local branch="$2"

@@ -23,7 +23,7 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
@@ -31,16 +31,8 @@ jobs:
       - name: Install build dependencies
         run: npm ci
 
-      - name: Generate runtime adapters
-        run: node scripts/generate.js
-
       - name: Check adapter drift
-        run: |
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Preview drift detected"
-            git diff --stat
-            exit 1
-          fi
+        run: node scripts/generate.js --check
 
       - name: Run full test suite
         run: npm test
@@ -77,10 +69,12 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
           VERSION=$(node -p "require('./package.json').version")
-          BODY="Preview published: \`npm install @josstei/maestro@${VERSION}\`
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          BODY="Preview published: \`npm install ${PACKAGE_NAME}@${VERSION}\`
 
-          Built from \`${HEAD_SHA}\`"
+          Built from \`${SHORT_SHA}\`"
 
           EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
             --jq 'map(select(.body | startswith("Preview published:"))) | .[0].id')

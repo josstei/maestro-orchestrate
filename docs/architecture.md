@@ -278,6 +278,5 @@ Tests use the Node.js built-in `node:test` runner and live in `tests/unit/`, `te
 
 CI validates that generated output matches committed state:
 
-1. Run `node scripts/generate.js`
-2. Check `git diff --exit-code --name-only`
-3. Fail if any generated file differs from source
+1. Run `node scripts/generate.js --check`, which writes nothing
+2. Fail if any generated file would be created, updated, or removed

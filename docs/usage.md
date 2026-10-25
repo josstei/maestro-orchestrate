@@ -35,13 +35,13 @@ just test-transforms
 # Run only integration tests
 just test-integration
 
-# Generate + verify zero drift in a clean worktree/CI checkout
+# Verify zero drift without writing, in a clean worktree/CI checkout
 just check
 
 # Verify lib/ import-boundary rules
 just check-layers
 
-# Full CI equivalent in a clean worktree/CI checkout (check + check-layers + test)
+# Full CI equivalent in a clean worktree/CI checkout (check + test + pack-verify + release-verify)
 just ci
 
 # Delete local branches whose remotes are gone
@@ -55,7 +55,7 @@ just cleanup-branches
 3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
 4. Run `npm test` (or `just test`) before committing
 5. Commit canonical source, directly owned files, and generated output together
-6. CI will fail if runtime outputs drift from canonical `src/`; `just check` and `just ci` are designed for clean worktrees because they end with `git diff --exit-code`
+6. CI will fail if runtime outputs drift from canonical `src/`; `just check` and `just ci` are designed for clean worktrees because `--check` compares `src/` with the generated files on disk
 
 ## Configuration
 

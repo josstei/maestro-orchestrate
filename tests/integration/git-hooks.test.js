@@ -138,9 +138,9 @@ describe('repo git hooks', () => {
     const commitTypes = [...branchTypes, 'release'];
 
     const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'commit-message-check.yml'), 'utf8');
-    const printed = [...workflow.matchAll(/echo "Allowed types: ([^"]*)"\n\s*echo " +([^"]*)\."/g)]
-      .map(([, first, rest]) => `${first} ${rest}`.split(/,\s*/));
-    assert.deepEqual(printed, [commitTypes, branchTypes, commitTypes]);
+    assert.doesNotMatch(workflow, /Allowed types/, 'commit-message-check.yml should print type lists through semantic-git.sh');
+    assert.equal(workflow.match(/^\s*semantic_print_commit_subject_format$/gm)?.length, 2);
+    assert.match(workflow, /semantic_print_branch_name_error "branch-name-check" "\$HEAD_REF"/);
 
     const commitMsg = fs.readFileSync(hookPath('commit-msg'), 'utf8');
     const hookBlock = commitMsg.split('echo "Allowed types:"')[1].split('echo ""')[0];
@@ -148,5 +148,18 @@ describe('repo git hooks', () => {
 
     const contributing = fs.readFileSync(path.join(ROOT, 'CONTRIBUTING.md'), 'utf8');
     assert.deepEqual([...contributing.matchAll(/^\| `([a-z]+)` \|/gm)].map((m) => m[1]), commitTypes);
+  });
+
+  it('semantic_print_commit_subject_format prints the commit types, including release', () => {
+    const result = spawnSync(
+      'bash',
+      ['-c', 'source "$1"; semantic_print_commit_subject_format', 'bash', hookPath('lib/semantic-git.sh')],
+      { encoding: 'utf8' },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /^ {4}<type>\(<optional-scope>\)<!>: <description>$/m);
+    assert.match(result.stderr, /^ {4}feat, fix, chore, docs, test, refactor, perf, style, build, ci, revert, release$/m);
   });
 });

@@ -37,9 +37,11 @@ All commands are available via `just`:
 | `just test-unit` | Run only unit tests |
 | `just test-transforms` | Run only transform unit tests |
 | `just test-integration` | Run only integration tests |
-| `just check` | Generate + verify zero drift (`git diff --exit-code`) |
+| `just check` | Verify zero drift without writing (`node scripts/generate.js --check`) |
 | `just check-layers` | Parse the production graph; verify layer boundaries, dependency containment, and absence of cycles |
-| `just ci` | Full CI equivalent: check + check-layers + test |
+| `just pack-verify` | Verify the npm package contents |
+| `just release-verify` | Package the release archive and verify its contents |
+| `just ci` | Full CI equivalent: check + test + pack-verify + release-verify |
 | `just dry-run` | Preview changes without writing |
 | `just diff` | Show unified diff of pending changes |
 | `just clean` | Delete the generated agent and shared-skill stubs, then regenerate |
