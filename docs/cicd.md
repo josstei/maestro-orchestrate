@@ -1,4 +1,4 @@
-<!-- Source: .github/workflows/*.yml, justfile -->
+<!-- Source: .github/workflows/*.yml, .github/actions/*/action.yml, justfile -->
 
 # CI/CD Pipeline
 
@@ -44,7 +44,7 @@ The main job of every source-of-truth workflow runs these steps in this order. A
 
 ### Shared Publish Tail
 
-Nightly Build, Preview Build, and Release Candidate publish a prerelease after the core:
+Nightly Build, Preview Build, and Release Candidate publish a prerelease after the core. Nightly Build runs these steps inline. Preview Build and Release Candidate compute their version, then run the rest through the local composite action `.github/actions/publish-prerelease` with `version`, `tag`, and `comment-prefix` inputs:
 
 | Step | Description |
 |------|-------------|
@@ -52,8 +52,9 @@ Nightly Build, Preview Build, and Release Candidate publish a prerelease after t
 | Regenerate runtime metadata | Runs `node scripts/generate.js` so runtime manifests and MCP package specs use the prerelease version |
 | Verify npm package contents | Runs `npm run pack:verify` against the prerelease package surface |
 | Publish | Publishes through `node scripts/npm-publish-idempotent.js --tag <dist-tag> --access public` with `NODE_AUTH_TOKEN` derived from `NPM_TOKEN`, skipping if the exact version already exists |
+| Upsert PR comment | Composite action only: posts the install command (package name and version from `package.json`) and the short head SHA, or updates the existing PR comment that starts with `comment-prefix` |
 
-In these three workflows, every step after **Run full test suite** is gated on `if: env.NPM_TOKEN != ''` (the job-level `NPM_TOKEN` env holds the secret), so publishing is skipped when the secret is absent. Stable Release instead requires `NPM_TOKEN` and publishes the committed version without the set-version and regenerate steps.
+In these three workflows, every step after **Run full test suite** is gated on `if: env.NPM_TOKEN != ''` (the job-level `NPM_TOKEN` env holds the secret), so publishing is skipped when the secret is absent. The step that runs the composite action carries that gate and passes `NODE_AUTH_TOKEN` through `env`. Stable Release instead requires `NPM_TOKEN` and publishes the committed version without the set-version and regenerate steps.
 
 ## Source Of Truth Check
 
@@ -268,9 +269,8 @@ graph TD
 |------|-------------|
 | Checkout | Checks out the PR head repository and SHA (supports fork PRs) |
 | Setup Node.js | Sets the npm registry URL |
-| Set preview version | Computes the version as `{base}-preview.{7-char SHA}` |
-| Publish preview | Publishes with `--tag preview` |
-| Upsert PR comment | Posts or updates a PR comment with the install command, reading the package name from `package.json` |
+| Determine preview version | Computes the version as `{base}-preview.{7-char SHA}` |
+| Publish preview | Runs the composite action with `tag: preview` and the `Preview published:` comment prefix |
 
 ### Environment and Secrets
 
@@ -398,8 +398,7 @@ graph TD
 | Checkout | Checks out the PR head repository and SHA |
 | Setup Node.js | Sets the npm registry URL |
 | Determine RC version | Reads the base version and package name from `package.json`, queries the npm registry for existing RC versions of this base, and increments the RC number to avoid collisions |
-| Publish RC | Publishes with `--tag rc` |
-| Upsert PR comment | Posts or updates a comment with the install command and short SHA |
+| Publish RC | Runs the composite action with `tag: rc` and the `Release candidate published:` comment prefix |
 
 ### Environment and Secrets
 

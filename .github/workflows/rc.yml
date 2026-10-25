@@ -56,46 +56,13 @@ jobs:
 
           RC_VERSION="${BASE}-rc.${RC_NUM}"
           echo "version=$RC_VERSION" >> "$GITHUB_OUTPUT"
-          npm version "$RC_VERSION" --no-git-tag-version
-
-      - name: Regenerate runtime metadata
-        if: env.NPM_TOKEN != ''
-        run: node scripts/generate.js
-
-      - name: Verify npm package contents
-        if: env.NPM_TOKEN != ''
-        run: npm run pack:verify
 
       - name: Publish RC
         if: env.NPM_TOKEN != ''
-        run: node scripts/npm-publish-idempotent.js --tag rc --access public
+        uses: ./.github/actions/publish-prerelease
+        with:
+          version: ${{ steps.rc.outputs.version }}
+          tag: rc
+          comment-prefix: 'Release candidate published:'
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
-      - name: Upsert PR comment
-        if: env.NPM_TOKEN != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          VERSION: ${{ steps.rc.outputs.version }}
-        run: |
-          PACKAGE_NAME=$(node -p "require('./package.json').name")
-          SHORT_SHA="${HEAD_SHA:0:7}"
-          BODY="Release candidate published: \`npm install ${PACKAGE_NAME}@${VERSION}\`
-
-          Built from \`${SHORT_SHA}\`"
-
-          EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq 'map(select(.body | startswith("Release candidate published:"))) | .[0].id')
-
-          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-            gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
-              -X PATCH \
-              -f body="$BODY"
-          else
-            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
-              -X POST \
-              -f body="$BODY"
-          fi

@@ -7,14 +7,22 @@ const path = require('node:path');
 
 const { ROOT } = require('../support/paths');
 
-const WORKFLOWS_DIR = path.join(ROOT, '.github', 'workflows');
+const GITHUB_DIR = path.join(ROOT, '.github');
+const PUBLISH_ACTION = 'actions/publish-prerelease/action.yml';
 const WORKFLOW_FILES = fs
-  .readdirSync(WORKFLOWS_DIR)
+  .readdirSync(path.join(GITHUB_DIR, 'workflows'))
   .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+  .map((name) => `workflows/${name}`)
   .sort();
+const ACTION_FILES = fs
+  .readdirSync(path.join(GITHUB_DIR, 'actions'), { recursive: true })
+  .filter((name) => ['action.yml', 'action.yaml'].includes(path.basename(name)))
+  .map((name) => `actions/${name.split(path.sep).join('/')}`)
+  .sort();
+const SHELL_FILES = [...WORKFLOW_FILES, ...ACTION_FILES];
 
-function readWorkflow(fileName) {
-  return fs.readFileSync(path.join(WORKFLOWS_DIR, fileName), 'utf8');
+function readGithubFile(relativePath) {
+  return fs.readFileSync(path.join(GITHUB_DIR, relativePath), 'utf8');
 }
 
 function getIndent(line) {
@@ -58,10 +66,26 @@ function collectRunBlocks(content) {
   return blocks;
 }
 
+function collectSteps(content) {
+  const steps = [];
+
+  for (const line of content.split('\n')) {
+    if (/^\s*- (?:name|uses):/.test(line)) {
+      steps.push([]);
+    }
+    if (steps.length > 0) {
+      steps[steps.length - 1].push(line);
+    }
+  }
+
+  return steps.map((lines) => lines.join('\n'));
+}
+
 describe('workflow shell security', () => {
   it('does not interpolate GitHub expressions directly inside run blocks', () => {
-    for (const fileName of WORKFLOW_FILES) {
-      const content = readWorkflow(fileName);
+    assert.ok(ACTION_FILES.includes(PUBLISH_ACTION), `${PUBLISH_ACTION} should be scanned`);
+    for (const fileName of SHELL_FILES) {
+      const content = readGithubFile(fileName);
       const runBlocks = collectRunBlocks(content);
 
       assert.ok(runBlocks.length > 0, `${fileName} should contain at least one run block`);
@@ -76,8 +100,8 @@ describe('workflow shell security', () => {
   });
 
   it('publishing workflows use the idempotent npm publish helper', () => {
-    for (const fileName of WORKFLOW_FILES) {
-      const content = readWorkflow(fileName);
+    for (const fileName of SHELL_FILES) {
+      const content = readGithubFile(fileName);
       const runBlocks = collectRunBlocks(content);
 
       for (const block of runBlocks) {
@@ -90,13 +114,13 @@ describe('workflow shell security', () => {
     }
 
     assert.match(
-      readWorkflow('release.yml'),
+      readGithubFile('workflows/release.yml'),
       /node scripts\/npm-publish-idempotent\.js --access public/
     );
   });
 
   it('stable release publishing uses npm token auth and manual recovery inputs', () => {
-    const content = readWorkflow('release.yml');
+    const content = readGithubFile('workflows/release.yml');
 
     assert.match(content, /workflow_dispatch:/);
     assert.match(content, /\n\s+version:\n\s+description: 'Stable version to recover/);
@@ -110,41 +134,83 @@ describe('workflow shell security', () => {
     assert.match(content, /Tag \$TAG exists at \$TAG_SHA, not target commit \$TARGET_SHA/);
   });
 
-  it('prerelease workflows regenerate metadata and verify pack after npm versioning', () => {
+  it('nightly regenerates metadata and verifies pack after npm versioning', () => {
+    const content = readGithubFile('workflows/nightly.yml');
+    const versionIndex = content.indexOf('npm version "$NIGHTLY" --no-git-tag-version');
+    const generateIndex = content.indexOf('run: node scripts/generate.js\n', versionIndex);
+    const verifyIndex = content.indexOf('run: npm run pack:verify', generateIndex);
+    const publishIndex = content.indexOf(
+      'node scripts/npm-publish-idempotent.js --tag nightly --access public',
+      verifyIndex
+    );
+
+    assert.notEqual(versionIndex, -1, 'nightly.yml should compute a prerelease npm version');
+    assert.notEqual(generateIndex, -1, 'nightly.yml should regenerate after npm version');
+    assert.notEqual(verifyIndex, -1, 'nightly.yml should verify npm pack after regenerating');
+    assert.notEqual(publishIndex, -1, 'nightly.yml should publish through the helper after verification');
+    assert.doesNotMatch(
+      content,
+      /npm-publish-idempotent\.js(?:[^\n]*\s)?--tag latest/,
+      'nightly.yml must not publish prereleases with the latest dist-tag'
+    );
+  });
+
+  it('the publish-prerelease action versions, regenerates, verifies, publishes, then comments', () => {
+    const steps = collectSteps(readGithubFile(PUBLISH_ACTION));
     const expectations = [
+      { command: /run: npm version "\$VERSION" --no-git-tag-version$/m, env: 'VERSION: ${{ inputs.version }}' },
+      { command: /run: node scripts\/generate\.js$/m },
+      { command: /run: npm run pack:verify$/m },
       {
-        fileName: 'nightly.yml',
-        versionCommand: 'npm version "$NIGHTLY" --no-git-tag-version',
-        publishCommand: 'node scripts/npm-publish-idempotent.js --tag nightly --access public',
+        command: /run: node scripts\/npm-publish-idempotent\.js --tag "\$TAG" --access public$/m,
+        env: 'TAG: ${{ inputs.tag }}',
       },
       {
-        fileName: 'preview.yml',
-        versionCommand: 'npm version "$PREVIEW" --no-git-tag-version',
-        publishCommand: 'node scripts/npm-publish-idempotent.js --tag preview --access public',
-      },
-      {
-        fileName: 'rc.yml',
-        versionCommand: 'npm version "$RC_VERSION" --no-git-tag-version',
-        publishCommand: 'node scripts/npm-publish-idempotent.js --tag rc --access public',
+        command: /startswith\(env\.COMMENT_PREFIX\)/,
+        env: 'COMMENT_PREFIX: ${{ inputs.comment-prefix }}',
       },
     ];
 
-    for (const { fileName, versionCommand, publishCommand } of expectations) {
-      const content = readWorkflow(fileName);
-      const versionIndex = content.indexOf(versionCommand);
-      const generateIndex = content.indexOf('run: node scripts/generate.js\n', versionIndex);
-      const verifyIndex = content.indexOf('run: npm run pack:verify', generateIndex);
-      const publishIndex = content.indexOf(publishCommand, verifyIndex);
-
-      assert.notEqual(versionIndex, -1, `${fileName} should compute a prerelease npm version`);
-      assert.notEqual(generateIndex, -1, `${fileName} should regenerate after npm version`);
-      assert.notEqual(verifyIndex, -1, `${fileName} should verify npm pack after regenerating`);
-      assert.notEqual(publishIndex, -1, `${fileName} should publish through the helper after verification`);
-      assert.doesNotMatch(
-        content,
-        /npm-publish-idempotent\.js(?:[^\n]*\s)?--tag latest/,
-        `${fileName} must not publish prereleases with the latest dist-tag`
-      );
+    let previousIndex = -1;
+    for (const { command, env } of expectations) {
+      const index = steps.findIndex((step) => command.test(step));
+      assert.ok(index > previousIndex, `${PUBLISH_ACTION} should run ${command} after the previous step`);
+      if (env) {
+        assert.ok(steps[index].includes(env), `${PUBLISH_ACTION} should pass ${env} to ${command}`);
+      }
+      previousIndex = index;
     }
   });
+
+  it('prerelease workflows publish through the action with their own dist-tag and gate', () => {
+    const expectations = [
+      { fileName: 'workflows/preview.yml', versionStepId: 'preview', tag: 'preview' },
+      { fileName: 'workflows/rc.yml', versionStepId: 'rc', tag: 'rc' },
+    ];
+
+    for (const { fileName, versionStepId, tag } of expectations) {
+      const content = readGithubFile(fileName);
+      const steps = collectSteps(content);
+      const versionIndex = steps.findIndex((step) => step.includes(`id: ${versionStepId}\n`));
+      const publishIndex = steps.findIndex((step) => step.includes('uses: ./.github/actions/publish-prerelease\n'));
+      const publishStep = steps[publishIndex] || '';
+
+      assert.match(content, /\npermissions:\n {2}contents: read\n {2}pull-requests: write\n/, fileName);
+      assert.match(content, /\n {6}NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}\n/, fileName);
+      assert.ok(versionIndex !== -1 && versionIndex < publishIndex, `${fileName} should compute the version first`);
+      assert.match(steps[versionIndex], /if: env\.NPM_TOKEN != ''/, fileName);
+      assert.match(publishStep, /if: env\.NPM_TOKEN != ''/, fileName);
+      assert.ok(publishStep.includes(`version: \${{ steps.${versionStepId}.outputs.version }}`), fileName);
+      assert.ok(publishStep.includes(`\n          tag: ${tag}\n`), `${fileName} should publish with --tag ${tag}`);
+      assert.ok(publishStep.includes('NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}'), fileName);
+      for (const block of collectRunBlocks(content)) {
+        assert.doesNotMatch(
+          block,
+          /npm version|npm-publish-idempotent/,
+          `${fileName} should leave versioning and publishing to the action:\n${block}`
+        );
+      }
+    }
+  });
+
 });

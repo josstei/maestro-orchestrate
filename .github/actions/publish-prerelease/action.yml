@@ -1,0 +1,69 @@
+name: Publish prerelease
+description: >-
+  Apply the caller's prerelease version, regenerate, verify the npm package,
+  publish it under the given dist-tag, and upsert the pull request comment
+  with its install command. Callers run it from a pull_request job, gate it
+  on NPM_TOKEN, and pass NODE_AUTH_TOKEN through env.
+
+inputs:
+  version:
+    description: Prerelease version computed by the caller
+    required: true
+  tag:
+    description: npm dist-tag to publish under
+    required: true
+  comment-prefix:
+    description: Text that starts the pull request comment, used to find and update it
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set prerelease version
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: npm version "$VERSION" --no-git-tag-version
+
+    - name: Regenerate runtime metadata
+      shell: bash
+      run: node scripts/generate.js
+
+    - name: Verify npm package contents
+      shell: bash
+      run: npm run pack:verify
+
+    - name: Publish
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+      run: node scripts/npm-publish-idempotent.js --tag "$TAG" --access public
+
+    - name: Upsert PR comment
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        COMMENT_PREFIX: ${{ inputs.comment-prefix }}
+      run: |
+        PACKAGE_NAME=$(node -p "require('./package.json').name")
+        VERSION=$(node -p "require('./package.json').version")
+        SHORT_SHA="${HEAD_SHA:0:7}"
+        BODY="${COMMENT_PREFIX} \`npm install ${PACKAGE_NAME}@${VERSION}\`
+
+        Built from \`${SHORT_SHA}\`"
+
+        EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+          --jq 'map(select(.body | startswith(env.COMMENT_PREFIX))) | .[0].id')
+
+        if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+          gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
+            -X PATCH \
+            -f body="$BODY"
+        else
+          gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            -X POST \
+            -f body="$BODY"
+        fi
