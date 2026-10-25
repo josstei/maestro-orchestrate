@@ -58,4 +58,4 @@ function main(runtime) {
   return runPolicyEnforcer({ readCommand: shellPolicy.readCommand, decisions: shellPolicy.decisions });
 }
 
-module.exports = { runPolicyEnforcer, main };
+module.exports = { main };

@@ -35,7 +35,8 @@ function planDetachedPayload(srcDir, runtime, version, { sourceOverrides = new M
   }
 
   const roots = new Map();
-  const addRoot = (file, reason) => roots.set(file, reason);
+  // The first reason recorded for a root is kept.
+  const addRoot = (file, reason) => { if (!roots.has(file)) roots.set(file, reason); };
   addRoot('mcp/maestro-server.js', 'local MCP server');
   addRoot(`platforms/${runtime.name}/runtime-config.js`, 'installed runtime configuration');
   for (const script of STATE_SCRIPTS) addRoot(`scripts/${script}`, 'documented state CLI');
