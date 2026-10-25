@@ -3,9 +3,11 @@
 # pre-push: mirror the semantic-git and source-of-truth checks that CI enforces.
 #
 # First validates the pushed branch names and new commit subjects against
-# the semantic conventions, then checks runtime outputs against src/ without
-# writing them and aborts the push if any committed file disagrees with what
-# the generator would produce.
+# the semantic conventions, then regenerates runtime outputs from src/ and
+# aborts the push if any committed file disagrees with what the generator
+# produced. Comparing with git rather than `generate.js --check` (which CI
+# runs) ignores checkout line endings, non-executable mode bits, and
+# untracked files.
 
 set -euo pipefail
 
@@ -37,16 +39,17 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 0
 fi
 
-echo "pre-push: checking runtime outputs for drift from src/..."
+echo "pre-push: regenerating runtime outputs to verify zero drift..."
+node scripts/generate.js >/dev/null
 
-if ! drift="$(node scripts/generate.js --check 2>&1)"; then
+if ! git diff --exit-code --name-only >/dev/null; then
   echo "" >&2
-  echo "pre-push: BLOCKED — runtime outputs drifted from src/ or the generator failed." >&2
+  echo "pre-push: BLOCKED — runtime outputs drifted from src/." >&2
   echo "" >&2
-  echo "$drift" >&2
+  git diff --stat >&2
   echo "" >&2
   echo "How to fix:" >&2
-  echo "  1. Regenerate the runtime trees with 'node scripts/generate.js'." >&2
+  echo "  1. The runtime trees have just been regenerated in your working tree." >&2
   echo "     Inspect with 'git diff' and confirm the changes are expected." >&2
   echo "  2. Stage and commit the regenerated files:" >&2
   echo "       git add ." >&2

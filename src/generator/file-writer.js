@@ -5,9 +5,11 @@ const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 
 function modeDiffers(filePath, mode) {
-  // Windows does not expose POSIX executable bits through chmod/stat.
+  // Windows does not expose POSIX executable bits through chmod/stat. Compare
+  // only whether any execute bit is set, so umask differences such as 0775
+  // for 0755 are not drift.
   return mode !== undefined && process.platform !== 'win32' &&
-    (fs.statSync(filePath).mode & 0o777) !== mode;
+    ((fs.statSync(filePath).mode & 0o111) !== 0) !== ((mode & 0o111) !== 0);
 }
 
 /**
@@ -71,8 +73,8 @@ function printDiff(absOutputPath, content, displayPath) {
 /**
  * @typedef {Object} FileWriterStats
  * @property {number} written - Number of files written (new or changed); 0 in read-only modes
- * @property {number} changed - Number of outputs that are new or differ in content or mode
- * @property {number} unchanged - Number of outputs whose content and mode already match
+ * @property {number} changed - Number of outputs that are new or differ in content or executable bit
+ * @property {number} unchanged - Number of outputs whose content and executable bit already match
  * @property {number} errors - Number of failed writes plus reported errors
  */
 

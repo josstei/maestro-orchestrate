@@ -37,7 +37,7 @@ All commands are available via `just`:
 | `just test-unit` | Run only unit tests | — |
 | `just test-transforms` | Run only transform unit tests | — |
 | `just test-integration` | Run only integration tests | — |
-| `just check` | Verify zero drift without writing (`node scripts/generate.js --check`) | All 6 source-of-truth workflows |
+| `just check` | Generate, then fail if `git diff --exit-code` shows drift | All 6 source-of-truth workflows run `node scripts/generate.js --check` |
 | `just check-layers` | Parse the production graph; verify layer boundaries, dependency containment, and absence of cycles | Covered by `npm test`, which runs `scripts/check-layer-boundaries.js` against the repository's `src/` |
 | `just pack-verify` | Verify the npm package contents | Source Of Truth Check, Release, and every prerelease publish |
 | `just release-verify` | Package the release archive and verify its contents | Source Of Truth Check and Release |
@@ -98,12 +98,12 @@ The generator collects agent and shared-skill stubs through `src/generator/stub-
    just test
    ```
 
-5. **Verify zero drift** — CI enforces that generated output matches what is committed:
+5. **Commit your changes**, including the regenerated files.
+
+6. **Verify zero drift, then push** — CI enforces that generated output matches what is committed. `just check` regenerates and fails on any unstaged change, so run it after committing:
    ```bash
    just check
    ```
-
-6. **Commit and push** your branch.
 
 ## Semantic Git Conventions
 

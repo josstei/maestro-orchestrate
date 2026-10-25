@@ -506,11 +506,11 @@ The `justfile` provides local development commands that mirror CI behavior. [CON
 
 ### CI Mapping
 
-The workflows run the commands behind these `just` recipes:
+The workflows run the commands behind these `just` recipes, except that they check drift with `node scripts/generate.js --check`:
 
 ```
 just generate        -->  node scripts/generate.js
-just check           -->  node scripts/generate.js --check
+just check           -->  node scripts/generate.js && git diff --exit-code --name-only
 just test            -->  npm test
 just pack-verify     -->  npm run pack:verify
 just release-verify  -->  npm run release:artifacts && npm run release:verify-artifacts

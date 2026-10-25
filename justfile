@@ -41,9 +41,15 @@ _node-test label globs:
     if [ ${#files[@]} -eq 0 ]; then echo "No {{label}} files found"; exit 1; fi
     node --test "${files[@]}"
 
-# Verify generated files match src/ without writing (what CI runs)
-check:
-    node scripts/generate.js --check
+# Generate and verify zero drift with git diff (CI runs generate.js --check)
+check: generate
+    #!/usr/bin/env bash
+    if ! git diff --exit-code --name-only; then
+        echo "ERROR: Generated files are out of sync with source. Run 'just generate' and commit."
+        git diff --stat
+        exit 1
+    fi
+    echo "No drift detected."
 
 # Verify lower-layer dependencies (lib, core, config, state and hooks)
 check-layers:

@@ -229,6 +229,33 @@ describe('FileWriter writeAll', () => {
     writer.writeAll([output]);
     assert.equal(writer.getStats().unchanged, 1);
   });
+
+  it('compares only whether an existing output is executable', {
+    skip: process.platform === 'win32',
+  }, (t) => {
+    const output = { outputPath: 'bin/command.js', content: '#!/usr/bin/env node\n', mode: 0o755 };
+    const filePath = path.join(tempRoot, output.outputPath);
+    createFileWriter({ rootDir: tempRoot }).writeAll([output]);
+    fs.chmodSync(filePath, 0o775);
+    t.mock.method(console, 'log', () => {});
+
+    const unchanged = [{ dryRun: true }, { diffMode: true }, { check: true }, {}].map((options) => {
+      const writer = createFileWriter({ rootDir: tempRoot, ...options });
+      writer.writeAll([output]);
+      return writer.getStats().unchanged;
+    });
+    assert.deepEqual(unchanged, [1, 1, 1, 1]);
+    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), ['[UNCHANGED] bin/command.js']);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o775);
+
+    fs.chmodSync(filePath, 0o644);
+    createFileWriter({ rootDir: tempRoot, check: true }).writeAll([output]);
+    const writer = createFileWriter({ rootDir: tempRoot });
+    writer.writeAll([output]);
+    assert.equal(console.log.mock.calls.at(-1).arguments[0], '[UPDATE] bin/command.js');
+    assert.equal(writer.getStats().written, 1);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o755);
+  });
 });
 
 describe('FileWriter dryRun mode', () => {
