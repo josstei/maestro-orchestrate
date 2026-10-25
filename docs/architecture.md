@@ -38,7 +38,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 7. Plans the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` from dependency closures and explicit content roots, including `version.json`, and validates every destination
 8. Writes the collected outputs and prunes stale files from owned agent, skill, command, and detached-payload directories
 
-All dependency plans validate before generation writes or prunes files. `--dry-run` and `--diff` write nothing and report payload additions/removals and executable-mode drift. `--clean` deletes agent and shared-skill stubs before regenerating them.
+All dependency plans validate before generation writes or prunes files. `--dry-run` and `--diff` write nothing and report payload additions/removals and executable-mode drift. `--dry-run` also names why each added payload file is included, as `[CREATE] <path> — <reason>`. `--clean` deletes agent and shared-skill stubs before regenerating them.
 
 The shared build-time graph in `src/generator/dependency-graph.js` parses imports with Acorn and Acorn Walk, so import-looking comments, strings, and template text are never dependencies. It resolves local JavaScript, JSON, and directory indexes without executing modules, checks physical containment, and explicitly classifies runtime-config discovery, hook adapters, and registry-listed hook implementations. Missing targets, escapes, unsupported computed or aliased loading, and unknown or stale annotations fail the check, as do symlink imports, whose resolution a flattened payload copy cannot preserve. Acorn and Acorn Walk are major-version-8 development dependencies locked in `package-lock.json`; detached payloads need neither parser nor any `node_modules`.
 

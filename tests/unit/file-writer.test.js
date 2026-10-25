@@ -280,6 +280,24 @@ describe('FileWriter dryRun mode', () => {
     ]);
   });
 
+  it('appends an output reason to dry-run CREATE lines only', (t) => {
+    fs.writeFileSync(path.join(tempRoot, 'same.txt'), 'same', 'utf8');
+    fs.writeFileSync(path.join(tempRoot, 'stale.txt'), 'old', 'utf8');
+    t.mock.method(console, 'log', () => {});
+    const outputs = ['created.txt', 'stale.txt', 'same.txt'].map((outputPath) => ({ outputPath, content: 'same', reason: 'test root' }));
+    for (const options of [{ dryRun: true }, { check: true }]) {
+      createFileWriter({ rootDir: tempRoot, ...options }).writeAll(outputs);
+    }
+
+    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), [
+      '[CREATE] created.txt — test root',
+      '[UPDATE] stale.txt',
+      '[UNCHANGED] same.txt',
+      '[CREATE] created.txt',
+      '[UPDATE] stale.txt',
+    ]);
+  });
+
   it('does not modify existing files in dryRun mode', () => {
     const filePath = path.join(tempRoot, 'preserved.txt');
     fs.writeFileSync(filePath, 'original', 'utf8');

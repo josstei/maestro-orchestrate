@@ -97,6 +97,18 @@ describe('generator read-only modes', () => {
       assert.deepEqual(snapshotTree(repoRoot), before);
     });
   });
+
+  it('--dry-run names the importer of each new payload dependency', () => {
+    withTempRepoCopy('maestro-payload-reasons-', (repoRoot) => {
+      fs.writeFileSync(path.join(repoRoot, 'src/mcp/future-helper.js'), 'module.exports = {};\n');
+      fs.appendFileSync(path.join(repoRoot, 'src/mcp/maestro-server.js'), "require('./future-helper');\n");
+      const lines = runGenerator(['--dry-run'], { cwd: repoRoot }).split('\n');
+      for (const label of ['antigravity/src', 'claude/src', 'plugins/maestro/src']) {
+        assert.ok(lines.includes(`[CREATE] ${label}/mcp/future-helper.js — dependency of mcp/maestro-server.js`), label);
+        assert.ok(lines.includes(`[UPDATE] ${label}/mcp/maestro-server.js`), label);
+      }
+    });
+  });
 });
 
 describe('generator CLI', () => {

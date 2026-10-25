@@ -80,8 +80,8 @@ function printDiff(absOutputPath, content, displayPath) {
 
 /**
  * @typedef {Object} FileWriter
- * @property {(outputPath: string, content: string, mode?: number) => void} write
- * @property {(outputs: Iterable<{ outputPath: string, content: string, mode?: number }>) => void} writeAll
+ * @property {(outputPath: string, content: string, mode?: number, reason?: string) => void} write
+ * @property {(outputs: Iterable<{ outputPath: string, content: string, mode?: number, reason?: string }>) => void} writeAll
  * @property {(outputPaths: string[]) => void} clean
  * @property {(message: string, error?: Error) => void} reportError
  * @property {() => FileWriterStats} getStats
@@ -102,8 +102,9 @@ function createFileWriter(opts) {
    * @param {string} outputPath - Relative path from rootDir
    * @param {string} content - File content to write
    * @param {number} [mode] - POSIX permissions for a generated executable
+   * @param {string} [reason] - Why the output exists, appended to a dry-run CREATE line
    */
-  function write(outputPath, content, mode) {
+  function write(outputPath, content, mode, reason) {
     try {
       const absOutputPath = safeResolve(outputPath, rootDir, { requireFile: true });
       const exists = fs.existsSync(absOutputPath);
@@ -116,7 +117,8 @@ function createFileWriter(opts) {
         if (modeChanged) console.log(`MODE: ${outputPath} -> ${mode.toString(8)}`);
         if (exists && current !== content) printDiff(absOutputPath, content, outputPath);
       } else if (readOnlyMode) {
-        if (dryRun || status !== 'UNCHANGED') console.log(`[${status}] ${outputPath}`);
+        const suffix = dryRun && status === 'CREATE' && reason ? ` — ${reason}` : '';
+        if (dryRun || status !== 'UNCHANGED') console.log(`[${status}] ${outputPath}${suffix}`);
       } else if (status !== 'UNCHANGED') {
         if (current !== content) {
           fs.mkdirSync(path.dirname(absOutputPath), { recursive: true });
@@ -138,11 +140,11 @@ function createFileWriter(opts) {
   }
 
   /**
-   * @param {Iterable<{ outputPath: string, content: string, mode?: number }>} outputs
+   * @param {Iterable<{ outputPath: string, content: string, mode?: number, reason?: string }>} outputs
    */
   function writeAll(outputs) {
     for (const output of outputs) {
-      write(output.outputPath, output.content, output.mode);
+      write(output.outputPath, output.content, output.mode, output.reason);
     }
   }
 
