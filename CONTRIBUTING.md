@@ -24,7 +24,7 @@ npm run install-hooks
 
 Equivalent manual command: `git config core.hooksPath .githooks`.
 
-The hooks are best-effort — CI re-validates everything on PR submission and on direct pushes to `main`.
+The hooks are best-effort — `pre-push` skips its source-of-truth check when `node` or the `npm ci` dev dependencies are missing, and CI re-validates everything on PR submission and on direct pushes to `main`.
 
 ## Key Commands
 

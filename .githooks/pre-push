@@ -33,6 +33,11 @@ if ! command -v node >/dev/null 2>&1; then
   exit 0
 fi
 
+if ! node -e "require.resolve('acorn'); require.resolve('acorn-walk')" >/dev/null 2>&1; then
+  echo "pre-push: dev dependencies missing; run npm ci (skipping source-of-truth check)" >&2
+  exit 0
+fi
+
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "pre-push: working tree has uncommitted changes; skipping source-of-truth check" >&2
   echo "         (drift would produce false positives — commit or stash, then re-push)" >&2

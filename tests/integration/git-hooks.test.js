@@ -19,6 +19,7 @@ function runHook(name, args = [], options = {}) {
   return spawnSync('bash', [hookPath(name), ...args], {
     cwd: options.cwd || ROOT,
     input: options.input,
+    env: options.env,
     encoding: 'utf8',
   });
 }
@@ -46,6 +47,19 @@ function commitFile(repo, message) {
   execFileSync('git', ['add', 'file.txt'], { cwd: repo, stdio: 'ignore' });
   execFileSync('git', ['commit', '-m', message], { cwd: repo, stdio: 'ignore' });
   return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+}
+
+function writeFile(repo, relativePath, content) {
+  const file = path.join(repo, relativePath);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, content, 'utf8');
+}
+
+function createGeneratorRepo(branchName) {
+  const repo = createRepo(branchName);
+  writeFile(repo, 'scripts/generate.js', "require('acorn');\nrequire('acorn-walk');\n");
+  execFileSync('git', ['add', 'scripts/generate.js'], { cwd: repo, stdio: 'ignore' });
+  return repo;
 }
 
 function pushInput(branch, sha) {
@@ -127,6 +141,34 @@ describe('repo git hooks', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
+  });
+
+  it('pre-push skips the source-of-truth check when dev dependencies are missing', () => {
+    const repo = createGeneratorRepo('chore/hook-validation');
+    const sha = commitFile(repo, 'chore(test): seed generator');
+    const result = runHook('pre-push', ['origin', 'unused'], {
+      cwd: repo,
+      input: pushInput('chore/hook-validation', sha),
+      env: { ...process.env, NODE_PATH: '' },
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /dev dependencies missing; run npm ci/);
+    assert.doesNotMatch(result.stdout, /regenerating/);
+  });
+
+  it('pre-push runs the source-of-truth check when dev dependencies resolve', () => {
+    const repo = createGeneratorRepo('chore/hook-validation');
+    writeFile(repo, 'node_modules/acorn/index.js', '');
+    writeFile(repo, 'node_modules/acorn-walk/index.js', '');
+    const sha = commitFile(repo, 'chore(test): seed generator');
+    const result = runHook('pre-push', ['origin', 'unused'], {
+      cwd: repo,
+      input: pushInput('chore/hook-validation', sha),
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /source-of-truth clean/);
   });
 
   it('hand-written allowed-type lists match SEMANTIC_TYPES in semantic-git.sh', () => {
