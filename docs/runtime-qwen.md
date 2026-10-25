@@ -66,7 +66,7 @@ The 3 core commands carry a `## Runtime: Qwen Code` preamble that maps step refe
 | Event | Script | Purpose |
 |-------|--------|---------|
 | `SessionStart` | `hooks/hook-runner.js qwen session-start` | Prune stale hook state |
-| `SubagentStart` | `hooks/hook-runner.js qwen before-agent` | Detect agent, inject session context |
+| `SubagentStart` | `hooks/hook-runner.js qwen before-agent` | Prune stale hook state, track active agent, inject compact session context |
 | `SubagentStop` | `hooks/hook-runner.js qwen after-agent` | Validate Task Report + Downstream Context |
 | `SessionEnd` | `hooks/hook-runner.js qwen session-end` | Clean up hook state |
 

@@ -291,7 +291,7 @@ Each `resolve_settings` request creates a lazy resolver that reads each reached 
 
 ## CI and Testing
 
-CI fails when `node scripts/generate.js --check` finds generated output that differs from the committed state, and runs the `node:test` suites in `tests/unit/`, `tests/transforms/`, and `tests/integration/` with `npm test`. [docs/cicd.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md) documents all seven GitHub Actions workflows, starting with their [shared validation core](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md#shared-validation-core), and [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands) lists the local commands.
+CI runs `node scripts/generate.js --check`, which fails when generated output differs from the committed state, and then runs the `node:test` suites in `tests/unit/`, `tests/transforms/`, and `tests/integration/` with `npm test`. [docs/cicd.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md) documents all seven GitHub Actions workflows, starting with their [shared validation core](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md#shared-validation-core), and [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands) lists the local commands.
 
 ## Design Decisions (Retained Compatibility Surfaces)
 

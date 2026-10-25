@@ -110,13 +110,13 @@ Common paths:
 ### Antigravity
 
 - `SessionStart` (fires for the main conversation and each subagent)
-- `PreToolUse` + `run_command`
+- `PreToolUse` + `run_command` (shell policy)
 
 ### Claude Code
 
 - `SessionStart`
 - `PreToolUse` + `Agent`
-- `PreToolUse` + `Bash`
+- `PreToolUse` + `Bash` (shell policy)
 - `SessionEnd`
 
 ### Codex

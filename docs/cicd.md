@@ -98,7 +98,7 @@ graph TD
 
 Creates an ignored local `dist/release/maestro-vX.Y.Z-extension.tar.gz` during validation, but does not upload it from PR CI.
 
-The extension archive contains runtime code and content, excluding generator sources, entry-point templates, stub transforms, and their build-only helpers. Packaging and verification enforce this archive boundary independently. The npm package omits these too, along with the build and release scripts; it keeps the Codex installer (`scripts/install-codex-plugin.js` and `scripts/lib/cli.js`) and the `src/platforms/metadata.js` and `src/platforms/qwen/policy-pack.js` modules it loads. `generate`, `build`, and `prepack` run from a repository checkout.
+The extension archive unpacks with `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at its root beside the runtime directories. It contains runtime code and content, excluding generator sources, entry-point templates, stub transforms, and their build-only helpers. Packaging and verification enforce this archive boundary independently. The npm package omits these too, along with the build and release scripts; it keeps the Codex installer (`scripts/install-codex-plugin.js` and `scripts/lib/cli.js`) and the `src/platforms/metadata.js` and `src/platforms/qwen/policy-pack.js` modules it loads. `generate`, `build`, and `prepack` run from a repository checkout.
 
 ### Key Behaviors
 
