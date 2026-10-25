@@ -6,7 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
+const { toSnakeCase } = require('../../src/lib/naming');
 const AGENT_REGISTRY = require('../../src/generated/agent-registry.json');
+const { listCanonicalAgents } = require('../support/catalog');
 const { ROOT } = require('../support/paths');
 
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -15,10 +17,6 @@ const listSubdirs = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: t
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
 const countMd = (d) => listDir(d).filter((f) => f.endsWith('.md')).length;
-const canonicalAgents = () => listDir('src/agents')
-  .filter((f) => f.endsWith('.md'))
-  .map((f) => f.replace(/\.md$/, ''));
-const toSnake = (name) => name.replace(/-/g, '_');
 const agentsWithCapabilities = (...capabilities) => AGENT_REGISTRY
   .filter((agent) => capabilities.includes(agent.capabilities))
   .map((agent) => agent.name)
@@ -99,8 +97,8 @@ test('doc-drift: GitHub templates include Antigravity and Qwen runtime impact ch
 test('doc-drift: Qwen context roster lists every src agent', () => {
   const surface = 'QWEN.md';
   const body = read(surface);
-  for (const agent of canonicalAgents()) {
-    assert.ok(body.includes(`| \`${toSnake(agent)}\` |`), `${surface}: Agent Roster missing ${toSnake(agent)}`);
+  for (const agent of listCanonicalAgents()) {
+    assert.ok(body.includes(`| \`${toSnakeCase(agent)}\` |`), `${surface}: Agent Roster missing ${toSnakeCase(agent)}`);
   }
 });
 
@@ -307,7 +305,7 @@ test('doc-drift: docs/architecture.md module tree shows correct handler + tool-p
 test('doc-drift: claude/README.md agent rows carry a valid Tool Tier value', () => {
   const body = read('claude/README.md');
   const validTiers = ['Read-Only', 'Read \\+ Shell', 'Read \\+ Write', 'Full Access'];
-  for (const agent of canonicalAgents()) {
+  for (const agent of listCanonicalAgents()) {
     const rowRegex = new RegExp(`\\| ${agent} \\|[^\\n]*\\| (?:${validTiers.join('|')}) \\|`);
     assert.ok(rowRegex.test(body), `claude/README.md: row for ${agent} missing valid Tool Tier`);
   }
@@ -434,7 +432,7 @@ test('doc-drift: served skill and reference agent tables name every src agent', 
   ];
   for (const [surface, heading] of tables) {
     const section = markdownSection(surface, heading);
-    for (const agent of canonicalAgents()) {
+    for (const agent of listCanonicalAgents()) {
       assert.ok(section.includes(`\`${agent}\``), `${surface} "${heading}": missing \`${agent}\``);
     }
   }

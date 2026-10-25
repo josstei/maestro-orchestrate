@@ -3,31 +3,22 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
 const { describe, it } = require('node:test');
 const { makeTempDir, readJson, writeJson } = require('../support/fs');
-const { ROOT } = require('./helpers');
+const { expectExit, runNode, runNodeOk } = require('../support/process');
 
-function runInstaller(homeDir, args) {
-  return spawnSync(process.execPath, ['scripts/install-codex-plugin.js', ...args], {
-    cwd: ROOT,
-    env: { ...process.env, HOME: homeDir },
-    encoding: 'utf8',
-  });
-}
+const INSTALLER = 'scripts/install-codex-plugin.js';
 
-// Runs the installer, fails the test unless it exits 0, and returns its stdout.
-function runInstallerOk(homeDir, args = []) {
-  const result = runInstaller(homeDir, args);
-  assert.equal(result.status, 0, `installer failed: ${result.stderr}`);
-  return result.stdout;
+// Points the installer at a temp home instead of the real ~/.codex and ~/.agents.
+function inHome(homeDir) {
+  return { env: { ...process.env, HOME: homeDir } };
 }
 
 describe('codex installer integration', () => {
   it('installs the plugin into the personal Codex marketplace', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
 
-    const output = runInstallerOk(homeDir);
+    const output = runNodeOk(INSTALLER, [], inHome(homeDir));
     const pluginManifest = path.join(homeDir, '.codex', 'plugins', 'maestro', '.codex-plugin', 'plugin.json');
     const pluginSrcEntry = path.join(
       homeDir,
@@ -85,7 +76,7 @@ describe('codex installer integration', () => {
       ],
     });
 
-    runInstallerOk(homeDir);
+    runNodeOk(INSTALLER, [], inHome(homeDir));
 
     const marketplace = readJson(marketplaceFile);
 
@@ -107,7 +98,7 @@ describe('codex installer integration', () => {
   it('supports a dry run without writing files', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
 
-    const output = runInstallerOk(homeDir, ['--dry-run']);
+    const output = runNodeOk(INSTALLER, ['--dry-run'], inHome(homeDir));
 
     assert.match(output, /Dry run complete\./);
     assert.equal(fs.existsSync(path.join(homeDir, '.codex')), false);
@@ -117,11 +108,9 @@ describe('codex installer integration', () => {
   it('reports unknown arguments as a one-line failure without writing files', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
 
-    const result = runInstaller(homeDir, ['--foo']);
+    const result = runNode(INSTALLER, ['--foo'], inHome(homeDir));
 
-    assert.equal(result.status, 1);
-    assert.equal(result.stdout, '');
-    assert.equal(result.stderr, 'codex plugin install failed: Unknown argument: --foo\n');
+    expectExit(result, { status: 1, stdout: '', stderr: 'codex plugin install failed: Unknown argument: --foo\n' });
     assert.deepEqual(fs.readdirSync(homeDir), []);
   });
 });

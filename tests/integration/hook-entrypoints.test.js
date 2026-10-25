@@ -4,10 +4,10 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 
 const { ISOLATED_GIT_ENV } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
+const { expectExit, runNode } = require('../support/process');
 const { writeSessionState } = require('../support/session-file');
 const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
 
@@ -16,11 +16,10 @@ const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = requir
 const HOOKS_DIR = makeTempDir('maestro-hooks-test-');
 
 function runHook(relativePath, runtime, hookName, input, cwd = ROOT, env = {}) {
-  return spawnSync(process.execPath, [relativePath, runtime, hookName], {
+  return runNode(relativePath, [runtime, hookName], {
     cwd,
     env: { ...process.env, MAESTRO_HOOKS_DIR: HOOKS_DIR, ...env },
     input: typeof input === 'string' ? input : `${JSON.stringify(input)}\n`,
-    encoding: 'utf8',
   });
 }
 
@@ -148,9 +147,7 @@ describe('hook entrypoints', () => {
 
       // The bundled src/ carries only the antigravity and shared platform dirs.
       const result = runHook('hooks/hook-runner.js', 'claude', 'session-start', {}, pluginRoot);
-      assert.equal(result.status, 1);
-      assert.equal(result.stderr, 'Unknown runtime: claude\n');
-      assert.equal(result.stdout, '');
+      expectExit(result, { status: 1, stderr: 'Unknown runtime: claude\n', stdout: '' });
     });
   });
 
@@ -168,9 +165,7 @@ describe('hook entrypoints', () => {
     await withIsolatedClaudePlugin(async (pluginRoot) => {
       const result = runHook('scripts/hook-runner.js', 'qwen', 'session-start', {}, pluginRoot);
 
-      assert.equal(result.status, 1);
-      assert.equal(result.stderr, 'Unknown runtime: qwen\n');
-      assert.equal(result.stdout, '');
+      expectExit(result, { status: 1, stderr: 'Unknown runtime: qwen\n', stdout: '' });
     });
   });
 
@@ -187,15 +182,9 @@ describe('hook entrypoints', () => {
     ];
 
     for (const [args, stderr] of cases) {
-      const result = spawnSync(process.execPath, ['hooks/hook-runner.js', ...args], {
-        cwd: ROOT,
-        input: '{}\n',
-        encoding: 'utf8',
-      });
+      const result = runNode('hooks/hook-runner.js', args, { input: '{}\n' });
 
-      assert.equal(result.status, 1, `exit code for [${args.join(' ')}]`);
-      assert.equal(result.stderr, stderr);
-      assert.equal(result.stdout, '');
+      expectExit(result, { status: 1, stderr, stdout: '' }, `exit for [${args.join(' ')}]`);
     }
   });
 
@@ -219,11 +208,9 @@ describe('hook entrypoints', () => {
       const claude = runHook('claude/scripts/hook-runner.js', 'claude', 'session-start', input);
       const qwen = runHook('hooks/hook-runner.js', 'qwen', 'session-start', input);
 
-      assert.equal(claude.status, 0);
-      assert.equal(claude.stderr, '');
+      expectExit(claude, { status: 0, stderr: '' });
       assert.deepEqual(JSON.parse(claude.stdout), { continue: true, decision: 'approve' });
-      assert.equal(qwen.status, 0);
-      assert.equal(qwen.stderr, '');
+      expectExit(qwen, { status: 0, stderr: '' });
       assert.deepEqual(JSON.parse(qwen.stdout), {});
     } finally {
       fs.rmSync(blocker, { force: true });
@@ -286,8 +273,7 @@ describe('hook entrypoints', () => {
     const env = { ...process.env, TMPDIR: tmpRoot };
     delete env.MAESTRO_HOOKS_DIR;
 
-    const result = spawnSync(process.execPath, ['hooks/hook-runner.js', 'qwen', 'before-agent'], {
-      cwd: ROOT,
+    const result = runNode('hooks/hook-runner.js', ['qwen', 'before-agent'], {
       env,
       input: `${JSON.stringify({
         cwd: ROOT,
@@ -295,7 +281,6 @@ describe('hook entrypoints', () => {
         hook_event_name: 'SubagentStart',
         agent_type: 'coder',
       })}\n`,
-      encoding: 'utf8',
     });
 
     assert.equal(result.status, 0, result.stderr);

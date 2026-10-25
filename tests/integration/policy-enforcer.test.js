@@ -1,10 +1,10 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const test = require('node:test');
 
+const { expectExit, runNode, runNodeOk } = require('../support/process');
 const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
 
 const SCRIPT_PATH = path.join(ROOT, 'claude', 'scripts', 'policy-enforcer.js');
@@ -13,24 +13,14 @@ const DOLLAR = '$';
 const BACKTICK = '`';
 const BACKSLASH = '\\';
 
-function spawnPolicy(scriptPath, input) {
-  return spawnSync(process.execPath, [scriptPath], { input, encoding: 'utf8' });
-}
-
 function runPolicy(command, scriptPath = SCRIPT_PATH) {
-  const result = spawnPolicy(scriptPath, JSON.stringify({ tool_input: { command } }));
-
-  assert.equal(result.status, 0, result.stderr);
-  return JSON.parse(result.stdout.trim());
+  return JSON.parse(runNodeOk(scriptPath, [], { input: JSON.stringify({ tool_input: { command } }) }));
 }
 
 // Antigravity's PreToolUse payload for run_command.
 function runAntigravityPolicy(commandLine, scriptPath = ANTIGRAVITY_SCRIPT_PATH) {
   const input = JSON.stringify({ toolCall: { name: 'run_command', args: { CommandLine: commandLine } } });
-  const result = spawnPolicy(scriptPath, input);
-
-  assert.equal(result.status, 0, result.stderr);
-  return JSON.parse(result.stdout.trim());
+  return JSON.parse(runNodeOk(scriptPath, [], { input }));
 }
 
 test('blocks destructive commands in direct and nested dollar substitutions', () => {
@@ -89,9 +79,8 @@ test('the installed claude plugin enforces the bundled policy rules', async () =
     });
     assert.deepEqual(runPolicy('git status', scriptPath), { decision: 'approve' });
 
-    const oversized = spawnPolicy(scriptPath, 'x'.repeat(2 * 1024 * 1024));
-    assert.equal(oversized.status, 1);
-    assert.equal(oversized.stderr, 'Policy enforcer: stdin payload too large\n');
+    const oversized = runNode(scriptPath, [], { input: 'x'.repeat(2 * 1024 * 1024) });
+    expectExit(oversized, { status: 1, stderr: 'Policy enforcer: stdin payload too large\n' });
     assert.deepEqual(JSON.parse(oversized.stdout), { decision: 'block', reason: 'Payload too large' });
   });
 });
@@ -129,7 +118,7 @@ test('antigravity denies the command when the policy check cannot run', () => {
   });
 
   for (const input of ['not-json', unterminated]) {
-    const result = spawnPolicy(ANTIGRAVITY_SCRIPT_PATH, input);
+    const result = runNode(ANTIGRAVITY_SCRIPT_PATH, [], { input });
 
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stderr, /^Policy enforcer error: /);
@@ -154,9 +143,8 @@ test('the installed antigravity plugin enforces the bundled policy rules', async
     });
     assert.deepEqual(runAntigravityPolicy('git status', scriptPath), { decision: 'ask' });
 
-    const oversized = spawnPolicy(scriptPath, 'x'.repeat(2 * 1024 * 1024));
-    assert.equal(oversized.status, 1);
-    assert.equal(oversized.stderr, 'Policy enforcer: stdin payload too large\n');
+    const oversized = runNode(scriptPath, [], { input: 'x'.repeat(2 * 1024 * 1024) });
+    expectExit(oversized, { status: 1, stderr: 'Policy enforcer: stdin payload too large\n' });
     assert.deepEqual(JSON.parse(oversized.stdout), { decision: 'deny', reason: 'Payload too large' });
   });
 });

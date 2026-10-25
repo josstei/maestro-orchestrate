@@ -297,6 +297,23 @@ function spawnMcpServer(options) {
   };
 }
 
+/**
+ * Runs `fn` against a server spawned with spawnMcpServer(options) once it is
+ * ready and, unless `initialize` is false, initialized. The server is closed
+ * afterwards, even when `fn` throws or rejects.
+ */
+async function withMcpClient(options, fn, { initialize = true } = {}) {
+  const client = spawnMcpServer(options);
+  try {
+    await client.ready;
+    if (initialize) await client.initialize();
+    return await fn(client);
+  } finally {
+    await client.close();
+  }
+}
+
 module.exports = {
   spawnMcpServer,
+  withMcpClient,
 };

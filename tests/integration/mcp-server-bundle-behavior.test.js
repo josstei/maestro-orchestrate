@@ -10,18 +10,7 @@ const { makeTempDir } = require('../support/fs');
 const { HOST_CLIENTS } = require('../support/host-clients');
 const { ROOT, withIsolatedAntigravityPlugin } = require('./helpers');
 const { MCP_ENTRYPOINTS, withEntrypointCwd } = require('./mcp-entrypoints');
-const { spawnMcpServer } = require('./mcp-stdio-client');
-
-async function withServer(options, fn) {
-  const client = spawnMcpServer(options);
-  try {
-    await client.ready;
-    await client.initialize();
-    return await fn(client);
-  } finally {
-    await client.close();
-  }
-}
+const { withMcpClient } = require('./mcp-stdio-client');
 
 /**
  * Runs `fn` against a server booted from every MCP_ENTRYPOINTS entry, each
@@ -32,7 +21,7 @@ async function withServer(options, fn) {
 async function forEachRuntimeBundle(fn) {
   for (const entry of MCP_ENTRYPOINTS) {
     await withEntrypointCwd(entry, (cwd) =>
-      withServer(
+      withMcpClient(
         { cwd, relativePath: entry.relativePath, clientInfo: HOST_CLIENTS[entry.runtime] },
         (client) => fn(client, { ...entry, cwd })
       )
@@ -42,7 +31,7 @@ async function forEachRuntimeBundle(fn) {
 
 describe('mcp server bundle behavior', () => {
   it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
-    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.qwen }, async (client) => {
+    await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.qwen }, async (client) => {
       const result = await client.callTool('get_agent', { agents: [] });
 
       assert.equal(result.raw.isError, true);
@@ -56,7 +45,7 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('assumes no runtime for a client it does not recognize and fails every tool call', async () => {
-    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+    await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
       assert.ok((await client.listTools()).length > 0);
 
       for (const name of ['get_runtime_context', 'get_skill_content']) {
@@ -75,9 +64,7 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('says the client has not sent initialize when a tool is called before it', async () => {
-    const client = spawnMcpServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' });
-    try {
-      await client.ready;
+    await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
       const result = await client.callTool('get_runtime_context');
 
       assert.equal(result.parsed.code, 'RUNTIME_UNIDENTIFIED');
@@ -85,13 +72,11 @@ describe('mcp server bundle behavior', () => {
         result.parsed.error,
         'Maestro could not identify its host runtime: MAESTRO_RUNTIME is not set and the MCP client has not sent initialize yet.'
       );
-    } finally {
-      await client.close();
-    }
+    }, { initialize: false });
   });
 
   it('serves the runtime MAESTRO_RUNTIME names over the one the client identifies', async () => {
-    await withServer(
+    await withMcpClient(
       {
         cwd: ROOT,
         relativePath: 'mcp/maestro-server.js',
@@ -107,7 +92,7 @@ describe('mcp server bundle behavior', () => {
 
   it('serves the runtime of whichever host connects, whatever bundle it launches', async () => {
     for (const [runtime, clientInfo] of Object.entries(HOST_CLIENTS)) {
-      await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
+      await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
         assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, runtime);
         assert.match(client.stderr, new RegExp(`Runtime ${runtime}, identified from MCP client "${clientInfo.name}"`));
       });
@@ -181,7 +166,7 @@ describe('mcp server bundle behavior', () => {
     // be looked up there.
     const extensionPath = makeTempDir('maestro-extension-path-');
 
-    await withServer(
+    await withMcpClient(
       {
         cwd: ROOT,
         relativePath: 'mcp/maestro-server.js',
@@ -202,7 +187,7 @@ describe('mcp server bundle behavior', () => {
     // extension dir.
     const workspace = makeTempDir('maestro-qwen-workspace-');
 
-    await withServer(
+    await withMcpClient(
       {
         cwd: ROOT,
         relativePath: 'mcp/maestro-server.js',
@@ -221,7 +206,7 @@ describe('mcp server bundle behavior', () => {
     const workspaceRoot = makeTempDir('maestro-codex-workspace-');
     const spawnCwd = makeTempDir('maestro-codex-spawn-');
 
-    await withServer(
+    await withMcpClient(
       {
         cwd: spawnCwd,
         // Absolute, because the server is spawned from a cwd outside the repo.
@@ -312,16 +297,14 @@ describe('mcp server bundle behavior', () => {
       // roots capability, and `notifications/roots/list_changed` even after
       // roots/list was answered. MAESTRO_WORKSPACE_PATH is cleared so an
       // inherited value cannot supply the suggestion.
-      const client = spawnMcpServer({
+      await withMcpClient({
         cwd: pluginRoot,
         relativePath: 'mcp/maestro-server.js',
         env: { MAESTRO_WORKSPACE_PATH: '' },
         roots: [{ uri: pathToFileURL(firstWorkspace).href, name: 'first' }],
         firstRequestId: 0,
         requestTimeoutMs: 5000,
-      });
-      try {
-        await client.ready;
+      }, async (client) => {
         await assert.rejects(client.request('server/discover'), (error) => {
           assert.equal(JSON.parse(error.message).code, -32601);
           return true;
@@ -349,9 +332,7 @@ describe('mcp server bundle behavior', () => {
         const context = (await client.callTool('get_runtime_context')).parsed;
         assert.equal(context.runtime, 'antigravity');
         assert.equal(context.workspace_suggestion, secondWorkspace);
-      } finally {
-        await client.close();
-      }
+      }, { initialize: false });
     });
   });
 });

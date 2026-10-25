@@ -8,6 +8,7 @@ const { fork } = require('node:child_process');
 
 const { makeTempDir, writeFile } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
+const { killAtMarker } = require('../support/process');
 const { createInitializedSessionServer, sessionParams } = require('../support/session-server');
 const { symlinkOrSkip } = require('../support/state');
 const markdownState = require('../../src/core/markdown-state');
@@ -52,33 +53,13 @@ async function competingCalls(t, workspace, jobs) {
   return completed;
 }
 
-async function killCommittedCall(t, workspace, call) {
+function killCommittedCall(t, workspace, call) {
   const child = fork(workerPath, [], {
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     env: { ...process.env, MAESTRO_STATE_DIR: 'docs/maestro' },
   });
-  t.after(() => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); });
-  await new Promise((resolve, reject) => {
-    let committed = false;
-    let stdout = '';
-    let stderr = '';
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new Error(`Worker did not commit: ${stderr}`));
-    }, 10000);
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.once('message', () => child.send({ workspace, calls: [call], pauseAfterCommit: true }));
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-      if (stdout.includes('committed\n')) { committed = true; child.kill('SIGKILL'); }
-    });
-    child.once('error', (error) => { clearTimeout(timer); reject(error); });
-    child.once('exit', () => {
-      clearTimeout(timer);
-      if (committed) resolve();
-      else reject(new Error(`Worker exited before committing: ${stderr}`));
-    });
-  });
+  child.once('message', () => child.send({ workspace, calls: [call], pauseAfterCommit: true }));
+  return killAtMarker(t, child, 'committed\n');
 }
 
 describe('coordinated MCP state contracts', { timeout: 30000 }, () => {

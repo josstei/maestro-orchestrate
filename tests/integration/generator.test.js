@@ -7,6 +7,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { ROOT, runGenerator, runGeneratorExpectFailure, withTempRepoCopy } = require('./helpers');
 const { makeTempDir, writeTree } = require('../support/fs');
+const { expectExit } = require('../support/process');
 
 function snapshotTree(root) {
   const snapshot = {};
@@ -106,10 +107,11 @@ describe('generator CLI', () => {
       fs.writeFileSync(path.join(repoRoot, 'plugins/maestro/src/obsolete.js'), 'obsolete\n');
       const before = snapshotTree(repoRoot);
       const failure = runGeneratorExpectFailure(['--check'], { cwd: repoRoot });
-      assert.equal(failure.status, 1);
-      assert.equal(failure.stdout, '[CREATE] claude/src/mcp/maestro-server.js\n[REMOVE] plugins/maestro/src/obsolete.js\n');
-      assert.equal(failure.stderr,
-        "Generated files are out of sync with src/. Run 'node scripts/generate.js' and commit the changes.\n");
+      expectExit(failure, {
+        status: 1,
+        stdout: '[CREATE] claude/src/mcp/maestro-server.js\n[REMOVE] plugins/maestro/src/obsolete.js\n',
+        stderr: "Generated files are out of sync with src/. Run 'node scripts/generate.js' and commit the changes.\n",
+      });
       assert.deepEqual(snapshotTree(repoRoot), before);
     });
   });
@@ -132,8 +134,7 @@ describe('generator CLI', () => {
 
   it('rejects unknown flags before generating', () => {
     const failure = runGeneratorExpectFailure(['--dry-run', '--bogus']);
-    assert.equal(failure.stdout, '');
-    assert.equal(failure.stderr, 'Generator failed: Unknown argument: --bogus\n');
+    expectExit(failure, { stdout: '', stderr: 'Generator failed: Unknown argument: --bogus\n' });
   });
 });
 

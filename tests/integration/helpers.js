@@ -1,11 +1,13 @@
 'use strict';
 
+const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { execFileSync, spawnSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 const { makeTempDir, removeDir } = require('../support/fs');
 const { ROOT } = require('../support/paths');
+const { runNode, runNodeOk } = require('../support/process');
 
 const DRY_RUN_MARKER = '(dry-run — no files written)';
 const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED|REMOVE)\] /;
@@ -17,36 +19,19 @@ function generatorEnv() {
   };
 }
 
-function runGenerator(args = [], options = {}) {
-  const cwd = options.cwd || ROOT;
-
-  return execFileSync(process.execPath, ['scripts/generate.js', ...args], {
-    cwd,
-    env: generatorEnv(),
-    encoding: 'utf8',
-  });
+function runGenerator(args = [], { cwd } = {}) {
+  return runNodeOk('scripts/generate.js', args, { cwd, env: generatorEnv() });
 }
 
-function runGeneratorExpectFailure(args = [], options = {}) {
-  const result = spawnSync(process.execPath, ['scripts/generate.js', ...args], {
-    cwd: options.cwd || ROOT,
-    env: generatorEnv(),
-    encoding: 'utf8',
-  });
+function runGeneratorExpectFailure(args = [], { cwd } = {}) {
+  const result = runNode('scripts/generate.js', args, { cwd, env: generatorEnv() });
 
   if (result.error) {
     throw result.error;
   }
 
-  if (result.status === 0) {
-    throw new Error('Expected generator command to fail');
-  }
-
-  return {
-    status: result.status,
-    stdout: result.stdout,
-    stderr: result.stderr,
-  };
+  assert.notEqual(result.status, 0, 'Expected generator command to fail');
+  return result;
 }
 
 function getGitStatus() {

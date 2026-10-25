@@ -4,29 +4,18 @@ const { before, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { createTempRepoCopy, runGenerator } = require('./helpers');
 const { makeTempDir } = require('../support/fs');
-const { ISOLATED_GIT_ENV } = require('../support/env');
+const { hermeticEnv } = require('../support/env');
 const { HOST_CLIENTS } = require('../support/host-clients');
-const { spawnMcpServer } = require('./mcp-stdio-client');
+const { runNode, runNodeOk } = require('../support/process');
+const { withMcpClient } = require('./mcp-stdio-client');
 const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { createHandler: createGetAgent } = require('../../src/mcp/handlers/get-agent');
 const { createHandler: createGetContent } = require('../../src/mcp/handlers/get-skill-content');
 const AGENTS = require('../../src/generated/agent-registry.json').map((agent) => agent.name);
 const RESOURCES = Object.keys(require('../../src/generated/resource-registry.json'));
 const HOOKS = Object.keys(require('../../src/generated/hook-registry.json'));
-
-function installedEnv(plugin, workspace) {
-  const env = { ...process.env, ...ISOLATED_GIT_ENV };
-  for (const key of Object.keys(env)) {
-    if (key.startsWith('MAESTRO_') || ['CLAUDE_PROJECT_DIR', 'CLAUDE_PLUGIN_ROOT', 'INIT_CWD'].includes(key)) {
-      // Undefined also removes inherited values when the stdio helper merges env.
-      env[key] = undefined;
-    }
-  }
-  return { ...env, PWD: workspace, NODE_PATH: '', MAESTRO_EXTENSION_PATH: plugin };
-}
 
 const installed = {};
 let sourceRoot;
@@ -49,16 +38,13 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
       fs.writeFileSync(path.join(workspace, '.env'), 'MAESTRO_EXECUTION_MODE=parallel\n');
       assert.equal(fs.existsSync(path.join(plugin, 'node_modules')), false);
       assert.equal(fs.existsSync(path.join(plugin, 'src/generator')), false);
-      const client = spawnMcpServer({
+      await withMcpClient({
         cwd: workspace,
         relativePath: path.join(plugin, runtime === 'codex' ? 'src/mcp/maestro-server.js' : 'mcp/maestro-server.js'),
-        env: installedEnv(plugin, workspace),
+        env: hermeticEnv(workspace, { MAESTRO_EXTENSION_PATH: plugin }),
         clientInfo: HOST_CLIENTS[runtime],
         requestTimeoutMs: 5000,
-      });
-      try {
-        await client.ready;
-        await client.initialize();
+      }, async (client) => {
         const advertised = (await client.listTools()).map((tool) => tool.name).sort();
         assert.equal(advertised.length, 17);
         const invoked = new Set();
@@ -130,22 +116,16 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
         assert.equal((await call('get_session_status', { session_id })).exists, false);
         assert.equal(fs.existsSync(path.join(plugin, 'docs/maestro')), false);
         assert.deepEqual([...invoked].sort(), advertised, 'Every advertised tool must execute successfully');
-      } finally {
-        await client.close();
-      }
+      });
     });
 
     it('runs all five documented state CLIs from absolute installed paths in a separate workspace', () => {
       const plugin = installed[runtime];
       const workspace = makeTempDir('maestro-installed-cli-workspace-');
       fs.writeFileSync(path.join(workspace, '.env'), 'MAESTRO_EXECUTION_MODE=parallel\nMAESTRO_STATE_DIR=custom-maestro\n');
-      const env = installedEnv(plugin, workspace);
+      const env = hermeticEnv(workspace, { MAESTRO_EXTENSION_PATH: plugin });
       function run(script, args = [], input = '') {
-        const result = spawnSync(process.execPath, [path.join(plugin, 'src/scripts', script), ...args], {
-          cwd: workspace, env, input, encoding: 'utf8',
-        });
-        assert.equal(result.status, 0, `${script}: ${result.stderr}`);
-        return result.stdout;
+        return runNodeOk(path.join(plugin, 'src/scripts', script), args, { cwd: workspace, env, input });
       }
       run('ensure-workspace.js', ['custom-maestro']);
       assert.ok(fs.statSync(path.join(workspace, 'custom-maestro/plans/archive')).isDirectory());
@@ -163,7 +143,7 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
         const plugin = installed[runtime];
         const workspace = makeTempDir('maestro-payload-hook-workspace-');
         const hooksDir = makeTempDir('maestro-payload-hook-state-');
-        const env = { ...installedEnv(plugin, workspace), MAESTRO_HOOKS_DIR: hooksDir };
+        const env = hermeticEnv(workspace, { MAESTRO_EXTENSION_PATH: plugin, MAESTRO_HOOKS_DIR: hooksDir });
         const wrapperDir = runtime === 'claude' ? 'scripts' : 'hooks';
         const stateDir = path.join(workspace, 'docs/maestro/state');
         fs.mkdirSync(stateDir, { recursive: true });
@@ -175,8 +155,8 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
         const order = ['session-start', 'before-agent', 'after-agent', 'session-end'];
         assert.deepEqual([...order].sort(), [...HOOKS].sort());
         function run(entrypoint, args, payload) {
-          const result = spawnSync(process.execPath, [path.join(plugin, wrapperDir, entrypoint), ...args], {
-            cwd: workspace, env, input: JSON.stringify(payload), encoding: 'utf8',
+          const result = runNode(path.join(plugin, wrapperDir, entrypoint), args, {
+            cwd: workspace, env, input: JSON.stringify(payload),
           });
           assert.equal(result.status, 0, `${entrypoint}: ${result.stderr}`);
           assert.doesNotMatch(result.stderr, /Hook error:|Policy enforcer error:/);

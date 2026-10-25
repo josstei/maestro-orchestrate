@@ -10,6 +10,7 @@ const { randomUUID } = require('node:crypto');
 const { withStateMutation, withStateRead } = require('../../src/state/coordinator');
 const { acquireStateLock } = require('../../src/state/state-lock');
 const { contentDigest, checkExpectedDigest, assertPublicStatePath } = require('../../src/state/transaction');
+const { killAtMarker } = require('../support/process');
 const { DIR_LINK, leaveCommitted, symlinkOrSkip } = require('../support/state');
 
 // Commits the way withStateMutation does: under the state lock, recording a result.
@@ -39,25 +40,9 @@ function assertArchived(base) {
   assert.deepEqual(fs.readdirSync(path.join(base, 'state')).filter((name) => /\.maestro-[a-f0-9-]+-\d+\.tmp$/.test(name)), []);
 }
 
-async function killAtBoundary(t, base, boundary) {
+function killAtBoundary(t, base, boundary) {
   const child = spawn(process.execPath, [path.join(__dirname, '..', 'support', 'state-transaction-worker.js'), base, boundary], { stdio: ['ignore', 'pipe', 'pipe'] });
-  let stderr = '';
-  child.stderr.on('data', (chunk) => { stderr += chunk; });
-  t.after(() => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); });
-  await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Worker did not reach ${boundary}: ${stderr}`)), 10000);
-    child.on('error', (error) => { clearTimeout(timer); reject(error); });
-    child.on('exit', (code, signal) => {
-      clearTimeout(timer);
-      if (!signal && code !== null) reject(new Error(`Worker exited before ${boundary}: ${stderr}`));
-      else resolve();
-    });
-    let stdout = '';
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-      if (stdout.includes(`paused:${boundary}\n`)) child.kill('SIGKILL');
-    });
-  });
+  return killAtMarker(t, child, `paused:${boundary}\n`);
 }
 
 describe('state coordinator', () => {

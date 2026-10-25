@@ -4,10 +4,10 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 
 const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT } = require('../support/paths');
+const { runNode } = require('../support/process');
 
 const SCRIPT = path.join(ROOT, 'scripts', 'check-layer-boundaries.js');
 
@@ -32,11 +32,9 @@ function writeLibFile(root, relPath, contents) {
 }
 
 function runScript(root) {
-  return spawnSync(process.execPath, [path.join(root, 'scripts', 'check-layer-boundaries.js')], {
+  return runNode(path.join(root, 'scripts', 'check-layer-boundaries.js'), [], {
     cwd: root,
     env: { ...process.env, NODE_PATH: path.join(ROOT, 'node_modules') },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    encoding: 'utf8',
   });
 }
 

@@ -7,9 +7,10 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { editJson, makeTempDir, removeDir, writeTree } = require('../support/fs');
-const { ISOLATED_GIT_ENV } = require('../support/env');
+const { hermeticEnv } = require('../support/env');
+const { runNodeOk } = require('../support/process');
 const { createTempRepoCopy, withTempRepoCopy } = require('./helpers');
-const { spawnMcpServer } = require('./mcp-stdio-client');
+const { withMcpClient } = require('./mcp-stdio-client');
 const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
 const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifacts');
 const { buildDependencyGraph } = require('../../src/generator/dependency-graph');
@@ -119,39 +120,28 @@ describe('release artifact packaging', () => {
 
   it('runs MCP for all four runtimes and all five state CLIs from the extracted archive', async () => {
     const workspace = makeTempDir('maestro-release-workspace-');
-    const env = {
-      ...process.env, ...ISOLATED_GIT_ENV,
-      NODE_PATH: '',
-      PWD: workspace,
-      INIT_CWD: undefined,
+    const env = hermeticEnv(workspace, {
       CLAUDE_PROJECT_DIR: workspace,
       MAESTRO_WORKSPACE_PATH: workspace,
       MAESTRO_EXTENSION_PATH: extractedRoot,
       MAESTRO_STATE_DIR: 'archive-state',
       MAESTRO_EXECUTION_MODE: 'parallel',
-    };
+    });
     try {
       for (const runtime of ['antigravity', 'claude', 'codex', 'qwen']) {
-        const client = spawnMcpServer({
+        await withMcpClient({
           cwd: workspace,
           relativePath: path.join(extractedRoot, 'mcp/maestro-server.js'),
           env: { ...env, MAESTRO_RUNTIME: runtime },
           requestTimeoutMs: 5000,
-        });
-        try {
-          await client.ready;
-          await client.initialize();
+        }, async (client) => {
           const result = await client.callTool('get_runtime_context');
           assert.notEqual(result.raw.isError, true, JSON.stringify(result.parsed));
           assert.equal(result.parsed.runtime, runtime);
-        } finally {
-          await client.close();
-        }
-      }
-      const run = (script, args = [], input = '') => execFileSync(process.execPath,
-        [path.join(extractedRoot, 'src/scripts', script), ...args], {
-          cwd: workspace, env, input, encoding: 'utf8',
         });
+      }
+      const run = (script, args = [], input = '') =>
+        runNodeOk(path.join(extractedRoot, 'src/scripts', script), args, { cwd: workspace, env, input });
       run('ensure-workspace.js', ['archive-state']);
       assert.equal(run('read-setting.js', ['MAESTRO_EXECUTION_MODE']), 'parallel');
       assert.equal(run('read-active-session.js'), 'No active session\n');

@@ -2,59 +2,32 @@
 
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { spawn, spawnSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 
-const { ISOLATED_GIT_ENV, withEnv } = require('../support/env');
+const { hermeticEnv, withEnv } = require('../support/env');
 const { readStateFile, writeStateFile } = require('../../src/scripts/state-access');
 const { makeTempDir, writeTree } = require('../support/fs');
+const { expectExit, runNode } = require('../support/process');
 const { DIR_LINK, leaveCommitted } = require('../support/state');
 const { ROOT } = require('./helpers');
 
 const SCRIPTS_DIR = path.join(ROOT, 'src', 'scripts');
 const SETTING = 'MAESTRO_EXECUTION_MODE';
 
-// Workspace and setting resolution consult these before cwd, and `npm test`
-// (or the host session) may point them at the repo checkout.
-const SCRUBBED_ENV = [
-  'MAESTRO_WORKSPACE_PATH',
-  'CLAUDE_PROJECT_DIR',
-  'INIT_CWD',
-  'MAESTRO_STATE_DIR',
-  'MAESTRO_EXTENSION_PATH',
-  'CLAUDE_PLUGIN_ROOT',
-  SETTING,
-];
-
 /**
- * Runs `node src/scripts/<script>` in `cwd` with a scrubbed environment, so the
+ * Runs `node src/scripts/<script>` in `cwd` with a hermetic environment, so the
  * CLI resolves `cwd` as its project root rather than an enclosing checkout.
  */
-function scriptEnvironment(cwd, env = {}) {
-  const childEnv = { ...process.env };
-  for (const key of SCRUBBED_ENV) delete childEnv[key];
-  Object.assign(childEnv, {
-    PWD: cwd,
-    ...ISOLATED_GIT_ENV,
-    ...env,
-  });
-  return childEnv;
-}
-
 function runScript(script, args, { cwd, input = '', env = {} }) {
-  return spawnSync(process.execPath, [path.join(SCRIPTS_DIR, script), ...args], {
-    cwd,
-    env: scriptEnvironment(cwd, env),
-    input,
-    encoding: 'utf8',
-  });
+  return runNode(path.join(SCRIPTS_DIR, script), args, { cwd, env: hermeticEnv(cwd, env), input });
 }
 
 function startScript(script, args, { cwd, env = {} }) {
   const child = spawn(process.execPath, [path.join(SCRIPTS_DIR, script), ...args], {
-    cwd, env: scriptEnvironment(cwd, env), stdio: ['pipe', 'pipe', 'pipe'],
+    cwd, env: hermeticEnv(cwd, env), stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stdout = '';
   let stderr = '';
@@ -77,9 +50,7 @@ describe('state scripts', () => {
   describe('read-setting.js', () => {
     it('exits 1 with a usage error when no setting name is given', () => {
       const result = runScript('read-setting.js', [], { cwd: workspace });
-      assert.equal(result.status, 1);
-      assert.equal(result.stdout, '');
-      assert.equal(result.stderr, 'ERROR: Usage: read-setting.js <SETTING_NAME>\n');
+      expectExit(result, { status: 1, stdout: '', stderr: 'ERROR: Usage: read-setting.js <SETTING_NAME>\n' });
     });
 
     it('prints an environment value with no trailing newline', () => {
@@ -87,21 +58,18 @@ describe('state scripts', () => {
         cwd: workspace,
         env: { [SETTING]: 'parallel' },
       });
-      assert.equal(result.status, 0);
-      assert.equal(result.stdout, 'parallel');
+      expectExit(result, { status: 0, stdout: 'parallel' });
     });
 
     it('falls back to the project .env when the environment has no value', () => {
       fs.writeFileSync(path.join(workspace, '.env'), `${SETTING}=sequential\n`);
       const result = runScript('read-setting.js', [SETTING], { cwd: workspace });
-      assert.equal(result.status, 0);
-      assert.equal(result.stdout, 'sequential');
+      expectExit(result, { status: 0, stdout: 'sequential' });
     });
 
     it('prints nothing when the setting is unset', () => {
       const result = runScript('read-setting.js', [SETTING], { cwd: workspace });
-      assert.equal(result.status, 0);
-      assert.equal(result.stdout, '');
+      expectExit(result, { status: 0, stdout: '' });
     });
   });
 
@@ -127,8 +95,7 @@ describe('state scripts', () => {
       fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), DIR_LINK);
 
       const result = runScript('ensure-workspace.js', ['docs/maestro'], { cwd: workspace });
-      assert.equal(result.status, 1);
-      assert.equal(result.stderr, 'ERROR: STATE_DIR must not be a symlink\n');
+      expectExit(result, { status: 1, stderr: 'ERROR: STATE_DIR must not be a symlink\n' });
     });
 
     it('exits 1 without creating the referent when the state directory is a dangling symlink', () => {
@@ -137,8 +104,7 @@ describe('state scripts', () => {
       fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), DIR_LINK);
 
       const result = runScript('ensure-workspace.js', ['docs/maestro'], { cwd: workspace });
-      assert.equal(result.status, 1);
-      assert.equal(result.stderr, 'ERROR: STATE_DIR must not be a symlink\n');
+      expectExit(result, { status: 1, stderr: 'ERROR: STATE_DIR must not be a symlink\n' });
       assert.equal(fs.existsSync(target), false);
     });
   });
@@ -159,14 +125,12 @@ describe('state scripts', () => {
 
     it('exits 1 when stdin is empty', () => {
       const result = runScript('write-state.js', ['docs/maestro/state/notes.md'], { cwd: workspace });
-      assert.equal(result.status, 1);
-      assert.equal(result.stderr, 'ERROR: stdin content is empty\n');
+      expectExit(result, { status: 1, stderr: 'ERROR: stdin content is empty\n' });
     });
 
     it('exits 1 on a path that traverses out of the workspace', () => {
       const result = runScript('write-state.js', ['../x'], { cwd: workspace, input: 'content' });
-      assert.equal(result.status, 1);
-      assert.equal(result.stderr, 'ERROR: Path traversal not allowed\n');
+      expectExit(result, { status: 1, stderr: 'ERROR: Path traversal not allowed\n' });
     });
 
     it('hashes the raw bytes while preserving the decoded content in digest reads', () => {
@@ -253,20 +217,18 @@ describe('state scripts', () => {
     it('keeps unrelated configuration diagnostics out of generic raw commands', () => {
       fs.writeFileSync(path.join(workspace, '.env'), 'BROKEN="unterminated\n');
       const write = runScript('write-state.js', ['notes/generic.md'], { cwd: workspace, input: 'notes' });
-      assert.equal(write.status, 0, write.stderr);
-      assert.equal(write.stderr, '');
+      expectExit(write, { status: 0, stderr: '' });
       const read = runScript('read-state.js', ['notes/generic.md'], { cwd: workspace });
-      assert.equal(read.status, 0, read.stderr);
-      assert.equal(read.stdout, 'notes');
-      assert.equal(read.stderr, '');
+      expectExit(read, { status: 0, stdout: 'notes', stderr: '' });
     });
 
     it('reports state configuration diagnostics for managed raw commands', () => {
       fs.writeFileSync(path.join(workspace, '.env'), 'BROKEN="unterminated\n');
       const write = runScript('write-state.js', ['docs/maestro/state/notes.md'], { cwd: workspace, input: 'notes' });
-      assert.equal(write.status, 0, write.stderr);
-      assert.equal(write.stderr,
-        'env-file-parser: unclosed quote for key "BROKEN", treating accumulated content as value\n');
+      expectExit(write, {
+        status: 0,
+        stderr: 'env-file-parser: unclosed quote for key "BROKEN", treating accumulated content as value\n',
+      });
     });
 
     it('preserves unrelated generic paths when state directory configuration is invalid', () => {
@@ -289,12 +251,9 @@ describe('state scripts', () => {
       for (const stateDir of ['self-loop', 'first-loop', 'self-loop/state', 'first-loop/nested/state', 'docs/../self-loop']) {
         const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: stateDir } };
         const write = runScript('write-state.js', ['ordinary.md'], { ...options, input: stateDir });
-        assert.equal(write.status, 0, write.stderr);
-        assert.equal(write.stderr, '');
+        expectExit(write, { status: 0, stderr: '' }, stateDir);
         const read = runScript('read-state.js', ['ordinary.md'], options);
-        assert.equal(read.status, 0, read.stderr);
-        assert.equal(read.stdout, stateDir);
-        assert.equal(read.stderr, '');
+        expectExit(read, { status: 0, stdout: stateDir, stderr: '' }, stateDir);
         const guarded = runScript('write-state.js', ['ordinary.md', '--expected-sha256', createHash('sha256').update(stateDir).digest('hex')], {
           ...options, input: 'must not replace',
         });
@@ -376,8 +335,7 @@ describe('state scripts', () => {
         const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: configure() } };
         for (const target of [privatePath, 'metadata-alias/private']) {
           const read = runScript('read-state.js', [target], options);
-          assert.equal(read.status, 1);
-          assert.equal(read.stdout, '');
+          expectExit(read, { status: 1, stdout: '' }, target);
           const write = runScript('write-state.js', [target], { ...options, input: 'replacement' });
           assert.equal(write.status, 1);
         }
@@ -409,8 +367,7 @@ describe('state scripts', () => {
   describe('read-active-session.js', () => {
     it('reports no active session when none exists', () => {
       const result = runScript('read-active-session.js', [], { cwd: workspace });
-      assert.equal(result.status, 0);
-      assert.equal(result.stdout, 'No active session\n');
+      expectExit(result, { status: 0, stdout: 'No active session\n' });
     });
 
     it('prints the active session file when one exists', () => {
@@ -418,8 +375,7 @@ describe('state scripts', () => {
       writeTree(workspace, 'docs/maestro/state/active-session.md', sessionContent);
 
       const result = runScript('read-active-session.js', [], { cwd: workspace });
-      assert.equal(result.status, 0);
-      assert.equal(result.stdout, sessionContent);
+      expectExit(result, { status: 0, stdout: sessionContent });
     });
 
     it('recovers before reading the active session', async () => {
@@ -435,8 +391,7 @@ describe('state scripts', () => {
       writeTree(workspace, 'docs/maestro/state/active-session.md', 'existing session');
       writeTree(workspace, 'docs/maestro/state/.maestro/current.json', 'invalid journal');
       const result = runScript('read-active-session.js', [], { cwd: workspace });
-      assert.equal(result.status, 1);
-      assert.equal(result.stdout, '');
+      expectExit(result, { status: 1, stdout: '' });
       assert.match(result.stderr, /STATE_RECOVERY_REQUIRED/);
     });
   });
