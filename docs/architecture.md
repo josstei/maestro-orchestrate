@@ -40,7 +40,7 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 All dependency plans validate before generation writes or prunes files. `--dry-run` and `--diff` write nothing and report payload additions/removals and executable-mode drift. `--clean` deletes agent and shared-skill stubs before regenerating them.
 
-The shared build-time graph in `src/generator/dependency-graph.js` parses imports with Acorn and Acorn Walk. It resolves local JavaScript, JSON, and directory indexes without executing modules, checks physical containment, and explicitly classifies runtime-config discovery, hook adapters, and registry-listed hook implementations. Unsupported computed or aliased loading and stale annotations fail the check. Parser packages are development dependencies only.
+The shared build-time graph in `src/generator/dependency-graph.js` parses imports with Acorn and Acorn Walk, so import-looking comments, strings, and template text are never dependencies. It resolves local JavaScript, JSON, and directory indexes without executing modules, checks physical containment, and explicitly classifies runtime-config discovery, hook adapters, and registry-listed hook implementations. Missing targets, escapes, unsupported computed or aliased loading, and unknown or stale annotations fail the check, as do symlink imports, whose resolution a flattened payload copy cannot preserve. Acorn and Acorn Walk are major-version-8 development dependencies locked in `package-lock.json`; detached payloads need neither parser nor any `node_modules`.
 
 Detached roots include the MCP server, selected runtime config, all five state scripts, registries, served resources, agent bodies, and the handoff contract. Antigravity and Claude additionally retain their hook and policy roots. Codex retains its local MCP fallback but omits hook/policy-only modules. Payload files preserve canonical paths and bytes; there is no bundling or export pruning.
 
@@ -143,7 +143,7 @@ The content tools (`get_agent`, `get_skill_content`) are filesystem-only in ever
 This makes the source-of-truth rules explicit:
 
 - shared logic lives under `src/lib`, `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`
-- `just check-layers` (`scripts/check-layer-boundaries.js`) uses the shared dependency graph to enforce the lower-layer dependencies listed below, reject production cycles and dependencies on build-only modules or external packages, and report apparent orphans for review; `npm test` runs the same check
+- `just check-layers` (`scripts/check-layer-boundaries.js`) uses the shared dependency graph to enforce the lower-layer dependencies listed below, reject production cycles and dependencies on build-only modules or external packages, and report modules unreached from its declared public roots (host entrypoints, runtime configs, state scripts, and generator APIs) as apparent orphans for review; `npm test` runs the same check
 - root `src/` is the only human-authored source of truth
 - generator-owned runtime-local mirrors are allowed when a bundled runtime needs self-containment
 - no hand-maintained runtime forks are allowed
@@ -164,13 +164,13 @@ All guarded layers may import `node:` builtins. Their allowed source dependencie
 
 `src/state/paths.js` resolves the configured state directory independently of coordination. `coordinator.js` serializes logical mutations for its physical path and supplies an explicit transaction context to session, gate, and document stores. Nested helpers stage effects in that context rather than acquiring another lock. MCP reads, managed state scripts, workspace initialization, and before-agent session reads use the same protocol; ephemeral hook tracking remains separate.
 
-Private metadata lives beneath `<state_dir>/state/.maestro/`. Ownership is acquired by renaming a complete candidate directory into place, with a random token, PID, hostname, and protocol version. Contention polls asynchronously every 50 ms for up to five seconds; the before-agent reader has a 250 ms budget. Only a definitively absent same-host PID can be reclaimed. Release removes the observed token file and then the empty directory, never recursively deleting the shared lock.
+The first mutation creates private metadata, with owner-only permissions, beneath `<state_dir>/state/.maestro/`. Ownership is acquired by renaming a complete candidate directory into place, with a random token, PID, hostname, and protocol version. Contention polls asynchronously every 50 ms (`pollDelay` in `src/state/state-lock.js`) for up to five seconds (the `timeoutMs` default of `acquireStateLockInternal` there and of `withStateRead` in `coordinator.js`). The before-agent reader in `src/hooks/logic/before-agent-logic.js` passes a 250 ms `timeoutMs`; when state is unavailable, it logs a warning and omits session context. Only a definitively absent same-host PID can be reclaimed. Release removes the observed token file and then the empty directory, never recursively deleting the shared lock.
 
-Mutations validate and stage bytes before publishing a durable current-transaction pointer. That publication commits the operation. A versioned journal records ordered effects, before/after fingerprints, captured content, the result, and progress. Recovery accepts the expected prior state or an already-applied result and finishes committed operations. Unexpected edits stop replay and preserve the journal. Archive effects retain their order: completed session contents, session move, document moves, gate removal.
+Mutations validate and stage bytes before publishing a durable current-transaction pointer. That publication commits the operation. A versioned journal records the operation and session, ordered effects, before/after fingerprints, captured content, the result, and progress. Recovery accepts the expected prior state or an already-applied result and finishes committed operations from the staged bytes, so it never depends on the external file a document was copied from. Unexpected edits stop replay and preserve the journal. Archive effects retain their order: completed session contents, session move, document moves, gate removal.
 
 Readers compare revision and transaction markers around their snapshots and retry if a commit overlaps. Ordinary reads neither create directories nor require write access; a pending committed operation must acquire ownership and recover first. A mutation that recovers earlier work returns `STATE_RECOVERED` without starting another mutation. Other explicit errors are `STATE_BUSY`, `STATE_RECOVERY_REQUIRED`, and `STATE_CONFLICT`; their hints tell callers how to inspect or retry safely.
 
-Session formats require no migration. Files and directory metadata are flushed where supported; process-crash recovery is guaranteed, while power-loss durability depends on the operating system and filesystem. Direct editor writes and older processes do not participate in this protocol. Do not downgrade while a committed journal remains. See [state usage](usage.md#concurrent-updates-and-recovery) for the optional digest-guarded CLI form.
+Session formats require no migration; workspace initialization adds `.maestro/` to `<state_dir>/state/.gitignore` and keeps its existing entries. Files and directory metadata are flushed where supported; process-crash recovery is guaranteed, while power-loss durability depends on the operating system and filesystem. Direct editor writes and older processes do not participate in this protocol. Do not downgrade while a committed journal remains. See [state usage](usage.md#concurrent-updates-and-recovery) for the optional digest-guarded CLI form.
 
 ### MCP Server Packaging
 
@@ -303,3 +303,17 @@ CI validates that generated output matches committed state:
 
 1. Run `node scripts/generate.js --check`, which writes nothing
 2. Fail if any generated file would be created, updated, or removed
+
+## Design decisions (retained compatibility surfaces)
+
+| Surface | Preservation decision | Focused coverage |
+|---------|-----------------------|------------------|
+| Public launcher paths and repository-first/bundled resolution | Keep the nine wrappers at their existing paths, generated from each runtime config's `launchers` | Generator, hook-entrypoint, MCP-bundle tests (repository-first); detached-payload tests (bundled) |
+| Legacy YAML summaries, raw Markdown, existing state CLI invocations | Preserve readers/output; distinguish coordinator failure from absence | Hook logic, state scripts, Markdown-state tests |
+| Runtime-specific adapters, config fields, command templates | Preserve differences in tools, delegation, hooks, and native plan mode as runtime-config data ([Runtime Definitions](#runtime-definitions)) and hook adapters; shell-policy differences are each adapter's `shellPolicy` over the shared enforcer | Platform adapter/config/metadata, transform and entrypoint tests |
+| Independently authored artifact expectations | Keep the hand-written required and denied paths in `scripts/release-artifact-manifest.js` so generator mistakes cannot validate themselves | npm-pack and release-artifact tests/verifiers |
+| Local tooling and cache exclusions | Retain packaging and workspace exclusions; npm ships runtime code plus the Codex installer, and the release archive omits build-only modules | Install/packaging and cache-path tests |
+| Separate DAG passes and diagnostic order | Preserve existing validation passes | Plan schema and validate-plan tests |
+| Fresh agent/resource reads between requests | Keep filesystem reads without a process-wide content cache | Runtime-content and MCP content tests |
+
+[docs/architecture-audit.md](architecture-audit.md) is the dated review that recorded these decisions and their acceptance evidence.

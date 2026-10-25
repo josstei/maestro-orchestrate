@@ -27,45 +27,13 @@ Preserved interfaces include public launcher paths, MCP input schemas and succes
 
 All three detached payloads remove unused discovery and YAML-emission build helpers. Codex additionally removes policy rules, the hook registry, five hook-logic modules, and the shared hook runner/policy enforcer. It retains its stdin reader, all five state scripts, and local MCP server. No canonical runtime module was proven dead merely from lack of a literal importer; orphan reports require review.
 
-## State protocol and failure contract
+## State protocol and dependency boundaries
 
-Path resolution is isolated in `src/state/paths.js`. The coordinator canonicalizes the state directory, acquires ownership once per logical mutation, and passes an explicit transaction to stores. MCP reads, workspace initialization, managed-state CLIs, and before-agent session reads participate. Ephemeral hook tracking remains separate.
-
-Private metadata is created lazily beneath `<state_dir>/state/.maestro/` with private permissions. A complete candidate directory contains a random owner token, PID, hostname, and protocol version before its atomic rename acquires ownership. Contention polls asynchronously every 50 ms for at most five seconds; the before-agent reader allows 250 ms and warns while omitting context when unavailable. Only a definitively absent same-host PID is reclaimable. Release/reclaim removes the observed token file and then uses nonrecursive directory removal, protecting replacement owners.
-
-Transactions validate in the existing order and stage bytes before changing public files. A versioned intent records operation/session identity, captured data and timestamps in staged bytes, saved result, ordered effects, and before/after fingerprints. Publishing the current pointer commits the operation. Replay durably checkpoints progress, accepts expected prior or already-applied state, advances a revision marker, removes the pointer, and cleans staging. It does not depend on external temporary document sources. Archive ordering remains completed session contents → session archive move → document moves → gate removal.
-
-Ordinary reads do not create directories or require write access. They compare revision/pointer state around their snapshot and retry on overlapping commits. Reads finish pending committed work before serving state. A mutation that discovers interrupted work completes it and returns `STATE_RECOVERED` without applying another mutation. `STATE_BUSY`, `STATE_RECOVERY_REQUIRED`, and `STATE_CONFLICT` use the existing error envelope with recovery guidance; pending journals remain available when replay cannot safely continue.
-
-Raw `read-state.js`/`write-state.js` invocations retain whole-file behavior. `read-state.js <path> --with-digest` returns content and SHA-256 from the same bytes. `write-state.js <path> --expected-sha256 <64 hex digits>` checks bytes under ownership and rejects stale/missing targets. Guarded writes are supported only in configured managed state. Generic paths remain usable outside managed state, and repository-authored read/modify/write instructions prefer MCP or the guarded form.
-
-Existing workspaces require no session migration. Initialization appends `.maestro/` to state ignore rules while preserving user entries and its public response. Cooperating updated processes participate in the lock protocol; direct editor writes and older versions are detected only where fingerprints permit. Files and directory metadata are flushed where supported. The guarantee covers process crashes; power-loss durability remains bounded by the OS/filesystem. Do not downgrade while a committed transaction remains.
-
-## Dependency direction and build boundaries
-
-| Layer | Allowed source dependencies |
-|-------|-----------------------------|
-| `lib` | `lib` |
-| `core` | `lib`, `core`, `generated` |
-| `config` | `lib`, `core`, `config` |
-| `state` | `lib`, `core`, `config`, `state` |
-| `hooks` | `lib`, `core`, `config`, `state`, `hooks` |
-
-The graph ignores import-looking comments, strings, and generated templates; it rejects missing targets, escapes, unsupported loaders, unknown/stale annotations, and production cycles. Runtime configurations, hook adapters, and registry-listed hook implementations are explicit finite computed loads. Public roots include CLI and registry-driven entrypoints, avoiding deletion based solely on static import counts. Symlink imports fail explicitly because flattened copies cannot preserve their resolution semantics.
-
-Acorn and Acorn Walk are explicit major-version-8 development dependencies, locked in `package-lock.json`. All six generation/check workflows install dependencies with `npm ci`; copied-repository fixtures resolve root development dependencies explicitly. Detached runtimes have no parser packages or runtime `node_modules` requirement. Payload preflight validates dependency plans before copying, cleaning, or pruning; it does not bundle, minify, or prune exports.
+[State Coordination and Recovery](architecture.md#state-coordination-and-recovery) describes the coordination, transaction, and recovery protocol, and [state usage](usage.md#concurrent-updates-and-recovery) the digest-guarded CLI form. The [Generator Pipeline](architecture.md#generator-pipeline) describes the dependency graph, and [Content Serving and Path Resolution](architecture.md#content-serving-and-path-resolution) the layer rules it enforces. This remediation approved only three additions to the state protocol: recoverable state errors, automatic roll-forward of committed operations, and optional content-hash checking for whole-file writes.
 
 ## Retained compatibility surfaces
 
-| Surface | Preservation decision | Focused coverage |
-|---------|-----------------------|------------------|
-| Public launcher paths and repository-first/bundled resolution | Keep generated wrappers at their existing paths | Generator, hook-entrypoint, MCP-bundle tests (repository-first); detached-payload tests (bundled) |
-| Legacy YAML summaries, raw Markdown, existing state CLI invocations | Preserve readers/output; distinguish coordinator failure from absence | Hook logic, state scripts, Markdown-state tests |
-| Runtime-specific adapters, config fields, command templates | Preserve differences in tools, delegation, hooks, and native plan mode | Platform adapter/config/metadata, transform and entrypoint tests |
-| Independently authored artifact expectations | Keep independent manifests so generator mistakes cannot validate themselves | npm-pack and release-artifact tests/verifiers |
-| Local tooling and cache exclusions | Retain packaging and workspace exclusions | Install/packaging and cache-path tests |
-| Separate DAG passes and diagnostic order | Preserve existing validation passes | Plan schema and validate-plan tests |
-| Fresh agent/resource reads between requests | Keep filesystem reads without a process-wide content cache | Runtime-content and MCP content tests |
+The retained surfaces and their coverage are in [Design decisions](architecture.md#design-decisions-retained-compatibility-surfaces).
 
 ## Verification record
 
