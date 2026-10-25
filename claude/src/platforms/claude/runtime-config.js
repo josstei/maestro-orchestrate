@@ -68,4 +68,11 @@ module.exports = {
     skills: '${CLAUDE_PLUGIN_ROOT}/skills/',
     hooks: '${CLAUDE_PLUGIN_ROOT}/scripts/',
   },
+
+  // Generated launchers, relative to outputDir.
+  launchers: {
+    mcpServer: 'mcp/maestro-server.js',
+    hookRunner: 'scripts/hook-runner.js',
+    policyEnforcer: 'scripts/policy-enforcer.js',
+  },
 };

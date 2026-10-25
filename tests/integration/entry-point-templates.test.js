@@ -19,7 +19,7 @@ const HOST_NAME_REMAPS = [
 
 describe('expandEntryPoints', () => {
   it('produces qwen TOML for each registry entry', () => {
-    const results = expandEntryPoints('qwen');
+    const results = expandEntryPoints(getRuntimeConfig('qwen'));
     assert.ok(results.length >= 9, `Expected >= 9 entries, got ${results.length}`);
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review, 'Should produce review entry');
@@ -32,7 +32,8 @@ describe('expandEntryPoints', () => {
   });
 
   it('qwen TOML commands keep the unremapped registry names (no reserved host names)', () => {
-    const outputPaths = [...expandEntryPoints('qwen'), ...expandCoreCommands('qwen')].map(
+    const qwen = getRuntimeConfig('qwen');
+    const outputPaths = [...expandEntryPoints(qwen), ...expandCoreCommands(qwen)].map(
       (r) => r.outputPath
     );
     for (const { reserved, remapped } of HOST_NAME_REMAPS) {
@@ -54,8 +55,8 @@ describe('expandEntryPoints', () => {
   ]) {
     it(`${runtime} public skills remap reserved host command names`, () => {
       const outputs = {
-        entryPoints: expandEntryPoints(runtime),
-        coreCommands: expandCoreCommands(runtime),
+        entryPoints: expandEntryPoints(getRuntimeConfig(runtime)),
+        coreCommands: expandCoreCommands(getRuntimeConfig(runtime)),
       };
       assert.ok(outputs.entryPoints.length >= 9);
       assert.ok(outputs.coreCommands.length >= 3);
@@ -79,7 +80,7 @@ describe('expandEntryPoints', () => {
   }
 
   it('qwen preamble activates correct skills', () => {
-    const results = expandEntryPoints('qwen');
+    const results = expandEntryPoints(getRuntimeConfig('qwen'));
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
@@ -87,7 +88,7 @@ describe('expandEntryPoints', () => {
   });
 
   it('claude preamble references delegation for agent entries', () => {
-    const results = expandEntryPoints('claude');
+    const results = expandEntryPoints(getRuntimeConfig('claude'));
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_skill_content'));
     assert.ok(review.content.includes('delegation'));
@@ -95,7 +96,7 @@ describe('expandEntryPoints', () => {
   });
 
   it('codex preamble includes agent references for entries with agents', () => {
-    const results = expandEntryPoints('codex');
+    const results = expandEntryPoints(getRuntimeConfig('codex'));
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('get_agent'));
     assert.ok(review.content.includes('code-reviewer'));
@@ -105,7 +106,7 @@ describe('expandEntryPoints', () => {
 
   it('claude skill headings use the registry title when one is set', () => {
     const headings = Object.fromEntries(
-      expandEntryPoints('claude').map((r) => [r.outputPath, r.content.match(/^# .*$/m)[0]])
+      expandEntryPoints(getRuntimeConfig('claude')).map((r) => [r.outputPath, r.content.match(/^# .*$/m)[0]])
     );
     assert.equal(headings['claude/skills/a11y-audit/SKILL.md'], '# Maestro Accessibility Audit');
     assert.equal(headings['claude/skills/seo-audit/SKILL.md'], '# Maestro SEO Audit');
@@ -113,7 +114,7 @@ describe('expandEntryPoints', () => {
   });
 
   it('entries without agents omit delegation references', () => {
-    const claudeResults = expandEntryPoints('claude');
+    const claudeResults = expandEntryPoints(getRuntimeConfig('claude'));
     const status = claudeResults.find((r) => r.outputPath.includes('status'));
     assert.ok(status);
     // Status has no agents, so no delegation protocol block
@@ -121,13 +122,13 @@ describe('expandEntryPoints', () => {
   });
 
   it('qwen constraints appear in the prompt', () => {
-    const results = expandEntryPoints('qwen');
+    const results = expandEntryPoints(getRuntimeConfig('qwen'));
     const review = results.find((r) => r.outputPath.includes('review'));
     assert.ok(review.content.includes('Do not bury findings'));
   });
 
   it('codex workflow steps are numbered', () => {
-    const results = expandEntryPoints('codex');
+    const results = expandEntryPoints(getRuntimeConfig('codex'));
     const debug = results.find((r) => r.outputPath.includes('debug-workflow'));
     assert.ok(debug.content.includes('1. '));
     assert.ok(debug.content.includes('2. '));
@@ -138,7 +139,7 @@ describe('expandEntryPoints', () => {
     const { runtimeNames } = review;
     review.runtimeNames = { codex: 'review-code' };
     try {
-      assert.throws(() => expandEntryPoints('claude'), {
+      assert.throws(() => expandEntryPoints(getRuntimeConfig('claude')), {
         message:
           'Reserved claude host command name "review" conflicts with a built-in — ' +
           'add a runtimeNames entry to the registry to remap it',
@@ -150,10 +151,11 @@ describe('expandEntryPoints', () => {
 
   it('rejects unknown runtimes, including the removed gemini runtime', () => {
     for (const runtime of ['nope', 'gemini']) {
-      assert.throws(() => expandEntryPoints(runtime), {
+      const config = { ...getRuntimeConfig('claude'), name: runtime };
+      assert.throws(() => expandEntryPoints(config), {
         message: `Unknown runtime for entry-point expansion: "${runtime}"`,
       });
-      assert.throws(() => expandCoreCommands(runtime), {
+      assert.throws(() => expandCoreCommands(config), {
         message: `Unknown runtime for core-command expansion: "${runtime}"`,
       });
     }
@@ -164,7 +166,7 @@ describe('expandCoreCommands for qwen', () => {
   const QWEN_EXTENSION_FALLBACK = '$HOME/.qwen/extensions/maestro';
 
   it('emits the orchestrate, execute and resume TOML commands at the repo root', () => {
-    const results = expandCoreCommands('qwen');
+    const results = expandCoreCommands(getRuntimeConfig('qwen'));
     assert.deepEqual(
       results.map((r) => r.outputPath).sort(),
       [
@@ -180,7 +182,7 @@ describe('expandCoreCommands for qwen', () => {
   });
 
   it('carries the Qwen Code runtime preamble and no Gemini wording', () => {
-    for (const { outputPath, content } of expandCoreCommands('qwen')) {
+    for (const { outputPath, content } of expandCoreCommands(getRuntimeConfig('qwen'))) {
       assert.ok(
         content.includes('## Runtime: Qwen Code'),
         `Expected ${outputPath} to carry the Qwen Code runtime preamble`
@@ -195,7 +197,7 @@ describe('expandCoreCommands for qwen', () => {
 
   it('injects session state from the Qwen extension dir only into resume', () => {
     const byPath = Object.fromEntries(
-      expandCoreCommands('qwen').map((r) => [r.outputPath, r.content])
+      expandCoreCommands(getRuntimeConfig('qwen')).map((r) => [r.outputPath, r.content])
     );
     const resume = byPath['commands/maestro/resume.toml'];
     assert.ok(resume.includes('<session-state>'));
@@ -219,8 +221,8 @@ describe('expandCoreCommands for qwen', () => {
 
 describe('entry-point and core-command skills for antigravity', () => {
   const SKILLS_ROOT = 'antigravity/skills';
-  const entryPoints = expandEntryPoints('antigravity');
-  const coreCommands = expandCoreCommands('antigravity');
+  const entryPoints = expandEntryPoints(getRuntimeConfig('antigravity'));
+  const coreCommands = expandCoreCommands(getRuntimeConfig('antigravity'));
   const publicSkills = [...entryPoints, ...coreCommands];
 
   it(`emits the ${PUBLIC_SKILL_COUNT} public skills at antigravity/skills/<name>/SKILL.md`, () => {

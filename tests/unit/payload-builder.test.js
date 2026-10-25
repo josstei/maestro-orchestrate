@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { planDetachedPayload } = require('../../src/generator/payload-builder');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { makeTempDir, writeJson, writeTree } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
 
@@ -39,18 +40,15 @@ function sourceFixture() {
   return src;
 }
 
-function plan(src, runtime = 'codex', options = {}) {
-  const output = src === SRC_ROOT
-    ? path.join(path.dirname(src), runtime === 'codex' ? 'plugins/maestro' : runtime, 'src')
-    : makeTempDir('maestro-payload-output-');
-  return planDetachedPayload(src, output, runtime, '1.2.3', options);
+function plan(src, runtime = 'codex', version = '1.2.3', options = {}) {
+  const { outputs } = planDetachedPayload(src, getRuntimeConfig(runtime), version, options);
+  return { outputs, files: new Set(outputs.map(({ outputPath }) => outputPath)) };
 }
 
 describe('detached payload dependency plans', () => {
   it('preserves runtime entrypoints, every catalog asset and all five state CLIs in real payloads', () => {
     for (const runtime of ['antigravity', 'claude', 'codex']) {
-      const result = plan(SRC_ROOT, runtime);
-      const files = result.manifestPaths;
+      const { files } = plan(SRC_ROOT, runtime);
       assert.ok(files.has('mcp/maestro-server.js'));
       assert.ok(files.has(`platforms/${runtime}/runtime-config.js`));
       assert.ok(files.has('core/stdin-reader.js'), 'write-state CLI reads stdin');
@@ -78,33 +76,28 @@ describe('detached payload dependency plans', () => {
     writeTree(src, 'lib/new-module.js', 'module.exports = 42;\n');
     writeTree(src, 'lib/dead.js', 'this is invalid JavaScript and must not be parsed');
     const result = plan(src);
-    assert.ok(result.manifestPaths.has('lib/new-module.js'));
-    assert.ok(!result.manifestPaths.has('lib/dead.js'));
+    assert.ok(result.files.has('lib/new-module.js'));
+    assert.ok(!result.files.has('lib/dead.js'));
     assert.equal(result.outputs.find((output) => output.outputPath === 'lib/new-module.js').content, 'module.exports = 42;\n');
     assert.match(result.outputs.find((output) => output.outputPath === 'lib/new-module.js').reason, /core\/runtime\.js/);
   });
 
-  it('uses fresh in-memory registries without rewriting source or existing payload files', () => {
+  it('uses fresh in-memory registries without rewriting source', () => {
     const src = sourceFixture();
-    const outputDir = makeTempDir('maestro-payload-preview-');
     writeTree(src, 'templates/fresh.md', '# Fresh\n');
-    writeTree(outputDir, 'orphaned/old.js', 'stale');
     const resourcePath = path.join(src, 'generated/resource-registry.json');
     const before = fs.readFileSync(resourcePath, 'utf8');
     const sourceOverrides = new Map([['generated/resource-registry.json', JSON.stringify({ fresh: 'templates/fresh.md' })]]);
-    const result = planDetachedPayload(src, outputDir, 'codex', '9.8.7', { sourceOverrides });
-    assert.ok(result.manifestPaths.has('templates/fresh.md'));
-    assert.ok(!result.manifestPaths.has('templates/plan.md'));
-    assert.deepEqual(result.removedPaths, ['orphaned/old.js']);
+    const result = plan(src, 'codex', '9.8.7', { sourceOverrides });
+    assert.ok(result.files.has('templates/fresh.md'));
+    assert.ok(!result.files.has('templates/plan.md'));
     assert.equal(fs.readFileSync(resourcePath, 'utf8'), before);
-    assert.equal(fs.readFileSync(path.join(outputDir, 'orphaned/old.js'), 'utf8'), 'stale');
-    assert.ok(!fs.existsSync(path.join(outputDir, 'mcp')));
     assert.equal(result.outputs.find((output) => output.outputPath === 'version.json').content, '{\n  "version": "9.8.7"\n}\n');
   });
 
   it('keeps every registered hook handler even when host metadata does not register that event', () => {
     const result = plan(sourceFixture(), 'antigravity');
-    assert.ok(result.manifestPaths.has('hooks/after.js'));
+    assert.ok(result.files.has('hooks/after.js'));
   });
 
   it('rejects missing assets, unknown computed imports and dependencies outside canonical source', () => {
@@ -138,7 +131,7 @@ describe('detached payload dependency plans', () => {
     const second = plan(src);
     assert.deepEqual(first.outputs, second.outputs);
     assert.ok(first.outputs.every((output) => typeof output.reason === 'string' && output.reason.length > 0));
-    assert.deepEqual(first.outputs.map((output) => output.outputPath), [...first.manifestPaths].sort());
-    assert.throws(() => plan(src, 'missing'), /Unknown detached payload runtime/);
+    assert.deepEqual(first.outputs.map((output) => output.outputPath), [...first.files].sort());
+    assert.throws(() => plan(src, 'qwen'), /Unknown detached payload runtime: qwen/);
   });
 });

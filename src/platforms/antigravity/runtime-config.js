@@ -77,4 +77,11 @@ module.exports = {
     skills: '${PLUGIN_ROOT}/skills/',
     hooks: '${PLUGIN_ROOT}/hooks/',
   },
+
+  // Generated launchers, relative to outputDir.
+  launchers: {
+    mcpServer: 'mcp/maestro-server.js',
+    hookRunner: 'hooks/hook-runner.js',
+    policyEnforcer: 'hooks/policy-enforcer.js',
+  },
 };

@@ -2,6 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
 
 const antigravity = require('../../src/platforms/antigravity/runtime-config');
 const codex = require('../../src/platforms/codex/runtime-config');
@@ -44,6 +45,19 @@ describe('runtime-config host bindings', () => {
         qwen: './',
       }
     );
+  });
+
+  it('every hooked runtime serves paths.hooks from its generated hook-runner directory', () => {
+    // Host hook registrations name scripts under paths.hooks, and the generator
+    // writes the hook-runner launcher to launchers.hookRunner.
+    const hooked = [antigravity, claude, codex, qwen].filter((config) => config.launchers.hookRunner);
+    assert.deepEqual(hooked.map((config) => config.name), ['antigravity', 'claude', 'qwen']);
+    for (const config of hooked) {
+      assert.ok(
+        config.paths.hooks.endsWith(`${path.posix.dirname(config.launchers.hookRunner)}/`),
+        `${config.name}: paths.hooks ${config.paths.hooks} vs launchers.hookRunner ${config.launchers.hookRunner}`
+      );
+    }
   });
 
   it('only antigravity marks its MCP tools always-loaded', () => {

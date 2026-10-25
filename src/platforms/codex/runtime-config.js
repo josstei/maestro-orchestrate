@@ -57,4 +57,10 @@ module.exports = {
     skills: './skills/',
     hooks: './scripts/',
   },
+
+  // Generated launchers. Codex has only the package's npm bin (relative to the
+  // package root), which plugins/maestro/.mcp.json starts through npx.
+  launchers: {
+    npmBin: 'bin/maestro-mcp-server.js',
+  },
 };

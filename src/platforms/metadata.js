@@ -173,8 +173,9 @@ function buildAntigravityHooks() {
   };
 }
 
-// Per-runtime metadata files, as ordered [outputPath, value] pairs. String
-// values are written as-is; anything else is written as JSON.
+// Per-runtime metadata files, as ordered [outputPath, value] pairs. Each
+// builder receives the package context and its runtime config. String values
+// are written as-is; anything else is written as JSON.
 const METADATA_BUILDERS = {
   // Antigravity loads only plugin.json's own fields; MCP servers and hooks are
   // read from mcp_config.json and hooks.json at the plugin root.
@@ -311,7 +312,7 @@ function buildPlatformMetadataOutputs(runtimes, pkg) {
   const context = buildMetadataContext(pkg);
 
   return Object.keys(runtimes).sort().flatMap((runtimeName) =>
-    METADATA_BUILDERS[runtimeName](context).map(([outputPath, value]) => ({
+    METADATA_BUILDERS[runtimeName](context, runtimes[runtimeName]).map(([outputPath, value]) => ({
       outputPath,
       content: typeof value === 'string' ? value : formatJson(value),
     }))

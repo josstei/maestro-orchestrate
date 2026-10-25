@@ -7,7 +7,6 @@ const { emitInlineQuotedList } = require('../lib/yaml-emit');
 const entryPointRegistry = require('../entry-points/registry');
 const coreCommandRegistry = require('../entry-points/core-command-registry');
 const preambleBuilders = require('../entry-points/preamble-builders');
-const { RUNTIME_NAMES, getRuntimeConfig } = require('../platforms/runtime-config-map');
 
 const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
 
@@ -70,23 +69,23 @@ function applySubstitutions(template, substitutions) {
 /**
  * Render every registry entry of one kind for one runtime.
  * @param {'entry-point'|'core-command'} kind
- * @param {string} runtimeName
+ * @param {object} runtime - Runtime config
  * @returns {Array<{ outputPath: string, content: string }>}
- * @throws {Error} For an unknown runtime, or a resolved name that collides
- *   with a reserved host command
+ * @throws {Error} For a runtime without templates, or a resolved name that
+ *   collides with a reserved host command
  */
-function expand(kind, runtimeName) {
-  if (!RUNTIME_NAMES.includes(runtimeName)) {
-    throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
-  }
-
+function expand(kind, runtime) {
+  const runtimeName = runtime.name;
   const { registry, substitutions } = KINDS[kind];
-  const runtime = getRuntimeConfig(runtimeName);
   const qwen = runtimeName === 'qwen';
   const templateName = kind === 'core-command'
     ? `${runtimeName}-core-command.${qwen ? 'toml' : 'md'}.tmpl`
     : `${runtimeName}-${qwen ? 'command.toml' : 'skill.md'}.tmpl`;
-  const template = fs.readFileSync(path.join(TEMPLATES_DIR, templateName), 'utf8');
+  const templatePath = path.join(TEMPLATES_DIR, templateName);
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
+  }
+  const template = fs.readFileSync(templatePath, 'utf8');
   // Runtime-config values every template of the runtime may render.
   const runtimeSubstitutions = {
     mcpPrefix: runtime.mcpPrefix,
@@ -115,19 +114,19 @@ function expand(kind, runtimeName) {
 }
 
 /**
- * @param {string} runtimeName
+ * @param {object} runtime - Runtime config
  * @returns {Array<{ outputPath: string, content: string }>}
  */
-function expandEntryPoints(runtimeName) {
-  return expand('entry-point', runtimeName);
+function expandEntryPoints(runtime) {
+  return expand('entry-point', runtime);
 }
 
 /**
- * @param {string} runtimeName
+ * @param {object} runtime - Runtime config
  * @returns {Array<{ outputPath: string, content: string }>}
  */
-function expandCoreCommands(runtimeName) {
-  return expand('core-command', runtimeName);
+function expandCoreCommands(runtime) {
+  return expand('core-command', runtime);
 }
 
 module.exports = { expandEntryPoints, expandCoreCommands };

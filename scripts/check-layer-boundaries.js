@@ -30,6 +30,7 @@ const PUBLIC_ROOTS = [
   'generator/payload-builder.js',
   'generator/registry-scanner.js',
   'generator/runtime-entrypoints.js',
+  'generator/stale-pruner.js',
 ];
 
 // Retain the required lower-layer root; a broken checkout must not pass as an

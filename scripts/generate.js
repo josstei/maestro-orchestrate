@@ -8,7 +8,7 @@ const { collectStubOutputs } = require('../src/generator/stub-outputs');
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { planDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
-const { buildRuntimeEntrypointOutputs } = require('../src/generator/runtime-entrypoints');
+const { buildRuntimeEntrypointOutputs, hasDetachedPayload } = require('../src/generator/runtime-entrypoints');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/platforms/runtime-config-map');
 const { parseFlagArgs, runCli } = require('./lib/cli');
@@ -16,7 +16,6 @@ const { parseFlagArgs, runCli } = require('./lib/cli');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const OWNED_DIRS = ['agents', 'antigravity/agents', 'antigravity/skills', 'claude/agents', 'claude/skills', 'plugins/maestro/skills', 'commands'];
-const PAYLOAD_RUNTIMES = ['antigravity', 'claude', 'codex'];
 
 function printHelp() {
   console.log(`Generate the runtime outputs and detached payloads from src/.
@@ -49,13 +48,8 @@ function main() {
 
   // Keep imports inside main so errors receive runCli's generator prefix.
   const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
-  const entryPointPaths = [];
   for (const expand of [expandEntryPoints, expandCoreCommands]) {
-    for (const runtimeName of Object.keys(runtimes)) {
-      const entries = expand(runtimeName);
-      outputs.push(...entries);
-      entryPointPaths.push(...entries.map(({ outputPath }) => outputPath));
-    }
+    for (const runtime of Object.values(runtimes)) outputs.push(...expand(runtime));
   }
   outputs.push(...buildPlatformMetadataOutputs(runtimes, packageMetadata));
   outputs.push(...buildRuntimeEntrypointOutputs(runtimes));
@@ -66,32 +60,27 @@ function main() {
   ]));
   // Validate every payload and snapshot its source bytes before ANY generated
   // file is written or cleaned. A broken final runtime cannot prune earlier ones.
-  const payloadPlans = PAYLOAD_RUNTIMES.map((runtimeName) => {
-    const label = `${runtimes[runtimeName].outputDir}src`;
-    return {
-      label,
-      ...planDetachedPayload(SRC, path.join(ROOT, label), runtimeName, packageMetadata.version, { sourceOverrides }),
-    };
-  });
-  const manifestPaths = new Set([...stubOutputPaths, ...entryPointPaths]);
+  // Each payload directory is owned whole, so its stale files are pruned too.
+  const payloads = [];
+  for (const runtime of Object.values(runtimes).filter(hasDetachedPayload)) {
+    const label = `${runtime.outputDir}src`;
+    const plan = planDetachedPayload(SRC, runtime, packageMetadata.version, { sourceOverrides });
+    outputs.push(...plan.outputs.map((output) => ({ ...output, outputPath: `${label}/${output.outputPath}` })));
+    payloads.push({ label, fileCount: plan.outputs.length });
+  }
+  const ownedDirs = [...OWNED_DIRS, ...payloads.map(({ label }) => label)];
+  const manifestPaths = new Set(outputs.map(({ outputPath }) => outputPath));
   for (const { outputPath } of outputs) safeResolve(outputPath, ROOT, { requireFile: true });
-  for (const ownedDir of OWNED_DIRS) safeResolve(ownedDir, ROOT);
-  const stale = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS, dryRun: true }).pruned;
+  for (const ownedDir of ownedDirs) safeResolve(ownedDir, ROOT);
+  const removedPaths = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs, dryRun: true }).pruned.sort();
 
   if (cleanMode) {
     writer.clean(stubOutputPaths);
     if (!readOnlyMode) console.log('Cleaned generated agent and shared-skill stubs.');
   }
   writer.writeAll(outputs);
-  for (const plan of payloadPlans) {
-    writer.writeAll(plan.outputs.map((output) => ({ ...output, outputPath: `${plan.label}/${output.outputPath}` })));
-  }
   if (writer.getStats().errors > 0) process.exit(1);
 
-  const removedPaths = [
-    ...stale,
-    ...payloadPlans.flatMap((plan) => plan.removedPaths.map((file) => `${plan.label}/${file}`)),
-  ].sort();
   if (readOnlyMode) {
     for (const file of removedPaths) console.log(dryRun || check ? `[REMOVE] ${file}` : `--- REMOVED: ${file}`);
     if (dryRun) console.log('\n(dry-run — no files written)');
@@ -106,14 +95,13 @@ function main() {
     return;
   }
 
-  pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS });
-  for (const plan of payloadPlans) {
-    pruneStaleFiles({ rootDir: plan.outputDir, manifestPaths: plan.manifestPaths, ownedDirs: [''] });
-  }
+  pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs });
   for (const file of removedPaths) console.log(`  PRUNED: ${file}`);
   const stats = writer.getStats();
   console.log(`\nGeneration complete: ${stats.written} written, ${stats.unchanged} unchanged, ${stats.errors} errors`);
-  console.log(`\nDetached payloads: ${payloadPlans.map((plan) => `${plan.label} (${plan.outputs.length} files, ${plan.removedPaths.length} removed)`).join(', ')}`);
+  const payloadSummary = payloads.map(({ label, fileCount }) =>
+    `${label} (${fileCount} files, ${removedPaths.filter((file) => file.startsWith(`${label}/`)).length} removed)`);
+  console.log(`\nDetached payloads: ${payloadSummary.join(', ')}`);
 }
 
 runCli('Generator failed', main);
