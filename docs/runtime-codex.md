@@ -108,7 +108,7 @@ Codex keeps built-in `/review`, `/debug`, and `/resume` commands, so Maestro exp
 
 The runtime guide states:
 
-> If Maestro MCP tools are available, prefer them for stateful operations. If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
+> If Maestro MCP tools are available, prefer them for stateful operations. If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `<state_dir>` as described by the shared skills.
 
 This MCP-first with direct filesystem fallback approach exists because spawned Codex agents may not have access to the parent plugin's MCP server. When MCP is available, shared methodology and agent bodies are served from the `src/` directory of the `@josstei/maestro` npm package that `npx` runs, the same `src/` tree the server runs from. There is no hand-maintained packaged registry copy and no plugin-level `agents/` directory.
 

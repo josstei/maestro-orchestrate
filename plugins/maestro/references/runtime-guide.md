@@ -14,11 +14,11 @@ Codex also reserves built-in `/review`, `/debug`, and `/resume` commands, so Mae
 
 ## State contract
 
-Maestro state lives in `docs/maestro` in the workspace root:
+Maestro state lives in `<state_dir>` in the workspace root, where `<state_dir>` is the `MAESTRO_STATE_DIR` setting (default `docs/maestro`):
 
-- active session: `docs/maestro/state/active-session.md`
-- plans: `docs/maestro/plans/`
-- archives: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
+- active session: `<state_dir>/state/active-session.md`
+- plans: `<state_dir>/plans/`
+- archives: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
 The workspace root is the path passed to `initialize_workspace`. To suggest it, `get_runtime_context` reports, in order:
 
@@ -26,9 +26,9 @@ The workspace root is the path passed to `initialize_workspace`. To suggest it, 
 2. the first valid local `file://` root returned by the MCP client `roots/list` request
 3. the MCP server's `cwd`
 
-If MCP tools are unavailable, operate directly on the files under `docs/maestro` in the workspace root. The installed payload also contains the five state CLI scripts under `src/scripts/`. To use them, derive the absolute plugin root from the loaded skill's path (`<plugin-root>/skills/<skill>/SKILL.md`) and invoke `node "<absolute-plugin-root>/src/scripts/<script>.js"` while keeping the working directory at the workspace root. Do not resolve the plugin from the workspace's current directory. If the loaded skill path is unavailable, keep using direct workspace file operations.
+If MCP tools are unavailable, operate directly on the files under `<state_dir>` in the workspace root. The installed payload also contains the five state CLI scripts under `src/scripts/`. To use them, derive the absolute plugin root from the loaded skill's path (`<plugin-root>/skills/<skill>/SKILL.md`) and invoke `node "<absolute-plugin-root>/src/scripts/<script>.js"` while keeping the working directory at the workspace root. Do not resolve the plugin from the workspace's current directory. If the loaded skill path is unavailable, keep using direct workspace file operations.
 
-The scripts are `ensure-workspace.js <state_dir>`, `read-active-session.js`, `read-state.js <relative-path>`, `write-state.js <relative-path>` (content on stdin), and `read-setting.js <SETTING_NAME>`. Shared local content remains under the same plugin root's `src/agents`, `src/skills`, `src/references`, and `src/templates` directories.
+The scripts are `ensure-workspace.js <state_dir>`, `read-active-session.js`, `read-state.js <relative-path>`, `write-state.js <relative-path>` (content on stdin), and `read-setting.js <SETTING_NAME>`. Resolve `<state_dir>` with `resolve_settings`, or without MCP with `read-setting.js MAESTRO_STATE_DIR`; a null or empty result means the default. If the loaded skill path is unavailable, take `MAESTRO_STATE_DIR` from the environment or the workspace `.env` instead. Shared local content remains under the same plugin root's `src/agents`, `src/skills`, `src/references`, and `src/templates` directories.
 
 Prefer MCP tools for state changes. For a read/modify/write operation using the CLI fallback, read with `read-state.js <relative-path> --with-digest`, then pass the returned `sha256` to `write-state.js <relative-path> --expected-sha256 <digest>` with the replacement content on stdin. The path must be inside the configured state directory. If the write reports a conflict, read fresh content and reapply the intended change before retrying.
 
@@ -63,7 +63,7 @@ If Maestro MCP tools are available, prefer them for stateful operations:
 - `archive_session`
 - `validate_plan`
 
-If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `docs/maestro` as described by the shared skills.
+If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `<state_dir>` as described by the shared skills.
 
 ## Delegation model
 

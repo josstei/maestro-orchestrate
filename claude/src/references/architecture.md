@@ -59,13 +59,13 @@ Agent names use the runtime's naming convention (`agent_dispatch.naming` from `g
 
 ## State Contract
 
-<!-- @feature scriptBasedStateContract -->
 Maestro maintains session state under `<state_dir>` (resolved from `MAESTRO_STATE_DIR`):
 
 - **Active session**: `<state_dir>/state/active-session.md`
 - **Plans**: `<state_dir>/plans/`
 - **Archives**: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
+<!-- @feature scriptBasedStateContract -->
 State scripts:
 
 - `node ${extensionPath}/src/scripts/ensure-workspace.js <state_dir>` — initialize workspace directories
@@ -75,21 +75,17 @@ State scripts:
 - `node ${extensionPath}/src/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
 <!-- @end-feature -->
 <!-- @feature codexStateContract -->
-Maestro maintains session state under `docs/maestro` in the workspace root:
-
-- **Active session**: `docs/maestro/state/active-session.md`
-- **Plans**: `docs/maestro/plans/`
-- **Archives**: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
+`<state_dir>` is relative to the workspace root and defaults to `docs/maestro`. Resolve it with `resolve_settings`, or, for CLI fallback, with `read-setting.js MAESTRO_STATE_DIR`; a null or empty result means the default.
 
 For CLI fallback, derive the absolute installed plugin root from the path of the loaded Maestro skill (`<plugin-root>/skills/<skill>/SKILL.md`). Keep the command's working directory at the workspace root; the plugin root is not the workspace. Run these scripts by absolute path:
 
-- `node "<absolute-plugin-root>/src/scripts/ensure-workspace.js" docs/maestro` — initialize workspace directories
+- `node "<absolute-plugin-root>/src/scripts/ensure-workspace.js" <state_dir>` — initialize workspace directories
 - `node "<absolute-plugin-root>/src/scripts/read-active-session.js"` — read current session state
 - `node "<absolute-plugin-root>/src/scripts/read-state.js" <relative-path>` — read arbitrary state file
 - `node "<absolute-plugin-root>/src/scripts/write-state.js" <relative-path>` — write state from stdin
 - `node "<absolute-plugin-root>/src/scripts/read-setting.js" <SETTING_NAME>` — resolve a Maestro setting
 
-If the installed skill path is unavailable, use direct file operations under the workspace's `docs/maestro` instead of guessing a plugin location.
+If the installed skill path is unavailable, do not guess a plugin location: take `MAESTRO_STATE_DIR` from the environment or the workspace `.env` (default `docs/maestro`) and use direct file operations under that `<state_dir>`.
 <!-- @end-feature -->
 
 Prefer MCP tools for state changes. For a read/modify/write operation using the CLI fallback, read with `read-state.js <relative-path> --with-digest`, then pass the returned `sha256` to `write-state.js <relative-path> --expected-sha256 <digest>` with the replacement content on stdin. The path must be inside the configured state directory. If the write reports a conflict, read fresh content and reapply the intended change before retrying.

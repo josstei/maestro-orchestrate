@@ -20,7 +20,7 @@ module.exports = [
       'Execute an existing implementation plan directly, skipping the design dialogue and planning phases.',
     requestType: 'file path',
     executeInstructions:
-      'Read the approved implementation plan at the user-provided path (or check `docs/maestro/plans/` for the most recent plan). Resolve the execution mode gate, create or resume session state, then execute phases through child agents following the loaded methodology.',
+      'Read the approved implementation plan at the user-provided path (or check `<state_dir>/plans/` for the most recent plan). Resolve the execution mode gate, create or resume session state, then execute phases through child agents following the loaded methodology.',
   },
   {
     name: 'resume',

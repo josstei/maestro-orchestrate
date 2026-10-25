@@ -81,6 +81,21 @@ describe('get_skill_content handler', () => {
     assert.ok(!content.includes('docs/maestro'));
   });
 
+  it('serves codex a <state_dir> contract that names docs/maestro only as the default', () => {
+    const handler = createSkillContentHandler(getRuntimeConfig('codex'), SRC_ROOT);
+
+    const content = handler({ resources: ['architecture'] }).contents.architecture;
+
+    assert.ok(content.includes('Maestro maintains session state under `<state_dir>`'));
+    assert.ok(content.includes('`<state_dir>` is relative to the workspace root and defaults to `docs/maestro`.'));
+    assert.ok(content.includes('`read-setting.js MAESTRO_STATE_DIR`'));
+    assert.ok(content.includes('`node "<absolute-plugin-root>/src/scripts/ensure-workspace.js" <state_dir>`'));
+    assert.ok(content.includes('derive the absolute installed plugin root from the path of the loaded Maestro skill'));
+    assert.ok(!content.includes('docs/maestro/'), 'state paths should be rooted at <state_dir>');
+    assert.ok(!content.includes('under `docs/maestro`'));
+    assert.ok(!content.includes('${extensionPath}'));
+  });
+
   it('serves every runtime a delegation skill that explains its result surface', () => {
     for (const runtimeName of RUNTIME_NAMES) {
       const runtimeConfig = getRuntimeConfig(runtimeName);

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { expandCoreCommands, expandEntryPoints } = require('../../src/generator/entry-point-expander');
 const entryPointRegistry = require('../../src/entry-points/registry');
-const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { PUBLIC_SKILL_COUNT } = require('../support/catalog');
 const { ROOT } = require('../support/paths');
 
@@ -226,6 +226,30 @@ describe('expandEntryPoints', () => {
     const config = { ...getRuntimeConfig('claude'), entrySurface: 'menu' };
     for (const expand of [expandEntryPoints, expandCoreCommands]) {
       assert.throws(() => expand(config), { message: 'Unknown entry surface for claude: "menu"' });
+    }
+  });
+});
+
+describe('core-command state directory', () => {
+  it('points every runtime\'s execute command at <state_dir>/plans/', () => {
+    for (const runtimeName of RUNTIME_NAMES) {
+      const execute = expandCoreCommands(getRuntimeConfig(runtimeName))
+        .find(({ outputPath }) => /\/execute(?:\.toml|\/SKILL\.md)$/.test(outputPath));
+      assert.ok(execute.content.includes('(or check `<state_dir>/plans/` for the most recent plan)'), runtimeName);
+      assert.ok(!execute.content.includes('docs/maestro/plans/'), runtimeName);
+    }
+  });
+
+  it('resolves the codex state root from MAESTRO_STATE_DIR instead of fixing docs/maestro', () => {
+    const coreCommands = expandCoreCommands(getRuntimeConfig('codex'));
+    assert.equal(coreCommands.length, 3);
+    for (const { outputPath, content } of coreCommands) {
+      assert.ok(content.includes('3. Treat `<state_dir>` as the workspace state root. Resolve it from `MAESTRO_STATE_DIR` with `resolve_settings`'), outputPath);
+      assert.ok(content.includes('`node "<absolute-plugin-root>/src/scripts/read-setting.js" MAESTRO_STATE_DIR` run from the workspace root'), outputPath);
+      assert.ok(content.includes('A null or empty result means the default, `docs/maestro`.'), outputPath);
+      assert.ok(content.includes('4. If MCP tools are unavailable, use direct file operations under `<state_dir>`.'), outputPath);
+      assert.ok(!content.includes('under `docs/maestro`'), outputPath);
+      assert.ok(!content.includes('Treat `docs/maestro`'), outputPath);
     }
   });
 });

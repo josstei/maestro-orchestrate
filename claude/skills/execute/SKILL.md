@@ -37,4 +37,4 @@ The user's request is the text that came with this skill's invocation: everythin
 
 Call `get_skill_content` with resources: ["execution", "delegation", "session-management", "validation"].
 
-Read the approved implementation plan at the user-provided path (or check `docs/maestro/plans/` for the most recent plan). Resolve the execution mode gate, create or resume session state, then execute phases through child agents following the loaded methodology.
+Read the approved implementation plan at the user-provided path (or check `<state_dir>/plans/` for the most recent plan). Resolve the execution mode gate, create or resume session state, then execute phases through child agents following the loaded methodology.
