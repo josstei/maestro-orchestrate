@@ -5,7 +5,7 @@ This guide explains how the shared Maestro methodology maps onto Codex.
 ## Source of truth
 
 - Shared skills, references, templates, and agent bodies are authored in repository `src/`.
-- Published Codex bundles carry a generated local `src/` payload derived from that canonical source tree, so installs remain self-contained.
+- Published Codex bundles carry a generated local `src/` payload derived from that canonical source tree, so the state scripts and local content work without the repository.
 - The MCP server runs from the versioned `@josstei/maestro` npm package via `npx` and serves shared content from that package's `src/`.
 
 Public Codex skills should load shared assets through MCP instead of duplicating methodology. Codex adds the plugin namespace at invocation time, so these surface as `$maestro:<skill>`.
@@ -61,13 +61,18 @@ If Maestro MCP tools are available, prefer them for stateful operations:
 - `update_session`
 - `transition_phase`
 - `archive_session`
+- `enter_design_gate`
+- `record_design_approval`
+- `get_design_gate_status`
+- `scan_phase_changes`
+- `reconcile_phase`
 - `validate_plan`
 
 If the MCP server is unavailable in the current Codex environment, fall back to direct file operations under `<state_dir>` as described by the shared skills.
 
 ## Delegation model
 
-Codex plugin bundles do not register Maestro custom subagents by themselves. Use Codex-native delegation and keep the generated agent references as the behavioral contract:
+Codex plugin bundles do not register Maestro custom subagents by themselves. Use Codex-native delegation and keep the agent bodies `get_agent` serves as the behavioral contract:
 
 1. Call `get_agent` with the kebab-case agent name to load the Maestro persona and declared tool restrictions.
 2. Map that Maestro persona onto the best built-in Codex delegation mode available.
@@ -79,7 +84,7 @@ Recommended mapping:
 - bounded implementation: `worker`
 - no clear benefit from delegation: stay local
 
-When delegating, include the relevant agent reference content or instructions from that file. Do not invent a separate Codex-only methodology for the same agent.
+When delegating, include the methodology `get_agent` returned (or, without MCP, `<plugin-root>/src/agents/<agent>.md`). Do not invent a separate Codex-only methodology for the same agent.
 
 ## Public skill surface
 

@@ -1,6 +1,6 @@
 # Maestro for Codex
 
-This directory contains the generated Codex runtime for Maestro.
+This directory contains the generated Codex runtime for Maestro, except for this README and `references/runtime-guide.md`.
 
 ## Installation
 
@@ -34,7 +34,7 @@ The runtime guide lists the [public skill surface](references/runtime-guide.md#p
 
 ## Runtime notes
 
-- Shared methodology, references, templates, and agent bodies are authored in root `src/` and mirrored into generated `./src/`. The MCP server runs from the versioned `@josstei/maestro` npm package via `npx` and serves this content from that package's `src/`.
+- The MCP server runs from the versioned `@josstei/maestro` npm package via `npx` and serves shared content from that package's `src/`.
 - Maestro session state lives in the `MAESTRO_STATE_DIR` directory (default `docs/maestro`) in the workspace root.
 - The workspace root is the path the orchestrator passes to `initialize_workspace`. To suggest it, the MCP server's `get_runtime_context` reports `MAESTRO_WORKSPACE_PATH` when the host exports it, otherwise the first `file://` root from the MCP client `roots/list` response, otherwise the server's `cwd`.
 - The plugin ships `.mcp.json` for MCP-first operation, but the generated skills also include direct filesystem fallbacks under that state directory when MCP tools are unavailable.

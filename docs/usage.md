@@ -1,7 +1,5 @@
 # Maestro Usage
 
-Contributor commands, from generation and tests to their CI equivalents, are listed in [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands).
-
 ## Configuration
 
 ### Settings
@@ -22,12 +20,11 @@ All settings are resolved with precedence: environment variable > workspace `.en
 
 | Variable | Runtime | Purpose |
 |----------|---------|---------|
-| `MAESTRO_WORKSPACE_PATH` | Antigravity | First source for `workspace_suggestion` when exported before starting `agy`; otherwise the suggestion comes from MCP `roots/list` |
+| `MAESTRO_WORKSPACE_PATH` | Antigravity, Codex, Qwen | First source for `workspace_suggestion`: Qwen Code sets it from `${workspacePath}` (`qwen-extension.json`), Antigravity reads it when exported before `agy` starts, and Codex when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
 | `MAESTRO_EXTENSION_PATH` | All | Extension root whose `.env` supplies settings, ahead of `CLAUDE_PLUGIN_ROOT`; the Codex npm bin sets it to the package root, and Qwen's `resume` command reads it (default `~/.qwen/extensions/maestro`) to find `read-active-session.js` |
-| `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
-| `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
 | `CLAUDE_PROJECT_DIR` | Claude | Project directory (set by Claude Code) |
+| `MAESTRO_HOOKS_DIR` | Antigravity, Claude, Qwen | Hook-state directory (default `os.tmpdir()/maestro-hooks-<uid>`) |
 | `MAESTRO_RUNTIME` | All | Names the host runtime for the MCP server instead of identifying it from the MCP client name; an unknown value stops the server at startup |
 
 ## Invoking Maestro

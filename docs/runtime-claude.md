@@ -79,7 +79,7 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 
 ## Policies
 
-`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/claude/hook-adapter.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. It checks `tool_input.command` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
+`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/claude/hook-adapter.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` launcher, which prefers the repo `src/` and falls back to the bundled `claude/src/`. It checks `tool_input.command` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
 
 A deny rule answers `block`, an ask rule `ask`, which requires user confirmation, and any other command `approve`. The enforcer emits `{ decision: "block", reason }` when the check cannot run.
 
@@ -129,6 +129,10 @@ tools:
   - Bash
   - Glob
   - Grep
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - Skill
 ---
 ```
 
@@ -141,8 +145,8 @@ claude/
 ├── agents/                [generated] 39 agent stubs (kebab-case)
 ├── skills/                [generated] 19 skill directories
 ├── hooks/                 [generated] claude-hooks.json
-├── scripts/               [generated] hook-runner.js and policy-enforcer.js wrappers
-├── mcp/                   [generated] maestro-server.js wrapper
+├── scripts/               [generated] hook-runner.js and policy-enforcer.js launchers
+├── mcp/                   [generated] maestro-server.js launcher
 ├── src/                   [generated] detached runtime payload for isolated installs
 ├── .claude-plugin/        [generated] plugin.json manifest
 ├── .mcp.json              [generated]

@@ -1,6 +1,6 @@
 # Qwen Runtime
 
-The repo root is Qwen Code's extension directory and the output directory (`./`) declared in `src/platforms/qwen/runtime-config.js`. The manifest (`qwen-extension.json`), context file (`QWEN.md`), generated agent stubs (`agents/`), TOML commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), and the MCP server and hook runner shims (`mcp/maestro-server.js`, `hooks/hook-runner.js`) live at the repo root. The `qwen/` subdirectory holds only the generated hook registration (`qwen/hooks.json`).
+The repo root is Qwen Code's extension directory and the output directory (`./`) declared in `src/platforms/qwen/runtime-config.js`. The manifest (`qwen-extension.json`), context file (`QWEN.md`), generated agent stubs (`agents/`), TOML commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), and the MCP server and hook runner launchers (`mcp/maestro-server.js`, `hooks/hook-runner.js`) live at the repo root. The `qwen/` subdirectory holds only the generated hook registration (`qwen/hooks.json`).
 
 ## Configuration
 
@@ -65,7 +65,7 @@ The 3 core commands carry a `## Runtime: Qwen Code` preamble that maps step refe
 
 | Event | Script | Purpose |
 |-------|--------|---------|
-| `SessionStart` | `hooks/hook-runner.js qwen session-start` | Initialize hook state, prune stale sessions |
+| `SessionStart` | `hooks/hook-runner.js qwen session-start` | Prune stale hook state |
 | `SubagentStart` | `hooks/hook-runner.js qwen before-agent` | Detect agent, inject session context |
 | `SubagentStop` | `hooks/hook-runner.js qwen after-agent` | Validate Task Report + Downstream Context |
 | `SessionEnd` | `hooks/hook-runner.js qwen session-end` | Clean up hook state |
@@ -157,8 +157,8 @@ The Qwen extension also owns these repo-root artifacts:
 agents/                    [generated] 39 agent stubs (snake_case, Qwen tool names)
 commands/maestro/          [generated] 12 TOML commands
 policies/                  [generated] maestro.toml policy pack
-mcp/                       [generated] maestro-server.js wrapper
-hooks/                     [generated] hook-runner.js wrapper
+mcp/                       [generated] maestro-server.js launcher
+hooks/                     [generated] hook-runner.js launcher
 qwen-extension.json        [generated] extension manifest
 QWEN.md                    hand-maintained context file
 ```

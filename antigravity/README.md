@@ -52,13 +52,13 @@ Antigravity has a built-in `/resume`, so Maestro uses `resume-session`, `review-
 | `hooks.json` | SessionStart session-context hooks and the `run_command` shell policy |
 | `agents/` | 39 subagents, one per Maestro specialist |
 | `skills/` | 12 public skills and 7 shared methodology skills |
-| `src/` | Bundled copy of the canonical `src/` tree, so an installed copy runs on its own |
+| `src/` | Bundled runtime subset of `src/` (its dependency closure plus served content), so an installed copy runs on its own |
 
 ## Runtime notes
 
 - **MCP tools**: Antigravity registers the server as `maestro_maestro`. Maestro marks every tool always-loaded, so the agent calls them as native tools named `mcp_maestro_maestro_<tool>`. If Antigravity asks before each Maestro tool call, allow them with `"mcp(maestro_maestro/*)"` under `permissions.allow` in `~/.gemini/antigravity-cli/settings.json`.
 - **Delegation**: the orchestrator delegates with `invoke_subagent`, using the specialist name as `TypeName` (for example `coder`). Each subagent reports back as a message when it finishes, so batches run in parallel without polling. Antigravity lists custom subagents for the app and the CLI; the IDE does not run them yet.
-- **Workspace**: the MCP server suggests the first workspace root Antigravity reports, unless `MAESTRO_WORKSPACE_PATH` is set. Session state lives in `docs/maestro/` in that workspace.
+- **Workspace**: the MCP server suggests the first workspace root Antigravity reports, unless `MAESTRO_WORKSPACE_PATH` is set. Session state lives in `MAESTRO_STATE_DIR` (default `docs/maestro/`) in that workspace.
 - **Settings**: Antigravity plugins have no settings form. Export `MAESTRO_*` variables before starting `agy`.
 - **Hooks**: Antigravity has no session-end or post-delegation event. A SessionStart hook adds the active Maestro session's phase and status to the main conversation and to each subagent conversation. The orchestrator checks every handoff report itself and asks a subagent once to resend a malformed one.
 - **Shell policy**: a PreToolUse hook on `run_command` applies Maestro's shell rules to each command segment (split on `;`, `|`, `&&` and `||`) and to each `$(...)` or backtick command substitution. A segment that starts with `rm -rf`, `git reset --hard`, `git checkout --` or `git clean -fd` (or a flag-reordered form), or that contains a heredoc, is denied. `tee` and spaced output redirects (`>`, `>>`) prompt for confirmation even when your `permissions.allow` covers the command, unless you run with `--dangerously-skip-permissions`. Every other command keeps your own permission settings. The rules are guardrails, not a sandbox.

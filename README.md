@@ -7,7 +7,7 @@
 [![Codex](https://img.shields.io/badge/Codex-plugin-black)](docs/runtime-codex.md)
 [![Qwen Code](https://img.shields.io/badge/Qwen_Code-extension-purple)](https://github.com/QwenLM/qwen-code)
 
-Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Antigravity**, **Claude Code**, **Codex**, and **Qwen Code**.
+Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entry points. It runs from one canonical `src/` tree across **Antigravity**, **Claude Code**, **Codex**, and **Qwen Code**.
 
 ## Runtime Targets
 
@@ -101,7 +101,7 @@ Verify with `qwen extensions list`. Qwen Code reads `QWEN.md` as its context fil
 
 ### Quick Start
 
-Start a full orchestration with the runtime-specific entrypoint:
+Start a full orchestration with the runtime-specific entry point:
 
 | Runtime | Example |
 |---------|---------|
@@ -110,7 +110,7 @@ Start a full orchestration with the runtime-specific entrypoint:
 | Codex | `$maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Qwen Code | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
 
-Maestro classifies the task, chooses Express or Standard workflow, asks the required design questions, produces an implementation plan when needed, delegates execution to specialists, runs a quality gate, and archives the session state in `docs/maestro/`.
+Maestro classifies the task, chooses Express or Standard workflow, asks the required design questions, produces an implementation plan when needed, delegates execution to specialists, runs a quality gate, and archives the session state under `MAESTRO_STATE_DIR` (default `docs/maestro/`).
 
 ## Examples
 

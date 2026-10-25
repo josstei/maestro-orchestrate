@@ -46,24 +46,24 @@ maestro-orchestrate/
 │   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
 │   ├── generator/                # Stub and entry-point generation, registries, pruning, payloads
 │   ├── generated/                # [generated] Agent, resource, and hook registries
-│   ├── entry-points/             # 9 entry-point + 3 core-command registries, 8 templates, 2 partials
+│   ├── entry-points/             # Entry-point (9) and core-command (3) registries, 8 templates, 2 partials
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
-│   ├── state/                    # Session-state and plan-document helpers
+│   ├── state/                    # Session, design-gate, and document stores; coordinator, lock, and journal
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters (with each host's shell-policy facts), shared hook and policy-enforcer runners, Qwen policy-pack renderer, metadata.js builders
 │   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
-├── bin/                          # [generated] maestro-mcp-server.js (Codex npx entrypoint)
+├── bin/                          # [generated] maestro-mcp-server.js (Codex npx launcher)
 ├── tests/                        # Unit, transform, and integration suites + shared helpers
 │
 ├── agents/                       # [generated] Qwen agent stubs (39, snake_case, Qwen tool names)
 ├── commands/maestro/             # [generated] Qwen TOML commands
-├── hooks/                        # [generated] Hook-runner wrapper (used by qwen/hooks.json)
-├── mcp/                          # [generated] MCP server wrapper (Qwen)
+├── hooks/                        # [generated] Hook-runner launcher (used by qwen/hooks.json)
+├── mcp/                          # [generated] MCP server launcher (Qwen)
 ├── policies/                     # [generated] Shell policy pack (Qwen)
 ├── .claude-plugin/               # [generated] Claude marketplace
 ├── .agents/plugins/              # [generated] Codex marketplace
@@ -71,8 +71,8 @@ maestro-orchestrate/
 ├── antigravity/                  # Antigravity plugin
 │   ├── agents/                   # [generated] Antigravity agent stubs
 │   ├── skills/                   # [generated] Antigravity skills (19)
-│   ├── hooks/                    # [generated] Hook-runner and policy-enforcer wrappers
-│   ├── mcp/                      # [generated] MCP server wrapper
+│   ├── hooks/                    # [generated] Hook-runner and policy-enforcer launchers
+│   ├── mcp/                      # [generated] MCP server launcher
 │   ├── src/                      # [generated] Detached runtime payload
 │   ├── plugin.json               # [generated] Plugin manifest
 │   ├── mcp_config.json           # [generated] MCP server config
@@ -83,8 +83,8 @@ maestro-orchestrate/
 │   ├── agents/                   # [generated] Claude agent stubs
 │   ├── skills/                   # [generated] Claude skills (19)
 │   ├── hooks/                    # [generated] Hook config (claude-hooks.json)
-│   ├── scripts/                  # [generated] Hook-runner and policy-enforcer wrappers
-│   ├── mcp/                      # [generated] MCP server wrapper
+│   ├── scripts/                  # [generated] Hook-runner and policy-enforcer launchers
+│   ├── mcp/                      # [generated] MCP server launcher
 │   ├── src/                      # [generated] Detached runtime payload
 │   ├── .claude-plugin/           # [generated] Plugin manifest
 │   └── .mcp.json                 # [generated] MCP server config

@@ -107,7 +107,7 @@ Maestro will walk you through the complete lifecycle:
 | `/a11y-audit` | Standalone accessibility audit |
 | `/compliance-check` | Standalone compliance review |
 
-These Claude entrypoints come from the public top-level skills in `skills/`. Internal methodology skills remain hidden with `user-invocable: false`.
+These Claude entry points come from the public top-level skills in `skills/`. Internal methodology skills remain hidden with `user-invocable: false`.
 
 ## Agents
 
@@ -171,7 +171,7 @@ Agents are registered as `maestro:<agent-name>` (e.g., `maestro:coder`, `maestro
 
 Claude Code hooks are registered in `hooks/claude-hooks.json`:
 
-- **SessionStart** — Prune stale sessions, initialize hook state
+- **SessionStart** — Prune stale hook state
 - **SessionEnd** — Clean up hook state
 - **PreToolUse (Agent matcher)** — Track active agent, inject session context
 - **PreToolUse (Bash matcher)** — Policy enforcement (blocks destructive commands)

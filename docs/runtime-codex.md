@@ -36,11 +36,7 @@ Codex uses **kebab-case** agent identifiers in runtime context and MCP-served me
 
 ## Delegation
 
-Codex-native `spawn_agent(...)`:
-
-```
-spawn_agent(...)
-```
+Codex delegates with native `spawn_agent` (the `delegation.pattern` in [Runtime Definitions](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#runtime-definitions)).
 
 The runtime guide recommends mapping Maestro agents to Codex delegation modes:
 - Evidence gathering or repo mapping → `explorer`
@@ -53,7 +49,7 @@ The runtime guide recommends mapping Maestro agents to Codex delegation modes:
 
 ## Hooks
 
-**Codex has no hooks.** No hook registration exists in the plugin manifest. Delegation tracking and policy enforcement are handled through inline methodology constraints.
+**Codex has no hooks.** No hook registration exists in the plugin manifest. Delegation tracking and policy enforcement are handled through inline methodology constraints, and the MCP server enforces handoff completeness, the design gate, and reconciliation.
 
 ## Policies
 
@@ -94,7 +90,7 @@ plugins/maestro/
 ├── src/                   [generated] detached runtime payload
 ├── references/            runtime-guide.md (hand-maintained)
 ├── .codex-plugin/         [generated] plugin.json manifest
-├── .mcp.json              [generated] npx-based spawn (no local wrapper)
+├── .mcp.json              [generated] npx-based spawn (no local launcher)
 ├── .app.json              [generated]
 └── README.md              hand-maintained
 ```

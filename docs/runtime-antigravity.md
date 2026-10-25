@@ -1,6 +1,6 @@
 # Antigravity Runtime
 
-The Antigravity plugin lives in `antigravity/`, the output directory declared in `src/platforms/antigravity/runtime-config.js`. The Antigravity CLI (`agy`) and the Antigravity app share one plugin format. `agy plugin install` copies the directory that holds `plugin.json`, so the plugin is self-contained: it carries its own agent stubs, skills, hook and MCP registrations, thin shims, and a detached copy of `src/`.
+The Antigravity plugin lives in `antigravity/`, the output directory declared in `src/platforms/antigravity/runtime-config.js`. The Antigravity CLI (`agy`) and the Antigravity app share one plugin format. `agy plugin install` copies the directory that holds `plugin.json`, so the plugin is self-contained: it carries its own agent stubs, skills, hook and MCP registrations, thin launchers, and a detached copy of `src/`.
 
 ## Configuration
 
@@ -104,7 +104,7 @@ Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: strin
 
 ## Policies
 
-`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/antigravity/hook-adapter.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
+`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/antigravity/hook-adapter.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` launcher (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
 
 - **Deny** (`deny`): blocks in every permission mode, including `--dangerously-skip-permissions`
 - **Ask** (`force_ask`): prompts even when `permissions.allow` covers the command; headless runs deny it and `--dangerously-skip-permissions` approves it
@@ -170,8 +170,8 @@ Fields: `subagent` (always true), `mainAgent` (always false), `model` (always "i
 antigravity/
 ├── agents/                [generated] 39 agent stubs (kebab-case, Antigravity tool names)
 ├── skills/                [generated] 19 skill directories
-├── hooks/                 [generated] hook-runner.js and policy-enforcer.js wrappers
-├── mcp/                   [generated] maestro-server.js wrapper
+├── hooks/                 [generated] hook-runner.js and policy-enforcer.js launchers
+├── mcp/                   [generated] maestro-server.js launcher
 ├── src/                   [generated] detached runtime payload, stamped with version.json
 ├── plugin.json            [generated] plugin manifest
 ├── mcp_config.json        [generated] MCP server registration

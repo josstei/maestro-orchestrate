@@ -24,7 +24,7 @@ const DEFAULT_PROMPTS = [
 ];
 
 const HOOK_DESCRIPTIONS = {
-  'session-start': 'Initialize hook state and prune stale sessions',
+  'session-start': 'Prune stale hook state',
   'before-agent': 'Inject session context into agent turns',
   'after-agent': 'Validate handoff report format with retry on malformed output',
   'session-end': 'Clean up hook state for ended session',

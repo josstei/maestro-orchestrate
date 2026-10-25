@@ -2,7 +2,7 @@
 
 # CI/CD Pipeline
 
-Maestro uses seven GitHub Actions workflows. Six are organized around a **source-of-truth enforcement** model — each verifies that the generated runtime adapters match canonical `src/` before proceeding. The seventh, **Commit Message Check**, validates semantic git conventions for PR branch names, PR titles, and commit subjects targeting `main`. Together they span continuous integration on every push/PR through automated release publishing to npm.
+Maestro uses seven GitHub Actions workflows. Six are organized around a **source-of-truth enforcement** model — each verifies that the generated outputs match canonical `src/` before proceeding. The seventh, **Commit Message Check**, validates semantic git conventions for PR branch names, PR titles, and commit subjects targeting `main`. Together they span continuous integration on every push/PR through automated release publishing to npm.
 
 ## Workflow Overview
 
@@ -60,7 +60,7 @@ In these three workflows, every step after **Run full test suite** is gated on `
 
 ### Purpose
 
-The foundational CI gate. Enforces that all generated runtime adapters (Antigravity, Claude Code, Codex, and Qwen Code) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
+The foundational CI gate. Enforces that all generated outputs (Antigravity, Claude Code, Codex, and Qwen Code) are in sync with canonical source in `src/`, and that the full test suite passes. Runs on every push and pull request targeting `main`.
 
 ### Trigger
 
@@ -98,7 +98,7 @@ graph TD
 
 Creates an ignored local `dist/release/maestro-vX.Y.Z-extension.tar.gz` during validation, but does not upload it from PR CI.
 
-The extension archive contains runtime code and content, excluding generator sources, entry-point templates, stub transforms, and their build-only helpers. Packaging and verification enforce this archive boundary independently. The npm package omits them and the build and release scripts too, keeping only the Codex installer and the `src/platforms/metadata.js` and Qwen policy-pack modules it loads; `generate`, `build`, and `prepack` run from a repository checkout.
+The extension archive contains runtime code and content, excluding generator sources, entry-point templates, stub transforms, and their build-only helpers. Packaging and verification enforce this archive boundary independently. The npm package omits these too, along with the build and release scripts; it keeps the Codex installer (`scripts/install-codex-plugin.js` and `scripts/lib/cli.js`) and the `src/platforms/metadata.js` and `src/platforms/qwen/policy-pack.js` modules it loads. `generate`, `build`, and `prepack` run from a repository checkout.
 
 ### Key Behaviors
 
@@ -502,20 +502,6 @@ graph TD
 ## Build Commands
 
 The `justfile` provides local development commands that mirror CI behavior. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands) lists each command with its CI equivalent.
-
-### CI Mapping
-
-The workflows run the commands behind these `just` recipes, except that they check drift with `node scripts/generate.js --check`:
-
-```
-just generate        -->  node scripts/generate.js
-just check           -->  node scripts/generate.js && git diff --exit-code --name-only
-just test            -->  npm test
-just pack-verify     -->  npm run pack:verify
-just release-verify  -->  npm run release:artifacts && npm run release:verify-artifacts
-```
-
-`just ci` runs `check`, `test`, `pack-verify`, and `release-verify`, matching the `source-of-truth-check` job after `npm ci`.
 
 ---
 

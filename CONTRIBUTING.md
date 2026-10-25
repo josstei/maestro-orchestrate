@@ -13,10 +13,10 @@ Thank you for your interest in contributing to Maestro. This guide covers everyt
 ```bash
 git clone https://github.com/josstei/maestro-orchestrate.git
 cd maestro-orchestrate
-npm install
+npm ci
 ```
 
-`npm install` installs dependencies only. Local git hook activation is explicit so package, pack, and publish flows do not mutate hook configuration. To activate the repo-local `pre-commit`, `commit-msg`, and `pre-push` hooks for this checkout, run:
+`npm ci` installs the locked dependencies only. Local git hook activation is explicit so package, pack, and publish flows do not mutate hook configuration. To activate the repo-local `pre-commit`, `commit-msg`, and `pre-push` hooks for this checkout, run:
 
 ```bash
 npm run install-hooks
@@ -51,7 +51,7 @@ npm equivalents: `npm run generate` or `npm run build` for `just generate`, and 
 
 ## Architecture: Canonical Source and Generated Runtimes
 
-Shared code and content live in `src/`. The generator (`just generate`) builds runtime files, including public entrypoint wrappers, from it; runtime guides and READMEs are maintained by hand.
+Shared code and content live in `src/`. The generator (`just generate`) builds runtime files, including the public launchers, from it; runtime guides and READMEs are maintained by hand.
 
 **Never hand-edit generated files.** They will be overwritten on the next `just generate`.
 
@@ -62,14 +62,14 @@ Shared code and content live in `src/`. The generator (`just generate`) builds r
 | `plugins/maestro/skills/`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `plugins/maestro/src/`, `.agents/plugins/marketplace.json` | Codex |
 | `agents/`, `qwen/hooks.json`, `qwen-extension.json`, `commands/maestro/`, `policies/maestro.toml` | Qwen Code |
 | `src/generated/*.json` (agent, resource, and hook registries) | All |
-| `hooks/hook-runner.js`, `mcp/maestro-server.js` | Qwen Code entrypoints |
-| `antigravity/mcp/maestro-server.js`, `antigravity/hooks/hook-runner.js`, `antigravity/hooks/policy-enforcer.js` | Antigravity entrypoints |
-| `claude/mcp/maestro-server.js`, `claude/scripts/hook-runner.js`, `claude/scripts/policy-enforcer.js` | Claude Code entrypoints |
+| `hooks/hook-runner.js`, `mcp/maestro-server.js` | Qwen Code launchers |
+| `antigravity/mcp/maestro-server.js`, `antigravity/hooks/hook-runner.js`, `antigravity/hooks/policy-enforcer.js` | Antigravity launchers |
+| `claude/mcp/maestro-server.js`, `claude/scripts/hook-runner.js`, `claude/scripts/policy-enforcer.js` | Claude Code launchers |
 | `bin/maestro-mcp-server.js` | Codex npm executable |
 
 `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` contain dependency closures and explicit content roots from `src/`, stamped with `version.json`, for installs outside the repo. Install the locked development dependencies with `npm ci` before generation or architecture checks; Acorn and Acorn Walk never enter detached payloads. New dynamic loaders need an explicit supported dependency classification; apparent orphan modules require review rather than automatic deletion.
 
-Entrypoint wrappers are rendered by `src/generator/runtime-entrypoints.js`. Their public paths and repo-first, bundled-fallback loading remain stable. Generation also restores the executable mode of the Codex npm bin.
+Launchers are rendered by `src/generator/runtime-entrypoints.js`. Their public paths and repo-first, bundled-fallback loading remain stable. Generation also restores the executable mode of the Codex npm bin.
 
 | Hand-maintained (edit in place) | Purpose |
 |---------------------------------|---------|

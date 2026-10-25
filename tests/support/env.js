@@ -121,7 +121,7 @@ function withCwd(dir, fn) {
  * HOST_ENV_VARS entry is cleared, PWD names `cwd`, NODE_PATH is emptied and
  * git stops at the temp root. `set` is applied last. Cleared keys are left
  * undefined rather than deleted, so they also clear the inherited values when
- * the result is merged over process.env (as spawnMcpServer merges its `env`).
+ * the result is merged over process.env (as withMcpClient merges its `env`).
  *
  * @param {string} cwd - Directory the child runs in
  * @param {Record<string, string | undefined>} [set={}] - Variables to set afterwards

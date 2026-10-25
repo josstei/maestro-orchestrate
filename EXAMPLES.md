@@ -200,10 +200,11 @@ Use these when changing Maestro itself.
 # edit source files under src/
 node scripts/generate.js --diff
 npm run build
+git add -A && git commit
 just check
 ```
 
-Expected outcome: generated runtime surfaces match canonical `src/` output with no drift.
+Expected outcome: generated runtime surfaces match canonical `src/` output with no drift. `just check` fails on any unstaged change, so it runs after the commit.
 
 Source: `CONTRIBUTING.md`, `justfile`
 
@@ -219,7 +220,7 @@ For the local CI equivalent:
 just ci
 ```
 
-Expected outcome: generator drift, the Node test suite (including layer boundaries), and the npm package and release archive checks pass before committing.
+Expected outcome: generator drift, the Node test suite (including layer boundaries), and the npm package and release archive checks pass once the changes are committed.
 
 Source: `justfile`, `package.json`
 
