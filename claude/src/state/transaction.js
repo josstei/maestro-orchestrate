@@ -4,16 +4,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { ValidationError, StateError } = require('../lib/errors');
-const { resolvePhysicalPath } = require('./paths');
+const { isWithin, resolvePhysicalPath } = require('./paths');
 const { durableWrite, syncDirectory, recoveryError, ensurePrivateDirectory, assertPrivateMetadata } = require('./state-lock');
 
 function contentDigest(content) {
   return createHash('sha256').update(content).digest('hex');
 }
 
-function isWithin(root, filename) {
-  const relative = path.relative(root, filename);
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+function privateStatePathError() {
+  return new ValidationError('The private Maestro state directory cannot be accessed as a state document.', { code: 'STATE_INTERNAL_PATH' });
 }
 
 function assertPublicStatePath(basePath, filename, { followLeaf = true } = {}) {
@@ -23,9 +22,7 @@ function assertPublicStatePath(basePath, filename, { followLeaf = true } = {}) {
   const entry = path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
   const physical = followLeaf ? resolvePhysicalPath(filename) : entry;
   const control = path.join(base, 'state', '.maestro');
-  if (isWithin(control, physical)) {
-    throw new ValidationError('The private Maestro state directory cannot be accessed as a state document.', { code: 'STATE_INTERNAL_PATH' });
-  }
+  if (isWithin(control, physical)) throw privateStatePathError();
   if (!isWithin(base, physical)) {
     throw new ValidationError('State transaction paths must remain inside the configured state directory.', { code: 'STATE_PATH_OUTSIDE' });
   }
@@ -337,6 +334,6 @@ function replayTransaction(root, controlPath) {
 }
 
 module.exports = {
-  contentDigest, assertPublicStatePath, createTransaction,
-  checkExpectedDigest, publishTransaction, replayTransaction,
+  contentDigest, privateStatePathError, assertPublicStatePath, createTransaction,
+  checkExpectedDigest, journalPath, publishTransaction, replayTransaction,
 };

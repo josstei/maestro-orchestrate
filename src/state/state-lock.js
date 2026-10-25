@@ -7,10 +7,27 @@ const { randomUUID } = require('node:crypto');
 const { StateError } = require('../lib/errors');
 
 const OWNER_PATTERN = /^owner-([a-f0-9-]{36})\.json$/;
-const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function recoveryError(message, details = {}) {
   return new StateError(message, { code: 'STATE_RECOVERY_REQUIRED', details });
+}
+
+// State errors pass through; any other failure to reach the private metadata
+// needs recovery.
+function asRecoveryError(error) {
+  if (error.code?.startsWith('STATE_')) return error;
+  return recoveryError(`State coordination metadata could not be accessed: ${error.message}`);
+}
+
+function busyError(timeoutMs) {
+  return new StateError('Session state is busy; retry after the active operation completes.', {
+    code: 'STATE_BUSY', details: { retryable: true, timeout_ms: timeoutMs },
+  });
+}
+
+// Wait one polling interval, at most 50ms and never past the deadline.
+function pollDelay(deadline) {
+  return new Promise((resolve) => setTimeout(resolve, Math.min(50, Math.max(1, deadline - Date.now()))));
 }
 
 function syncDirectory(directory) {
@@ -144,11 +161,9 @@ async function acquireStateLockInternal(controlPath, { timeoutMs = 5000 } = {}) 
         reclaimDeadLock(lockPath);
         if (Date.now() >= deadline) {
           if (['EPERM', 'EACCES'].includes(error.code) && !fs.existsSync(lockPath)) throw error;
-          throw new StateError('Session state is busy; retry after the active operation completes.', {
-            code: 'STATE_BUSY', details: { retryable: true, timeout_ms: timeoutMs },
-          });
+          throw busyError(timeoutMs);
         }
-        await sleep(Math.min(50, Math.max(1, deadline - Date.now())));
+        await pollDelay(deadline);
         continue;
       }
       candidateMoved = true;
@@ -177,10 +192,10 @@ async function acquireStateLock(controlPath, options) {
       catch (error) { throw recoveryError(`State lock ownership could not be released: ${error.message}`); }
     };
   }
-  catch (error) {
-    if (error.code?.startsWith('STATE_')) throw error;
-    throw recoveryError(`State coordination metadata could not be accessed: ${error.message}`);
-  }
+  catch (error) { throw asRecoveryError(error); }
 }
 
-module.exports = { assertPrivateMetadata, ensurePrivateDirectory, acquireStateLock, durableWrite, syncDirectory, recoveryError, sleep };
+module.exports = {
+  assertPrivateMetadata, ensurePrivateDirectory, acquireStateLock, durableWrite, syncDirectory,
+  recoveryError, asRecoveryError, busyError, pollDelay,
+};

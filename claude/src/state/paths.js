@@ -47,6 +47,11 @@ function resolvePhysicalPath(filename, symlinkDepth = 0) {
   }
 }
 
+function isWithin(root, filename) {
+  const relative = path.relative(root, filename);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
 function containmentIdentity(filePath) {
   let existing = filePath;
   const suffix = [];
@@ -69,8 +74,7 @@ function validateContainment(absolutePath, rootDir) {
   try { resolvedRoot = fs.realpathSync(resolvedRoot); } catch {}
   // Git for Windows can expand 8.3 aliases and change drive-letter casing.
   // Compare filesystem identities, preserving the caller-visible path spelling.
-  const relative = path.relative(containmentIdentity(resolvedRoot), containmentIdentity(resolved));
-  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+  if (!isWithin(containmentIdentity(resolvedRoot), containmentIdentity(resolved))) {
     throw new Error('state_dir must be within the project root');
   }
   return resolved;
@@ -121,6 +125,7 @@ module.exports = {
   DEFAULT_STATE_DIR,
   WORKSPACE_SUBDIRS,
   joinRelative,
+  isWithin,
   resolvePhysicalPath,
   resolveStateDirUnder,
   resolveStateDirSetting,

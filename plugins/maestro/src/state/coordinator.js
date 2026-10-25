@@ -4,9 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { StateError } = require('../lib/errors');
 const { resolvePhysicalPath } = require('./paths');
-const { acquireStateLock, sleep, recoveryError, assertPrivateMetadata } = require('./state-lock');
+const { acquireStateLock, asRecoveryError, busyError, pollDelay, recoveryError, assertPrivateMetadata } = require('./state-lock');
 const {
-  createTransaction, publishTransaction, replayTransaction,
+  createTransaction, journalPath, publishTransaction, replayTransaction,
 } = require('./transaction');
 
 function controlDirectory(basePath) {
@@ -16,8 +16,7 @@ function controlDirectory(basePath) {
     if (resolvePhysicalPath(control) !== control) throw recoveryError('The private state directory must not be a symbolic link.');
     return { root, control };
   } catch (error) {
-    if (error.code?.startsWith('STATE_')) throw error;
-    throw recoveryError(`State coordination metadata could not be accessed: ${error.message}`);
+    throw asRecoveryError(error);
   }
 }
 
@@ -28,8 +27,7 @@ function journalExists(filename) {
     return true;
   } catch (error) {
     if (error.code === 'ENOENT') return false;
-    if (error.code?.startsWith('STATE_')) throw error;
-    throw recoveryError(`State coordination metadata could not be accessed: ${error.message}`);
+    throw asRecoveryError(error);
   }
 }
 
@@ -74,7 +72,7 @@ async function withStateMutation(basePath, metadata, callback, options = {}) {
     }
     return result;
   } catch (error) {
-    if (transaction && fs.existsSync(path.join(control, 'current.json')) && !error.code?.startsWith('STATE_')) {
+    if (transaction && fs.existsSync(journalPath(control)) && !error.code?.startsWith('STATE_')) {
       throw recoveryError(`A committed state operation needs recovery: ${error.message}`, {
         transaction_id: transaction.id, operation: metadata.operation,
       });
@@ -83,7 +81,7 @@ async function withStateMutation(basePath, metadata, callback, options = {}) {
   } finally {
     // A committed journal always retains its staging for roll-forward recovery.
     try {
-      if (transaction && !published && !fs.existsSync(path.join(control, 'current.json'))) {
+      if (transaction && !published && !fs.existsSync(journalPath(control))) {
         try { fs.rmSync(transaction.directory, { recursive: true, force: true }); } catch {}
       }
     } finally { release(); }
@@ -104,7 +102,7 @@ function revision(control) {
 
 async function withStateRead(basePath, reader, { timeoutMs = 5000 } = {}) {
   const { root, control } = controlDirectory(basePath);
-  const currentPath = path.join(control, 'current.json');
+  const currentPath = journalPath(control);
   // The reader gets the read members a transaction offers, over the live files.
   const view = {
     basePath: path.resolve(basePath),
@@ -127,12 +125,8 @@ async function withStateRead(basePath, reader, { timeoutMs = 5000 } = {}) {
         return value;
       }
     }
-    if (Date.now() >= deadline) {
-      throw new StateError('Session state is busy; retry after the active operation completes.', {
-        code: 'STATE_BUSY', details: { retryable: true, timeout_ms: timeoutMs },
-      });
-    }
-    await sleep(Math.min(50, Math.max(1, deadline - Date.now())));
+    if (Date.now() >= deadline) throw busyError(timeoutMs);
+    await pollDelay(deadline);
   }
 }
 

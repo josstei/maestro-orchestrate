@@ -10,6 +10,7 @@ const { withStateRead, withStateMutation } = require('../state/coordinator');
 const {
   contentDigest,
   checkExpectedDigest,
+  privateStatePathError,
   assertPublicStatePath,
 } = require('../state/transaction');
 
@@ -45,9 +46,7 @@ function assertNotPrivateMetadata(...filenames) {
   for (const filename of filenames) {
     const segments = filename.split(path.sep);
     if (segments.some((segment, index) => segment === 'state' && segments[index + 1] === '.maestro')) {
-      throw new ValidationError('The private Maestro state directory cannot be accessed as a state document.', {
-        code: 'STATE_INTERNAL_PATH',
-      });
+      throw privateStatePathError();
     }
   }
 }
@@ -113,8 +112,12 @@ async function writeStateFile(relativePath, content, workspace, { expectedSha256
   });
 }
 
+function isCoordinationError(error) {
+  return /^STATE_(?:BUSY|RECOVERED|RECOVERY_REQUIRED|CONFLICT)$/.test(error.code);
+}
+
 function stateErrorMessage(error) {
-  if (!/^STATE_(?:BUSY|RECOVERED|RECOVERY_REQUIRED|CONFLICT)$/.test(error.code)) return error.message;
+  if (!isCoordinationError(error)) return error.message;
   const transactionId = error.details?.transaction_id;
   const transaction = typeof transactionId === 'string' && transactionId.length > 0
     ? ` (transaction: ${transactionId})`
@@ -122,4 +125,4 @@ function stateErrorMessage(error) {
   return `${error.code}: ${error.message}${transaction}`;
 }
 
-module.exports = { readStateFile, writeStateFile, stateErrorMessage };
+module.exports = { readStateFile, writeStateFile, isCoordinationError, stateErrorMessage };

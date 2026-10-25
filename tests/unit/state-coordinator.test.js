@@ -101,9 +101,32 @@ describe('state coordinator', () => {
     const base = workspace(t);
     const release = await acquireStateLock(privatePath(base, ''));
     try {
-      await assert.rejects(withStateMutation(base, { operation: 'blocked' }, () => assert.fail('must not run'), { timeoutMs: 25 }), { code: 'STATE_BUSY' });
+      await assert.rejects(withStateMutation(base, { operation: 'blocked' }, () => assert.fail('must not run'), { timeoutMs: 25 }), {
+        code: 'STATE_BUSY', message: 'Session state is busy; retry after the active operation completes.', details: { retryable: true, timeout_ms: 25 },
+      });
       assert.equal(fs.readdirSync(privatePath(base, 'lock')).length, 1);
     } finally { release(); }
+  });
+
+  it('reports unstable reads as busy and wraps unexpected journal access failures', async (t) => {
+    const base = workspace(t);
+    const control = privatePath(base, '');
+    fs.mkdirSync(control);
+    // Every read publishes a new revision, so no snapshot is ever stable.
+    let reads = 0;
+    await assert.rejects(withStateRead(base, () => fs.writeFileSync(path.join(control, 'revision'), String(++reads)), { timeoutMs: 20 }), {
+      code: 'STATE_BUSY', message: 'Session state is busy; retry after the active operation completes.', details: { retryable: true, timeout_ms: 20 },
+    });
+    const lstat = fs.lstatSync;
+    fs.lstatSync = function (filename) {
+      if (filename === path.join(control, 'current.json')) throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+      return lstat.apply(this, arguments);
+    };
+    try {
+      await assert.rejects(withStateRead(base, () => assert.fail('must not read')), {
+        code: 'STATE_RECOVERY_REQUIRED', message: 'State coordination metadata could not be accessed: permission denied', details: {},
+      });
+    } finally { fs.lstatSync = lstat; }
   });
 
   it('retries acquisition when a contending owner disappears before a Windows rename error is inspected', async (t) => {
