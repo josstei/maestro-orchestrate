@@ -502,7 +502,7 @@ graph TD
 
 ## Build Commands
 
-The `justfile` provides local development commands that mirror CI behavior. [CONTRIBUTING.md](../CONTRIBUTING.md#key-commands) lists each command with its CI equivalent.
+The `justfile` provides local development commands that mirror CI behavior. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands) lists each command with its CI equivalent.
 
 ### CI Mapping
 

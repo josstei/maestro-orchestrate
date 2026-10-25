@@ -21,14 +21,14 @@ The Codex plugin lives in `plugins/maestro/`.
 }
 ```
 
-Codex plugin manifests lack a plugin-root substitution variable (unlike Antigravity's `${PLUGIN_ROOT}`, Claude's `${CLAUDE_PLUGIN_ROOT}`, or Qwen's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory, and the runtime config's `env.extensionPath` is `.`. Maestro invokes the server via `npx` using the versioned npm package for the current release. The launcher is the `maestro-mcp-server` bin, `bin/maestro-mcp-server.js`, declared in `package.json`; it sets `MAESTRO_EXTENSION_PATH` to the package root and loads the shared server (see [MCP Server Packaging](architecture.md#mcp-server-packaging)), which identifies Codex by its `clientInfo.name`, `codex-mcp-client`.
+Codex plugin manifests lack a plugin-root substitution variable (unlike Antigravity's `${PLUGIN_ROOT}`, Claude's `${CLAUDE_PLUGIN_ROOT}`, or Qwen's `${extensionPath}`), so relative paths in `args` would resolve against the user's workspace rather than the plugin directory, and the runtime config's `env.extensionPath` is `.`. Maestro invokes the server via `npx` using the versioned npm package for the current release. The launcher is the `maestro-mcp-server` bin, `bin/maestro-mcp-server.js`, declared in `package.json`; it sets `MAESTRO_EXTENSION_PATH` to the package root and loads the shared server (see [MCP Server Packaging](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#mcp-server-packaging)), which identifies Codex by its `clientInfo.name`, `codex-mcp-client`.
 
 Workspace resolution follows the shared MCP contract: tools that need a workspace fail with `WORKSPACE_NOT_INITIALIZED` until the orchestrator calls `initialize_workspace(workspace_path)`. To suggest that path, `get_runtime_context` returns a `workspace_suggestion` taken from, in order:
 - `MAESTRO_WORKSPACE_PATH`, when the host exports it
 - the first valid local `file://` root in the MCP client `roots/list` response
 - the server's `cwd`
 
-Candidates inside a host extension cache (`.codex/plugins`, `.claude/plugins`, or Antigravity's plugin directories) are skipped. Because session state is anchored to the path passed to `initialize_workspace`, it stays under the workspace's `docs/maestro` regardless of where `npx` materializes the package.
+Candidates inside a host extension cache (`.codex/plugins`, `.claude/plugins`, or Antigravity's plugin directories) are skipped. Because session state is anchored to the path passed to `initialize_workspace`, it stays under the workspace's `<state_dir>` (`MAESTRO_STATE_DIR`, default `docs/maestro`) regardless of where `npx` materializes the package.
 
 ## Agent Naming
 
@@ -49,7 +49,7 @@ The runtime guide recommends mapping Maestro agents to Codex delegation modes:
 
 ## Skills
 
-`plugins/maestro/skills/` holds a public skill for each core command and entry point (see [Entry-Point Registry](architecture.md#entry-point-registry)), invoked as `$maestro:<skill>`, plus a discovery stub for each shared skill. Codex keeps built-in `/review`, `/debug`, and `/resume` commands, so Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` instead of those bare names.
+`plugins/maestro/skills/` holds a public skill for each core command and entry point (see [Entry-Point Registry](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#entry-point-registry)), invoked as `$maestro:<skill>`, plus a discovery stub for each shared skill. Codex keeps built-in `/review`, `/debug`, and `/resume` commands, so Maestro exposes `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` instead of those bare names.
 
 ## Hooks
 

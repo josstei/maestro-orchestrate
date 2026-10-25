@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, detached payloads, and entrypoint wrappers that load `src/`. The wrappers are rendered by `src/generator/runtime-entrypoints.js`, preserving their public paths and loading behavior. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, detached payloads, and entrypoint wrappers that load `src/`. The wrappers are rendered by `src/generator/runtime-entrypoints.js`, preserving their public paths and loading behavior. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
                              ┌─────────────┐
@@ -316,4 +316,4 @@ CI validates that generated output matches committed state:
 | Separate DAG passes and diagnostic order | Preserve existing validation passes | Plan schema and validate-plan tests |
 | Fresh agent/resource reads between requests | Keep filesystem reads without a process-wide content cache | Runtime-content and MCP content tests |
 
-[docs/architecture-audit.md](architecture-audit.md) is the dated review that recorded these decisions and their acceptance evidence.
+[docs/architecture-audit.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture-audit.md) is the dated review that recorded these decisions and their acceptance evidence.

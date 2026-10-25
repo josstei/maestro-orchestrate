@@ -102,7 +102,7 @@ maestro-orchestrate/
     └── hooks.json                # Qwen hook registration
 ```
 
-`[generated]` marks generator output; a tag on a directory covers everything in it. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+`[generated]` marks generator output; a tag on a directory covers everything in it. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ## Core Concepts
 

@@ -21,7 +21,7 @@ The repo root is Qwen Code's extension directory and the output directory (`./`)
 }
 ```
 
-The launcher `mcp/maestro-server.js` requires the shared server directly (see [MCP Server Packaging](architecture.md#mcp-server-packaging)), which identifies Qwen Code by its `clientInfo.name`, `qwen-cli-mcp-client-<server key>` (`qwen-cli-mcp-client-maestro` for this extension's `maestro` server).
+The launcher `mcp/maestro-server.js` requires the shared server directly (see [MCP Server Packaging](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#mcp-server-packaging)), which identifies Qwen Code by its `clientInfo.name`, `qwen-cli-mcp-client-<server key>` (`qwen-cli-mcp-client-maestro` for this extension's `maestro` server).
 
 ## Agent Naming
 
@@ -95,7 +95,7 @@ Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string,
 
 ## Policies
 
-`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine. `src/platforms/qwen/policy-pack.js` renders the file for the Qwen builder in `src/platforms/metadata.js` from the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
+`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine. `src/platforms/qwen/policy-pack.js` renders the file for the Qwen builder in `src/platforms/metadata.js` from the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
 
 Deny rules are `decision = "deny"` at priority 950, and ask rules `decision = "ask_user"` at priority 850.
 

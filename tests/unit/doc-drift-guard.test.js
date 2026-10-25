@@ -8,6 +8,11 @@ const path = require('node:path');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { toSnakeCase } = require('../../src/lib/naming');
 const { MAESTRO_SETTINGS } = require('../../src/config/settings-catalog');
+const {
+  RELEASE_ARTIFACT_PATHS,
+  isDeniedPath,
+  isReleaseArtifactPathAllowed,
+} = require('../../scripts/release-artifact-manifest');
 const AGENT_REGISTRY = require('../../src/generated/agent-registry.json');
 const { listCanonicalAgents, publicSkillNames } = require('../support/catalog');
 const { ROOT } = require('../support/paths');
@@ -148,6 +153,53 @@ test('doc-drift: examples guide is linked and included in npm package files', ()
 
   const pkg = JSON.parse(read('package.json'));
   assert.ok(pkg.files.includes('EXAMPLES.md'), 'package.json files does not include EXAMPLES.md');
+});
+
+/**
+ * The repo-relative targets of the inline relative markdown links in `surface`,
+ * without their `#anchor`; URLs, `mailto:` links, and same-page anchors are skipped.
+ */
+const relativeLinkTargets = (surface) => [...read(surface).matchAll(/\]\(([^)\s]+)\)/g)]
+  .map((match) => match[1])
+  .filter((target) => !/^(?:https?:|mailto:|#)/.test(target))
+  .map((target) => path.posix.join(path.posix.dirname(surface), target.replace(/#.*$/, '')).replace(/\/$/, ''));
+
+/**
+ * Whether package.json `files` ships `file`: the last entry naming it or one of
+ * its directories decides, and a `!` entry excludes.
+ */
+const npmShips = (files, file) => files.reduce((shipped, entry) => {
+  const negated = entry.startsWith('!');
+  const entryPath = entry.slice(negated ? 1 : 0).replace(/\/$/, '');
+  return file === entryPath || file.startsWith(`${entryPath}/`) ? !negated : shipped;
+}, false);
+
+test('doc-drift: shipped docs link relatively only to files their artifact ships', () => {
+  const { files } = JSON.parse(read('package.json'));
+  assert.ok(files.every((entry) => !/[*?[{]/.test(entry)), 'package.json files uses a glob, which npmShips does not match');
+  const isDoc = (file) => /^docs\/[^/]+\.md$/.test(file);
+  const artifacts = [
+    [
+      'release archive',
+      RELEASE_ARTIFACT_PATHS.filter(isDoc),
+      (file) => RELEASE_ARTIFACT_PATHS.some((entry) => file === entry || file.startsWith(`${entry}/`))
+        && isReleaseArtifactPathAllowed(file) && !isDeniedPath(file),
+    ],
+    [
+      'npm package',
+      listDir('docs').map((name) => `docs/${name}`).filter((file) => isDoc(file) && npmShips(files, file)),
+      (file) => npmShips(files, file),
+    ],
+  ];
+  for (const [artifact, docs, ships] of artifacts) {
+    assert.ok(docs.length > 0, `the ${artifact} ships no docs/*.md`);
+    for (const surface of docs) {
+      for (const target of relativeLinkTargets(surface)) {
+        assert.ok(fs.existsSync(path.join(ROOT, target)), `${surface}: links missing ${target}`);
+        assert.ok(ships(target), `${surface}: links ${target}, which the ${artifact} does not ship; link its GitHub URL instead`);
+      }
+    }
+  }
 });
 
 /** How each runtime invokes a public skill or command: this prefix, then its name. */

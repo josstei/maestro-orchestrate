@@ -23,7 +23,7 @@ The Claude Code plugin lives in the `claude/` subdirectory.
 }
 ```
 
-The launcher `claude/mcp/maestro-server.js` loads the shared server (see [MCP Server Packaging](architecture.md#mcp-server-packaging)), which identifies Claude Code by its `clientInfo.name`, `claude-code`.
+The launcher `claude/mcp/maestro-server.js` loads the shared server (see [MCP Server Packaging](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#mcp-server-packaging)), which identifies Claude Code by its `clientInfo.name`, `claude-code`.
 
 ## Agent Naming
 
@@ -42,7 +42,7 @@ Agent(subagent_type: "maestro:architect", prompt: "...")
 
 ## Skills
 
-`claude/skills/` holds a public skill for each core command and entry point (see [Entry-Point Registry](architecture.md#entry-point-registry)). Each shared skill gets a discovery stub that sets `user-invocable: false`: the model can load it, but it stays out of the `/` menu. `review`, `debug`, and `resume` collide with Claude Code built-in commands, so they are remapped to `review-code`, `debug-workflow`, and `resume-session` (`HOST_RESERVED_NAMES` in `src/generator/entry-point-expander.js`).
+`claude/skills/` holds a public skill for each core command and entry point (see [Entry-Point Registry](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#entry-point-registry)). Each shared skill gets a discovery stub that sets `user-invocable: false`: the model can load it, but it stays out of the `/` menu. `review`, `debug`, and `resume` collide with Claude Code built-in commands, so they are remapped to `review-code`, `debug-workflow`, and `resume-session` (`HOST_RESERVED_NAMES` in `src/generator/entry-point-expander.js`).
 
 ## Hooks
 
@@ -79,7 +79,7 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 
 ## Policies
 
-`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/claude/hook-adapter.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. It checks `tool_input.command` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
+`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/claude/hook-adapter.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. It checks `tool_input.command` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
 
 A deny rule answers `block`, an ask rule `ask`, which requires user confirmation, and any other command `approve`. The enforcer emits `{ decision: "block", reason }` when the check cannot run.
 

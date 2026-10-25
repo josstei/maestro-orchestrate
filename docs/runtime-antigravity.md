@@ -24,7 +24,7 @@ The manifest holds only `name` (`maestro`), `displayName`, `version`, `descripti
 }
 ```
 
-Antigravity substitutes `${PLUGIN_ROOT}` in `args` and starts the server with the plugin root as its `cwd`. The launcher `antigravity/mcp/maestro-server.js` loads the shared server (see [MCP Server Packaging](architecture.md#mcp-server-packaging)), which identifies Antigravity by its `clientInfo.name`, `antigravity-client`.
+Antigravity substitutes `${PLUGIN_ROOT}` in `args` and starts the server with the plugin root as its `cwd`. The launcher `antigravity/mcp/maestro-server.js` loads the shared server (see [MCP Server Packaging](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#mcp-server-packaging)), which identifies Antigravity by its `clientInfo.name`, `antigravity-client`.
 
 ### MCP Tool Naming
 
@@ -65,7 +65,7 @@ A parallel batch is one `invoke_subagent` call whose `Subagents` array holds the
 
 ## Skills
 
-`antigravity/skills/` holds a public skill for each core command and entry point (see [Entry-Point Registry](architecture.md#entry-point-registry)), which Antigravity turns into a slash command under the plugin namespace, `/maestro:<skill>`. Each shared skill gets a discovery stub that sets `disable-slash-command: true`: the model can load it, but it stays out of the `/` menu. Antigravity has a built-in `/resume`, so `review`, `debug`, and `resume` are remapped to `review-code`, `debug-workflow`, and `resume-session`, as in Claude Code and Codex (`HOST_RESERVED_NAMES` in `src/generator/entry-point-expander.js`).
+`antigravity/skills/` holds a public skill for each core command and entry point (see [Entry-Point Registry](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#entry-point-registry)), which Antigravity turns into a slash command under the plugin namespace, `/maestro:<skill>`. Each shared skill gets a discovery stub that sets `disable-slash-command: true`: the model can load it, but it stays out of the `/` menu. Antigravity has a built-in `/resume`, so `review`, `debug`, and `resume` are remapped to `review-code`, `debug-workflow`, and `resume-session`, as in Claude Code and Codex (`HOST_RESERVED_NAMES` in `src/generator/entry-point-expander.js`).
 
 Antigravity lists each plugin skill to the model with the absolute path of its `SKILL.md`, which the model reads with `view_file`. Skills get no argument substitution: the user's request is the text that came with the invocation. The 3 core skills carry a `## Runtime: Antigravity` preamble that maps step references to Antigravity syntax: the `mcp_maestro_maestro_<tool>` names with the `call_mcp_tool` fallback, `view_file` to load skills, `invoke_subagent` delegation and its notified results, one `send_message` retry for a malformed handoff, and `ask_question` for choices and approvals. The entry-point skills carry the MCP tool note and, when they delegate, the same `invoke_subagent` instructions.
 
@@ -104,7 +104,7 @@ Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: strin
 
 ## Policies
 
-`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/antigravity/hook-adapter.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
+`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/antigravity/hook-adapter.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
 
 - **Deny** (`deny`): blocks in every permission mode, including `--dangerously-skip-permissions`
 - **Ask** (`force_ask`): prompts even when `permissions.allow` covers the command; headless runs deny it and `--dangerously-skip-permissions` approves it
