@@ -45,7 +45,8 @@ function parseDryRunReport(output) {
   const lines = output.trimEnd().split('\n').filter(Boolean);
   const marker = lines.at(-1);
   const statusLines = lines.filter((line) => STATUS_LINE.test(line));
-  const outputPaths = statusLines.map((line) => line.replace(STATUS_LINE, ''));
+  // Payload [CREATE] lines end with ` — <inclusion reason>`.
+  const outputPaths = statusLines.map((line) => line.replace(STATUS_LINE, '').replace(/ — .*$/, ''));
   const driftLines = statusLines.filter((line) => !line.startsWith('[UNCHANGED] '));
   const nonStatusLines = lines.filter((line) => line !== DRY_RUN_MARKER && !STATUS_LINE.test(line));
 
