@@ -164,16 +164,6 @@ describe('hook entrypoints', () => {
     }
   });
 
-  it('rejects a runtime without a hook adapter in the repo install, including the removed gemini runtime', () => {
-    for (const runtime of ['codex', 'gemini']) {
-      const result = runHook('hooks/hook-runner.js', runtime, 'session-start', {});
-
-      assert.equal(result.status, 1, `exit code for ${runtime}`);
-      assert.equal(result.stderr, `Unknown runtime: ${runtime}\n`);
-      assert.equal(result.stdout, '');
-    }
-  });
-
   it('rejects other runtimes from an isolated claude plugin bundle', async () => {
     await withIsolatedClaudePlugin(async (pluginRoot) => {
       const result = runHook('scripts/hook-runner.js', 'qwen', 'session-start', {}, pluginRoot);
@@ -191,6 +181,9 @@ describe('hook entrypoints', () => {
       [['qwen'], usage],
       [['qwen', 'nope'], 'Unknown hook: nope\n'],
       [['bogus', 'nope'], 'Unknown runtime: bogus\n'],
+      // Codex has no hook adapter in the repo install, and gemini was removed.
+      [['codex', 'session-start'], 'Unknown runtime: codex\n'],
+      [['gemini', 'session-start'], 'Unknown runtime: gemini\n'],
     ];
 
     for (const [args, stderr] of cases) {

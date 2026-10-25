@@ -58,36 +58,21 @@ describe('createServer tool packs', () => {
     assert.equal(Object.isFrozen(seen), true);
   });
 
-  it('throws when the pack resolves to null', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [null] }),
-      /Tool pack at index 0 must resolve to an object/
-    );
-  });
-
-  it('throws when the pack resolves to an array', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [makePack('a', 'a1'), () => ['nope']] }),
-      /Tool pack at index 1 must resolve to an object/
-    );
-  });
-
-  it('throws when a primitive is returned from a factory', () => {
-    assert.throws(
-      () =>
-        createServer({
-          toolPacks: [makePack('a', 'a1'), makePack('b', 'b1'), () => 'string-pack'],
-        }),
-      /Tool pack at index 2 must resolve to an object/
-    );
-  });
-
-  it('throws when a pack does not declare a tools array', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [makePack('a', 'a1'), { name: 'b' }] }),
-      /^TypeError: Tool pack at index 1 must declare a tools array\.$/
-    );
-  });
+  for (const [name, toolPacks, pattern] of [
+    ['throws when the pack resolves to null',
+      [null], /Tool pack at index 0 must resolve to an object/],
+    ['throws when the pack resolves to an array',
+      [makePack('a', 'a1'), () => ['nope']], /Tool pack at index 1 must resolve to an object/],
+    ['throws when a primitive is returned from a factory',
+      [makePack('a', 'a1'), makePack('b', 'b1'), () => 'string-pack'],
+      /Tool pack at index 2 must resolve to an object/],
+    ['throws when a pack does not declare a tools array',
+      [makePack('a', 'a1'), { name: 'b' }], /^TypeError: Tool pack at index 1 must declare a tools array\.$/],
+  ]) {
+    it(name, () => {
+      assert.throws(() => createServer({ toolPacks }), pattern);
+    });
+  }
 });
 
 describe('createServer tool composition', () => {
