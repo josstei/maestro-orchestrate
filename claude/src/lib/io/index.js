@@ -41,6 +41,17 @@ function readFileSafe(filePath, fallback = '') {
 }
 
 /**
+ * Reads a UTF-8 text file with CRLF line endings normalized to LF, so a
+ * CRLF checkout parses like an LF one.
+ *
+ * @param {string} filePath - Absolute or relative path to the file
+ * @returns {string} File contents with LF line endings
+ */
+function readTextSync(filePath) {
+  return fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
+}
+
+/**
  * Reads a file and parses its contents as JSON.
  * Returns the fallback value on any error (missing file, invalid JSON, etc.).
  *
@@ -87,4 +98,5 @@ module.exports = {
   formatJson,
   readFileSafe,
   readJsonSafe,
+  readTextSync,
 };

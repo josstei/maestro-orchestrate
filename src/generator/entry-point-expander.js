@@ -2,6 +2,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const { readTextSync } = require('../lib/io');
 const { toTitleCase } = require('../lib/naming');
 const { emitInlineQuotedList } = require('../lib/yaml-emit');
 const entryPointRegistry = require('../entry-points/registry');
@@ -90,7 +91,7 @@ const KINDS = {
 /** The runtime's `<runtime>-<name>.<ext>.tmpl`, or null when it has none. */
 function readTemplate(runtimeName, surface, name) {
   const templatePath = path.join(TEMPLATES_DIR, `${runtimeName}-${name}.${surface.ext}.tmpl`);
-  return fs.existsSync(templatePath) ? fs.readFileSync(templatePath, 'utf8') : null;
+  return fs.existsSync(templatePath) ? readTextSync(templatePath) : null;
 }
 
 function applySubstitutions(template, substitutions) {

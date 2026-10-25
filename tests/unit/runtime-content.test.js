@@ -213,6 +213,26 @@ describe('runtime-content filesystem reads', () => {
     assert.equal(agentResult.agent.body, `\nbody\n\n${outputContract}`);
   });
 
+  it('serves CRLF agent and resource sources with LF line endings', () => {
+    const root = makeTempDir('maestro-provider-crlf-');
+    const srcRoot = path.join(root, 'src');
+    const crlf = (text) => text.replace(/\n/g, '\r\n');
+    writeFilesystemResource(root, 'delegation', crlf('---\nname: delegation\n---\nbody text\n'));
+    const outputContract = writeFilesystemAgent(
+      root,
+      'coder',
+      crlf('---\nname: coder\ntools: [read_file]\n---\nAgent body.\n<example>\nx\n</example>\n')
+    );
+    writeTree(srcRoot, 'agents/shared/handoff-report.md', crlf(outputContract));
+
+    const resourceResult = readResourceFromFilesystem('delegation', getRuntimeConfig('claude'), srcRoot);
+    const agentResult = readAgentFromFilesystem('coder', getRuntimeConfig('codex'), srcRoot);
+
+    assert.equal(resourceResult.content, '---\nname: delegation\nuser-invocable: false\n---\nbody text\n');
+    assert.equal(agentResult.agent.body, `Agent body.\n\n${outputContract}`);
+    assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
+  });
+
   it('returns filesystem read errors when codex content is missing', () => {
     const root = makeTempDir('maestro-provider-empty-');
     const runtimeConfig = getRuntimeConfig('codex');

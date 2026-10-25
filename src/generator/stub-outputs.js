@@ -1,8 +1,8 @@
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 const { findFiles } = require('../lib/discovery');
+const { readTextSync } = require('../lib/io');
 const { toNamingConvention } = require('../lib/naming');
 const agentStub = require('../transforms/agent-stub');
 const skillDiscoveryStub = require('../transforms/skill-discovery-stub');
@@ -22,7 +22,7 @@ function collectStubOutputs(srcDir, runtimes, reportError) {
   const outputs = [];
   for (const { file, agent } of sources) {
     const source = path.relative(srcDir, file);
-    const content = fs.readFileSync(file, 'utf8');
+    const content = readTextSync(file);
     for (const runtime of agent ? agentTargets : skillTargets) {
       const relativeOutput = agent
         ? `agents/${toNamingConvention(path.basename(file), runtime.agentNaming)}`

@@ -57,6 +57,10 @@ describe('splitAtBoundary', () => {
       '', '', ''],
     ['handles --- not on the first line',
       'preamble\n---\nkey: val\n---\nBody.', '', 'preamble\n---\nkey: val\n---\nBody.'],
+    ['splits CRLF content into LF raw and body',
+      '---\r\nname: test\r\ntier: full\r\n---\r\nLine 1\r\nLine 2\r\n', 'name: test\ntier: full', 'Line 1\nLine 2\n'],
+    ['returns CRLF content without frontmatter as an LF body',
+      'Line 1\r\nLine 2\r\n', '', 'Line 1\nLine 2\n'],
   ];
   for (const [title, content, raw, body] of cases) {
     it(title, () => {
@@ -142,6 +146,14 @@ describe('parse', () => {
     const result = parse(content);
     assert.equal(result.frontmatter.timeout, 30);
     assert.equal(result.frontmatter.retries, 3);
+  });
+
+  it('parses CRLF content like LF content', () => {
+    const content = '---\r\nname: test\r\ntools: [read_file, glob]\r\nmax_turns: 5\r\n---\r\nBody.\r\n';
+    assert.deepEqual(parse(content), {
+      frontmatter: { name: 'test', tools: ['read_file', 'glob'], max_turns: 5 },
+      body: 'Body.\n',
+    });
   });
 
   it('coerces negative numbers and zero', () => {

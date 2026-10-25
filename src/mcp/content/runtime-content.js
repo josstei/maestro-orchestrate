@@ -1,8 +1,8 @@
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 const { parse } = require('../../lib/frontmatter');
+const { readTextSync } = require('../../lib/io');
 const { replaceInContent } = require('../../lib/naming');
 const { stripExamples, stripFeatureBlocks } = require('../../core/feature-blocks');
 const { mapTools } = require('../../core/agent-tools');
@@ -63,7 +63,7 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
 
   const absolutePath = path.join(srcRoot, relativePath);
   try {
-    const content = fs.readFileSync(absolutePath, 'utf8');
+    const content = readTextSync(absolutePath);
     return {
       content: applyRuntimeTransforms(content, runtimeConfig, relativePath),
     };
@@ -85,11 +85,8 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
 function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
   const agentsDir = path.join(srcRoot, 'agents');
   try {
-    const content = fs.readFileSync(path.join(agentsDir, `${agentName}.md`), 'utf8');
-    const outputContract = fs.readFileSync(
-      path.join(agentsDir, 'shared', 'handoff-report.md'),
-      'utf8'
-    );
+    const content = readTextSync(path.join(agentsDir, `${agentName}.md`));
+    const outputContract = readTextSync(path.join(agentsDir, 'shared', 'handoff-report.md'));
     // Strip examples and feature blocks before splitting off the frontmatter,
     // so blank-line collapsing also applies across the frontmatter boundary.
     const features = runtimeConfig.features || {};

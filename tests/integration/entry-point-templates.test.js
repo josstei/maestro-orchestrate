@@ -228,6 +228,19 @@ describe('expandEntryPoints', () => {
       assert.throws(() => expand(config), { message: 'Unknown entry surface for claude: "menu"' });
     }
   });
+
+  it('renders CRLF templates exactly like the committed outputs', (t) => {
+    const read = fs.readFileSync;
+    t.mock.method(fs, 'readFileSync', (file, ...args) => (
+      String(file).endsWith('.tmpl') ? read(file, ...args).replace(/\n/g, '\r\n') : read(file, ...args)
+    ));
+    for (const runtimeName of RUNTIME_NAMES) {
+      const runtime = getRuntimeConfig(runtimeName);
+      for (const { outputPath, content } of [...expandEntryPoints(runtime), ...expandCoreCommands(runtime)]) {
+        assert.equal(content, read(path.join(ROOT, outputPath), 'utf8'), outputPath);
+      }
+    }
+  });
 });
 
 describe('core-command state directory', () => {

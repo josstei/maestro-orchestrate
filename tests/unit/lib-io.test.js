@@ -11,6 +11,7 @@ const {
   formatJson,
   readFileSafe,
   readJsonSafe,
+  readTextSync,
 } = require('../../src/lib/io');
 const { makeTempDir } = require('../support/fs');
 
@@ -133,6 +134,24 @@ describe('readFileSafe', () => {
     const content = 'héllo wörld — 日本語 🎼\n';
     fs.writeFileSync(filePath, content, 'utf8');
     assert.equal(readFileSafe(filePath), content);
+  });
+});
+
+describe('readTextSync', () => {
+  it('normalizes CRLF line endings to LF', () => {
+    const filePath = path.join(tempRoot, 'crlf.md');
+    fs.writeFileSync(filePath, '---\r\nname: test\r\n---\r\nBody.\r\n', 'utf8');
+    assert.equal(readTextSync(filePath), '---\nname: test\n---\nBody.\n');
+  });
+
+  it('keeps LF content and a lone CR unchanged', () => {
+    const filePath = path.join(tempRoot, 'lf.md');
+    fs.writeFileSync(filePath, 'line1\nline2\rstill line2\n', 'utf8');
+    assert.equal(readTextSync(filePath), 'line1\nline2\rstill line2\n');
+  });
+
+  it('throws the read error for a missing file', () => {
+    assert.throws(() => readTextSync(path.join(tempRoot, 'missing.md')), { code: 'ENOENT' });
   });
 });
 
