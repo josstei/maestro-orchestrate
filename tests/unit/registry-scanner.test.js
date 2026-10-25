@@ -63,6 +63,22 @@ describe('collectRegistryOutputs', () => {
       srcDir = path.join(rootDir, 'src');
     });
 
+    it('preserves stable resource-ID ties and later category precedence without reading resource bodies', (t) => {
+      writeTree(srcDir, 'skills/shared/a/SKILL.md', 'first a');
+      writeTree(srcDir, 'skills/shared/a.md', 'later a');
+      writeTree(srcDir, 'skills/shared/shared.md', 'skill');
+      writeTree(srcDir, 'templates/shared.md', 'template');
+      writeTree(srcDir, 'references/shared.md', 'reference');
+      const agent = writeTree(srcDir, 'agents/only.md', agentSource('only', ['read_file']));
+      const read = fs.readFileSync;
+      const reads = [];
+      t.mock.method(fs, 'readFileSync', (file, ...args) => { reads.push(file); return read(file, ...args); });
+      const resources = registryData(collectRegistryOutputs(srcDir, rootDir), 'resource-registry.json');
+      assert.deepEqual(resources, { a: 'skills/shared/a.md', shared: 'references/shared.md' });
+      assert.deepEqual(Object.keys(resources), ['a', 'shared']);
+      assert.deepEqual(reads, [agent]);
+    });
+
     it('derives each agent tool tier from its tools, ignoring any declared capabilities', () => {
       writeTree(srcDir, 'agents/reader.md', agentSource('reader', ['read_file', 'glob'], ['capabilities: full']));
       writeTree(srcDir, 'agents/runner.md', agentSource('runner', ['read_file', 'run_shell_command']));

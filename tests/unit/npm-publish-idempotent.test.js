@@ -17,10 +17,10 @@ const { ROOT } = require('../support/paths');
 
 const SILENT_LOGGER = { log() {}, warn() {} };
 
-function withPackageRoot(version, fn) {
+function packageRoot(version) {
   const root = makeTempDir('maestro-publish-');
   writeJson(path.join(root, 'package.json'), { name: '@josstei/maestro', version });
-  return fn(root);
+  return root;
 }
 
 function npmError(stderr) {
@@ -29,120 +29,115 @@ function npmError(stderr) {
   return error;
 }
 
+function recordingNpm(responses) {
+  const calls = [];
+  return {
+    calls,
+    execFileSync(command, args) {
+      assert.equal(command, 'npm');
+      const key = args.join(' ');
+      assert.ok(Object.hasOwn(responses, key), `Unexpected npm command: ${key}`);
+      calls.push([command, args]);
+      const response = responses[key];
+      if (response instanceof Error) throw response;
+      return response;
+    },
+  };
+}
+
 describe('idempotent npm publish', () => {
   it('skips publish when the exact version already exists', () => {
-    withPackageRoot('1.2.3-rc.1', (root) => {
-      const calls = [];
-      const result = publishIfNeeded({
-        root,
-        logger: SILENT_LOGGER,
-        tag: 'rc',
-        execFileSync: (cmd, args) => {
-          calls.push([cmd, args]);
-          if (args[0] === 'dist-tag') {
-            return 'rc: 1.2.3-rc.1\n';
-          }
-          return '1.2.3-rc.1\n';
-        },
-      });
-
-      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3-rc.1');
-      assert.equal(result.published, false);
-      assert.equal(result.latestPolicy.status, 'ok');
-      assert.deepEqual(calls, [
-        ['npm', ['view', '@josstei/maestro@1.2.3-rc.1', 'version']],
-        ['npm', ['dist-tag', 'ls', '@josstei/maestro']],
-      ]);
+    const root = packageRoot('1.2.3-rc.1');
+    const { calls, execFileSync } = recordingNpm({
+      "view @josstei/maestro@1.2.3-rc.1 version": "1.2.3-rc.1\n",
+      "dist-tag ls @josstei/maestro": "rc: 1.2.3-rc.1\n",
     });
+    const result = publishIfNeeded({
+      root,
+      logger: SILENT_LOGGER,
+      tag: 'rc',
+      execFileSync,
+    });
+
+    assert.equal(result.packageSpec, '@josstei/maestro@1.2.3-rc.1');
+    assert.equal(result.published, false);
+    assert.equal(result.latestPolicy.status, 'ok');
+    assert.deepEqual(calls, [
+      ['npm', ['view', '@josstei/maestro@1.2.3-rc.1', 'version']],
+      ['npm', ['dist-tag', 'ls', '@josstei/maestro']],
+    ]);
   });
 
   it('publishes when npm reports the exact version missing', () => {
-    withPackageRoot('1.2.3-preview.abcdef0', (root) => {
-      const calls = [];
-      const result = publishIfNeeded({
-        root,
-        logger: SILENT_LOGGER,
-        tag: 'preview',
-        access: 'public',
-        execFileSync: (cmd, args) => {
-          calls.push([cmd, args]);
-          if (args[0] === 'view') {
-            throw npmError('npm ERR! code E404\nnpm ERR! 404 Not Found');
-          }
-          if (args[0] === 'dist-tag') {
-            return 'preview: 1.2.3-preview.abcdef0\n';
-          }
-          return '';
-        },
-      });
-
-      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3-preview.abcdef0');
-      assert.equal(result.published, true);
-      assert.equal(result.latestPolicy.status, 'ok');
-      assert.deepEqual(calls[1], ['npm', ['publish', '--tag', 'preview', '--access', 'public']]);
+    const root = packageRoot('1.2.3-preview.abcdef0');
+    const { calls, execFileSync } = recordingNpm({
+      "view @josstei/maestro@1.2.3-preview.abcdef0 version": npmError("npm ERR! code E404\nnpm ERR! 404 Not Found"),
+      "publish --tag preview --access public": "",
+      "dist-tag ls @josstei/maestro": "preview: 1.2.3-preview.abcdef0\n",
     });
+    const result = publishIfNeeded({
+      root,
+      logger: SILENT_LOGGER,
+      tag: 'preview',
+      access: 'public',
+      execFileSync,
+    });
+
+    assert.equal(result.packageSpec, '@josstei/maestro@1.2.3-preview.abcdef0');
+    assert.equal(result.published, true);
+    assert.equal(result.latestPolicy.status, 'ok');
+    assert.deepEqual(calls[1], ['npm', ['publish', '--tag', 'preview', '--access', 'public']]);
   });
 
   it('publishes stable versions without an explicit tag and ensures latest', () => {
-    withPackageRoot('1.2.3', (root) => {
-      const calls = [];
-      const result = publishIfNeeded({
-        root,
-        logger: SILENT_LOGGER,
-        access: 'public',
-        execFileSync: (cmd, args) => {
-          calls.push([cmd, args]);
-          if (args[0] === 'view') {
-            throw npmError('npm ERR! code E404\nnpm ERR! 404 Not Found');
-          }
-          if (args[0] === 'dist-tag' && args[1] === 'ls') {
-            return 'latest: 1.2.2\n';
-          }
-          return '';
-        },
-      });
-
-      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3');
-      assert.equal(result.published, true);
-      assert.equal(result.latestPolicy.status, 'moved');
-      assert.equal(result.latestPolicy.latest, '1.2.2');
-      assert.equal(result.latestPolicy.target, '1.2.3');
-      assert.deepEqual(calls[1], ['npm', ['publish', '--access', 'public']]);
-      assert.deepEqual(calls.at(-1), [
-        'npm',
-        ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
-      ]);
+    const root = packageRoot('1.2.3');
+    const { calls, execFileSync } = recordingNpm({
+      "view @josstei/maestro@1.2.3 version": npmError("npm ERR! code E404\nnpm ERR! 404 Not Found"),
+      "publish --access public": "",
+      "dist-tag ls @josstei/maestro": "latest: 1.2.2\n",
+      "dist-tag add @josstei/maestro@1.2.3 latest": "",
     });
+    const result = publishIfNeeded({
+      root,
+      logger: SILENT_LOGGER,
+      access: 'public',
+      execFileSync,
+    });
+
+    assert.equal(result.packageSpec, '@josstei/maestro@1.2.3');
+    assert.equal(result.published, true);
+    assert.equal(result.latestPolicy.status, 'moved');
+    assert.equal(result.latestPolicy.latest, '1.2.2');
+    assert.equal(result.latestPolicy.target, '1.2.3');
+    assert.deepEqual(calls[1], ['npm', ['publish', '--access', 'public']]);
+    assert.deepEqual(calls.at(-1), [
+      'npm',
+      ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
+    ]);
   });
 
   it('moves latest from a prerelease to stable when stable already exists', () => {
-    withPackageRoot('1.2.3', (root) => {
-      const calls = [];
-      const result = publishIfNeeded({
-        root,
-        logger: SILENT_LOGGER,
-        execFileSync: (cmd, args) => {
-          calls.push([cmd, args]);
-          if (args[0] === 'view') {
-            return '1.2.3\n';
-          }
-          if (args[0] === 'dist-tag' && args[1] === 'ls') {
-            return 'latest: 1.2.4-rc.1\nrc: 1.2.4-rc.1\n';
-          }
-          return '';
-        },
-      });
-
-      assert.equal(result.packageSpec, '@josstei/maestro@1.2.3');
-      assert.equal(result.published, false);
-      assert.equal(result.latestPolicy.status, 'moved');
-      assert.equal(result.latestPolicy.latest, '1.2.4-rc.1');
-      assert.equal(result.latestPolicy.target, '1.2.3');
-      assert.deepEqual(calls.at(-1), [
-        'npm',
-        ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
-      ]);
+    const root = packageRoot('1.2.3');
+    const { calls, execFileSync } = recordingNpm({
+      "view @josstei/maestro@1.2.3 version": "1.2.3\n",
+      "dist-tag ls @josstei/maestro": "latest: 1.2.4-rc.1\nrc: 1.2.4-rc.1\n",
+      "dist-tag add @josstei/maestro@1.2.3 latest": "",
     });
+    const result = publishIfNeeded({
+      root,
+      logger: SILENT_LOGGER,
+      execFileSync,
+    });
+
+    assert.equal(result.packageSpec, '@josstei/maestro@1.2.3');
+    assert.equal(result.published, false);
+    assert.equal(result.latestPolicy.status, 'moved');
+    assert.equal(result.latestPolicy.latest, '1.2.4-rc.1');
+    assert.equal(result.latestPolicy.target, '1.2.3');
+    assert.deepEqual(calls.at(-1), [
+      'npm',
+      ['dist-tag', 'add', '@josstei/maestro@1.2.3', 'latest'],
+    ]);
   });
 
   for (const [name, version, tag, pattern] of [
@@ -166,91 +161,72 @@ describe('idempotent npm publish', () => {
     ],
   ]) {
     it(name, () => {
-      withPackageRoot(version, (root) => {
-        assert.throws(() => publishIfNeeded({ root, tag, execFileSync: () => '' }), pattern);
-      });
+      const root = packageRoot(version);
+      assert.throws(() => publishIfNeeded({ root, tag, execFileSync: () => '' }), pattern);
     });
   }
 
   it('defers latest repair when it points to a prerelease and no stable exists', () => {
-    withPackageRoot('1.2.3-rc.1', (root) => {
-      const calls = [];
-      const warnings = [];
-      const result = publishIfNeeded({
-        root,
-        logger: { log: () => {}, warn: (message) => warnings.push(message) },
-        tag: 'rc',
-        execFileSync: (cmd, args) => {
-          calls.push([cmd, args]);
-          if (args[0] === 'view' && args[1] === '@josstei/maestro@1.2.3-rc.1') {
-            return '1.2.3-rc.1\n';
-          }
-          if (args[0] === 'dist-tag' && args[1] === 'ls') {
-            return 'latest: 1.2.3-rc.1\nrc: 1.2.3-rc.1\n';
-          }
-          if (args[0] === 'view' && args[1] === '@josstei/maestro') {
-            return '["1.2.3-rc.1"]\n';
-          }
-          return '';
-        },
-      });
-
-      assert.equal(result.latestPolicy.status, 'deferred');
-      assert.equal(result.latestPolicy.latest, '1.2.3-rc.1');
-      assert.equal(result.latestPolicy.target, null);
-      assert.match(result.latestPolicy.reason, /no stable versions are published/);
-      assert.match(warnings[0], /stable release must move latest/);
-      assert.equal(
-        calls.some(([, args]) => args[0] === 'dist-tag' && args[1] === 'rm'),
-        false
-      );
+    const root = packageRoot('1.2.3-rc.1');
+    const { calls, execFileSync } = recordingNpm({
+      "view @josstei/maestro@1.2.3-rc.1 version": "1.2.3-rc.1\n",
+      "dist-tag ls @josstei/maestro": "latest: 1.2.3-rc.1\nrc: 1.2.3-rc.1\n",
+      "view @josstei/maestro versions --json": "[\"1.2.3-rc.1\"]\n",
     });
+    const warnings = [];
+    const result = publishIfNeeded({
+      root,
+      logger: { log: () => {}, warn: (message) => warnings.push(message) },
+      tag: 'rc',
+      execFileSync,
+    });
+
+    assert.equal(result.latestPolicy.status, 'deferred');
+    assert.equal(result.latestPolicy.latest, '1.2.3-rc.1');
+    assert.equal(result.latestPolicy.target, null);
+    assert.match(result.latestPolicy.reason, /no stable versions are published/);
+    assert.match(warnings[0], /stable release must move latest/);
+    assert.equal(
+      calls.some(([, args]) => args[0] === 'dist-tag' && args[1] === 'rm'),
+      false
+    );
   });
 
   it('moves latest back to the highest stable version when a prerelease owns it', () => {
-    withPackageRoot('1.3.0-rc.1', (root) => {
-      const calls = [];
-      const result = publishIfNeeded({
-        root,
-        logger: SILENT_LOGGER,
-        tag: 'rc',
-        execFileSync: (cmd, args) => {
-          calls.push([cmd, args]);
-          if (args[0] === 'view' && args[1] === '@josstei/maestro@1.3.0-rc.1') {
-            return '1.3.0-rc.1\n';
-          }
-          if (args[0] === 'dist-tag' && args[1] === 'ls') {
-            return 'latest: 1.3.0-rc.1\nrc: 1.3.0-rc.1\n';
-          }
-          if (args[0] === 'view' && args[1] === '@josstei/maestro') {
-            return '["1.1.9","1.2.0","1.3.0-rc.1"]\n';
-          }
-          return '';
-        },
-      });
-
-      assert.equal(result.latestPolicy.status, 'moved');
-      assert.equal(result.latestPolicy.latest, '1.3.0-rc.1');
-      assert.equal(result.latestPolicy.target, '1.2.0');
-      assert.deepEqual(calls.at(-1), [
-        'npm',
-        ['dist-tag', 'add', '@josstei/maestro@1.2.0', 'latest'],
-      ]);
+    const root = packageRoot('1.3.0-rc.1');
+    const { calls, execFileSync } = recordingNpm({
+      "view @josstei/maestro@1.3.0-rc.1 version": "1.3.0-rc.1\n",
+      "dist-tag ls @josstei/maestro": "latest: 1.3.0-rc.1\nrc: 1.3.0-rc.1\n",
+      "view @josstei/maestro versions --json": "[\"1.1.9\",\"1.2.0\",\"1.3.0-rc.1\"]\n",
+      "dist-tag add @josstei/maestro@1.2.0 latest": "",
     });
+    const result = publishIfNeeded({
+      root,
+      logger: SILENT_LOGGER,
+      tag: 'rc',
+      execFileSync,
+    });
+
+    assert.equal(result.latestPolicy.status, 'moved');
+    assert.equal(result.latestPolicy.latest, '1.3.0-rc.1');
+    assert.equal(result.latestPolicy.target, '1.2.0');
+    assert.deepEqual(calls.at(-1), [
+      'npm',
+      ['dist-tag', 'add', '@josstei/maestro@1.2.0', 'latest'],
+    ]);
   });
 
   it('fails on npm errors other than a missing version', () => {
-    withPackageRoot('1.2.3', (root) => {
-      assert.throws(
-        () => publishIfNeeded({
-          root,
-          execFileSync: () => {
-            throw npmError('npm ERR! code E401\nnpm ERR! Incorrect or missing password');
-          },
-        }),
-        /Command failed/
-      );
-    });
+    const root = packageRoot('1.2.3');
+    assert.throws(
+      () => publishIfNeeded({
+        root,
+        execFileSync: () => {
+          throw npmError('npm ERR! code E401\nnpm ERR! Incorrect or missing password');
+        },
+      }),
+      /Command failed/
+    );
   });
 
   it('parses optional tag and access arguments', () => {

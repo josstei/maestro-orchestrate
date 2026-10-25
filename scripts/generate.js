@@ -4,7 +4,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { createFileWriter, safeResolve } = require('../src/generator/file-writer');
-const { expandManifest, assertNoMirroredSharedOutputs, renderManifest } = require('../src/generator/manifest-expander');
+const { collectStubOutputs } = require('../src/generator/stub-outputs');
 const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { planDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
@@ -27,17 +27,11 @@ const readOnlyMode = dryRun || diffMode;
 function main() {
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const manifestRules = require('../src/manifest');
-  const manifest = expandManifest(manifestRules, runtimes, SRC);
-  assertNoMirroredSharedOutputs(manifest);
-  const manifestOutputPaths = manifest.flatMap((entry) => Object.values(entry.outputs));
-
   const writer = createFileWriter({ rootDir: ROOT, dryRun, diffMode });
   const registryOutputs = collectRegistryOutputs(SRC, ROOT);
-  const outputs = [
-    ...registryOutputs,
-    ...renderManifest(manifest, runtimes, SRC, writer.reportError),
-  ];
+  const stubOutputs = collectStubOutputs(SRC, runtimes, writer.reportError);
+  const stubOutputPaths = stubOutputs.map(({ outputPath }) => outputPath);
+  const outputs = [...registryOutputs, ...stubOutputs];
 
   // Keep imports inside main so errors receive runCli's generator prefix.
   const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
@@ -65,14 +59,13 @@ function main() {
       ...planDetachedPayload(SRC, path.join(ROOT, label), runtimeName, packageMetadata.version, { sourceOverrides }),
     };
   });
-  const manifestPaths = new Set([...manifestOutputPaths, ...entryPointPaths]);
+  const manifestPaths = new Set([...stubOutputPaths, ...entryPointPaths]);
   for (const { outputPath } of outputs) safeResolve(outputPath, ROOT, { requireFile: true });
-  for (const outputPath of manifestOutputPaths) safeResolve(outputPath, ROOT, { requireFile: true });
   for (const ownedDir of OWNED_DIRS) safeResolve(ownedDir, ROOT);
   const stale = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS, dryRun: true }).pruned;
 
   if (cleanMode) {
-    writer.clean(manifestOutputPaths);
+    writer.clean(stubOutputPaths);
     if (!readOnlyMode) console.log('Cleaned generated agent and shared-skill stubs.');
   }
   writer.writeAll(outputs);

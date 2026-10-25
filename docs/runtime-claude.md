@@ -144,7 +144,7 @@ See `src/platforms/claude/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
-Claude agent stubs include the fields listed in `agentFrontmatter.fields` (`src/platforms/claude/runtime-config.js`), take their tools from each agent's `tools.claude` list, include example blocks in the description, and use camelCase for turns:
+Claude agent stubs include the fields listed in `agentFrontmatter.fields` (`src/platforms/claude/runtime-config.js`), derive their tools from the canonical list and Claude's agent-tool defaults, with `tools.claude` retained for intentional exceptions, include example blocks in the description, and use camelCase for turns:
 
 ```yaml
 ---

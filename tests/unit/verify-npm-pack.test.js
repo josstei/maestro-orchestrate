@@ -55,7 +55,7 @@ describe('verify npm pack', () => {
       'src/entry-points/templates/qwen-command.toml.tmpl',
       'src/generator/dependency-graph.js',
       'src/transforms/agent-stub.js',
-      'src/manifest.js',
+      'src/generator/stub-outputs.js',
       'src/platforms/metadata.js',
       'src/platforms/qwen/policy-pack.js',
       'src/lib/discovery/index.js',

@@ -38,6 +38,11 @@ module.exports = {
     codebase_investigator: 'Agent (Explore) / Grep / Glob',
   },
 
+  agentTools: {
+    exclude: ['AskUserQuestion'],
+    order: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TaskCreate', 'TaskUpdate', 'TaskList', 'Skill'],
+  },
+
   agentFrontmatter: {
     model: 'inherit',
     turnsField: 'maxTurns',

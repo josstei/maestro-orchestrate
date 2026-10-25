@@ -21,6 +21,23 @@ const phase = (id, overrides = {}) => ({
 /** Phases `p1` … `p<count>`, built with {@link phase} defaults. */
 const sequentialPhases = (count) => Array.from({ length: count }, (_, i) => phase(`p${i + 1}`));
 
+it('preserves diagnostic order across structural constraints, agents, and cycles', () => {
+  const result = handleValidatePlan({
+    task_complexity: 'simple',
+    plan: { phases: [
+      phase('p1', { blocked_by: ['missing'], agent: 'unknown' }),
+      phase('p1', { blocked_by: ['p3'] }),
+      phase('p3', { blocked_by: ['p1'], files: ['result.txt'] }),
+      phase('p4'),
+    ] },
+  });
+  assert.deepEqual(result.violations.map(({ rule }) => rule), [
+    'phase_count', 'duplicate_id', 'dangling_dependency', 'unknown_agent',
+    'agent_capability_mismatch', 'cyclic_dependency',
+  ]);
+  assert.equal(result.parallelization_profile, null);
+});
+
 describe('handleValidatePlan — plan structure validation', () => {
   it('returns invalid for null plan', () => {
     const result = handleValidatePlan({ plan: null, task_complexity: 'simple' });

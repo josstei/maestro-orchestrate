@@ -6,61 +6,6 @@ const { emitBlockList } = require('../lib/yaml-emit');
 const { mapTools } = require('../core/agent-tools');
 
 /**
- * Per-field emitters, keyed by the names runtime configs list in
- * `agentFrontmatter.fields`. Each returns the YAML line(s) to append, or an
- * empty array to skip the field entirely.
- *
- * Context shape:
- *   - `name`         - agent name in the runtime's naming convention
- *   - `frontmatter`  - parsed input frontmatter
- *   - `description`  - final description (may have examples appended for claude)
- *   - `tools`        - resolved tool list (the `tools.<runtime>` override,
- *                      else `tools`, each mapped through runtime.tools),
- *                      without duplicates
- *   - `runtime`      - full runtime config
- *   - `fm`           - runtime.agentFrontmatter config (shape hints)
- */
-const FIELDS = {
-  name: (ctx) =>
-    ctx.name != null && ctx.name !== '' ? [`name: ${ctx.name}`] : [],
-
-  kind: (ctx) => (ctx.fm.kind ? [`kind: ${ctx.fm.kind}`] : []),
-
-  description: (ctx) => {
-    if (ctx.runtime.features?.exampleBlocks && ctx.description.includes('\n')) {
-      return [
-        'description: |',
-        ...ctx.description.split('\n').map((line) => `  ${line}`),
-      ];
-    }
-    return [`description: "${escapeYaml(ctx.frontmatter.description || '')}"`];
-  },
-
-  subagent: (ctx) => (ctx.fm.subagent != null ? [`subagent: ${ctx.fm.subagent}`] : []),
-
-  mainAgent: (ctx) => (ctx.fm.mainAgent != null ? [`mainAgent: ${ctx.fm.mainAgent}`] : []),
-
-  model: (ctx) => (ctx.fm.model ? [`model: ${ctx.fm.model}`] : []),
-
-  color: (ctx) =>
-    ctx.frontmatter.color ? [`color: ${ctx.frontmatter.color}`] : [],
-
-  tools: (ctx) => emitBlockList('tools', ctx.tools),
-
-  turns: (ctx) =>
-    ctx.fm.turnsField && ctx.frontmatter.max_turns != null
-      ? [`${ctx.fm.turnsField}: ${ctx.frontmatter.max_turns}`]
-      : [],
-};
-
-function buildDescription(baseDescription, examples) {
-  if (examples.length > 0) {
-    return baseDescription + '\n\n' + examples.join('\n');
-  }
-  return baseDescription;
-}
-
-/**
  * Collect the <example>...</example> blocks from body text.
  * @param {string} body - Body text to extract examples from
  * @returns {string[]} Each example block, tags included
@@ -110,18 +55,27 @@ function agentStub(content, runtime) {
   const examples = runtime.features?.exampleBlocks ? extractExamples(body) : [];
   const fm = runtime.agentFrontmatter;
 
-  const ctx = {
-    name: toNamingConvention(frontmatter.name, runtime.agentNaming),
-    frontmatter,
-    description: buildDescription(frontmatter.description || '', examples),
-    tools: mapTools(frontmatter, runtime),
-    runtime,
-    fm,
+  const name = toNamingConvention(frontmatter.name, runtime.agentNaming);
+  const baseDescription = frontmatter.description || '';
+  const description = examples.length ? baseDescription + '\n\n' + examples.join('\n') : baseDescription;
+  const fields = {
+    name: name != null && name !== '' ? [`name: ${name}`] : [],
+    kind: fm.kind ? [`kind: ${fm.kind}`] : [],
+    description: runtime.features?.exampleBlocks && description.includes('\n')
+      ? ['description: |', ...description.split('\n').map((line) => `  ${line}`)]
+      : [`description: "${escapeYaml(frontmatter.description || '')}"`],
+    subagent: fm.subagent != null ? [`subagent: ${fm.subagent}`] : [],
+    mainAgent: fm.mainAgent != null ? [`mainAgent: ${fm.mainAgent}`] : [],
+    model: fm.model ? [`model: ${fm.model}`] : [],
+    color: frontmatter.color ? [`color: ${frontmatter.color}`] : [],
+    tools: emitBlockList('tools', mapTools(frontmatter, runtime)),
+    turns: fm.turnsField && frontmatter.max_turns != null
+      ? [`${fm.turnsField}: ${frontmatter.max_turns}`] : [],
   };
 
   const lines = ['---'];
   for (const fieldName of fm.fields) {
-    lines.push(...FIELDS[fieldName](ctx));
+    lines.push(...fields[fieldName]);
   }
   lines.push(
     '---',

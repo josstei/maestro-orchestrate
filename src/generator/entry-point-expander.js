@@ -7,6 +7,7 @@ const { emitInlineQuotedList } = require('../lib/yaml-emit');
 const entryPointRegistry = require('../entry-points/registry');
 const coreCommandRegistry = require('../entry-points/core-command-registry');
 const preambleBuilders = require('../entry-points/preamble-builders');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../platforms/runtime-config-map');
 
 const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
 
@@ -17,47 +18,6 @@ const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
  * debug and resume and Antigravity review and debug are reserved defensively.
  */
 const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
-
-/**
- * Per-runtime entry-point surface. Entry points and core commands share one
- * output location per runtime.
- */
-const RUNTIME_ENTRY_POINTS = {
-  // Antigravity turns every plugin skill into a /maestro:<name> command.
-  antigravity: {
-    outputPath: (e) => `antigravity/skills/${e.name}/SKILL.md`,
-    templates: {
-      'entry-point': 'antigravity-skill.md.tmpl',
-      'core-command': 'antigravity-core-command.md.tmpl',
-    },
-    reservedNames: HOST_RESERVED_NAMES,
-  },
-  claude: {
-    outputPath: (e) => `claude/skills/${e.name}/SKILL.md`,
-    templates: {
-      'entry-point': 'claude-skill.md.tmpl',
-      'core-command': 'claude-core-command.md.tmpl',
-    },
-    reservedNames: HOST_RESERVED_NAMES,
-  },
-  codex: {
-    outputPath: (e) => `plugins/maestro/skills/${e.name}/SKILL.md`,
-    templates: {
-      'entry-point': 'codex-skill.md.tmpl',
-      'core-command': 'codex-core-command.md.tmpl',
-    },
-    reservedNames: HOST_RESERVED_NAMES,
-  },
-  // The repo root is Qwen Code's extension dir, so its TOML commands live there.
-  qwen: {
-    outputPath: (e) => `commands/maestro/${e.name}.toml`,
-    templates: {
-      'entry-point': 'qwen-command.toml.tmpl',
-      'core-command': 'qwen-core-command.toml.tmpl',
-    },
-    reservedNames: null,
-  },
-};
 
 const QWEN_SESSION_STATE_BLOCK = `The current session state is provided below:
 
@@ -116,26 +76,31 @@ function applySubstitutions(template, substitutions) {
  *   with a reserved host command
  */
 function expand(kind, runtimeName) {
-  const config = RUNTIME_ENTRY_POINTS[runtimeName];
-  if (!config) {
+  if (!RUNTIME_NAMES.includes(runtimeName)) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
 
   const { registry, substitutions } = KINDS[kind];
-  const template = fs.readFileSync(path.join(TEMPLATES_DIR, config.templates[kind]), 'utf8');
+  const runtime = getRuntimeConfig(runtimeName);
+  const qwen = runtimeName === 'qwen';
+  const templateName = kind === 'core-command'
+    ? `${runtimeName}-core-command.${qwen ? 'toml' : 'md'}.tmpl`
+    : `${runtimeName}-${qwen ? 'command.toml' : 'skill.md'}.tmpl`;
+  const template = fs.readFileSync(path.join(TEMPLATES_DIR, templateName), 'utf8');
   return registry.map((entry) => {
     const runtimeEntry = {
       ...entry,
       name: entry.runtimeNames?.[runtimeName] || entry.name,
     };
-    if (config.reservedNames && config.reservedNames.has(runtimeEntry.name)) {
+    if (!qwen && HOST_RESERVED_NAMES.has(runtimeEntry.name)) {
       throw new Error(
         `Reserved ${runtimeName} host command name "${runtimeEntry.name}" conflicts with a built-in — ` +
         'add a runtimeNames entry to the registry to remap it'
       );
     }
     return {
-      outputPath: config.outputPath(runtimeEntry),
+      outputPath: qwen ? `commands/maestro/${runtimeEntry.name}.toml`
+        : `${runtime.outputDir}skills/${runtimeEntry.name}/SKILL.md`,
       content: applySubstitutions(template, substitutions(runtimeEntry, runtimeName)),
     };
   });

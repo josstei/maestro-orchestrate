@@ -32,7 +32,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 4 |
-| Source transforms | 2 |
+| Stub renderers | 2 |
 
 ## Project Structure
 
@@ -44,7 +44,7 @@ maestro-orchestrate/
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
 │   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
-│   ├── generator/                # Generator modules (manifest and entry-point expansion, registries, pruning, payloads)
+│   ├── generator/                # Stub and entry-point generation, registries, pruning, payloads
 │   ├── generated/                # [generated] Agent, resource, and hook registries
 │   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 8 templates
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
@@ -55,8 +55,7 @@ maestro-orchestrate/
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, Antigravity and Claude policy enforcers, Qwen policy-pack renderer, metadata.js builders
-│   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
-│   └── manifest.js               # Declarative file mapping rules
+│   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
 ├── bin/                          # [generated] maestro-mcp-server.js (Codex npx entrypoint)
 ├── tests/                        # Unit, transform, and integration suites + shared helpers
@@ -140,7 +139,7 @@ A bundled Model Context Protocol server providing 17 tools across 3 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) turns canonical source into runtime-specific output. It writes agent and shared-skill discovery stubs, expands the entry-point registries into commands and skills, builds the manifests, hook registrations, and policy pack, and mirrors `src/` into the detached payloads. CI enforces a zero-drift guarantee. See [Generator Pipeline](architecture.md#generator-pipeline) for the steps.
+The generator (`scripts/generate.js`) turns canonical source into runtime-specific output. It writes agent and shared-skill discovery stubs, expands the entry-point registries into commands and skills, builds the manifests, hook registrations, and policy pack, and mirrors `src/` into the detached payloads. CI enforces a zero-drift guarantee. See [Generator Pipeline](architecture.md#generator-pipeline) for the steps.
 
 ### State Management
 

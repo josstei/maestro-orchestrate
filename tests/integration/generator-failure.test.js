@@ -11,7 +11,7 @@ const {
 } = require('./helpers');
 
 describe('generator failure handling', () => {
-  it('fails the run when a transform throws or the manifest references a missing source file', () => {
+  it('fails before writing when a stub renderer throws or a required content source is missing', () => {
     withTempRepoCopy('maestro-generator-failure-', (repoRoot) => {
       fs.writeFileSync(
         path.join(repoRoot, 'src/agents/broken-transform.md'),
@@ -26,22 +26,22 @@ describe('generator failure handling', () => {
         'utf8'
       );
 
-      const transformFailure = runGeneratorExpectFailure([], { cwd: repoRoot });
+      const generated = path.join(repoRoot, 'claude/agents/coder.md');
+      fs.writeFileSync(generated, 'must not be cleaned or replaced\n');
+      const transformFailure = runGeneratorExpectFailure(['--clean'], { cwd: repoRoot });
 
       assert.equal(transformFailure.status, 1);
       assert.match(transformFailure.stderr, /ERROR: processing agents\/broken-transform\.md -> claude\/agents\/broken-transform\.md: Unclosed <example> tag in agent body/);
+      assert.equal(fs.readFileSync(generated, 'utf8'), 'must not be cleaned or replaced\n');
 
-      // The manifest override no longer globs src/agents, so the broken agent above is not processed again.
-      fs.writeFileSync(
-        path.join(repoRoot, 'src/manifest.js'),
-        "module.exports = [{ src: 'missing-source.md', transforms: [], runtimes: ['qwen'] }];\n",
-        'utf8'
-      );
+      fs.unlinkSync(path.join(repoRoot, 'src/agents/broken-transform.md'));
+      fs.unlinkSync(path.join(repoRoot, 'src/agents/shared/handoff-report.md'));
 
-      const missingSourceFailure = runGeneratorExpectFailure([], { cwd: repoRoot });
+      const missingSourceFailure = runGeneratorExpectFailure(['--clean'], { cwd: repoRoot });
 
       assert.equal(missingSourceFailure.status, 1);
-      assert.match(missingSourceFailure.stderr, /ERROR: Source not found: missing-source\.md/);
+      assert.match(missingSourceFailure.stderr, /Generator failed: ENOENT.*handoff-report\.md/);
+      assert.equal(fs.readFileSync(generated, 'utf8'), 'must not be cleaned or replaced\n');
     });
   });
 });

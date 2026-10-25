@@ -1,9 +1,9 @@
 'use strict';
 
 const path = require('node:path');
-const { discover } = require('../lib/discovery');
+const { findFiles } = require('../lib/discovery');
 const { parse } = require('../lib/frontmatter');
-const { formatJson } = require('../lib/io');
+const { formatJson, readFileSafe } = require('../lib/io');
 const { toPascalCase } = require('../lib/naming');
 
 /**
@@ -22,64 +22,43 @@ function capabilityTier(tools) {
 }
 
 function buildAgentRegistry(srcDir) {
-  const agentEntries = discover({
-    dir: path.join(srcDir, 'agents'),
-    pattern: '*.md',
-    identity: (filepath) => path.basename(filepath, '.md'),
-    metadata: (filepath, content) => {
-      const { frontmatter } = parse(content);
+  return findFiles(path.join(srcDir, 'agents'), '*.md')
+    .sort((a, b) => path.basename(a, '.md').localeCompare(path.basename(b, '.md')))
+    .map((filepath) => {
+      const { frontmatter } = parse(readFileSafe(filepath));
       const name = frontmatter.name || path.basename(filepath, '.md');
       const rawTools = frontmatter.tools || [];
       const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
       return { name, capabilities: capabilityTier(tools) };
-    },
-  });
-
-  return agentEntries.map(({ name, capabilities }) => ({ name, capabilities }));
+    });
 }
 
-function markdownEntries(
-  srcDir,
-  subdir,
-  pattern = '*.md',
-  identity = (filepath) => path.basename(filepath, '.md')
-) {
-  return discover({
-    dir: path.join(srcDir, subdir),
-    pattern,
-    identity,
-    metadata: (filepath) => ({
-      relativePath: path.relative(srcDir, filepath).split(path.sep).join('/'),
-    }),
-  });
-}
-
-function skillIdentity(filepath) {
-  if (path.basename(filepath) === 'SKILL.md') {
-    return path.basename(path.dirname(filepath));
-  }
-  return path.basename(filepath, '.md');
+function markdownEntries(srcDir, subdir, pattern = '*.md') {
+  return findFiles(path.join(srcDir, subdir), pattern)
+    .map((filepath) => [
+      subdir === 'skills/shared' && path.basename(filepath) === 'SKILL.md'
+        ? path.basename(path.dirname(filepath)) : path.basename(filepath, '.md'),
+      path.relative(srcDir, filepath).split(path.sep).join('/'),
+    ])
+    .sort(([a], [b]) => a.localeCompare(b));
 }
 
 function buildResourceRegistry(srcDir) {
   return Object.fromEntries(
     [
-      ...markdownEntries(srcDir, path.join('skills', 'shared'), '**/*.md', skillIdentity),
+      ...markdownEntries(srcDir, 'skills/shared', '**/*.md'),
       ...markdownEntries(srcDir, 'templates'),
       ...markdownEntries(srcDir, 'references'),
-    ].map((entry) => [entry.id, entry.relativePath])
+    ]
   );
 }
 
 function buildHookRegistry(srcDir) {
-  const hookEntries = discover({
-    dir: path.join(srcDir, 'hooks', 'logic'),
-    pattern: '*-logic.js',
-    identity: (filepath) => path.basename(filepath).replace(/-logic\.js$/, ''),
-  });
-
   return Object.fromEntries(
-    hookEntries.map(({ id }) => [
+    findFiles(path.join(srcDir, 'hooks', 'logic'), '*-logic.js')
+      .map((filepath) => path.basename(filepath).replace(/-logic\.js$/, ''))
+      .sort((a, b) => a.localeCompare(b))
+      .map((id) => [
       id,
       { module: `hooks/logic/${id}-logic.js`, fn: `handle${toPascalCase(id)}` },
     ])

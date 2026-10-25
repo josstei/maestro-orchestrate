@@ -86,7 +86,7 @@ describe('release artifact packaging', () => {
       assert.ok(archiveEntries.includes(entry), `Expected the archive to include ${entry}`);
     }
     for (const buildPath of [
-      'src/entry-points', 'src/generator', 'src/transforms', 'src/manifest.js',
+      'src/entry-points', 'src/generator', 'src/transforms',
       'src/platforms/metadata.js', 'src/platforms/qwen/policy-pack.js',
       'src/lib/discovery', 'src/lib/yaml-emit.js',
     ]) {
@@ -233,7 +233,7 @@ describe('release artifact packaging', () => {
     for (const buildPath of [
       'src/generator/dependency-graph.js',
       'src/entry-points/templates/qwen-command.toml.tmpl',
-      'src/manifest.js',
+      'src/generator/stub-outputs.js',
     ]) {
       withRepackedArchive(packaged.archivePath, 'maestro-build-source.tar.gz', (extractRoot) => {
         const target = path.join(extractRoot, buildPath);

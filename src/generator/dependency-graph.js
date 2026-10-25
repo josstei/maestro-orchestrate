@@ -19,7 +19,6 @@ const posix = (value) => value.split(path.sep).join('/');
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const isWithin = (root, file) => file === root || file.startsWith(root + path.sep);
 const BUILD_ONLY_FILES = new Set([
-  'manifest.js',
   'platforms/metadata.js',
   'platforms/qwen/policy-pack.js',
   'lib/yaml-emit.js',

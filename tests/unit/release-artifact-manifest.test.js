@@ -149,7 +149,7 @@ describe('release artifact manifest', () => {
       'src/generator/dependency-graph.js',
       'src/transforms',
       'src/transforms/agent-stub.js',
-      'src/manifest.js',
+      'src/generator/stub-outputs.js',
       'src/platforms/metadata.js',
       'src/platforms/qwen/policy-pack.js',
       'src/lib/discovery',

@@ -38,7 +38,6 @@ const RELEASE_BUILD_EXCLUSIONS = [
   'src/entry-points',
   'src/generator',
   'src/transforms',
-  'src/manifest.js',
   'src/platforms/metadata.js',
   'src/platforms/qwen/policy-pack.js',
   'src/lib/discovery',

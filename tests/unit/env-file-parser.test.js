@@ -18,72 +18,46 @@ describe('parseEnvFile', () => {
     return writeTree(tmpDir, name, content);
   }
 
-  it('parses a simple KEY=VALUE pair', () => {
-    const filePath = writeFixture('simple.env', 'FOO=bar\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { FOO: 'bar' });
-  });
-
-  it('parses multiple KEY=VALUE pairs', () => {
-    const filePath = writeFixture('multiple.env', 'A=1\nB=2\nC=3\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { A: '1', B: '2', C: '3' });
-  });
-
-  it('ignores comment lines starting with #', () => {
-    const filePath = writeFixture('comments.env', '# This is a comment\nKEY=value\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'value' });
-  });
-
-  it('strips inline comments after whitespace', () => {
-    const filePath = writeFixture('inline-comment.env', 'KEY=value # this is a comment\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'value' });
-  });
-
-  it('preserves # inside double-quoted values', () => {
-    const filePath = writeFixture('hash-in-double-quotes.env', 'KEY="value#not-a-comment"\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'value#not-a-comment' });
-  });
-
-  it('preserves # inside single-quoted values', () => {
-    const filePath = writeFixture('hash-in-single-quotes.env', "KEY='value#not-a-comment'\n");
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'value#not-a-comment' });
-  });
-
-  it('trims matching double quotes from values', () => {
-    const filePath = writeFixture('double-quotes.env', 'KEY="hello world"\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'hello world' });
-  });
-
-  it('trims matching single quotes from values', () => {
-    const filePath = writeFixture('single-quotes.env', "KEY='hello world'\n");
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'hello world' });
-  });
-
-  it('does not trim mismatched quotes', () => {
-    const filePath = writeFixture('mismatched-quotes.env', "KEY='value\"\n");
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: "'value\"" });
-  });
-
-  it('handles export prefix', () => {
-    const filePath = writeFixture('export-prefix.env', 'export KEY=value\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'value' });
-  });
-
-  it('parses multi-line double-quoted values', () => {
-    const content = 'KEY="line one\nline two\nline three"\n';
-    const filePath = writeFixture('multi-line.env', content);
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'line one\nline two\nline three' });
-  });
+  const cases = [
+    ['parses a simple KEY=VALUE pair',
+      'simple.env', 'FOO=bar\n', { FOO: 'bar' }],
+    ['parses multiple KEY=VALUE pairs',
+      'multiple.env', 'A=1\nB=2\nC=3\n', { A: '1', B: '2', C: '3' }],
+    ['ignores comment lines starting with #',
+      'comments.env', '# This is a comment\nKEY=value\n', { KEY: 'value' }],
+    ['strips inline comments after whitespace',
+      'inline-comment.env', 'KEY=value # this is a comment\n', { KEY: 'value' }],
+    ['preserves # inside double-quoted values',
+      'hash-in-double-quotes.env', 'KEY="value#not-a-comment"\n', { KEY: 'value#not-a-comment' }],
+    ['preserves # inside single-quoted values',
+      'hash-in-single-quotes.env', "KEY='value#not-a-comment'\n", { KEY: 'value#not-a-comment' }],
+    ['trims matching double quotes from values',
+      'double-quotes.env', 'KEY="hello world"\n', { KEY: 'hello world' }],
+    ['trims matching single quotes from values',
+      'single-quotes.env', "KEY='hello world'\n", { KEY: 'hello world' }],
+    ['does not trim mismatched quotes',
+      'mismatched-quotes.env', "KEY='value\"\n", { KEY: "'value\"" }],
+    ['handles export prefix',
+      'export-prefix.env', 'export KEY=value\n', { KEY: 'value' }],
+    ['parses multi-line double-quoted values',
+      'multi-line.env', 'KEY="line one\nline two\nline three"\n', { KEY: 'line one\nline two\nline three' }],
+    ['handles empty file',
+      'empty.env', '', {}],
+    ['skips blank lines',
+      'blank-lines.env', '\n\nKEY=value\n\n', { KEY: 'value' }],
+    ['skips lines without an = sign',
+      'no-equals.env', 'NOTAVALIDLINE\nKEY=value\n', { KEY: 'value' }],
+    ['handles KEY= with empty value',
+      'empty-value.env', 'KEY=\n', { KEY: '' }],
+    ['handles values with = in them using only the first = as separator',
+      'equals-in-value.env', 'KEY=a=b=c\n', { KEY: 'a=b=c' }],
+  ];
+  for (const [title, filename, content, expected] of cases) {
+    it(title, () => {
+      const filePath = writeFixture(filename, content);
+      assert.deepEqual(parseEnvFile(filePath), expected);
+    });
+  }
 
   it('handles unclosed multi-line quotes by logging a warning and returning accumulated value', (t) => {
     t.mock.method(console, 'warn');
@@ -112,33 +86,4 @@ describe('parseEnvFile', () => {
     assert.deepEqual(result, {});
   });
 
-  it('handles empty file', () => {
-    const filePath = writeFixture('empty.env', '');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, {});
-  });
-
-  it('skips blank lines', () => {
-    const filePath = writeFixture('blank-lines.env', '\n\nKEY=value\n\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'value' });
-  });
-
-  it('skips lines without an = sign', () => {
-    const filePath = writeFixture('no-equals.env', 'NOTAVALIDLINE\nKEY=value\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'value' });
-  });
-
-  it('handles KEY= with empty value', () => {
-    const filePath = writeFixture('empty-value.env', 'KEY=\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: '' });
-  });
-
-  it('handles values with = in them using only the first = as separator', () => {
-    const filePath = writeFixture('equals-in-value.env', 'KEY=a=b=c\n');
-    const result = parseEnvFile(filePath);
-    assert.deepEqual(result, { KEY: 'a=b=c' });
-  });
 });

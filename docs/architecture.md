@@ -13,8 +13,8 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
                                     │
                              ┌──────┴──────┐
                              │ generate.js │
-                             │ + manifest  │
-                             │ + transforms│
+                             │ + stubs     │
+                             │ + metadata  │
                              └──────┬──────┘
         ┌──────────────────┬────────┴─────────┬──────────────────┐
         ▼                  ▼                  ▼                  ▼
@@ -31,53 +31,27 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads every runtime config (`src/platforms/<runtime>/runtime-config.js`, discovered by `src/platforms/runtime-config-map.js`)
 2. Scans `src/agents/`, `src/skills/shared/`, `src/templates/`, `src/references/`, and `src/hooks/logic/` into `src/generated/agent-registry.json`, `resource-registry.json`, and `hook-registry.json` (`src/generator/registry-scanner.js`)
-3. Expands the rules in `src/manifest.js` and runs their transforms (`src/generator/manifest-expander.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
+3. Collects agent and shared-skill stubs directly (`src/generator/stub-outputs.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
 4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Antigravity, Claude, and Codex skills and Qwen TOML commands (`commands/maestro/`)
-5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`, which takes the policy pack from `src/platforms/qwen/policy-pack.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
+5. Renders the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`, which takes the policy pack from `src/platforms/qwen/policy-pack.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
 6. Renders the nine public MCP, hook-runner, and policy-enforcer entrypoints (`src/generator/runtime-entrypoints.js`), including the executable Codex npm bin
-7. Prunes stale files from the directories it owns (`agents/`, `antigravity/agents/`, `antigravity/skills/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
-8. Rebuilds the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` from deterministic dependency closures and explicit content roots, and stamps each with `version.json`
+7. Plans the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` from dependency closures and explicit content roots, including `version.json`, and validates every destination
+8. Writes the collected outputs and prunes stale files from owned agent, skill, command, and detached-payload directories
 
-All dependency plans validate before generation writes or prunes files. `--dry-run` and `--diff` write nothing and report payload additions/removals and executable-mode drift. `--clean` deletes the manifest outputs before regenerating them.
+All dependency plans validate before generation writes or prunes files. `--dry-run` and `--diff` write nothing and report payload additions/removals and executable-mode drift. `--clean` deletes agent and shared-skill stubs before regenerating them.
 
 The shared build-time graph in `src/generator/dependency-graph.js` parses imports with Acorn and Acorn Walk. It resolves local JavaScript, JSON, and directory indexes without executing modules, checks physical containment, and explicitly classifies runtime-config discovery, hook adapters, and registry-listed hook implementations. Unsupported computed or aliased loading and stale annotations fail the check. Parser packages are development dependencies only.
 
 Detached roots include the MCP server, selected runtime config, all five state scripts, registries, served resources, agent bodies, and the handoff contract. Antigravity and Claude additionally retain their hook and policy roots. Codex retains its local MCP fallback but omits hook/policy-only modules. Payload files preserve canonical paths and bytes; there is no bundling or export pruning.
 
-### Manifest System
+### Discovery Stubs
 
-`src/manifest.js` declares how source files map to outputs. Each entry specifies:
+`src/generator/stub-outputs.js` scans agent Markdown files and shared `SKILL.md` files and invokes their renderers directly. Agent filenames use each runtime's naming convention; shared-skill paths flatten `skills/shared/` to `skills/`. Both use the runtime's `outputDir`.
 
-```javascript
-{
-  src: 'agents/architect.md',                  // Source file
-  transforms: ['agent-stub'],                  // Transform pipeline
-  runtimes: ['antigravity', 'claude', 'qwen'], // Target runtimes
-}
-```
-
-Or with glob patterns:
-
-```javascript
-{
-  glob: 'agents/*.md',
-  transforms: ['agent-stub'],
-  runtimes: ['antigravity', 'claude', 'qwen'],
-}
-```
-
-A glob may use `*` only in its final (file name) segment; a `**` segment directly before it also matches files in subdirectories. Any other use of `*` fails generation with `Unsupported manifest glob`, and other glob characters such as `?` and `[...]` are matched literally.
-
-Each output path is the source path under the runtime's `outputDir`, with `skills/shared/` flattened to `skills/` and agent filenames converted to snake_case for snake_case runtimes.
-
-### Transform Pipeline
-
-The generator exposes 2 transforms, registered by name in `src/transforms/index.js`:
-
-| Transform | Purpose |
-|-----------|---------|
-| `agent-stub` | Emit the runtime's agent frontmatter (the fields its `agentFrontmatter.fields` lists, with tools in that runtime's names, each listed once, and, when `features.exampleBlocks` is on, the body's `<example>` blocks folded into the description), followed by a one-line body that points at `get_agent()` |
-| `skill-discovery-stub` | Replace a shared skill body with a stub that points at `get_skill_content()`; Claude stubs also set `user-invocable: false` and Antigravity stubs `disable-slash-command: true` |
+| Renderer | Purpose |
+|----------|---------|
+| `src/transforms/agent-stub.js` | Emit ordered runtime frontmatter and mapped tools, folding example blocks into descriptions when enabled, followed by a pointer to `get_agent()` |
+| `src/transforms/skill-discovery-stub.js` | Point to `get_skill_content()` with the host's discovery metadata |
 
 ### Runtime Definitions
 
@@ -224,7 +198,7 @@ The 17 tools (4 workspace, 10 session, 3 content) and their required parameters 
 
 Each agent in `src/agents/` has:
 
-- **YAML frontmatter**: `name`, `description`, `color`, `tools`, `max_turns`. `tools` is the one canonical tool list, written in canonical tool names that each runtime maps through its runtime config's `tools` table; an optional `tools.<runtime>` key (every agent sets `tools.claude`) replaces it for that runtime
+- **YAML frontmatter**: `name`, `description`, `color`, `tools`, `max_turns`. `tools` is the one canonical tool list, written in canonical tool names that each runtime maps through its runtime config's `tools` table; runtime agent-tool defaults preserve host ordering and exclusions, and an optional `tools.<runtime>` key replaces those defaults for intentional exceptions
 - **Methodology body**: role description, assessment areas, decision frameworks, anti-patterns
 - **Downstream consumer contracts**: what other agents need from this agent's output
 

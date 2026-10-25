@@ -61,4 +61,29 @@ describe('mapTools', () => {
     assert.deepEqual(mapTools({ tools: 'a, b' }, runtimeConfig), []);
     assert.deepEqual(mapTools({}, runtimeConfig), []);
   });
+
+  it('applies the default agent policy after mapping and retains unlisted tools', () => {
+    const runtimeConfig = {
+      name: 'custom',
+      tools: { read: 'Read', read_many: 'Read', todo: ['TaskCreate', 'TaskUpdate'], ask: 'Ask' },
+      agentTools: { exclude: ['Ask'], order: ['Read', 'Write', 'TaskCreate', 'TaskUpdate'] },
+    };
+    assert.deepEqual(
+      mapTools({ tools: ['extension_b', 'todo', 'ask', 'read_many', 'read', 'extension_a'] }, runtimeConfig),
+      ['Read', 'TaskCreate', 'TaskUpdate', 'extension_b', 'extension_a']
+    );
+  });
+
+  it('lets explicit overrides retain excluded tools and their original order', () => {
+    const runtimeConfig = {
+      name: 'custom',
+      tools: { read: 'Read', ask: 'Ask' },
+      agentTools: { exclude: ['Ask'], order: ['Read', 'Write'] },
+    };
+    assert.deepEqual(
+      mapTools({ tools: ['read'], 'tools.custom': ['ask', 'Write', 'read'] }, runtimeConfig),
+      ['Ask', 'Write', 'Read']
+    );
+    assert.deepEqual(mapTools({ tools: ['read'], 'tools.custom': [] }, runtimeConfig), []);
+  });
 });
