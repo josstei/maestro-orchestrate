@@ -12,6 +12,13 @@ const WorkspaceResolutionError = defineErrorType(
   'WORKSPACE_RESOLUTION_FAILED'
 );
 
+/**
+ * Variables consulted, in order, for the project root before the cwd. Every
+ * runtime config's `env.workspacePath` must be one of them; core cannot read
+ * the runtime configs, so a constraint test keeps the two in step.
+ */
+const WORKSPACE_ENV_VARS = ['MAESTRO_WORKSPACE_PATH', 'CLAUDE_PROJECT_DIR', 'PWD', 'INIT_CWD'];
+
 /** A non-empty string that is not an unexpanded `${...}` host placeholder. */
 function isConcretePath(value) {
   return typeof value === 'string' && value.length > 0 && !value.includes('${');
@@ -43,10 +50,9 @@ function resolveExistingRoot(candidate) {
 }
 
 function resolveProjectRoot() {
-  const env = process.env;
   const cwd = process.cwd();
-  for (const candidate of [env.MAESTRO_WORKSPACE_PATH, env.CLAUDE_PROJECT_DIR, env.PWD, env.INIT_CWD]) {
-    const resolvedRoot = resolveExistingRoot(candidate);
+  for (const name of WORKSPACE_ENV_VARS) {
+    const resolvedRoot = resolveExistingRoot(process.env[name]);
     if (resolvedRoot) {
       return resolvedRoot;
     }
@@ -118,5 +124,6 @@ module.exports = {
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,
   requireWorkspaceRoot,
+  WORKSPACE_ENV_VARS,
   WorkspaceResolutionError,
 };

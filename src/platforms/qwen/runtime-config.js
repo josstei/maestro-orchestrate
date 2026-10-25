@@ -17,7 +17,8 @@ module.exports = {
 
   env: {
     extensionPath: 'extensionPath',
-    workspacePath: 'workspacePath',
+    // qwen-extension.json exports Qwen's ${workspacePath} under this name.
+    workspacePath: 'MAESTRO_WORKSPACE_PATH',
   },
 
   tools: {

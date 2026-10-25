@@ -8,6 +8,8 @@ const antigravity = require('../../src/platforms/antigravity/runtime-config');
 const codex = require('../../src/platforms/codex/runtime-config');
 const claude = require('../../src/platforms/claude/runtime-config');
 const qwen = require('../../src/platforms/qwen/runtime-config');
+const { EXTENSION_ROOT_ENV_VARS } = require('../../src/config/setting-resolver');
+const { WORKSPACE_ENV_VARS } = require('../../src/core/project-root-resolver');
 
 describe('runtime-config host bindings', () => {
   it('every runtime-config binds workspacePath to the env var its host provides', () => {
@@ -22,9 +24,21 @@ describe('runtime-config host bindings', () => {
         antigravity: 'MAESTRO_WORKSPACE_PATH',
         claude: 'CLAUDE_PROJECT_DIR',
         codex: 'MAESTRO_WORKSPACE_PATH',
-        qwen: 'workspacePath',
+        qwen: 'MAESTRO_WORKSPACE_PATH',
       }
     );
+  });
+
+  it('the core resolvers read every runtime workspace variable and the Claude plugin root', () => {
+    // core/ and config/ may not import platform configs, so they name the
+    // variables themselves; MCP reads env.workspacePath from the config.
+    for (const config of [antigravity, claude, codex, qwen]) {
+      assert.ok(
+        WORKSPACE_ENV_VARS.includes(config.env.workspacePath),
+        `${config.name}: env.workspacePath ${config.env.workspacePath} is not in WORKSPACE_ENV_VARS`
+      );
+    }
+    assert.ok(EXTENSION_ROOT_ENV_VARS.includes(claude.env.extensionPath));
   });
 
   it('every runtime-config roots its generated output in the directory its host loads', () => {

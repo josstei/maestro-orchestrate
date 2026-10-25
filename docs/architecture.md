@@ -69,7 +69,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `delegation.pattern` | `invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
 | `delegation.constraints.result_surface` | `notified` | `synchronous` | `deferred` | `synchronous` |
 | `env.extensionPath` | `PLUGIN_ROOT` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
-| `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
+| `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `MAESTRO_WORKSPACE_PATH` |
 | `agentFrontmatter.fields` | name, description, subagent, mainAgent, model, tools | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
 | `entrySurface` | `skill` | `skill` | `skill` | `command` (TOML commands) |
 | `entryAgentRefs` | `true` | — | `true` | — |

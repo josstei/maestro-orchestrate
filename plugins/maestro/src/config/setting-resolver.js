@@ -3,6 +3,10 @@
 const path = require('node:path');
 const { parseEnvFile } = require('../core/env-file-parser');
 
+// Setting resolution can precede runtime selection. Claude's injected plugin
+// root remains the fallback for the canonical extension override.
+const EXTENSION_ROOT_ENV_VARS = ['MAESTRO_EXTENSION_PATH', 'CLAUDE_PLUGIN_ROOT'];
+
 /** Lazily snapshot each .env file for one request; process.env remains live. */
 function createSettingResolver(projectRoot, { onWarning = (message) => console.warn(message) } = {}) {
   const files = new Map();
@@ -21,9 +25,7 @@ function createSettingResolver(projectRoot, { onWarning = (message) => console.w
   }
 
   return function resolve(varName) {
-    // Setting resolution can precede runtime selection. Claude's injected
-    // plugin root remains the fallback for the canonical extension override.
-    const extensionRoot = process.env.MAESTRO_EXTENSION_PATH || process.env.CLAUDE_PLUGIN_ROOT;
+    const extensionRoot = EXTENSION_ROOT_ENV_VARS.map((name) => process.env[name]).find(Boolean);
 
     // Skip files until higher-priority sources come up empty. Skipped sources
     // yield null (not {}) so no prototype lookup happens for them.
@@ -47,4 +49,4 @@ function resolveSetting(varName, projectRoot) {
   return createSettingResolver(projectRoot)(varName);
 }
 
-module.exports = { createSettingResolver, resolveSetting };
+module.exports = { createSettingResolver, EXTENSION_ROOT_ENV_VARS, resolveSetting };

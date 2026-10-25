@@ -302,7 +302,7 @@ const METADATA_BUILDERS = {
       mcpServers: nodeMcpServers(runtime, {
         cwd: rootVar(runtime),
         env: {
-          MAESTRO_WORKSPACE_PATH: '${workspacePath}',
+          [runtime.env.workspacePath]: '${workspacePath}',
         },
       }),
     }],
