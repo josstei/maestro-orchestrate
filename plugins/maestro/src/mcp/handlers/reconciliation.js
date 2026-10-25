@@ -16,6 +16,7 @@ const {
 const { isExtensionCachePath } = require('../../core/cache-path-rejector');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
+  HANDOFF_FILE_FIELDS,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
 } = require('../contracts/downstream-context');
@@ -197,11 +198,11 @@ async function handleScanPhaseChanges(params, projectRoot) {
 function handleReconcilePhase(params, projectRoot) {
   assertPhaseRequest(params);
 
-  const filesCreated = Array.isArray(params.files_created) ? params.files_created : [];
-  const filesModified = Array.isArray(params.files_modified) ? params.files_modified : [];
-  const filesDeleted = Array.isArray(params.files_deleted) ? params.files_deleted : [];
+  const files = Object.fromEntries(
+    HANDOFF_FILE_FIELDS.map((field) => [field, Array.isArray(params[field]) ? params[field] : []])
+  );
   const hasFilesPayload =
-    filesCreated.length + filesModified.length + filesDeleted.length > 0;
+    HANDOFF_FILE_FIELDS.map((field) => files[field].length).reduce((sum, length) => sum + length) > 0;
   const normalizedContext = normalizeDownstreamContext(params.downstream_context);
   const hasContextPayload = isDownstreamContextPopulated(normalizedContext);
 
@@ -220,14 +221,10 @@ function handleReconcilePhase(params, projectRoot) {
       params.phase_id,
       `Phase ${params.phase_id} not found`
     );
-    if (params.files_created !== undefined) {
-      phase.files_created = filesCreated;
-    }
-    if (params.files_modified !== undefined) {
-      phase.files_modified = filesModified;
-    }
-    if (params.files_deleted !== undefined) {
-      phase.files_deleted = filesDeleted;
+    for (const field of HANDOFF_FILE_FIELDS) {
+      if (params[field] !== undefined) {
+        phase[field] = files[field];
+      }
     }
     if (hasContextPayload) {
       phase.downstream_context = normalizedContext;

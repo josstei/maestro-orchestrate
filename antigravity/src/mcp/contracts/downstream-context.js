@@ -22,6 +22,9 @@ const CANONICAL_FIELDS = Object.freeze([
   'warnings',
 ]);
 
+/** The file lists a phase handoff reports next to its downstream context. */
+const HANDOFF_FILE_FIELDS = Object.freeze(['files_created', 'files_modified', 'files_deleted']);
+
 const EMPTY_VALUE_TOKENS = new Set(['', 'none', 'n/a', 'not applicable']);
 
 function normalizeFieldValue(value) {
@@ -70,6 +73,7 @@ function describeShape() {
 }
 
 module.exports = {
+  HANDOFF_FILE_FIELDS,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape,

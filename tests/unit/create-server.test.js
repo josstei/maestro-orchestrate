@@ -3,12 +3,39 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createServer } = require('../../src/mcp/core/create-server');
+const { createServer, defineTool } = require('../../src/mcp/core/create-server');
 const { ValidationError } = require('../../src/lib/errors');
 
 const makePack = (name, toolName, handler = () => ({ ok: true })) => ({
   name,
   tools: [{ name: toolName, handler }],
+});
+
+describe('defineTool', () => {
+  it('builds an object input schema with no required list or requiresWorkspace by default', () => {
+    const handler = () => ({});
+    const tool = defineTool('t1', 'd', {}, handler, { required: [] });
+
+    assert.deepEqual(Object.keys(tool), ['name', 'description', 'inputSchema', 'handler']);
+    assert.equal(tool.handler, handler);
+    assert.equal(
+      JSON.stringify(tool),
+      '{"name":"t1","description":"d","inputSchema":{"type":"object","properties":{}}}'
+    );
+  });
+
+  it('lists requiresWorkspace before the input schema and required after its properties', () => {
+    const tool = defineTool('t1', 'd', { a: { type: 'string' } }, () => ({}), {
+      required: ['a'],
+      requiresWorkspace: true,
+    });
+
+    assert.deepEqual(Object.keys(tool), ['name', 'description', 'requiresWorkspace', 'inputSchema', 'handler']);
+    assert.equal(
+      JSON.stringify(tool),
+      '{"name":"t1","description":"d","requiresWorkspace":true,"inputSchema":{"type":"object","properties":{"a":{"type":"string"}},"required":["a"]}}'
+    );
+  });
 });
 
 describe('createServer tool packs', () => {
@@ -68,41 +95,6 @@ describe('createServer tool composition', () => {
     const server = createServer({ runtimeConfig: { name: 'codex' }, services: {} });
     assert.deepEqual(server.getToolSchemas(), []);
     assert.equal((await server.callTool('anything')).code, 'UNKNOWN_TOOL');
-  });
-
-  it('throws when a schema entry is null', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [{ name: 'p', tools: [null] }] }),
-      /Tool schema in pack "p" must be an object/
-    );
-  });
-
-  it('throws when a schema entry is an array', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [{ name: 'p', tools: [['bad']] }] }),
-      /Tool schema in pack "p" must be an object/
-    );
-  });
-
-  it('throws when a schema is missing a name', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [{ name: 'p', tools: [{ description: 'x' }] }] }),
-      /Tool schema in pack "p" is missing a valid name/
-    );
-  });
-
-  it('throws when a schema name is not a string', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [{ name: 'p', tools: [{ name: 42 }] }] }),
-      /Tool schema in pack "p" is missing a valid name/
-    );
-  });
-
-  it('throws when a schema name is an empty string', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [{ name: 'p', tools: [{ name: '' }] }] }),
-      /Tool schema in pack "p" is missing a valid name/
-    );
   });
 
   it('throws when a tool has no handler function', () => {

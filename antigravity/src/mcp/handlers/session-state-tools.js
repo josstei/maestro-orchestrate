@@ -3,6 +3,7 @@
 const { assertSessionId } = require('../../lib/validation');
 const { validatePhases } = require('../contracts/plan-schema');
 const {
+  HANDOFF_FILE_FIELDS,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape: describeDownstreamContextShape,
@@ -51,11 +52,9 @@ function startPhase(phase, now) {
  * @throws {ValidationError} HANDOFF_INCOMPLETE when files were reported but downstream_context is empty after normalization
  */
 function completePhase(phase, params, now) {
-  const filesCreated = params.files_created ?? [];
-  const filesModified = params.files_modified ?? [];
-  const filesDeleted = params.files_deleted ?? [];
+  const files = Object.fromEntries(HANDOFF_FILE_FIELDS.map((field) => [field, params[field] ?? []]));
   const hasFiles =
-    filesCreated.length + filesModified.length + filesDeleted.length > 0;
+    HANDOFF_FILE_FIELDS.map((field) => files[field].length).reduce((sum, length) => sum + length) > 0;
   const normalizedContext = normalizeDownstreamContext(params.downstream_context);
   const contextProvided = isDownstreamContextPopulated(normalizedContext);
 
@@ -66,9 +65,9 @@ function completePhase(phase, params, now) {
         code: 'HANDOFF_INCOMPLETE',
         details: {
           phase_id: phase.id,
-          files_created_count: filesCreated.length,
-          files_modified_count: filesModified.length,
-          files_deleted_count: filesDeleted.length,
+          ...Object.fromEntries(
+            HANDOFF_FILE_FIELDS.map((field) => [`${field}_count`, files[field].length])
+          ),
           received_downstream_context: params.downstream_context ?? null,
         },
       }
@@ -78,9 +77,7 @@ function completePhase(phase, params, now) {
   phase.status = 'completed';
   phase.completed = now;
   phase.downstream_context = normalizedContext;
-  phase.files_created = filesCreated;
-  phase.files_modified = filesModified;
-  phase.files_deleted = filesDeleted;
+  Object.assign(phase, files);
   phase.requires_reconciliation = !hasFiles && !contextProvided;
 }
 

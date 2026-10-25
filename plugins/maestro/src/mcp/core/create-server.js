@@ -52,14 +52,33 @@ function normalizeToolError(toolName, error) {
 }
 
 /**
+ * Build a pack tool: its listed schema plus its `handler(args, projectRoot)`.
+ * The input schema is an object schema over `properties` that declares
+ * `required` only when it names properties; `requiresWorkspace` is listed
+ * only when set.
+ */
+function defineTool(name, description, properties, handler, options = {}) {
+  const { required = [], requiresWorkspace = false } = options;
+  const inputSchema = { type: 'object', properties };
+  if (required.length > 0) inputSchema.required = required;
+  return {
+    name,
+    description,
+    ...(requiresWorkspace ? { requiresWorkspace: true } : {}),
+    inputSchema,
+    handler,
+  };
+}
+
+/**
  * Compose tool packs into a server that lists tool schemas and dispatches
  * tool calls. A pack is `{ name, tools }` (or a factory receiving the frozen
  * `{ runtimeConfig, services }` context), where each tool is its schema plus a
- * `handler` function; the handler is not part of the listed schema. Packs are
- * mounted in order (an unnamed pack is reported as `tool-pack-<n>`); tool
- * names must be unique. A runtime config's `mcpToolMeta` is listed as every
- * tool schema's `_meta` (Antigravity loads tools marked
- * `antigravity/alwaysLoad` as native tools instead of on demand).
+ * `handler` function, as `defineTool` builds it; the handler is not part of
+ * the listed schema. Packs are mounted in order (an unnamed pack is reported
+ * as `tool-pack-<n>`); tool names must be unique. A runtime config's
+ * `mcpToolMeta` is listed as every tool schema's `_meta` (Antigravity loads
+ * tools marked `antigravity/alwaysLoad` as native tools instead of on demand).
  */
 function createServer(options = {}) {
   const { runtimeConfig = {}, services = {}, toolPacks = [] } = options;
@@ -71,15 +90,7 @@ function createServer(options = {}) {
 
   for (const pack of packs) {
     for (const tool of pack.tools) {
-      if (!tool || typeof tool !== 'object' || Array.isArray(tool)) {
-        throw new TypeError(`Tool schema in pack "${pack.name}" must be an object.`);
-      }
-
       const { handler, ...schema } = tool;
-
-      if (typeof schema.name !== 'string' || schema.name.length === 0) {
-        throw new Error(`Tool schema in pack "${pack.name}" is missing a valid name.`);
-      }
 
       if (schema.name in registry) {
         throw new Error(
@@ -125,5 +136,6 @@ function createServer(options = {}) {
 
 module.exports = {
   createServer,
+  defineTool,
   toolFailure,
 };

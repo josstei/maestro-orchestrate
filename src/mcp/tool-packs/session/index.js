@@ -1,6 +1,8 @@
 'use strict';
 
+const { defineTool } = require('../../core/create-server');
 const { PHASE_ITEM_SCHEMA, TASK_COMPLEXITY_SCHEMA } = require('../../contracts/plan-schema');
+const { HANDOFF_FILE_FIELDS } = require('../../contracts/downstream-context');
 const {
   handleCreateSession,
   handleGetSessionStatus,
@@ -21,11 +23,13 @@ const {
 const SESSION_ID = { type: 'string' };
 const PHASE_ID = { type: ['integer', 'string'] };
 const FILE_LIST = { type: 'array' };
+const HANDOFF_FILE_LISTS = Object.fromEntries(HANDOFF_FILE_FIELDS.map((field) => [field, FILE_LIST]));
 
 function sessionTool(name, description, properties, handler, required = ['session_id']) {
-  const inputSchema = { type: 'object', properties: { session_id: SESSION_ID, ...properties } };
-  if (required.length > 0) inputSchema.required = required;
-  return { name, description, requiresWorkspace: true, inputSchema, handler };
+  return defineTool(name, description, { session_id: SESSION_ID, ...properties }, handler, {
+    required,
+    requiresWorkspace: true,
+  });
 }
 
 function createToolPack() {
@@ -91,9 +95,7 @@ function createToolPack() {
         {
           completed_phase_id: { type: ['number', 'string'] },
           downstream_context: { type: 'object' },
-          files_created: FILE_LIST,
-          files_modified: FILE_LIST,
-          files_deleted: FILE_LIST,
+          ...HANDOFF_FILE_LISTS,
           next_phase_id: { type: ['number', 'string', 'null'] },
           next_phase_ids: {
             type: 'array',
@@ -164,9 +166,7 @@ function createToolPack() {
         'Record file manifests and downstream context for a phase that could not be handed off cleanly. Requires at least one of files_created/files_modified/files_deleted or a populated downstream_context. Clears requires_reconciliation on success.',
         {
           phase_id: PHASE_ID,
-          files_created: FILE_LIST,
-          files_modified: FILE_LIST,
-          files_deleted: FILE_LIST,
+          ...HANDOFF_FILE_LISTS,
           downstream_context: { type: 'object' },
           reason: { type: 'string' },
         },
