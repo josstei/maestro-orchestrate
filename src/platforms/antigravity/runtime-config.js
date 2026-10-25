@@ -58,6 +58,12 @@ module.exports = {
     fields: ['name', 'description', 'subagent', 'mainAgent', 'model', 'tools'],
   },
 
+  // Entry points are skills whose preambles name the agents they delegate to.
+  // Shared-skill stubs stay out of the slash-command menu.
+  entrySurface: 'skill',
+  entryAgentRefs: true,
+  skillStubFrontmatter: ['disable-slash-command: true'],
+
   delegation: {
     pattern: 'invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])',
     constraints: {

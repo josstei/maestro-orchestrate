@@ -16,12 +16,7 @@ function skillDiscoveryStub(content, runtime) {
   }
   // Shared skills are methodology the orchestrator loads, not commands: keep
   // them out of the host's slash-command menu.
-  if (runtime.name === 'claude') {
-    lines.push('user-invocable: false');
-  }
-  if (runtime.name === 'antigravity') {
-    lines.push('disable-slash-command: true');
-  }
+  lines.push(...(runtime.skillStubFrontmatter || []));
 
   lines.push('---');
   lines.push('');

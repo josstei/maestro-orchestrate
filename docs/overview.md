@@ -46,7 +46,7 @@ maestro-orchestrate/
 │   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
 │   ├── generator/                # Stub and entry-point generation, registries, pruning, payloads
 │   ├── generated/                # [generated] Agent, resource, and hook registries
-│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 8 templates
+│   ├── entry-points/             # 9 entry-point + 3 core-command registries, 8 templates, 2 partials
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers

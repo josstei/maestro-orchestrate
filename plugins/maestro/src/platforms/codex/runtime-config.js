@@ -37,6 +37,10 @@ module.exports = {
     codebase_investigator: 'local inspection or spawn_agent',
   },
 
+  // Entry points are skills whose preambles name the agents they delegate to.
+  entrySurface: 'skill',
+  entryAgentRefs: true,
+
   delegation: {
     pattern: 'spawn_agent(...)',
     constraints: {

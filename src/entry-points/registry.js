@@ -8,7 +8,9 @@
  *
  * Content lives here once; format-specific rendering (TOML commands,
  * SKILL.md files) is handled by templates + the generator. An optional
- * `title` replaces the display title otherwise derived from the name.
+ * `title` replaces the display title otherwise derived from the name, and an
+ * optional `skillName` replaces the name on runtimes whose entry points are
+ * skills, where the name would collide with a host built-in command.
  * Every entry loads the architecture skill and, when it lists agents, the
  * delegation skill; `skills` names only the skills it loads beyond those.
  */
@@ -16,7 +18,7 @@
 module.exports = [
   {
     name: 'review',
-    runtimeNames: { antigravity: 'review-code', codex: 'review-code', claude: 'review-code' },
+    skillName: 'review-code',
     description:
       'Perform a Maestro-style code review with findings ordered by severity and concrete file references',
     agents: ['code-reviewer'],
@@ -37,7 +39,7 @@ module.exports = [
 
   {
     name: 'debug',
-    runtimeNames: { antigravity: 'debug-workflow', codex: 'debug-workflow', claude: 'debug-workflow' },
+    skillName: 'debug-workflow',
     description:
       'Run the Maestro debugging workflow for investigation-heavy tasks',
     agents: ['debugger'],

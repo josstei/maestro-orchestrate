@@ -195,16 +195,18 @@ describe('expandEntryPoints', () => {
 
   it('rejects a registry name that resolves to a reserved host command', () => {
     const review = entryPointRegistry.find((entry) => entry.name === 'review');
-    const { runtimeNames } = review;
-    review.runtimeNames = { codex: 'review-code' };
+    const { skillName } = review;
+    delete review.skillName;
     try {
       assert.throws(() => expandEntryPoints(getRuntimeConfig('claude')), {
         message:
           'Reserved claude host command name "review" conflicts with a built-in — ' +
-          'add a runtimeNames entry to the registry to remap it',
+          'add a skillName to the registry entry to remap it',
       });
+      const qwenPaths = expandEntryPoints(getRuntimeConfig('qwen')).map((r) => r.outputPath);
+      assert.ok(qwenPaths.includes('commands/maestro/review.toml'));
     } finally {
-      review.runtimeNames = runtimeNames;
+      review.skillName = skillName;
     }
   });
 
@@ -217,6 +219,13 @@ describe('expandEntryPoints', () => {
       assert.throws(() => expandCoreCommands(config), {
         message: `Unknown runtime for core-command expansion: "${runtime}"`,
       });
+    }
+  });
+
+  it('rejects a runtime without a known entry surface', () => {
+    const config = { ...getRuntimeConfig('claude'), entrySurface: 'menu' };
+    for (const expand of [expandEntryPoints, expandCoreCommands]) {
+      assert.throws(() => expand(config), { message: 'Unknown entry surface for claude: "menu"' });
     }
   });
 });
@@ -334,7 +343,7 @@ describe('entry-point and core-command skills for antigravity', () => {
 
   it('delegates with invoke_subagent only from entries that declare agents', () => {
     for (const entry of entryPointRegistry) {
-      const name = entry.runtimeNames?.antigravity || entry.name;
+      const name = entry.skillName || entry.name;
       const { content } = entryPoints.find((r) => r.outputPath === `${SKILLS_ROOT}/${name}/SKILL.md`);
       if (entry.agents.length > 0) {
         assert.ok(

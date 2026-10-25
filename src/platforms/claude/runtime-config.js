@@ -49,6 +49,12 @@ module.exports = {
     fields: ['name', 'description', 'model', 'color', 'turns', 'tools'],
   },
 
+  // Entry points are skills. Shared skills stay out of the slash-command menu,
+  // both as stubs and as served content.
+  entrySurface: 'skill',
+  skillStubFrontmatter: ['user-invocable: false'],
+  servedSkillFrontmatter: ['user-invocable: false'],
+
   delegation: {
     pattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
     constraints: {

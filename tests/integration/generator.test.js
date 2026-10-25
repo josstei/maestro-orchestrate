@@ -6,7 +6,7 @@ const { createHash } = require('node:crypto');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { ROOT, runGenerator, runGeneratorExpectFailure, withTempRepoCopy } = require('./helpers');
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeTree } = require('../support/fs');
 
 function snapshotTree(root) {
   const snapshot = {};
@@ -111,6 +111,22 @@ describe('generator CLI', () => {
       assert.equal(failure.stderr,
         "Generated files are out of sync with src/. Run 'node scripts/generate.js' and commit the changes.\n");
       assert.deepEqual(snapshotTree(repoRoot), before);
+    });
+  });
+
+  it('prunes only the agent-stub, entry-surface and payload directories it owns', () => {
+    withTempRepoCopy('maestro-generator-owned-', (repoRoot) => {
+      // generate.js derives these from the runtime configs; stale files
+      // anywhere else must survive.
+      const owned = [
+        'agents', 'antigravity/agents', 'antigravity/skills', 'claude/agents', 'claude/skills',
+        'plugins/maestro/skills', 'commands', 'antigravity/src', 'claude/src', 'plugins/maestro/src',
+      ];
+      for (const dir of [...owned, '.', 'antigravity', 'claude', 'plugins/maestro', 'qwen', 'skills']) {
+        writeTree(repoRoot, `${dir}/obsolete.md`, 'obsolete\n');
+      }
+      const failure = runGeneratorExpectFailure(['--check'], { cwd: repoRoot });
+      assert.equal(failure.stdout, owned.map((dir) => `[REMOVE] ${dir}/obsolete.md\n`).sort().join(''));
     });
   });
 

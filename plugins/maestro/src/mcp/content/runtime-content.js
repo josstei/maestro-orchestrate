@@ -28,14 +28,19 @@ function applyReplacePaths(content, runtimeConfig) {
   return result;
 }
 
+/**
+ * Append the runtime's servedSkillFrontmatter lines to a served SKILL.md's
+ * frontmatter.
+ */
 function applySkillMetadata(content, runtimeConfig, resourcePath) {
-  if (runtimeConfig.name !== 'claude' || !resourcePath.endsWith('SKILL.md')) {
+  const lines = runtimeConfig.servedSkillFrontmatter || [];
+  if (lines.length === 0 || !resourcePath.endsWith('SKILL.md')) {
     return content;
   }
 
   return content.replace(
     /^(---\n[\s\S]*?)(^---)/m,
-    '$1user-invocable: false\n$2'
+    (_match, frontmatter, closing) => `${frontmatter}${lines.join('\n')}\n${closing}`
   );
 }
 

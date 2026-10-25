@@ -71,21 +71,21 @@ describe('served resource paths', () => {
 describe('served skill metadata', () => {
   it('adds user-invocable: false for claude runtime and SKILL.md path', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
-    const result = readFixtureResource('delegation', content, { name: 'claude' });
-    assert.ok(result.includes('user-invocable: false'));
+    const result = readFixtureResource('delegation', content, getRuntimeConfig('claude'));
+    assert.equal(result, '---\nname: delegation\nuser-invocable: false\n---\nbody text\n');
   });
 
   it('returns unchanged for non-claude runtimes', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
     for (const name of ['antigravity', 'codex', 'qwen']) {
-      const result = readFixtureResource('delegation', content, { name });
+      const result = readFixtureResource('delegation', content, getRuntimeConfig(name));
       assert.equal(result, content, name);
     }
   });
 
   it('returns unchanged for non-SKILL.md paths', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
-    const result = readFixtureResource('architecture', content, { name: 'claude' });
+    const result = readFixtureResource('architecture', content, getRuntimeConfig('claude'));
     assert.equal(result, content);
   });
 });

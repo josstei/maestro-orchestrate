@@ -45,6 +45,9 @@ module.exports = {
     fields: ['name', 'kind', 'description', 'turns', 'tools'],
   },
 
+  // Entry points are TOML commands, invoked as /maestro:<name>.
+  entrySurface: 'command',
+
   delegation: {
     pattern: '{{agent}}(query: "...")',
     constraints: {

@@ -6,6 +6,7 @@ const path = require('node:path');
 const { SRC_ROOT } = require('./paths');
 const entryPointRegistry = require('../../src/entry-points/registry');
 const coreCommandRegistry = require('../../src/entry-points/core-command-registry');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 
 // The catalog sizes are pinned here rather than derived from src/, so every
 // generated surface that checks them fails when an agent or skill is added or
@@ -33,12 +34,14 @@ function listCanonicalAgents() {
 }
 
 /**
- * @param {string} runtime - Runtime whose runtimeNames override applies
+ * @param {string} runtime - Runtime whose public names to list; skill-surface
+ *   runtimes take each entry's skillName override
  * @returns {string[]} Sorted public skill (or command) names on that runtime
  */
 function publicSkillNames(runtime) {
+  const skills = getRuntimeConfig(runtime).entrySurface === 'skill';
   return [...entryPointRegistry, ...coreCommandRegistry]
-    .map((entry) => entry.runtimeNames?.[runtime] || entry.name)
+    .map((entry) => (skills && entry.skillName) || entry.name)
     .sort();
 }
 

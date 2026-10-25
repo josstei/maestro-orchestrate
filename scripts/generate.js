@@ -15,7 +15,6 @@ const { parseFlagArgs, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const OWNED_DIRS = ['agents', 'antigravity/agents', 'antigravity/skills', 'claude/agents', 'claude/skills', 'plugins/maestro/skills', 'commands'];
 
 function printHelp() {
   console.log(`Generate the runtime outputs and detached payloads from src/.
@@ -47,7 +46,7 @@ function main() {
   const outputs = [...registryOutputs, ...stubOutputs];
 
   // Keep imports inside main so errors receive runCli's generator prefix.
-  const { expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
+  const { entrySurfaceDir, expandEntryPoints, expandCoreCommands } = require('../src/generator/entry-point-expander');
   for (const expand of [expandEntryPoints, expandCoreCommands]) {
     for (const runtime of Object.values(runtimes)) outputs.push(...expand(runtime));
   }
@@ -68,7 +67,14 @@ function main() {
     outputs.push(...plan.outputs.map((output) => ({ ...output, outputPath: `${label}/${output.outputPath}` })));
     payloads.push({ label, fileCount: plan.outputs.length });
   }
-  const ownedDirs = [...OWNED_DIRS, ...payloads.map(({ label }) => label)];
+  // Each runtime's agent-stub and entry-surface directories are owned whole too.
+  const ownedDirs = [
+    ...Object.values(runtimes).flatMap((runtime) => [
+      ...(runtime.agentFrontmatter ? [path.posix.join(runtime.outputDir, 'agents')] : []),
+      entrySurfaceDir(runtime),
+    ]),
+    ...payloads.map(({ label }) => label),
+  ];
   const manifestPaths = new Set(outputs.map(({ outputPath }) => outputPath));
   for (const { outputPath } of outputs) safeResolve(outputPath, ROOT, { requireFile: true });
   for (const ownedDir of ownedDirs) safeResolve(ownedDir, ROOT);
