@@ -73,7 +73,6 @@ Entrypoint wrappers are rendered by `src/generator/runtime-entrypoints.js`. Thei
 
 | Hand-maintained (edit in place) | Purpose |
 |---------------------------------|---------|
-| `claude/mcp-config.example.json` | Example MCP server entry for manual Claude setups |
 | `plugins/maestro/references/runtime-guide.md` | Codex runtime guide, read by the Codex skills |
 | `QWEN.md` | Qwen Code context file |
 | `README.md`, `antigravity/README.md`, `claude/README.md`, `plugins/maestro/README.md` | READMEs; `scripts/update-versions.js` stamps the version badge in `README.md` and `claude/README.md` |

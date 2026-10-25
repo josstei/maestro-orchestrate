@@ -1,9 +1,0 @@
-{
-  "maestro": {
-    "command": "node",
-    "args": [
-      "./mcp/maestro-server.js"
-    ],
-    "cwd": "<path-to-maestro-plugin>"
-  }
-}

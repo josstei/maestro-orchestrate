@@ -29,7 +29,10 @@ describe('verify npm pack', () => {
       'plugins/maestro/.codex-plugin/plugin.json',
       'qwen-extension.json',
       'scripts/install-codex-plugin.js',
+      'scripts/lib/cli.js',
       'src/mcp/maestro-server.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
     ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
   });
@@ -47,28 +50,43 @@ describe('verify npm pack', () => {
     }
   });
 
-  it('allows build, prepack, release and installer dependencies in npm packages', () => {
-    assert.doesNotThrow(() => verifyPackageEntries(packWith(
+  it('rejects build and release tooling that only a repository checkout uses', () => {
+    for (const buildPath of [
       'scripts/generate.js',
-      'scripts/install-codex-plugin.js',
       'scripts/package-release-artifacts.js',
+      'scripts/lib/temp-dir.js',
+      'scripts/verify-npm-pack.js',
       'src/entry-points/templates/qwen-command.toml.tmpl',
       'src/generator/dependency-graph.js',
-      'src/transforms/agent-stub.js',
       'src/generator/stub-outputs.js',
-      'src/platforms/metadata.js',
-      'src/platforms/qwen/policy-pack.js',
+      'src/transforms/agent-stub.js',
       'src/lib/discovery/index.js',
       'src/lib/yaml-emit.js',
+    ]) {
+      assert.throws(
+        () => verifyPackageEntries(packWith(buildPath)),
+        { message: `npm package contains build-only path: ${buildPath}` }
+      );
+    }
+    assert.doesNotThrow(() => verifyPackageEntries(packWith(
+      'src/generated/agent-registry.json',
+      'src/lib/io/index.js',
     )));
   });
 
-  it('rejects a package missing the advertised Codex installer', () => {
+  it('rejects a package missing the advertised Codex installer or its dependencies', () => {
     const [pack] = packWith();
-    const files = pack.files.filter((file) => file.path !== 'scripts/install-codex-plugin.js');
-    assert.throws(() => verifyPackageEntries([{ ...pack, files }]), {
-      message: 'npm package missing required file: scripts/install-codex-plugin.js',
-    });
+    for (const installerPath of [
+      'scripts/install-codex-plugin.js',
+      'scripts/lib/cli.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
+    ]) {
+      const files = pack.files.filter((file) => file.path !== installerPath);
+      assert.throws(() => verifyPackageEntries([{ ...pack, files }]), {
+        message: `npm package missing required file: ${installerPath}`,
+      });
+    }
   });
 
   it('rejects test-only package content', () => {

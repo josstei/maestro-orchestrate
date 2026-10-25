@@ -102,7 +102,7 @@ maestro-orchestrate/
     └── hooks.json                # Qwen hook registration
 ```
 
-`[generated]` marks generator output; a tag on a directory covers everything in it. Runtime READMEs, the Codex runtime guide, the Claude MCP configuration example, and `QWEN.md` are maintained by hand; [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) has the full list.
+`[generated]` marks generator output; a tag on a directory covers everything in it. Runtime READMEs, the Codex runtime guide, and `QWEN.md` are maintained by hand; [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) has the full list.
 
 ## Core Concepts
 

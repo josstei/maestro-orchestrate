@@ -141,7 +141,7 @@ describe('release artifact manifest', () => {
     }
   });
 
-  it('excludes build sources from archives without denying them in npm packages', () => {
+  it('excludes build sources from archives without listing them as denied paths', () => {
     for (const buildPath of [
       'src/entry-points',
       'src/entry-points/templates/qwen-command.toml.tmpl',

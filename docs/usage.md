@@ -1,6 +1,6 @@
 # Maestro Usage
 
-For detailed CI/CD pipeline documentation including workflow diagrams, the release process, and npm publishing strategy, see [docs/cicd.md](cicd.md).
+For detailed CI/CD pipeline documentation including workflow diagrams, the release process, and npm publishing strategy, see [docs/cicd.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md).
 
 ## Development Commands
 

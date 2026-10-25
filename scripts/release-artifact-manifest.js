@@ -33,8 +33,7 @@ const RELEASE_ARTIFACT_PATHS = [
   'src',
 ];
 
-// The extension archive has no build CLI. npm retains these sources for its
-// generate/build/prepack commands and Codex installer.
+// The extension archive has no build CLI or Codex installer.
 const RELEASE_BUILD_EXCLUSIONS = BUILD_ONLY_PATHS.map((buildPath) => `src/${buildPath}`);
 
 const DENIED_ARTIFACT_PATHS = [
@@ -71,7 +70,20 @@ const REQUIRED_PACKAGE_FILES = [
   'plugins/maestro/.codex-plugin/plugin.json',
   'qwen-extension.json',
   'scripts/install-codex-plugin.js',
+  'scripts/lib/cli.js',
   'src/mcp/maestro-server.js',
+  'src/platforms/metadata.js',
+  'src/platforms/qwen/policy-pack.js',
+];
+
+// Build-only source trees the npm package must not ship. Under scripts/ it
+// ships only the REQUIRED_PACKAGE_FILES entries (the Codex installer).
+const EXCLUDED_PACKAGE_PATHS = [
+  'src/entry-points',
+  'src/generator',
+  'src/lib/discovery',
+  'src/lib/yaml-emit.js',
+  'src/transforms',
 ];
 
 const REQUIRED_RUNTIME_FILES = [
@@ -364,6 +376,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
 module.exports = {
   DENIED_ARTIFACT_PATHS,
+  EXCLUDED_PACKAGE_PATHS,
   RELEASE_ARTIFACT_PATHS,
   RELEASE_OUT_DIR,
   REQUIRED_PACKAGE_FILES,

@@ -4,6 +4,7 @@
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
+  EXCLUDED_PACKAGE_PATHS,
   REQUIRED_PACKAGE_FILES,
   isDeniedPath,
 } = require('./release-artifact-manifest');
@@ -50,6 +51,11 @@ function verifyPackageEntries(packages) {
   for (const entry of entries) {
     if (isDeniedPath(entry)) {
       throw new Error(`npm package contains forbidden path: ${entry}`);
+    }
+    // scripts/ ships only the required installer files.
+    if ((entry.startsWith('scripts/') && !REQUIRED_PACKAGE_FILES.includes(entry)) ||
+      EXCLUDED_PACKAGE_PATHS.some((excluded) => entry === excluded || entry.startsWith(`${excluded}/`))) {
+      throw new Error(`npm package contains build-only path: ${entry}`);
     }
   }
 

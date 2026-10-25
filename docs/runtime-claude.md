@@ -183,7 +183,6 @@ claude/
 ├── src/                   [generated] detached runtime payload for isolated installs
 ├── .claude-plugin/        [generated] plugin.json manifest
 ├── .mcp.json              [generated]
-├── mcp-config.example.json  hand-maintained
 └── README.md              hand-maintained (version badge stamped by scripts/update-versions.js)
 ```
 
