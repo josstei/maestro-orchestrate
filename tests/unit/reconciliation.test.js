@@ -7,28 +7,18 @@ const path = require('node:path');
 
 const { withCwd, withEnv } = require('../support/env');
 const { makeTempDir, writeTree } = require('../support/fs');
-const { createInitializedSessionServer } = require('../support/session-server');
+const {
+  createInitializedSessionServer,
+  sessionParams,
+  singlePhase,
+} = require('../support/session-server');
 
 // An initialized workspace holding the one-phase 'recon-test' session.
 async function bootstrap(workspace) {
   const server = await createInitializedSessionServer(workspace);
   await server.callTool(
     'create_session',
-    {
-      session_id: 'recon-test',
-      task: 'reconciliation',
-      task_complexity: 'simple',
-      phases: [
-        {
-          id: 1,
-          name: 'Phase 1',
-          agent: 'coder',
-          parallel: false,
-          blocked_by: [],
-          files: ['src/foo.js'],
-        },
-      ],
-    },
+    sessionParams('recon-test', { phases: singlePhase(['src/foo.js']) }),
     workspace
   );
   return server;
@@ -204,22 +194,33 @@ describe('reconcile_phase — empty payload', () => {
 });
 
 describe('reconcile_phase', () => {
-  it('clears requires_reconciliation and writes file manifests', async () => {
+  it('clears requires_reconciliation and writes file manifests in the hung-worker postmortem scenario', async () => {
     const workspace = makeTempDir('maestro-recon-e2e-');
     const server = await bootstrap(workspace);
 
+    // The worker writes its files but hands off nothing, so a scan recovers them.
+    await waitForMtime();
+    writeTree(workspace, 'index.html', '<html/>');
+    writeTree(workspace, 'assets/css/styles.css', 'body{}');
     await completePhaseWithoutHandoff(server, workspace);
+
+    const scanned = await scan(server, workspace);
+    assert.equal(scanned.ok, true);
+    assert.deepEqual(scanned.result.candidates.created, [
+      path.join('assets', 'css', 'styles.css'),
+      'index.html',
+    ]);
 
     const outcome = await server.callTool(
       'reconcile_phase',
       {
         session_id: 'recon-test',
         phase_id: 1,
-        files_created: ['src/foo.js'],
+        files_created: ['index.html', 'assets/css/styles.css'],
         downstream_context: {
           key_interfaces_introduced: [],
           patterns_established: [],
-          integration_points: ['src/foo.js'],
+          integration_points: ['index.html'],
           assumptions: [],
           warnings: [],
         },
@@ -227,7 +228,7 @@ describe('reconcile_phase', () => {
       workspace
     );
     assert.equal(outcome.ok, true);
-    assert.deepEqual(outcome.result.files_created, ['src/foo.js']);
+    assert.deepEqual(outcome.result.files_created, ['index.html', 'assets/css/styles.css']);
 
     const archive = await server.callTool(
       'archive_session',

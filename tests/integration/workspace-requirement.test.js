@@ -5,21 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const { DEFAULT_TOOL_PACKS } = require('../../src/mcp/maestro-server');
 const { makeTempDir } = require('../support/fs');
-
-function createFullServer() {
-  return createServer({
-    runtimeConfig: { name: 'qwen' },
-    services: {},
-    toolPacks: DEFAULT_TOOL_PACKS,
-  });
-}
+const { packServer } = require('../support/session-server');
 
 describe('workspace requirement contract', () => {
   it('returns typed WORKSPACE_NOT_INITIALIZED error when workspace-dependent tools are called without a workspace', async () => {
-    const server = createFullServer();
+    const server = packServer(DEFAULT_TOOL_PACKS, 'qwen');
     const workspaceDependentTools = [
       { name: 'create_session', args: { session_id: 's1', task: 't', phases: [] } },
       { name: 'get_session_status', args: {} },
@@ -55,7 +47,7 @@ describe('workspace requirement contract', () => {
   });
 
   it('startup-phase tools succeed without a workspace (resolve_settings, get_runtime_context, get_skill_content, get_agent, initialize_workspace itself)', async () => {
-    const server = createFullServer();
+    const server = packServer(DEFAULT_TOOL_PACKS, 'qwen');
 
     const settings = await server.callTool('resolve_settings', {}, null);
     assert.equal(settings.ok, true, `resolve_settings must tolerate null projectRoot: ${settings.error || ''}`);
@@ -73,7 +65,7 @@ describe('workspace requirement contract', () => {
 
   it('workspace-dependent tools succeed after initialize_workspace provides a workspace', async () => {
     const workspace = makeTempDir('maestro-wr-');
-    const server = createFullServer();
+    const server = packServer(DEFAULT_TOOL_PACKS, 'qwen');
 
     const init = await server.callTool(
       'initialize_workspace',
@@ -111,7 +103,7 @@ describe('initialize_workspace contract', () => {
       const cache = path.join(cacheParent, ...segments);
       fs.mkdirSync(cache, { recursive: true });
 
-      const server = createFullServer();
+      const server = packServer(DEFAULT_TOOL_PACKS, 'qwen');
 
       const outcome = await server.callTool(
         'initialize_workspace',
@@ -124,7 +116,7 @@ describe('initialize_workspace contract', () => {
   }
 
   it('rejects initialize_workspace with a missing workspace_path', async () => {
-    const server = createFullServer();
+    const server = packServer(DEFAULT_TOOL_PACKS, 'qwen');
 
     const outcome = await server.callTool(
       'initialize_workspace',

@@ -8,7 +8,7 @@ const { fork } = require('node:child_process');
 
 const { makeTempDir, writeFile } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
-const { createInitializedSessionServer, singlePhase } = require('../support/session-server');
+const { createInitializedSessionServer, sessionParams } = require('../support/session-server');
 const markdownState = require('../../src/core/markdown-state');
 const { handleGetSessionStatus } = require('../../src/mcp/handlers/session-state-tools');
 const { handleGetDesignGateStatus } = require('../../src/mcp/handlers/design-gate');
@@ -51,10 +51,6 @@ async function competingCalls(t, workspace, jobs) {
   return completed;
 }
 
-function createParams(sessionId, extra = {}) {
-  return { session_id: sessionId, task: 'Concurrent state contract', phases: singlePhase([]), ...extra };
-}
-
 async function killCommittedCall(t, workspace, call) {
   const child = fork(workerPath, [], {
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -89,7 +85,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     const workspace = makeTempDir('maestro-concurrent-create-');
     await createInitializedSessionServer(workspace);
     const outcomes = (await competingCalls(t, workspace, ['first', 'second'].map((id) => [
-      { tool: 'create_session', params: createParams(id) },
+      { tool: 'create_session', params: sessionParams(id) },
     ]))).flat();
     assert.equal(outcomes.filter((outcome) => outcome.ok).length, 1);
     assert.match(outcomes.find((outcome) => !outcome.ok).error, /already exists/);
@@ -102,7 +98,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
   it('preserves every token increment across separate processes', async (t) => {
     const workspace = makeTempDir('maestro-concurrent-tokens-');
     const server = await createInitializedSessionServer(workspace);
-    assert.equal((await server.callTool('create_session', createParams('tokens'), workspace)).ok, true);
+    assert.equal((await server.callTool('create_session', sessionParams('tokens'), workspace)).ok, true);
     const jobs = Array.from({ length: 4 }, () => Array.from({ length: 5 }, () => ({
       tool: 'transition_phase',
       params: { session_id: 'tokens', next_phase_id: 1, token_usage: { input: 3, output: 2, cached: 1 } },
@@ -122,12 +118,12 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
       [{ tool: 'record_design_approval', params: {
         session_id: 'gate-race', design_document_content: '# Approved design\n', design_document_filename: 'design.md',
       } }],
-      [{ tool: 'create_session', params: createParams('gate-race') }],
+      [{ tool: 'create_session', params: sessionParams('gate-race') }],
     ]);
     assert.equal(approval.ok, true, JSON.stringify(approval));
     if (!creation.ok) {
       assert.equal(creation.code, 'DESIGN_GATE_UNAPPROVED');
-      assert.equal((await server.callTool('create_session', createParams('gate-race'), workspace)).ok, true);
+      assert.equal((await server.callTool('create_session', sessionParams('gate-race'), workspace)).ok, true);
     }
     const state = readSessionState(workspace);
     assert.equal(state.design_document, approval.result.design_document_path);
@@ -137,7 +133,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
   it('serializes archive versus update without recreating the active session', async (t) => {
     const workspace = makeTempDir('maestro-concurrent-archive-');
     const server = await createInitializedSessionServer(workspace);
-    assert.equal((await server.callTool('create_session', createParams('archive-race'), workspace)).ok, true);
+    assert.equal((await server.callTool('create_session', sessionParams('archive-race'), workspace)).ok, true);
     const [[archived], [updated]] = await competingCalls(t, workspace, [
       [{ tool: 'archive_session', params: { session_id: 'archive-race' } }],
       [{ tool: 'update_session', params: { session_id: 'archive-race', current_batch: 'concurrent-update' } }],
@@ -155,7 +151,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     const source = writeFile(path.join(workspace, 'external-design.md'), '# New design\n');
     const server = await createInitializedSessionServer(workspace);
     const destination = writeFile(path.join(workspace, 'docs/maestro/plans/external-design.md'), '# Existing design\n');
-    const outcome = await server.callTool('create_session', createParams('aborted', {
+    const outcome = await server.callTool('create_session', sessionParams('aborted', {
       design_document: source, implementation_plan_content: '# Missing filename\n',
     }), workspace);
     assert.equal(outcome.ok, false);
@@ -170,7 +166,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     const server = await createInitializedSessionServer(workspace);
     const document = writeFile(path.join(workspace, 'docs/maestro/plans/shared.md'), '# Shared\n');
     const existingArchive = writeFile(path.join(workspace, 'docs/maestro/plans/archive/shared.md'), '# Previous\n');
-    assert.equal((await server.callTool('create_session', createParams('duplicates', {
+    assert.equal((await server.callTool('create_session', sessionParams('duplicates', {
       design_document: document, implementation_plan: document,
     }), workspace)).ok, true);
     const outcome = await server.callTool('archive_session', { session_id: 'duplicates' }, workspace);
@@ -178,7 +174,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     assert.deepEqual(outcome.result.archived_files, [outcome.result.archive_path, existingArchive]);
     assert.equal(fs.readFileSync(existingArchive, 'utf8'), '# Shared\n');
     const missingDocument = writeFile(path.join(workspace, 'docs/maestro/plans/missing.md'), '# Removed later\n');
-    assert.equal((await server.callTool('create_session', createParams('missing-document', {
+    assert.equal((await server.callTool('create_session', sessionParams('missing-document', {
       implementation_plan: missingDocument,
     }), workspace)).ok, true);
     fs.unlinkSync(missingDocument);
@@ -201,7 +197,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     const server = await createInitializedSessionServer(workspace);
     const external = writeFile(path.join(makeTempDir('maestro-crash-source-'), 'design.md'), '# Captured design\n');
     await killCommittedCall(t, workspace, {
-      tool: 'create_session', params: createParams('crashed-create', { design_document: external }),
+      tool: 'create_session', params: sessionParams('crashed-create', { design_document: external }),
     });
     assert.equal(fs.existsSync(activeSessionPath(workspace)), false);
     const control = path.join(workspace, 'docs/maestro/state/.maestro');
@@ -243,7 +239,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
       if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
       throw error;
     }
-    assert.equal((await server.callTool('create_session', createParams('symlink-archive', {
+    assert.equal((await server.callTool('create_session', sessionParams('symlink-archive', {
       design_document: source,
     }), workspace)).ok, true);
     const destination = path.join(base, 'plans', 'archive', 'design.md');
@@ -284,7 +280,7 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
       throw error;
     }
     const plan = writeFile(path.join(base, 'plans', 'archive', 'design.md'), '# Prior plan\n');
-    assert.equal((await server.callTool('create_session', createParams('symlink-collision', {
+    assert.equal((await server.callTool('create_session', sessionParams('symlink-collision', {
       design_document: source, implementation_plan: plan,
     }), workspace)).ok, true);
     const outcome = await server.callTool('archive_session', { session_id: 'symlink-collision' }, workspace);

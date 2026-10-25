@@ -364,25 +364,6 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     assert.match(create.error || '', /mutually exclusive/i);
   });
 
-  it('create_session rejects incomplete implementation_plan content variant (missing filename)', async () => {
-    const workspace = makeTempDir('maestro-ddl-planincomplete-');
-    const server = await createInitializedSessionServer(workspace);
-
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-planincomplete',
-        task: 'plan partial',
-        task_complexity: 'simple',
-        implementation_plan_content: '# Plan\n',
-        phases: singlePhase(['x.txt']),
-      },
-      workspace
-    );
-    assert.equal(create.ok, false);
-    assert.match(create.error || '', /implementation_plan_filename is required/i);
-  });
-
   it('create_session accepts no implementation plan (at-most-one-of semantics permits neither)', async () => {
     const workspace = makeTempDir('maestro-ddl-noplan-');
     const server = await createInitializedSessionServer(workspace);

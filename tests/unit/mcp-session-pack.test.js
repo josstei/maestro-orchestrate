@@ -5,29 +5,21 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createServer } = require('../../src/mcp/core/create-server');
 const { createToolPack } = require('../../src/mcp/tool-packs/session');
 const { ensureWorkspace } = require('../../src/state/session-state');
 const { makeTempDir } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
-
-function createSessionPackServer() {
-  return createServer({
-    runtimeConfig: { name: 'codex' },
-    services: {},
-    toolPacks: [createToolPack],
-  });
-}
+const { packServer, phase, sessionParams, singlePhase } = require('../support/session-server');
 
 async function setup(prefix) {
   const projectRoot = makeTempDir(prefix);
   await ensureWorkspace('docs/maestro', projectRoot);
-  return { projectRoot, server: createSessionPackServer() };
+  return { projectRoot, server: packServer([createToolPack]) };
 }
 
 describe('session tool pack', () => {
   it('registers the session lifecycle tools through the kernel', () => {
-    const server = createSessionPackServer();
+    const server = packServer([createToolPack]);
 
     assert.deepEqual(
       server.getToolSchemas().map((schema) => schema.name),
@@ -53,17 +45,11 @@ describe('session tool pack', () => {
 
     const createResult = await server.callTool(
       'create_session',
-      {
-        session_id: 'test-session',
-        task: 'Test session lifecycle',
-        task_complexity: 'complex',
+      sessionParams('test-session', {
         design_document: 'docs/maestro/plans/design.md',
         implementation_plan: 'docs/maestro/plans/plan.md',
-        phases: [
-          { id: 1, name: 'Phase 1', agent: 'coder', parallel: false, blocked_by: [] },
-          { id: 2, name: 'Phase 2', agent: 'coder', parallel: false, blocked_by: [1] },
-        ],
-      },
+        phases: [phase(1), phase(2, { blocked_by: [1] })],
+      }),
       projectRoot
     );
 
@@ -118,11 +104,7 @@ describe('session tool pack', () => {
 
     const outcome = await server.callTool(
       'create_session',
-      {
-        session_id: 'bad-plan',
-        task: 'missing field test',
-        phases: [{ id: 1, name: 'Only id/name' }],
-      },
+      sessionParams('bad-plan', { phases: [{ id: 1, name: 'Only id/name' }] }),
       projectRoot
     );
 
@@ -135,27 +117,9 @@ describe('session tool pack', () => {
 
     const createResult = await server.callTool(
       'create_session',
-      {
-        session_id: 'string-id-test',
-        task: 'string-id round-trip',
-        task_complexity: 'simple',
-        phases: [
-          {
-            id: 'design',
-            name: 'Design phase',
-            agent: 'architect',
-            parallel: false,
-            blocked_by: [],
-          },
-          {
-            id: 'impl',
-            name: 'Implementation phase',
-            agent: 'coder',
-            parallel: false,
-            blocked_by: ['design'],
-          },
-        ],
-      },
+      sessionParams('string-id-test', {
+        phases: [phase('design', { agent: 'architect' }), phase('impl', { blocked_by: ['design'] })],
+      }),
       projectRoot
     );
     assert.equal(createResult.ok, true);
@@ -203,13 +167,10 @@ describe('session tool pack', () => {
 
     await server.callTool(
       'create_session',
-      {
-        session_id: 'archive-session',
-        task: 'Archive test',
+      sessionParams('archive-session', {
         design_document: 'docs/maestro/plans/design.md',
         implementation_plan: 'docs/maestro/plans/plan.md',
-        phases: [{ id: 1, name: 'Phase 1', agent: 'coder', parallel: false, blocked_by: [] }],
-      },
+      }),
       projectRoot
     );
 
@@ -247,15 +208,7 @@ describe('session tool pack', () => {
   ]) {
     it(`${tool} rejects another session's id and leaves the session file untouched`, async () => {
       const { projectRoot, server } = await setup('maestro-mismatch-');
-      await server.callTool(
-        'create_session',
-        {
-          session_id: 'active-session',
-          task: 'Session mismatch test',
-          phases: [{ id: 1, name: 'Phase 1', agent: 'coder', parallel: false, blocked_by: [] }],
-        },
-        projectRoot
-      );
+      await server.callTool('create_session', sessionParams('active-session'), projectRoot);
       const before = fs.readFileSync(activeSessionPath(projectRoot), 'utf8');
 
       const outcome = await server.callTool(tool, { session_id: 'other-session', ...args }, projectRoot);
@@ -272,21 +225,7 @@ describe('session tool pack', () => {
 
     await server.callTool(
       'create_session',
-      {
-        session_id: 'arch-rec',
-        task: 'archive reconciliation test',
-        task_complexity: 'simple',
-        phases: [
-          {
-            id: 1,
-            name: 'Phase 1',
-            agent: 'coder',
-            parallel: false,
-            blocked_by: [],
-            files: ['src/foo.js'],
-          },
-        ],
-      },
+      sessionParams('arch-rec', { phases: singlePhase(['src/foo.js']) }),
       projectRoot
     );
 

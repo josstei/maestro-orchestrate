@@ -9,12 +9,15 @@ const {
 } = require('../../src/mcp/tool-packs/workspace');
 
 /**
- * Creates an MCP server with the workspace and session tool packs mounted.
+ * Creates an MCP server with the given tool packs mounted under a runtime
+ * config that names only the runtime.
  *
+ * @param {Array<Function|Object>} packs - Tool packs (or pack factories) to mount, in order
+ * @param {string} [runtime='codex'] - Runtime name for the server's runtime config
  * @returns {{ getToolSchemas: () => object[], callTool: Function }} The composed server
  */
-function createSessionServer() {
-  return createServer({ toolPacks: [createWorkspacePack, createSessionPack] });
+function packServer(packs, runtime = 'codex') {
+  return createServer({ runtimeConfig: { name: runtime }, toolPacks: packs });
 }
 
 /**
@@ -25,7 +28,7 @@ function createSessionServer() {
  * @returns {Promise<{ getToolSchemas: () => object[], callTool: Function }>} The initialized server
  */
 async function createInitializedSessionServer(workspace) {
-  const server = createSessionServer();
+  const server = packServer([createWorkspacePack, createSessionPack]);
   await server.callTool('initialize_workspace', { workspace_path: workspace }, workspace);
   return server;
 }
@@ -47,6 +50,18 @@ async function approveDesignGate(server, workspace, sessionId, design) {
 }
 
 /**
+ * Builds a sequential coder phase with no dependencies. Each call returns a
+ * fresh phase object.
+ *
+ * @param {number|string} id - The phase id
+ * @param {Object} [overrides={}] - Phase fields to add or replace (e.g. `files`, `blocked_by`)
+ * @returns {Object} A phase for a create_session or validate_plan payload
+ */
+function phase(id, overrides = {}) {
+  return { id, name: `P${id}`, agent: 'coder', parallel: false, blocked_by: [], ...overrides };
+}
+
+/**
  * Builds a one-phase `phases` payload for create_session. Each call returns a
  * fresh array and phase object.
  *
@@ -55,11 +70,26 @@ async function approveDesignGate(server, workspace, sessionId, design) {
  * @returns {Object[]} A single-element phases array
  */
 function singlePhase(files, overrides = {}) {
-  return [{ id: 1, name: 'P1', agent: 'coder', parallel: false, blocked_by: [], files, ...overrides }];
+  return [phase(1, { files, ...overrides })];
+}
+
+/**
+ * Builds create_session params for `sessionId` with a placeholder task and a
+ * single phase that plans no files.
+ *
+ * @param {string} sessionId - The session_id to create
+ * @param {Object} [overrides={}] - create_session params to add or replace (e.g. `phases`)
+ * @returns {Object} The create_session params
+ */
+function sessionParams(sessionId, overrides = {}) {
+  return { session_id: sessionId, task: 'Test session', phases: singlePhase([]), ...overrides };
 }
 
 module.exports = {
   approveDesignGate,
   createInitializedSessionServer,
+  packServer,
+  phase,
+  sessionParams,
   singlePhase,
 };
