@@ -23,12 +23,10 @@ function sourceFixture() {
   writeTree(src, 'core/runtime.js', "module.exports = 'runtime';\n");
   for (const runtime of ['antigravity', 'claude', 'codex']) {
     writeTree(src, `platforms/${runtime}/runtime-config.js`, 'module.exports = {};\n');
-    if (runtime !== 'codex') {
-      writeTree(src, `platforms/${runtime}/hook-adapter.js`, 'module.exports = {};\n');
-      writeTree(src, `platforms/${runtime}/policy-enforcer.js`, 'module.exports = {};\n');
-    }
+    if (runtime !== 'codex') writeTree(src, `platforms/${runtime}/hook-adapter.js`, 'module.exports = {};\n');
   }
   writeTree(src, 'platforms/shared/hook-runner.js', 'module.exports = {};\n');
+  writeTree(src, 'platforms/shared/policy-enforcer.js', 'module.exports = {};\n');
   for (const script of REQUIRED_STATE_SCRIPTS) writeTree(src, `scripts/${script}`, "require('../core/runtime');\n");
   writeJson(path.join(src, 'generated/agent-registry.json'), [{ name: 'coder', capabilities: 'full' }]);
   writeJson(path.join(src, 'generated/resource-registry.json'), { plan: 'templates/plan.md' });

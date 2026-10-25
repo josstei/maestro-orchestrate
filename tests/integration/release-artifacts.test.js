@@ -103,8 +103,7 @@ describe('release artifact packaging', () => {
       roots: [
         'mcp/maestro-server.js',
         'platforms/shared/hook-runner.js',
-        'platforms/antigravity/policy-enforcer.js',
-        'platforms/claude/policy-enforcer.js',
+        'platforms/shared/policy-enforcer.js',
         'platforms/antigravity/runtime-config.js',
         'platforms/claude/runtime-config.js',
         'platforms/codex/runtime-config.js',

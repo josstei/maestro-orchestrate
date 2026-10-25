@@ -11,10 +11,9 @@ const SRC_DIR = path.resolve(__dirname, '..', 'src');
 const PUBLIC_ROOTS = [
   'mcp/maestro-server.js',
   'platforms/shared/hook-runner.js',
+  'platforms/shared/policy-enforcer.js',
   'platforms/antigravity/runtime-config.js',
-  'platforms/antigravity/policy-enforcer.js',
   'platforms/claude/runtime-config.js',
-  'platforms/claude/policy-enforcer.js',
   'platforms/codex/runtime-config.js',
   'platforms/qwen/runtime-config.js',
   'scripts/ensure-workspace.js',

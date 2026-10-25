@@ -244,11 +244,11 @@ Hooks fire at session and agent boundaries to inject context and validate output
 
 Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
 
-- **Antigravity**: `src/platforms/antigravity/policy-enforcer.js`, run on `run_command` through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It answers `deny` for a deny rule, `force_ask` for an ask rule, and `ask` for any other command, which leaves the user's own permission settings in charge; it answers `deny` when the check cannot run
-- **Claude**: `src/platforms/claude/policy-enforcer.js`, run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
+- **Antigravity**: run on `run_command` through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It answers `deny` for a deny rule, `force_ask` for an ask rule, and `ask` for any other command, which leaves the user's own permission settings in charge; it answers `deny` when the check cannot run
+- **Claude**: run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
 - **Qwen**: the TOML policy pack `policies/maestro.toml`, rendered from those rules by `src/platforms/qwen/policy-pack.js` for the Qwen builder in `src/platforms/metadata.js`
 
-Both JavaScript enforcers run `checkCommand()` from `src/core/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with the bounded collector in `src/core/stdin-reader.js` and formats every decision; they differ only in where they read the command and what they name each decision.
+Both shims call `main('<runtime>')` in the shared enforcer `src/platforms/shared/policy-enforcer.js`. It reads stdin with the bounded collector in `src/core/stdin-reader.js`, runs `checkCommand()` from `src/core/policy-rules.js` (which splits compound commands and checks `$(...)` and backtick subshells), and formats every decision. The runtimes differ only in the `shellPolicy` their `src/platforms/<runtime>/hook-adapter.js` exports: the shell tool the hook matches, where the command is read, and what each decision is called.
 
 ### Hook State
 

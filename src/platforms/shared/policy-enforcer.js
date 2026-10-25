@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('node:path');
 const { checkCommand } = require('../../core/policy-rules');
 const { collectStdin } = require('../../core/stdin-reader');
 
@@ -42,4 +43,19 @@ function runPolicyEnforcer({ readCommand, decisions }) {
   });
 }
 
-module.exports = { runPolicyEnforcer };
+/**
+ * Run the shell-policy hook for the runtime whose generated policy-enforcer
+ * launcher calls this. The runtime's hook adapter exports the host facts as
+ * `shellPolicy: { tool, readCommand, decisions }`, where `tool` is the shell
+ * tool the hook is registered on (src/platforms/metadata.js).
+ *
+ * @param {string} runtime - runtime name, e.g. 'claude'
+ * @returns {Promise<void>}
+ */
+function main(runtime) {
+  // maestro-dependencies: hook-adapters
+  const { shellPolicy } = require(path.join(__dirname, '..', runtime, 'hook-adapter.js'));
+  return runPolicyEnforcer({ readCommand: shellPolicy.readCommand, decisions: shellPolicy.decisions });
+}
+
+module.exports = { runPolicyEnforcer, main };

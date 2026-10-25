@@ -96,7 +96,7 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 
 ## Policy Enforcement
 
-`src/platforms/claude/policy-enforcer.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. Its rules come from `src/core/policy-rules.js`, the same rules the Antigravity `run_command` enforcer applies and `policies/maestro.toml` applies for Qwen Code:
+`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/claude/hook-adapter.js` — JavaScript-based, triggered on Bash tool use. The hook runs it through the `claude/scripts/policy-enforcer.js` shim, which prefers the repo `src/` and falls back to the bundled `claude/src/`. Its rules come from `src/core/policy-rules.js`, the same rules the Antigravity `run_command` enforcer applies and `policies/maestro.toml` applies for Qwen Code:
 
 **Deny rules** (blocks command):
 - `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`

@@ -54,7 +54,7 @@ maestro-orchestrate/
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, Antigravity and Claude policy enforcers, Qwen policy-pack renderer, metadata.js builders
+│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters (with each host's shell-policy facts), shared hook and policy-enforcer runners, Qwen policy-pack renderer, metadata.js builders
 │   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
 ├── bin/                          # [generated] maestro-mcp-server.js (Codex npx entrypoint)

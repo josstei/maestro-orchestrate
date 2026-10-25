@@ -242,7 +242,7 @@ describe('antigravity plugin layout', () => {
     for (const [shim, bundledEntry] of [
       ['mcp/maestro-server.js', 'src/mcp/maestro-server.js'],
       ['hooks/hook-runner.js', 'src/platforms/shared/hook-runner.js'],
-      ['hooks/policy-enforcer.js', 'src/platforms/antigravity/policy-enforcer.js'],
+      ['hooks/policy-enforcer.js', 'src/platforms/shared/policy-enforcer.js'],
     ]) {
       const shimSource = fs.readFileSync(path.join(PLUGIN_DIR, shim), 'utf8');
       assert.ok(

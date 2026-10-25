@@ -7,7 +7,7 @@ const { buildPlatformMetadataOutputs } = require('../../src/platforms/metadata')
 const { buildPolicyPackToml } = require('../../src/platforms/qwen/policy-pack');
 const { DENY_RULES, ASK_RULES } = require('../../src/core/policy-rules');
 const HOOK_REGISTRY = require('../../src/generated/hook-registry.json');
-const { RUNTIME_NAMES } = require('../../src/platforms/runtime-config-map');
+const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { hookCommands } = require('../support/generated-files');
 
 const PACKAGE_FIXTURE = {
@@ -33,7 +33,11 @@ function outputsByPath(outputs) {
   ]));
 }
 
-const ALL_RUNTIMES = { antigravity: {}, claude: {}, codex: {}, qwen: {} };
+function runtimeConfigs(...names) {
+  return Object.fromEntries(names.map((name) => [name, getRuntimeConfig(name)]));
+}
+
+const ALL_RUNTIMES = runtimeConfigs('antigravity', 'claude', 'codex', 'qwen');
 
 // policies/maestro.toml holds patterns as TOML basic strings, so backslashes are doubled.
 function tomlEscaped(text) {
@@ -80,7 +84,7 @@ describe('platform metadata generation', () => {
   });
 
   it('generates only metadata for enabled runtimes', () => {
-    const outputs = buildPlatformMetadataOutputs({ codex: {} }, PACKAGE_FIXTURE);
+    const outputs = buildPlatformMetadataOutputs(runtimeConfigs('codex'), PACKAGE_FIXTURE);
 
     assert.deepEqual(
       outputs.map((output) => output.outputPath).sort(),
@@ -94,7 +98,7 @@ describe('platform metadata generation', () => {
   });
 
   it('makes the qwen runtime own the repo-root extension manifest and policy pack', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ qwen: {} }, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('qwen'), PACKAGE_FIXTURE));
 
     assert.deepEqual([...outputs.keys()].sort(), [
       'policies/maestro.toml',
@@ -110,7 +114,7 @@ describe('platform metadata generation', () => {
   });
 
   it('registers the qwen lifecycle hooks with millisecond timeouts', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ qwen: {} }, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('qwen'), PACKAGE_FIXTURE));
     const { hooks } = outputs.get('qwen/hooks.json');
 
     assert.deepEqual(Object.keys(hooks), ['SessionStart', 'SubagentStart', 'SubagentStop', 'SessionEnd']);
@@ -122,7 +126,7 @@ describe('platform metadata generation', () => {
   });
 
   it('makes the antigravity runtime own its plugin manifest, MCP config and hooks at the plugin root', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ antigravity: {} }, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('antigravity'), PACKAGE_FIXTURE));
 
     assert.deepEqual([...outputs.keys()].sort(), [
       'antigravity/hooks.json',
@@ -154,7 +158,7 @@ describe('platform metadata generation', () => {
   });
 
   it('registers the antigravity session-context and shell-policy hooks with second timeouts', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs({ antigravity: {} }, PACKAGE_FIXTURE));
+    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('antigravity'), PACKAGE_FIXTURE));
 
     assert.deepEqual(outputs.get('antigravity/hooks.json'), {
       'maestro-session': {
