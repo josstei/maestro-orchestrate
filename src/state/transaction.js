@@ -5,7 +5,9 @@ const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { ValidationError, StateError } = require('../lib/errors');
 const { isWithin, resolvePhysicalPath } = require('./paths');
-const { durableWrite, syncDirectory, recoveryError, ensurePrivateDirectory, assertPrivateMetadata } = require('./state-lock');
+const {
+  durableWrite, syncDirectory, recoveryError, ensurePrivateDirectory, assertPrivateMetadata, readPrivateJson,
+} = require('./state-lock');
 
 function contentDigest(content) {
   return createHash('sha256').update(content).digest('hex');
@@ -227,15 +229,8 @@ function publishTransaction(transaction, controlPath, metadata, result) {
 }
 
 function readJournal(controlPath) {
-  let current;
-  try {
-    assertPrivateMetadata(journalPath(controlPath), 'file');
-    current = JSON.parse(fs.readFileSync(journalPath(controlPath), 'utf8'));
-  }
-  catch (error) {
-    if (error.code === 'ENOENT') return null;
-    throw recoveryError('The state recovery journal cannot be read.');
-  }
+  const current = readPrivateJson(journalPath(controlPath), 'The state recovery journal cannot be read.');
+  if (current === undefined) return null;
   if (!current || current.version !== 1 || !/^[a-f0-9-]{36}$/.test(current.id) || !Number.isInteger(current.cursor) || current.cursor < 0) {
     throw recoveryError('The state recovery journal has an unsupported or invalid format.');
   }

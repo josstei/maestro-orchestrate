@@ -565,6 +565,16 @@ describe('state coordinator', () => {
     finally { fs.readFileSync = read; }
   });
 
+  it('fails closed for a null recovery journal instead of treating it as absent', async (t) => {
+    const base = workspace(t);
+    fs.mkdirSync(privatePath(base, ''), { recursive: true });
+    fs.writeFileSync(privatePath(base, 'current.json'), 'null');
+    await assert.rejects(withStateRead(base, () => assert.fail('must not read session')), {
+      code: 'STATE_RECOVERY_REQUIRED', message: 'The state recovery journal has an unsupported or invalid format.',
+    });
+    assert.equal(fs.readFileSync(privatePath(base, 'current.json'), 'utf8'), 'null');
+  });
+
   it('returns a stable optimistic snapshot and retries across a concurrent commit', async (t) => {
     const base = workspace(t);
     const active = path.join(base, 'state', 'active-session.md');

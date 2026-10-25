@@ -72,13 +72,17 @@ function ownerIsDead(owner) {
   }
 }
 
+function removeDirIfEmpty(directory) {
+  try { fs.rmdirSync(directory); }
+  catch (error) { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error; }
+}
+
 function removeOwnedLock(lockPath, ownerName) {
   try { fs.unlinkSync(path.join(lockPath, ownerName)); }
   catch (error) { if (error.code === 'ENOENT') return; throw error; }
   // Another owner may replace an empty directory between unlink and rmdir.
   // Its unique owner file makes rmdir fail; never recursively delete lockPath.
-  try { fs.rmdirSync(lockPath); }
-  catch (error) { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error; }
+  removeDirIfEmpty(lockPath);
 }
 
 function reclaimDeadLock(lockPath) {
@@ -89,23 +93,13 @@ function reclaimDeadLock(lockPath) {
     names = fs.readdirSync(lockPath);
   }
   catch (error) { if (error.code === 'ENOENT') return; throw error; }
-  if (names.length === 0) {
-    try { fs.rmdirSync(lockPath); }
-    catch (error) { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error; }
-    return;
-  }
+  if (names.length === 0) return removeDirIfEmpty(lockPath);
   if (names.length !== 1 || !OWNER_PATTERN.test(names[0])) {
     throw recoveryError('State lock ownership is malformed; inspect the private state lock before retrying.');
   }
-  let owner;
-  try {
-    assertPrivateMetadata(path.join(lockPath, names[0]), 'file');
-    owner = JSON.parse(fs.readFileSync(path.join(lockPath, names[0]), 'utf8'));
-  }
-  catch (error) {
-    if (error.code === 'ENOENT') return;
-    throw recoveryError('State lock ownership is unreadable; inspect the private state lock before retrying.');
-  }
+  const owner = readPrivateJson(path.join(lockPath, names[0]),
+    'State lock ownership is unreadable; inspect the private state lock before retrying.');
+  if (owner === undefined) return;
   if (!owner || typeof owner !== 'object' || owner.token !== names[0].slice(6, -5)) {
     throw recoveryError('State lock ownership token does not match its filename.');
   }
@@ -119,6 +113,18 @@ function assertPrivateMetadata(filename, kind) {
   }
 }
 
+// Returns undefined for an absent file, a value JSON.parse never produces.
+function readPrivateJson(filename, message) {
+  try {
+    assertPrivateMetadata(filename, 'file');
+    return JSON.parse(fs.readFileSync(filename, 'utf8'));
+  }
+  catch (error) {
+    if (error.code === 'ENOENT') return undefined;
+    throw recoveryError(message);
+  }
+}
+
 function ensurePrivateDirectory(directory) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   assertPrivateMetadata(directory, 'directory');
@@ -128,10 +134,11 @@ function cleanupDeadCandidates(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     if (!entry.isDirectory() || !/^[a-f0-9-]{36}$/.test(entry.name)) continue;
     const candidate = path.join(directory, entry.name);
+    // Any candidate that cannot be read or removed is skipped.
     try {
       const owner = JSON.parse(fs.readFileSync(path.join(candidate, `owner-${entry.name}.json`), 'utf8'));
       if (owner.token === entry.name && ownerIsDead(owner)) fs.rmSync(candidate, { recursive: true, force: true });
-    } catch (error) { if (error.code !== 'ENOENT') continue; }
+    } catch {}
   }
 }
 
@@ -196,6 +203,6 @@ async function acquireStateLock(controlPath, options) {
 }
 
 module.exports = {
-  assertPrivateMetadata, ensurePrivateDirectory, acquireStateLock, durableWrite, syncDirectory,
+  assertPrivateMetadata, ensurePrivateDirectory, readPrivateJson, acquireStateLock, durableWrite, syncDirectory,
   recoveryError, asRecoveryError, busyError, pollDelay,
 };
