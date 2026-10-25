@@ -76,7 +76,8 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
 
 /**
  * Read an agent definition and serve its methodology body with the shared
- * Output Contract (agents/shared/handoff-report.md) appended.
+ * Output Contract (agents/shared/handoff-report.md) appended. Agent names in
+ * the served body follow the runtime's agentNaming, as in served resources.
  *
  * Callers must pass a name from AGENT_NAMES; get_agent enforces this
  * before reading.
@@ -96,7 +97,11 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
     const { frontmatter, body } = parse(stripFeatureBlocks(served, features));
     return {
       agent: {
-        body: `${body}\n${outputContract}`,
+        body: replaceInContent(
+          `${body}\n${outputContract}`,
+          HYPHENATED_AGENT_NAMES,
+          runtimeConfig.agentNaming
+        ),
         tools: mapTools(frontmatter, runtimeConfig),
       },
     };
