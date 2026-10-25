@@ -107,8 +107,9 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
     );
     // Strip examples and feature blocks before splitting off the frontmatter,
     // so blank-line collapsing also applies across the frontmatter boundary.
-    const served = runtimeConfig.features?.exampleBlocks ? content : stripExamples(content);
-    const { frontmatter, body } = parse(stripFeatureBlocks(served, runtimeConfig.features || {}));
+    const features = runtimeConfig.features || {};
+    const served = features.exampleBlocks ? content : stripExamples(content);
+    const { frontmatter, body } = parse(stripFeatureBlocks(served, features));
     return {
       agent: {
         body: `${body}\n${outputContract}`,

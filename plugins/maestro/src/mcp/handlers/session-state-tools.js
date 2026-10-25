@@ -53,6 +53,8 @@ function startPhase(phase, now) {
  */
 function completePhase(phase, params, now) {
   const files = Object.fromEntries(HANDOFF_FILE_FIELDS.map((field) => [field, params[field] ?? []]));
+  // Summed, not some(): a non-array value passed through `?? []` makes the
+  // sum NaN, which counts as no files instead of throwing.
   const hasFiles =
     HANDOFF_FILE_FIELDS.map((field) => files[field].length).reduce((sum, length) => sum + length) > 0;
   const normalizedContext = normalizeDownstreamContext(params.downstream_context);

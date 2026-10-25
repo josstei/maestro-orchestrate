@@ -84,6 +84,10 @@ describe('stripExamples', () => {
     assert.equal(stripExamples(content), '---\nname: coder\n---\n\nMethodology body.\n');
   });
 
+  it('accepts trailing whitespace on the example tags, as the stub scanner does', () => {
+    assert.equal(stripExamples('before\n<example> \nbody\n</example>\t\nafter\n'), 'before\nafter\n');
+  });
+
   it('leaves an unclosed example in place instead of throwing', () => {
     const content = 'before\n<example>\nunclosed\n';
     assert.equal(stripExamples(content), content);

@@ -3,7 +3,7 @@
 const FEATURE_BLOCK_REGEX =
   /^[ \t]*<!-- @feature (\S+) -->\n([\s\S]*?)^[ \t]*<!-- @end-feature -->\n?/gm;
 
-const EXAMPLE_BLOCK_REGEX = /^[ \t]*<example>\n[\s\S]*?^[ \t]*<\/example>\n?/gm;
+const EXAMPLE_BLOCK_REGEX = /^[ \t]*<example>[ \t]*\n[\s\S]*?^[ \t]*<\/example>[ \t]*\n?/gm;
 
 const COLLAPSED_NEWLINE_REGEX = /\n{3,}/g;
 

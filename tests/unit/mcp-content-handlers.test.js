@@ -150,6 +150,22 @@ describe('get_agent handler', () => {
     assert.ok(!result.agents.coder.body.includes('Example block'));
   });
 
+  it('keeps example blocks for runtimes with exampleBlocks enabled', () => {
+    const root = makeTempDir('maestro-agent-examples-');
+    writeAgentFixture(
+      path.join(root, 'src'),
+      'coder',
+      ['---', 'name: coder', '---', '<example>', 'Example block', '</example>', '', 'Methodology body.'].join('\n')
+    );
+
+    const handler = createAgentHandler(getRuntimeConfig('claude'), path.join(root, 'src'));
+    const result = handler({ agents: ['coder'] });
+
+    assert.deepEqual(result.errors, {});
+    assert.ok(result.agents.coder.body.includes('<example>\nExample block\n</example>'));
+    assert.ok(result.agents.coder.body.includes('Methodology body.'));
+  });
+
   it('returns tool_name matching runtime agentNaming convention', () => {
     const root = makeTempDir('maestro-agent-toolname-');
     writeAgentFixture(
