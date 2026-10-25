@@ -28,14 +28,12 @@ function gatePath(basePath, sessionId) {
 }
 
 /**
- * @param {string} basePath
+ * @param {object} ctx - State transaction or withStateRead view
  * @param {string} sessionId
  * @returns {{ session_id: string, entered_at: string | null, approved_at: string | null, design_document_path: string | null } | null}
  */
-function readGate(basePath, sessionId, tx) {
-  const filePath = gatePath(basePath, sessionId);
-  if (!tx) return readJsonSafe(filePath);
-  try { return JSON.parse(tx.readFile(filePath, 'utf8')); } catch { return null; }
+function readGate(ctx, sessionId) {
+  try { return JSON.parse(ctx.readFile(gatePath(ctx.basePath, sessionId), 'utf8')); } catch { return null; }
 }
 
 function createGate(sessionId, enteredAt = null) {
@@ -48,14 +46,12 @@ function createGate(sessionId, enteredAt = null) {
 }
 
 /**
- * @param {string} basePath
+ * @param {object} tx - State transaction
  * @param {string} sessionId
  * @param {object} data
  */
-function writeGate(basePath, sessionId, data, tx) {
-  const filePath = gatePath(basePath, sessionId);
-  tx.mkdir(path.dirname(filePath), { recursive: true });
-  tx.writeFile(filePath, JSON.stringify(data, null, 2));
+function writeGate(tx, sessionId, data) {
+  tx.writeFile(gatePath(tx.basePath, sessionId), JSON.stringify(data, null, 2));
 }
 
 /**
@@ -117,16 +113,16 @@ function assertNoOrphanedApprovedGate(basePath, currentSessionId) {
  * approve-then-create flow, and any leftover gate from a prior workflow in the
  * same workspace is benign alongside the valid one.
  *
- * @param {string} basePath
+ * @param {object} tx - State transaction
  * @param {string} sessionId
  * @returns {ReturnType<typeof readGate>} the current session's gate, or null when none exists
  * @throws {ValidationError} DESIGN_GATE_SESSION_MISMATCH when an orphaned approved gate is detected
  * @throws {StateError} DESIGN_GATE_UNAPPROVED when the gate was entered but not approved
  */
-function readGateForCreateSession(basePath, sessionId, tx) {
-  const gate = readGate(basePath, sessionId, tx);
+function readGateForCreateSession(tx, sessionId) {
+  const gate = readGate(tx, sessionId);
   if (gate === null) {
-    assertNoOrphanedApprovedGate(basePath, sessionId);
+    assertNoOrphanedApprovedGate(tx.basePath, sessionId);
   }
 
   if (gate && gate.entered_at && !gate.approved_at) {
@@ -144,11 +140,11 @@ function readGateForCreateSession(basePath, sessionId, tx) {
  * the gate doesn't linger in state/ after the session is archived — otherwise
  * a future session reusing the same id would inherit a stale "already approved"
  * gate from the prior run.
- * @param {string} basePath
+ * @param {object} tx - State transaction
  * @param {string} sessionId
  */
-function removeDesignGate(basePath, sessionId, tx) {
-  const filePath = gatePath(basePath, sessionId);
+function removeDesignGate(tx, sessionId) {
+  const filePath = gatePath(tx.basePath, sessionId);
   if (tx.exists(filePath)) tx.unlink(filePath);
 }
 

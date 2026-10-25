@@ -109,7 +109,7 @@ async function writeStateFile(relativePath, content, workspace, { expectedSha256
   }
   return withStateMutation(stateRoot, { operation: 'write_state' }, (tx) => {
     if (expectedSha256 !== undefined) checkExpectedDigest(tx, filePath, expectedSha256);
-    tx.writeFile(filePath, content, { mode: 0o600 });
+    tx.writeFile(filePath, content);
   });
 }
 

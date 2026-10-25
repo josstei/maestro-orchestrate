@@ -9,54 +9,57 @@ const {
   WORKSPACE_SUBDIRS, resolveStateDirUnder, resolveStateDirPath, activeSessionFile,
 } = require('./paths');
 
-function readActiveSession(basePath, tx) {
-  const sessionPath = activeSessionFile(basePath);
-  const { data, body } = markdownState.parse(tx ? tx.readFile(sessionPath, 'utf8') : fs.readFileSync(sessionPath, 'utf8'));
-  return { basePath, state: data, body };
+/**
+ * Parse the active session file under `ctx.basePath`. `ctx` is either a
+ * withStateMutation transaction or the view withStateRead passes its reader.
+ * @param {object} ctx
+ * @returns {{ state: object, body: string }}
+ */
+function readActiveSession(ctx) {
+  const { data, body } = markdownState.parse(ctx.readFile(activeSessionFile(ctx.basePath), 'utf8'));
+  return { state: data, body };
 }
 
-function readActiveSessionOrNull(basePath, tx) {
-  if (!(tx ? tx.exists(activeSessionFile(basePath)) : fs.existsSync(activeSessionFile(basePath)))) {
-    return null;
-  }
-  return readActiveSession(basePath, tx);
+function readActiveSessionOrNull(ctx) {
+  return ctx.exists(activeSessionFile(ctx.basePath)) ? readActiveSession(ctx) : null;
 }
 
-function writeActiveSession(basePath, state, body, tx) {
-  const sessionPath = activeSessionFile(basePath);
+function writeActiveSession(tx, state, body) {
+  const sessionPath = activeSessionFile(tx.basePath);
   tx.writeFile(sessionPath, markdownState.serialize(state, body));
   return sessionPath;
 }
 
 /**
- * Read the active session, run `mutator(session, now)` against it (mutating
- * `session.state` in place), stamp `state.updated = now`, persist the state
- * with the original body, and return whatever the mutator returned. `now` is
- * one ISO timestamp per call, so a mutator can reuse it for other fields. A
- * throwing mutator leaves the session file untouched.
+ * Read the active session, fail with StateError when it is not `sessionId`
+ * (a falsy `sessionId` skips the check), run `mutator(session, now)` against
+ * it (mutating `session.state` in place), stamp `state.updated = now`, persist
+ * the state with the original body, and return whatever the mutator returned.
+ * `now` is one ISO timestamp per call, so a mutator can reuse it for other
+ * fields. A mismatch or a throwing mutator leaves the session file untouched.
  */
 function withSessionState(cwd, operation, sessionId, mutator) {
-  const basePath = resolveStateDirPath(cwd);
-  return withStateMutation(basePath, { operation, sessionId }, (tx) => {
-    const session = readActiveSession(basePath, tx);
+  return withStateMutation(resolveStateDirPath(cwd), { operation, sessionId }, (tx) => {
+    const session = readActiveSession(tx);
+    assertSessionMatch(session.state, sessionId);
     const now = new Date().toISOString();
     const result = mutator(session, now);
     session.state.updated = now;
-    writeActiveSession(basePath, session.state, session.body, tx);
+    writeActiveSession(tx, session.state, session.body);
     return result;
   });
 }
 
 /**
  * Move the active session file to `state/archive/<sessionId>.md`.
- * @param {string} basePath - Resolved state dir
+ * @param {object} tx - State transaction
  * @param {string} sessionId - Already validated by assertSessionId
  * @returns {string} the archive path
  */
-function archiveActiveSession(basePath, sessionId, tx) {
-  const archivePath = path.join(basePath, 'state', 'archive', `${sessionId}.md`);
+function archiveActiveSession(tx, sessionId) {
+  const archivePath = path.join(tx.basePath, 'state', 'archive', `${sessionId}.md`);
   tx.mkdir(path.dirname(archivePath), { recursive: true });
-  tx.rename(activeSessionFile(basePath), archivePath);
+  tx.rename(activeSessionFile(tx.basePath), archivePath);
   return archivePath;
 }
 
@@ -84,12 +87,20 @@ function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found
   return phase;
 }
 
+/**
+ * Create the state and plans trees under `stateDir`, resolved against `basePath`.
+ * @param {string} stateDir
+ * @param {string} basePath - Workspace root
+ * @returns {Promise<{ alreadyExisted: boolean }>} whether `<state_dir>/state` existed beforehand
+ */
 async function ensureWorkspace(stateDir, basePath) {
   const fullBase = resolveStateDirUnder(basePath, stateDir);
   if (fs.existsSync(fullBase) && fs.lstatSync(fullBase).isSymbolicLink()) {
     throw new Error('STATE_DIR must not be a symlink');
   }
-  return withStateMutation(fullBase, { operation: 'initialize_workspace' }, (tx) => {
+  // Checked before the state lock, which creates `state/.maestro`.
+  const alreadyExisted = fs.existsSync(path.join(fullBase, 'state'));
+  await withStateMutation(fullBase, { operation: 'initialize_workspace' }, (tx) => {
     tx.mkdir(fullBase, { recursive: true, mode: 0o700 });
     for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
       try {
@@ -115,6 +126,7 @@ async function ensureWorkspace(stateDir, basePath) {
       }
     } catch {}
   });
+  return { alreadyExisted };
 }
 
 module.exports = {

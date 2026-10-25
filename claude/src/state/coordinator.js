@@ -105,6 +105,12 @@ function revision(control) {
 async function withStateRead(basePath, reader, { timeoutMs = 5000 } = {}) {
   const { root, control } = controlDirectory(basePath);
   const currentPath = path.join(control, 'current.json');
+  // The reader gets the read members a transaction offers, over the live files.
+  const view = {
+    basePath: path.resolve(basePath),
+    exists: (filename) => fs.existsSync(filename),
+    readFile: (filename, encoding) => fs.readFileSync(filename, encoding),
+  };
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     if (journalExists(currentPath)) {
@@ -115,7 +121,7 @@ async function withStateRead(basePath, reader, { timeoutMs = 5000 } = {}) {
     if (!journalExists(currentPath)) {
       let value;
       let failure;
-      try { value = await reader(); } catch (error) { failure = error; }
+      try { value = await reader(view); } catch (error) { failure = error; }
       if (!journalExists(currentPath) && before === revision(control)) {
         if (failure) throw failure;
         return value;

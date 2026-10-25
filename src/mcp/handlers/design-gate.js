@@ -14,14 +14,13 @@ const { parseDocumentInput } = require('../contracts/document-input');
  */
 function handleEnterDesignGate(params, projectRoot) {
   assertSessionId(params.session_id);
-  const basePath = resolveStateDirPath(projectRoot);
-  return withStateMutation(basePath, { operation: 'enter_design_gate', sessionId: params.session_id }, (tx) => {
-    const existing = readGate(basePath, params.session_id, tx);
+  return withStateMutation(resolveStateDirPath(projectRoot), { operation: 'enter_design_gate', sessionId: params.session_id }, (tx) => {
+    const existing = readGate(tx, params.session_id);
     if (existing && existing.entered_at) {
       return { success: true, entered_at: existing.entered_at, already_entered: true };
     }
     const gate = createGate(params.session_id, new Date().toISOString());
-    writeGate(basePath, params.session_id, gate, tx);
+    writeGate(tx, params.session_id, gate);
     return { success: true, entered_at: gate.entered_at, already_entered: false };
   });
 }
@@ -41,16 +40,15 @@ function handleRecordDesignApproval(params, projectRoot) {
       'record_design_approval requires either design_document_path or both design_document_content and design_document_filename'
     );
   }
-  const basePath = resolveStateDirPath(projectRoot);
-  return withStateMutation(basePath, { operation: 'record_design_approval', sessionId: params.session_id }, (tx) => {
+  return withStateMutation(resolveStateDirPath(projectRoot), { operation: 'record_design_approval', sessionId: params.session_id }, (tx) => {
     const absDesignPath = materializeDocumentInput(document,
       (documentPath) => toWorkspacePath(projectRoot, documentPath), tx);
 
     const now = new Date().toISOString();
-    const gate = readGate(basePath, params.session_id, tx) || createGate(params.session_id, now);
+    const gate = readGate(tx, params.session_id) || createGate(params.session_id, now);
     gate.approved_at = now;
     gate.design_document_path = absDesignPath;
-    writeGate(basePath, params.session_id, gate, tx);
+    writeGate(tx, params.session_id, gate);
 
     return {
       success: true,
@@ -67,9 +65,8 @@ function handleRecordDesignApproval(params, projectRoot) {
  */
 function handleGetDesignGateStatus(params, projectRoot) {
   assertSessionId(params.session_id);
-  const basePath = resolveStateDirPath(projectRoot);
-  return withStateRead(basePath, () =>
-    readGate(basePath, params.session_id) || createGate(params.session_id)
+  return withStateRead(resolveStateDirPath(projectRoot), (view) =>
+    readGate(view, params.session_id) || createGate(params.session_id)
   );
 }
 

@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { readGate } = require('../../src/state/design-gate');
+const { withStateRead } = require('../../src/state/coordinator');
 const { makeTempDir, writeFile } = require('../support/fs');
 const { readSessionState } = require('../support/session-file');
 const { withEnv } = require('../support/env');
@@ -398,11 +399,13 @@ describe('design gate tools', () => {
 
   it('readGate reflects whether an entered-or-approved gate artifact exists for a session', async () => {
     const { workspace, server } = await initializedServer();
+    const readWorkspaceGate = (sessionId) =>
+      withStateRead(resolveStateDirPath(workspace), (view) => readGate(view, sessionId));
 
-    assert.equal(readGate(resolveStateDirPath(workspace), 'never-entered'), null);
+    assert.equal(await readWorkspaceGate('never-entered'), null);
 
     await server.callTool('enter_design_gate', { session_id: 'just-entered' }, workspace);
-    assert.notEqual(readGate(resolveStateDirPath(workspace), 'just-entered'), null);
+    assert.notEqual(await readWorkspaceGate('just-entered'), null);
 
     await server.callTool(
       'record_design_approval',
@@ -413,7 +416,7 @@ describe('design gate tools', () => {
       },
       workspace
     );
-    assert.notEqual(readGate(resolveStateDirPath(workspace), 'just-entered'), null);
+    assert.notEqual(await readWorkspaceGate('just-entered'), null);
   });
 
   it('create_session with mismatched session_id and an unapproved (entered-only) orphan gate does not fire the mismatch check', async () => {

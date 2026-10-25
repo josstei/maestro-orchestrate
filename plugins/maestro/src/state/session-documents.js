@@ -98,18 +98,18 @@ function materializeDocumentInput(document, fromPath, tx) {
 }
 
 /**
- * Move a session's documents that lie inside `<basePath>/plans/` into
- * `<basePath>/plans/archive/`. Creates the archive directory even when there
+ * Move a session's documents that lie inside `<state_dir>/plans/` into
+ * `<state_dir>/plans/archive/`. Creates the archive directory even when there
  * is nothing to move. Documents outside the plans directory or missing on disk
  * are left alone.
  *
  * @param {string} projectRoot
- * @param {string} basePath - Resolved state dir
  * @param {Array<string | null | undefined>} documentPaths - absolute or workspace-relative paths; falsy entries are skipped
+ * @param {object} tx
  * @returns {string[]} archive destinations of the moved documents, in input order
  */
-function archivePlansDocuments(projectRoot, basePath, documentPaths, tx) {
-  const plansDir = path.join(basePath, 'plans');
+function archivePlansDocuments(projectRoot, documentPaths, tx) {
+  const plansDir = plansDirPath(tx);
   const plansArchiveDir = path.join(plansDir, 'archive');
   tx.mkdir(plansArchiveDir, { recursive: true });
 

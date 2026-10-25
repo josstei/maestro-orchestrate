@@ -97,9 +97,8 @@ function phaseIdsWithStatus(phases, status) {
 function handleCreateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
-  const basePath = resolveStateDirPath(projectRoot);
-  return withStateMutation(basePath, { operation: 'create_session', sessionId: params.session_id }, (tx) => {
-    const gate = readGateForCreateSession(basePath, params.session_id, tx);
+  return withStateMutation(resolveStateDirPath(projectRoot), { operation: 'create_session', sessionId: params.session_id }, (tx) => {
+    const gate = readGateForCreateSession(tx, params.session_id);
 
     const phasesValidation = validatePhases(params.phases);
     if (!phasesValidation.valid) {
@@ -109,7 +108,7 @@ function handleCreateSession(params, projectRoot) {
       });
     }
 
-    const existing = readActiveSessionOrNull(basePath, tx);
+    const existing = readActiveSessionOrNull(tx);
     if (existing && existing.state.status === 'in_progress') {
       throw new StateError(
         `Active session '${existing.state.session_id}' already exists (status: in_progress). Archive it first with archive_session.`
@@ -178,10 +177,9 @@ function handleCreateSession(params, projectRoot) {
     }
 
     const sessionPath = writeActiveSession(
-      basePath,
+      tx,
       state,
-      `# ${params.task} Orchestration Log\n`,
-      tx
+      `# ${params.task} Orchestration Log\n`
     );
 
     return {
@@ -192,9 +190,8 @@ function handleCreateSession(params, projectRoot) {
 }
 
 function handleGetSessionStatus(_params, projectRoot) {
-  const basePath = resolveStateDirPath(projectRoot);
-  return withStateRead(basePath, () => {
-    const session = readActiveSessionOrNull(basePath);
+  return withStateRead(resolveStateDirPath(projectRoot), (view) => {
+    const session = readActiveSessionOrNull(view);
     if (!session) {
       return {
         exists: false,
@@ -246,8 +243,6 @@ function handleTransitionPhase(params, projectRoot) {
   }
 
   return withSessionState(projectRoot, 'transition_phase', params.session_id, ({ state }, now) => {
-    assertSessionMatch(state, params.session_id);
-
     const completedPhase = hasCompletedPhase
       ? findPhaseOrThrow(state.phases, params.completed_phase_id)
       : undefined;
@@ -318,9 +313,8 @@ function handleTransitionPhase(params, projectRoot) {
 
 function handleArchiveSession(params, projectRoot) {
   assertSessionId(params.session_id);
-  const basePath = resolveStateDirPath(projectRoot);
-  return withStateMutation(basePath, { operation: 'archive_session', sessionId: params.session_id }, (tx) => {
-    const { state, body } = readActiveSession(basePath, tx);
+  return withStateMutation(resolveStateDirPath(projectRoot), { operation: 'archive_session', sessionId: params.session_id }, (tx) => {
+    const { state, body } = readActiveSession(tx);
     const now = new Date().toISOString();
     assertSessionMatch(state, params.session_id, 'requested');
 
@@ -336,16 +330,16 @@ function handleArchiveSession(params, projectRoot) {
 
     state.status = 'completed';
     state.updated = now;
-    writeActiveSession(basePath, state, body, tx);
-    const archivePath = archiveActiveSession(basePath, params.session_id, tx);
+    writeActiveSession(tx, state, body);
+    const archivePath = archiveActiveSession(tx, params.session_id);
     const archivedFiles = [
       archivePath,
-      ...archivePlansDocuments(projectRoot, basePath, [
+      ...archivePlansDocuments(projectRoot, [
         state.design_document,
         state.implementation_plan,
       ], tx),
     ];
-    removeDesignGate(basePath, params.session_id, tx);
+    removeDesignGate(tx, params.session_id);
     return { success: true, archive_path: archivePath, archived_files: archivedFiles };
   });
 }
@@ -354,8 +348,6 @@ function handleUpdateSession(params, projectRoot) {
   assertSessionId(params.session_id);
 
   return withSessionState(projectRoot, 'update_session', params.session_id, ({ state }) => {
-    assertSessionMatch(state, params.session_id);
-
     const updatedFields = [];
 
     for (const field of UPDATABLE_SESSION_FIELDS) {

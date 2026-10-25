@@ -240,6 +240,33 @@ describe('session tool pack', () => {
     );
   });
 
+  for (const [tool, args] of [
+    ['transition_phase', { completed_phase_id: 1 }],
+    ['update_session', { execution_mode: 'sequential' }],
+    ['reconcile_phase', { phase_id: 1, files_created: ['src/foo.js'] }],
+  ]) {
+    it(`${tool} rejects another session's id and leaves the session file untouched`, async () => {
+      const { projectRoot, server } = await setup('maestro-mismatch-');
+      await server.callTool(
+        'create_session',
+        {
+          session_id: 'active-session',
+          task: 'Session mismatch test',
+          phases: [{ id: 1, name: 'Phase 1', agent: 'coder', parallel: false, blocked_by: [] }],
+        },
+        projectRoot
+      );
+      const before = fs.readFileSync(activeSessionPath(projectRoot), 'utf8');
+
+      const outcome = await server.callTool(tool, { session_id: 'other-session', ...args }, projectRoot);
+
+      assert.equal(outcome.ok, false);
+      assert.equal(outcome.code, 'STATE_ERROR');
+      assert.equal(outcome.error, "Session mismatch: active session is 'active-session', got 'other-session'");
+      assert.equal(fs.readFileSync(activeSessionPath(projectRoot), 'utf8'), before);
+    });
+  }
+
   it('archive_session blocks when a phase requires reconciliation', async () => {
     const { projectRoot, server } = await setup('maestro-archive-');
 

@@ -161,7 +161,7 @@ function assertPhaseRequest(params) {
 async function handleScanPhaseChanges(params, projectRoot) {
   assertPhaseRequest(params);
   const basePath = resolveStateDirPath(projectRoot);
-  const { state } = await withStateRead(basePath, () => readActiveSession(basePath));
+  const { state } = await withStateRead(basePath, readActiveSession);
   assertSessionMatch(state, params.session_id);
 
   const phase = findPhaseOrThrow(state.phases || [], params.phase_id);
@@ -214,8 +214,6 @@ function handleReconcilePhase(params, projectRoot) {
   }
 
   return withSessionState(projectRoot, 'reconcile_phase', params.session_id, ({ state }) => {
-    assertSessionMatch(state, params.session_id);
-
     const phase = findPhaseOrThrow(
       state.phases || [],
       params.phase_id,
