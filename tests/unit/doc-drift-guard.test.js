@@ -43,6 +43,19 @@ function markdownSection(surface, heading) {
   return end === -1 ? rest : rest.slice(0, end);
 }
 
+/**
+ * How the docs write a runtime-config value in a table cell: `—` when unset,
+ * `none` for an empty list, list items comma-separated, objects as JSON, and
+ * any other value as code unless it carries its own code spans.
+ */
+function docCell(value) {
+  if (value === undefined) return '—';
+  if (Array.isArray(value)) return value.length === 0 ? 'none' : value.map(docCell).join(', ');
+  const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  if (text === '') return "`''`";
+  return text.includes('`') ? text : `\`${text}\``;
+}
+
 test('doc-drift: agent-count claim phrase present in user-facing surfaces', () => {
   const canonicalCount = countMd('src/agents');
   const surfaces = [
@@ -211,56 +224,50 @@ test('doc-drift: Qwen extension layout documented as the repo root with agent st
   }
   const overview = read('docs/overview.md');
   assert.ok(/repo root\b[^\n.]{0,20}Qwen Code's extension directory/.test(overview), 'docs/overview.md: does not say the repo root is Qwen Code\'s extension directory');
-  const architecture = read('docs/architecture.md');
-  const table = markdownSection('docs/architecture.md', '### Runtime Definitions');
-  const cells = (row) => row.split('|').slice(1, -1).map((cell) => cell.trim());
-  const header = table.split('\n').find((line) => line.startsWith('| Field |'));
-  const outputDirRow = table.split('\n').find((line) => line.startsWith('| `outputDir` |'));
-  assert.ok(header && outputDirRow, 'docs/architecture.md Runtime Definitions: missing header or outputDir row');
-  const outputDirs = Object.fromEntries(cells(header).map((name, i) => [name.toLowerCase(), cells(outputDirRow)[i]]));
-  for (const runtime of RUNTIME_NAMES) {
-    const { outputDir } = getRuntimeConfig(runtime);
-    assert.ok(
-      outputDirs[runtime] && outputDirs[runtime].startsWith(`\`${outputDir}\``),
-      `docs/architecture.md: outputDir row should show \`${outputDir}\` for ${runtime}, got ${outputDirs[runtime]}`
-    );
-  }
-  for (const [surface, body] of [['docs/runtime-qwen.md', runtimeQwen], ['docs/architecture.md', architecture]]) {
-    assert.ok(!body.includes('qwen/agents'), `${surface}: still claims a qwen/agents directory (Qwen agent stubs live in agents/)`);
-  }
 });
 
-test('doc-drift: docs/usage.md MCP Quick Reference includes every session-pack tool', () => {
+test('doc-drift: docs/usage.md MCP Quick Reference includes every tool-pack tool', () => {
   const body = read('docs/usage.md');
-  const sessionTools = packToolNames('session');
-  assert.ok(sessionTools.length > 0, 'session tool pack declares no tools');
-  for (const tool of sessionTools) {
-    assert.ok(body.includes(`\`${tool}\``), `docs/usage.md Quick Reference missing \`${tool}\``);
+  for (const pack of listSubdirs('src/mcp/tool-packs')) {
+    const tools = packToolNames(pack);
+    assert.ok(tools.length > 0, `${pack} tool pack declares no tools`);
+    for (const tool of tools) {
+      assert.ok(body.includes(`\`${tool}\``), `docs/usage.md Quick Reference missing ${pack} tool \`${tool}\``);
+    }
   }
 });
 
-test('doc-drift: runtime-docs Feature Flags list exactly src/platforms/*/runtime-config.js features', () => {
-  for (const runtime of RUNTIME_NAMES) {
-    const surface = `docs/runtime-${runtime}.md`;
-    const section = read(surface).match(/## Feature Flags[\s\S]*?(?=\n## |\n# |$)/);
-    assert.ok(section, `${surface}: missing Feature Flags section`);
-    const block = section[0].match(/```\n([\s\S]*?)```/);
-    assert.ok(block, `${surface}: Feature Flags section has no code block`);
-    const features = getRuntimeConfig(runtime).features;
-    const documented = Object.fromEntries(
-      [...block[1].matchAll(/^[ \t]*(\w+):\s*(\S+)/gm)].map(([, flag, value]) => [
-        flag,
-        value === 'true' ? true : value === 'false' ? false : value,
-      ])
-    );
-    assert.deepEqual(
-      documented,
-      features,
-      `${surface}: Feature Flags must list exactly the runtime-config features with their values`
-    );
-    for (const [, flag] of section[0].matchAll(/(\w+):/g)) {
-      assert.ok(Object.hasOwn(features, flag), `${surface} Feature Flags: names unknown flag ${flag}`);
+test('doc-drift: docs/architecture.md Runtime Definitions rows match every runtime config', () => {
+  const surface = 'docs/architecture.md Runtime Definitions';
+  const cells = (line) => line.split('|').slice(1, -1).map((cell) => cell.trim());
+  const [header, , ...rows] = markdownSection('docs/architecture.md', '### Runtime Definitions')
+    .split('\n')
+    .filter((line) => line.startsWith('|'))
+    .map(cells);
+  assert.deepEqual(header.slice(1).map((name) => name.toLowerCase()), RUNTIME_NAMES, `${surface}: columns must be the runtimes`);
+  // Rows whose first cell is a backticked config path, e.g. `env.workspacePath`.
+  const fields = new Map(rows
+    .filter(([field]) => /^`[\w.]+`$/.test(field))
+    .map(([field, ...values]) => [field.slice(1, -1), values]));
+  for (const group of ['env', 'features', 'launchers']) {
+    for (const runtime of RUNTIME_NAMES) {
+      for (const key of Object.keys(getRuntimeConfig(runtime)[group])) {
+        assert.ok(fields.has(`${group}.${key}`), `${surface}: missing the \`${group}.${key}\` row`);
+      }
     }
+  }
+  for (const [field, values] of fields) {
+    const configured = RUNTIME_NAMES.map((runtime) => field.split('.')
+      .reduce((value, key) => value?.[key], getRuntimeConfig(runtime)));
+    assert.ok(configured.some((value) => value !== undefined), `${surface}: no runtime config sets \`${field}\``);
+    RUNTIME_NAMES.forEach((runtime, i) => {
+      // A cell may follow the value with a parenthesized note, as in `./` (repo root).
+      const expected = docCell(configured[i]);
+      assert.ok(
+        values[i] === expected || values[i].startsWith(`${expected} (`),
+        `${surface}: \`${field}\` for ${runtime} should be ${expected}, got ${values[i]}`
+      );
+    });
   }
 });
 
@@ -318,29 +325,28 @@ test('doc-drift: claude/README.md commands use runtime-remapped names', () => {
   }
 });
 
-test('doc-drift: docs/runtime-qwen.md tool mapping lists every Qwen runtime-config tool', () => {
-  const body = read('docs/runtime-qwen.md');
-  const qwenTools = Object.entries(getRuntimeConfig('qwen').tools);
-  assert.ok(qwenTools.length > 0, 'src/platforms/qwen/runtime-config.js declares no tool mappings');
-  for (const [canonical, qwen] of qwenTools) {
-    assert.ok(
-      body.includes(`| \`${canonical}\` | \`${qwen}\` |`),
-      `docs/runtime-qwen.md: mapping row missing: ${canonical} → ${qwen}`
-    );
-  }
-});
+/** The docs whose tool-mapping table lists each runtime's `tools` mapping. */
+const TOOL_MAPPING_SURFACES = {
+  antigravity: ['docs/runtime-antigravity.md'],
+  claude: ['docs/runtime-claude.md'],
+  codex: ['docs/runtime-codex.md'],
+  qwen: ['docs/runtime-qwen.md', 'QWEN.md'],
+};
 
-test('doc-drift: docs/runtime-antigravity.md tool mapping lists every Antigravity runtime-config tool', () => {
-  const body = read('docs/runtime-antigravity.md');
-  const antigravityTools = Object.entries(getRuntimeConfig('antigravity').tools);
-  assert.ok(antigravityTools.length > 0, 'src/platforms/antigravity/runtime-config.js declares no tool mappings');
-  for (const [canonical, antigravity] of antigravityTools) {
-    // [] means no Antigravity equivalent, documented as `none`.
-    const documented = Array.isArray(antigravity) && antigravity.length === 0 ? 'none' : `\`${antigravity}\``;
-    assert.ok(
-      body.includes(`| \`${canonical}\` | ${documented} |`),
-      `docs/runtime-antigravity.md: mapping row missing: ${canonical} → ${documented}`
-    );
+test('doc-drift: runtime tool-mapping tables list every runtime-config tool', () => {
+  assert.deepEqual(Object.keys(TOOL_MAPPING_SURFACES), RUNTIME_NAMES, 'TOOL_MAPPING_SURFACES must name every runtime');
+  for (const runtime of RUNTIME_NAMES) {
+    const tools = Object.entries(getRuntimeConfig(runtime).tools);
+    assert.ok(tools.length > 0, `src/platforms/${runtime}/runtime-config.js declares no tool mappings`);
+    for (const surface of TOOL_MAPPING_SURFACES[runtime]) {
+      const body = read(surface);
+      for (const [canonical, mapped] of tools) {
+        assert.ok(
+          body.includes(`| \`${canonical}\` | ${docCell(mapped)} |`),
+          `${surface}: mapping row missing: ${canonical} → ${docCell(mapped)}`
+        );
+      }
+    }
   }
 });
 
@@ -361,6 +367,20 @@ test('doc-drift: Antigravity surfaces name only generated public skills as /maes
   }
 });
 
+test('doc-drift: Codex runtime guide repeats the served guarded-write instruction verbatim', () => {
+  // The guide is the Codex state contract when MCP is unavailable, so its copy
+  // of the digest-guarded write instruction must not drift from the served one.
+  const guardedWrite = (surface) => read(surface).split('\n')
+    .find((line) => line.startsWith('Prefer MCP tools for state changes.'));
+  const served = guardedWrite('src/references/architecture.md');
+  assert.ok(served, 'src/references/architecture.md: missing the guarded-write instruction');
+  assert.equal(
+    guardedWrite('plugins/maestro/references/runtime-guide.md'),
+    served,
+    'plugins/maestro/references/runtime-guide.md: guarded-write instruction differs from src/references/architecture.md'
+  );
+});
+
 /**
  * Hand-maintained doc surfaces, including every served `.md` under `src/`.
  * CHANGELOG.md is intentionally excluded: released sections are history.
@@ -378,6 +398,7 @@ function handMaintainedDocSurfaces() {
     'claude/README.md',
     'antigravity/README.md',
     'plugins/maestro/README.md',
+    'plugins/maestro/references/runtime-guide.md',
     ...listDir('docs').filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`),
     ...listDir('.github/ISSUE_TEMPLATE').map((f) => `.github/ISSUE_TEMPLATE/${f}`),
     '.github/PULL_REQUEST_TEMPLATE.md',

@@ -30,18 +30,7 @@ Codex shares the same canonical `src/` source tree as the Antigravity, Claude Co
 
 ## Public skills
 
-- `orchestrate`
-- `execute`
-- `resume-session`
-- `status`
-- `archive`
-- `review-code`
-- `debug-workflow`
-- `security-audit`
-- `perf-check`
-- `seo-audit`
-- `a11y-audit`
-- `compliance-check`
+The runtime guide lists the [public skill surface](references/runtime-guide.md#public-skill-surface), invoked as `$maestro:<skill>`.
 
 ## Runtime notes
 

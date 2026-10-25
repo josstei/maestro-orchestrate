@@ -21,7 +21,7 @@ The repo root is Qwen Code's extension directory and the output directory (`./`)
 }
 ```
 
-The public server at `mcp/maestro-server.js` is a thin adapter. It requires canonical `src/mcp/maestro-server.js` directly and runs against shared source in `src/`. Content tools read from the filesystem only. The server identifies the Qwen runtime from the `clientInfo.name` Qwen Code sends in `initialize` (`qwen-cli-mcp-client-<server key>`, which is `qwen-cli-mcp-client-maestro` for this extension's `maestro` server); setting `MAESTRO_RUNTIME` overrides that.
+The launcher `mcp/maestro-server.js` requires the shared server directly (see [MCP Server Packaging](architecture.md#mcp-server-packaging)), which identifies Qwen Code by its `clientInfo.name`, `qwen-cli-mcp-client-<server key>` (`qwen-cli-mcp-client-maestro` for this extension's `maestro` server).
 
 ## Agent Naming
 
@@ -95,17 +95,9 @@ Output format: `{ continue?: false, decision?: "block"|"allow", reason?: string,
 
 ## Policies
 
-`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine. `src/platforms/qwen/policy-pack.js` renders the file for the Qwen builder in `src/platforms/metadata.js` from `src/core/policy-rules.js`, the same rules the Antigravity and Claude policy enforcers apply:
+`policies/maestro.toml` — TOML-based shell guardrails evaluated by Qwen's policy engine. `src/platforms/qwen/policy-pack.js` renders the file for the Qwen builder in `src/platforms/metadata.js` from the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
 
-**Deny (priority 950)**:
-- `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
-- `git reset --hard`, `git checkout --`
-- `git clean -fd`, `git clean -df`, `git clean -xfd`, `git clean -xdf`
-- Heredocs (`<<EOF`, `<< 'EOF'`, `<<-EOF`; not here-strings `<<<` or arithmetic shifts such as `1<<4`)
-
-**Ask User (priority 850)**:
-- `tee` commands
-- Output redirection (`>`, `>>`)
+Deny rules are `decision = "deny"` at priority 950, and ask rules `decision = "ask_user"` at priority 850.
 
 ## Tool Mapping
 
@@ -129,18 +121,6 @@ Qwen maps the canonical tool names to Qwen Code tools in `src/platforms/qwen/run
 | `enter_plan_mode` | `enter_plan_mode` |
 | `exit_plan_mode` | `exit_plan_mode` |
 | `codebase_investigator` | `codebase_investigator` |
-
-## Feature Flags
-
-The canonical feature set (same 3 flags across all runtimes, values per runtime):
-
-```
-exampleBlocks:             false
-scriptBasedStateContract:  true
-codexStateContract:        false
-```
-
-See `src/platforms/qwen/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 

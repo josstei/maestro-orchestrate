@@ -64,17 +64,26 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `agentPrefix` | — | `maestro:` | — | — |
 | `mcpPrefix` | `mcp_maestro_maestro_` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |
 | `mcpClientNames` | `antigravity-client` | `claude-code` | `codex-mcp-client` | `qwen-cli-mcp-client-*` |
-| `mcpToolMeta` | `{ "antigravity/alwaysLoad": true }` | — | — | — |
+| `mcpToolMeta` | `{"antigravity/alwaysLoad":true}` | — | — | — |
 | `planModeNative` | `false` | `true` | `false` | `false` |
 | `delegation.pattern` | `invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
 | `delegation.constraints.result_surface` | `notified` | `synchronous` | `deferred` | `synchronous` |
 | `env.extensionPath` | `PLUGIN_ROOT` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
 | `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `MAESTRO_WORKSPACE_PATH` |
-| `agentFrontmatter.fields` | name, description, subagent, mainAgent, model, tools | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
+| `agentFrontmatter.fields` | `name`, `description`, `subagent`, `mainAgent`, `model`, `tools` | `name`, `description`, `model`, `color`, `turns`, `tools` | — (no agent stubs) | `name`, `kind`, `description`, `turns`, `tools` |
 | `entrySurface` | `skill` | `skill` | `skill` | `command` (TOML commands) |
 | `entryAgentRefs` | `true` | — | `true` | — |
 | `skillStubFrontmatter` | `disable-slash-command: true` | `user-invocable: false` | — | — (no shared-skill stubs) |
 | `servedSkillFrontmatter` | — | `user-invocable: false` | — | — |
+| `features.exampleBlocks` | `false` | `true` | `false` | `false` |
+| `features.scriptBasedStateContract` | `true` | `true` | `false` | `true` |
+| `features.codexStateContract` | `false` | `false` | `true` | `false` |
+| `launchers.mcpServer` | `mcp/maestro-server.js` | `mcp/maestro-server.js` | — | `mcp/maestro-server.js` |
+| `launchers.hookRunner` | `hooks/hook-runner.js` | `scripts/hook-runner.js` | — | `hooks/hook-runner.js` |
+| `launchers.policyEnforcer` | `hooks/policy-enforcer.js` | `scripts/policy-enforcer.js` | — | — |
+| `launchers.npmBin` | — | — | `bin/maestro-mcp-server.js` (package root) | — |
+
+`features` flags select the `<!-- @feature <flag> -->` blocks in served content (`src/core/feature-blocks.js`), and `exampleBlocks` also keeps `<example>` blocks in agent descriptions. `launchers` paths are relative to `outputDir`.
 
 ### Entry-Point Registry
 
@@ -244,13 +253,25 @@ Hooks fire at session and agent boundaries to inject context and validate output
 
 ### Policy Enforcement
 
-Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
+Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.js`:
 
-- **Antigravity**: run on `run_command` through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It answers `deny` for a deny rule, `force_ask` for an ask rule, and `ask` for any other command, which leaves the user's own permission settings in charge; it answers `deny` when the check cannot run
+**Deny**:
+- `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
+- `git reset --hard`, `git checkout --`
+- `git clean -fd`, `git clean -df`, `git clean -xfd`, `git clean -xdf`
+- Heredocs (`<<EOF`, `<< 'EOF'`, `<<-EOF`; not here-strings `<<<` or arithmetic shifts such as `1<<4`)
+
+**Ask**:
+- `tee` commands
+- Output redirection written with surrounding whitespace (`cmd > file`, `cmd >> file`, `2> file`)
+
+Each runtime applies them its own way:
+
+- **Antigravity**: run on `run_command` through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback)
 - **Claude**: run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
 - **Qwen**: the TOML policy pack `policies/maestro.toml`, rendered from those rules by `src/platforms/qwen/policy-pack.js` for the Qwen builder in `src/platforms/metadata.js`
 
-Both shims call `main('<runtime>')` in the shared enforcer `src/platforms/shared/policy-enforcer.js`. It reads stdin with the bounded collector in `src/core/stdin-reader.js`, runs `checkCommand()` from `src/core/policy-rules.js` (which splits compound commands and checks `$(...)` and backtick subshells), and formats every decision. The runtimes differ only in the `shellPolicy` their `src/platforms/<runtime>/hook-adapter.js` exports: the shell tool the hook matches, where the command is read, and what each decision is called.
+Both shims call `main('<runtime>')` in the shared enforcer `src/platforms/shared/policy-enforcer.js`. It reads stdin with the bounded collector in `src/core/stdin-reader.js`, runs `checkCommand()` from `src/core/policy-rules.js` (which splits compound commands on `;`, `&&`, `||`, and `|` and checks `$(...)` and backtick subshells recursively), and formats every decision. The runtimes differ only in the `shellPolicy` their `src/platforms/<runtime>/hook-adapter.js` exports: the shell tool the hook matches, where the command is read, and what each decision is called. Each runtime's decisions and failure behavior are in [runtime-antigravity.md](runtime-antigravity.md#policies), [runtime-claude.md](runtime-claude.md#policies), and [runtime-qwen.md](runtime-qwen.md#policies).
 
 ### Hook State
 
