@@ -151,11 +151,7 @@ Defaults work; these settings tune behavior:
 | Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
 | Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
-For Claude Code and Codex, Maestro intentionally avoids bare skill names that collide with host commands. Use `/review-code`, `/debug-workflow`, and `/resume-session` in Claude Code, and `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` in Codex, so built-in `/review`, `/debug`, and `/resume` commands keep working.
-
-Antigravity has a built-in `/resume`, so it uses the same remapped names under its plugin namespace: `/maestro:review-code`, `/maestro:debug-workflow`, and `/maestro:resume-session`.
-
-Qwen Code does not remap any entry point; it keeps `/maestro:review`, `/maestro:debug`, and `/maestro:resume`.
+Antigravity, Claude Code, and Codex expose review, debug, and resume as `review-code`, `debug-workflow`, and `resume-session` so they do not shadow the host's built-in commands; Qwen Code keeps `review`, `debug`, and `resume` ([details](docs/usage.md#invoking-maestro)).
 
 ## Workflow
 

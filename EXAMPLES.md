@@ -1,6 +1,6 @@
 # Maestro Examples
 
-This guide is a scenario catalog for Maestro public entry points across Antigravity, Claude Code, Codex, and Qwen Code. Use the command form for the runtime you are running.
+This guide is a scenario catalog for Maestro public entry points across Antigravity, Claude Code, Codex, and Qwen Code. Use the command form for the runtime you are running; [docs/usage.md](docs/usage.md#invoking-maestro) lists every form.
 
 Canonical sources for this page:
 
@@ -9,25 +9,6 @@ Canonical sources for this page:
 - Quick-start task wording: `README.md`
 - Standalone entry-point behavior: `src/entry-points/registry.js`
 - Contributor commands: `package.json`, `justfile`, and `CONTRIBUTING.md`
-
-## Runtime Command Forms
-
-| Capability | Antigravity | Claude Code | Codex | Qwen Code |
-|------------|-------------|-------------|-------|-----------|
-| Full orchestration | `/maestro:orchestrate` | `/orchestrate` | `$maestro:orchestrate` | `/maestro:orchestrate` |
-| Execute plan | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
-| Session status | `/maestro:status` | `/status` | `$maestro:status` | `/maestro:status` |
-| Resume session | `/maestro:resume-session` | `/resume-session` | `$maestro:resume-session` | `/maestro:resume` |
-| Archive session | `/maestro:archive` | `/archive` | `$maestro:archive` | `/maestro:archive` |
-| Code review | `/maestro:review-code` | `/review-code` | `$maestro:review-code` | `/maestro:review` |
-| Debug workflow | `/maestro:debug-workflow` | `/debug-workflow` | `$maestro:debug-workflow` | `/maestro:debug` |
-| Security audit | `/maestro:security-audit` | `/security-audit` | `$maestro:security-audit` | `/maestro:security-audit` |
-| Performance check | `/maestro:perf-check` | `/perf-check` | `$maestro:perf-check` | `/maestro:perf-check` |
-| Accessibility audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
-| SEO audit | `/maestro:seo-audit` | `/seo-audit` | `$maestro:seo-audit` | `/maestro:seo-audit` |
-| Compliance check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
-
-Claude Code and Codex reserve `/review`, `/debug`, and `/resume` for host behavior, and Antigravity has a built-in `/resume`. Maestro remaps those public entry points to `review-code`, `debug-workflow`, and `resume-session` in those three runtimes.
 
 ## Full Feature Orchestration
 

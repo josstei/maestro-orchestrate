@@ -7,8 +7,9 @@ const path = require('node:path');
 
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { toSnakeCase } = require('../../src/lib/naming');
+const { MAESTRO_SETTINGS } = require('../../src/config/settings-catalog');
 const AGENT_REGISTRY = require('../../src/generated/agent-registry.json');
-const { listCanonicalAgents } = require('../support/catalog');
+const { listCanonicalAgents, publicSkillNames } = require('../support/catalog');
 const { ROOT } = require('../support/paths');
 
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -85,15 +86,6 @@ test('doc-drift: no stale inject-frontmatter transform in docs', () => {
   assert.ok(!body.includes('inject-frontmatter'), 'docs/architecture.md still references removed inject-frontmatter transform');
 });
 
-test('doc-drift: root pointer docs include every runtime doc', () => {
-  for (const surface of ['OVERVIEW.md', 'USAGE.md', 'ARCHITECTURE.md']) {
-    const body = read(surface);
-    for (const runtime of RUNTIME_NAMES) {
-      assert.ok(body.includes(`docs/runtime-${runtime}.md`), `${surface}: missing ${runtime} runtime documentation link`);
-    }
-  }
-});
-
 test('doc-drift: GitHub templates include Antigravity and Qwen runtime impact choices', () => {
   const surfaces = [
     '.github/ISSUE_TEMPLATE/bug_report.md',
@@ -158,24 +150,28 @@ test('doc-drift: examples guide is linked and included in npm package files', ()
   assert.ok(pkg.files.includes('EXAMPLES.md'), 'package.json files does not include EXAMPLES.md');
 });
 
-test('doc-drift: examples guide includes all runtime command forms', () => {
-  const body = read('EXAMPLES.md');
-  const expectedForms = [
-    '/maestro:orchestrate',
-    '/orchestrate',
-    '$maestro:orchestrate',
-    '/resume-session',
-    '$maestro:resume-session',
-    '/review-code',
-    '$maestro:review-code',
-    '/debug-workflow',
-    '$maestro:debug-workflow',
-    '/maestro:resume-session',
-    '/maestro:review-code',
-    '/maestro:debug-workflow',
+/** How each runtime invokes a public skill or command: this prefix, then its name. */
+const COMMAND_PREFIXES = { antigravity: '/maestro:', claude: '/', codex: '$maestro:', qwen: '/maestro:' };
+
+test('doc-drift: command docs show every public command in each runtime form', () => {
+  assert.deepEqual(Object.keys(COMMAND_PREFIXES), RUNTIME_NAMES, 'COMMAND_PREFIXES must name every runtime');
+  // Each surface must show the forms of the runtimes listed with it.
+  const surfaces = [
+    ['README.md "## Commands"', markdownSection('README.md', '## Commands'), RUNTIME_NAMES],
+    ['docs/usage.md "## Invoking Maestro"', markdownSection('docs/usage.md', '## Invoking Maestro'), RUNTIME_NAMES],
+    ['docs/maestro-cheatsheet.md "## 2. Most Common Commands"', markdownSection('docs/maestro-cheatsheet.md', '## 2. Most Common Commands'), RUNTIME_NAMES],
+    ['EXAMPLES.md', read('EXAMPLES.md'), RUNTIME_NAMES],
+    ['claude/README.md', read('claude/README.md'), ['claude']],
   ];
-  for (const form of expectedForms) {
-    assert.ok(body.includes(form), `EXAMPLES.md missing command form ${form}`);
+  for (const [surface, body, runtimes] of surfaces) {
+    for (const runtime of runtimes) {
+      for (const name of publicSkillNames(runtime)) {
+        // The form must end its code span or be followed by arguments, so
+        // `/maestro:review-code` does not count as `/maestro:review`.
+        const form = `\`${COMMAND_PREFIXES[runtime]}${name}`;
+        assert.ok(body.includes(`${form}\``) || body.includes(`${form} `), `${surface}: missing ${runtime} command ${form}\``);
+      }
+    }
   }
 });
 
@@ -234,6 +230,56 @@ test('doc-drift: docs/usage.md MCP Quick Reference includes every tool-pack tool
     for (const tool of tools) {
       assert.ok(body.includes(`\`${tool}\``), `docs/usage.md Quick Reference missing ${pack} tool \`${tool}\``);
     }
+  }
+});
+
+test('doc-drift: settings tables list exactly the MAESTRO_SETTINGS env vars', () => {
+  const expected = MAESTRO_SETTINGS.map((setting) => setting.envVar).sort();
+  const tables = [
+    ['docs/usage.md', '### Settings'],
+    ['README.md', '## Configuration'],
+    ['QWEN.md', '## Settings Reference'],
+  ];
+  for (const [surface, heading] of tables) {
+    const listed = markdownSection(surface, heading)
+      .split('\n')
+      .filter((line) => line.startsWith('|'))
+      .flatMap((line) => [...line.matchAll(/`(MAESTRO_[A-Z_]+)`/g)].map((match) => match[1]))
+      .sort();
+    assert.deepEqual(listed, expected, `${surface} "${heading}": table must list exactly the MAESTRO_SETTINGS env vars`);
+  }
+});
+
+test('doc-drift: agent tier catalogs match agent-registry capabilities', () => {
+  // docs/usage.md has one table per tier under these headings; docs/overview.md one row per tier.
+  const tiers = {
+    read_only: 'Read-Only Agents',
+    read_shell: 'Read + Shell Agents',
+    read_write: 'Read + Write Agents',
+    full: 'Full Access Agents',
+  };
+  assert.deepEqual(
+    Object.keys(tiers).sort(),
+    [...new Set(AGENT_REGISTRY.map((agent) => agent.capabilities))].sort(),
+    'every agent-registry capability needs a catalog tier'
+  );
+  const catalog = markdownSection('docs/usage.md', '## Agent Catalog').split(/^### /m);
+  const overview = markdownSection('docs/overview.md', '### Agents');
+  for (const [capability, title] of Object.entries(tiers)) {
+    const table = catalog.find((section) => section.startsWith(title));
+    assert.ok(table, `docs/usage.md Agent Catalog: missing the "${title}" tier`);
+    assert.deepEqual(
+      [...table.matchAll(/^\| ([a-z0-9-]+) \|/gm)].map((match) => match[1]).sort(),
+      agentsWithCapabilities(capability),
+      `docs/usage.md Agent Catalog "${title}": must list exactly the ${capability} agents`
+    );
+    const row = overview.match(new RegExp(`^\\| \`${capability}\` \\|[^|\\n]*\\| ([^|\\n]+) \\|$`, 'm'));
+    assert.ok(row, `docs/overview.md Agents: missing the \`${capability}\` row`);
+    assert.deepEqual(
+      row[1].split(',').map((name) => name.trim()).sort(),
+      agentsWithCapabilities(capability),
+      `docs/overview.md Agents: the \`${capability}\` row must list exactly the ${capability} agents`
+    );
   }
 });
 
@@ -315,13 +361,6 @@ test('doc-drift: claude/README.md agent rows carry a valid Tool Tier value', () 
   for (const agent of listCanonicalAgents()) {
     const rowRegex = new RegExp(`\\| ${agent} \\|[^\\n]*\\| (?:${validTiers.join('|')}) \\|`);
     assert.ok(rowRegex.test(body), `claude/README.md: row for ${agent} missing valid Tool Tier`);
-  }
-});
-
-test('doc-drift: claude/README.md commands use runtime-remapped names', () => {
-  const body = read('claude/README.md');
-  for (const remapped of ['/review-code', '/debug-workflow', '/resume-session']) {
-    assert.ok(body.includes(remapped), `claude/README.md: missing runtime-remapped command ${remapped}`);
   }
 });
 

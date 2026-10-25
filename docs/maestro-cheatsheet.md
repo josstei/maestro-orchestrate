@@ -28,61 +28,7 @@ This document summarizes the minimum commands and concepts for using Maestro acr
 | A11y audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
 | Compliance check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
-## 3. Minimal Usage Examples
-
-### Start a new task
-
-Antigravity:
-
-```text
-/maestro:orchestrate Build a REST API with authentication
-```
-
-Claude Code:
-
-```text
-/orchestrate Build a REST API with authentication
-```
-
-Codex CLI:
-
-```text
-$maestro:orchestrate Build a REST API with authentication
-```
-
-Qwen Code:
-
-```text
-/maestro:orchestrate Build a REST API with authentication
-```
-
-### Check the current session
-
-Antigravity:
-
-```text
-/maestro:status
-```
-
-Claude Code:
-
-```text
-/status
-```
-
-Codex CLI:
-
-```text
-$maestro:status
-```
-
-Qwen Code:
-
-```text
-/maestro:status
-```
-
-## 4. Workflow Mental Model
+## 3. Workflow Mental Model
 
 Maestro first classifies task complexity, then follows one of two modes:
 
@@ -113,7 +59,7 @@ Key gates:
 - `transition_phase`
 - code review blocks unresolved Critical / Major findings
 
-## 5. Session State Location
+## 4. Session State Location
 
 Maestro stores session state inside the workspace:
 
@@ -128,7 +74,7 @@ Common paths:
 - `docs/maestro/state/archive/`
 - `docs/maestro/plans/archive/`
 
-## 6. Runtime Differences at a Glance
+## 5. Runtime Differences at a Glance
 
 ### Antigravity
 
@@ -165,7 +111,7 @@ Common paths:
 - Agent naming: `snake_case`
 - Agent stubs (`agents/`), commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), MCP server shim (`mcp/maestro-server.js`), and hook runner (`hooks/hook-runner.js`) live at the repository root, Qwen Code's extension directory; `qwen/` holds only the generated `qwen/hooks.json`
 
-## 7. Hook Reference
+## 6. Hook Reference
 
 ### Antigravity
 
@@ -190,7 +136,7 @@ Common paths:
 - `SubagentStop`
 - `SessionEnd`
 
-## 8. Suggested Reading Order
+## 7. Suggested Reading Order
 
 If you want to go deeper:
 
