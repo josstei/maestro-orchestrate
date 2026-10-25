@@ -2,6 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const antigravity = require('../../src/platforms/antigravity/runtime-config');
@@ -10,6 +11,7 @@ const claude = require('../../src/platforms/claude/runtime-config');
 const qwen = require('../../src/platforms/qwen/runtime-config');
 const { EXTENSION_ROOT_ENV_VARS } = require('../../src/config/setting-resolver');
 const { WORKSPACE_ENV_VARS } = require('../../src/core/project-root-resolver');
+const { ROOT } = require('../support/paths');
 
 describe('runtime-config host bindings', () => {
   it('every runtime-config binds workspacePath to the env var its host provides', () => {
@@ -71,6 +73,23 @@ describe('runtime-config host bindings', () => {
         config.paths.hooks.endsWith(`${path.posix.dirname(config.launchers.hookRunner)}/`),
         `${config.name}: paths.hooks ${config.paths.hooks} vs launchers.hookRunner ${config.launchers.hookRunner}`
       );
+    }
+  });
+
+  it('every served path names a directory in its runtime generated output', () => {
+    // get_runtime_context serves paths under the host's extension-root
+    // variable (Codex's `.` makes them relative), which resolves to the
+    // installed copy of outputDir.
+    for (const config of [antigravity, claude, codex, qwen]) {
+      const root = config.env.extensionPath === '.' ? './' : `\${${config.env.extensionPath}}/`;
+      for (const [key, value] of Object.entries(config.paths)) {
+        assert.ok(value.startsWith(root), `${config.name}: paths.${key} ${value} is not under ${root}`);
+        const dir = path.join(ROOT, config.outputDir, value.slice(root.length));
+        assert.ok(
+          fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory(),
+          `${config.name}: paths.${key} ${value} names no directory in ${config.outputDir}`
+        );
+      }
     }
   });
 

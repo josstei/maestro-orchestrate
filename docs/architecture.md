@@ -78,12 +78,14 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `features.exampleBlocks` | `false` | `true` | `false` | `false` |
 | `features.scriptBasedStateContract` | `true` | `true` | `false` | `true` |
 | `features.codexStateContract` | `false` | `false` | `true` | `false` |
+| `paths.skills` | `${PLUGIN_ROOT}/skills/` | `${CLAUDE_PLUGIN_ROOT}/skills/` | `./skills/` | — |
+| `paths.hooks` | `${PLUGIN_ROOT}/hooks/` | `${CLAUDE_PLUGIN_ROOT}/scripts/` | — | `${extensionPath}/hooks/` |
 | `launchers.mcpServer` | `mcp/maestro-server.js` | `mcp/maestro-server.js` | — | `mcp/maestro-server.js` |
 | `launchers.hookRunner` | `hooks/hook-runner.js` | `scripts/hook-runner.js` | — | `hooks/hook-runner.js` |
 | `launchers.policyEnforcer` | `hooks/policy-enforcer.js` | `scripts/policy-enforcer.js` | — | — |
 | `launchers.npmBin` | — | — | `bin/maestro-mcp-server.js` (package root) | — |
 
-`features` flags select the `<!-- @feature <flag> -->` blocks in served content (`src/core/feature-blocks.js`), and `exampleBlocks` also keeps `<example>` blocks in agent descriptions. `launchers` paths are relative to `outputDir`, except `npmBin`, which is relative to the package root.
+`features` flags select the `<!-- @feature <flag> -->` blocks in served content (`src/core/feature-blocks.js`), and `exampleBlocks` also keeps `<example>` blocks in agent descriptions. `get_runtime_context` serves `paths` rooted at `env.extensionPath`, and each names a directory in the runtime's generated output. `launchers` paths are relative to `outputDir`, except `npmBin`, which is relative to the package root.
 
 ### Entry-Point Registry
 

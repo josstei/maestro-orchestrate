@@ -64,7 +64,6 @@ module.exports = {
   },
 
   paths: {
-    skills: '${extensionPath}/skills/',
     hooks: '${extensionPath}/hooks/',
   },
 

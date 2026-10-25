@@ -347,7 +347,7 @@ test('doc-drift: docs/architecture.md Runtime Definitions rows match every runti
   const fields = new Map(rows
     .filter(([field]) => /^`[\w.]+`$/.test(field))
     .map(([field, ...values]) => [field.slice(1, -1), values]));
-  for (const group of ['env', 'features', 'launchers']) {
+  for (const group of ['env', 'features', 'paths', 'launchers']) {
     for (const runtime of RUNTIME_NAMES) {
       for (const key of Object.keys(getRuntimeConfig(runtime)[group])) {
         assert.ok(fields.has(`${group}.${key}`), `${surface}: missing the \`${group}.${key}\` row`);
