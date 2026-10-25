@@ -17,11 +17,13 @@ function privateStatePathError() {
   return new ValidationError('The private Maestro state directory cannot be accessed as a state document.', { code: 'STATE_INTERNAL_PATH' });
 }
 
+function entryPath(filename) { return path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename)); }
+
 function assertPublicStatePath(basePath, filename, { followLeaf = true } = {}) {
   const base = resolvePhysicalPath(basePath);
   // Renaming or unlinking a symlink acts on the directory entry, not its
   // referent. Its parent must still resolve inside public managed state.
-  const entry = path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
+  const entry = entryPath(filename);
   const physical = followLeaf ? resolvePhysicalPath(filename) : entry;
   const control = path.join(base, 'state', '.maestro');
   if (isWithin(control, physical)) throw privateStatePathError();
@@ -86,7 +88,7 @@ function createTransaction(basePath, controlPath) {
   const tx = {
     basePath: path.resolve(basePath),
     exists(filename, seen = new Set()) {
-      const normalized = path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
+      const normalized = entryPath(filename);
       if (seen.has(normalized)) return false;
       seen.add(normalized);
       const entry = overlay.get(normalized);
@@ -109,7 +111,7 @@ function createTransaction(basePath, controlPath) {
       return fs.existsSync(source);
     },
     readFile(filename, encoding = null) {
-      const normalized = path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
+      const normalized = entryPath(filename);
       const entry = overlay.get(normalized) || overlay.get(resolvePhysicalPath(filename));
       if (entry && !entry.image) throw missing(filename);
       const source = entry?.source || physicalView(normalized);
@@ -163,7 +165,7 @@ function createTransaction(basePath, controlPath) {
       // copyFile follows a destination symlink and preserves source permissions;
       // ordinary atomic writes replace the leaf symlink and apply the umask.
       const normalized = target(resolvePhysicalPath(destination));
-      const normalizedSource = path.join(resolvePhysicalPath(path.dirname(source)), path.basename(source));
+      const normalizedSource = entryPath(source);
       const sourceEntry = overlay.get(normalizedSource) || overlay.get(resolvePhysicalPath(source));
       const sourceMode = sourceEntry?.image?.mode ?? (fs.statSync(sourceEntry?.source || physicalView(normalizedSource) || source).mode & 0o777);
       tx.writeFile(normalized, tx.readFile(source), { mode: sourceMode, exactMode: true });
@@ -282,13 +284,10 @@ function applyOperation(root, directory, operation) {
     const temporary = path.join(path.dirname(filename), `.${path.basename(filename)}.maestro-${path.basename(directory)}-${operation.stage}.tmp`);
     // The committed intent owns this unique sibling, including a partial file
     // left by a killed writer. Never prune unrelated temporary files.
-    if (same(actual, operation.after)) {
-      try { fs.unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-      return;
-    }
-    if (!same(actual, operation.before)) throw recoveryError('A state document changed during recovery.', { path: operation.path });
+    const applied = same(actual, operation.after);
+    if (!applied && !same(actual, operation.before)) throw recoveryError('A state document changed during recovery.', { path: operation.path });
     try { fs.unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    durableWrite(filename, staged, operation.after.mode, true, temporary);
+    if (!applied) durableWrite(filename, staged, operation.after.mode, true, temporary);
     return;
   }
   if (same(actual, operation.after)) return;
