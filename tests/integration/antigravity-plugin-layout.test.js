@@ -238,7 +238,7 @@ describe('antigravity plugin layout', () => {
     }
   });
 
-  it('keeps the public wrappers, each preferring the repo src/ over its bundled entry point', () => {
+  it('keeps the public wrappers, each naming its repo src/ and bundled entry points', () => {
     for (const [shim, entry] of [
       ['mcp/maestro-server.js', 'src/mcp/maestro-server.js'],
       ['hooks/hook-runner.js', 'src/platforms/shared/hook-runner.js'],

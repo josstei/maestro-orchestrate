@@ -42,8 +42,8 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
       await withMcpClient({
         cwd: workspace,
         relativePath: path.join(plugin, runtime === 'codex' ? 'src/mcp/maestro-server.js' : 'mcp/maestro-server.js'),
-        // As the hosts launch it: only Claude exports the plugin root, and no
-        // host sets MAESTRO_EXTENSION_PATH.
+        // Only Claude's host exports the plugin root, and the installed server
+        // must not need MAESTRO_EXTENSION_PATH to find its content.
         env: hermeticEnv(workspace, runtime === 'claude' ? { CLAUDE_PLUGIN_ROOT: plugin } : {}),
         clientInfo: HOST_CLIENTS[runtime],
         requestTimeoutMs: 5000,

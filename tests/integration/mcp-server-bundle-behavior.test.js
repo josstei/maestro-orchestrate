@@ -13,8 +13,8 @@ const { ROOT, withIsolatedAntigravityPlugin } = require('./helpers');
 const { withMcpClient } = require('./mcp-stdio-client');
 
 /**
- * The MCP server launcher each host runs from a repo checkout, where it
- * starts the repo's src/ server with no external SDK installed.
+ * Each host's MCP server launcher at its repo path, which starts the repo's
+ * src/ server with no external SDK installed.
  * `expectSkill` is text that host's delegation skill content must contain.
  * detached-payload.test.js covers the installed payloads' bundled src/.
  */
