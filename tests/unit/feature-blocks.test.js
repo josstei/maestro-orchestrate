@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { stripFeatureBlocks } = require('../../src/core/feature-blocks');
+const { stripExamples, stripFeatureBlocks } = require('../../src/core/feature-blocks');
 
 describe('stripFeatureBlocks', () => {
   it('keeps body content when flag is truthy', () => {
@@ -18,25 +18,11 @@ describe('stripFeatureBlocks', () => {
     assert.equal(result, 'before\nafter\n');
   });
 
-  it('throws on unknown flag in strict mode', () => {
+  it('throws on unknown flag', () => {
     const content = '<!-- @feature unknown -->\nbody\n<!-- @end-feature -->\n';
     assert.throws(
-      () => stripFeatureBlocks(content, {}, { mode: 'strict' }),
-      { message: 'Unknown feature flag: "unknown"' }
-    );
-  });
-
-  it('silently removes content for unknown flag in lenient mode', () => {
-    const content = 'before\n<!-- @feature unknown -->\nbody\n<!-- @end-feature -->\nafter\n';
-    const result = stripFeatureBlocks(content, {}, { mode: 'lenient' });
-    assert.equal(result, 'before\nafter\n');
-  });
-
-  it('defaults to strict mode when opts is omitted', () => {
-    const content = '<!-- @feature missing -->\nbody\n<!-- @end-feature -->\n';
-    assert.throws(
       () => stripFeatureBlocks(content, {}),
-      { message: 'Unknown feature flag: "missing"' }
+      { message: 'Unknown feature flag: "unknown"' }
     );
   });
 
@@ -75,19 +61,31 @@ describe('stripFeatureBlocks', () => {
     const result = stripFeatureBlocks(content, { anything: true });
     assert.equal(result, content);
   });
+});
 
-  it('strips all flags when features object is empty in lenient mode', () => {
+describe('stripExamples', () => {
+  it('removes every example block and collapses blank lines across the frontmatter boundary', () => {
     const content = [
-      '<!-- @feature a -->',
-      'a content',
-      '<!-- @end-feature -->',
-      '<!-- @feature b -->',
-      'b content',
-      '<!-- @end-feature -->',
+      '---',
+      'name: coder',
+      '---',
+      '<example>',
+      'first',
+      '</example>',
+      '',
+      '<example>',
+      'second',
+      '</example>',
+      '',
+      'Methodology body.',
       '',
     ].join('\n');
 
-    const result = stripFeatureBlocks(content, {}, { mode: 'lenient' });
-    assert.equal(result, '');
+    assert.equal(stripExamples(content), '---\nname: coder\n---\n\nMethodology body.\n');
+  });
+
+  it('leaves an unclosed example in place instead of throwing', () => {
+    const content = 'before\n<example>\nunclosed\n';
+    assert.equal(stripExamples(content), content);
   });
 });

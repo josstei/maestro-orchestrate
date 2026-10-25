@@ -115,6 +115,19 @@ describe('FileWriter write', () => {
     assert.equal(stats.unchanged, 0);
   });
 
+  it('creates a new empty file and leaves an existing empty file unchanged', () => {
+    fs.writeFileSync(path.join(tempRoot, 'both-empty.txt'), '', 'utf8');
+
+    const writer = createFileWriter({ rootDir: tempRoot });
+    writer.write('empty.txt', '');
+    writer.write('both-empty.txt', '');
+
+    assert.equal(fs.readFileSync(path.join(tempRoot, 'empty.txt'), 'utf8'), '');
+    const stats = writer.getStats();
+    assert.equal(stats.written, 1);
+    assert.equal(stats.unchanged, 1);
+  });
+
   it('tracks errors when path traversal is detected', () => {
     const writer = createFileWriter({ rootDir: tempRoot });
     writer.write('../../../etc/passwd', 'malicious');

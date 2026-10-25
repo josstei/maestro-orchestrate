@@ -2,8 +2,7 @@
 
 /**
  * Frontmatter parsing (boundary splitting, key-value parsing, scalar
- * coercion) and YAML escaping shared by the
- * generator, transforms, and MCP content tools.
+ * coercion) shared by the generator, transforms, and MCP content tools.
  *
  * @module lib/frontmatter
  */
@@ -126,22 +125,7 @@ function parse(content) {
   return { frontmatter: parseLines(raw.split('\n')), body };
 }
 
-/**
- * Escape special characters in a YAML string value.
- *
- * Escapes backslashes and double quotes for safe embedding inside a
- * double-quoted YAML scalar. Non-string inputs are coerced via String().
- *
- * @param {string} value - Value to escape.
- * @returns {string} Escaped value safe for double-quoted YAML context.
- */
-function escapeYaml(value) {
-  if (typeof value !== 'string') return String(value);
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
 module.exports = {
   parse,
-  escapeYaml,
   splitAtBoundary,
 };

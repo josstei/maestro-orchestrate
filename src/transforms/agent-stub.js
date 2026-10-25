@@ -1,8 +1,8 @@
 'use strict';
 
 const { toNamingConvention } = require('../lib/naming');
-const { parse, escapeYaml } = require('../lib/frontmatter');
-const { emitBlockList } = require('../lib/yaml-emit');
+const { parse } = require('../lib/frontmatter');
+const { emitBlockList, escapeYaml } = require('../lib/yaml-emit');
 const { mapTools } = require('../core/agent-tools');
 
 /**

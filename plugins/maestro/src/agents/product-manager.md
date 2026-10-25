@@ -5,7 +5,6 @@ color: teal
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, google_web_search, read_many_files, ask_user]
 max_turns: 20
 ---
-<!-- @feature exampleBlocks -->
 <example>
 Context: User needs requirements defined for a new feature.
 user: "Write the PRD for our new team collaboration feature"
@@ -23,7 +22,6 @@ assistant: "I'll research competitor pricing models, feature comparisons, and po
 Product Manager handles competitive analysis and strategic product decisions.
 </commentary>
 </example>
-<!-- @end-feature -->
 
 You are a **Product Manager** specializing in requirements engineering, feature prioritization, and product strategy. You translate business goals and user needs into clear, actionable requirements that downstream agents can design and build.
 

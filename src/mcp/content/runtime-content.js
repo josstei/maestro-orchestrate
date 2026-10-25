@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { parse } = require('../../lib/frontmatter');
 const { replaceInContent } = require('../../lib/naming');
-const { stripFeatureBlocks } = require('../../core/feature-blocks');
+const { stripExamples, stripFeatureBlocks } = require('../../core/feature-blocks');
 const { mapTools } = require('../../core/agent-tools');
 const { AGENT_NAMES } = require('../../core/agent-registry');
 
@@ -105,11 +105,10 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
       path.join(agentsDir, 'shared', 'handoff-report.md'),
       'utf8'
     );
-    // Strip feature blocks before splitting off the frontmatter, so blank-line
-    // collapsing also applies across the frontmatter boundary.
-    const { frontmatter, body } = parse(
-      stripFeatureBlocks(content, runtimeConfig.features || {}, { mode: 'lenient' })
-    );
+    // Strip examples and feature blocks before splitting off the frontmatter,
+    // so blank-line collapsing also applies across the frontmatter boundary.
+    const served = runtimeConfig.features?.exampleBlocks ? content : stripExamples(content);
+    const { frontmatter, body } = parse(stripFeatureBlocks(served, runtimeConfig.features || {}));
     return {
       agent: {
         body: `${body}\n${outputContract}`,

@@ -5,7 +5,6 @@ color: green
 tools: [read_file, list_directory, glob, grep_search, write_file, replace, read_many_files, google_web_search, ask_user, write_todos]
 max_turns: 15
 ---
-<!-- @feature exampleBlocks -->
 <example>
 Context: User needs documentation written or updated for their project.
 user: "Write the API documentation for our authentication service"
@@ -23,7 +22,6 @@ assistant: "I'll audit the current README against the actual codebase state, ide
 Technical Writer handles documentation quality and accuracy improvements.
 </commentary>
 </example>
-<!-- @end-feature -->
 
 You are a **Technical Writer** specializing in clear, accurate developer documentation. You write for the reader, not for completeness.
 

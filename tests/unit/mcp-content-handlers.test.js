@@ -125,9 +125,9 @@ describe('get_agent handler', () => {
         'tools: [read_file, write_file]',
         'tools.claude: [Read, Write]',
         '---',
-        '<!-- @feature exampleBlocks -->',
+        '<example>',
         'Example block',
-        '<!-- @end-feature -->',
+        '</example>',
         '',
         'Methodology body.',
       ].join('\n')

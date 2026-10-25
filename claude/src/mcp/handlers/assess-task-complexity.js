@@ -3,8 +3,50 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { CONFIG_FILES, SKIP_DIRS, FRAMEWORK_INDICATORS } = require('../../lib/framework-detection');
 const { readJsonSafe } = require('../../lib/io');
+
+const CONFIG_FILES = [
+  '.eslintrc',
+  '.prettierrc',
+  'tsconfig.json',
+  'webpack.config.js',
+  'vite.config.js',
+  'next.config.js',
+  '.env',
+  'docker-compose.yml',
+  'Dockerfile',
+  'Makefile',
+];
+
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  '__pycache__',
+  'venv',
+  '.venv',
+  'target',
+  'vendor',
+  '.cache',
+  '.output',
+  'coverage',
+  '.nyc_output',
+  '.pytest_cache',
+]);
+
+const FRAMEWORK_INDICATORS = {
+  react: ['react', 'react-dom'],
+  vue: ['vue'],
+  angular: ['@angular/core'],
+  next: ['next'],
+  express: ['express'],
+  fastify: ['fastify'],
+  django: ['django'],
+  flask: ['flask'],
+  rails: ['rails'],
+};
 
 // First band whose `max` is >= the file count wins.
 const SIZE_BANDS = [
