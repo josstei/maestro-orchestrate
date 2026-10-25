@@ -32,12 +32,14 @@ function readFixtureResource(id, content, runtimeConfig) {
 }
 
 describe('resource registry', () => {
-  it('serves all 14 registered resources', () => {
+  it('serves all 14 registered resources to every runtime', () => {
     assert.equal(Object.keys(RESOURCE_REGISTRY).length, 14);
-    for (const id of Object.keys(RESOURCE_REGISTRY)) {
-      const result = readResourceFromFilesystem(id, getRuntimeConfig('codex'), SRC_ROOT);
-      assert.equal(result.error, undefined, id);
-      assert.equal(typeof result.content, 'string', id);
+    for (const runtimeName of RUNTIME_NAMES) {
+      for (const id of Object.keys(RESOURCE_REGISTRY)) {
+        const result = readResourceFromFilesystem(id, getRuntimeConfig(runtimeName), SRC_ROOT);
+        assert.equal(result.error, undefined, `${runtimeName}: ${id}`);
+        assert.equal(typeof result.content, 'string', `${runtimeName}: ${id}`);
+      }
     }
   });
 });
@@ -64,6 +66,33 @@ describe('served resource paths', () => {
         [],
         `${relativePath} uses a placeholder resource reads do not substitute`
       );
+    }
+  });
+});
+
+describe('served agent names', () => {
+  const hyphenatedAgentNames = AGENT_NAMES.filter((name) => name.includes('-'));
+
+  it('name no hyphenated agent in any resource served to qwen', () => {
+    const runtimeConfig = getRuntimeConfig('qwen');
+    for (const id of Object.keys(RESOURCE_REGISTRY)) {
+      const { content, error } = readResourceFromFilesystem(id, runtimeConfig, SRC_ROOT);
+      assert.equal(error, undefined, id);
+      for (const name of hyphenatedAgentNames) {
+        assert.ok(!new RegExp(`\\b${name}\\b`).test(content), `${id}: serves "${name}" to qwen`);
+      }
+    }
+  });
+
+  it('keep kebab-case agent names for kebab-case runtimes', () => {
+    for (const name of ['antigravity', 'claude', 'codex']) {
+      const { content } = readResourceFromFilesystem(
+        'implementation-planning',
+        getRuntimeConfig(name),
+        SRC_ROOT
+      );
+      assert.ok(content.includes('| API contracts, endpoints | `api-designer` | `coder` |'), name);
+      assert.ok(!content.includes('api_designer'), name);
     }
   });
 });

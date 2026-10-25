@@ -44,25 +44,9 @@ function applySkillMetadata(content, runtimeConfig, resourcePath) {
   );
 }
 
-const AGENT_NAME_RESOURCES = new Set([
-  'references/architecture.md',
-  'skills/shared/delegation/SKILL.md',
-  'skills/shared/execution/SKILL.md',
-  'skills/shared/validation/SKILL.md',
-  'skills/shared/code-review/SKILL.md',
-]);
-
 function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
-  let result = content;
-
-  if (resourcePath === 'references/architecture.md') {
-    result = stripFeatureBlocks(result, runtimeConfig.features || {});
-  }
-
-  if (AGENT_NAME_RESOURCES.has(resourcePath)) {
-    result = replaceInContent(result, HYPHENATED_AGENT_NAMES, runtimeConfig.agentNaming);
-  }
-
+  let result = stripFeatureBlocks(content, runtimeConfig.features || {});
+  result = replaceInContent(result, HYPHENATED_AGENT_NAMES, runtimeConfig.agentNaming);
   result = applyReplacePaths(result, runtimeConfig);
   result = applySkillMetadata(result, runtimeConfig, resourcePath);
 
