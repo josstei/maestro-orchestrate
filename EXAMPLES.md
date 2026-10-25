@@ -8,7 +8,7 @@ Canonical sources for this page:
 - Orchestration behavior: `src/references/orchestration-steps.md` and `docs/flow.md`
 - Quick-start task wording: `README.md`
 - Standalone entry-point behavior: `src/entry-points/registry.js`
-- Contributor commands: `package.json`, `justfile`, and `docs/usage.md`
+- Contributor commands: `package.json`, `justfile`, and `CONTRIBUTING.md`
 
 ## Runtime Command Forms
 
@@ -224,7 +224,7 @@ just check
 
 Expected outcome: generated runtime surfaces match canonical `src/` output with no drift.
 
-Source: `docs/usage.md`, `justfile`
+Source: `CONTRIBUTING.md`, `justfile`
 
 ### Run Tests
 
@@ -238,7 +238,7 @@ For the local CI equivalent:
 just ci
 ```
 
-Expected outcome: generator drift, layer boundaries, and the Node test suite pass before committing.
+Expected outcome: generator drift, the Node test suite (including layer boundaries), and the npm package and release archive checks pass before committing.
 
 Source: `justfile`, `package.json`
 

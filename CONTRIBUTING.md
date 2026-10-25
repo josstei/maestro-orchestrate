@@ -30,24 +30,24 @@ The hooks are best-effort — CI re-validates everything on PR submission and on
 
 All commands are available via `just`:
 
-| Command | Description |
-|---------|-------------|
-| `just generate` | Generate all runtime files from `src/` |
-| `just test` | Run all tests (unit + transform + integration) |
-| `just test-unit` | Run only unit tests |
-| `just test-transforms` | Run only transform unit tests |
-| `just test-integration` | Run only integration tests |
-| `just check` | Verify zero drift without writing (`node scripts/generate.js --check`) |
-| `just check-layers` | Parse the production graph; verify layer boundaries, dependency containment, and absence of cycles |
-| `just pack-verify` | Verify the npm package contents |
-| `just release-verify` | Package the release archive and verify its contents |
-| `just ci` | Full CI equivalent: check + test + pack-verify + release-verify |
-| `just dry-run` | Preview changes without writing |
-| `just diff` | Show unified diff of pending changes |
-| `just clean` | Delete the generated agent and shared-skill stubs, then regenerate |
-| `just cleanup-branches` | Delete local branches whose remote is gone |
+| Command | Description | CI equivalent |
+|---------|-------------|---------------|
+| `just generate` | Generate all runtime files from `src/` | Regenerates after a version bump in Prepare Release and the prerelease publish steps |
+| `just test` | Run all tests (unit + transform + integration) | `npm test` in all 6 source-of-truth workflows |
+| `just test-unit` | Run only unit tests | — |
+| `just test-transforms` | Run only transform unit tests | — |
+| `just test-integration` | Run only integration tests | — |
+| `just check` | Verify zero drift without writing (`node scripts/generate.js --check`) | All 6 source-of-truth workflows |
+| `just check-layers` | Parse the production graph; verify layer boundaries, dependency containment, and absence of cycles | Covered by `npm test`, which runs `scripts/check-layer-boundaries.js` against the repository's `src/` |
+| `just pack-verify` | Verify the npm package contents | Source Of Truth Check, Release, and every prerelease publish |
+| `just release-verify` | Package the release archive and verify its contents | Source Of Truth Check and Release |
+| `just ci` | Full CI equivalent: check + test + pack-verify + release-verify | The `source-of-truth-check` job after `npm ci` |
+| `just dry-run` | Preview changes without writing | — |
+| `just diff` | Show unified diff of pending changes | — |
+| `just clean` | Delete the generated agent and shared-skill stubs, then regenerate | — |
+| `just cleanup-branches` | Delete local branches whose remote is gone | — |
 
-npm equivalents: `npm run generate` or `npm run build` for `just generate`, and `npm test` for `just test`.
+npm equivalents: `npm run generate` or `npm run build` for `just generate`, and `npm test` for `just test`. [docs/cicd.md](docs/cicd.md) describes each workflow.
 
 ## Architecture: Canonical Source and Generated Runtimes
 

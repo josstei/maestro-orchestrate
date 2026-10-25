@@ -102,7 +102,7 @@ maestro-orchestrate/
     └── hooks.json                # Qwen hook registration
 ```
 
-`[generated]` marks generator output; a tag on a directory covers everything in it. Runtime READMEs, the Codex runtime guide, and `QWEN.md` are maintained by hand; [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) has the full list.
+`[generated]` marks generator output; a tag on a directory covers everything in it. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ## Core Concepts
 
@@ -143,15 +143,4 @@ The generator (`scripts/generate.js`) turns canonical source into runtime-specif
 
 ### State Management
 
-Session state lives in `docs/maestro/` (configurable via `MAESTRO_STATE_DIR`):
-
-```
-docs/maestro/
-├── state/
-│   ├── active-session.md          # Current session (frontmatter + log)
-│   └── archive/                   # Completed sessions
-└── plans/
-    ├── *-design.md                # Design documents
-    ├── *-impl-plan.md             # Implementation plans
-    └── archive/                   # Archived plans
-```
+Session state lives in `docs/maestro/` (configurable via `MAESTRO_STATE_DIR`). [State Directory Structure](usage.md#state-directory-structure) shows its layout.

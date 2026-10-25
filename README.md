@@ -177,7 +177,7 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [EXAMPLES.md](EXAMPLES.md) for copyable usage scenarios across all runtimes
 - [docs/overview.md](docs/overview.md) for the project model and generated structure
 - [docs/architecture.md](docs/architecture.md) for orchestration internals and architecture layout
-- [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces
+- [docs/usage.md](docs/usage.md) for settings, command surfaces, state layout, agents, and MCP tools
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
 - [docs/maestro-cheatsheet.md](docs/maestro-cheatsheet.md) for a one-page command and runtime quick reference
 - [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
@@ -188,12 +188,11 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 
 ## Development and Release Validation
 
-Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, detached `src/` payloads, and public MCP-server, hook-runner, and policy-enforcer wrappers; update `src/` first, then regenerate. Runtime READMEs, the Codex runtime guide, and `QWEN.md` are maintained by hand ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
+Canonical source lives under `src/`; update it first, then regenerate. [CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand, and its [Key Commands](CONTRIBUTING.md#key-commands) table lists the development commands. The Source Of Truth Check job runs:
 
 ```bash
 npm ci
-node scripts/generate.js
-git diff --exit-code --name-only
+node scripts/generate.js --check
 npm test
 npm run pack:verify
 npm run release:artifacts

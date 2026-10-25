@@ -1,6 +1,6 @@
 # Maestro for Antigravity
 
-This directory is the Maestro plugin for Google Antigravity: the Antigravity CLI (`agy`) and the Antigravity app, which share one plugin format. It is generated from the repository's canonical `src/` tree, except for this README and the shims in `mcp/` and `hooks/`.
+This directory is the Maestro plugin for Google Antigravity: the Antigravity CLI (`agy`) and the Antigravity app, which share one plugin format. It is generated from the repository's canonical `src/` tree, except for this README.
 
 ## Installation
 

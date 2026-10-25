@@ -1,61 +1,6 @@
 # Maestro Usage
 
-For detailed CI/CD pipeline documentation including workflow diagrams, the release process, and npm publishing strategy, see [docs/cicd.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md).
-
-## Development Commands
-
-```bash
-# Regenerate runtime files from source (same as npm run generate, npm run build, or just generate)
-node scripts/generate.js
-
-# Preview what the generator would change, without writing (just dry-run)
-node scripts/generate.js --dry-run
-
-# Show a unified diff of pending generator changes (just diff)
-node scripts/generate.js --diff
-
-# List only pending generator changes, and exit 1 if there are any
-node scripts/generate.js --check
-
-# Delete the generated agent and shared-skill stubs, then regenerate (just clean)
-node scripts/generate.js --clean
-
-# Run all tests across unit, transform, and integration suites
-npm test
-
-# Run all tests through just (same globs as npm test)
-just test
-
-# Run only unit tests
-just test-unit
-
-# Run only transform unit tests
-just test-transforms
-
-# Run only integration tests
-just test-integration
-
-# Verify zero drift without writing, in a clean worktree/CI checkout
-just check
-
-# Verify lib/ import-boundary rules
-just check-layers
-
-# Full CI equivalent in a clean worktree/CI checkout (check + test + pack-verify + release-verify)
-just ci
-
-# Delete local branches whose remotes are gone
-just cleanup-branches
-```
-
-## Editing Workflow
-
-1. Edit canonical source in `src/`. Maintain the hand-authored root docs (`README.md`, `EXAMPLES.md`, `USAGE.md`, `OVERVIEW.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `SECURITY.md`) and the Qwen context file (`QWEN.md`) directly. Do not edit generator output: public MCP-server, hook-runner and policy-enforcer wrappers, agent stubs, runtime skills, command files, manifests, hook registrations, the policy pack, the `src/generated/` registries, or the detached `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` payloads.
-2. Run `node scripts/generate.js` or `npm run build` to regenerate runtime outputs
-3. Run `node scripts/generate.js --diff` to confirm the generator has no additional pending output
-4. Run `npm test` (or `just test`) before committing
-5. Commit canonical source, directly owned files, and generated output together
-6. CI will fail if runtime outputs drift from canonical `src/`; `just check` and `just ci` are designed for clean worktrees because `--check` compares `src/` with the generated files on disk
+Contributor commands, from generation and tests to their CI equivalents, are listed in [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands).
 
 ## Configuration
 
@@ -78,7 +23,7 @@ All settings are resolved with precedence: environment variable > workspace `.en
 | Variable | Runtime | Purpose |
 |----------|---------|---------|
 | `MAESTRO_WORKSPACE_PATH` | Antigravity | First source for `workspace_suggestion` when exported before starting `agy`; otherwise the suggestion comes from MCP `roots/list` |
-| `MAESTRO_EXTENSION_PATH` | Qwen | Override extension root path |
+| `MAESTRO_EXTENSION_PATH` | All | Extension root whose `.env` supplies settings, ahead of `CLAUDE_PLUGIN_ROOT`; the Codex npm bin sets it to the package root, and Qwen's `resume` command reads it (default `~/.qwen/extensions/maestro`) to find `read-active-session.js` |
 | `MAESTRO_WORKSPACE_PATH` | Qwen | Workspace root (set by Qwen Code) |
 | `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
