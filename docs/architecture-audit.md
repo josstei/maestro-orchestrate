@@ -12,7 +12,7 @@ Preserved interfaces include public launcher paths, MCP input schemas and succes
 
 | ID | Finding | Implemented remediation | Acceptance evidence |
 |----|---------|-------------------------|---------------------|
-| A01 | Nine handwritten public launchers | Generate all nine from `runtime-entrypoints.js`, retaining paths, bootstrap bodies, repository-first/bundled fallback, and executable bin mode | Generator recreation/mode/preview tests; isolated MCP and hook entrypoint tests |
+| A01 | Nine handwritten public launchers | Generate all nine from `runtime-entrypoints.js`, retaining paths, bootstrap bodies, repository-first/bundled fallback, and executable bin mode | Generator recreation/mode/preview tests; repository-launcher MCP and hook entrypoint tests; detached-payload tests for the bundled fallback |
 | A02 | Repeated phase-field declarations | Derive schema properties, required fields, and validation from the ordered descriptor table in `plan-schema.js` | Schema and validation-order tests; baseline differential comparison |
 | A03 | Gate persistence in MCP handlers | `state/design-gate.js` owns persistence and creation preconditions; handlers call the store within one transaction | Gate lifecycle, create/approve race, session contract tests |
 | A04 | Split document-materialization ownership | `session-documents.js` owns materialization and archival; remove obsolete wrapper and handler re-exports | Document collision, duplicate-path, missing-document, staging-abort, and archive tests |
@@ -59,7 +59,7 @@ Acorn and Acorn Walk are explicit major-version-8 development dependencies, lock
 
 | Surface | Preservation decision | Focused coverage |
 |---------|-----------------------|------------------|
-| Public launcher paths and repository-first/bundled resolution | Keep generated wrappers at their existing paths | Generator, hook-entrypoint, MCP-bundle tests |
+| Public launcher paths and repository-first/bundled resolution | Keep generated wrappers at their existing paths | Generator, hook-entrypoint, MCP-bundle tests (repository-first); detached-payload tests (bundled) |
 | Legacy YAML summaries, raw Markdown, existing state CLI invocations | Preserve readers/output; distinguish coordinator failure from absence | Hook logic, state scripts, Markdown-state tests |
 | Runtime-specific adapters, config fields, command templates | Preserve differences in tools, delegation, hooks, and native plan mode | Platform adapter/config/metadata, transform and entrypoint tests |
 | Independently authored artifact expectations | Keep independent manifests so generator mistakes cannot validate themselves | npm-pack and release-artifact tests/verifiers |

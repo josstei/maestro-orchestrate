@@ -4,8 +4,8 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 
-const { expectExit, runNode, runNodeOk } = require('../support/process');
-const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
+const { runNode, runNodeOk } = require('../support/process');
+const { ROOT } = require('./helpers');
 
 const SCRIPT_PATH = path.join(ROOT, 'claude', 'scripts', 'policy-enforcer.js');
 const ANTIGRAVITY_SCRIPT_PATH = path.join(ROOT, 'antigravity', 'hooks', 'policy-enforcer.js');
@@ -13,14 +13,14 @@ const DOLLAR = '$';
 const BACKTICK = '`';
 const BACKSLASH = '\\';
 
-function runPolicy(command, scriptPath = SCRIPT_PATH) {
-  return JSON.parse(runNodeOk(scriptPath, [], { input: JSON.stringify({ tool_input: { command } }) }));
+function runPolicy(command) {
+  return JSON.parse(runNodeOk(SCRIPT_PATH, [], { input: JSON.stringify({ tool_input: { command } }) }));
 }
 
 // Antigravity's PreToolUse payload for run_command.
-function runAntigravityPolicy(commandLine, scriptPath = ANTIGRAVITY_SCRIPT_PATH) {
+function runAntigravityPolicy(commandLine) {
   const input = JSON.stringify({ toolCall: { name: 'run_command', args: { CommandLine: commandLine } } });
-  return JSON.parse(runNodeOk(scriptPath, [], { input }));
+  return JSON.parse(runNodeOk(ANTIGRAVITY_SCRIPT_PATH, [], { input }));
 }
 
 test('blocks destructive commands in direct and nested dollar substitutions', () => {
@@ -65,26 +65,6 @@ test('approves benign nested substitutions', () => {
   assert.equal(runPolicy(backtickCommand).decision, 'approve');
 });
 
-test('the installed claude plugin enforces the bundled policy rules', async () => {
-  await withIsolatedClaudePlugin(async (pluginRoot) => {
-    const scriptPath = path.join(pluginRoot, 'scripts', 'policy-enforcer.js');
-
-    assert.deepEqual(runPolicy('git reset --hard', scriptPath), {
-      decision: 'block',
-      reason: 'Discards uncommitted changes',
-    });
-    assert.deepEqual(runPolicy('echo hi | tee out.txt', scriptPath), {
-      decision: 'ask',
-      reason: 'Writes to file and stdout',
-    });
-    assert.deepEqual(runPolicy('git status', scriptPath), { decision: 'approve' });
-
-    const oversized = runNode(scriptPath, [], { input: 'x'.repeat(2 * 1024 * 1024) });
-    expectExit(oversized, { status: 1, stderr: 'Policy enforcer: stdin payload too large\n' });
-    assert.deepEqual(JSON.parse(oversized.stdout), { decision: 'block', reason: 'Payload too large' });
-  });
-});
-
 test('antigravity denies destructive commands, including chained and substituted ones', () => {
   assert.deepEqual(runAntigravityPolicy('rm -rf build'), {
     decision: 'deny',
@@ -127,24 +107,4 @@ test('antigravity denies the command when the policy check cannot run', () => {
       reason: 'Policy enforcer internal error',
     });
   }
-});
-
-test('the installed antigravity plugin enforces the bundled policy rules', async () => {
-  await withIsolatedAntigravityPlugin(async (pluginRoot) => {
-    const scriptPath = path.join(pluginRoot, 'hooks', 'policy-enforcer.js');
-
-    assert.deepEqual(runAntigravityPolicy('git reset --hard', scriptPath), {
-      decision: 'deny',
-      reason: 'Discards uncommitted changes',
-    });
-    assert.deepEqual(runAntigravityPolicy('echo hi | tee out.txt', scriptPath), {
-      decision: 'force_ask',
-      reason: 'Writes to file and stdout',
-    });
-    assert.deepEqual(runAntigravityPolicy('git status', scriptPath), { decision: 'ask' });
-
-    const oversized = runNode(scriptPath, [], { input: 'x'.repeat(2 * 1024 * 1024) });
-    expectExit(oversized, { status: 1, stderr: 'Policy enforcer: stdin payload too large\n' });
-    assert.deepEqual(JSON.parse(oversized.stdout), { decision: 'deny', reason: 'Payload too large' });
-  });
 });

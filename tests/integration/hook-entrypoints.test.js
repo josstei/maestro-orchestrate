@@ -9,7 +9,7 @@ const { ISOLATED_GIT_ENV } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
 const { expectExit, runNode } = require('../support/process');
 const { writeSessionState } = require('../support/session-file');
-const { ROOT, withIsolatedAntigravityPlugin, withIsolatedClaudePlugin } = require('./helpers');
+const { ROOT } = require('./helpers');
 
 // Hooks keep per-session state under MAESTRO_HOOKS_DIR; give them a private
 // one instead of the shared default under os.tmpdir().
@@ -23,37 +23,12 @@ function runHook(relativePath, runtime, hookName, input, cwd = ROOT, env = {}) {
   });
 }
 
-function assertHooksBoot({ runner, runtime, hooks, cwd = ROOT }) {
-  const payload = {
-    cwd,
-    session_id: 'hook-test-session',
-  };
-
-  for (const hookName of hooks) {
-    const result = runHook(runner, runtime, hookName, payload, cwd);
-
-    assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-    assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
-  }
-}
-
-const CLAUDE_HOOKS = ['session-start', 'before-agent', 'session-end'];
-
-const BOOT_CASES = [
-  {
-    label: 'claude',
-    runner: 'claude/scripts/hook-runner.js',
-    runtime: 'claude',
-    hooks: CLAUDE_HOOKS,
-  },
-];
-
 // Antigravity runs hooks from the plugin root and names the workspace in a
 // camelCase payload, so session state is read from workspacePaths[0].
 const ANTIGRAVITY_PLUGIN_ROOT = path.join(ROOT, 'antigravity');
 
-function runAntigravityHook(pluginRoot, hookName, input) {
-  return runHook('hooks/hook-runner.js', 'antigravity', hookName, input, pluginRoot, ISOLATED_GIT_ENV);
+function runAntigravityHook(hookName, input) {
+  return runHook('hooks/hook-runner.js', 'antigravity', hookName, input, ANTIGRAVITY_PLUGIN_ROOT, ISOLATED_GIT_ENV);
 }
 
 // Each workspace gets its own conversation, named after its unique temp dir.
@@ -73,100 +48,52 @@ function makeWorkspace(prefix, session = null) {
   return workspace;
 }
 
-function assertAntigravitySessionHooks(pluginRoot) {
-  const idle = antigravityPayload(makeWorkspace('maestro-antigravity-idle-'));
-  for (const hookName of ['session-start', 'before-agent']) {
-    const result = runAntigravityHook(pluginRoot, hookName, idle);
-
-    assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-    assert.deepEqual(JSON.parse(result.stdout), {}, `${hookName} without an active session`);
-  }
-
-  const active = antigravityPayload(
-    makeWorkspace('maestro-antigravity-active-', { session_id: 's1', status: 'in_progress', current_phase: 2 })
-  );
-
-  const start = runAntigravityHook(pluginRoot, 'session-start', active);
-  assert.equal(start.status, 0, `session-start exited non-zero: ${start.stderr}`);
-  assert.deepEqual(JSON.parse(start.stdout), {});
-
-  const context = runAntigravityHook(pluginRoot, 'before-agent', active);
-  assert.equal(context.status, 0, `before-agent exited non-zero: ${context.stderr}`);
-  assert.deepEqual(JSON.parse(context.stdout), {
-    injectSteps: [{ systemMessage: { systemMessage: 'Active session: current_phase=2, status=in_progress' } }],
-  });
-  // Antigravity has no session-end hook and its payload names no agent, so
-  // neither hook may leave per-conversation hook state behind.
-  assert.equal(fs.existsSync(path.join(HOOKS_DIR, active.conversationId)), false,
-    'Antigravity hooks must not create per-conversation hook state');
-}
-
 describe('hook entrypoints', () => {
-  for (const bootCase of BOOT_CASES) {
-    it(`boots ${bootCase.label} hook adapters against canonical src hook logic`, () => {
-      assertHooksBoot(bootCase);
-    });
-  }
+  it('boots claude hook adapters against canonical src hook logic', () => {
+    for (const hookName of ['session-start', 'before-agent', 'session-end']) {
+      const result = runHook('claude/scripts/hook-runner.js', 'claude', hookName, { cwd: ROOT, session_id: 'hook-test-session' });
 
-  it('boots installed claude hook adapters from an isolated plugin bundle', async () => {
-    await withIsolatedClaudePlugin(async (pluginRoot) => {
-      assertHooksBoot({
-        runner: 'scripts/hook-runner.js',
-        runtime: 'claude',
-        hooks: CLAUDE_HOOKS,
-        cwd: pluginRoot,
-      });
-    });
-  });
-
-  it('installed claude hook fallback blocks on invalid stdin', async () => {
-    await withIsolatedClaudePlugin(async (pluginRoot) => {
-      const result = runHook(
-        'scripts/hook-runner.js',
-        'claude',
-        'session-start',
-        'not-json',
-        pluginRoot
-      );
-
-      assert.equal(result.status, 0, `Expected exit 0 for claude fallback, got ${result.status}`);
-      assert.deepEqual(JSON.parse(result.stdout), {
-        continue: false,
-        decision: 'block',
-      });
-    });
+      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
+    }
   });
 
   it('boots antigravity SessionStart hooks from the plugin root against canonical src hook logic', () => {
-    assertAntigravitySessionHooks(ANTIGRAVITY_PLUGIN_ROOT);
-  });
+    const idle = antigravityPayload(makeWorkspace('maestro-antigravity-idle-'));
+    for (const hookName of ['session-start', 'before-agent']) {
+      const result = runAntigravityHook(hookName, idle);
 
-  it('boots installed antigravity hooks from an isolated plugin copy', async () => {
-    await withIsolatedAntigravityPlugin(async (pluginRoot) => {
-      assertAntigravitySessionHooks(pluginRoot);
+      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+      assert.deepEqual(JSON.parse(result.stdout), {}, `${hookName} without an active session`);
+    }
 
-      // The bundled src/ carries only the antigravity and shared platform dirs.
-      const result = runHook('hooks/hook-runner.js', 'claude', 'session-start', {}, pluginRoot);
-      expectExit(result, { status: 1, stderr: 'Unknown runtime: claude\n', stdout: '' });
+    const active = antigravityPayload(
+      makeWorkspace('maestro-antigravity-active-', { session_id: 's1', status: 'in_progress', current_phase: 2 })
+    );
+
+    const start = runAntigravityHook('session-start', active);
+    assert.equal(start.status, 0, `session-start exited non-zero: ${start.stderr}`);
+    assert.deepEqual(JSON.parse(start.stdout), {});
+
+    const context = runAntigravityHook('before-agent', active);
+    assert.equal(context.status, 0, `before-agent exited non-zero: ${context.stderr}`);
+    assert.deepEqual(JSON.parse(context.stdout), {
+      injectSteps: [{ systemMessage: { systemMessage: 'Active session: current_phase=2, status=in_progress' } }],
     });
+    // Antigravity has no session-end hook and its payload names no agent, so
+    // neither hook may leave per-conversation hook state behind.
+    assert.equal(fs.existsSync(path.join(HOOKS_DIR, active.conversationId)), false,
+      'Antigravity hooks must not create per-conversation hook state');
   });
 
   it('answers antigravity with {} and exits 0 when stdin is not JSON', () => {
     for (const hookName of ['session-start', 'before-agent']) {
-      const result = runAntigravityHook(ANTIGRAVITY_PLUGIN_ROOT, hookName, 'not-json');
+      const result = runAntigravityHook(hookName, 'not-json');
 
       assert.equal(result.status, 0, `exit code for ${hookName}`);
       assert.match(result.stderr, /^Hook error: /);
       assert.deepEqual(JSON.parse(result.stdout), {});
     }
-  });
-
-  it('rejects other runtimes from an isolated claude plugin bundle', async () => {
-    await withIsolatedClaudePlugin(async (pluginRoot) => {
-      const result = runHook('scripts/hook-runner.js', 'qwen', 'session-start', {}, pluginRoot);
-
-      expectExit(result, { status: 1, stderr: 'Unknown runtime: qwen\n', stdout: '' });
-    });
   });
 
   it('rejects bad invocations, checking the runtime before the hook name', () => {

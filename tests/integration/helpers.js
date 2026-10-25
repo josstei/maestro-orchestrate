@@ -59,45 +59,22 @@ function parseDryRunReport(output) {
 }
 
 /**
- * Copies the repo's `sourceDir` to `installSegments` under a fresh temp dir,
- * runs `fn` against the copy and removes the temp dir afterwards, even when
- * `fn` throws or rejects.
+ * Runs `fn` against a copy of antigravity/ at the path `agy plugin install`
+ * uses (~/.gemini/config/plugins/maestro/ under a temp home), where the shim
+ * cannot reach the repo src/ and must run the bundled antigravity/src/. The
+ * temp home is removed afterwards, even when `fn` throws or rejects.
  */
-async function withPluginCopy(prefix, sourceDir, installSegments, fn) {
-  const tempRoot = makeTempDir(prefix);
-  const pluginRoot = path.join(tempRoot, ...installSegments);
+async function withIsolatedAntigravityPlugin(fn) {
+  const tempHome = makeTempDir('maestro-antigravity-home-');
+  const pluginRoot = path.join(tempHome, '.gemini', 'config', 'plugins', 'maestro');
 
-  fs.cpSync(path.join(ROOT, sourceDir), pluginRoot, { recursive: true });
+  fs.cpSync(path.join(ROOT, 'antigravity'), pluginRoot, { recursive: true });
 
   try {
     return await fn(pluginRoot);
   } finally {
-    removeDir(tempRoot);
+    removeDir(tempHome);
   }
-}
-
-/** Runs `fn` against a copy of plugins/maestro/ installed as a standalone plugin. */
-function withIsolatedCodexPlugin(fn) {
-  return withPluginCopy('maestro-codex-plugin-', 'plugins/maestro', ['maestro'], fn);
-}
-
-/** Runs `fn` against a copy of claude/ installed as a standalone plugin. */
-function withIsolatedClaudePlugin(fn) {
-  return withPluginCopy('maestro-claude-plugin-', 'claude', ['maestro'], fn);
-}
-
-/**
- * Runs `fn` against a copy of antigravity/ at the path `agy plugin install`
- * uses (~/.gemini/config/plugins/maestro/ under a temp home), where the shim
- * cannot reach the repo src/ and must run the bundled antigravity/src/.
- */
-function withIsolatedAntigravityPlugin(fn) {
-  return withPluginCopy(
-    'maestro-antigravity-home-',
-    'antigravity',
-    ['.gemini', 'config', 'plugins', 'maestro'],
-    fn
-  );
 }
 
 function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
@@ -145,7 +122,5 @@ module.exports = {
   runGenerator,
   runGeneratorExpectFailure,
   withIsolatedAntigravityPlugin,
-  withIsolatedClaudePlugin,
-  withIsolatedCodexPlugin,
   withTempRepoCopy,
 };

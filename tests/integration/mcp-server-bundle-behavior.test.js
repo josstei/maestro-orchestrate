@@ -8,26 +8,22 @@ const { pathToFileURL } = require('node:url');
 
 const { makeTempDir } = require('../support/fs');
 const { HOST_CLIENTS } = require('../support/host-clients');
+const { expectExit, runNode } = require('../support/process');
 const { ROOT, withIsolatedAntigravityPlugin } = require('./helpers');
-const { MCP_ENTRYPOINTS, withEntrypointCwd } = require('./mcp-entrypoints');
 const { withMcpClient } = require('./mcp-stdio-client');
 
 /**
- * Runs `fn` against a server booted from every MCP_ENTRYPOINTS entry, each
- * isolated plugin from a fresh copy. Each bundle is driven by the host that
- * launches it, named by `runtime` and identified from that host's clientInfo,
- * and `fn` receives the entry with the `cwd` it was launched from.
+ * The MCP server launcher each host runs from a repo checkout, where it
+ * starts the repo's src/ server with no external SDK installed.
+ * `expectSkill` is text that host's delegation skill content must contain.
+ * detached-payload.test.js covers the installed payloads' bundled src/.
  */
-async function forEachRuntimeBundle(fn) {
-  for (const entry of MCP_ENTRYPOINTS) {
-    await withEntrypointCwd(entry, (cwd) =>
-      withMcpClient(
-        { cwd, relativePath: entry.relativePath, clientInfo: HOST_CLIENTS[entry.runtime] },
-        (client) => fn(client, { ...entry, cwd })
-      )
-    );
-  }
-}
+const REPO_LAUNCHERS = [
+  { runtime: 'qwen', relativePath: 'mcp/maestro-server.js', expectSkill: '# Delegation Skill' },
+  { runtime: 'claude', relativePath: 'claude/mcp/maestro-server.js', expectSkill: 'user-invocable: false' },
+  { runtime: 'codex', relativePath: 'bin/maestro-mcp-server.js', expectSkill: '# Delegation Skill' },
+  { runtime: 'antigravity', relativePath: 'antigravity/mcp/maestro-server.js', expectSkill: '# Delegation Skill' },
+];
 
 describe('mcp server bundle behavior', () => {
   it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
@@ -99,66 +95,40 @@ describe('mcp server bundle behavior', () => {
     }
   });
 
-  it('serves the runtime of the host that launches each bundle', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const result = await client.callTool('get_runtime_context');
+  for (const { runtime, relativePath, expectSkill } of REPO_LAUNCHERS) {
+    it(`serves the ${runtime} runtime, tool metadata and canonical src content from ${relativePath}`, async () => {
+      await withMcpClient({ cwd: ROOT, relativePath, clientInfo: HOST_CLIENTS[runtime] }, async (client) => {
+        // withMcpClient has already waited for 'MCP server connected'.
+        assert.match(client.stderr, /\[info\] maestro: MCP server starting/);
+        assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, runtime);
 
-      assert.equal(
-        result.parsed.runtime,
-        bundle.runtime,
-        `Expected ${path.join(bundle.cwd, bundle.relativePath)} to serve the ${bundle.runtime} runtime`
-      );
-    });
-  });
+        const tools = await client.listTools();
+        assert.ok(tools.length > 0);
+        const meta = runtime === 'antigravity' ? { 'antigravity/alwaysLoad': true } : undefined;
+        for (const tool of tools) assert.deepEqual(tool._meta, meta, tool.name);
+        assert.match(tools.find((tool) => tool.name === 'get_skill_content').description,
+          /runtime-configured Maestro content source/);
 
-  it('serves updated get_skill_content metadata from every runtime bundle', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const tools = await client.listTools();
-      const skillTool = tools.find((tool) => tool.name === 'get_skill_content');
-
-      assert.ok(
-        skillTool,
-        `Expected get_skill_content for ${path.join(bundle.cwd, bundle.relativePath)}`
-      );
-      assert.match(
-        skillTool.description,
-        /runtime-configured Maestro content source/
-      );
-    });
-  });
-
-  it('marks every listed tool always-loaded on the antigravity bundles only', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const tools = await client.listTools();
-      const label = path.join(bundle.cwd, bundle.relativePath);
-
-      assert.ok(tools.length > 0, label);
-      for (const tool of tools) {
-        if (bundle.runtime === 'antigravity') {
-          assert.deepEqual(tool._meta, { 'antigravity/alwaysLoad': true }, `${label}: ${tool.name}`);
-        } else {
-          assert.equal('_meta' in tool, false, `${label}: ${tool.name}`);
-        }
-      }
-    });
-  });
-
-  it('serves canonical src content from every runtime bundle', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const skillResult = await client.callTool('get_skill_content', {
-        resources: ['delegation', 'architecture'],
+        const skills = (await client.callTool('get_skill_content', { resources: ['delegation', 'architecture'] })).parsed;
+        assert.ok(skills.contents.delegation.includes(expectSkill));
+        assert.ok(skills.contents.architecture.includes('## State Contract'));
+        assert.deepEqual(skills.errors, {});
+        const agents = (await client.callTool('get_agent', { agents: ['coder'] })).parsed;
+        assert.ok(agents.agents.coder.body.includes('Senior Software Engineer'));
+        assert.ok(agents.agents.coder.body.includes('## Output Contract'));
+        assert.deepEqual(agents.errors, {});
       });
-      const agentResult = await client.callTool('get_agent', {
-        agents: ['coder'],
-      });
-
-      assert.ok(skillResult.parsed.contents.delegation.includes(bundle.expectSkill));
-      assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
-      assert.deepEqual(skillResult.parsed.errors, {});
-      assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
-      assert.ok(agentResult.parsed.agents.coder.body.includes('## Output Contract'));
-      assert.deepEqual(agentResult.parsed.errors, {});
     });
+  }
+
+  it('refuses to start for the removed gemini runtime', () => {
+    const result = runNode('mcp/maestro-server.js', [], {
+      env: { ...process.env, MAESTRO_RUNTIME: 'gemini' },
+      input: '',
+    });
+
+    expectExit(result, { status: 1, stdout: '' });
+    assert.match(result.stderr, /Error: Unknown runtime config: gemini/);
   });
 
   it('serves content from its own src/ tree when MAESTRO_EXTENSION_PATH names an unrelated directory', async () => {

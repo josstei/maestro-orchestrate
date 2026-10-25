@@ -8,7 +8,7 @@ const { execFileSync } = require('node:child_process');
 
 const { editJson, makeTempDir, removeDir, writeTree } = require('../support/fs');
 const { hermeticEnv } = require('../support/env');
-const { runNodeOk } = require('../support/process');
+const { assertStateCliRoundTrip } = require('../support/state');
 const { createTempRepoCopy, withTempRepoCopy } = require('./helpers');
 const { withMcpClient } = require('./mcp-stdio-client');
 const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
@@ -140,15 +140,7 @@ describe('release artifact packaging', () => {
           assert.equal(result.parsed.runtime, runtime);
         });
       }
-      const run = (script, args = [], input = '') =>
-        runNodeOk(path.join(extractedRoot, 'src/scripts', script), args, { cwd: workspace, env, input });
-      run('ensure-workspace.js', ['archive-state']);
-      assert.equal(run('read-setting.js', ['MAESTRO_EXECUTION_MODE']), 'parallel');
-      assert.equal(run('read-active-session.js'), 'No active session\n');
-      const content = '---\n{"session_id":"archive","status":"in_progress"}\n---\n';
-      run('write-state.js', ['archive-state/state/active-session.md'], content);
-      assert.equal(run('read-state.js', ['archive-state/state/active-session.md']), content);
-      assert.equal(run('read-active-session.js'), content);
+      assertStateCliRoundTrip(path.join(extractedRoot, 'src/scripts'), 'archive-state', { cwd: workspace, env });
     } finally {
       removeDir(workspace);
     }

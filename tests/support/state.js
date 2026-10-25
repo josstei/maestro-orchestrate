@@ -1,8 +1,10 @@
 'use strict';
 
+const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { runNodeOk } = require('./process');
 const { acquireStateLock } = require('../../src/state/state-lock');
 const { createTransaction, publishTransaction } = require('../../src/state/transaction');
 
@@ -66,8 +68,37 @@ function symlinkOrSkip(t, target, linkPath, type) {
   }
 }
 
+/**
+ * Runs the five state CLIs in `scriptsDir` against a workspace with no
+ * active session: ensure-workspace creates `stateDir`, read-setting reads
+ * MAESTRO_EXECUTION_MODE as `parallel`, and a session written with
+ * write-state reads back unchanged through read-state and
+ * read-active-session. The caller's env or workspace .env must set
+ * MAESTRO_EXECUTION_MODE=parallel and MAESTRO_STATE_DIR=`stateDir`.
+ *
+ * @param {string} scriptsDir - Absolute path of a `src/scripts` directory
+ * @param {string} stateDir - State dir relative to the workspace
+ * @param {Object} options
+ * @param {string} options.cwd - Workspace the CLIs run in
+ * @param {NodeJS.ProcessEnv} options.env - Environment of the CLIs
+ */
+function assertStateCliRoundTrip(scriptsDir, stateDir, { cwd, env }) {
+  const run = (script, args = [], input = '') =>
+    runNodeOk(path.join(scriptsDir, script), args, { cwd, env, input });
+  run('ensure-workspace.js', [stateDir]);
+  assert.ok(fs.statSync(path.join(cwd, stateDir, 'plans/archive')).isDirectory());
+  assert.equal(run('read-setting.js', ['MAESTRO_EXECUTION_MODE']), 'parallel');
+  assert.equal(run('read-active-session.js'), 'No active session\n');
+  const session = `${stateDir}/state/active-session.md`;
+  const content = '---\n{"session_id":"round-trip","status":"in_progress"}\n---\n# Session\n';
+  run('write-state.js', [session], content);
+  assert.equal(run('read-state.js', [session]), content);
+  assert.equal(run('read-active-session.js'), content);
+}
+
 module.exports = {
   DIR_LINK,
+  assertStateCliRoundTrip,
   controlDir,
   leaveCommitted,
   symlinkOrSkip,

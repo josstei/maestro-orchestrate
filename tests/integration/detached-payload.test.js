@@ -8,7 +8,8 @@ const { createTempRepoCopy, runGenerator } = require('./helpers');
 const { makeTempDir } = require('../support/fs');
 const { hermeticEnv } = require('../support/env');
 const { HOST_CLIENTS } = require('../support/host-clients');
-const { runNode, runNodeOk } = require('../support/process');
+const { expectExit, runNode } = require('../support/process');
+const { assertStateCliRoundTrip } = require('../support/state');
 const { withMcpClient } = require('./mcp-stdio-client');
 const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { createHandler: createGetAgent } = require('../../src/mcp/handlers/get-agent');
@@ -41,12 +42,20 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
       await withMcpClient({
         cwd: workspace,
         relativePath: path.join(plugin, runtime === 'codex' ? 'src/mcp/maestro-server.js' : 'mcp/maestro-server.js'),
-        env: hermeticEnv(workspace, { MAESTRO_EXTENSION_PATH: plugin }),
+        // As the hosts launch it: only Claude exports the plugin root, and no
+        // host sets MAESTRO_EXTENSION_PATH.
+        env: hermeticEnv(workspace, runtime === 'claude' ? { CLAUDE_PLUGIN_ROOT: plugin } : {}),
         clientInfo: HOST_CLIENTS[runtime],
         requestTimeoutMs: 5000,
       }, async (client) => {
-        const advertised = (await client.listTools()).map((tool) => tool.name).sort();
+        assert.match(client.stderr, /\[info\] maestro: MCP server starting/);
+        const tools = await client.listTools();
+        const advertised = tools.map((tool) => tool.name).sort();
         assert.equal(advertised.length, 17);
+        const meta = runtime === 'antigravity' ? { 'antigravity/alwaysLoad': true } : undefined;
+        for (const tool of tools) assert.deepEqual(tool._meta, meta, tool.name);
+        assert.match(tools.find((tool) => tool.name === 'get_skill_content').description,
+          /runtime-configured Maestro content source/);
         const invoked = new Set();
         async function call(name, args = {}) {
           const result = await client.callTool(name, args);
@@ -123,18 +132,10 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
       const plugin = installed[runtime];
       const workspace = makeTempDir('maestro-installed-cli-workspace-');
       fs.writeFileSync(path.join(workspace, '.env'), 'MAESTRO_EXECUTION_MODE=parallel\nMAESTRO_STATE_DIR=custom-maestro\n');
-      const env = hermeticEnv(workspace, { MAESTRO_EXTENSION_PATH: plugin });
-      function run(script, args = [], input = '') {
-        return runNodeOk(path.join(plugin, 'src/scripts', script), args, { cwd: workspace, env, input });
-      }
-      run('ensure-workspace.js', ['custom-maestro']);
-      assert.ok(fs.statSync(path.join(workspace, 'custom-maestro/plans/archive')).isDirectory());
-      assert.equal(run('read-setting.js', ['MAESTRO_EXECUTION_MODE']), 'parallel');
-      assert.equal(run('read-active-session.js'), 'No active session\n');
-      const content = '---\n{"session_id":"installed","status":"in_progress"}\n---\n# Session\n';
-      run('write-state.js', ['custom-maestro/state/active-session.md'], content);
-      assert.equal(run('read-state.js', ['custom-maestro/state/active-session.md']), content);
-      assert.equal(run('read-active-session.js'), content);
+      assertStateCliRoundTrip(path.join(plugin, 'src/scripts'), 'custom-maestro', {
+        cwd: workspace,
+        env: hermeticEnv(workspace, { MAESTRO_EXTENSION_PATH: plugin }),
+      });
       assert.equal(fs.existsSync(path.join(plugin, 'docs/maestro')), false);
     });
 
@@ -145,23 +146,27 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
         const hooksDir = makeTempDir('maestro-payload-hook-state-');
         const env = hermeticEnv(workspace, { MAESTRO_EXTENSION_PATH: plugin, MAESTRO_HOOKS_DIR: hooksDir });
         const wrapperDir = runtime === 'claude' ? 'scripts' : 'hooks';
-        const stateDir = path.join(workspace, 'docs/maestro/state');
-        fs.mkdirSync(stateDir, { recursive: true });
-        fs.writeFileSync(path.join(stateDir, 'active-session.md'),
-          '---\n{"session_id":"hook-session","status":"in_progress","current_phase":1}\n---\n# Session\n');
         const input = runtime === 'claude'
           ? { cwd: workspace, session_id: 'hook-session', tool_input: { subagent_type: 'coder' }, tool_result: '## Task Report\nDone.\n## Downstream Context\nresult.txt' }
           : { conversationId: 'hook-session', workspacePaths: [workspace] };
         const order = ['session-start', 'before-agent', 'after-agent', 'session-end'];
         assert.deepEqual([...order].sort(), [...HOOKS].sort());
+        function runEntrypoint(entrypoint, args, stdin) {
+          return runNode(path.join(plugin, wrapperDir, entrypoint), args, { cwd: workspace, env, input: stdin });
+        }
         function run(entrypoint, args, payload) {
-          const result = runNode(path.join(plugin, wrapperDir, entrypoint), args, {
-            cwd: workspace, env, input: JSON.stringify(payload),
-          });
+          const result = runEntrypoint(entrypoint, args, JSON.stringify(payload));
           assert.equal(result.status, 0, `${entrypoint}: ${result.stderr}`);
           assert.doesNotMatch(result.stderr, /Hook error:|Policy enforcer error:/);
           return JSON.parse(result.stdout);
         }
+        assert.deepEqual(run('hook-runner.js', [runtime, 'before-agent'], input),
+          runtime === 'claude' ? { continue: true, decision: 'approve' } : {}, 'before-agent without an active session');
+
+        const stateDir = path.join(workspace, 'docs/maestro/state');
+        fs.mkdirSync(stateDir, { recursive: true });
+        fs.writeFileSync(path.join(stateDir, 'active-session.md'),
+          '---\n{"session_id":"hook-session","status":"in_progress","current_phase":1}\n---\n# Session\n');
         for (const hook of order) {
           const result = run('hook-runner.js', [runtime, hook], input);
           const summary = 'Active session: current_phase=1, status=in_progress';
@@ -171,6 +176,16 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
           assert.deepEqual(result, expected, hook);
         }
         assert.equal(fs.existsSync(path.join(hooksDir, 'hook-session')), false);
+
+        // Bad stdin gets the adapter's error fallback, and the bundled src/
+        // carries no other runtime's hook adapter.
+        const invalid = runEntrypoint('hook-runner.js', [runtime, 'session-start'], 'not-json');
+        assert.equal(invalid.status, 0, invalid.stderr);
+        assert.match(invalid.stderr, /^Hook error: /);
+        assert.deepEqual(JSON.parse(invalid.stdout), runtime === 'claude' ? { continue: false, decision: 'block' } : {});
+        const other = runtime === 'claude' ? 'qwen' : 'claude';
+        expectExit(runEntrypoint('hook-runner.js', [other, 'session-start'], '{}'),
+          { status: 1, stderr: `Unknown runtime: ${other}\n`, stdout: '' });
 
         const decisions = runtime === 'claude' ? ['block', 'ask', 'approve'] : ['deny', 'force_ask', 'ask'];
         const cases = [
@@ -184,6 +199,9 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
             : { toolCall: { name: 'run_command', args: { CommandLine: command } } };
           assert.deepEqual(run('policy-enforcer.js', [], payload), expected);
         }
+        const oversized = runEntrypoint('policy-enforcer.js', [], 'x'.repeat(2 * 1024 * 1024));
+        expectExit(oversized, { status: 1, stderr: 'Policy enforcer: stdin payload too large\n' });
+        assert.deepEqual(JSON.parse(oversized.stdout), { decision: decisions[0], reason: 'Payload too large' });
       });
     }
   });
