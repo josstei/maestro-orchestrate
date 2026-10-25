@@ -5,15 +5,13 @@ const path = require('node:path');
 const { atomicWriteSync } = require('../lib/io');
 const { ValidationError } = require('../lib/errors');
 const { createSettingResolver } = require('../config/setting-resolver');
-const { DEFAULT_STATE_DIR, joinRelative, resolveStateDirPath } = require('../state/paths');
+const { DEFAULT_STATE_DIR, joinRelative, resolveStateDirPath, resolvePhysicalPath } = require('../state/paths');
+const { withStateRead, withStateMutation } = require('../state/coordinator');
 const {
-  withStateRead,
-  withStateMutation,
   contentDigest,
   checkExpectedDigest,
-  resolvePhysicalPath,
   assertPublicStatePath,
-} = require('../state/coordinator');
+} = require('../state/transaction');
 
 function isWithin(root, target) {
   return target === root || target.startsWith(root + path.sep);

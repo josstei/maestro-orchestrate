@@ -7,12 +7,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
-const {
-  withStateMutation, withStateRead, contentDigest, checkExpectedDigest,
-  assertPublicStatePath,
-} = require('../../src/state/coordinator');
+const { withStateMutation, withStateRead } = require('../../src/state/coordinator');
 const { acquireStateLock } = require('../../src/state/state-lock');
-const { createTransaction, publishTransaction } = require('../../src/state/transaction');
+const {
+  contentDigest, checkExpectedDigest, assertPublicStatePath,
+  createTransaction, publishTransaction,
+} = require('../../src/state/transaction');
 
 function workspace(t) {
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-transaction-')));

@@ -4,9 +4,17 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { STATE_SCRIPTS, planDetachedPayload } = require('../../src/generator/payload-builder');
+const { planDetachedPayload } = require('../../src/generator/payload-builder');
 const { makeTempDir, writeJson, writeTree } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
+
+const REQUIRED_STATE_SCRIPTS = [
+  'ensure-workspace.js',
+  'read-active-session.js',
+  'read-setting.js',
+  'read-state.js',
+  'write-state.js',
+];
 
 function sourceFixture() {
   const src = makeTempDir('maestro-payload-source-');
@@ -20,7 +28,7 @@ function sourceFixture() {
     }
   }
   writeTree(src, 'platforms/shared/hook-runner.js', 'module.exports = {};\n');
-  for (const script of STATE_SCRIPTS) writeTree(src, `scripts/${script}`, "require('../core/runtime');\n");
+  for (const script of REQUIRED_STATE_SCRIPTS) writeTree(src, `scripts/${script}`, "require('../core/runtime');\n");
   writeJson(path.join(src, 'generated/agent-registry.json'), [{ name: 'coder', capabilities: 'full' }]);
   writeJson(path.join(src, 'generated/resource-registry.json'), { plan: 'templates/plan.md' });
   writeJson(path.join(src, 'generated/hook-registry.json'), { after: { module: 'hooks/after.js', fn: 'after' } });
@@ -46,7 +54,7 @@ describe('detached payload dependency plans', () => {
       assert.ok(files.has('mcp/maestro-server.js'));
       assert.ok(files.has(`platforms/${runtime}/runtime-config.js`));
       assert.ok(files.has('core/stdin-reader.js'), 'write-state CLI reads stdin');
-      for (const script of STATE_SCRIPTS) assert.ok(files.has(`scripts/${script}`));
+      for (const script of REQUIRED_STATE_SCRIPTS) assert.ok(files.has(`scripts/${script}`));
       const resources = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, 'generated/resource-registry.json')));
       for (const file of Object.values(resources)) assert.ok(files.has(file), file);
       const agents = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, 'generated/agent-registry.json')));

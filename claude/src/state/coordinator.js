@@ -3,10 +3,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { StateError } = require('../lib/errors');
+const { resolvePhysicalPath } = require('./paths');
 const { acquireStateLock, sleep, recoveryError, assertPrivateMetadata } = require('./state-lock');
 const {
-  contentDigest, resolvePhysicalPath, assertPublicStatePath, createTransaction,
-  checkExpectedDigest, publishTransaction, replayTransaction,
+  createTransaction, publishTransaction, replayTransaction,
 } = require('./transaction');
 
 function controlDirectory(basePath) {
@@ -130,7 +130,4 @@ async function withStateRead(basePath, reader, { timeoutMs = 5000 } = {}) {
   }
 }
 
-module.exports = {
-  withStateMutation, withStateRead, contentDigest, checkExpectedDigest,
-  resolvePhysicalPath, assertPublicStatePath,
-};
+module.exports = { withStateMutation, withStateRead };

@@ -130,10 +130,10 @@ function expandManifest(rules, runtimes, srcDir) {
 
 /**
  * Render every output of the expanded manifest entries by running each
- * entry's transforms over its source file. Lazy, so a consumer that writes
- * each output as it is yielded keeps reads, writes and reported errors in
- * manifest order. A missing source or a failing transform is passed to
- * reportError and skipped; an unreadable source throws.
+ * entry's transforms over its source file, yielding outputs in manifest order.
+ * The generator collects them for validation before writing. A missing source
+ * or a failing transform is passed to reportError and skipped; an unreadable
+ * source throws.
  * @param {Array<{ src: string, transforms: string[], outputs: Record<string, string> }>} manifest - Expanded manifest entries
  * @param {Record<string, Object>} runtimes - Runtime configurations keyed by name
  * @param {string} srcDir - Absolute path to source directory

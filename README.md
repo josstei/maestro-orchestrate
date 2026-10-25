@@ -188,7 +188,7 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 
 ## Development and Release Validation
 
-Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `policies/`, `antigravity/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
+Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, detached `src/` payloads, and public MCP-server, hook-runner, and policy-enforcer wrappers; update `src/` first, then regenerate. Runtime READMEs, the Codex runtime guide, the Claude MCP configuration example, and `QWEN.md` are maintained by hand ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
 
 ```bash
 npm ci

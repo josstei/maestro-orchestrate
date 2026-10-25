@@ -86,6 +86,8 @@ graph TD
 
 Creates an ignored local `dist/release/maestro-vX.Y.Z-extension.tar.gz` during validation, but does not upload it from PR CI.
 
+The extension archive contains runtime code and content, excluding generator sources, entry-point templates, stub transforms, and their build-only helpers. Packaging and verification enforce this archive boundary independently. The npm package retains those sources and its build/release scripts for the documented `generate`, `build`, `prepack`, and installer commands.
+
 ### Key Behaviors
 
 - The drift check emits a GitHub Actions error annotation (`::error::`) with a `git diff --stat` summary on failure, providing immediate visibility into which files drifted.

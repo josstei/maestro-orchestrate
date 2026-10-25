@@ -3,7 +3,6 @@
 const path = require('node:path');
 
 const { ValidationError } = require('../../lib/errors');
-const { writePlansDocument } = require('../../state/session-documents');
 
 /**
  * Validate a document supplied either by path (`params[pathKey]`) or by inline
@@ -58,14 +57,6 @@ function parseDocumentInput(params, { pathKey, prefix }) {
   return { filename, content: params[contentKey] };
 }
 
-function materializeDocumentInput(document, fromPath, tx) {
-  if (!document) return null;
-  return document.path
-    ? fromPath(document.path)
-    : writePlansDocument(document.filename, document.content, tx);
-}
-
 module.exports = {
   parseDocumentInput,
-  materializeDocumentInput,
 };

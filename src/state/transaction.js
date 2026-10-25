@@ -4,34 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { ValidationError, StateError } = require('../lib/errors');
+const { resolvePhysicalPath } = require('./paths');
 const { durableWrite, syncDirectory, recoveryError, ensurePrivateDirectory, assertPrivateMetadata } = require('./state-lock');
 
 function contentDigest(content) {
   return createHash('sha256').update(content).digest('hex');
-}
-
-function resolvePhysicalPath(filename, symlinkDepth = 0) {
-  if (symlinkDepth > 40) throw Object.assign(new Error('Too many symbolic links in state path'), { code: 'ELOOP' });
-  let existing = path.resolve(filename);
-  const missing = [];
-  for (;;) {
-    try { return path.join(fs.realpathSync(existing), ...missing); }
-    catch (error) {
-      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
-      try {
-        if (fs.lstatSync(existing).isSymbolicLink()) {
-          const destination = path.resolve(path.dirname(existing), fs.readlinkSync(existing));
-          return path.join(resolvePhysicalPath(destination, symlinkDepth + 1), ...missing);
-        }
-      } catch (linkError) {
-        if (!['ENOENT', 'ENOTDIR'].includes(linkError.code)) throw linkError;
-      }
-      const parent = path.dirname(existing);
-      if (parent === existing) throw error;
-      missing.unshift(path.basename(existing));
-      existing = parent;
-    }
-  }
 }
 
 function isWithin(root, filename) {
@@ -157,7 +134,7 @@ function createTransaction(basePath, controlPath) {
       const before = image(normalized);
       if (before?.kind === 'directory') throw Object.assign(new Error('Cannot write file contents to a directory'), { code: 'EISDIR' });
       tx.mkdir(path.dirname(normalized), { recursive: true, mode: 0o700 });
-      const data = Buffer.isBuffer(content) ? Buffer.from(content) : Buffer.from(content, typeof options === 'string' ? options : 'utf8');
+      const data = Buffer.from(content);
       const mode = options.mode === undefined ? 0o600 : options.mode;
       const after = { kind: 'file', sha256: contentDigest(data), mode: process.platform === 'win32' ? (mode & 0o200 ? 0o666 : 0o444) : (options.exactMode ? mode : mode & ~process.umask()) };
       const stage = String(operations.length);
@@ -213,7 +190,7 @@ function createTransaction(basePath, controlPath) {
       overlay.set(normalized, { image: null });
     },
   };
-  return { id, directory, operations, tx, root };
+  return { id, directory, operations, tx };
 }
 
 function checkExpectedDigest(tx, filename, expected) {
@@ -340,6 +317,6 @@ function replayTransaction(root, controlPath) {
 }
 
 module.exports = {
-  contentDigest, resolvePhysicalPath, assertPublicStatePath, createTransaction,
-  checkExpectedDigest, publishTransaction, replayTransaction, readJournal,
+  contentDigest, assertPublicStatePath, createTransaction,
+  checkExpectedDigest, publishTransaction, replayTransaction,
 };

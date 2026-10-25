@@ -4,45 +4,40 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  CANONICAL_FIELDS,
-  createEmptyDownstreamContext,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape,
 } = require('../../src/mcp/contracts/downstream-context');
 
+const EXPECTED_FIELDS = [
+  'key_interfaces_introduced',
+  'patterns_established',
+  'integration_points',
+  'assumptions',
+  'warnings',
+];
+
 describe('downstream-context contract', () => {
-  it('declares exactly the five canonical fields in frozen order', () => {
-    assert.deepEqual(
-      [...CANONICAL_FIELDS],
-      [
-        'key_interfaces_introduced',
-        'patterns_established',
-        'integration_points',
-        'assumptions',
-        'warnings',
-      ]
-    );
-    assert.ok(Object.isFrozen(CANONICAL_FIELDS));
+  it('normalizes to exactly the five canonical fields in order', () => {
+    assert.deepEqual(Object.keys(normalizeDownstreamContext(null)), EXPECTED_FIELDS);
   });
 
   it('creates an empty canonical context with all fields as empty arrays', () => {
-    const empty = createEmptyDownstreamContext();
-    for (const field of CANONICAL_FIELDS) {
+    const empty = normalizeDownstreamContext(null);
+    for (const field of EXPECTED_FIELDS) {
       assert.deepEqual(empty[field], []);
     }
-    const second = createEmptyDownstreamContext();
+    const second = normalizeDownstreamContext(null);
     second.warnings.push('mutation');
-    assert.deepEqual(empty.warnings, [], 'factory returns fresh objects');
+    assert.deepEqual(empty.warnings, [], 'normalization returns fresh arrays');
   });
 
   describe('normalizeDownstreamContext', () => {
     it('normalizes null, undefined, and non-objects to empty canonical shape', () => {
-      assert.deepEqual(normalizeDownstreamContext(null), createEmptyDownstreamContext());
-      assert.deepEqual(normalizeDownstreamContext(undefined), createEmptyDownstreamContext());
-      assert.deepEqual(normalizeDownstreamContext('not an object'), createEmptyDownstreamContext());
-      assert.deepEqual(normalizeDownstreamContext([]), createEmptyDownstreamContext());
-      assert.deepEqual(normalizeDownstreamContext(42), createEmptyDownstreamContext());
+      const empty = Object.fromEntries(EXPECTED_FIELDS.map((field) => [field, []]));
+      for (const input of [null, undefined, 'not an object', [], 42]) {
+        assert.deepEqual(normalizeDownstreamContext(input), empty);
+      }
     });
 
     it('wraps scalar strings into single-element arrays', () => {
@@ -85,7 +80,7 @@ describe('downstream-context contract', () => {
         summary: 'will be dropped',
         IntegrationPoints: 'PascalCase dropped',
       });
-      assert.deepEqual(Object.keys(result).sort(), [...CANONICAL_FIELDS].sort());
+      assert.deepEqual(Object.keys(result).sort(), [...EXPECTED_FIELDS].sort());
       assert.deepEqual(result.integration_points, ['valid']);
     });
 
@@ -111,40 +106,39 @@ describe('downstream-context contract', () => {
   });
 
   describe('isDownstreamContextPopulated', () => {
-    it('returns false for null, undefined, and empty inputs', () => {
-      assert.equal(isDownstreamContextPopulated(null), false);
-      assert.equal(isDownstreamContextPopulated(undefined), false);
-      assert.equal(isDownstreamContextPopulated({}), false);
-      assert.equal(isDownstreamContextPopulated(createEmptyDownstreamContext()), false);
+    it('returns false after normalizing null, undefined, and empty inputs', () => {
+      for (const input of [null, undefined, {}]) {
+        assert.equal(isDownstreamContextPopulated(normalizeDownstreamContext(input)), false);
+      }
     });
 
     it('returns false when all fields are "none" or empty', () => {
       assert.equal(
-        isDownstreamContextPopulated({
+        isDownstreamContextPopulated(normalizeDownstreamContext({
           key_interfaces_introduced: 'none',
           patterns_established: [],
           integration_points: '',
           assumptions: 'N/A',
           warnings: ['none', '  '],
-        }),
+        })),
         false
       );
     });
 
     it('returns true when at least one string field has content', () => {
       assert.equal(
-        isDownstreamContextPopulated({
+        isDownstreamContextPopulated(normalizeDownstreamContext({
           integration_points: 'styles.css contains the root variables',
-        }),
+        })),
         true
       );
     });
 
     it('returns true when at least one array field has content', () => {
       assert.equal(
-        isDownstreamContextPopulated({
+        isDownstreamContextPopulated(normalizeDownstreamContext({
           warnings: ['missing fallback'],
-        }),
+        })),
         true
       );
     });
@@ -152,7 +146,7 @@ describe('downstream-context contract', () => {
 
   it('describeShape() mentions every canonical field', () => {
     const description = describeShape();
-    for (const field of CANONICAL_FIELDS) {
+    for (const field of EXPECTED_FIELDS) {
       assert.ok(
         description.includes(field),
         `describeShape() must mention canonical field "${field}"`

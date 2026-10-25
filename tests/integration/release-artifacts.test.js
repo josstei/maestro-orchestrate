@@ -7,9 +7,12 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { editJson, makeTempDir, removeDir } = require('../support/fs');
+const { ISOLATED_GIT_ENV } = require('../support/env');
 const { createTempRepoCopy, withTempRepoCopy } = require('./helpers');
+const { spawnMcpServer } = require('./mcp-stdio-client');
 const { packageReleaseArtifacts } = require('../../scripts/package-release-artifacts');
 const { verifyReleaseArtifact } = require('../../scripts/verify-release-artifacts');
+const { buildDependencyGraph } = require('../../src/generator/dependency-graph');
 
 /**
  * Extracts `archivePath` into a scratch directory, lets `mutate` edit the
@@ -45,10 +48,14 @@ describe('release artifact packaging', () => {
   // corrupted variants are repacked elsewhere so neither is ever modified.
   let repoRoot = null;
   let packaged = null;
+  let extractedRoot = null;
 
   before(() => {
     repoRoot = createTempRepoCopy('maestro-release-artifact-');
     packaged = packageReleaseArtifacts({ root: repoRoot, outDir: 'dist/release' });
+    extractedRoot = path.join(path.dirname(repoRoot), 'extracted');
+    fs.mkdirSync(extractedRoot);
+    execFileSync('tar', ['-xzf', packaged.archivePath, '-C', extractedRoot]);
   });
 
   after(() => {
@@ -77,6 +84,85 @@ describe('release artifact packaging', () => {
       './docs/runtime-antigravity.md',
     ]) {
       assert.ok(archiveEntries.includes(entry), `Expected the archive to include ${entry}`);
+    }
+    for (const buildPath of [
+      'src/entry-points', 'src/generator', 'src/transforms', 'src/manifest.js',
+      'src/platforms/metadata.js', 'src/platforms/qwen/policy-pack.js',
+      'src/lib/discovery', 'src/lib/yaml-emit.js',
+    ]) {
+      assert.equal(fs.existsSync(path.join(extractedRoot, buildPath)), false, buildPath);
+    }
+  });
+
+  it('retains the complete canonical runtime dependency graph without build dependencies', () => {
+    assert.equal(fs.existsSync(path.join(extractedRoot, 'node_modules')), false);
+    // Parse with the checkout's build tooling; no parser is shipped or loaded
+    // by the extracted runtime. Roots are independent of packaging policy.
+    const graph = buildDependencyGraph({
+      rootDir: path.join(extractedRoot, 'src'),
+      roots: [
+        'mcp/maestro-server.js',
+        'platforms/shared/hook-runner.js',
+        'platforms/antigravity/policy-enforcer.js',
+        'platforms/claude/policy-enforcer.js',
+        'platforms/antigravity/runtime-config.js',
+        'platforms/claude/runtime-config.js',
+        'platforms/codex/runtime-config.js',
+        'platforms/qwen/runtime-config.js',
+        'scripts/ensure-workspace.js',
+        'scripts/read-active-session.js',
+        'scripts/read-setting.js',
+        'scripts/read-state.js',
+        'scripts/write-state.js',
+      ],
+    });
+    assert.deepEqual(graph.issues, []);
+  });
+
+  it('runs MCP for all four runtimes and all five state CLIs from the extracted archive', async () => {
+    const workspace = makeTempDir('maestro-release-workspace-');
+    const env = {
+      ...process.env, ...ISOLATED_GIT_ENV,
+      NODE_PATH: '',
+      PWD: workspace,
+      INIT_CWD: undefined,
+      CLAUDE_PROJECT_DIR: workspace,
+      MAESTRO_WORKSPACE_PATH: workspace,
+      MAESTRO_EXTENSION_PATH: extractedRoot,
+      MAESTRO_STATE_DIR: 'archive-state',
+      MAESTRO_EXECUTION_MODE: 'parallel',
+    };
+    try {
+      for (const runtime of ['antigravity', 'claude', 'codex', 'qwen']) {
+        const client = spawnMcpServer({
+          cwd: workspace,
+          relativePath: path.join(extractedRoot, 'mcp/maestro-server.js'),
+          env: { ...env, MAESTRO_RUNTIME: runtime },
+          requestTimeoutMs: 5000,
+        });
+        try {
+          await client.ready;
+          await client.initialize();
+          const result = await client.callTool('get_runtime_context');
+          assert.notEqual(result.raw.isError, true, JSON.stringify(result.parsed));
+          assert.equal(result.parsed.runtime, runtime);
+        } finally {
+          await client.close();
+        }
+      }
+      const run = (script, args = [], input = '') => execFileSync(process.execPath,
+        [path.join(extractedRoot, 'src/scripts', script), ...args], {
+          cwd: workspace, env, input, encoding: 'utf8',
+        });
+      run('ensure-workspace.js', ['archive-state']);
+      assert.equal(run('read-setting.js', ['MAESTRO_EXECUTION_MODE']), 'parallel');
+      assert.equal(run('read-active-session.js'), 'No active session\n');
+      const content = '---\n{"session_id":"archive","status":"in_progress"}\n---\n';
+      run('write-state.js', ['archive-state/state/active-session.md'], content);
+      assert.equal(run('read-state.js', ['archive-state/state/active-session.md']), content);
+      assert.equal(run('read-active-session.js'), content);
+    } finally {
+      removeDir(workspace);
     }
   });
 
@@ -114,6 +200,26 @@ describe('release artifact packaging', () => {
         );
       }
     );
+  });
+
+  it('rejects build sources reintroduced into an otherwise valid archive', () => {
+    for (const buildPath of [
+      'src/generator/dependency-graph.js',
+      'src/entry-points/templates/qwen-command.toml.tmpl',
+      'src/manifest.js',
+    ]) {
+      withRepackedArchive(packaged.archivePath, 'maestro-build-source.tar.gz', (extractRoot) => {
+        const target = path.join(extractRoot, buildPath);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, 'unexpected build source\n');
+      }, (archivePath) => {
+        assert.throws(() => verifyReleaseArtifact(archivePath, { root: repoRoot }), (error) => {
+          assert.match(error.message, /Release artifact contains unallowlisted paths:/);
+          assert.ok(error.message.includes(buildPath), error.message);
+          return true;
+        });
+      });
+    }
   });
 
   it('fails packaging when a required runtime surface is missing', () => {

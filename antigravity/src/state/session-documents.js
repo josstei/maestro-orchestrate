@@ -81,16 +81,19 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind, tx)
 }
 
 /**
- * Write `content` atomically to `<state_dir>/plans/<filename>`.
+ * Materialize a validated document input. Path inputs use the caller's path
+ * handling; inline content is staged in `<state_dir>/plans/<filename>`.
  *
- * @param {string} filename - pure basename, already validated by the caller
- * @param {string} content
+ * @param {{ path: string } | { filename: string, content: string } | null} document
+ * @param {(documentPath: string) => string} fromPath
  * @param {object} tx
- * @returns {string} absolute path of the written document
+ * @returns {string | null} absolute document path, or null for absent input
  */
-function writePlansDocument(filename, content, tx) {
-  const destination = path.join(plansDirPath(tx), filename);
-  tx.writeFile(destination, content);
+function materializeDocumentInput(document, fromPath, tx) {
+  if (!document) return null;
+  if (document.path) return fromPath(document.path);
+  const destination = path.join(plansDirPath(tx), document.filename);
+  tx.writeFile(destination, document.content);
   return destination;
 }
 
@@ -133,6 +136,6 @@ function archivePlansDocuments(projectRoot, basePath, documentPaths, tx) {
 module.exports = {
   toWorkspacePath,
   materializeSessionDocument,
-  writePlansDocument,
+  materializeDocumentInput,
   archivePlansDocuments,
 };

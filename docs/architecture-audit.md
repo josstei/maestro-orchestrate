@@ -69,6 +69,16 @@ Acorn and Acorn Walk are explicit major-version-8 development dependencies, lock
 
 ## Verification record
 
+### Cleanup follow-up — 2026-10-25
+
+Reviewed the completed implementation for transitional interfaces, unused exports, debugging residue, and development-only files in runtime distributions. Removed coordinator pass-through exports, the agent-catalog alias, test-only helper exports, unused gate arguments/transaction return metadata, the unused encoding overload, the empty-context wrapper, duplicate context normalization, the redundant graph traversal, and unused Map compatibility coercion. Physical path resolution now lives in `state/paths.js`; document materialization belongs entirely to the state store. Temporary Windows test diagnostics and stale handwritten-launcher documentation are gone.
+
+The extension release archive excludes 19 build modules and eight templates that none of its runtime entrypoints load. Independent artifact checks reject their reintroduction; extracted-archive checks exercise every runtime and all five state scripts. npm retains its documented generation/build/prepack and installer sources. Public launchers, root documentation redirects, legacy YAML/CLI behavior, saved journal results, and recovery metadata remain intentional compatibility surfaces. No tracked temporary files, development caches, or production debug/fault-injection switches were found.
+
+The follow-up passes 1,160 tests on both Node 20 and 24 with zero failures or skips. Comparing the prior PR commit to the cleanup finds all 68 schemas, four runtime contexts, 56 served resource results, and 156 agent results identical.
+
+### Initial remediation acceptance
+
 Reproducible acceptance commands: `npm ci`, `npm test`, `node scripts/check-layer-boundaries.js`, `npm run pack:verify`, `npm run release:artifacts`, `npm run release:verify-artifacts`, and repeated `node scripts/generate.js` with zero drift. Full-suite runs use Node 20 and 24. The `state-portability` CI matrix runs focused concurrency, recovery, CLI, and hook contracts on Linux, macOS, and Windows with both Node majors.
 
 The recorded pre-expansion baseline has 68 tool schemas, four runtime contexts, 56 served resource results, and 156 agent definitions across four runtimes. Final comparisons allow only approved fallback/recovery instruction changes, additive CLI options/errors, and private metadata. No npm publication, live host installation, or merge is part of this remediation.

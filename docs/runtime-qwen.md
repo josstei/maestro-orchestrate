@@ -178,8 +178,8 @@ The Qwen extension also owns these repo-root artifacts:
 agents/                    [generated] 39 agent stubs (snake_case, Qwen tool names)
 commands/maestro/          [generated] 12 TOML commands
 policies/                  [generated] maestro.toml policy pack
-mcp/                       maestro-server.js shim (hand-maintained)
-hooks/                     hook-runner.js shim (hand-maintained)
+mcp/                       [generated] maestro-server.js wrapper
+hooks/                     [generated] hook-runner.js wrapper
 qwen-extension.json        [generated] extension manifest
 QWEN.md                    hand-maintained context file
 ```

@@ -101,6 +101,36 @@ describe('release artifact manifest', () => {
     }
   });
 
+  it('excludes build sources from archives without denying them in npm packages', () => {
+    for (const buildPath of [
+      'src/entry-points',
+      'src/entry-points/templates/qwen-command.toml.tmpl',
+      'src/generator',
+      'src/generator/dependency-graph.js',
+      'src/transforms',
+      'src/transforms/agent-stub.js',
+      'src/manifest.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
+      'src/lib/discovery',
+      'src/lib/discovery/index.js',
+      'src/lib/yaml-emit.js',
+    ]) {
+      assert.equal(isReleaseArtifactPathAllowed(buildPath), false, buildPath);
+      assert.equal(isDeniedPath(buildPath), false, buildPath);
+    }
+    for (const runtimePath of [
+      'src/mcp/maestro-server.js',
+      'src/platforms/qwen/runtime-config.js',
+      'src/platforms/shared/hook-runner.js',
+      'src/scripts/ensure-workspace.js',
+      'src/lib/io/index.js',
+      'src/templates/session-state.md',
+    ]) {
+      assert.equal(isReleaseArtifactPathAllowed(runtimePath), true, runtimePath);
+    }
+  });
+
   it('keeps denying local .gemini tool directories', () => {
     for (const deniedPath of ['.gemini', '.gemini_security']) {
       assert.ok(DENIED_ARTIFACT_PATHS.includes(deniedPath), `${deniedPath} must stay denied`);

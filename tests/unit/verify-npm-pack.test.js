@@ -46,6 +46,22 @@ describe('verify npm pack', () => {
     }
   });
 
+  it('allows build, prepack, release and installer dependencies in npm packages', () => {
+    assert.doesNotThrow(() => verifyPackageEntries(packWith(
+      'scripts/generate.js',
+      'scripts/install-codex-plugin.js',
+      'scripts/package-release-artifacts.js',
+      'src/entry-points/templates/qwen-command.toml.tmpl',
+      'src/generator/dependency-graph.js',
+      'src/transforms/agent-stub.js',
+      'src/manifest.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
+      'src/lib/discovery/index.js',
+      'src/lib/yaml-emit.js',
+    )));
+  });
+
   it('rejects test-only package content', () => {
     assert.throws(
       () => verifyPackageEntries(packWith('tests/unit/example.test.js')),

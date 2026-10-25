@@ -23,6 +23,30 @@ function joinRelative(basePath, relativePath) {
   return path.join(basePath, relativePath);
 }
 
+function resolvePhysicalPath(filename, symlinkDepth = 0) {
+  if (symlinkDepth > 40) throw Object.assign(new Error('Too many symbolic links in state path'), { code: 'ELOOP' });
+  let existing = path.resolve(filename);
+  const missing = [];
+  for (;;) {
+    try { return path.join(fs.realpathSync(existing), ...missing); }
+    catch (error) {
+      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
+      try {
+        if (fs.lstatSync(existing).isSymbolicLink()) {
+          const destination = path.resolve(path.dirname(existing), fs.readlinkSync(existing));
+          return path.join(resolvePhysicalPath(destination, symlinkDepth + 1), ...missing);
+        }
+      } catch (linkError) {
+        if (!['ENOENT', 'ENOTDIR'].includes(linkError.code)) throw linkError;
+      }
+      const parent = path.dirname(existing);
+      if (parent === existing) throw error;
+      missing.unshift(path.basename(existing));
+      existing = parent;
+    }
+  }
+}
+
 function containmentIdentity(filePath) {
   let existing = filePath;
   const suffix = [];
@@ -97,6 +121,7 @@ module.exports = {
   DEFAULT_STATE_DIR,
   WORKSPACE_SUBDIRS,
   joinRelative,
+  resolvePhysicalPath,
   resolveStateDirUnder,
   resolveStateDirSetting,
   resolveStateDirPath,

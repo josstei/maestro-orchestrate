@@ -218,8 +218,8 @@ Fields: `subagent` (always true), `mainAgent` (always false), `model` (always "i
 antigravity/
 ├── agents/                [generated] 39 agent stubs (kebab-case, Antigravity tool names)
 ├── skills/                [generated] 19 skill directories
-├── hooks/                 generated hook-runner.js and policy-enforcer.js wrappers
-├── mcp/                   maestro-server.js shim (hand-maintained)
+├── hooks/                 [generated] hook-runner.js and policy-enforcer.js wrappers
+├── mcp/                   [generated] maestro-server.js wrapper
 ├── src/                   [generated] detached runtime payload, stamped with version.json
 ├── plugin.json            [generated] plugin manifest
 ├── mcp_config.json        [generated] MCP server registration

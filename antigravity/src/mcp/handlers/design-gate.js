@@ -5,8 +5,8 @@ const { ValidationError } = require('../../lib/errors');
 const { withStateMutation, withStateRead } = require('../../state/coordinator');
 const { resolveStateDirPath } = require('../../state/paths');
 const { createGate, readGate, writeGate } = require('../../state/design-gate');
-const { toWorkspacePath } = require('../../state/session-documents');
-const { parseDocumentInput, materializeDocumentInput } = require('../contracts/document-input');
+const { toWorkspacePath, materializeDocumentInput } = require('../../state/session-documents');
+const { parseDocumentInput } = require('../contracts/document-input');
 
 /**
  * @param {{ session_id: string }} params

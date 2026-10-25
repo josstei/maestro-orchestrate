@@ -3,7 +3,6 @@
 const { assertSessionId } = require('../../lib/validation');
 const { validatePhases } = require('../contracts/plan-schema');
 const {
-  createEmptyDownstreamContext,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape: describeDownstreamContextShape,
@@ -23,9 +22,10 @@ const {
 } = require('../../state/session-state');
 const {
   materializeSessionDocument,
+  materializeDocumentInput,
   archivePlansDocuments,
 } = require('../../state/session-documents');
-const { parseDocumentInput, materializeDocumentInput } = require('../contracts/document-input');
+const { parseDocumentInput } = require('../contracts/document-input');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
 
@@ -168,7 +168,7 @@ function handleCreateSession(params, projectRoot) {
         files_modified: [],
         files_deleted: [],
         planned_files: phase.files || [],
-        downstream_context: createEmptyDownstreamContext(),
+        downstream_context: normalizeDownstreamContext(null),
         errors: [],
         retry_count: 0,
       })),

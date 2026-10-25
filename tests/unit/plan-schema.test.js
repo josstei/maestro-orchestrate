@@ -4,13 +4,13 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  PHASE_REQUIRED_FIELDS,
+  PHASE_ITEM_SCHEMA,
   validatePhases,
 } = require('../../src/mcp/contracts/plan-schema');
 
 describe('plan-schema', () => {
-  it('exposes the required field list in declaration order', () => {
-    assert.deepEqual(PHASE_REQUIRED_FIELDS, [
+  it('declares required fields in schema order', () => {
+    assert.deepEqual(PHASE_ITEM_SCHEMA.required, [
       'id',
       'name',
       'agent',

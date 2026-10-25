@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Release archive contents**: the extension archive omits generator sources, entry-point templates, stub transforms, and build-only helpers. Runtime launchers, MCP, hooks, state scripts, and content remain available; npm retains its build and installer commands.
 - **Canonical architecture**: public launchers are generated, phase declarations have one owner, state stores own gate/document persistence, and parser-backed dependency checks enforce runtime boundaries. Detached payloads follow their runtime dependency closure; parser dependencies are development-only.
 - **Settings resolution**: one `resolve_settings` request reads each reached environment file once, while retaining precedence, diagnostics, and fresh values between requests.
 - **Served skill and protocol text**: the delegation, execution, session-management, design-dialogue, implementation-planning, and code-review skills, the agent-base and filesystem-safety protocols, and the orchestration references are deduplicated and no longer contradict each other (one prompt assembly order, one place to record the execution mode, and one shared agent Output Contract appended by `get_agent`). Orchestration behavior is unchanged.

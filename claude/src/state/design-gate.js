@@ -73,7 +73,7 @@ function writeGate(basePath, sessionId, data, tx) {
  * @param {string} currentSessionId
  * @returns {Array<{session_id: string, approved_at: string, design_document_path: string | null}>}
  */
-function findOrphanedApprovedGates(basePath, currentSessionId, tx) {
+function findOrphanedApprovedGates(basePath, currentSessionId) {
   const stateDir = gateDir(basePath);
   let entries;
   try {
@@ -112,8 +112,8 @@ function findOrphanedApprovedGates(basePath, currentSessionId, tx) {
  * @param {string} currentSessionId
  * @throws {ValidationError} when an orphaned approved gate is detected
  */
-function assertNoOrphanedApprovedGate(basePath, currentSessionId, tx) {
-  const orphans = findOrphanedApprovedGates(basePath, currentSessionId, tx);
+function assertNoOrphanedApprovedGate(basePath, currentSessionId) {
+  const orphans = findOrphanedApprovedGates(basePath, currentSessionId);
   if (orphans.length === 0) return;
 
   const orphanedIds = orphans.map((gate) => gate.session_id);
@@ -149,7 +149,7 @@ function assertNoOrphanedApprovedGate(basePath, currentSessionId, tx) {
 function readGateForCreateSession(basePath, sessionId, tx) {
   const gate = readGate(basePath, sessionId, tx);
   if (gate === null) {
-    assertNoOrphanedApprovedGate(basePath, sessionId, tx);
+    assertNoOrphanedApprovedGate(basePath, sessionId);
   }
 
   if (gate && gate.entered_at && !gate.approved_at) {

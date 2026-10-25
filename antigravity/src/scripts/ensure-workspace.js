@@ -9,5 +9,5 @@ const { stateErrorMessage } = require('./state-access');
 const stateDir = process.argv[2] || DEFAULT_STATE_DIR;
 const basePath = process.cwd();
 
-Promise.resolve().then(() => ensureWorkspace(stateDir, basePath))
+ensureWorkspace(stateDir, basePath)
   .catch((err) => fatal(stateErrorMessage(err)));

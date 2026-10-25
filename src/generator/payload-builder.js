@@ -81,4 +81,4 @@ function planDetachedPayload(srcDir, outputDir, runtimeName, version, { sourceOv
   return { runtimeName, outputDir, outputs, manifestPaths, removedPaths: pruned.sort() };
 }
 
-module.exports = { STATE_SCRIPTS, planDetachedPayload };
+module.exports = { planDetachedPayload };

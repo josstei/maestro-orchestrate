@@ -32,13 +32,6 @@ function normalizeFieldValue(value) {
 }
 
 /**
- * @returns {Object<string, string[]>} a fresh empty canonical context.
- */
-function createEmptyDownstreamContext() {
-  return normalizeDownstreamContext(null);
-}
-
-/**
  * Normalize any input to the canonical `{ field: string[] }` shape.
  * Accepts null, arrays-of-strings, strings, and unknown keys are dropped.
  *
@@ -55,11 +48,10 @@ function normalizeDownstreamContext(input) {
 
 /**
  * True when the normalized context has at least one non-empty field.
- * @param {unknown} input
+ * @param {Object<string, string[]>} normalized - Output of normalizeDownstreamContext
  * @returns {boolean}
  */
-function isDownstreamContextPopulated(input) {
-  const normalized = normalizeDownstreamContext(input);
+function isDownstreamContextPopulated(normalized) {
   return CANONICAL_FIELDS.some((field) => normalized[field].length > 0);
 }
 
@@ -78,8 +70,6 @@ function describeShape() {
 }
 
 module.exports = {
-  CANONICAL_FIELDS,
-  createEmptyDownstreamContext,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape,

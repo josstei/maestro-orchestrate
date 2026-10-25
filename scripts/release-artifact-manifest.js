@@ -32,6 +32,19 @@ const RELEASE_ARTIFACT_PATHS = [
   'src',
 ];
 
+// The extension archive has no build CLI. npm retains these sources for its
+// generate/build/prepack commands and Codex installer.
+const RELEASE_BUILD_EXCLUSIONS = [
+  'src/entry-points',
+  'src/generator',
+  'src/transforms',
+  'src/manifest.js',
+  'src/platforms/metadata.js',
+  'src/platforms/qwen/policy-pack.js',
+  'src/lib/discovery',
+  'src/lib/yaml-emit.js',
+];
+
 const DENIED_ARTIFACT_PATHS = [
   '.git',
   '.github',
@@ -95,6 +108,11 @@ function isReleaseArtifactPathAllowed(relativePath) {
 
   if (!normalized) {
     return true;
+  }
+
+  if (RELEASE_BUILD_EXCLUSIONS.some((excluded) =>
+    normalized === excluded || normalized.startsWith(`${excluded}/`))) {
+    return false;
   }
 
   return RELEASE_ARTIFACT_PATHS.some((allowed) => {

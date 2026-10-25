@@ -179,8 +179,8 @@ claude/
 ├── agents/                [generated] 39 agent stubs (kebab-case)
 ├── skills/                [generated] 19 skill directories
 ├── hooks/                 [generated] claude-hooks.json
-├── scripts/               generated hook-runner.js and policy-enforcer.js wrappers
-├── mcp/                   maestro-server.js shim (hand-maintained)
+├── scripts/               [generated] hook-runner.js and policy-enforcer.js wrappers
+├── mcp/                   [generated] maestro-server.js wrapper
 ├── src/                   [generated] detached runtime payload for isolated installs
 ├── .claude-plugin/        [generated] plugin.json manifest
 ├── .mcp.json              [generated]

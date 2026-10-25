@@ -108,7 +108,6 @@ function validatePhases(phases) {
 module.exports = {
   PHASE_ITEM_SCHEMA,
   PHASE_LIMITS,
-  PHASE_REQUIRED_FIELDS,
   TASK_COMPLEXITY_SCHEMA,
   isValidPhaseId,
   validatePhases,

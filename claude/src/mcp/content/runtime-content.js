@@ -10,9 +10,7 @@ const { AGENT_NAMES } = require('../../core/agent-registry');
 
 const RESOURCE_ALLOWLIST = Object.freeze(require('../../generated/resource-registry.json'));
 
-const AGENT_ALLOWLIST = AGENT_NAMES;
-
-const HYPHENATED_AGENT_NAMES = AGENT_ALLOWLIST.filter((name) => name.includes('-'));
+const HYPHENATED_AGENT_NAMES = AGENT_NAMES.filter((name) => name.includes('-'));
 
 /**
  * Rewrite `${extensionPath}` in served markdown to the runtime's extension-root
@@ -91,7 +89,7 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
  * Read an agent definition and serve its methodology body with the shared
  * Output Contract (agents/shared/handoff-report.md) appended.
  *
- * Callers must pass a name from AGENT_ALLOWLIST; get_agent enforces this
+ * Callers must pass a name from AGENT_NAMES; get_agent enforces this
  * before reading.
  */
 function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
@@ -121,10 +119,6 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
 }
 
 module.exports = {
-  RESOURCE_ALLOWLIST,
-  AGENT_ALLOWLIST,
-  applyReplacePaths,
-  applySkillMetadata,
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 };

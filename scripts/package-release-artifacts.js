@@ -10,6 +10,7 @@ const {
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
+  isReleaseArtifactPathAllowed,
   readJson,
   releaseArchiveName,
 } = require('./release-artifact-manifest');
@@ -53,7 +54,10 @@ function resolveVersion(root, requestedVersion) {
 function copyPath(root, stagingRoot, relativePath) {
   fs.cpSync(path.join(root, relativePath), path.join(stagingRoot, relativePath), {
     recursive: true,
-    filter: (source) => !isDeniedPath(path.relative(root, source)),
+    filter: (source) => {
+      const relative = path.relative(root, source);
+      return isReleaseArtifactPathAllowed(relative) && !isDeniedPath(relative);
+    },
   });
 }
 

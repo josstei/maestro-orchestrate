@@ -58,13 +58,13 @@ maestro-orchestrate/
 │   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
 │   └── manifest.js               # Declarative file mapping rules
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
-├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)
+├── bin/                          # [generated] maestro-mcp-server.js (Codex npx entrypoint)
 ├── tests/                        # Unit, transform, and integration suites + shared helpers
 │
 ├── agents/                       # [generated] Qwen agent stubs (39, snake_case, Qwen tool names)
 ├── commands/maestro/             # [generated] Qwen TOML commands
-├── hooks/                        # Hook-runner shim (used by qwen/hooks.json)
-├── mcp/                          # MCP server shim (Qwen)
+├── hooks/                        # [generated] Hook-runner wrapper (used by qwen/hooks.json)
+├── mcp/                          # [generated] MCP server wrapper (Qwen)
 ├── policies/                     # [generated] Shell policy pack (Qwen)
 ├── .claude-plugin/               # [generated] Claude marketplace
 ├── .agents/plugins/              # [generated] Codex marketplace
@@ -72,8 +72,8 @@ maestro-orchestrate/
 ├── antigravity/                  # Antigravity plugin
 │   ├── agents/                   # [generated] Antigravity agent stubs
 │   ├── skills/                   # [generated] Antigravity skills (19)
-│   ├── hooks/                    # Hook-runner and policy-enforcer shims
-│   ├── mcp/                      # MCP server shim
+│   ├── hooks/                    # [generated] Hook-runner and policy-enforcer wrappers
+│   ├── mcp/                      # [generated] MCP server wrapper
 │   ├── src/                      # [generated] Detached runtime payload
 │   ├── plugin.json               # [generated] Plugin manifest
 │   ├── mcp_config.json           # [generated] MCP server config
@@ -84,8 +84,8 @@ maestro-orchestrate/
 │   ├── agents/                   # [generated] Claude agent stubs
 │   ├── skills/                   # [generated] Claude skills (19)
 │   ├── hooks/                    # [generated] Hook config (claude-hooks.json)
-│   ├── scripts/                  # Hook-runner and policy-enforcer shims
-│   ├── mcp/                      # MCP server shim
+│   ├── scripts/                  # [generated] Hook-runner and policy-enforcer wrappers
+│   ├── mcp/                      # [generated] MCP server wrapper
 │   ├── src/                      # [generated] Detached runtime payload
 │   ├── .claude-plugin/           # [generated] Plugin manifest
 │   └── .mcp.json                 # [generated] MCP server config
@@ -103,7 +103,7 @@ maestro-orchestrate/
     └── hooks.json                # Qwen hook registration
 ```
 
-`[generated]` marks generator output; a tag on a directory covers everything in it. The untagged runtime files (the shims, READMEs, and the Codex runtime guide) are maintained by hand; [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) has the full list.
+`[generated]` marks generator output; a tag on a directory covers everything in it. Runtime READMEs, the Codex runtime guide, the Claude MCP configuration example, and `QWEN.md` are maintained by hand; [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) has the full list.
 
 ## Core Concepts
 

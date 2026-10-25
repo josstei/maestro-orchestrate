@@ -187,16 +187,15 @@ function getDependencyClosure(graph, roots) {
 /**
  * Analyze canonical src/ without evaluating modules. Paths are relative to
  * rootDir; roots may also include content files. Supplying roots scans only
- * their closure. sourceOverrides supplies fresh, not-yet-written registries.
+ * their closure. sourceOverrides is a Map of fresh, not-yet-written registries.
  */
 function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new Map() }) {
   rootDir = fs.realpathSync(rootDir);
-  const overrides = sourceOverrides instanceof Map ? sourceOverrides : new Map(Object.entries(sourceOverrides));
   const nodes = new Set();
   const edges = [];
   const issues = [];
   const addIssue = (code, file, line, message) => issues.push({ code, file, line, message });
-  const read = (file) => overrides.has(file) ? overrides.get(file) : fs.readFileSync(path.join(rootDir, file), 'utf8');
+  const read = (file) => sourceOverrides.has(file) ? sourceOverrides.get(file) : fs.readFileSync(path.join(rootDir, file), 'utf8');
 
   function checkedRealPath(candidate, from, specifier, line) {
     // A fresh registry may not exist yet. Resolve its nearest existing parent
@@ -235,7 +234,7 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
         addIssue('OUTSIDE_ROOT', from, line, `Dependency escapes canonical source: ${specifier}`);
         return null;
       }
-      if (overrides.has(relative)) {
+      if (sourceOverrides.has(relative)) {
         return checkedRealPath(candidate, from, specifier, line) ? relative : null;
       }
       let stat;
@@ -267,7 +266,7 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
     const targets = entries
       .filter((entry) => entry.isDirectory() && entry.name !== 'shared' && (!runtime || entry.name === runtime))
       .map((entry) => `platforms/${entry.name}/${name}`)
-      .filter((file) => overrides.has(file) || fs.existsSync(path.join(rootDir, file)))
+      .filter((file) => sourceOverrides.has(file) || fs.existsSync(path.join(rootDir, file)))
       .sort(compare);
     if (targets.length === 0) addIssue('INVALID_ANNOTATION_TARGETS', from, line, `No targets for ${kind}${runtime ? ` (${runtime})` : ''}`);
     return targets;
@@ -307,11 +306,10 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
     }
   }
 
-  const requestedRoots = roots || [...new Set([...collectModules(rootDir), ...overrides.keys()].filter((file) => /\.[cm]?js$/.test(file)))];
-  const resolvedRoots = [];
+  const requestedRoots = roots || [...new Set([...collectModules(rootDir), ...sourceOverrides.keys()].filter((file) => /\.[cm]?js$/.test(file)))];
   for (const root of requestedRoots) {
     const resolved = resolve('', './' + root, 1);
-    if (resolved) { resolvedRoots.push(resolved); visit(resolved); }
+    if (resolved) visit(resolved);
   }
   edges.sort((a, b) => compare(a.from, b.from) || compare(a.to, b.to) || a.line - b.line);
   const graph = { nodes: [...nodes].sort(compare), edges, issues };
@@ -335,7 +333,8 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
   }
   for (const node of graph.nodes) checkCycles(node, []);
   issues.sort((a, b) => compare(a.file, b.file) || a.line - b.line || compare(a.code, b.code) || compare(a.message, b.message));
-  graph.reachable = getDependencyClosure(graph, resolvedRoots);
+  // Nodes are populated only by visiting the requested roots and their imports.
+  graph.reachable = graph.nodes.slice();
   return graph;
 }
 
