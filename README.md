@@ -151,7 +151,7 @@ Defaults work; these settings tune behavior:
 | Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
 | Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
-Antigravity, Claude Code, and Codex expose review, debug, and resume as `review-code`, `debug-workflow`, and `resume-session` so they do not shadow the host's built-in commands; Qwen Code keeps `review`, `debug`, and `resume` ([details](docs/usage.md#invoking-maestro)).
+Antigravity, Claude Code, and Codex expose review, debug, and resume as `review-code`, `debug-workflow`, and `resume-session` so they avoid host built-in command names (some are reserved defensively); Qwen Code keeps `review`, `debug`, and `resume` ([details](docs/usage.md#invoking-maestro)).
 
 ## Workflow
 

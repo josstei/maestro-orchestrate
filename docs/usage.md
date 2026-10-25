@@ -28,6 +28,7 @@ All settings are resolved with precedence: environment variable > workspace `.en
 | `MAESTRO_WORKSPACE_PATH` | Codex | First source for `workspace_suggestion` when the host exports it; otherwise the suggestion comes from MCP `roots/list` |
 | `CLAUDE_PLUGIN_ROOT` | Claude | Plugin root (set by Claude Code) |
 | `CLAUDE_PROJECT_DIR` | Claude | Project directory (set by Claude Code) |
+| `MAESTRO_RUNTIME` | All | Names the host runtime for the MCP server instead of identifying it from the MCP client name; an unknown value stops the server at startup |
 
 ## Invoking Maestro
 

@@ -29,7 +29,7 @@ All three detached payloads remove unused discovery and YAML-emission build help
 
 ## State protocol and dependency boundaries
 
-[State Coordination and Recovery](architecture.md#state-coordination-and-recovery) describes the coordination, transaction, and recovery protocol, and [state usage](usage.md#concurrent-updates-and-recovery) the digest-guarded CLI form. The [Generator Pipeline](architecture.md#generator-pipeline) describes the dependency graph, and [Content Serving and Path Resolution](architecture.md#content-serving-and-path-resolution) the layer rules it enforces. This remediation approved only three additions to the state protocol: recoverable state errors, automatic roll-forward of committed operations, and optional content-hash checking for whole-file writes.
+[State Coordination and Recovery](architecture.md#state-coordination-and-recovery) describes the coordination, transaction, and recovery protocol, and [state usage](usage.md#concurrent-updates-and-recovery) the digest-guarded CLI form. The [Generator Pipeline](architecture.md#generator-pipeline) describes the dependency graph, and [Content Serving and Path Resolution](architecture.md#content-serving-and-path-resolution) the layer rules it enforces.
 
 ## Retained compatibility surfaces
 

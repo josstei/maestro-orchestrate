@@ -83,7 +83,7 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `launchers.policyEnforcer` | `hooks/policy-enforcer.js` | `scripts/policy-enforcer.js` | — | — |
 | `launchers.npmBin` | — | — | `bin/maestro-mcp-server.js` (package root) | — |
 
-`features` flags select the `<!-- @feature <flag> -->` blocks in served content (`src/core/feature-blocks.js`), and `exampleBlocks` also keeps `<example>` blocks in agent descriptions. `launchers` paths are relative to `outputDir`.
+`features` flags select the `<!-- @feature <flag> -->` blocks in served content (`src/core/feature-blocks.js`), and `exampleBlocks` also keeps `<example>` blocks in agent descriptions. `launchers` paths are relative to `outputDir`, except `npmBin`, which is relative to the package root.
 
 ### Entry-Point Registry
 
@@ -304,13 +304,13 @@ CI validates that generated output matches committed state:
 1. Run `node scripts/generate.js --check`, which writes nothing
 2. Fail if any generated file would be created, updated, or removed
 
-## Design decisions (retained compatibility surfaces)
+## Design Decisions (Retained Compatibility Surfaces)
 
 | Surface | Preservation decision | Focused coverage |
 |---------|-----------------------|------------------|
 | Public launcher paths and repository-first/bundled resolution | Keep the nine wrappers at their existing paths, generated from each runtime config's `launchers` | Generator, hook-entrypoint, MCP-bundle tests (repository-first); detached-payload tests (bundled) |
 | Legacy YAML summaries, raw Markdown, existing state CLI invocations | Preserve readers/output; distinguish coordinator failure from absence | Hook logic, state scripts, Markdown-state tests |
-| Runtime-specific adapters, config fields, command templates | Preserve differences in tools, delegation, hooks, and native plan mode as runtime-config data ([Runtime Definitions](#runtime-definitions)) and hook adapters; shell-policy differences are each adapter's `shellPolicy` over the shared enforcer | Platform adapter/config/metadata, transform and entrypoint tests |
+| Runtime-specific adapters, config fields, command templates | Preserve differences in tools, delegation, hooks, and native plan mode as runtime-config data ([Runtime Definitions](#runtime-definitions)) and hook adapters; shell-policy differences are each adapter's `shellPolicy` over the shared enforcer, and hook registrations (events, matchers, timeout units) stay in the per-host builders in `src/platforms/metadata.js` | Platform adapter/config/metadata, transform and entrypoint tests |
 | Independently authored artifact expectations | Keep the hand-written required and denied paths in `scripts/release-artifact-manifest.js` so generator mistakes cannot validate themselves | npm-pack and release-artifact tests/verifiers |
 | Local tooling and cache exclusions | Retain packaging and workspace exclusions; npm ships runtime code plus the Codex installer, and the release archive omits build-only modules | Install/packaging and cache-path tests |
 | Separate DAG passes and diagnostic order | Preserve existing validation passes | Plan schema and validate-plan tests |
