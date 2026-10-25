@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { BUILD_ONLY_PATHS } = require('../src/generator/build-only');
 
 const RELEASE_ARTIFACT_PATHS = [
   '.agents/plugins/marketplace.json',
@@ -34,15 +35,7 @@ const RELEASE_ARTIFACT_PATHS = [
 
 // The extension archive has no build CLI. npm retains these sources for its
 // generate/build/prepack commands and Codex installer.
-const RELEASE_BUILD_EXCLUSIONS = [
-  'src/entry-points',
-  'src/generator',
-  'src/transforms',
-  'src/platforms/metadata.js',
-  'src/platforms/qwen/policy-pack.js',
-  'src/lib/discovery',
-  'src/lib/yaml-emit.js',
-];
+const RELEASE_BUILD_EXCLUSIONS = BUILD_ONLY_PATHS.map((buildPath) => `src/${buildPath}`);
 
 const DENIED_ARTIFACT_PATHS = [
   '.git',
@@ -79,6 +72,40 @@ const REQUIRED_PACKAGE_FILES = [
   'qwen-extension.json',
   'scripts/install-codex-plugin.js',
   'src/mcp/maestro-server.js',
+];
+
+const REQUIRED_RUNTIME_FILES = [
+  'antigravity/hooks/hook-runner.js',
+  'antigravity/hooks/policy-enforcer.js',
+  'antigravity/hooks.json',
+  'antigravity/mcp/maestro-server.js',
+  'antigravity/src/mcp/maestro-server.js',
+  'bin/maestro-mcp-server.js',
+  'claude/hooks/claude-hooks.json',
+  'claude/mcp/maestro-server.js',
+  'claude/scripts/hook-runner.js',
+  'claude/scripts/policy-enforcer.js',
+  'claude/src/mcp/maestro-server.js',
+  'hooks/hook-runner.js',
+  'mcp/maestro-server.js',
+  'plugins/maestro/.app.json',
+  'plugins/maestro/src/mcp/maestro-server.js',
+  'qwen/hooks.json',
+  'src/mcp/maestro-server.js',
+];
+
+// Runtime roots whose detached src/ payload carries its own version.json.
+const DETACHED_PAYLOADS = [
+  ['antigravity', 'Antigravity'],
+  ['claude', 'Claude'],
+  ['plugins/maestro', 'Codex'],
+];
+
+// Manifests that launch the bundled server with node, by their root variable.
+const NODE_LAUNCHERS = [
+  ['antigravity/mcp_config.json', '${PLUGIN_ROOT}'],
+  ['claude/.mcp.json', '${CLAUDE_PLUGIN_ROOT}'],
+  ['qwen-extension.json', '${extensionPath}'],
 ];
 
 const RELEASE_OUT_DIR = 'dist/release';
@@ -128,17 +155,7 @@ function isReleaseArtifactPathAllowed(relativePath) {
 }
 
 function assertRequiredArtifactPaths(root) {
-  const missing = [];
-
-  for (const relativePath of RELEASE_ARTIFACT_PATHS) {
-    if (isDeniedPath(relativePath)) {
-      throw new Error(`Release artifact allowlist contains denied path: ${relativePath}`);
-    }
-
-    if (!fs.existsSync(path.join(root, relativePath))) {
-      missing.push(relativePath);
-    }
-  }
+  const missing = RELEASE_ARTIFACT_PATHS.filter((relativePath) => !fs.existsSync(path.join(root, relativePath)));
 
   if (missing.length > 0) {
     throw new Error(`Required release artifact paths are missing: ${missing.join(', ')}`);
@@ -241,9 +258,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
-  const antigravitySrcVersion = readJson(root, 'antigravity/src/version.json');
-  const claudeSrcVersion = readJson(root, 'claude/src/version.json');
-  const codexSrcVersion = readJson(root, 'plugins/maestro/src/version.json');
   const claudeMarketplacePlugin = findNamedPlugin(
     claudeMarketplace,
     'maestro',
@@ -258,9 +272,10 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     ['plugins/maestro/.codex-plugin/plugin.json', requireNonEmpty(codexPlugin.version, 'Codex plugin')],
     ['.claude-plugin/marketplace.json metadata.version', requireNonEmpty(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
     ['.claude-plugin/marketplace.json plugins.maestro.version', requireNonEmpty(claudeMarketplacePlugin.version, 'Claude marketplace plugin')],
-    ['antigravity/src/version.json', requireNonEmpty(antigravitySrcVersion.version, 'Antigravity detached payload')],
-    ['claude/src/version.json', requireNonEmpty(claudeSrcVersion.version, 'Claude detached payload')],
-    ['plugins/maestro/src/version.json', requireNonEmpty(codexSrcVersion.version, 'Codex detached payload')],
+    ...DETACHED_PAYLOADS.map(([runtimeRoot, runtime]) => {
+      const relativePath = `${runtimeRoot}/src/version.json`;
+      return [relativePath, requireNonEmpty(readJson(root, relativePath).version, `${runtime} detached payload`)];
+    }),
   ];
   const version = expectedVersion || versionEntries[0][1];
   const mismatches = versionEntries.filter(([, entryVersion]) => entryVersion !== version);
@@ -271,8 +286,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   }
 
   const codexMarketplace = readJson(root, '.agents/plugins/marketplace.json');
-  const antigravityMcp = readJson(root, 'antigravity/mcp_config.json');
-  const claudeMcp = readJson(root, 'claude/.mcp.json');
   const codexMcp = readJson(root, 'plugins/maestro/.mcp.json');
 
   const packageName = requireNonEmpty(pkg.name, 'package.json name', 'string');
@@ -314,26 +327,14 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     throw new Error('antigravity/plugin.json must name the plugin maestro');
   }
 
-  assertLaunchesMaestroServer(
-    antigravityMcp,
-    'node',
-    ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
-    'antigravity/mcp_config.json must launch the bundled Maestro MCP server'
-  );
-
-  assertLaunchesMaestroServer(
-    claudeMcp,
-    'node',
-    ['${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js'],
-    'claude/.mcp.json must launch the bundled Maestro MCP server'
-  );
-
-  assertLaunchesMaestroServer(
-    qwen,
-    'node',
-    ['${extensionPath}/mcp/maestro-server.js'],
-    'qwen-extension.json must launch the bundled Maestro MCP server'
-  );
+  for (const [relativePath, rootVariable] of NODE_LAUNCHERS) {
+    assertLaunchesMaestroServer(
+      readJson(root, relativePath),
+      'node',
+      [`${rootVariable}/mcp/maestro-server.js`],
+      `${relativePath} must launch the bundled Maestro MCP server`
+    );
+  }
 
   const expectedPackageSpec = `${packageName}@${version}`;
   assertLaunchesMaestroServer(
@@ -343,27 +344,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     `plugins/maestro/.mcp.json must launch ${expectedPackageSpec}`
   );
 
-  const requiredRuntimeFiles = [
-    'antigravity/hooks/hook-runner.js',
-    'antigravity/hooks/policy-enforcer.js',
-    'antigravity/hooks.json',
-    'antigravity/mcp/maestro-server.js',
-    'antigravity/src/mcp/maestro-server.js',
-    'bin/maestro-mcp-server.js',
-    'claude/hooks/claude-hooks.json',
-    'claude/mcp/maestro-server.js',
-    'claude/scripts/hook-runner.js',
-    'claude/scripts/policy-enforcer.js',
-    'claude/src/mcp/maestro-server.js',
-    'hooks/hook-runner.js',
-    'mcp/maestro-server.js',
-    'plugins/maestro/.app.json',
-    'plugins/maestro/src/mcp/maestro-server.js',
-    'qwen/hooks.json',
-    'src/mcp/maestro-server.js',
-  ];
-
-  for (const relativePath of requiredRuntimeFiles) {
+  for (const relativePath of REQUIRED_RUNTIME_FILES) {
     const absolutePath = path.join(root, relativePath);
     if (!fs.existsSync(absolutePath)) {
       throw new Error(`Required runtime file missing: ${relativePath}`);
@@ -393,4 +374,5 @@ module.exports = {
   isReleaseArtifactPathAllowed,
   readJson,
   releaseArchiveName,
+  requireNonEmpty,
 };

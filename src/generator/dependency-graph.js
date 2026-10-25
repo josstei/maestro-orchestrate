@@ -6,6 +6,7 @@ const path = require('node:path');
 const { isBuiltin } = require('node:module');
 const acorn = require('acorn');
 const walk = require('acorn-walk');
+const { isBuildOnly } = require('./build-only');
 
 const LAYERS = Object.freeze({
   lib: ['lib'],
@@ -18,13 +19,6 @@ const DYNAMIC_KINDS = new Set(['runtime-configs', 'hook-adapters', 'hook-handler
 const posix = (value) => value.split(path.sep).join('/');
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const isWithin = (root, file) => file === root || file.startsWith(root + path.sep);
-const BUILD_ONLY_FILES = new Set([
-  'platforms/metadata.js',
-  'platforms/qwen/policy-pack.js',
-  'lib/yaml-emit.js',
-]);
-const isBuildOnly = (file) => /^(generator|transforms|entry-points|lib\/discovery)\//.test(file)
-  || BUILD_ONLY_FILES.has(file);
 
 function collectModules(dir, prefix = '') {
   if (!fs.existsSync(dir)) return [];

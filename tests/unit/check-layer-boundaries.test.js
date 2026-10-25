@@ -21,7 +21,9 @@ function makeFixtureRepo() {
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'src', 'lib'), { recursive: true });
   fs.copyFileSync(SCRIPT, path.join(root, 'scripts', 'check-layer-boundaries.js'));
-  writeTree(root, 'src/generator/dependency-graph.js', fs.readFileSync(path.join(ROOT, 'src/generator/dependency-graph.js'), 'utf8'));
+  for (const analyzer of ['src/generator/build-only.js', 'src/generator/dependency-graph.js']) {
+    writeTree(root, analyzer, fs.readFileSync(path.join(ROOT, analyzer), 'utf8'));
+  }
   return root;
 }
 
@@ -59,7 +61,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     const root = makeFixtureRepo();
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /1 files scanned, 0 violations/);
+    assert.match(result.stdout, /2 files scanned, 0 violations/);
   });
 
   it('allows relative imports that stay inside src/lib', () => {
@@ -68,7 +70,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'helper.js', "module.exports = 1;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /3 files scanned, 0 violations/);
+    assert.match(result.stdout, /4 files scanned, 0 violations/);
   });
 
   it('allows node: built-in imports', () => {
@@ -105,7 +107,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'nested/user.js', "const lib = require('..');\nmodule.exports = lib;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /3 files scanned, 0 violations/);
+    assert.match(result.stdout, /4 files scanned, 0 violations/);
   });
 
   it('flags non-relative, non-node imports as violations', () => {
@@ -148,7 +150,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeLibFile(root, 'other.js', "module.exports = 1;\n");
     const result = runScript(root);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /3 files scanned, 0 violations/);
+    assert.match(result.stdout, /4 files scanned, 0 violations/);
   });
 
   it('allows lower layers to depend on their declared shared layers', () => {
@@ -167,7 +169,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     writeTree(root, 'src/generated/agent-registry.json', '[]');
     const result = runScript(root);
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /12 files scanned, 0 violations/);
+    assert.match(result.stdout, /13 files scanned, 0 violations/);
   });
 
   it('rejects reverse dependencies into handlers, host adapters and generation', () => {
