@@ -74,7 +74,7 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind, tx)
     return resolvedSource;
   }
 
-  tx.mkdir(plansDir, { recursive: true });
+  tx.mkdir(plansDir, { recursive: true, mode: 0o700 });
   const destination = path.join(plansDir, path.basename(resolvedSource));
   tx.copyFile(resolvedSource, destination);
   return destination;
@@ -111,7 +111,7 @@ function materializeDocumentInput(document, fromPath, tx) {
 function archivePlansDocuments(projectRoot, documentPaths, tx) {
   const plansDir = plansDirPath(tx);
   const plansArchiveDir = path.join(plansDir, 'archive');
-  tx.mkdir(plansArchiveDir, { recursive: true });
+  tx.mkdir(plansArchiveDir, { recursive: true, mode: 0o700 });
 
   const archivedFiles = [];
   for (const documentPath of documentPaths.filter(Boolean)) {

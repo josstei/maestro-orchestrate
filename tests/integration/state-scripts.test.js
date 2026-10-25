@@ -139,6 +139,21 @@ describe('state scripts', () => {
       assert.equal(result.status, 1);
       assert.equal(result.stderr, 'ERROR: STATE_DIR must not be a symlink\n');
     });
+
+    it('exits 1 without creating the referent when the state directory is a dangling symlink', (t) => {
+      const target = path.join(workspace, 'elsewhere');
+      fs.mkdirSync(path.join(workspace, 'docs'));
+      try { fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), 'dir'); }
+      catch (error) {
+        if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('Directory symlinks require privileges');
+        throw error;
+      }
+
+      const result = runScript('ensure-workspace.js', ['docs/maestro'], { cwd: workspace });
+      assert.equal(result.status, 1);
+      assert.equal(result.stderr, 'ERROR: STATE_DIR must not be a symlink\n');
+      assert.equal(fs.existsSync(target), false);
+    });
   });
 
   describe('write-state.js and read-state.js', () => {

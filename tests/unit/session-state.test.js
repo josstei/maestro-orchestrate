@@ -10,7 +10,9 @@ const {
   resolveStateDirPath,
   activeSessionFile,
 } = require('../../src/state/paths');
-const { ensureWorkspace } = require('../../src/state/session-state');
+const { ensureWorkspace, archiveActiveSession } = require('../../src/state/session-state');
+const { archivePlansDocuments } = require('../../src/state/session-documents');
+const { withStateMutation } = require('../../src/state/coordinator');
 const { readStateFile, writeStateFile } = require('../../src/scripts/state-access');
 const { withEnv } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
@@ -168,5 +170,23 @@ describe('session-state', () => {
     await ensureWorkspace('workspace', tmpRoot);
     await ensureWorkspace('workspace', tmpRoot);
     assert.equal(fs.readFileSync(gitignorePath, 'utf8'), 'active-session.md\r\narchive/\r\n# user rule\r\ncustom/\n.maestro/\n');
+  });
+
+  it('creates archive directories missing from an uninitialized workspace as private (0o700)', {
+    skip: process.platform === 'win32' && 'Windows does not report POSIX modes',
+  }, async () => {
+    const base = path.join(tmpRoot, 'workspace');
+    fs.mkdirSync(path.join(base, 'state'), { recursive: true });
+    fs.writeFileSync(activeSessionFile(base), '---\nsession_id: s1\n---\n');
+    const priorUmask = process.umask(0o022);
+    try {
+      await withStateMutation(base, { operation: 'archive_session' }, (tx) => {
+        archiveActiveSession(tx, 's1');
+        archivePlansDocuments(tmpRoot, [], tx);
+      });
+    } finally { process.umask(priorUmask); }
+    for (const dir of ['state/archive', 'plans', 'plans/archive']) {
+      assert.equal(fs.statSync(path.join(base, dir)).mode & 0o777, 0o700, dir);
+    }
   });
 });

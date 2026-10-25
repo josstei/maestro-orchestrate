@@ -58,7 +58,7 @@ function withSessionState(cwd, operation, sessionId, mutator) {
  */
 function archiveActiveSession(tx, sessionId) {
   const archivePath = path.join(tx.basePath, 'state', 'archive', `${sessionId}.md`);
-  tx.mkdir(path.dirname(archivePath), { recursive: true });
+  tx.mkdir(path.dirname(archivePath), { recursive: true, mode: 0o700 });
   tx.rename(activeSessionFile(tx.basePath), archivePath);
   return archivePath;
 }
@@ -95,13 +95,16 @@ function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found
  */
 async function ensureWorkspace(stateDir, basePath) {
   const fullBase = resolveStateDirUnder(basePath, stateDir);
-  if (fs.existsSync(fullBase) && fs.lstatSync(fullBase).isSymbolicLink()) {
+  // lstat, unlike existsSync, also sees a dangling symlink. Other lstat
+  // failures are left for the state lock to report.
+  let stat = null;
+  try { stat = fs.lstatSync(fullBase); } catch {}
+  if (stat?.isSymbolicLink()) {
     throw new Error('STATE_DIR must not be a symlink');
   }
   // Checked before the state lock, which creates `state/.maestro`.
   const alreadyExisted = fs.existsSync(path.join(fullBase, 'state'));
   await withStateMutation(fullBase, { operation: 'initialize_workspace' }, (tx) => {
-    tx.mkdir(fullBase, { recursive: true, mode: 0o700 });
     for (const dir of WORKSPACE_SUBDIRS.map((subdir) => path.join(fullBase, subdir))) {
       try {
         tx.mkdir(dir, { recursive: true, mode: 0o700 });
