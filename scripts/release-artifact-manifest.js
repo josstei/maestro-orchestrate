@@ -54,6 +54,7 @@ const DENIED_ARTIFACT_PATHS = [
   '.worktrees',
   '.serena',
   '.superpowers',
+  '.cache',
   'coverage',
   'dist',
   'docs/maestro',
@@ -62,6 +63,7 @@ const DENIED_ARTIFACT_PATHS = [
   'tests',
   'tmp',
   'temp',
+  'scratch',
 ];
 
 const DENIED_ARTIFACT_PATTERNS = [
@@ -76,6 +78,7 @@ const REQUIRED_PACKAGE_FILES = [
   'claude/.claude-plugin/plugin.json',
   'plugins/maestro/.codex-plugin/plugin.json',
   'qwen-extension.json',
+  'scripts/install-codex-plugin.js',
   'src/mcp/maestro-server.js',
 ];
 
@@ -97,7 +100,8 @@ function normalizeArtifactPath(relativePath) {
 function isDeniedPath(relativePath) {
   const normalized = normalizeArtifactPath(relativePath);
   const deniedByPath = DENIED_ARTIFACT_PATHS.some((denied) => {
-    return normalized === denied || normalized.startsWith(`${denied}/`);
+    return normalized === denied || normalized.startsWith(`${denied}/`)
+      || normalized.endsWith(`/${denied}`) || normalized.includes(`/${denied}/`);
   });
 
   return deniedByPath || DENIED_ARTIFACT_PATTERNS.some((pattern) => pattern.test(normalized));
@@ -152,6 +156,9 @@ function walkArtifactFiles(root) {
 
     for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
       const relativePath = normalizeArtifactPath(path.posix.join(relativeDir, entry.name));
+      if (entry.isSymbolicLink()) {
+        throw new Error(`Release artifact contains symbolic link: ${relativePath}`);
+      }
       files.push(relativePath);
 
       if (entry.isDirectory()) {
@@ -322,6 +329,13 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     'claude/.mcp.json must launch the bundled Maestro MCP server'
   );
 
+  assertLaunchesMaestroServer(
+    qwen,
+    'node',
+    ['${extensionPath}/mcp/maestro-server.js'],
+    'qwen-extension.json must launch the bundled Maestro MCP server'
+  );
+
   const expectedPackageSpec = `${packageName}@${version}`;
   assertLaunchesMaestroServer(
     codexMcp,
@@ -331,16 +345,32 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   );
 
   const requiredRuntimeFiles = [
+    'antigravity/hooks/hook-runner.js',
+    'antigravity/hooks/policy-enforcer.js',
     'antigravity/hooks.json',
+    'antigravity/mcp/maestro-server.js',
     'antigravity/src/mcp/maestro-server.js',
     'bin/maestro-mcp-server.js',
+    'claude/hooks/claude-hooks.json',
+    'claude/mcp/maestro-server.js',
+    'claude/scripts/hook-runner.js',
+    'claude/scripts/policy-enforcer.js',
     'claude/src/mcp/maestro-server.js',
+    'hooks/hook-runner.js',
+    'mcp/maestro-server.js',
+    'plugins/maestro/.app.json',
     'plugins/maestro/src/mcp/maestro-server.js',
+    'qwen/hooks.json',
+    'src/mcp/maestro-server.js',
   ];
 
   for (const relativePath of requiredRuntimeFiles) {
-    if (!fs.existsSync(path.join(root, relativePath))) {
+    const absolutePath = path.join(root, relativePath);
+    if (!fs.existsSync(absolutePath)) {
       throw new Error(`Required runtime file missing: ${relativePath}`);
+    }
+    if (!fs.statSync(absolutePath).isFile()) {
+      throw new Error(`Required runtime file must be a regular file: ${relativePath}`);
     }
   }
 

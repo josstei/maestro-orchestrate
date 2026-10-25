@@ -166,6 +166,33 @@ describe('release artifact packaging', () => {
     }
   });
 
+  it('rejects archives with a missing launcher or a directory in its place', () => {
+    const launcher = 'mcp/maestro-server.js';
+    for (const replaceWithDirectory of [false, true]) {
+      withRepackedArchive(packaged.archivePath, 'maestro-missing-launcher.tar.gz', (extractRoot) => {
+        const target = path.join(extractRoot, launcher);
+        fs.rmSync(target);
+        if (replaceWithDirectory) fs.mkdirSync(target);
+      }, (archivePath) => {
+        assert.throws(() => verifyReleaseArtifact(archivePath, { root: repoRoot }), {
+          message: replaceWithDirectory
+            ? `Required runtime file must be a regular file: ${launcher}`
+            : `Required runtime file missing: ${launcher}`,
+        });
+      });
+    }
+  });
+
+  it('fails packaging before writing an archive when a public launcher is missing', () => {
+    withTempRepoCopy('maestro-release-missing-launcher-', (missingRoot) => {
+      fs.rmSync(path.join(missingRoot, 'claude/scripts/hook-runner.js'));
+      assert.throws(() => packageReleaseArtifacts({ root: missingRoot, outDir: 'dist/release' }), {
+        message: 'Required runtime file missing: claude/scripts/hook-runner.js',
+      });
+      assert.equal(fs.existsSync(path.join(missingRoot, 'dist/release')), false);
+    });
+  });
+
   it('rejects an archive with manifest version drift', () => {
     for (const manifestPath of ['qwen-extension.json', 'antigravity/plugin.json']) {
       withRepackedArchive(
@@ -230,6 +257,64 @@ describe('release artifact packaging', () => {
         () => packageReleaseArtifacts({ root: missingRoot, outDir: 'dist/release' }),
         /Required release artifact paths are missing: qwen-extension\.json/
       );
+    });
+  });
+
+  it('excludes nested tests, caches and scratch files from packaged archives', () => {
+    const forbidden = ['claude/tests/fixtures/helper.js', 'antigravity/.cache/probe.json', 'src/tmp/probe.txt'];
+    withTempRepoCopy('maestro-release-nested-', (root) => {
+      for (const file of forbidden) {
+        const target = path.join(root, file);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, 'fixture only\n');
+      }
+      const { archivePath } = packageReleaseArtifacts({ root, outDir: 'dist/release' });
+      const entries = execFileSync('tar', ['-tzf', archivePath], { encoding: 'utf8' }).trim().split('\n');
+      for (const file of forbidden) assert.equal(entries.includes(`./${file}`), false, file);
+      assert.equal(verifyReleaseArtifact(archivePath).version, packaged.version);
+    });
+    withRepackedArchive(packaged.archivePath, 'nested-cache.tar.gz', (root) => {
+      const target = path.join(root, forbidden[1]);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, 'fixture only\n');
+    }, (archivePath) => {
+      assert.throws(() => verifyReleaseArtifact(archivePath), /Release artifact contains denied paths:/);
+    });
+  });
+
+  it('rejects source symlinks and allowlisted-file ancestor symlinks before creating an archive', () => {
+    withTempRepoCopy('maestro-release-symlink-', (root) => {
+      const resource = path.join(root, 'src/references/architecture.md');
+      const original = fs.readFileSync(resource);
+      const external = path.join(path.dirname(root), 'outside.md');
+      fs.writeFileSync(external, 'external fixture\n');
+      for (const target of [external, external + '.missing', path.join(root, 'src/references/orchestration-steps.md')]) {
+        fs.unlinkSync(resource);
+        fs.symlinkSync(target, resource, 'file');
+        assert.throws(() => packageReleaseArtifacts({ root, outDir: 'dist/release' }),
+          /Release artifact contains symbolic link: src\/references\/architecture.md/);
+        assert.equal(fs.existsSync(path.join(root, 'dist/release')), false);
+        fs.unlinkSync(resource);
+        fs.writeFileSync(resource, original);
+      }
+      const docs = path.join(root, 'docs');
+      const savedDocs = path.join(path.dirname(root), 'external-docs');
+      fs.renameSync(docs, savedDocs);
+      fs.symlinkSync(savedDocs, docs, 'dir');
+      assert.throws(() => packageReleaseArtifacts({ root, outDir: 'dist/release' }),
+        /Release artifact contains symbolic link: docs/);
+      assert.equal(fs.existsSync(path.join(root, 'dist/release')), false);
+    });
+  });
+
+  it('rejects a repacked archive containing a dangling served-resource symlink', () => {
+    withRepackedArchive(packaged.archivePath, 'linked-resource.tar.gz', (root) => {
+      const resource = path.join(root, 'src/references/architecture.md');
+      fs.unlinkSync(resource);
+      fs.symlinkSync(path.join(root, 'missing-resource.md'), resource, 'file');
+    }, (archivePath) => {
+      assert.throws(() => verifyReleaseArtifact(archivePath),
+        /Release artifact contains symbolic link: src\/references\/architecture.md/);
     });
   });
 });

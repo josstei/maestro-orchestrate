@@ -28,6 +28,7 @@ describe('verify npm pack', () => {
       'claude/.claude-plugin/plugin.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'qwen-extension.json',
+      'scripts/install-codex-plugin.js',
       'src/mcp/maestro-server.js',
     ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
@@ -62,6 +63,14 @@ describe('verify npm pack', () => {
     )));
   });
 
+  it('rejects a package missing the advertised Codex installer', () => {
+    const [pack] = packWith();
+    const files = pack.files.filter((file) => file.path !== 'scripts/install-codex-plugin.js');
+    assert.throws(() => verifyPackageEntries([{ ...pack, files }]), {
+      message: 'npm package missing required file: scripts/install-codex-plugin.js',
+    });
+  });
+
   it('rejects test-only package content', () => {
     assert.throws(
       () => verifyPackageEntries(packWith('tests/unit/example.test.js')),
@@ -74,6 +83,11 @@ describe('verify npm pack', () => {
       'claude/scripts/policy-enforcer.test.js',
       'plugins/maestro/src/mcp/server.spec.js',
       'claude/scripts/__tests__/fixture.js',
+      'claude/tests/fixtures/helper.js',
+      'antigravity/.cache/probe.json',
+      'src/tmp/probe.txt',
+      'src/scratch/notes.md',
+      'plugins/maestro/node_modules/acorn/index.js',
     ]) {
       assert.throws(
         () => verifyPackageEntries(packWith(forbiddenPath)),

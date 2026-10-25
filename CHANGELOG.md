@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **State edge cases**: recover interrupted relative-symlink archives, preserve missing-document collision results and unrelated raw CLI access with cyclic state configuration, and avoid stranding lock ownership after candidate cleanup errors.
+- **Build validation**: reject indirect or unsupported module loads, nested development artifacts, archive symlinks, and invalid generated file destinations; verify every public launcher and surface diff-command failures.
 - **Windows state paths**: absolute state directories compare filesystem identities, including drive-letter case and short-path aliases, while preserving returned path spelling.
 - **Installed state-script fallback**: detached Claude and Codex payloads now include the advertised state scripts; instructions resolve the installed plugin rather than an unrelated workspace source directory.
 - **`initialize_workspace` could overwrite a file outside the workspace**: it wrote `<state_dir>/.workspace-root` with a plain write that follows symlinks, so a symlink at that path (for example one committed to a cloned repository) had its target replaced with the marker JSON, and a directory at that path made the call fail with `EISDIR`. The marker is no longer written (see Removed).

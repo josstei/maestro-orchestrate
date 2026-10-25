@@ -7,7 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 
-const { ISOLATED_GIT_ENV } = require('../support/env');
+const { ISOLATED_GIT_ENV, withEnv } = require('../support/env');
+const { readStateFile, writeStateFile } = require('../../src/scripts/state-access');
 const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT } = require('./helpers');
 const { createTransaction, publishTransaction } = require('../../src/state/transaction');
@@ -276,6 +277,69 @@ describe('state scripts', () => {
         assert.equal(read.status, 0, read.stderr);
         assert.equal(read.stdout, 'generic content');
       }
+    });
+
+    it('preserves generic raw access when an unrelated state root is a proven symlink cycle', () => {
+      const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+      fs.symlinkSync(path.join(workspace, 'self-loop'), path.join(workspace, 'self-loop'), linkType);
+      fs.symlinkSync(path.join(workspace, 'second-loop'), path.join(workspace, 'first-loop'), linkType);
+      fs.symlinkSync(path.join(workspace, 'first-loop'), path.join(workspace, 'second-loop'), linkType);
+      fs.writeFileSync(path.join(workspace, '.env'), 'BROKEN="unterminated\n');
+      for (const stateDir of ['self-loop', 'first-loop', 'self-loop/state', 'first-loop/nested/state', 'docs/../self-loop']) {
+        const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: stateDir } };
+        const write = runScript('write-state.js', ['ordinary.md'], { ...options, input: stateDir });
+        assert.equal(write.status, 0, write.stderr);
+        assert.equal(write.stderr, '');
+        const read = runScript('read-state.js', ['ordinary.md'], options);
+        assert.equal(read.status, 0, read.stderr);
+        assert.equal(read.stdout, stateDir);
+        assert.equal(read.stderr, '');
+        const guarded = runScript('write-state.js', ['ordinary.md', '--expected-sha256', createHash('sha256').update(stateDir).digest('hex')], {
+          ...options, input: 'must not replace',
+        });
+        assert.equal(guarded.status, 1);
+        assert.match(guarded.stderr, /within the configured state directory/);
+        assert.equal(fs.readFileSync(path.join(workspace, 'ordinary.md'), 'utf8'), stateDir);
+        const managed = runScript('write-state.js', ['self-loop/state/notes.md'], { ...options, input: 'must not create' });
+        assert.equal(managed.status, 1);
+      }
+    });
+
+    it('does not treat an inaccessible or unresolved noncyclic root as safely outside', async () => {
+      const stateRoot = path.join(workspace, 'unresolved');
+      fs.mkdirSync(stateRoot);
+      writeTree(workspace, 'ordinary.md', 'original');
+      const realpath = fs.realpathSync;
+      try {
+        for (const code of ['EACCES', 'ELOOP']) {
+          fs.realpathSync = Object.assign(function (filename) {
+            if (path.resolve(filename) === stateRoot) throw Object.assign(new Error('cannot identify state root'), { code });
+            return realpath.apply(this, arguments);
+          }, { native: realpath.native });
+          await withEnv({ MAESTRO_STATE_DIR: 'unresolved' }, async () => {
+            await assert.rejects(readStateFile('ordinary.md', workspace), { code });
+            await assert.rejects(writeStateFile('ordinary.md', 'replacement', workspace), { code });
+          });
+          assert.equal(fs.readFileSync(path.join(workspace, 'ordinary.md'), 'utf8'), 'original');
+        }
+      } finally { fs.realpathSync = realpath; }
+    });
+
+    it('keeps metadata aliases inaccessible when the configured state root is cyclic', () => {
+      const privatePath = 'docs/maestro/state/.maestro/private';
+      const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+      writeTree(workspace, privatePath, 'private metadata');
+      fs.symlinkSync(path.join(workspace, 'docs/maestro/state/.maestro'), path.join(workspace, 'metadata-alias'), linkType);
+      fs.symlinkSync(path.join(workspace, 'loop'), path.join(workspace, 'loop'), linkType);
+      const options = { cwd: workspace, env: { MAESTRO_STATE_DIR: 'loop' } };
+      for (const target of [privatePath, 'metadata-alias/private']) {
+        const read = runScript('read-state.js', [target], options);
+        assert.equal(read.status, 1);
+        assert.equal(read.stdout, '');
+        const write = runScript('write-state.js', [target], { ...options, input: 'must not replace' });
+        assert.equal(write.status, 1);
+      }
+      assert.equal(fs.readFileSync(path.join(workspace, privatePath), 'utf8'), 'private metadata');
     });
 
     it('keeps an invalid managed root from falling back to uncoordinated access', () => {

@@ -16,9 +16,12 @@ function isWithin(root, filename) {
   return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 }
 
-function assertPublicStatePath(basePath, filename) {
+function assertPublicStatePath(basePath, filename, { followLeaf = true } = {}) {
   const base = resolvePhysicalPath(basePath);
-  const physical = resolvePhysicalPath(filename);
+  // Renaming or unlinking a symlink acts on the directory entry, not its
+  // referent. Its parent must still resolve inside public managed state.
+  const entry = path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
+  const physical = followLeaf ? resolvePhysicalPath(filename) : entry;
   const control = path.join(base, 'state', '.maestro');
   if (isWithin(control, physical)) {
     throw new ValidationError('The private Maestro state directory cannot be accessed as a state document.', { code: 'STATE_INTERNAL_PATH' });
@@ -27,7 +30,7 @@ function assertPublicStatePath(basePath, filename) {
     throw new ValidationError('State transaction paths must remain inside the configured state directory.', { code: 'STATE_PATH_OUTSIDE' });
   }
   // Resolve parent aliases, preserving a leaf symlink for rename/unlink semantics.
-  return path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
+  return entry;
 }
 
 function fingerprint(filename, deepDirectories = false) {
@@ -59,7 +62,7 @@ function createTransaction(basePath, controlPath) {
   const operations = [];
   const overlay = new Map();
   const directoryMoves = [];
-  const target = (filename) => assertPublicStatePath(root, path.resolve(filename));
+  const target = (filename, options) => assertPublicStatePath(root, path.resolve(filename), options);
   const relative = (filename) => path.relative(root, filename).split(path.sep).join('/');
   function physicalView(filename) {
     let current = filename;
@@ -83,13 +86,28 @@ function createTransaction(basePath, controlPath) {
   }
   const tx = {
     basePath: path.resolve(basePath),
-    exists(filename) {
+    exists(filename, seen = new Set()) {
       const normalized = path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
-      if (overlay.has(normalized)) return overlay.get(normalized).image !== null;
-      const physical = resolvePhysicalPath(filename);
-      if (overlay.has(physical)) return overlay.get(physical).image !== null;
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      const entry = overlay.get(normalized);
+      if (entry) {
+        if (entry.image?.kind === 'symlink') {
+          return tx.exists(path.resolve(path.dirname(normalized), entry.image.target), seen);
+        }
+        return entry.image !== null;
+      }
       const source = physicalView(normalized);
-      return source !== null && fs.existsSync(source);
+      if (source === null) return false;
+      try {
+        if (fs.lstatSync(source).isSymbolicLink()) {
+          return tx.exists(path.resolve(path.dirname(normalized), fs.readlinkSync(source)), seen);
+        }
+      } catch (error) {
+        if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false;
+        throw error;
+      }
+      return fs.existsSync(source);
     },
     readFile(filename, encoding = null) {
       const normalized = path.join(resolvePhysicalPath(path.dirname(filename)), path.basename(filename));
@@ -152,8 +170,8 @@ function createTransaction(basePath, controlPath) {
       tx.writeFile(normalized, tx.readFile(source), { mode: sourceMode, exactMode: true });
     },
     rename(source, destination) {
-      const from = target(source);
-      const to = target(destination);
+      const from = target(source, { followLeaf: false });
+      const to = target(destination, { followLeaf: false });
       const beforeSource = image(from);
       if (!beforeSource) throw missing(source);
       if (from === to) return;
@@ -182,7 +200,7 @@ function createTransaction(basePath, controlPath) {
       overlay.set(from, { image: null });
     },
     unlink(filename) {
-      const normalized = target(filename);
+      const normalized = target(filename, { followLeaf: false });
       const before = image(normalized);
       if (!before) throw missing(filename);
       if (before.kind === 'directory') throw Object.assign(new Error('Cannot unlink a directory as a state file'), { code: 'EISDIR' });
@@ -248,11 +266,13 @@ function applyOperation(root, directory, operation) {
   if (!['mkdir', 'write', 'rename', 'unlink'].includes(operation.type) || typeof operation.path !== 'string' || path.isAbsolute(operation.path)) {
     throw recoveryError('The state recovery intent contains an unsupported operation.');
   }
-  const filename = assertPublicStatePath(root, path.join(root, operation.path));
+  const filename = assertPublicStatePath(root, path.join(root, operation.path), {
+    followLeaf: operation.type !== 'rename' && operation.type !== 'unlink',
+  });
   const actual = fingerprint(filename, operation.type === 'rename');
   if (operation.type === 'rename') {
     if (typeof operation.to !== 'string' || path.isAbsolute(operation.to)) throw recoveryError('Invalid state rename destination.');
-    const destination = assertPublicStatePath(root, path.join(root, operation.to));
+    const destination = assertPublicStatePath(root, path.join(root, operation.to), { followLeaf: false });
     const actualTarget = fingerprint(destination, true);
     if (actual === null && same(actualTarget, operation.after)) return;
     if (!same(actual, operation.before) || !same(actualTarget, operation.beforeTarget)) throw recoveryError('A state document changed during recovery.', { path: operation.path });

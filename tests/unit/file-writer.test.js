@@ -39,6 +39,16 @@ describe('safeResolve', () => {
     assert.equal(resolved, tempRoot);
   });
 
+  it('requires file destinations to be absent or regular files', () => {
+    fs.mkdirSync(path.join(tempRoot, 'blocked.js'));
+    assert.throws(() => safeResolve('blocked.js', tempRoot, { requireFile: true }), /Expected a regular file/);
+    fs.writeFileSync(path.join(tempRoot, 'existing.js'), 'content');
+    for (const file of ['existing.js', 'new/created.js']) {
+      assert.equal(safeResolve(file, tempRoot, { requireFile: true }), path.join(tempRoot, file));
+    }
+    assert.equal(safeResolve('blocked.js', tempRoot), path.join(tempRoot, 'blocked.js'));
+  });
+
   it('rejects existing and broken symlink outputs and symlink parents', () => {
     const external = makeTempDir('maestro-fw-external-');
     fs.symlinkSync(external, path.join(tempRoot, 'linked-dir'), 'dir');
@@ -238,6 +248,47 @@ describe('FileWriter dryRun mode', () => {
 });
 
 describe('FileWriter diffMode', () => {
+  it('counts a missing diff executable as a preview failure without changing files', (t) => {
+    const filePath = path.join(tempRoot, 'existing.txt');
+    fs.writeFileSync(filePath, 'old\n');
+    t.mock.method(console, 'error', () => {});
+    t.mock.method(console, 'log', () => {});
+    const savedPath = process.env.PATH;
+    try {
+      process.env.PATH = tempRoot;
+      const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
+      writer.write('existing.txt', 'new\n');
+      assert.equal(writer.getStats().errors, 1);
+      assert.equal(console.log.mock.calls.length, 0);
+      assert.match(console.error.mock.calls[0].arguments[0], /ENOENT/);
+      assert.equal(fs.readFileSync(filePath, 'utf8'), 'old\n');
+    } finally {
+      if (savedPath === undefined) delete process.env.PATH;
+      else process.env.PATH = savedPath;
+    }
+  });
+
+  it('counts diff exit 2 as failure rather than a rendered difference', { skip: process.platform === 'win32' }, (t) => {
+    const filePath = path.join(tempRoot, 'existing.txt');
+    fs.writeFileSync(filePath, 'old\n');
+    fs.writeFileSync(path.join(tempRoot, 'diff'), '#!/bin/sh\nexit 2\n', { mode: 0o755 });
+    t.mock.method(console, 'error', () => {});
+    t.mock.method(console, 'log', () => {});
+    const savedPath = process.env.PATH;
+    try {
+      process.env.PATH = tempRoot;
+      const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
+      writer.write('existing.txt', 'new\n');
+      assert.equal(writer.getStats().errors, 1);
+      assert.equal(console.log.mock.calls.length, 0);
+      assert.match(console.error.mock.calls[0].arguments[0], /Command failed/);
+      assert.equal(fs.readFileSync(filePath, 'utf8'), 'old\n');
+    } finally {
+      if (savedPath === undefined) delete process.env.PATH;
+      else process.env.PATH = savedPath;
+    }
+  });
+
   it('does not write to the actual output path in diffMode', () => {
     const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
     writer.write('diff-target.txt', 'content');

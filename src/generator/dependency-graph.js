@@ -18,8 +18,14 @@ const DYNAMIC_KINDS = new Set(['runtime-configs', 'hook-adapters', 'hook-handler
 const posix = (value) => value.split(path.sep).join('/');
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const isWithin = (root, file) => file === root || file.startsWith(root + path.sep);
-const isBuildOnly = (file) => /^(generator|transforms|entry-points)\//.test(file)
-  || file === 'manifest.js' || file === 'platforms/metadata.js';
+const BUILD_ONLY_FILES = new Set([
+  'manifest.js',
+  'platforms/metadata.js',
+  'platforms/qwen/policy-pack.js',
+  'lib/yaml-emit.js',
+]);
+const isBuildOnly = (file) => /^(generator|transforms|entry-points|lib\/discovery)\//.test(file)
+  || BUILD_ONLY_FILES.has(file);
 
 function collectModules(dir, prefix = '') {
   if (!fs.existsSync(dir)) return [];
@@ -140,8 +146,13 @@ function parseDependencies(source, file, addIssue) {
         && !parent.computed && parent.property.name === 'resolve'
         && ancestors[ancestors.length - 3]?.type === 'CallExpression'
         && ancestors[ancestors.length - 3].callee === parent;
+      const comparison = ancestors[ancestors.length - 3];
+      const comparedTo = comparison?.type === 'BinaryExpression'
+        ? (comparison.left === parent ? comparison.right : comparison.left) : null;
       const isMain = parent?.type === 'MemberExpression' && parent.object === node
-        && !parent.computed && parent.property.name === 'main';
+        && !parent.computed && parent.property.name === 'main'
+        && ['===', '!==', '==', '!='].includes(comparison?.operator)
+        && comparedTo?.type === 'Identifier' && comparedTo.name === 'module';
       if (!isCall && !isResolve && !isMain) {
         addIssue('UNSUPPORTED_REQUIRE', file, node.loc.start.line, 'Aliased, reassigned or indirect require is unsupported');
       }
@@ -234,6 +245,23 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
         addIssue('OUTSIDE_ROOT', from, line, `Dependency escapes canonical source: ${specifier}`);
         return null;
       }
+      if (candidate === path.join(location, 'index.js')) {
+        const packagePath = path.join(location, 'package.json');
+        const relativePackage = posix(path.relative(rootDir, packagePath));
+        if (sourceOverrides.has(relativePackage) || fs.existsSync(packagePath)) {
+          if (!checkedRealPath(packagePath, from, specifier, line)) return null;
+          let pkg;
+          try { pkg = JSON.parse(read(relativePackage)); } catch {
+            addIssue('INVALID_PACKAGE_MANIFEST', from, line, `Cannot read package.json for directory dependency: ${specifier}`);
+            return null;
+          }
+          if (pkg && Object.hasOwn(pkg, 'main')) {
+            addIssue('UNSUPPORTED_PACKAGE_MAIN', from, line,
+              `Directory dependency ${specifier} uses package.json main; import its target file explicitly`);
+            return null;
+          }
+        }
+      }
       if (sourceOverrides.has(relative)) {
         return checkedRealPath(candidate, from, specifier, line) ? relative : null;
       }
@@ -293,6 +321,11 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
         }
         const target = resolve(file, specifier, dependency.line);
         if (!target) continue;
+        if (dependency.kind !== 'require.resolve' && !/\.(?:[cm]?js|json)$/.test(target)) {
+          addIssue('UNSUPPORTED_MODULE_TYPE', file, dependency.line,
+            `Dependency ${specifier} resolves to unsupported module ${target}; use an explicit .js, .cjs, .mjs or .json file`);
+          continue;
+        }
         edges.push({ from: file, to: target, specifier, kind: dependency.kind, line: dependency.line });
         const layer = file.split('/')[0];
         if (LAYERS[layer] && !LAYERS[layer].includes(target.split('/')[0])) {

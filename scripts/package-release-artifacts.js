@@ -52,11 +52,25 @@ function resolveVersion(root, requestedVersion) {
 }
 
 function copyPath(root, stagingRoot, relativePath) {
+  const assertNoSymlink = (source) => {
+    if (fs.lstatSync(source).isSymbolicLink()) {
+      throw new Error(`Release artifact contains symbolic link: ${path.relative(root, source).split(path.sep).join('/')}`);
+    }
+  };
+  // Some allowlisted files have parents that are not copied as roots (docs/
+  // and marketplace directories). Validate those ancestors as well.
+  let source = root;
+  for (const segment of relativePath.split('/')) {
+    source = path.join(source, segment);
+    assertNoSymlink(source);
+  }
   fs.cpSync(path.join(root, relativePath), path.join(stagingRoot, relativePath), {
     recursive: true,
     filter: (source) => {
       const relative = path.relative(root, source);
-      return isReleaseArtifactPathAllowed(relative) && !isDeniedPath(relative);
+      if (!isReleaseArtifactPathAllowed(relative) || isDeniedPath(relative)) return false;
+      assertNoSymlink(source);
+      return true;
     },
   });
 }

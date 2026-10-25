@@ -69,6 +69,20 @@ Acorn and Acorn Walk are explicit major-version-8 development dependencies, lock
 
 ## Verification record
 
+### Three additional audits — 2026-10-25
+
+Three independent reviews covered dependency analysis and internal boundaries, state/CLI compatibility and recovery, and generated outputs/release artifacts. All 15 confirmed findings have implementations and focused regression coverage:
+
+| Audit | Findings and resolutions |
+|-------|--------------------------|
+| Dependency graph (4) | Reject indirect `require.main` loaders; reject package-main directory resolution with explicit-file guidance; reject executable imports with unsupported suffixes while retaining `require.resolve` data assets; classify discovery, YAML emission, and Qwen policy generation as build-only. |
+| State and CLI (4) | Recover archives after relative symlink moves by validating their parent and directory entry; preserve staged symlink existence and missing-document/collision results; preserve unrelated raw CLI access when the configured root has a proven symlink cycle while refusing ambiguous failures; avoid losing the release callback to cleanup of an already-moved lock candidate. |
+| Generation and artifacts (7) | Reject nested development/cache/scratch paths; reject archive symlinks; validate file destinations before any generation writes or pruning; surface failed diff commands; independently require all public launchers and hook/app files as regular files; validate Qwen launch arguments; require the advertised npm Codex installer. |
+
+Acceptance: 1,191 tests pass on both Node 20 and 24 with no failures or skips. The graph checks 96 modules without violations; npm-pack verification passes for 778 files; the release archive verifies; repeated generation reports zero writes and 588 unchanged outputs.
+
+These changes add no runtime dependencies, migration, compatibility modules, or production fault-injection switches. Normal public outputs remain identical to the preceding PR head: 68 tool schemas, four runtime contexts, 56 resource results, and 156 agent results. Archive symlink and invalid-output fixtures fail before creating an archive or modifying generated files; valid payload paths and bytes remain governed by the existing closure.
+
 ### Cleanup follow-up — 2026-10-25
 
 Reviewed the completed implementation for transitional interfaces, unused exports, debugging residue, and development-only files in runtime distributions. Removed coordinator pass-through exports, the agent-catalog alias, test-only helper exports, unused gate arguments/transaction return metadata, the unused encoding overload, the empty-context wrapper, duplicate context normalization, the redundant graph traversal, and unused Map compatibility coercion. Physical path resolution now lives in `state/paths.js`; document materialization belongs entirely to the state store. Temporary Windows test diagnostics and stale handwritten-launcher documentation are gone.

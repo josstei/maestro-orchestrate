@@ -14,10 +14,11 @@ function modeDiffers(filePath, mode) {
 /**
  * @param {string} relativePath
  * @param {string} rootDir
+ * @param {{ requireFile?: boolean }} [options] - Reject existing non-file destinations
  * @returns {string}
  * @throws {Error} If the resolved path escapes the root directory
  */
-function safeResolve(relativePath, rootDir) {
+function safeResolve(relativePath, rootDir, { requireFile = false } = {}) {
   rootDir = path.resolve(rootDir);
   const resolved = path.resolve(rootDir, relativePath);
   if (!resolved.startsWith(rootDir + path.sep) && resolved !== rootDir) {
@@ -30,8 +31,12 @@ function safeResolve(relativePath, rootDir) {
   for (const segment of ['', ...path.relative(rootDir, resolved).split(path.sep).filter(Boolean)]) {
     if (segment) current = path.join(current, segment);
     try {
-      if (fs.lstatSync(current).isSymbolicLink()) {
+      const stat = fs.lstatSync(current);
+      if (stat.isSymbolicLink()) {
         throw new Error(`Symlink path is not allowed for generated files: ${current}`);
+      }
+      if (requireFile && current === resolved && !stat.isFile()) {
+        throw new Error(`Expected a regular file: ${current}`);
       }
     } catch (error) {
       if (error.code === 'ENOENT') break;
@@ -63,6 +68,7 @@ function executeDiff(absOutputPath, content, displayPath, mode) {
   try {
     execFileSync('diff', ['-u', absOutputPath, '-'], { encoding: 'utf8', input: content });
   } catch (err) {
+    if (err.status !== 1) throw err;
     console.log(`--- ${displayPath}`);
     console.log(err.stdout);
   }
@@ -139,7 +145,7 @@ function createFileWriter(opts) {
    */
   function write(outputPath, content, mode) {
     try {
-      const absOutputPath = safeResolve(outputPath, rootDir);
+      const absOutputPath = safeResolve(outputPath, rootDir, { requireFile: true });
       if (diffMode) {
         executeDiff(absOutputPath, content, outputPath, mode);
       } else if (dryRun) {
@@ -171,7 +177,7 @@ function createFileWriter(opts) {
     }
 
     for (const outputPath of outputPaths) {
-      const absPath = safeResolve(outputPath, rootDir);
+      const absPath = safeResolve(outputPath, rootDir, { requireFile: true });
       if (fs.existsSync(absPath)) {
         fs.unlinkSync(absPath);
       }

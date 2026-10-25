@@ -83,6 +83,9 @@ describe('dependency graph', () => {
     createRequire: "const { createRequire } = require('node:module'); createRequire(__filename)('./missing');",
     createRequireNamespace: "const loader = require('node:module'); loader.createRequire(__filename)('./missing');",
     createRequireImport: "import { createRequire as loader } from 'node:module'; loader(import.meta.url)('./missing');",
+    mainModule: "require.main.require('./missing');",
+    mainModuleAlias: "const loader = require.main; loader.require('./missing');",
+    mainModuleComputed: "require.main['require']('./missing');",
   })) {
     it(`rejects unsupported ${name} require usage`, () => {
       const rootDir = fixture({ 'lib/main.js': source, 'lib/actual.js': '' });
@@ -99,6 +102,42 @@ describe('dependency graph', () => {
     assert.ok(codes(graph).includes('LAYER_BOUNDARY'));
     assert.ok(codes(graph).includes('SYMLINK_DEPENDENCY'));
     assert.equal(graph.edges[0].to, 'core/actual.js');
+  });
+
+  it('rejects package-main directories instead of following the unused index fallback', () => {
+    const rootDir = fixture({
+      'mcp/main.js': "require('./folder');",
+      'mcp/folder/package.json': '{"main":"entry.js"}',
+      'mcp/folder/entry.js': "module.exports = 'actual entry';",
+      'mcp/folder/index.js': "module.exports = 'unused fallback';",
+    });
+    assert.equal(require(path.join(rootDir, 'mcp/folder')), 'actual entry');
+    const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
+    assert.deepEqual(codes(graph), ['UNSUPPORTED_PACKAGE_MAIN']);
+    assert.match(graph.issues[0].message, /import its target file explicitly/);
+    assert.ok(!graph.reachable.includes('mcp/folder/index.js'));
+  });
+
+  for (const suffix of ['', '.md']) {
+    it(`rejects imported ${suffix || 'extensionless'} executable files instead of treating them as data`, () => {
+      const rootDir = fixture({
+        'mcp/main.js': `require('./hidden${suffix}');`,
+        [`mcp/hidden${suffix}`]: "module.exports = require('./helper');",
+        'mcp/helper.js': "module.exports = 'nested dependency';",
+      });
+      assert.equal(require(path.join(rootDir, `mcp/hidden${suffix}`)), 'nested dependency');
+      assert.deepEqual(codes(buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] })), ['UNSUPPORTED_MODULE_TYPE']);
+    });
+  }
+
+  it('keeps require.resolve data files without interpreting them as executable imports', () => {
+    const rootDir = fixture({
+      'mcp/main.js': "require.resolve('./guide.md');",
+      'mcp/guide.md': '# A guide containing require("./not-a-dependency")',
+    });
+    const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
+    assert.deepEqual(graph.issues, []);
+    assert.deepEqual(graph.reachable, ['mcp/guide.md', 'mcp/main.js']);
   });
 
   it('rejects symlink escapes from canonical source', () => {
@@ -145,6 +184,21 @@ describe('dependency graph', () => {
     });
     const graph = buildDependencyGraph({ rootDir });
     assert.deepEqual(codes(graph).sort(), ['EXTERNAL_DEPENDENCY', 'RUNTIME_BUILD_DEPENDENCY']);
+  });
+
+  it('rejects runtime imports of build helpers excluded from extension archives', () => {
+    const rootDir = fixture({
+      'mcp/main.js': [
+        "require('../platforms/qwen/policy-pack');",
+        "require('../lib/discovery');",
+        "require('../lib/yaml-emit');",
+      ].join('\n'),
+      'platforms/qwen/policy-pack.js': '',
+      'lib/discovery/index.js': '',
+      'lib/yaml-emit.js': '',
+    });
+    const graph = buildDependencyGraph({ rootDir });
+    assert.deepEqual(codes(graph), Array(3).fill('RUNTIME_BUILD_DEPENDENCY'));
   });
 
   it('expands finite dynamic targets with a runtime filter and fresh registry overrides', () => {

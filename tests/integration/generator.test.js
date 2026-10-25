@@ -98,6 +98,31 @@ describe('generator read-only modes', () => {
 });
 
 describe('payload preflight', () => {
+  it('rejects directories at file destinations before any write, clean or prune', () => {
+    withTempRepoCopy('maestro-output-file-type-', (repoRoot) => {
+      fs.appendFileSync(path.join(repoRoot, 'src/references/architecture.md'), '\nPending generated content\n');
+      fs.writeFileSync(path.join(repoRoot, 'antigravity/src/obsolete.js'), 'must not be pruned\n');
+      for (const relativePath of [
+        'claude/src/references/architecture.md',
+        'claude/mcp/maestro-server.js',
+        'src/generated/agent-registry.json',
+      ]) {
+        const output = path.join(repoRoot, relativePath);
+        const original = fs.readFileSync(output);
+        fs.unlinkSync(output);
+        fs.mkdirSync(output);
+        fs.writeFileSync(path.join(output, 'sentinel'), 'must remain\n');
+        const before = snapshotTree(repoRoot);
+        for (const flags of [[], ['--clean'], ['--dry-run'], ['--diff']]) {
+          assert.match(runGeneratorExpectFailure(flags, { cwd: repoRoot }).stderr, /Expected a regular file/);
+          assert.deepEqual(snapshotTree(repoRoot), before);
+        }
+        fs.rmSync(output, { recursive: true });
+        fs.writeFileSync(output, original);
+      }
+    });
+  });
+
   it('rejects generated registry and output-directory symlinks before writing or pruning their targets', () => {
     withTempRepoCopy('maestro-payload-symlinks-', (repoRoot) => {
       const external = makeTempDir('maestro-payload-protected-');

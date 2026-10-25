@@ -175,6 +175,31 @@ describe('state coordinator', () => {
     assert.equal(await withStateRead(base, () => fs.readFileSync(destination, 'utf8')), 'approved document');
   });
 
+  it('does not let cleanup of a consumed candidate strand the acquired lock', async (t) => {
+    const base = workspace(t);
+    const active = path.join(base, 'state', 'active-session.md');
+    const candidates = privatePath(base, 'candidates');
+    const originalRm = fs.rmSync;
+    fs.rmSync = function (filename, options) {
+      if (path.dirname(String(filename)) === candidates) {
+        throw Object.assign(new Error('candidate cleanup denied'), { code: 'EACCES' });
+      }
+      return originalRm.call(this, filename, options);
+    };
+    try {
+      assert.equal(await withStateMutation(base, { operation: 'update' }, (tx) => {
+        tx.writeFile(active, 'committed');
+        return 'success';
+      }), 'success');
+    } finally { fs.rmSync = originalRm; }
+    assert.equal(fs.readFileSync(active, 'utf8'), 'committed');
+    assert.equal(fs.existsSync(privatePath(base, 'lock')), false);
+    assert.equal(fs.existsSync(privatePath(base, 'current.json')), false);
+    assert.deepEqual(fs.readdirSync(candidates), []);
+    await withStateMutation(base, { operation: 'next' }, (tx) => tx.writeFile(active, 'next'), { timeoutMs: 0 });
+    assert.equal(fs.readFileSync(active, 'utf8'), 'next');
+  });
+
   it('releases a newly acquired lock when syncing ownership fails', async (t) => {
     const base = workspace(t);
     const control = privatePath(base, '');
@@ -315,6 +340,70 @@ describe('state coordinator', () => {
     await assert.rejects(withStateRead(base, () => undefined), { code: 'STATE_RECOVERY_REQUIRED' });
     assert.equal(fs.readFileSync(path.join(destination, 'other.md'), 'utf8'), 'unrelated');
     assert.equal(fs.existsSync(privatePath(base, 'current.json')), true);
+  });
+
+  it('renames and removes managed symlink entries without changing their external referents', async (t) => {
+    const base = workspace(t);
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-symlink-referent-'));
+    t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+    const referent = path.join(outside, 'keep.md');
+    fs.writeFileSync(referent, 'preserved');
+    const source = path.join(base, 'plans', 'source-link.md');
+    const destination = path.join(base, 'plans', 'destination-link.md');
+    try { fs.symlinkSync(referent, source); }
+    catch (error) {
+      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
+      throw error;
+    }
+    fs.symlinkSync(referent, destination);
+    await withStateMutation(base, { operation: 'move_link' }, (tx) => tx.rename(source, destination));
+    assert.equal(fs.lstatSync(destination).isSymbolicLink(), true);
+    assert.equal(fs.existsSync(source), false);
+    await withStateMutation(base, { operation: 'remove_link' }, (tx) => tx.unlink(destination));
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.readFileSync(referent, 'utf8'), 'preserved');
+  });
+
+  it('checks moved relative symlink existence against the staged referent at its new location', async (t) => {
+    const base = workspace(t);
+    const source = path.join(base, 'plans', 'source.md');
+    const destination = path.join(base, 'plans', 'nested', 'source.md');
+    fs.mkdirSync(path.dirname(destination));
+    try { fs.symlinkSync(path.join('..', 'state', 'active-session.md'), source); }
+    catch (error) {
+      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
+      throw error;
+    }
+    await withStateMutation(base, { operation: 'move_link' }, (tx) => {
+      assert.equal(tx.exists(source), true);
+      tx.rename(source, destination);
+      assert.equal(tx.exists(destination), false);
+      const referent = path.join(base, 'plans', 'state', 'active-session.md');
+      tx.writeFile(referent, 'staged referent');
+      assert.equal(tx.exists(destination), true);
+      tx.unlink(referent);
+      assert.equal(tx.exists(destination), false);
+    });
+    assert.equal(fs.existsSync(destination), false);
+    assert.equal(fs.lstatSync(destination).isSymbolicLink(), true);
+  });
+
+  it('still rejects rename and unlink paths through external or private parent aliases', async (t) => {
+    const base = workspace(t);
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-symlink-parent-'));
+    t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+    const externalAlias = path.join(base, 'plans', 'external');
+    const privateAlias = path.join(base, 'plans', 'private');
+    fs.symlinkSync(outside, externalAlias, process.platform === 'win32' ? 'junction' : 'dir');
+    fs.symlinkSync(privatePath(base, ''), privateAlias, process.platform === 'win32' ? 'junction' : 'dir');
+    for (const [alias, code] of [[externalAlias, 'STATE_PATH_OUTSIDE'], [privateAlias, 'STATE_INTERNAL_PATH']]) {
+      for (const operation of ['rename', 'unlink']) {
+        await assert.rejects(withStateMutation(base, { operation }, (tx) => {
+          if (operation === 'rename') tx.rename(path.join(alias, 'file.md'), path.join(base, 'plans', 'moved.md'));
+          else tx.unlink(path.join(alias, 'file.md'));
+        }), { code });
+      }
+    }
   });
 
   it('never follows a private transaction-directory symlink during garbage collection', async (t) => {

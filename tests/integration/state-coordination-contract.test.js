@@ -229,4 +229,68 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
     assert.equal(fs.readFileSync(recovered.design_document, 'utf8'), '# Captured design\n');
     assert.equal(fs.existsSync(path.join(control, 'current.json')), false);
   });
+
+  it('recovers an archive interrupted after moving a relative document symlink', async (t) => {
+    const workspace = fs.realpathSync(makeTempDir('maestro-symlink-archive-'));
+    const server = await createInitializedSessionServer(workspace);
+    const base = path.join(workspace, 'docs', 'maestro');
+    const referent = writeFile(path.join(base, 'design-content.md'), '# Design\n');
+    const source = path.join(base, 'plans', 'deep', 'nested', 'design.md');
+    fs.mkdirSync(path.dirname(source), { recursive: true });
+    const target = path.join('..', '..', '..', 'design-content.md');
+    try { fs.symlinkSync(target, source); }
+    catch (error) {
+      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
+      throw error;
+    }
+    assert.equal((await server.callTool('create_session', createParams('symlink-archive', {
+      design_document: source,
+    }), workspace)).ok, true);
+    const destination = path.join(base, 'plans', 'archive', 'design.md');
+    const rename = fs.renameSync;
+    fs.renameSync = function (from, to) {
+      const result = rename.apply(this, arguments);
+      if (from === source && to === destination) {
+        throw Object.assign(new Error('Interrupted after document rename'), { code: 'EIO' });
+      }
+      return result;
+    };
+    try {
+      const outcome = await server.callTool('archive_session', { session_id: 'symlink-archive' }, workspace);
+      assert.equal(outcome.code, 'STATE_RECOVERY_REQUIRED');
+    } finally { fs.renameSync = rename; }
+    const pointer = path.join(base, 'state', '.maestro', 'current.json');
+    assert.equal(fs.existsSync(pointer), true);
+    const status = await server.callTool('get_session_status', {}, workspace);
+    assert.equal(status.ok, true, JSON.stringify(status));
+    assert.equal(status.result.exists, false);
+    assert.equal(fs.existsSync(pointer), false);
+    assert.equal(fs.lstatSync(destination).isSymbolicLink(), true);
+    assert.equal(fs.readlinkSync(destination), target);
+    assert.equal(fs.readFileSync(referent, 'utf8'), '# Design\n');
+    assert.equal(markdownState.parse(fs.readFileSync(path.join(base, 'state', 'archive', 'symlink-archive.md'), 'utf8')).data.status, 'completed');
+  });
+
+  it('skips a plan replaced by a dangling document symlink during archive', async (t) => {
+    const workspace = fs.realpathSync(makeTempDir('maestro-symlink-collision-'));
+    const server = await createInitializedSessionServer(workspace);
+    const base = path.join(workspace, 'docs', 'maestro');
+    writeFile(path.join(base, 'design-content.md'), '# Design\n');
+    const source = path.join(base, 'plans', 'deep', 'nested', 'design.md');
+    fs.mkdirSync(path.dirname(source), { recursive: true });
+    try { fs.symlinkSync(path.join('..', '..', '..', 'design-content.md'), source); }
+    catch (error) {
+      if (process.platform === 'win32' && error.code === 'EPERM') return t.skip('File symlinks require privileges');
+      throw error;
+    }
+    const plan = writeFile(path.join(base, 'plans', 'archive', 'design.md'), '# Prior plan\n');
+    assert.equal((await server.callTool('create_session', createParams('symlink-collision', {
+      design_document: source, implementation_plan: plan,
+    }), workspace)).ok, true);
+    const outcome = await server.callTool('archive_session', { session_id: 'symlink-collision' }, workspace);
+    assert.equal(outcome.ok, true, JSON.stringify(outcome));
+    assert.deepEqual(outcome.result.archived_files, [outcome.result.archive_path, plan]);
+    assert.equal(fs.existsSync(plan), false);
+    assert.equal(fs.lstatSync(plan).isSymbolicLink(), true);
+  });
 });

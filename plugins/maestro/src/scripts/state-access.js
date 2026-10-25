@@ -14,7 +14,31 @@ const {
 } = require('../state/transaction');
 
 function isWithin(root, target) {
-  return target === root || target.startsWith(root + path.sep);
+  return root !== null && (target === root || target.startsWith(root + path.sep));
+}
+
+// A proven link cycle cannot contain a successfully resolved document. Other
+// resolution failures stay fatal because an inaccessible alias may contain it.
+function stateRootIdentity(root) {
+  try { return resolvePhysicalPath(root); }
+  catch (error) {
+    if (error.code !== 'ELOOP') throw error;
+    const seen = new Set();
+    let current = path.resolve(root);
+    for (let depth = 0; depth < 40; depth++) {
+      if (seen.has(current)) return null;
+      seen.add(current);
+      try { current = path.resolve(path.dirname(current), fs.readlinkSync(current)); }
+      catch (linkError) {
+        // A suffix below a cyclic ancestor cannot itself be inspected. Ascend
+        // only for ELOOP; other failures do not establish a cycle.
+        const parent = path.dirname(current);
+        if (linkError.code !== 'ELOOP' || parent === current) throw error;
+        current = parent;
+      }
+    }
+    throw error;
+  }
 }
 
 function assertNotPrivateMetadata(...filenames) {
@@ -45,13 +69,13 @@ function resolveAccess(relativePath, workspace) {
     // Generic raw files historically did not depend on state configuration.
     // Preserve that behavior only when they cannot overlap the invalid root.
     const candidate = path.resolve(workspace, stateDir);
-    if (isWithin(candidate, filePath) || isWithin(resolvePhysicalPath(candidate), physicalFile)) {
+    if (isWithin(candidate, filePath) || isWithin(stateRootIdentity(candidate), physicalFile)) {
       reportWarnings();
       throw error;
     }
     return { filePath, managed: false };
   }
-  const physicalRoot = resolvePhysicalPath(stateRoot);
+  const physicalRoot = stateRootIdentity(stateRoot);
   const managed = isWithin(stateRoot, filePath) || isWithin(physicalRoot, physicalFile);
   if (managed) {
     reportWarnings();

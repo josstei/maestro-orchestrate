@@ -31,7 +31,7 @@ function planDetachedPayload(srcDir, outputDir, runtimeName, version, { sourceOv
   const projectRoot = fs.realpathSync(sourceParent);
   outputDir = safeResolve(path.relative(sourceParent, path.resolve(outputDir)), projectRoot);
   function read(relativePath) {
-    const absolute = safeResolve(relativePath, root);
+    const absolute = safeResolve(relativePath, root, { requireFile: true });
     if (sourceOverrides.has(relativePath)) return sourceOverrides.get(relativePath);
     return fs.readFileSync(absolute, 'utf8');
   }
@@ -76,7 +76,7 @@ function planDetachedPayload(srcDir, outputDir, runtimeName, version, { sourceOv
   outputs.push({ outputPath: VERSION_JSON_FILENAME, content: formatJson({ version }), reason: 'installed package version' });
   outputs.sort((a, b) => a.outputPath < b.outputPath ? -1 : a.outputPath > b.outputPath ? 1 : 0);
   const manifestPaths = new Set(outputs.map(({ outputPath }) => outputPath));
-  for (const { outputPath } of outputs) safeResolve(outputPath, outputDir);
+  for (const { outputPath } of outputs) safeResolve(outputPath, outputDir, { requireFile: true });
   const { pruned } = pruneStaleFiles({ rootDir: outputDir, manifestPaths, ownedDirs: [''], dryRun: true });
   return { runtimeName, outputDir, outputs, manifestPaths, removedPaths: pruned.sort() };
 }

@@ -66,8 +66,8 @@ function main() {
     };
   });
   const manifestPaths = new Set([...manifestOutputPaths, ...entryPointPaths]);
-  for (const { outputPath } of outputs) safeResolve(outputPath, ROOT);
-  for (const outputPath of manifestOutputPaths) safeResolve(outputPath, ROOT);
+  for (const { outputPath } of outputs) safeResolve(outputPath, ROOT, { requireFile: true });
+  for (const outputPath of manifestOutputPaths) safeResolve(outputPath, ROOT, { requireFile: true });
   for (const ownedDir of OWNED_DIRS) safeResolve(ownedDir, ROOT);
   const stale = pruneStaleFiles({ rootDir: ROOT, manifestPaths, ownedDirs: OWNED_DIRS, dryRun: true }).pruned;
 

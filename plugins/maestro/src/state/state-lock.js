@@ -129,6 +129,7 @@ async function acquireStateLockInternal(controlPath, { timeoutMs = 5000 } = {}) 
   const lockPath = path.join(controlPath, 'lock');
   const ownerName = `owner-${token}.json`;
   const deadline = Date.now() + timeoutMs;
+  let candidateMoved = false;
   try {
     fs.mkdirSync(candidate, { mode: 0o700 });
     durableWrite(path.join(candidate, ownerName), JSON.stringify({
@@ -137,6 +138,7 @@ async function acquireStateLockInternal(controlPath, { timeoutMs = 5000 } = {}) 
     for (;;) {
       try {
         fs.renameSync(candidate, lockPath);
+        candidateMoved = true;
         try { syncDirectory(controlPath); }
         catch (error) { removeOwnedLock(lockPath, ownerName); throw error; }
         let released = false;
@@ -160,7 +162,9 @@ async function acquireStateLockInternal(controlPath, { timeoutMs = 5000 } = {}) 
       await sleep(Math.min(50, Math.max(1, deadline - Date.now())));
     }
   } finally {
-    fs.rmSync(candidate, { recursive: true, force: true });
+    // A successful rename consumed the candidate. Its cleanup must not prevent
+    // returning the release callback for the lock we now own.
+    if (!candidateMoved) fs.rmSync(candidate, { recursive: true, force: true });
   }
 }
 
