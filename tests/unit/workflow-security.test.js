@@ -36,7 +36,8 @@ function collectRunBlocks(content) {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const blockMatch = line.match(/^(\s*)run:\s*\|\s*$/);
+    // Any block scalar: |, |-, |+, >, >-, >+ (optionally with an indent digit).
+    const blockMatch = line.match(/^(\s*)run:\s*[|>][-+0-9]*\s*$/);
 
     if (blockMatch) {
       const runIndent = blockMatch[1].length;
@@ -212,5 +213,4 @@ describe('workflow shell security', () => {
       }
     }
   });
-
 });
