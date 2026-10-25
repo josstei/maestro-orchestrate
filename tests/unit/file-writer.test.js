@@ -226,13 +226,18 @@ describe('FileWriter dryRun mode', () => {
     assert.equal(fs.existsSync(path.join(tempRoot, 'should-not-exist.txt')), false);
   });
 
-  it('does not update stats in dryRun mode', () => {
+  it('counts changed and unchanged outputs without counting writes in dryRun mode', (t) => {
+    fs.writeFileSync(path.join(tempRoot, 'same.txt'), 'same', 'utf8');
+    t.mock.method(console, 'log', () => {});
     const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
     writer.write('file.txt', 'content');
+    writer.write('same.txt', 'same');
 
-    const stats = writer.getStats();
-    assert.equal(stats.written, 0);
-    assert.equal(stats.unchanged, 0);
+    assert.deepEqual(writer.getStats(), { written: 0, changed: 1, unchanged: 1, errors: 0 });
+    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), [
+      '[CREATE] file.txt',
+      '[UNCHANGED] same.txt',
+    ]);
   });
 
   it('does not modify existing files in dryRun mode', () => {
@@ -296,13 +301,12 @@ describe('FileWriter diffMode', () => {
     assert.equal(fs.existsSync(path.join(tempRoot, 'diff-target.txt')), false);
   });
 
-  it('does not update stats in diffMode', () => {
+  it('counts changed outputs without counting writes in diffMode', (t) => {
+    t.mock.method(console, 'log', () => {});
     const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
     writer.write('diff-target.txt', 'content');
 
-    const stats = writer.getStats();
-    assert.equal(stats.written, 0);
-    assert.equal(stats.unchanged, 0);
+    assert.deepEqual(writer.getStats(), { written: 0, changed: 1, unchanged: 0, errors: 0 });
   });
 
   it('does not leave temp files behind after diff', () => {
@@ -326,6 +330,30 @@ describe('FileWriter diffMode', () => {
     writer.write('existing.txt', 'new\n');
     assert.equal(writer.getStats().errors, 0);
     assert.ok(console.log.mock.calls.some(({ arguments: args }) => String(args[0]).includes('+new')));
+  });
+});
+
+describe('FileWriter check mode', () => {
+  it('logs and counts only outputs that would change, without writing or cleaning', (t) => {
+    fs.writeFileSync(path.join(tempRoot, 'same.txt'), 'same', 'utf8');
+    fs.writeFileSync(path.join(tempRoot, 'stale.txt'), 'old', 'utf8');
+    t.mock.method(console, 'log', () => {});
+    const writer = createFileWriter({ rootDir: tempRoot, check: true });
+    writer.writeAll([
+      { outputPath: 'same.txt', content: 'same' },
+      { outputPath: 'stale.txt', content: 'new' },
+      { outputPath: 'created.txt', content: 'new' },
+    ]);
+    writer.clean(['same.txt']);
+
+    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), [
+      '[UPDATE] stale.txt',
+      '[CREATE] created.txt',
+    ]);
+    assert.deepEqual(writer.getStats(), { written: 0, changed: 2, unchanged: 1, errors: 0 });
+    assert.equal(fs.readFileSync(path.join(tempRoot, 'stale.txt'), 'utf8'), 'old');
+    assert.equal(fs.existsSync(path.join(tempRoot, 'created.txt')), false);
+    assert.equal(fs.existsSync(path.join(tempRoot, 'same.txt')), true);
   });
 });
 

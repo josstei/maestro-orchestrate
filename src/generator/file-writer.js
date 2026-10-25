@@ -3,7 +3,6 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
-const { writeIfChanged } = require('../lib/io');
 
 function modeDiffers(filePath, mode) {
   // Windows does not expose POSIX executable bits through chmod/stat.
@@ -51,20 +50,7 @@ function safeResolve(relativePath, rootDir, { requireFile = false } = {}) {
  * @param {string} content
  * @param {string} displayPath
  */
-function executeDiff(absOutputPath, content, displayPath, mode) {
-  if (!fs.existsSync(absOutputPath)) {
-    console.log(`+++ NEW: ${displayPath}`);
-    return;
-  }
-
-  if (modeDiffers(absOutputPath, mode)) {
-    console.log(`MODE: ${displayPath} -> ${mode.toString(8)}`);
-  }
-  const current = fs.readFileSync(absOutputPath, 'utf8');
-  if (current === content) {
-    return;
-  }
-
+function printDiff(absOutputPath, content, displayPath) {
   try {
     execFileSync('diff', ['-u', absOutputPath, '-'], { encoding: 'utf8', input: content });
   } catch (err) {
@@ -75,46 +61,18 @@ function executeDiff(absOutputPath, content, displayPath, mode) {
 }
 
 /**
- * @param {string} absOutputPath
- * @param {string} content
- * @param {string} displayPath
- */
-function executeDryRun(absOutputPath, content, displayPath, mode) {
-  let status = 'CREATE';
-  if (fs.existsSync(absOutputPath)) {
-    status = fs.readFileSync(absOutputPath, 'utf8') === content && !modeDiffers(absOutputPath, mode)
-      ? 'UNCHANGED' : 'UPDATE';
-  }
-  console.log(`[${status}] ${displayPath}`);
-}
-
-/**
- * @param {string} absOutputPath
- * @param {string} content
- * @param {{ written: number, unchanged: number, errors: number }} stats
- */
-function executeWrite(absOutputPath, content, stats, mode) {
-  const written = writeIfChanged(absOutputPath, content);
-  const modeChanged = modeDiffers(absOutputPath, mode);
-  if (modeChanged) fs.chmodSync(absOutputPath, mode);
-  if (written || modeChanged) {
-    stats.written++;
-  } else {
-    stats.unchanged++;
-  }
-}
-
-/**
  * @typedef {Object} FileWriterOptions
  * @property {string} rootDir - Absolute path to the project root directory
  * @property {boolean} [dryRun=false] - Log intended actions without writing files
  * @property {boolean} [diffMode=false] - Show unified diffs against existing files
+ * @property {boolean} [check=false] - Log only outputs that would change, without writing files
  */
 
 /**
  * @typedef {Object} FileWriterStats
- * @property {number} written - Number of files written (new or changed)
- * @property {number} unchanged - Number of files skipped (content identical)
+ * @property {number} written - Number of files written (new or changed); 0 in read-only modes
+ * @property {number} changed - Number of outputs that are new or differ in content or mode
+ * @property {number} unchanged - Number of outputs whose content and mode already match
  * @property {number} errors - Number of failed writes plus reported errors
  */
 
@@ -128,15 +86,15 @@ function executeWrite(absOutputPath, content, stats, mode) {
  */
 
 /**
- * Creates a file writer that handles write, diff, dry-run, and clean operations.
+ * Creates a file writer that handles write, diff, dry-run, check, and clean operations.
  *
  * @param {FileWriterOptions} opts
  * @returns {FileWriter}
  */
 function createFileWriter(opts) {
-  const { rootDir, dryRun = false, diffMode = false } = opts;
-  const stats = { written: 0, unchanged: 0, errors: 0 };
-  const readOnlyMode = dryRun || diffMode;
+  const { rootDir, dryRun = false, diffMode = false, check = false } = opts;
+  const stats = { changed: 0, unchanged: 0, errors: 0 };
+  const readOnlyMode = dryRun || diffMode || check;
 
   /**
    * @param {string} outputPath - Relative path from rootDir
@@ -146,12 +104,30 @@ function createFileWriter(opts) {
   function write(outputPath, content, mode) {
     try {
       const absOutputPath = safeResolve(outputPath, rootDir, { requireFile: true });
+      const exists = fs.existsSync(absOutputPath);
+      const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
+      const modeChanged = exists && modeDiffers(absOutputPath, mode);
+      const status = !exists ? 'CREATE' : current === content && !modeChanged ? 'UNCHANGED' : 'UPDATE';
+
       if (diffMode) {
-        executeDiff(absOutputPath, content, outputPath, mode);
-      } else if (dryRun) {
-        executeDryRun(absOutputPath, content, outputPath, mode);
+        if (!exists) console.log(`+++ NEW: ${outputPath}`);
+        if (modeChanged) console.log(`MODE: ${outputPath} -> ${mode.toString(8)}`);
+        if (exists && current !== content) printDiff(absOutputPath, content, outputPath);
+      } else if (readOnlyMode) {
+        if (dryRun || status !== 'UNCHANGED') console.log(`[${status}] ${outputPath}`);
+      } else if (status !== 'UNCHANGED') {
+        if (current !== content) {
+          fs.mkdirSync(path.dirname(absOutputPath), { recursive: true });
+          fs.writeFileSync(absOutputPath, content, 'utf8');
+        }
+        // A newly created file has umask permissions, so recheck its mode.
+        if (modeDiffers(absOutputPath, mode)) fs.chmodSync(absOutputPath, mode);
+      }
+
+      if (status === 'UNCHANGED') {
+        stats.unchanged++;
       } else {
-        executeWrite(absOutputPath, content, stats, mode);
+        stats.changed++;
       }
     } catch (err) {
       console.error(`ERROR writing ${outputPath}: ${err.message}`);
@@ -200,7 +176,12 @@ function createFileWriter(opts) {
    * @returns {FileWriterStats}
    */
   function getStats() {
-    return { written: stats.written, unchanged: stats.unchanged, errors: stats.errors };
+    return {
+      written: readOnlyMode ? 0 : stats.changed,
+      changed: stats.changed,
+      unchanged: stats.unchanged,
+      errors: stats.errors,
+    };
   }
 
   return { write, writeAll, clean, reportError, getStats };

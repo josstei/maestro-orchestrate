@@ -41,4 +41,4 @@ if (path.resolve(topLevel) !== path.resolve('.')) {
 }
 
 execFileSync('git', ['config', 'core.hooksPath', HOOKS_DIR], { stdio: 'inherit' });
-console.log(`postinstall: git hooks activated (${HOOKS_DIR}/)`);
+console.log(`install-hooks: git hooks activated (${HOOKS_DIR}/)`);

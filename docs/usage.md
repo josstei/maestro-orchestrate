@@ -14,6 +14,9 @@ node scripts/generate.js --dry-run
 # Show a unified diff of pending generator changes (just diff)
 node scripts/generate.js --diff
 
+# List only pending generator changes, and exit 1 if there are any
+node scripts/generate.js --check
+
 # Delete the generated agent and shared-skill stubs, then regenerate (just clean)
 node scripts/generate.js --clean
 

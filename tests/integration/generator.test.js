@@ -97,6 +97,30 @@ describe('generator read-only modes', () => {
   });
 });
 
+describe('generator CLI', () => {
+  it('passes on an in-sync tree and fails on a missing output or stale payload file without changing files', () => {
+    withTempRepoCopy('maestro-generator-check-', (repoRoot) => {
+      assert.equal(runGenerator(['--check'], { cwd: repoRoot }), 'Generated files are in sync with src/.\n');
+
+      fs.unlinkSync(path.join(repoRoot, 'claude/src/mcp/maestro-server.js'));
+      fs.writeFileSync(path.join(repoRoot, 'plugins/maestro/src/obsolete.js'), 'obsolete\n');
+      const before = snapshotTree(repoRoot);
+      const failure = runGeneratorExpectFailure(['--check'], { cwd: repoRoot });
+      assert.equal(failure.status, 1);
+      assert.equal(failure.stdout, '[CREATE] claude/src/mcp/maestro-server.js\n[REMOVE] plugins/maestro/src/obsolete.js\n');
+      assert.equal(failure.stderr,
+        "Generated files are out of sync with src/. Run 'node scripts/generate.js' and commit the changes.\n");
+      assert.deepEqual(snapshotTree(repoRoot), before);
+    });
+  });
+
+  it('rejects unknown flags before generating', () => {
+    const failure = runGeneratorExpectFailure(['--dry-run', '--bogus']);
+    assert.equal(failure.stdout, '');
+    assert.equal(failure.stderr, 'Generator failed: Unknown argument: --bogus\n');
+  });
+});
+
 describe('payload preflight', () => {
   it('rejects directories at file destinations before any write, clean or prune', () => {
     withTempRepoCopy('maestro-output-file-type-', (repoRoot) => {
