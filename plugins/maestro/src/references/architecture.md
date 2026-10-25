@@ -74,21 +74,6 @@ State scripts:
 - `node ${extensionPath}/src/scripts/write-state.js <relative-path>` — write state from stdin
 - `node ${extensionPath}/src/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
 <!-- @end-feature -->
-<!-- @feature claudeStateContract -->
-Maestro maintains session state under `docs/maestro` (resolved from `MAESTRO_STATE_DIR`):
-
-- **Active session**: `docs/maestro/state/active-session.md`
-- **Plans**: `docs/maestro/plans/`
-- **Archives**: `docs/maestro/state/archive/`, `docs/maestro/plans/archive/`
-
-State scripts:
-
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/ensure-workspace.js docs/maestro` — initialize workspace directories
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/read-active-session.js` — read current session state
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/read-state.js <relative-path>` — read arbitrary state file
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/write-state.js <relative-path>` — write state from stdin
-- `node ${CLAUDE_PLUGIN_ROOT}/src/scripts/read-setting.js <SETTING_NAME>` — resolve a Maestro setting
-<!-- @end-feature -->
 <!-- @feature codexStateContract -->
 Maestro maintains session state under `docs/maestro` in the workspace root:
 

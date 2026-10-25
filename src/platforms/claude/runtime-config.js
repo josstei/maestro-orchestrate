@@ -65,8 +65,7 @@ module.exports = {
 
   features: {
     exampleBlocks: true,
-    claudeStateContract: true,
-    scriptBasedStateContract: false,
+    scriptBasedStateContract: true,
     codexStateContract: false,
   },
 

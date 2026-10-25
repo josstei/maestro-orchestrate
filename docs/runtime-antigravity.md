@@ -176,11 +176,10 @@ Antigravity maps the canonical tool names to Antigravity tools in `src/platforms
 
 ## Feature Flags
 
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
+The canonical feature set (same 3 flags across all runtimes, values per runtime):
 
 ```
 exampleBlocks:             false
-claudeStateContract:       false
 scriptBasedStateContract:  true
 codexStateContract:        false
 ```

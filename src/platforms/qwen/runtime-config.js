@@ -59,7 +59,6 @@ module.exports = {
 
   features: {
     exampleBlocks: false,
-    claudeStateContract: false,
     scriptBasedStateContract: true,
     codexStateContract: false,
   },

@@ -131,12 +131,11 @@ Output format: `{ continue: boolean, decision: "approve"|"block", systemMessage?
 
 ## Feature Flags
 
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
+The canonical feature set (same 3 flags across all runtimes, values per runtime):
 
 ```
 exampleBlocks:             true   (examples embedded in description)
-claudeStateContract:       true   (Claude-specific session-state contract)
-scriptBasedStateContract:  false
+scriptBasedStateContract:  true
 codexStateContract:        false
 ```
 

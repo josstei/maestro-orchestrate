@@ -132,11 +132,10 @@ Qwen maps the canonical tool names to Qwen Code tools in `src/platforms/qwen/run
 
 ## Feature Flags
 
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
+The canonical feature set (same 3 flags across all runtimes, values per runtime):
 
 ```
 exampleBlocks:             false
-claudeStateContract:       false
 scriptBasedStateContract:  true
 codexStateContract:        false
 ```

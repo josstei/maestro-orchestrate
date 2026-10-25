@@ -70,6 +70,17 @@ describe('get_skill_content handler', () => {
     assert.ok(!content.includes('node ./src/scripts/'));
   });
 
+  it('serves claude the script-based state contract rooted at ${CLAUDE_PLUGIN_ROOT}', () => {
+    const handler = createSkillContentHandler(getRuntimeConfig('claude'), SRC_ROOT);
+
+    const content = handler({ resources: ['architecture'] }).contents.architecture;
+
+    assert.ok(content.includes('Maestro maintains session state under `<state_dir>`'));
+    assert.ok(content.includes('`node ${CLAUDE_PLUGIN_ROOT}/src/scripts/ensure-workspace.js <state_dir>`'));
+    assert.ok(!content.includes('${extensionPath}'));
+    assert.ok(!content.includes('docs/maestro'));
+  });
+
   it('serves every runtime a delegation skill that explains its result surface', () => {
     for (const runtimeName of RUNTIME_NAMES) {
       const runtimeConfig = getRuntimeConfig(runtimeName);
