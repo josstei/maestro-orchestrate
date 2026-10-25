@@ -135,7 +135,7 @@ A bundled Model Context Protocol server provides 17 tools across the Workspace, 
 
 ### Generator
 
-The generator (`scripts/generate.js`) turns canonical source into runtime-specific output. It writes agent and shared-skill discovery stubs, expands the entry-point registries into commands and skills, builds the manifests, hook registrations, and policy pack, and mirrors `src/` into the detached payloads. CI enforces a zero-drift guarantee. See [Generator Pipeline](architecture.md#generator-pipeline) for the steps.
+The generator (`scripts/generate.js`) turns canonical source into runtime-specific output. It writes agent and shared-skill discovery stubs, expands the entry-point registries into commands and skills, builds the manifests, hook registrations, and policy pack, and plans each detached payload from its runtime dependency closure plus served content. CI enforces a zero-drift guarantee. See [Generator Pipeline](architecture.md#generator-pipeline) for the steps.
 
 ### State Management
 

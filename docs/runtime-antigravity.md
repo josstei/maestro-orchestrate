@@ -1,6 +1,6 @@
 # Antigravity Runtime
 
-The Antigravity plugin lives in `antigravity/`, the output directory declared in `src/platforms/antigravity/runtime-config.js`. The Antigravity CLI (`agy`) and the Antigravity app share one plugin format. `agy plugin install` copies the directory that holds `plugin.json`, so the plugin is self-contained: it carries its own agent stubs, skills, hook and MCP registrations, thin launchers, and a detached copy of `src/`.
+The Antigravity plugin lives in `antigravity/`, the output directory declared in `src/platforms/antigravity/runtime-config.js`. The Antigravity CLI (`agy`) and the Antigravity app share one plugin format. `agy plugin install` copies the directory that holds `plugin.json`, so the plugin is self-contained: it carries its own agent stubs, skills, hook and MCP registrations, thin launchers, and a detached runtime subset of `src/` (its dependency closure plus served content).
 
 ## Configuration
 
