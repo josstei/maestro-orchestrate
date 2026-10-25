@@ -176,34 +176,14 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [docs/usage.md](docs/usage.md) for settings, command surfaces, state layout, agents, and MCP tools
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
 - [docs/maestro-cheatsheet.md](docs/maestro-cheatsheet.md) for a one-page command and runtime quick reference
-- [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
 - [docs/runtime-antigravity.md](docs/runtime-antigravity.md) for Antigravity runtime specifics
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
 - [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
 - [docs/runtime-qwen.md](docs/runtime-qwen.md) for Qwen runtime specifics
 
-## Development and Release Validation
+## Development
 
-Canonical source lives under `src/`; update it first, then regenerate. [CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand, and its [Key Commands](CONTRIBUTING.md#key-commands) table lists the development commands. The Source Of Truth Check job runs:
-
-```bash
-npm ci
-node scripts/generate.js --check
-npm test
-npm run pack:verify
-npm run release:artifacts
-npm run release:verify-artifacts
-```
-
-Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payloads needed by Antigravity (`antigravity/`), Claude Code, Codex, and Qwen Code.
-
-Stable releases publish three aligned outputs:
-
-- Git tag `vX.Y.Z`
-- npm package `@josstei/maestro@X.Y.Z`
-- GitHub Release asset `maestro-vX.Y.Z-extension.tar.gz`
-
-Codex plugin releases launch the MCP server through the matching npm package version. The Antigravity plugin is self-contained: an installed copy runs the MCP server and hooks from its bundled `antigravity/src/`. Hook installation is explicit via `npm run install-hooks`; package, pack, and publish flows do not install git hooks.
+Canonical source lives under `src/`, and the runtime directories are regenerated from it with `node scripts/generate.js`. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand, and its [Key Commands](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands) table lists the development commands. [docs/cicd.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md) covers the CI workflows and the release process.
 
 ## License
 

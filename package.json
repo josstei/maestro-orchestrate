@@ -82,7 +82,6 @@
     "mcp/",
     "policies/",
     "docs/architecture.md",
-    "docs/cicd.md",
     "docs/flow.md",
     "docs/maestro-cheatsheet.md",
     "docs/overview.md",

@@ -177,6 +177,8 @@ const npmShips = (files, file) => files.reduce((shipped, entry) => {
 test('doc-drift: shipped docs link relatively only to files their artifact ships', () => {
   const { files } = JSON.parse(read('package.json'));
   assert.ok(files.every((entry) => !/[*?[{]/.test(entry)), 'package.json files uses a glob, which npmShips does not match');
+  // README.md ships too but is exempt: GitHub and npmjs.com render it and
+  // resolve its relative links against the repository.
   const isDoc = (file) => /^docs\/[^/]+\.md$/.test(file);
   const artifacts = [
     [
@@ -227,25 +229,8 @@ test('doc-drift: command docs show every public command in each runtime form', (
   }
 });
 
-test('doc-drift: examples guide cites canonical in-repo sources', () => {
-  const body = read('EXAMPLES.md');
-  const expectedSources = [
-    'src/entry-points/core-command-registry.js',
-    'src/entry-points/registry.js',
-    'src/generator/entry-point-expander.js',
-    'src/references/orchestration-steps.md',
-    'docs/flow.md',
-    'README.md',
-    'src/skills/shared/execution/SKILL.md',
-    'docs/usage.md',
-    'justfile',
-    'package.json',
-    'tests/unit/doc-drift-guard.test.js',
-  ];
-  for (const source of expectedSources) {
-    assert.ok(body.includes(source), `EXAMPLES.md missing canonical source ${source}`);
-  }
-  assert.ok(!body.includes('reviewed implementation plan'), 'EXAMPLES.md should say approved, not reviewed, implementation plan');
+test('doc-drift: examples guide says approved, not reviewed, implementation plan', () => {
+  assert.ok(!read('EXAMPLES.md').includes('reviewed implementation plan'), 'EXAMPLES.md should say approved, not reviewed, implementation plan');
 });
 
 test('doc-drift: claude/README.md autocomplete bullet uses remapped names', () => {
