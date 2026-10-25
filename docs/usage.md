@@ -80,7 +80,7 @@ MCP state operations and the installed state scripts coordinate access to the co
 | `STATE_RECOVERY_REQUIRED` | Resolve the reported filesystem problem or unexpected edit while preserving the transaction journal. |
 | `STATE_CONFLICT` | Read the latest content and reapply the intended change. |
 
-For a script-based read/modify/write, run `read-state.js <relative-path> --with-digest`. It returns JSON containing `content` and `sha256`. Send the replacement content to `write-state.js <relative-path> --expected-sha256 <digest>` on stdin, using the returned digest. Guarded writes require a target inside the configured state directory; a missing file or changed digest is a conflict. Existing invocations still return raw content or perform an unguarded whole-file write.
+For a script-based read/modify/write, run `read-state.js <relative-path> --with-digest`. It returns JSON containing `content` and `sha256`. Send the replacement content to `write-state.js <relative-path> --expected-sha256 <digest>` on stdin, using the returned digest. Guarded writes require a target inside the configured state directory; a missing file or changed digest is a conflict. Existing invocations still return raw content or perform an unguarded whole-file write. `read-state.js` and `write-state.js` refuse any path inside a `state/.maestro/` directory, including through a symlink, and exit 1.
 
 Direct editor writes and older Maestro versions do not participate in coordination. Keep those writers separate from active MCP/script operations. Do not remove `state/.maestro/` or downgrade while a committed transaction is pending. Recovery protects process interruptions; power-loss durability depends on the operating system and filesystem.
 
