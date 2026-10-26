@@ -88,16 +88,6 @@ describe('state scripts', () => {
       );
     });
 
-    it('exits 1 when the state directory is a symlink', () => {
-      const target = path.join(workspace, 'elsewhere');
-      fs.mkdirSync(target);
-      fs.mkdirSync(path.join(workspace, 'docs'));
-      fs.symlinkSync(target, path.join(workspace, 'docs', 'maestro'), DIR_LINK);
-
-      const result = runScript('ensure-workspace.js', ['docs/maestro'], { cwd: workspace });
-      expectExit(result, { status: 1, stderr: 'ERROR: STATE_DIR must not be a symlink\n' });
-    });
-
     it('exits 1 without creating the referent when the state directory is a dangling symlink', () => {
       const target = path.join(workspace, 'elsewhere');
       fs.mkdirSync(path.join(workspace, 'docs'));

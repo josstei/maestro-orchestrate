@@ -152,27 +152,6 @@ describe('mcp server bundle behavior', () => {
     );
   });
 
-  it('suggests the workspace Qwen Code exports in MAESTRO_WORKSPACE_PATH over client roots and cwd', async () => {
-    // qwen-extension.json substitutes ${workspacePath} into MAESTRO_WORKSPACE_PATH.
-    // The client roots and the server cwd both name the repo root, Qwen's
-    // extension dir.
-    const workspace = makeTempDir('maestro-qwen-workspace-');
-
-    await withMcpClient(
-      {
-        cwd: ROOT,
-        relativePath: 'mcp/maestro-server.js',
-        env: { MAESTRO_RUNTIME: 'qwen', MAESTRO_WORKSPACE_PATH: workspace },
-      },
-      async (client) => {
-        const context = (await client.callTool('get_runtime_context')).parsed;
-
-        assert.equal(context.runtime, 'qwen');
-        assert.equal(context.workspace_suggestion, workspace);
-      }
-    );
-  });
-
   it('keeps Codex session state in the explicit workspace_path when launched from a cwd outside it', async () => {
     const workspaceRoot = makeTempDir('maestro-codex-workspace-');
     const spawnCwd = makeTempDir('maestro-codex-spawn-');

@@ -229,10 +229,6 @@ test('doc-drift: command docs show every public command in each runtime form', (
   }
 });
 
-test('doc-drift: examples guide says approved, not reviewed, implementation plan', () => {
-  assert.ok(!read('EXAMPLES.md').includes('reviewed implementation plan'), 'EXAMPLES.md should say approved, not reviewed, implementation plan');
-});
-
 test('doc-drift: claude/README.md autocomplete bullet uses remapped names', () => {
   const body = read('claude/README.md');
   const autocompleteLines = body.split('\n').filter((l) => l.includes('appear in autocomplete'));

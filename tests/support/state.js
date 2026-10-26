@@ -14,12 +14,7 @@ const { createTransaction, publishTransaction } = require('../../src/state/trans
  */
 const DIR_LINK = process.platform === 'win32' ? 'junction' : 'dir';
 
-/**
- * Returns the private coordination directory of a state root.
- *
- * @param {string} base - Absolute path of the state root (`<workspace>/<state_dir>`)
- * @returns {string} Absolute path of `<base>/state/.maestro`
- */
+/** Returns the private coordination directory of a state root. */
 function controlDir(base) {
   return path.join(base, 'state', '.maestro');
 }
@@ -27,14 +22,7 @@ function controlDir(base) {
 /**
  * Commits a transaction's journal without applying it, leaving the state as
  * a writer killed right after its commit point would. Recovery replays it.
- *
- * @param {string} base - Absolute path of the state root
- * @param {(tx: Object) => void} mutate - Stages changes on the transaction
- * @param {Object} [options]
- * @param {string} [options.operation='interrupted_test_write'] - Operation recorded in the intent
- * @param {*} [options.result] - Result recorded in the intent
- * @param {boolean} [options.lock=false] - Hold the state lock while committing, as a live writer does
- * @returns {Promise<Object>} The pending transaction (`id`, `directory`, `tx`)
+ * `lock` holds the state lock while committing, as a live writer does.
  */
 async function leaveCommitted(base, mutate, { operation = 'interrupted_test_write', result, lock = false } = {}) {
   const control = controlDir(base);
@@ -50,12 +38,6 @@ async function leaveCommitted(base, mutate, { operation = 'interrupted_test_writ
 /**
  * Creates a symlink, or skips the test when Windows denies the privilege to
  * create it. The caller must return when this returns false.
- *
- * @param {import('node:test').TestContext} t - Context of the running test
- * @param {string} target - Path the link points to
- * @param {string} linkPath - Path of the link to create
- * @param {string} [type] - fs.symlinkSync link type
- * @returns {boolean} Whether the link was created
  */
 function symlinkOrSkip(t, target, linkPath, type) {
   try {
@@ -75,12 +57,6 @@ function symlinkOrSkip(t, target, linkPath, type) {
  * write-state reads back unchanged through read-state and
  * read-active-session. The caller's env or workspace .env must set
  * MAESTRO_EXECUTION_MODE=parallel and MAESTRO_STATE_DIR=`stateDir`.
- *
- * @param {string} scriptsDir - Absolute path of a `src/scripts` directory
- * @param {string} stateDir - State dir relative to the workspace
- * @param {Object} options
- * @param {string} options.cwd - Workspace the CLIs run in
- * @param {NodeJS.ProcessEnv} options.env - Environment of the CLIs
  */
 function assertStateCliRoundTrip(scriptsDir, stateDir, { cwd, env }) {
   const run = (script, args = [], input = '') =>

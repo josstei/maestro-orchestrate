@@ -32,32 +32,19 @@ describe('resolveVersion', () => {
     assert.equal(resolveVersion(), pkg.version);
   });
 
-  it('reads src/version.json when no package.json sits beside src/', () => {
-    const root = makeTempDir('maestro-version-');
-    writeJson(path.join(root, 'src', 'version.json'), { version: '9.9.9' });
-
-    assert.equal(loadCopiedResolveVersion(root)(), '9.9.9');
-  });
-
-  it('prefers the Maestro package.json beside src/ over src/version.json', () => {
-    const root = makeTempDir('maestro-version-');
-    writeJson(path.join(root, 'package.json'), { name: '@josstei/maestro', version: '8.8.8' });
-    writeJson(path.join(root, 'src', 'version.json'), { version: '9.9.9' });
-
-    assert.equal(loadCopiedResolveVersion(root)(), '8.8.8');
-  });
-
-  it('ignores a package.json beside src/ that is not the Maestro package', () => {
-    const root = makeTempDir('maestro-version-');
-    writeJson(path.join(root, 'package.json'), { name: 'host-project', version: '0.0.1' });
-    writeJson(path.join(root, 'src', 'version.json'), { version: '9.9.9' });
-
-    assert.equal(loadCopiedResolveVersion(root)(), '9.9.9');
-  });
-
-  it('returns unknown when neither package.json nor version.json is found', () => {
-    const root = makeTempDir('maestro-version-');
-
-    assert.equal(loadCopiedResolveVersion(root)(), 'unknown');
-  });
+  for (const [title, files, expected] of [
+    ['reads src/version.json when no package.json sits beside src/',
+      { 'src/version.json': { version: '9.9.9' } }, '9.9.9'],
+    ['prefers the Maestro package.json beside src/ over src/version.json',
+      { 'package.json': { name: '@josstei/maestro', version: '8.8.8' }, 'src/version.json': { version: '9.9.9' } }, '8.8.8'],
+    ['ignores a package.json beside src/ that is not the Maestro package',
+      { 'package.json': { name: 'host-project', version: '0.0.1' }, 'src/version.json': { version: '9.9.9' } }, '9.9.9'],
+    ['returns unknown when neither package.json nor version.json is found', {}, 'unknown'],
+  ]) {
+    it(title, () => {
+      const root = makeTempDir('maestro-version-');
+      for (const [file, json] of Object.entries(files)) writeJson(path.join(root, file), json);
+      assert.equal(loadCopiedResolveVersion(root)(), expected);
+    });
+  }
 });

@@ -63,23 +63,11 @@ describe('runtime-config host bindings', () => {
     );
   });
 
-  it('every hooked runtime serves paths.hooks from its generated hook-runner directory', () => {
-    // Host hook registrations name scripts under paths.hooks, and the generator
-    // writes the hook-runner launcher to launchers.hookRunner.
-    const hooked = [antigravity, claude, codex, qwen].filter((config) => config.launchers.hookRunner);
-    assert.deepEqual(hooked.map((config) => config.name), ['antigravity', 'claude', 'qwen']);
-    for (const config of hooked) {
-      assert.ok(
-        config.paths.hooks.endsWith(`${path.posix.dirname(config.launchers.hookRunner)}/`),
-        `${config.name}: paths.hooks ${config.paths.hooks} vs launchers.hookRunner ${config.launchers.hookRunner}`
-      );
-    }
-  });
-
   it('every served path names a directory in its runtime generated output', () => {
     // get_runtime_context serves paths under the host's extension-root
     // variable (Codex's `.` makes them relative), which resolves to the
-    // installed copy of outputDir.
+    // installed copy of outputDir. Host hook registrations name scripts under
+    // paths.hooks, where the generator writes launchers.hookRunner.
     for (const config of [antigravity, claude, codex, qwen]) {
       const root = config.env.extensionPath === '.' ? './' : `\${${config.env.extensionPath}}/`;
       for (const [key, value] of Object.entries(config.paths)) {
@@ -89,6 +77,10 @@ describe('runtime-config host bindings', () => {
           fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory(),
           `${config.name}: paths.${key} ${value} names no directory in ${config.outputDir}`
         );
+        if (key === 'hooks') {
+          assert.equal(value.slice(root.length), `${path.posix.dirname(config.launchers.hookRunner)}/`,
+            `${config.name}: paths.hooks must be the hook-runner directory`);
+        }
       }
     }
   });

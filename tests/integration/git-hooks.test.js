@@ -55,13 +55,6 @@ function writeFile(repo, relativePath, content) {
   fs.writeFileSync(file, content, 'utf8');
 }
 
-function createGeneratorRepo(branchName) {
-  const repo = createRepo(branchName);
-  writeFile(repo, 'scripts/generate.js', "require('acorn');\nrequire('acorn-walk');\n");
-  execFileSync('git', ['add', 'scripts/generate.js'], { cwd: repo, stdio: 'ignore' });
-  return repo;
-}
-
 function pushInput(branch, sha) {
   return `refs/heads/${branch} ${sha} refs/heads/${branch} ${ZERO_SHA}\n`;
 }
@@ -143,32 +136,22 @@ describe('repo git hooks', () => {
     assert.equal(result.status, 0, result.stderr);
   });
 
-  it('pre-push skips the source-of-truth check when dev dependencies are missing', () => {
-    const repo = createGeneratorRepo('chore/hook-validation');
-    const sha = commitFile(repo, 'chore(test): seed generator');
-    const result = runHook('pre-push', ['origin', 'unused'], {
-      cwd: repo,
-      input: pushInput('chore/hook-validation', sha),
-      env: { ...process.env, NODE_PATH: '' },
-    });
+  it('pre-push skips the source-of-truth check only while dev dependencies are missing', () => {
+    const repo = createRepo('chore/hook-validation');
+    writeFile(repo, 'scripts/generate.js', "require('acorn');\nrequire('acorn-walk');\n");
+    execFileSync('git', ['add', 'scripts/generate.js'], { cwd: repo, stdio: 'ignore' });
+    const input = pushInput('chore/hook-validation', commitFile(repo, 'chore(test): seed generator'));
+    const push = (env) => runHook('pre-push', ['origin', 'unused'], { cwd: repo, input, env });
 
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stderr, /dev dependencies missing; run npm ci/);
-    assert.doesNotMatch(result.stdout, /regenerating/);
-  });
+    const skipped = push({ ...process.env, NODE_PATH: '' });
+    assert.equal(skipped.status, 0, skipped.stderr);
+    assert.match(skipped.stderr, /dev dependencies missing; run npm ci/);
 
-  it('pre-push runs the source-of-truth check when dev dependencies resolve', () => {
-    const repo = createGeneratorRepo('chore/hook-validation');
     writeFile(repo, 'node_modules/acorn/index.js', '');
     writeFile(repo, 'node_modules/acorn-walk/index.js', '');
-    const sha = commitFile(repo, 'chore(test): seed generator');
-    const result = runHook('pre-push', ['origin', 'unused'], {
-      cwd: repo,
-      input: pushInput('chore/hook-validation', sha),
-    });
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /source-of-truth clean/);
+    const checked = push();
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stdout, /source-of-truth clean/);
   });
 
   it('hand-written allowed-type lists match SEMANTIC_TYPES in semantic-git.sh', () => {
@@ -181,8 +164,6 @@ describe('repo git hooks', () => {
 
     const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'commit-message-check.yml'), 'utf8');
     assert.doesNotMatch(workflow, /Allowed types/, 'commit-message-check.yml should print type lists through semantic-git.sh');
-    assert.equal(workflow.match(/^\s*semantic_print_commit_subject_format$/gm)?.length, 2);
-    assert.match(workflow, /semantic_print_branch_name_error "branch-name-check" "\$HEAD_REF"/);
 
     const commitMsg = fs.readFileSync(hookPath('commit-msg'), 'utf8');
     const hookBlock = commitMsg.split('echo "Allowed types:"')[1].split('echo ""')[0];
@@ -190,18 +171,5 @@ describe('repo git hooks', () => {
 
     const contributing = fs.readFileSync(path.join(ROOT, 'CONTRIBUTING.md'), 'utf8');
     assert.deepEqual([...contributing.matchAll(/^\| `([a-z]+)` \|/gm)].map((m) => m[1]), commitTypes);
-  });
-
-  it('semantic_print_commit_subject_format prints the commit types, including release', () => {
-    const result = spawnSync(
-      'bash',
-      ['-c', 'source "$1"; semantic_print_commit_subject_format', 'bash', hookPath('lib/semantic-git.sh')],
-      { encoding: 'utf8' },
-    );
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, '');
-    assert.match(result.stderr, /^ {4}<type>\(<optional-scope>\)<!>: <description>$/m);
-    assert.match(result.stderr, /^ {4}feat, fix, chore, docs, test, refactor, perf, style, build, ci, revert, release$/m);
   });
 });

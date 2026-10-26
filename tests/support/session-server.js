@@ -11,10 +11,6 @@ const {
 /**
  * Creates an MCP server with the given tool packs mounted under a runtime
  * config that names only the runtime.
- *
- * @param {Array<Function|Object>} packs - Tool packs (or pack factories) to mount, in order
- * @param {string} [runtime='codex'] - Runtime name for the server's runtime config
- * @returns {{ getToolSchemas: () => object[], callTool: Function }} The composed server
  */
 function packServer(packs, runtime = 'codex') {
   return createServer({ runtimeConfig: { name: runtime }, toolPacks: packs });
@@ -52,10 +48,6 @@ async function approveDesignGate(server, workspace, sessionId, design) {
 /**
  * Builds a sequential coder phase with no dependencies. Each call returns a
  * fresh phase object.
- *
- * @param {number|string} id - The phase id
- * @param {Object} [overrides={}] - Phase fields to add or replace (e.g. `files`, `blocked_by`)
- * @returns {Object} A phase for a create_session or validate_plan payload
  */
 function phase(id, overrides = {}) {
   return { id, name: `P${id}`, agent: 'coder', parallel: false, blocked_by: [], ...overrides };
@@ -76,10 +68,6 @@ function singlePhase(files, overrides = {}) {
 /**
  * Builds create_session params for `sessionId` with a placeholder task and a
  * single phase that plans no files.
- *
- * @param {string} sessionId - The session_id to create
- * @param {Object} [overrides={}] - create_session params to add or replace (e.g. `phases`)
- * @returns {Object} The create_session params
  */
 function sessionParams(sessionId, overrides = {}) {
   return { session_id: sessionId, task: 'Test session', phases: singlePhase([]), ...overrides };

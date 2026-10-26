@@ -122,10 +122,6 @@ function withCwd(dir, fn) {
  * git stops at the temp root. `set` is applied last. Cleared keys are left
  * undefined rather than deleted, so they also clear the inherited values when
  * the result is merged over process.env (as withMcpClient merges its `env`).
- *
- * @param {string} cwd - Directory the child runs in
- * @param {Record<string, string | undefined>} [set={}] - Variables to set afterwards
- * @returns {Record<string, string | undefined>} The child environment
  */
 function hermeticEnv(cwd, set = {}) {
   const env = { ...process.env, ...ISOLATED_GIT_ENV };

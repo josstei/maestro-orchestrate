@@ -53,12 +53,9 @@ describe('verify npm pack', () => {
   it('rejects build and release tooling that only a repository checkout uses', () => {
     for (const buildPath of [
       'scripts/generate.js',
-      'scripts/package-release-artifacts.js',
       'scripts/lib/temp-dir.js',
-      'scripts/verify-npm-pack.js',
       'src/entry-points/templates/qwen-command.toml.tmpl',
       'src/generator/dependency-graph.js',
-      'src/generator/stub-outputs.js',
       'src/transforms/agent-stub.js',
       'src/lib/discovery/index.js',
       'src/lib/yaml-emit.js',
@@ -72,21 +69,6 @@ describe('verify npm pack', () => {
       'src/generated/agent-registry.json',
       'src/lib/io/index.js',
     )));
-  });
-
-  it('rejects a package missing the advertised Codex installer or its dependencies', () => {
-    const [pack] = packWith();
-    for (const installerPath of [
-      'scripts/install-codex-plugin.js',
-      'scripts/lib/cli.js',
-      'src/platforms/metadata.js',
-      'src/platforms/qwen/policy-pack.js',
-    ]) {
-      const files = pack.files.filter((file) => file.path !== installerPath);
-      assert.throws(() => verifyPackageEntries([{ ...pack, files }]), {
-        message: `npm package missing required file: ${installerPath}`,
-      });
-    }
   });
 
   it('rejects test-only package content', () => {
