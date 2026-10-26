@@ -6,16 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { createToolPack } = require('../../src/mcp/tool-packs/session');
-const { ensureWorkspace } = require('../../src/state/session-state');
-const { makeTempDir } = require('../support/fs');
+const { writeTree } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
-const { packServer, phase, sessionParams, singlePhase } = require('../support/session-server');
-
-async function setup(prefix) {
-  const projectRoot = makeTempDir(prefix);
-  await ensureWorkspace('docs/maestro', projectRoot);
-  return { projectRoot, server: packServer([createToolPack]) };
-}
+const { SessionWorkspace, packServer, phase, singlePhase } = require('../support/session-server');
 
 describe('session tool pack', () => {
   it('registers the session lifecycle tools through the kernel', () => {
@@ -39,59 +32,45 @@ describe('session tool pack', () => {
   });
 
   it('creates, updates, and transitions session state on disk', async () => {
-    const { projectRoot, server } = await setup('maestro-session-');
-    fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/design.md'), '# Design\n');
-    fs.writeFileSync(path.join(projectRoot, 'docs/maestro/plans/plan.md'), '# Plan\n');
+    const workspace = await SessionWorkspace.create();
+    writeTree(workspace.dir, 'docs/maestro/plans/design.md', '# Design\n');
+    writeTree(workspace.dir, 'docs/maestro/plans/plan.md', '# Plan\n');
 
-    const createResult = await server.callTool(
-      'create_session',
-      sessionParams('test-session', {
-        design_document: 'docs/maestro/plans/design.md',
-        implementation_plan: 'docs/maestro/plans/plan.md',
-        phases: [phase(1), phase(2, { blocked_by: [1] })],
-      }),
-      projectRoot
-    );
+    const createResult = await workspace.createSession('test-session', {
+      design_document: 'docs/maestro/plans/design.md',
+      implementation_plan: 'docs/maestro/plans/plan.md',
+      phases: [phase(1), phase(2, { blocked_by: [1] })],
+    });
 
     assert.equal(createResult.ok, true);
 
-    const updateResult = await server.callTool(
-      'update_session',
-      {
-        session_id: 'test-session',
-        execution_mode: 'sequential',
-        execution_backend: 'native',
-      },
-      projectRoot
-    );
+    const updateResult = await workspace.call('update_session', {
+      session_id: 'test-session',
+      execution_mode: 'sequential',
+      execution_backend: 'native',
+    });
 
     assert.equal(updateResult.ok, true);
 
-    const transitionResult = await server.callTool(
-      'transition_phase',
-      {
-        session_id: 'test-session',
-        completed_phase_id: 1,
-        next_phase_id: 2,
-        files_created: ['src/generated.js'],
-        files_modified: ['src/existing.js'],
-        downstream_context: {
-          key_interfaces_introduced: ['createServer(options)'],
-          patterns_established: ['pack-based composition'],
-          integration_points: ['session pack'],
-          assumptions: ['phases are sequential'],
-          warnings: [],
-        },
+    const transitionResult = await workspace.transition('test-session', 1, {
+      next_phase_id: 2,
+      files_created: ['src/generated.js'],
+      files_modified: ['src/existing.js'],
+      downstream_context: {
+        key_interfaces_introduced: ['createServer(options)'],
+        patterns_established: ['pack-based composition'],
+        integration_points: ['session pack'],
+        assumptions: ['phases are sequential'],
+        warnings: [],
       },
-      projectRoot
-    );
+    });
 
     assert.equal(transitionResult.ok, true);
     assert.deepEqual(transitionResult.result.session_state_summary.completed_phases, [
       1,
     ]);
 
-    const sessionState = readSessionState(projectRoot);
+    const sessionState = readSessionState(workspace.dir);
     assert.equal(sessionState.execution_mode, 'sequential');
     assert.equal(sessionState.current_phase, 2);
     assert.deepEqual(sessionState.phases[0].files_created, ['src/generated.js']);
@@ -100,55 +79,38 @@ describe('session tool pack', () => {
   });
 
   it('rejects create_session when a phase is missing required fields', async () => {
-    const { projectRoot, server } = await setup('maestro-session-');
+    const workspace = await SessionWorkspace.create();
 
-    const outcome = await server.callTool(
-      'create_session',
-      sessionParams('bad-plan', { phases: [{ id: 1, name: 'Only id/name' }] }),
-      projectRoot
-    );
+    const outcome = await workspace.createSession('bad-plan', { phases: [{ id: 1, name: 'Only id/name' }] });
 
     assert.equal(outcome.ok, false);
     assert.match(outcome.error || '', /missing_required_field|agent|parallel|blocked_by/i);
   });
 
   it('preserves string phase ids end-to-end through create_session and transition_phase', async () => {
-    const { projectRoot, server } = await setup('maestro-string-id-');
+    const workspace = await SessionWorkspace.create();
 
-    const createResult = await server.callTool(
-      'create_session',
-      sessionParams('string-id-test', {
-        phases: [phase('design', { agent: 'architect' }), phase('impl', { blocked_by: ['design'] })],
-      }),
-      projectRoot
-    );
+    const createResult = await workspace.createSession('string-id-test', {
+      phases: [phase('design', { agent: 'architect' }), phase('impl', { blocked_by: ['design'] })],
+    });
     assert.equal(createResult.ok, true);
 
-    const session = readSessionState(projectRoot);
+    const session = readSessionState(workspace.dir);
     assert.equal(session.current_phase, 'design');
     assert.equal(session.phases[0].id, 'design');
     assert.equal(session.phases[1].id, 'impl');
     assert.deepEqual(session.phases[1].blocked_by, ['design']);
 
-    const transitionResult = await server.callTool(
-      'transition_phase',
-      {
-        session_id: 'string-id-test',
-        completed_phase_id: 'design',
-        next_phase_id: 'impl',
-        files_created: [],
-        files_modified: [],
-        files_deleted: [],
-        downstream_context: {
-          key_interfaces_introduced: [],
-          patterns_established: [],
-          integration_points: [],
-          assumptions: [],
-          warnings: [],
-        },
+    const transitionResult = await workspace.transition('string-id-test', 'design', {
+      next_phase_id: 'impl',
+      downstream_context: {
+        key_interfaces_introduced: [],
+        patterns_established: [],
+        integration_points: [],
+        assumptions: [],
+        warnings: [],
       },
-      projectRoot
-    );
+    });
     assert.equal(transitionResult.ok, true);
     assert.deepEqual(
       transitionResult.result.session_state_summary.completed_phases,
@@ -158,47 +120,23 @@ describe('session tool pack', () => {
   });
 
   it('archives the active session and associated plan files', async () => {
-    const { projectRoot, server } = await setup('maestro-archive-');
+    const workspace = await SessionWorkspace.create();
 
-    const designPath = path.join(projectRoot, 'docs/maestro/plans/design.md');
-    const planPath = path.join(projectRoot, 'docs/maestro/plans/plan.md');
-    fs.writeFileSync(designPath, '# design\n');
-    fs.writeFileSync(planPath, '# plan\n');
+    writeTree(workspace.dir, 'docs/maestro/plans/design.md', '# design\n');
+    writeTree(workspace.dir, 'docs/maestro/plans/plan.md', '# plan\n');
 
-    await server.callTool(
-      'create_session',
-      sessionParams('archive-session', {
-        design_document: 'docs/maestro/plans/design.md',
-        implementation_plan: 'docs/maestro/plans/plan.md',
-      }),
-      projectRoot
-    );
+    await workspace.createSession('archive-session', {
+      design_document: 'docs/maestro/plans/design.md',
+      implementation_plan: 'docs/maestro/plans/plan.md',
+    });
 
-    const archiveResult = await server.callTool(
-      'archive_session',
-      { session_id: 'archive-session' },
-      projectRoot
-    );
+    const archiveResult = await workspace.call('archive_session', { session_id: 'archive-session' });
 
     assert.equal(archiveResult.ok, true);
-    assert.equal(fs.existsSync(activeSessionPath(projectRoot)), false);
-    assert.equal(
-      fs.existsSync(
-        path.join(
-          projectRoot,
-          'docs/maestro/state/archive/archive-session.md'
-        )
-      ),
-      true
-    );
-    assert.equal(
-      fs.existsSync(path.join(projectRoot, 'docs/maestro/plans/archive/design.md')),
-      true
-    );
-    assert.equal(
-      fs.existsSync(path.join(projectRoot, 'docs/maestro/plans/archive/plan.md')),
-      true
-    );
+    assert.equal(fs.existsSync(activeSessionPath(workspace.dir)), false);
+    for (const archived of ['state/archive/archive-session.md', 'plans/archive/design.md', 'plans/archive/plan.md']) {
+      assert.equal(fs.existsSync(path.join(workspace.dir, 'docs/maestro', archived)), true, archived);
+    }
   });
 
   for (const [tool, args] of [
@@ -207,46 +145,27 @@ describe('session tool pack', () => {
     ['reconcile_phase', { phase_id: 1, files_created: ['src/foo.js'] }],
   ]) {
     it(`${tool} rejects another session's id and leaves the session file untouched`, async () => {
-      const { projectRoot, server } = await setup('maestro-mismatch-');
-      await server.callTool('create_session', sessionParams('active-session'), projectRoot);
-      const before = fs.readFileSync(activeSessionPath(projectRoot), 'utf8');
+      const workspace = await SessionWorkspace.create();
+      await workspace.createSession('active-session');
+      const before = fs.readFileSync(activeSessionPath(workspace.dir), 'utf8');
 
-      const outcome = await server.callTool(tool, { session_id: 'other-session', ...args }, projectRoot);
+      const outcome = await workspace.call(tool, { session_id: 'other-session', ...args });
 
       assert.equal(outcome.ok, false);
       assert.equal(outcome.code, 'STATE_ERROR');
       assert.equal(outcome.error, "Session mismatch: active session is 'active-session', got 'other-session'");
-      assert.equal(fs.readFileSync(activeSessionPath(projectRoot), 'utf8'), before);
+      assert.equal(fs.readFileSync(activeSessionPath(workspace.dir), 'utf8'), before);
     });
   }
 
   it('archive_session blocks when a phase requires reconciliation', async () => {
-    const { projectRoot, server } = await setup('maestro-archive-');
+    const workspace = await SessionWorkspace.create();
 
-    await server.callTool(
-      'create_session',
-      sessionParams('arch-rec', { phases: singlePhase(['src/foo.js']) }),
-      projectRoot
-    );
+    await workspace.createSession('arch-rec', { phases: singlePhase(['src/foo.js']) });
 
-    await server.callTool(
-      'transition_phase',
-      {
-        session_id: 'arch-rec',
-        completed_phase_id: 1,
-        files_created: [],
-        files_modified: [],
-        files_deleted: [],
-        downstream_context: {},
-      },
-      projectRoot
-    );
+    await workspace.transition('arch-rec', 1);
 
-    const outcome = await server.callTool(
-      'archive_session',
-      { session_id: 'arch-rec' },
-      projectRoot
-    );
+    const outcome = await workspace.call('archive_session', { session_id: 'arch-rec' });
     assert.equal(outcome.ok, false);
     assert.match(outcome.error || '', /reconciliation/i);
   });
