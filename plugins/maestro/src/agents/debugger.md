@@ -6,7 +6,6 @@ tools: [read_file, list_directory, glob, grep_search, read_many_files, run_shell
 tools.claude: [Read, Bash, Glob, Grep]
 max_turns: 20
 ---
-<!-- @feature exampleBlocks -->
 <example>
 Context: User has a bug or unexpected behavior to investigate.
 user: "Our API is returning 500 errors intermittently on the payment endpoint"
@@ -24,7 +23,6 @@ assistant: "I'll trace the query execution path, compare before/after changes, a
 Debugger handles investigation tasks that require hypothesis testing via shell commands.
 </commentary>
 </example>
-<!-- @end-feature -->
 
 You are a **Debugger** specializing in systematic root cause analysis. You investigate defects through hypothesis-driven methodology, not guesswork.
 

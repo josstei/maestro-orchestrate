@@ -2,8 +2,7 @@
 
 /**
  * Frontmatter parsing (boundary splitting, key-value parsing, scalar
- * coercion) and YAML escaping shared by the
- * generator, transforms, and MCP content tools.
+ * coercion) shared by the generator, transforms, and MCP content tools.
  *
  * @module lib/frontmatter
  */
@@ -60,23 +59,25 @@ function parseValue(raw) {
  * Split content at the frontmatter boundary using line iteration.
  *
  * The opening `---` must be the first line; the block ends at the next line
- * that is exactly `---`, with or without a trailing newline after it.
+ * that is exactly `---`, with or without a trailing newline after it. CRLF
+ * line endings are normalized to LF first.
  *
  * @param {string} content - The full content string with optional frontmatter.
  * @returns {{ raw: string, body: string }} The raw frontmatter text (between
  *   delimiters, excluding them) and the remaining body. When no valid
- *   frontmatter block is found, raw is '' and body is the original content.
+ *   frontmatter block is found, raw is '' and body is the whole content.
  */
 function splitAtBoundary(content) {
-  const lines = content.split('\n');
+  const text = content.replace(/\r\n/g, '\n');
+  const lines = text.split('\n');
 
   if (lines[0] !== '---') {
-    return { raw: '', body: content };
+    return { raw: '', body: text };
   }
 
   const endIndex = lines.indexOf('---', 1);
   if (endIndex === -1) {
-    return { raw: '', body: content };
+    return { raw: '', body: text };
   }
 
   const raw = lines.slice(1, endIndex).join('\n');
@@ -116,7 +117,8 @@ function parseLines(lines) {
  * converted to their native types.
  *
  * Returns empty frontmatter and the full content as body when no valid
- * frontmatter block is found (missing opening or closing `---`).
+ * frontmatter block is found (missing opening or closing `---`). The body
+ * has LF line endings either way.
  *
  * @param {string} content - The full content string with optional frontmatter.
  * @returns {{ frontmatter: Object, body: string }} Parsed frontmatter object and remaining body.
@@ -126,22 +128,7 @@ function parse(content) {
   return { frontmatter: parseLines(raw.split('\n')), body };
 }
 
-/**
- * Escape special characters in a YAML string value.
- *
- * Escapes backslashes and double quotes for safe embedding inside a
- * double-quoted YAML scalar. Non-string inputs are coerced via String().
- *
- * @param {string} value - Value to escape.
- * @returns {string} Escaped value safe for double-quoted YAML context.
- */
-function escapeYaml(value) {
-  if (typeof value !== 'string') return String(value);
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
 module.exports = {
   parse,
-  escapeYaml,
   splitAtBoundary,
 };

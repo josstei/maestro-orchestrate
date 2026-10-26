@@ -5,10 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { ROOT } = require('./helpers');
-const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const {
   AGENT_COUNT,
+  ANTIGRAVITY_SUBAGENT_TOOLS,
   PUBLIC_SKILL_COUNT,
   SHARED_SKILL_COUNT,
   listCanonicalAgents,
@@ -16,7 +15,7 @@ const {
 } = require('../support/catalog');
 const { readJson } = require('../support/fs');
 const { readStubFrontmatter } = require('../support/generated-files');
-const { SRC_ROOT } = require('../support/paths');
+const { ROOT, SRC_ROOT } = require('../support/paths');
 const hookRegistry = require('../../src/generated/hook-registry.json');
 
 // `agy plugin install` copies the directory holding plugin.json to
@@ -238,18 +237,22 @@ describe('antigravity plugin layout', () => {
     }
   });
 
-  it('keeps the hand-maintained shims, each with its bundled entry point', () => {
-    for (const [shim, bundledEntry] of [
+  it('keeps the public wrappers, each naming its repo src/ and bundled entry points', () => {
+    for (const [shim, entry] of [
       ['mcp/maestro-server.js', 'src/mcp/maestro-server.js'],
       ['hooks/hook-runner.js', 'src/platforms/shared/hook-runner.js'],
-      ['hooks/policy-enforcer.js', 'src/platforms/antigravity/policy-enforcer.js'],
+      ['hooks/policy-enforcer.js', 'src/platforms/shared/policy-enforcer.js'],
     ]) {
       const shimSource = fs.readFileSync(path.join(PLUGIN_DIR, shim), 'utf8');
       assert.ok(
-        shimSource.includes(`path.resolve(__dirname, '../${bundledEntry}')`),
-        `${shim}: expected a fallback to the bundled ${bundledEntry}`
+        shimSource.includes(`path.resolve(__dirname, '../../${entry}')`),
+        `${shim}: expected the repo checkout's ${entry} first`
       );
-      assert.ok(fs.statSync(path.join(PLUGIN_DIR, bundledEntry)).isFile(), `Expected ${bundledEntry} to exist`);
+      assert.ok(
+        shimSource.includes(`path.resolve(__dirname, '../${entry}')`),
+        `${shim}: expected a fallback to the bundled ${entry}`
+      );
+      assert.ok(fs.statSync(path.join(PLUGIN_DIR, entry)).isFile(), `Expected ${entry} to exist`);
     }
   });
 });

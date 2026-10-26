@@ -32,7 +32,7 @@ Simple tasks use an **Express workflow** (1 agent, 1 phase), while medium/comple
 | Shared skills | 7 |
 | Entry-point commands | 9 (+ 3 core) |
 | Runtime targets | 4 |
-| Source transforms | 2 |
+| Stub renderers | 2 |
 
 ## Project Structure
 
@@ -44,27 +44,26 @@ maestro-orchestrate/
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
 │   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
-│   ├── generator/                # Generator modules (manifest and entry-point expansion, registries, pruning, payloads)
+│   ├── generator/                # Stub and entry-point generation, registries, pruning, payloads
 │   ├── generated/                # [generated] Agent, resource, and hook registries
-│   ├── entry-points/             # 9 entry-point + 3 core-command registries, preamble builders, 8 templates
+│   ├── entry-points/             # Entry-point (9) and core-command (3) registries, 8 templates, 2 partials
 │   ├── lib/                      # Low-level helpers; may import only lib/ and node:* (layer-checked)
 │   ├── config/                   # Canonical config helpers
 │   ├── core/                     # Shared runtime helpers and resolvers
-│   ├── state/                    # Session-state and plan-document helpers
+│   ├── state/                    # Session, design-gate, and document stores; coordinator, lock, and journal
 │   ├── hooks/                    # Shared hook logic modules
 │   │   └── logic/                # Hook implementations (session-start, before-agent, after-agent, session-end, hook-state)
 │   ├── mcp/                      # Canonical MCP server modules
-│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters, shared hook and policy-enforcer runners, Antigravity and Claude policy enforcers, Qwen policy-pack renderer, metadata.js builders
-│   ├── scripts/                  # Runtime helper scripts (workspace, session, settings)
-│   └── manifest.js               # Declarative file mapping rules
+│   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters (with each host's shell-policy facts), shared hook and policy-enforcer runners, Qwen policy-pack renderer, metadata.js builders
+│   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
-├── bin/                          # maestro-mcp-server.js (Codex npx entrypoint)
+├── bin/                          # [generated] maestro-mcp-server.js (Codex npx launcher)
 ├── tests/                        # Unit, transform, and integration suites + shared helpers
 │
 ├── agents/                       # [generated] Qwen agent stubs (39, snake_case, Qwen tool names)
 ├── commands/maestro/             # [generated] Qwen TOML commands
-├── hooks/                        # Hook-runner shim (used by qwen/hooks.json)
-├── mcp/                          # MCP server shim (Qwen)
+├── hooks/                        # [generated] Hook-runner launcher (used by qwen/hooks.json)
+├── mcp/                          # [generated] MCP server launcher (Qwen)
 ├── policies/                     # [generated] Shell policy pack (Qwen)
 ├── .claude-plugin/               # [generated] Claude marketplace
 ├── .agents/plugins/              # [generated] Codex marketplace
@@ -72,8 +71,8 @@ maestro-orchestrate/
 ├── antigravity/                  # Antigravity plugin
 │   ├── agents/                   # [generated] Antigravity agent stubs
 │   ├── skills/                   # [generated] Antigravity skills (19)
-│   ├── hooks/                    # Hook-runner and policy-enforcer shims
-│   ├── mcp/                      # MCP server shim
+│   ├── hooks/                    # [generated] Hook-runner and policy-enforcer launchers
+│   ├── mcp/                      # [generated] MCP server launcher
 │   ├── src/                      # [generated] Detached runtime payload
 │   ├── plugin.json               # [generated] Plugin manifest
 │   ├── mcp_config.json           # [generated] MCP server config
@@ -84,8 +83,8 @@ maestro-orchestrate/
 │   ├── agents/                   # [generated] Claude agent stubs
 │   ├── skills/                   # [generated] Claude skills (19)
 │   ├── hooks/                    # [generated] Hook config (claude-hooks.json)
-│   ├── scripts/                  # Hook-runner and policy-enforcer shims
-│   ├── mcp/                      # MCP server shim
+│   ├── scripts/                  # [generated] Hook-runner and policy-enforcer launchers
+│   ├── mcp/                      # [generated] MCP server launcher
 │   ├── src/                      # [generated] Detached runtime payload
 │   ├── .claude-plugin/           # [generated] Plugin manifest
 │   └── .mcp.json                 # [generated] MCP server config
@@ -103,28 +102,17 @@ maestro-orchestrate/
     └── hooks.json                # Qwen hook registration
 ```
 
-`[generated]` marks generator output; a tag on a directory covers everything in it. The untagged runtime files (the shims, READMEs, and the Codex runtime guide) are maintained by hand; [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) has the full list.
+`[generated]` marks generator output; a tag on a directory covers everything in it. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ## Core Concepts
 
 ### Agents
 
-39 specialized agents, each with a defined methodology, tool restrictions, and capability tier:
-
-| Tier | Capability | Agents |
-|------|-----------|--------|
-| `read_only` | Read, search, analyze | architect, api-designer, code-reviewer, content-strategist, compliance-reviewer, cloud-architect, solutions-architect |
-| `read_shell` | Read + shell execution | debugger, performance-engineer, security-engineer, seo-specialist, accessibility-specialist, database-administrator, site-reliability-engineer, db2-dba, zos-sysprog |
-| `read_write` | Read + create/modify files | technical-writer, product-manager, ux-designer, copywriter, release-manager, prompt-engineer |
-| `full` | All tools | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer, ml-engineer, mlops-engineer, mobile-engineer, cobol-engineer, observability-engineer, platform-engineer, integration-engineer, hlasm-assembler-specialist, ibm-i-specialist |
+39 specialized agents in four capability tiers (`read_only`, `read_shell`, `read_write`, `full`), each with a defined methodology and tool restrictions; the [Agent Catalog](usage.md#agent-catalog) lists them.
 
 ### MCP Server
 
-A bundled Model Context Protocol server providing 17 tools across 3 packs:
-
-- **Workspace** (4): initialize_workspace, assess_task_complexity, validate_plan, resolve_settings
-- **Session** (10): create_session, get_session_status, update_session, transition_phase, archive_session, enter_design_gate, record_design_approval, get_design_gate_status, scan_phase_changes, reconcile_phase
-- **Content** (3): get_skill_content, get_agent, get_runtime_context
+A bundled Model Context Protocol server provides 17 tools across the Workspace, Session, and Content packs. [MCP Tools Quick Reference](usage.md#mcp-tools-quick-reference) lists them.
 
 ### Skills
 
@@ -140,19 +128,8 @@ A bundled Model Context Protocol server providing 17 tools across 3 packs:
 
 ### Generator
 
-A manifest-driven code generator (`scripts/generate.js`) turns canonical source into runtime-specific output. It writes agent and shared-skill discovery stubs, expands the entry-point registries into commands and skills, builds the manifests, hook registrations, and policy pack, and mirrors `src/` into the detached payloads. CI enforces a zero-drift guarantee. See [Generator Pipeline](architecture.md#generator-pipeline) for the steps.
+The generator (`scripts/generate.js`) turns canonical source into runtime-specific output. It writes agent and shared-skill discovery stubs, expands the entry-point registries into commands and skills, builds the manifests, hook registrations, and policy pack, and plans each detached payload from its runtime dependency closure plus served content. CI enforces a zero-drift guarantee. See [Generator Pipeline](architecture.md#generator-pipeline) for the steps.
 
 ### State Management
 
-Session state lives in `docs/maestro/` (configurable via `MAESTRO_STATE_DIR`):
-
-```
-docs/maestro/
-├── state/
-│   ├── active-session.md          # Current session (frontmatter + log)
-│   └── archive/                   # Completed sessions
-└── plans/
-    ├── *-design.md                # Design documents
-    ├── *-impl-plan.md             # Implementation plans
-    └── archive/                   # Archived plans
-```
+Session state lives in `docs/maestro/` (configurable via `MAESTRO_STATE_DIR`). [State Directory Structure](usage.md#state-directory-structure) shows its layout.

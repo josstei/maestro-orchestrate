@@ -5,60 +5,59 @@ const assert = require('node:assert/strict');
 
 const { mapTools } = require('../../src/core/agent-tools');
 
+const QWEN_UNMAPPED = { name: 'qwen', tools: {} };
+
 describe('mapTools', () => {
-  it('maps canonical tool names through runtimeConfig.tools', () => {
-    const frontmatter = { tools: ['read_file', 'write_file'] };
-    const runtimeConfig = { name: 'qwen', tools: { read_file: 'ReadFile', write_file: 'WriteFile' } };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['ReadFile', 'WriteFile']);
-  });
+  for (const [name, frontmatter, runtimeConfig, expected] of [
+    ['maps canonical tool names through runtimeConfig.tools', { tools: ['read_file', 'write_file'] },
+      { name: 'qwen', tools: { read_file: 'ReadFile', write_file: 'WriteFile' } }, ['ReadFile', 'WriteFile']],
+    ['uses per-runtime tool override when present',
+      { tools: ['read_file', 'write_file'], 'tools.claude': ['Read', 'Write'] },
+      { name: 'claude', tools: { Read: 'Read', Write: 'Write' } }, ['Read', 'Write']],
+    ['maps the per-runtime override through runtimeConfig.tools as well',
+      { tools: ['read_file'], 'tools.qwen': ['write_todos'] },
+      { name: 'qwen', tools: { write_todos: 'todo_write' } }, ['todo_write']],
+    ['flattens array tool mappings',
+      { tools: ['bash'] }, { name: 'qwen', tools: { bash: ['Bash', 'Terminal'] } }, ['Bash', 'Terminal']],
+    ['drops duplicate mapped names, keeping the first occurrence',
+      { tools: ['read_file', 'grep_search', 'read_many_files', 'activate_skill'] },
+      {
+        name: 'antigravity',
+        tools: { read_file: 'view_file', read_many_files: 'view_file', activate_skill: 'view_file' },
+      },
+      ['view_file', 'grep_search']],
+    ['keeps unmapped tool names as-is', { tools: ['custom_tool'] }, QWEN_UNMAPPED, ['custom_tool']],
+    ['drops empty entries', { tools: ['a', '', 'b'] }, QWEN_UNMAPPED, ['a', 'b']],
+    ['ignores a non-array tools value', { tools: 'a, b' }, QWEN_UNMAPPED, []],
+    ['maps no tools when none are declared', {}, QWEN_UNMAPPED, []],
+  ]) {
+    it(name, () => {
+      assert.deepEqual(mapTools(frontmatter, runtimeConfig), expected);
+    });
+  }
 
-  it('uses per-runtime tool override when present', () => {
-    const frontmatter = {
-      tools: ['read_file', 'write_file'],
-      'tools.claude': ['Read', 'Write'],
-    };
-    const runtimeConfig = { name: 'claude', tools: { Read: 'Read', Write: 'Write' } };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['Read', 'Write']);
-  });
-
-  it('maps the per-runtime override through runtimeConfig.tools as well', () => {
-    const frontmatter = {
-      tools: ['read_file'],
-      'tools.qwen': ['write_todos'],
-    };
-    const runtimeConfig = { name: 'qwen', tools: { write_todos: 'todo_write' } };
-    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['todo_write']);
-  });
-
-  it('flattens array tool mappings', () => {
-    const frontmatter = { tools: ['bash'] };
-    const runtimeConfig = { name: 'qwen', tools: { bash: ['Bash', 'Terminal'] } };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['Bash', 'Terminal']);
-  });
-
-  it('drops duplicate mapped names, keeping the first occurrence', () => {
-    const frontmatter = { tools: ['read_file', 'grep_search', 'read_many_files', 'activate_skill'] };
+  it('applies the default agent policy after mapping and retains unlisted tools', () => {
     const runtimeConfig = {
-      name: 'antigravity',
-      tools: { read_file: 'view_file', read_many_files: 'view_file', activate_skill: 'view_file' },
+      name: 'custom',
+      tools: { read: 'Read', read_many: 'Read', todo: ['TaskCreate', 'TaskUpdate'], ask: 'Ask' },
+      agentTools: { exclude: ['Ask'], order: ['Read', 'Write', 'TaskCreate', 'TaskUpdate'] },
     };
-    assert.deepEqual(mapTools(frontmatter, runtimeConfig), ['view_file', 'grep_search']);
+    assert.deepEqual(
+      mapTools({ tools: ['extension_b', 'todo', 'ask', 'read_many', 'read', 'extension_a'] }, runtimeConfig),
+      ['Read', 'TaskCreate', 'TaskUpdate', 'extension_b', 'extension_a']
+    );
   });
 
-  it('keeps unmapped tool names as-is', () => {
-    const frontmatter = { tools: ['custom_tool'] };
-    const runtimeConfig = { name: 'qwen', tools: {} };
-    const result = mapTools(frontmatter, runtimeConfig);
-    assert.deepEqual(result, ['custom_tool']);
-  });
-
-  it('drops empty entries and ignores non-array tool values', () => {
-    const runtimeConfig = { name: 'qwen', tools: {} };
-    assert.deepEqual(mapTools({ tools: ['a', '', 'b'] }, runtimeConfig), ['a', 'b']);
-    assert.deepEqual(mapTools({ tools: 'a, b' }, runtimeConfig), []);
-    assert.deepEqual(mapTools({}, runtimeConfig), []);
+  it('lets explicit overrides retain excluded tools and their original order', () => {
+    const runtimeConfig = {
+      name: 'custom',
+      tools: { read: 'Read', ask: 'Ask' },
+      agentTools: { exclude: ['Ask'], order: ['Read', 'Write'] },
+    };
+    assert.deepEqual(
+      mapTools({ tools: ['read'], 'tools.custom': ['ask', 'Write', 'read'] }, runtimeConfig),
+      ['Ask', 'Write', 'Read']
+    );
+    assert.deepEqual(mapTools({ tools: ['read'], 'tools.custom': [] }, runtimeConfig), []);
   });
 });

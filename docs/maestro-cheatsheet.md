@@ -8,12 +8,12 @@ This document summarizes the minimum commands and concepts for using Maestro acr
 |---|---|---|
 | Antigravity | `agy plugin install https://github.com/josstei/maestro-orchestrate/tree/main/antigravity`, then restart `agy` | `/maestro:*` |
 | Claude Code | `claude plugin marketplace add josstei/maestro-orchestrate` + `claude plugin install maestro@maestro-orchestrator --scope user` | `/orchestrate`, `/review-code`, `/status`, ... |
-| Codex CLI | `codex plugin marketplace add josstei/maestro-orchestrate`, then install Maestro inside Codex via `/plugins` | `$maestro:*` |
+| Codex | `codex plugin marketplace add josstei/maestro-orchestrate`, then install Maestro inside Codex via `/plugins` | `$maestro:*` |
 | Qwen Code | `qwen extensions install https://github.com/josstei/maestro-orchestrate` | `/maestro:*` |
 
 ## 2. Most Common Commands
 
-| Capability | Antigravity | Claude Code | Codex CLI | Qwen Code |
+| Capability | Antigravity | Claude Code | Codex | Qwen Code |
 |---|---|---|---|---|
 | Start the full workflow | `/maestro:orchestrate <task>` | `/orchestrate <task>` | `$maestro:orchestrate <task>` | `/maestro:orchestrate <task>` |
 | Run an existing plan | `/maestro:execute` | `/execute` | `$maestro:execute` | `/maestro:execute` |
@@ -28,61 +28,7 @@ This document summarizes the minimum commands and concepts for using Maestro acr
 | A11y audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
 | Compliance check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
-## 3. Minimal Usage Examples
-
-### Start a new task
-
-Antigravity:
-
-```text
-/maestro:orchestrate Build a REST API with authentication
-```
-
-Claude Code:
-
-```text
-/orchestrate Build a REST API with authentication
-```
-
-Codex CLI:
-
-```text
-$maestro:orchestrate Build a REST API with authentication
-```
-
-Qwen Code:
-
-```text
-/maestro:orchestrate Build a REST API with authentication
-```
-
-### Check the current session
-
-Antigravity:
-
-```text
-/maestro:status
-```
-
-Claude Code:
-
-```text
-/status
-```
-
-Codex CLI:
-
-```text
-$maestro:status
-```
-
-Qwen Code:
-
-```text
-/maestro:status
-```
-
-## 4. Workflow Mental Model
+## 3. Workflow Mental Model
 
 Maestro first classifies task complexity, then follows one of two modes:
 
@@ -113,27 +59,22 @@ Key gates:
 - `transition_phase`
 - code review blocks unresolved Critical / Major findings
 
-## 5. Session State Location
+## 4. Session State Location
 
-Maestro stores session state inside the workspace:
-
-```text
-docs/maestro/
-```
+Maestro stores session state inside the workspace, in `<state_dir>`: the `MAESTRO_STATE_DIR` setting (default `docs/maestro/`).
 
 Common paths:
 
-- `docs/maestro/state/active-session.md`
-- `docs/maestro/plans/`
-- `docs/maestro/state/archive/`
-- `docs/maestro/plans/archive/`
+- `<state_dir>/state/active-session.md`
+- `<state_dir>/plans/`
+- `<state_dir>/state/archive/`
+- `<state_dir>/plans/archive/`
 
-## 6. Runtime Differences at a Glance
+## 5. Runtime Differences at a Glance
 
 ### Antigravity
 
 - Command entry point: `/maestro:*`
-- Supports hooks: `SessionStart` session context and a `run_command` shell policy
 - Uses plugin skills + `invoke_subagent`; each subagent's result arrives as a message when it finishes
 - Antigravity has a built-in `/resume`, so Maestro uses the same remapped names as Claude Code and Codex:
   - `/maestro:review-code`
@@ -144,11 +85,10 @@ Common paths:
 ### Claude Code
 
 - Command entry point: `/orchestrate`, `/review-code`, `/status`, ...
-- Supports hooks
-- Uses `PreToolUse` matchers and policy enforcement
+- Agents dispatched as `maestro:<name>`
 - Agent naming: `kebab-case`
 
-### Codex CLI
+### Codex
 
 - Command entry point: `$maestro:*` (use `$maestro:...`, not `/maestro:...`)
 - **No runtime hooks**
@@ -163,23 +103,23 @@ Common paths:
 - Command entry point: `/maestro:*`
 - Uses TOML commands
 - Agent naming: `snake_case`
-- Agent stubs (`agents/`), commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), MCP server shim (`mcp/maestro-server.js`), and hook runner (`hooks/hook-runner.js`) live at the repository root, Qwen Code's extension directory; `qwen/` holds only the generated `qwen/hooks.json`
+- Agent stubs (`agents/`), commands (`commands/maestro/`), policy pack (`policies/maestro.toml`), MCP server launcher (`mcp/maestro-server.js`), and hook runner (`hooks/hook-runner.js`) live at the repository root, Qwen Code's extension directory; `qwen/` holds only the generated `qwen/hooks.json`
 
-## 7. Hook Reference
+## 6. Hook Reference
 
 ### Antigravity
 
 - `SessionStart` (fires for the main conversation and each subagent)
-- `PreToolUse` + `run_command`
+- `PreToolUse` + `run_command` (shell policy)
 
 ### Claude Code
 
 - `SessionStart`
 - `PreToolUse` + `Agent`
-- `PreToolUse` + `Bash`
+- `PreToolUse` + `Bash` (shell policy)
 - `SessionEnd`
 
-### Codex CLI
+### Codex
 
 - No runtime hooks
 
@@ -190,15 +130,17 @@ Common paths:
 - `SubagentStop`
 - `SessionEnd`
 
-## 8. Suggested Reading Order
+## 7. Suggested Reading Order
 
 If you want to go deeper:
 
 1. `README.md`
 2. `EXAMPLES.md`
-3. `docs/flow.md`
-4. `docs/architecture.md`
-5. `docs/runtime-antigravity.md`
-6. `docs/runtime-claude.md`
-7. `docs/runtime-codex.md`
-8. `docs/runtime-qwen.md`
+3. `docs/usage.md`
+4. `docs/overview.md`
+5. `docs/flow.md`
+6. `docs/architecture.md`
+7. `docs/runtime-antigravity.md`
+8. `docs/runtime-claude.md`
+9. `docs/runtime-codex.md`
+10. `docs/runtime-qwen.md`

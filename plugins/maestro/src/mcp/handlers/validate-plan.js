@@ -1,11 +1,8 @@
 'use strict';
 
 const {
-  checkPlanShape,
-  checkPhaseCount,
-  checkDuplicateIds,
-  checkDanglingDependencies,
-  checkPhaseFieldSchema,
+  checkPlanStructure,
+  checkPlanConstraints,
 } = require('../validation/schema-checker');
 const {
   checkUnknownAgents,
@@ -22,10 +19,7 @@ const {
 function handleValidatePlan(params) {
   const { plan, task_complexity: taskComplexity } = params;
 
-  // The field schema is only checked once the plan has a phases array.
-  const shapeViolations = checkPlanShape(plan);
-  const structureViolations =
-    shapeViolations.length > 0 ? shapeViolations : checkPhaseFieldSchema(plan.phases);
+  const structureViolations = checkPlanStructure(plan);
   if (structureViolations.length > 0) {
     return {
       valid: false,
@@ -38,9 +32,7 @@ function handleValidatePlan(params) {
   const phaseById = new Map(phases.map((phase) => [phase.id, phase]));
 
   const violations = [
-    ...checkPhaseCount(phases, taskComplexity),
-    ...checkDuplicateIds(phases),
-    ...checkDanglingDependencies(phases),
+    ...checkPlanConstraints(phases, taskComplexity, phaseById),
     ...checkUnknownAgents(phases),
     ...checkAgentCapabilities(phases),
   ];

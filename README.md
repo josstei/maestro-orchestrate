@@ -7,7 +7,7 @@
 [![Codex](https://img.shields.io/badge/Codex-plugin-black)](docs/runtime-codex.md)
 [![Qwen Code](https://img.shields.io/badge/Qwen_Code-extension-purple)](https://github.com/QwenLM/qwen-code)
 
-Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entrypoints. It runs from one canonical `src/` tree across **Antigravity**, **Claude Code**, **Codex**, and **Qwen Code**.
+Maestro is a multi-agent development orchestration platform with 39 specialists, an Express path for simple work, a 4-phase standard workflow for medium and complex work, persistent session state, and standalone review/debug/security/perf/seo/accessibility/compliance entry points. It runs from one canonical `src/` tree across **Antigravity**, **Claude Code**, **Codex**, and **Qwen Code**.
 
 ## Runtime Targets
 
@@ -101,7 +101,7 @@ Verify with `qwen extensions list`. Qwen Code reads `QWEN.md` as its context fil
 
 ### Quick Start
 
-Start a full orchestration with the runtime-specific entrypoint:
+Start a full orchestration with the runtime-specific entry point:
 
 | Runtime | Example |
 |---------|---------|
@@ -110,7 +110,7 @@ Start a full orchestration with the runtime-specific entrypoint:
 | Codex | `$maestro:orchestrate Build a REST API for a task management system with user authentication` |
 | Qwen Code | `/maestro:orchestrate Build a REST API for a task management system with user authentication` |
 
-Maestro classifies the task, chooses Express or Standard workflow, asks the required design questions, produces an implementation plan when needed, delegates execution to specialists, runs a quality gate, and archives the session state in `docs/maestro/`.
+Maestro classifies the task, chooses Express or Standard workflow, asks the required design questions, produces an implementation plan when needed, delegates execution to specialists, runs a quality gate, and archives the session state under `MAESTRO_STATE_DIR` (default `docs/maestro/`).
 
 ## Examples
 
@@ -151,11 +151,7 @@ Defaults work; these settings tune behavior:
 | Accessibility Audit | `/maestro:a11y-audit` | `/a11y-audit` | `$maestro:a11y-audit` | `/maestro:a11y-audit` |
 | Compliance Check | `/maestro:compliance-check` | `/compliance-check` | `$maestro:compliance-check` | `/maestro:compliance-check` |
 
-For Claude Code and Codex, Maestro intentionally avoids bare skill names that collide with host commands. Use `/review-code`, `/debug-workflow`, and `/resume-session` in Claude Code, and `$maestro:review-code`, `$maestro:debug-workflow`, and `$maestro:resume-session` in Codex, so built-in `/review`, `/debug`, and `/resume` commands keep working.
-
-Antigravity has a built-in `/resume`, so it uses the same remapped names under its plugin namespace: `/maestro:review-code`, `/maestro:debug-workflow`, and `/maestro:resume-session`.
-
-Qwen Code does not remap any entry point; it keeps `/maestro:review`, `/maestro:debug`, and `/maestro:resume`.
+Antigravity, Claude Code, and Codex expose review, debug, and resume as `review-code`, `debug-workflow`, and `resume-session` so they avoid host built-in command names (some are reserved defensively); Qwen Code keeps `review`, `debug`, and `resume` ([details](docs/usage.md#invoking-maestro)).
 
 ## Workflow
 
@@ -177,38 +173,17 @@ Maestro follows the host runtime's tool permissions, sandboxing, and confirmatio
 - [EXAMPLES.md](EXAMPLES.md) for copyable usage scenarios across all runtimes
 - [docs/overview.md](docs/overview.md) for the project model and generated structure
 - [docs/architecture.md](docs/architecture.md) for orchestration internals and architecture layout
-- [docs/usage.md](docs/usage.md) for development workflow, settings, and command surfaces
+- [docs/usage.md](docs/usage.md) for settings, command surfaces, state layout, agents, and MCP tools
 - [docs/flow.md](docs/flow.md) for the orchestration workflow steps and hard gates
 - [docs/maestro-cheatsheet.md](docs/maestro-cheatsheet.md) for a one-page command and runtime quick reference
-- [docs/cicd.md](docs/cicd.md) for CI/CD pipeline workflows, release process, and Mermaid diagrams
 - [docs/runtime-antigravity.md](docs/runtime-antigravity.md) for Antigravity runtime specifics
 - [docs/runtime-claude.md](docs/runtime-claude.md) for Claude runtime specifics
 - [docs/runtime-codex.md](docs/runtime-codex.md) for Codex runtime specifics
 - [docs/runtime-qwen.md](docs/runtime-qwen.md) for Qwen runtime specifics
 
-## Development and Release Validation
+## Development
 
-Canonical source lives under `src/`. The generator writes the agent stubs, commands, skills, manifests, hook registrations, policy pack, and detached `src/` payloads under `agents/`, `commands/`, `policies/`, `antigravity/`, `claude/`, `plugins/maestro/`, and `qwen/`; update `src/` first, then regenerate. A few runtime files are maintained by hand, mainly the thin MCP-server and hook-runner shims, the READMEs, and `QWEN.md` ([CONTRIBUTING.md](CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists them).
-
-```bash
-npm ci
-node scripts/generate.js
-git diff --exit-code --name-only
-npm test
-npm run pack:verify
-npm run release:artifacts
-npm run release:verify-artifacts
-```
-
-Release validation creates `dist/release/maestro-vX.Y.Z-extension.tar.gz`. The archive is intentionally generic: it unpacks with `qwen-extension.json`, `.claude-plugin/marketplace.json`, and `.agents/plugins/marketplace.json` at the root, plus the runtime payloads needed by Antigravity (`antigravity/`), Claude Code, Codex, and Qwen Code.
-
-Stable releases publish three aligned outputs:
-
-- Git tag `vX.Y.Z`
-- npm package `@josstei/maestro@X.Y.Z`
-- GitHub Release asset `maestro-vX.Y.Z-extension.tar.gz`
-
-Codex plugin releases launch the MCP server through the matching npm package version. The Antigravity plugin is self-contained: an installed copy runs the MCP server and hooks from its bundled `antigravity/src/`. Hook installation is explicit via `npm run install-hooks`; package, pack, and publish flows do not install git hooks.
+Canonical source lives under `src/`, and the runtime directories are regenerated from it with `node scripts/generate.js`. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand, and its [Key Commands](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands) table lists the development commands. [docs/cicd.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md) covers the CI workflows and the release process.
 
 ## License
 

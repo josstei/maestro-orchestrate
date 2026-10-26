@@ -27,9 +27,12 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
+
+      - name: Install build dependencies
+        run: npm ci
 
       - name: Resolve and validate target version
         env:
@@ -65,21 +68,8 @@ jobs:
 
           echo "VERSION=$NEXT" >> "$GITHUB_ENV"
 
-      - name: Validate CHANGELOG has unreleased content
-        run: |
-          if ! awk '/^## \[Unreleased\]/{found=1; next} /^## \[/{exit} found && NF{has=1} END{exit !has}' CHANGELOG.md; then
-            echo "::error::CHANGELOG [Unreleased] section has no content"
-            exit 1
-          fi
-
-      - name: Generate and check drift
-        run: |
-          node scripts/generate.js
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Generated files have drift on main. Fix before releasing."
-            git diff --stat
-            exit 1
-          fi
+      - name: Check generated output drift
+        run: node scripts/generate.js --check
 
       - name: Run full test suite
         run: npm test

@@ -67,7 +67,7 @@ jobs:
           echo "pr_title=$(echo "$PR_JSON" | jq -r '.title')" >> "$GITHUB_OUTPUT"
           echo "pr_head_ref=$(echo "$PR_JSON" | jq -r '.head.ref')" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         if: steps.detect.outputs.is_release == 'true'
         with:
           node-version: '24'
@@ -146,18 +146,13 @@ jobs:
             exit 1
           fi
 
-      - name: Generate runtime adapters
+      - name: Install build dependencies
         if: steps.detect.outputs.is_release == 'true'
-        run: node scripts/generate.js
+        run: npm ci
 
-      - name: Check adapter drift
+      - name: Check generated output drift
         if: steps.detect.outputs.is_release == 'true'
-        run: |
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Runtime adapters are out of sync with canonical src. Run 'node scripts/generate.js' and commit the changes."
-            git diff --stat
-            exit 1
-          fi
+        run: node scripts/generate.js --check
 
       - name: Run full test suite
         if: steps.detect.outputs.is_release == 'true'
@@ -235,3 +230,4 @@ jobs:
           body: ${{ steps.changelog.outputs.notes }}
           generate_release_notes: false
           files: dist/release/maestro-v${{ steps.version.outputs.version }}-extension.tar.gz
+          fail_on_unmatched_files: true

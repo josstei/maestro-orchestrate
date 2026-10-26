@@ -6,91 +6,124 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  RESOURCE_ALLOWLIST,
-  AGENT_ALLOWLIST,
-  applyReplacePaths,
-  applySkillMetadata,
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 } = require('../../src/mcp/content/runtime-content');
+const RESOURCE_REGISTRY = require('../../src/generated/resource-registry.json');
+const { AGENT_NAMES } = require('../../src/core/agent-registry');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
-const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const { writeAgentFixture } = require('../support/agent-fixtures');
-const { AGENT_COUNT } = require('../support/catalog');
+const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/catalog');
 const { makeTempDir, writeTree } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
 
 function writeFilesystemResource(root, id, content) {
-  writeTree(path.join(root, 'src'), RESOURCE_ALLOWLIST[id], content);
+  writeTree(path.join(root, 'src'), RESOURCE_REGISTRY[id], content);
 }
 
 function writeFilesystemAgent(root, agentName, content) {
   return writeAgentFixture(path.join(root, 'src'), agentName, content);
 }
 
-describe('RESOURCE_ALLOWLIST', () => {
-  it('is frozen with 14 entries', () => {
-    assert.equal(Object.isFrozen(RESOURCE_ALLOWLIST), true);
-    assert.equal(Object.keys(RESOURCE_ALLOWLIST).length, 14);
-  });
-});
+function readFixtureResource(id, content, runtimeConfig) {
+  const root = makeTempDir('maestro-resource-transform-');
+  writeFilesystemResource(root, id, content);
+  return readResourceFromFilesystem(id, runtimeConfig, path.join(root, 'src')).content;
+}
 
-describe('AGENT_ALLOWLIST', () => {
-  it(`is frozen with ${AGENT_COUNT} entries, all kebab-case strings`, () => {
-    assert.equal(Object.isFrozen(AGENT_ALLOWLIST), true);
-    assert.equal(AGENT_ALLOWLIST.length, AGENT_COUNT);
-
-    for (const name of AGENT_ALLOWLIST) {
-      assert.equal(typeof name, 'string');
-      assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+describe('resource registry', () => {
+  it('serves all 14 registered resources to every runtime', () => {
+    assert.equal(Object.keys(RESOURCE_REGISTRY).length, 14);
+    for (const runtimeName of RUNTIME_NAMES) {
+      for (const id of Object.keys(RESOURCE_REGISTRY)) {
+        const result = readResourceFromFilesystem(id, getRuntimeConfig(runtimeName), SRC_ROOT);
+        assert.equal(result.error, undefined, `${runtimeName}: ${id}`);
+        assert.equal(typeof result.content, 'string', `${runtimeName}: ${id}`);
+      }
     }
   });
 });
 
-describe('applyReplacePaths', () => {
+describe('served resource paths', () => {
   it('replaces ${extensionPath} with ${ENV_VAR_NAME} from runtimeConfig.env.extensionPath', () => {
     const content = 'load from ${extensionPath}/foo';
-    const result = applyReplacePaths(content, { env: { extensionPath: 'EXTENSION_DIR' } });
+    const result = readFixtureResource('delegation', content, { env: { extensionPath: 'EXTENSION_DIR' } });
     assert.equal(result, 'load from ${EXTENSION_DIR}/foo');
   });
 
   it('returns content unchanged when no placeholders present', () => {
     const content = 'no placeholders here';
-    const result = applyReplacePaths(content, { env: { extensionPath: 'EXT' } });
+    const result = readFixtureResource('delegation', content, { env: { extensionPath: 'EXT' } });
     assert.equal(result, content);
   });
 
   it('covers every ${...Path} placeholder the served resources use', () => {
-    for (const relativePath of Object.values(RESOURCE_ALLOWLIST)) {
+    for (const relativePath of Object.values(RESOURCE_REGISTRY)) {
       const content = fs.readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
       const placeholders = content.match(/\$\{[A-Za-z]+Path\}/g) || [];
       assert.deepEqual(
         placeholders.filter((placeholder) => placeholder !== '${extensionPath}'),
         [],
-        `${relativePath} uses a placeholder applyReplacePaths does not substitute`
+        `${relativePath} uses a placeholder resource reads do not substitute`
       );
     }
   });
 });
 
-describe('applySkillMetadata', () => {
+describe('served agent names', () => {
+  const hyphenatedAgentNames = AGENT_NAMES.filter((name) => name.includes('-'));
+
+  it('name no hyphenated agent in any resource served to qwen', () => {
+    const runtimeConfig = getRuntimeConfig('qwen');
+    for (const id of Object.keys(RESOURCE_REGISTRY)) {
+      const { content, error } = readResourceFromFilesystem(id, runtimeConfig, SRC_ROOT);
+      assert.equal(error, undefined, id);
+      for (const name of hyphenatedAgentNames) {
+        assert.ok(!new RegExp(`\\b${name}\\b`).test(content), `${id}: serves "${name}" to qwen`);
+      }
+    }
+  });
+
+  it('follow the runtime naming in an agent body and its Output Contract', () => {
+    const root = makeTempDir('maestro-agent-names-');
+    writeTree(root, 'src/agents/coder.md', '---\nname: coder\n---\nHand off to api-designer, then coder.\n');
+    writeTree(root, 'src/agents/shared/handoff-report.md', '## Output Contract\nNotify technical-writer.\n');
+    const srcRoot = path.join(root, 'src');
+
+    const qwenResult = readAgentFromFilesystem('coder', getRuntimeConfig('qwen'), srcRoot);
+    assert.equal(
+      qwenResult.agent.body,
+      'Hand off to api_designer, then coder.\n\n## Output Contract\nNotify technical_writer.\n'
+    );
+    for (const name of ['antigravity', 'claude', 'codex']) {
+      const { body } = readAgentFromFilesystem('coder', getRuntimeConfig(name), srcRoot).agent;
+      assert.equal(
+        body,
+        'Hand off to api-designer, then coder.\n\n## Output Contract\nNotify technical-writer.\n',
+        name
+      );
+    }
+  });
+});
+
+describe('served skill metadata', () => {
   it('adds user-invocable: false for claude runtime and SKILL.md path', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
-    const result = applySkillMetadata(content, { name: 'claude' }, 'skills/shared/delegation/SKILL.md');
-    assert.ok(result.includes('user-invocable: false'));
+    const result = readFixtureResource('delegation', content, getRuntimeConfig('claude'));
+    assert.equal(result, '---\nname: delegation\nuser-invocable: false\n---\nbody text\n');
   });
 
   it('returns unchanged for non-claude runtimes', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
     for (const name of ['antigravity', 'codex', 'qwen']) {
-      const result = applySkillMetadata(content, { name }, 'skills/shared/delegation/SKILL.md');
+      const result = readFixtureResource('delegation', content, getRuntimeConfig(name));
       assert.equal(result, content, name);
     }
   });
 
   it('returns unchanged for non-SKILL.md paths', () => {
     const content = '---\nname: delegation\n---\nbody text\n';
-    const result = applySkillMetadata(content, { name: 'claude' }, 'references/architecture.md');
+    const result = readFixtureResource('architecture', content, getRuntimeConfig('claude'));
     assert.equal(result, content);
   });
 });
@@ -146,6 +179,26 @@ describe('runtime-content filesystem reads', () => {
     assert.equal(agentResult.agent.body, `\nbody\n\n${outputContract}`);
   });
 
+  it('serves CRLF agent and resource sources with LF line endings', () => {
+    const root = makeTempDir('maestro-provider-crlf-');
+    const srcRoot = path.join(root, 'src');
+    const crlf = (text) => text.replace(/\n/g, '\r\n');
+    writeFilesystemResource(root, 'delegation', crlf('---\nname: delegation\n---\nbody text\n'));
+    const outputContract = writeFilesystemAgent(
+      root,
+      'coder',
+      crlf('---\nname: coder\ntools: [read_file]\n---\nAgent body.\n<example>\nx\n</example>\n')
+    );
+    writeTree(srcRoot, 'agents/shared/handoff-report.md', crlf(outputContract));
+
+    const resourceResult = readResourceFromFilesystem('delegation', getRuntimeConfig('claude'), srcRoot);
+    const agentResult = readAgentFromFilesystem('coder', getRuntimeConfig('codex'), srcRoot);
+
+    assert.equal(resourceResult.content, '---\nname: delegation\nuser-invocable: false\n---\nbody text\n');
+    assert.equal(agentResult.agent.body, `Agent body.\n\n${outputContract}`);
+    assert.deepEqual(agentResult.agent.tools, ['direct file reads']);
+  });
+
   it('returns filesystem read errors when codex content is missing', () => {
     const root = makeTempDir('maestro-provider-empty-');
     const runtimeConfig = getRuntimeConfig('codex');
@@ -186,7 +239,7 @@ describe('served agent bodies', () => {
     it(`end with the shared Output Contract for every agent on ${runtimeName}`, () => {
       const runtimeConfig = getRuntimeConfig(runtimeName);
 
-      for (const agentName of AGENT_ALLOWLIST) {
+      for (const agentName of AGENT_NAMES) {
         const result = readAgentFromFilesystem(agentName, runtimeConfig, SRC_ROOT);
         assert.equal(result.error, undefined, `${agentName}: ${result.error}`);
 
@@ -210,7 +263,7 @@ describe('served Antigravity agent tools', () => {
   it('name only tools Antigravity grants a subagent, each once', () => {
     const runtimeConfig = getRuntimeConfig('antigravity');
 
-    for (const agentName of AGENT_ALLOWLIST) {
+    for (const agentName of AGENT_NAMES) {
       const { tools } = readAgentFromFilesystem(agentName, runtimeConfig, SRC_ROOT).agent;
       assert.ok(tools.length > 0, `${agentName}: expected a tool allowlist`);
       assert.equal(new Set(tools).size, tools.length, `${agentName}: duplicate tools ${tools}`);

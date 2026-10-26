@@ -22,6 +22,9 @@ const CANONICAL_FIELDS = Object.freeze([
   'warnings',
 ]);
 
+/** The file lists a phase handoff reports next to its downstream context. */
+const HANDOFF_FILE_FIELDS = Object.freeze(['files_created', 'files_modified', 'files_deleted']);
+
 const EMPTY_VALUE_TOKENS = new Set(['', 'none', 'n/a', 'not applicable']);
 
 function normalizeFieldValue(value) {
@@ -29,13 +32,6 @@ function normalizeFieldValue(value) {
     .filter((item) => typeof item === 'string')
     .map((item) => item.trim())
     .filter((item) => !EMPTY_VALUE_TOKENS.has(item.toLowerCase()));
-}
-
-/**
- * @returns {Object<string, string[]>} a fresh empty canonical context.
- */
-function createEmptyDownstreamContext() {
-  return normalizeDownstreamContext(null);
 }
 
 /**
@@ -55,11 +51,10 @@ function normalizeDownstreamContext(input) {
 
 /**
  * True when the normalized context has at least one non-empty field.
- * @param {unknown} input
+ * @param {Object<string, string[]>} normalized - Output of normalizeDownstreamContext
  * @returns {boolean}
  */
-function isDownstreamContextPopulated(input) {
-  const normalized = normalizeDownstreamContext(input);
+function isDownstreamContextPopulated(normalized) {
   return CANONICAL_FIELDS.some((field) => normalized[field].length > 0);
 }
 
@@ -78,8 +73,7 @@ function describeShape() {
 }
 
 module.exports = {
-  CANONICAL_FIELDS,
-  createEmptyDownstreamContext,
+  HANDOFF_FILE_FIELDS,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape,

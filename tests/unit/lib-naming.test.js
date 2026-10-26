@@ -37,69 +37,45 @@ const ENTRY_POINT_TITLE_EXPECTED = {
 };
 
 describe('toSnakeCase', () => {
-  it('converts kebab-case to snake_case', () => {
-    assert.equal(toSnakeCase('api-designer'), 'api_designer');
-  });
-
-  it('handles single-word names without hyphens', () => {
-    assert.equal(toSnakeCase('coder'), 'coder');
-  });
-
-  it('handles multiple hyphens', () => {
-    assert.equal(toSnakeCase('design-system-engineer'), 'design_system_engineer');
-  });
-
-  it('returns empty string for empty input', () => {
-    assert.equal(toSnakeCase(''), '');
-  });
-
-  it('does not alter underscores already present', () => {
-    assert.equal(toSnakeCase('snake_case'), 'snake_case');
-  });
+  for (const [title, input, expected] of [
+    ['converts kebab-case to snake_case', 'api-designer', 'api_designer'],
+    ['handles single-word names without hyphens', 'coder', 'coder'],
+    ['handles multiple hyphens', 'design-system-engineer', 'design_system_engineer'],
+    ['returns empty string for empty input', '', ''],
+    ['does not alter underscores already present', 'snake_case', 'snake_case'],
+  ]) {
+    it(title, () => {
+      assert.equal(toSnakeCase(input), expected);
+    });
+  }
 });
 
 describe('toKebabCase', () => {
-  it('converts snake_case to kebab-case', () => {
-    assert.equal(toKebabCase('api_designer'), 'api-designer');
-  });
-
-  it('handles single-word names without underscores', () => {
-    assert.equal(toKebabCase('coder'), 'coder');
-  });
-
-  it('handles multiple underscores', () => {
-    assert.equal(toKebabCase('design_system_engineer'), 'design-system-engineer');
-  });
-
-  it('returns empty string for empty input', () => {
-    assert.equal(toKebabCase(''), '');
-  });
-
-  it('does not alter hyphens already present', () => {
-    assert.equal(toKebabCase('kebab-case'), 'kebab-case');
-  });
+  for (const [title, input, expected] of [
+    ['converts snake_case to kebab-case', 'api_designer', 'api-designer'],
+    ['handles single-word names without underscores', 'coder', 'coder'],
+    ['handles multiple underscores', 'design_system_engineer', 'design-system-engineer'],
+    ['returns empty string for empty input', '', ''],
+    ['does not alter hyphens already present', 'kebab-case', 'kebab-case'],
+  ]) {
+    it(title, () => {
+      assert.equal(toKebabCase(input), expected);
+    });
+  }
 });
 
 describe('toPascalCase', () => {
-  it('converts single-word name', () => {
-    assert.equal(toPascalCase('coder'), 'Coder');
-  });
-
-  it('converts two-part kebab name', () => {
-    assert.equal(toPascalCase('session-start'), 'SessionStart');
-  });
-
-  it('converts three-part kebab name', () => {
-    assert.equal(toPascalCase('design-system-engineer'), 'DesignSystemEngineer');
-  });
-
-  it('returns empty string for empty input', () => {
-    assert.equal(toPascalCase(''), '');
-  });
-
-  it('preserves existing capitalization within parts', () => {
-    assert.equal(toPascalCase('i18n-specialist'), 'I18nSpecialist');
-  });
+  for (const [title, input, expected] of [
+    ['converts single-word name', 'coder', 'Coder'],
+    ['converts two-part kebab name', 'session-start', 'SessionStart'],
+    ['converts three-part kebab name', 'design-system-engineer', 'DesignSystemEngineer'],
+    ['returns empty string for empty input', '', ''],
+    ['preserves existing capitalization within parts', 'i18n-specialist', 'I18nSpecialist'],
+  ]) {
+    it(title, () => {
+      assert.equal(toPascalCase(input), expected);
+    });
+  }
 
   // Hook names, which registry-scanner prefixes with `handle`.
   for (const [hookName, expected] of Object.entries(HOOK_PASCAL_EXPECTED)) {
@@ -110,17 +86,15 @@ describe('toPascalCase', () => {
 });
 
 describe('toTitleCase', () => {
-  it('converts single-word name to title case', () => {
-    assert.equal(toTitleCase('review'), 'Review');
-  });
-
-  it('converts multi-word kebab name to title case with spaces', () => {
-    assert.equal(toTitleCase('security-audit'), 'Security Audit');
-  });
-
-  it('returns empty string for empty input', () => {
-    assert.equal(toTitleCase(''), '');
-  });
+  for (const [title, input, expected] of [
+    ['converts single-word name to title case', 'review', 'Review'],
+    ['converts multi-word kebab name to title case with spaces', 'security-audit', 'Security Audit'],
+    ['returns empty string for empty input', '', ''],
+  ]) {
+    it(title, () => {
+      assert.equal(toTitleCase(input), expected);
+    });
+  }
 
   // Entry-point names that have no registry title.
   for (const [epName, expected] of Object.entries(ENTRY_POINT_TITLE_EXPECTED)) {

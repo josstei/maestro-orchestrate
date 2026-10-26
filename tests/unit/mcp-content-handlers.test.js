@@ -58,17 +58,21 @@ describe('get_skill_content handler', () => {
     assert.ok(!content.includes('Codex keeps'));
   });
 
-  it('serves antigravity the script-based state contract rooted at ${PLUGIN_ROOT}', () => {
-    const handler = createSkillContentHandler(getRuntimeConfig('antigravity'), SRC_ROOT);
+  for (const [runtime, ensureWorkspace] of [
+    ['antigravity', '`node ${PLUGIN_ROOT}/src/scripts/ensure-workspace.js <state_dir>`'],
+    ['claude', '`node ${CLAUDE_PLUGIN_ROOT}/src/scripts/ensure-workspace.js <state_dir>`'],
+    ['codex', '`node "<absolute-plugin-root>/src/scripts/ensure-workspace.js" <state_dir>`'],
+  ]) {
+    it(`serves ${runtime} a state contract rooted at <state_dir> with its own script paths`, () => {
+      const handler = createSkillContentHandler(getRuntimeConfig(runtime), SRC_ROOT);
+      const content = handler({ resources: ['architecture'] }).contents.architecture;
 
-    const content = handler({ resources: ['architecture'] }).contents.architecture;
-
-    assert.ok(content.includes('Maestro maintains session state under `<state_dir>`'));
-    assert.ok(content.includes('`node ${PLUGIN_ROOT}/src/scripts/ensure-workspace.js <state_dir>`'));
-    assert.ok(!content.includes('${extensionPath}'));
-    assert.ok(!content.includes('${CLAUDE_PLUGIN_ROOT}'));
-    assert.ok(!content.includes('node ./src/scripts/'));
-  });
+      assert.ok(content.includes('Maestro maintains session state under `<state_dir>` (resolved from `MAESTRO_STATE_DIR`)'));
+      assert.ok(content.includes(ensureWorkspace));
+      assert.ok(!content.includes('docs/maestro/'), 'state paths should be rooted at <state_dir>');
+      assert.ok(!content.includes('${extensionPath}'));
+    });
+  }
 
   it('serves every runtime a delegation skill that explains its result surface', () => {
     for (const runtimeName of RUNTIME_NAMES) {
@@ -114,7 +118,7 @@ describe('get_skill_content handler', () => {
 });
 
 describe('get_agent handler', () => {
-  it('returns stripped methodology bodies and runtime-mapped tools', () => {
+  it('returns methodology bodies and runtime-mapped tools, keeping example blocks only where enabled', () => {
     const root = makeTempDir('maestro-agent-content-');
     writeAgentFixture(
       path.join(root, 'src'),
@@ -125,9 +129,9 @@ describe('get_agent handler', () => {
         'tools: [read_file, write_file]',
         'tools.claude: [Read, Write]',
         '---',
-        '<!-- @feature exampleBlocks -->',
+        '<example>',
         'Example block',
-        '<!-- @end-feature -->',
+        '</example>',
         '',
         'Methodology body.',
       ].join('\n')
@@ -148,6 +152,9 @@ describe('get_agent handler', () => {
     assert.ok(result.agents.coder.body.includes('Methodology body.'));
     assert.ok(!result.agents.coder.body.includes('tools:'));
     assert.ok(!result.agents.coder.body.includes('Example block'));
+
+    const kept = createAgentHandler(getRuntimeConfig('claude'), path.join(root, 'src'))({ agents: ['coder'] });
+    assert.ok(kept.agents.coder.body.includes('<example>\nExample block\n</example>'));
   });
 
   it('returns tool_name matching runtime agentNaming convention', () => {

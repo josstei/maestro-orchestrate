@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, and detached payloads, plus a few hand-maintained shims (the MCP server, hook-runner and Antigravity and Claude policy-enforcer entrypoints) that load `src/`. [CONTRIBUTING.md](../CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, detached payloads, and launchers that load `src/`. The launchers are rendered by `src/generator/runtime-entrypoints.js`, preserving their public paths and loading behavior. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
                              ┌─────────────┐
@@ -13,8 +13,8 @@ Maestro follows a **src-first, generated-runtime** architecture. Shared behavior
                                     │
                              ┌──────┴──────┐
                              │ generate.js │
-                             │ + manifest  │
-                             │ + transforms│
+                             │ + stubs     │
+                             │ + metadata  │
                              └──────┬──────┘
         ┌──────────────────┬────────┴─────────┬──────────────────┐
         ▼                  ▼                  ▼                  ▼
@@ -31,48 +31,27 @@ The generator (`scripts/generate.js`) is the build boundary between canonical so
 
 1. Loads every runtime config (`src/platforms/<runtime>/runtime-config.js`, discovered by `src/platforms/runtime-config-map.js`)
 2. Scans `src/agents/`, `src/skills/shared/`, `src/templates/`, `src/references/`, and `src/hooks/logic/` into `src/generated/agent-registry.json`, `resource-registry.json`, and `hook-registry.json` (`src/generator/registry-scanner.js`)
-3. Expands the rules in `src/manifest.js` and runs their transforms (`src/generator/manifest-expander.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
+3. Collects agent and shared-skill stubs directly (`src/generator/stub-outputs.js`): agent stubs into `antigravity/agents/`, `claude/agents/`, and, for Qwen, the repo-root `agents/` (Qwen Code loads an extension's subagents from `<extension>/agents/`); shared-skill discovery stubs into `antigravity/skills/`, `claude/skills/`, and `plugins/maestro/skills/`
 4. Expands the entry-point and core-command registries (`src/generator/entry-point-expander.js`) into Antigravity, Claude, and Codex skills and Qwen TOML commands (`commands/maestro/`)
-5. Writes the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`, which takes the policy pack from `src/platforms/qwen/policy-pack.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
-6. Prunes stale files from the directories it owns (`agents/`, `antigravity/agents/`, `antigravity/skills/`, `claude/agents/`, `claude/skills/`, `plugins/maestro/skills/`, and `commands/`)
-7. Rebuilds the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` (an allowlisted copy of `src/` plus that runtime's `src/platforms/<runtime>/` directory) and stamps each with `version.json`
+5. Renders the manifests, marketplace files, hook registrations, and shell policy pack from `package.json` and the runtime configs (`src/platforms/metadata.js`, which takes the policy pack from `src/platforms/qwen/policy-pack.js`): `antigravity/plugin.json`, `antigravity/mcp_config.json`, `antigravity/hooks.json`, `.claude-plugin/marketplace.json`, `claude/.claude-plugin/plugin.json`, `claude/hooks/claude-hooks.json`, `claude/.mcp.json`, `.agents/plugins/marketplace.json`, `plugins/maestro/.codex-plugin/plugin.json`, `plugins/maestro/.mcp.json`, `plugins/maestro/.app.json`, `qwen-extension.json`, `qwen/hooks.json`, and `policies/maestro.toml`
+6. Renders the nine public MCP, hook-runner, and policy-enforcer launchers (`src/generator/runtime-entrypoints.js`), including the executable Codex npm bin
+7. Plans the detached payloads `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` from dependency closures and explicit content roots, including `version.json`, and validates every destination
+8. Writes the collected outputs and prunes stale files from owned agent, skill, command, and detached-payload directories
 
-`--dry-run` and `--diff` write nothing and skip steps 6 and 7. `--clean` deletes the manifest outputs before regenerating them.
+All dependency plans validate before generation writes or prunes files. `--dry-run` and `--diff` write nothing and report payload additions/removals and executable-mode drift. `--dry-run` also names why each added payload file is included, as `[CREATE] <path> — <reason>`. `--clean` deletes agent and shared-skill stubs before regenerating them.
 
-### Manifest System
+The shared build-time graph in `src/generator/dependency-graph.js` parses imports with Acorn and Acorn Walk, so import-looking comments, strings, and template text are never dependencies. It resolves local JavaScript, JSON, and directory indexes without executing modules, checks physical containment, and explicitly classifies runtime-config discovery, hook adapters, and registry-listed hook implementations. Missing targets, escapes, unsupported computed or aliased loading, and unknown or stale annotations fail the check, as do symlink imports, whose resolution a flattened payload copy cannot preserve. Acorn and Acorn Walk are major-version-8 development dependencies locked in `package-lock.json`; detached payloads need neither parser nor any `node_modules`.
 
-`src/manifest.js` declares how source files map to outputs. Each entry specifies:
+Detached roots include the MCP server, selected runtime config, all five state scripts, registries, served resources, agent bodies, and the handoff contract. Antigravity and Claude additionally retain their hook and policy roots. Codex omits hook/policy-only modules; its payload still carries the MCP server, but `plugins/maestro/.mcp.json` starts the server from the npm bin. Payload files preserve canonical paths and bytes; there is no bundling or export pruning. The served state contract runs the state scripts from the installed plugin's `src/scripts/`; Codex, which has no plugin-root variable, derives that root from the path of the loaded skill.
 
-```javascript
-{
-  src: 'agents/architect.md',                  // Source file
-  transforms: ['agent-stub'],                  // Transform pipeline
-  runtimes: ['antigravity', 'claude', 'qwen'], // Target runtimes
-}
-```
+### Discovery Stubs
 
-Or with glob patterns:
+`src/generator/stub-outputs.js` scans agent Markdown files and shared `SKILL.md` files and invokes their renderers directly. Agent filenames use each runtime's naming convention; shared-skill paths flatten `skills/shared/` to `skills/`. Both use the runtime's `outputDir`.
 
-```javascript
-{
-  glob: 'agents/*.md',
-  transforms: ['agent-stub'],
-  runtimes: ['antigravity', 'claude', 'qwen'],
-}
-```
-
-A glob may use `*` only in its final (file name) segment; a `**` segment directly before it also matches files in subdirectories. Any other use of `*` fails generation with `Unsupported manifest glob`, and other glob characters such as `?` and `[...]` are matched literally.
-
-Each output path is the source path under the runtime's `outputDir`, with `skills/shared/` flattened to `skills/` and agent filenames converted to snake_case for snake_case runtimes.
-
-### Transform Pipeline
-
-The generator exposes 2 transforms, registered by name in `src/transforms/index.js`:
-
-| Transform | Purpose |
-|-----------|---------|
-| `agent-stub` | Emit the runtime's agent frontmatter (the fields its `agentFrontmatter.fields` lists, with tools in that runtime's names, each listed once, and, when `features.exampleBlocks` is on, the body's `<example>` blocks folded into the description), followed by a one-line body that points at `get_agent()` |
-| `skill-discovery-stub` | Replace a shared skill body with a stub that points at `get_skill_content()`; Claude stubs also set `user-invocable: false` and Antigravity stubs `disable-slash-command: true` |
+| Renderer | Purpose |
+|----------|---------|
+| `src/transforms/agent-stub.js` | Emit ordered runtime frontmatter and mapped tools, folding example blocks into descriptions when enabled, followed by a pointer to `get_agent()` |
+| `src/transforms/skill-discovery-stub.js` | Point to `get_skill_content()` with the host's discovery metadata |
 
 ### Runtime Definitions
 
@@ -85,30 +64,45 @@ Each runtime (`src/platforms/*/runtime-config.js`) declares:
 | `agentPrefix` | — | `maestro:` | — | — |
 | `mcpPrefix` | `mcp_maestro_maestro_` | `mcp__plugin_maestro_maestro__` | `mcp__maestro_maestro__` | `''` (empty) |
 | `mcpClientNames` | `antigravity-client` | `claude-code` | `codex-mcp-client` | `qwen-cli-mcp-client-*` |
-| `mcpToolMeta` | `{ "antigravity/alwaysLoad": true }` | — | — | — |
+| `mcpToolMeta` | `{"antigravity/alwaysLoad":true}` | — | — | — |
 | `planModeNative` | `false` | `true` | `false` | `false` |
 | `delegation.pattern` | `invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])` | `Agent(subagent_type: "maestro:{{agent}}", prompt: "...")` | `spawn_agent(...)` | `{{agent}}(query: "...")` |
 | `delegation.constraints.result_surface` | `notified` | `synchronous` | `deferred` | `synchronous` |
 | `env.extensionPath` | `PLUGIN_ROOT` | `CLAUDE_PLUGIN_ROOT` | `.` (relative) | `extensionPath` |
-| `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `workspacePath` |
-| `agentFrontmatter.fields` | name, description, subagent, mainAgent, model, tools | name, description, model, color, turns, tools | — (no agent stubs) | name, kind, description, turns, tools |
+| `env.workspacePath` | `MAESTRO_WORKSPACE_PATH` | `CLAUDE_PROJECT_DIR` | `MAESTRO_WORKSPACE_PATH` | `MAESTRO_WORKSPACE_PATH` |
+| `agentFrontmatter.fields` | `name`, `description`, `subagent`, `mainAgent`, `model`, `tools` | `name`, `description`, `model`, `color`, `turns`, `tools` | — (no agent stubs) | `name`, `kind`, `description`, `turns`, `tools` |
+| `entrySurface` | `skill` | `skill` | `skill` | `command` (TOML commands) |
+| `entryAgentRefs` | `true` | — | `true` | — |
+| `skillStubFrontmatter` | `disable-slash-command: true` | `user-invocable: false` | — | — (no shared-skill stubs) |
+| `servedSkillFrontmatter` | — | `user-invocable: false` | — | — |
+| `features.exampleBlocks` | `false` | `true` | `false` | `false` |
+| `features.scriptBasedStateContract` | `true` | `true` | `false` | `true` |
+| `features.codexStateContract` | `false` | `false` | `true` | `false` |
+| `paths.skills` | `${PLUGIN_ROOT}/skills/` | `${CLAUDE_PLUGIN_ROOT}/skills/` | `./skills/` | — |
+| `paths.hooks` | `${PLUGIN_ROOT}/hooks/` | `${CLAUDE_PLUGIN_ROOT}/scripts/` | — | `${extensionPath}/hooks/` |
+| `launchers.mcpServer` | `mcp/maestro-server.js` | `mcp/maestro-server.js` | — | `mcp/maestro-server.js` |
+| `launchers.hookRunner` | `hooks/hook-runner.js` | `scripts/hook-runner.js` | — | `hooks/hook-runner.js` |
+| `launchers.policyEnforcer` | `hooks/policy-enforcer.js` | `scripts/policy-enforcer.js` | — | — |
+| `launchers.npmBin` | — | — | `bin/maestro-mcp-server.js` (package root) | — |
+
+`features` flags select the `<!-- @feature <flag> -->` blocks in served content (`src/core/feature-blocks.js`), and `exampleBlocks` also keeps `<example>` blocks in agent descriptions. `get_runtime_context` serves `paths` rooted at `env.extensionPath`, and each names a directory in the runtime's generated output. `launchers` paths are relative to `outputDir`, except `npmBin`, which is relative to the package root.
 
 ### Entry-Point Registry
 
-9 entry-points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
+9 entry points defined in `src/entry-points/registry.js`, each with workflow steps, constraints, agent assignments, and skill references. Generated into:
 
 - Antigravity: Markdown skills in `antigravity/skills/*/`, invoked as `/maestro:<skill>`
 - Claude: Markdown skills in `claude/skills/`
 - Codex: Markdown skills in `plugins/maestro/skills/*/`, invoked as `$maestro:<skill>`
 - Qwen: TOML commands in repo-root `commands/maestro/` (the repo root is Qwen Code's extension directory)
 
-Entry-points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
+Entry points: review, debug, archive, status, security-audit, perf-check, seo-audit, a11y-audit, compliance-check.
 
 Plus 3 core commands (orchestrate, execute, resume) maintained separately in `src/entry-points/core-command-registry.js`.
 
 ## MCP Server Architecture
 
-The MCP server is authored directly in modular source under `src/mcp/`. Each runtime reaches it through a thin entrypoint; see [MCP Server Packaging](#mcp-server-packaging).
+The MCP server is authored directly in modular source under `src/mcp/`. Each runtime reaches it through a thin launcher; see [MCP Server Packaging](#mcp-server-packaging).
 
 ### Module Structure
 
@@ -139,28 +133,52 @@ src/mcp/
 │   ├── workspace/index.js      # 4 tools
 │   ├── session/index.js        # 10 tools
 │   └── content/index.js        # 3 tools
-├── utils/
-│   └── extension-root.js       # Canonical src/ resolution
 └── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
 ```
 
 The runtime config registry the server and the generator share, `src/platforms/runtime-config-map.js`, sits with the platform configs it discovers, outside `src/mcp/`.
 
-### Content Serving and Path Resolution
+### Content Serving
 
 The content tools (`get_agent`, `get_skill_content`) are filesystem-only in every runtime: `src/mcp/content/runtime-content.js` reads the requested agent or resource from the resolved canonical `src/` directory and applies the runtime's transforms, with no registry fallback.
 
-This makes the source-of-truth rules explicit:
+### Layer Boundaries
+
+The source-of-truth and layer rules:
 
 - shared logic lives under `src/lib`, `src/config`, `src/core`, `src/state`, `src/hooks/logic`, and `src/mcp`
-- `src/lib` may import only other `src/lib` modules and `node:` builtins; `just check-layers` (`scripts/check-layer-boundaries.js`) enforces this, and `npm test` runs the same check
-- root `src/` is the only human-authored source of truth
+- `just check-layers` (`scripts/check-layer-boundaries.js`) uses the shared dependency graph to enforce the lower-layer dependencies listed below, reject production cycles and dependencies on build-only modules or external packages, and report modules unreached from its declared public roots (the modules the launchers load, runtime configs, state scripts, and generator APIs) as apparent orphans for review; `npm test` runs the same check
+- root `src/` is the only human-authored source of shared code and content
 - generator-owned runtime-local mirrors are allowed when a bundled runtime needs self-containment
 - no hand-maintained runtime forks are allowed
 
+All guarded layers may import `node:` builtins. Their allowed source dependencies are:
+
+| Layer | Allowed source dependencies |
+|-------|-----------------------------|
+| `lib` | `lib` |
+| `core` | `lib`, `core`, `generated` |
+| `config` | `lib`, `core`, `config` |
+| `state` | `lib`, `core`, `config`, `state` |
+| `hooks` | `lib`, `core`, `config`, `state`, `hooks` |
+
+`src/state/design-gate.js` owns gate persistence and session-creation preconditions; `src/state/session-documents.js` owns document materialization and archival. MCP handlers depend on those stores directly, without importing persistence operations from another handler. Phase field descriptors in `src/mcp/contracts/plan-schema.js` supply the advertised schema, required fields, and runtime validation in one declaration order.
+
+### State Coordination and Recovery
+
+`src/state/paths.js` resolves the configured state directory independently of coordination. `coordinator.js` serializes logical mutations for its physical path and supplies an explicit transaction context to session, gate, and document stores. Nested helpers stage effects in that context rather than acquiring another lock. MCP reads, managed state scripts, workspace initialization, and before-agent session reads use the same protocol; ephemeral hook tracking remains separate.
+
+The first mutation creates private metadata, with owner-only permissions, beneath `<state_dir>/state/.maestro/`; no state document path may resolve inside it. Ownership is acquired by renaming a complete candidate directory into place, with a random token, PID, hostname, and protocol version. Contention polls asynchronously every 50 ms (`pollDelay` in `src/state/state-lock.js`) for up to five seconds (the `timeoutMs` default of `acquireStateLockInternal` there and of `withStateRead` in `coordinator.js`). The before-agent reader in `src/hooks/logic/before-agent-logic.js` passes a 250 ms `timeoutMs`; when state is unavailable, it logs a warning and omits session context. Only a definitively absent same-host PID can be reclaimed. Release removes the observed token file and then the empty directory, never recursively deleting the shared lock.
+
+Mutations validate and stage bytes before publishing a durable current-transaction pointer. That publication commits the operation. A versioned journal records the operation and session, ordered effects, before/after fingerprints, captured content, the result, and progress. Recovery accepts the expected prior state or an already-applied result and finishes committed operations from the staged bytes, so it never depends on the external file a document was copied from. Unexpected edits stop replay and preserve the journal. Archive effects retain their order: completed session contents, session move, document moves, gate removal.
+
+Readers compare revision and transaction markers around their snapshots and retry if a commit overlaps. Ordinary reads neither create directories nor require write access; a pending committed operation must acquire ownership and recover first. A mutation that recovers earlier work returns `STATE_RECOVERED` without starting another mutation. Other explicit errors are `STATE_BUSY`, `STATE_RECOVERY_REQUIRED`, and `STATE_CONFLICT`; their hints tell callers how to inspect or retry safely.
+
+Session formats require no migration; workspace initialization adds `.maestro/` to `<state_dir>/state/.gitignore` and keeps its existing entries. Files and directory metadata are flushed where supported; process-crash recovery is guaranteed, while power-loss durability depends on the operating system and filesystem. Direct editor writes and older processes do not participate in this protocol. Do not downgrade while a committed journal remains. See [state usage](usage.md#concurrent-updates-and-recovery) for the optional digest-guarded CLI form.
+
 ### MCP Server Packaging
 
-Qwen uses the repo-root public entrypoint at `mcp/maestro-server.js`, Antigravity and Claude keep runtime-local public entrypoints at `antigravity/mcp/maestro-server.js` and `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin wrappers around `src/mcp/maestro-server.js` that only locate `src/`; none names a runtime:
+Qwen uses the repo-root public launcher at `mcp/maestro-server.js`, Antigravity and Claude keep runtime-local public launchers at `antigravity/mcp/maestro-server.js` and `claude/mcp/maestro-server.js`, and Codex invokes the server via `npx` against a published bin. All are thin launchers around `src/mcp/maestro-server.js` that only locate `src/`; none names a runtime:
 
 - **Qwen** (`mcp/maestro-server.js`): launched from `qwen-extension.json`, directly requires `../src/mcp/maestro-server` and calls `.main()`
 - **Antigravity** (`antigravity/mcp/maestro-server.js`): launched as `node ${PLUGIN_ROOT}/mcp/maestro-server.js` from `antigravity/mcp_config.json`, uses `fs.existsSync()` to prefer repo `../../src/mcp/maestro-server.js` with fallback to bundled `../src/mcp/maestro-server.js`
@@ -168,8 +186,6 @@ Qwen uses the repo-root public entrypoint at `mcp/maestro-server.js`, Antigravit
 - **Codex** (`bin/maestro-mcp-server.js` invoked via `npx -y -p @josstei/maestro@<version> maestro-mcp-server` per `plugins/maestro/.mcp.json`): sets `MAESTRO_EXTENSION_PATH`, then requires `../src/mcp/maestro-server` and calls `.main()`
 
 The server identifies its host runtime instead of assuming one. It takes `MAESTRO_RUNTIME` when that variable is set (an unknown value stops the server at startup); otherwise it takes the runtime whose config lists, in `mcpClientNames`, the `clientInfo.name` the MCP client sends in `initialize` (an entry ending in `*` matches any name with that prefix, since Qwen Code appends the server's key). There is no default runtime: when neither identifies one, the server still lists its tools, logs the reason, and fails every tool call with `RUNTIME_UNIDENTIFIED` and a recovery hint naming the valid `MAESTRO_RUNTIME` values. `findRuntimeConfigForClient()` in `src/platforms/runtime-config-map.js` does the lookup, and each client name may belong to one runtime only.
-
-There is no tracked generated MCP core artifact, no tracked runtime-local `lib/` tree, and no bundled content registry. Public entrypoint stability is preserved without introducing a second hand-maintained source of truth.
 
 When a runtime config sets `mcpToolMeta`, `src/mcp/core/create-server.js` lists it as every tool schema's `_meta`. Antigravity's `antigravity/alwaysLoad` marks the tools to register as native tools (`mcp_maestro_maestro_<tool>`) instead of loading them on demand.
 
@@ -195,7 +211,7 @@ The 17 tools (4 workspace, 10 session, 3 content) and their required parameters 
 
 Each agent in `src/agents/` has:
 
-- **YAML frontmatter**: `name`, `description`, `color`, `tools`, `max_turns`. `tools` is the one canonical tool list, written in canonical tool names that each runtime maps through its runtime config's `tools` table; an optional `tools.<runtime>` key (every agent sets `tools.claude`) replaces it for that runtime
+- **YAML frontmatter**: `name`, `description`, `color`, `tools`, `max_turns`. `tools` is the one canonical tool list, written in canonical tool names that each runtime maps through its runtime config's `tools` table; runtime agent-tool defaults preserve host ordering and exclusions, and an optional `tools.<runtime>` key replaces those defaults for intentional exceptions
 - **Methodology body**: role description, assessment areas, decision frameworks, anti-patterns
 - **Downstream consumer contracts**: what other agents need from this agent's output
 
@@ -205,7 +221,7 @@ All agents share one Output Contract (the Handoff Report format). It lives once 
 
 ### Stub Generation
 
-The `agent-stub` transform writes a thin stub for each runtime: the frontmatter fields that runtime's `agentFrontmatter.fields` lists, then a single body line. Full methodology is served via MCP at delegation time:
+The `agent-stub` transform writes a thin stub for each runtime that has agent stubs (all but Codex): the frontmatter fields that runtime's `agentFrontmatter.fields` lists, then a single body line. Full methodology is served via MCP at delegation time:
 
 ```markdown
 Agent methodology loaded via MCP tool `get_agent`. Call `get_agent(agents: ["architect"])` to read the full methodology at delegation time.
@@ -239,13 +255,19 @@ Hooks fire at session and agent boundaries to inject context and validate output
 
 ### Policy Enforcement
 
-Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.js`: they block destructive commands (`rm -rf`, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, heredocs) and require confirmation for `tee` and output redirects (`>`, `>>`):
+Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.js`:
 
-- **Antigravity**: `src/platforms/antigravity/policy-enforcer.js`, run on `run_command` through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It answers `deny` for a deny rule, `force_ask` for an ask rule, and `ask` for any other command, which leaves the user's own permission settings in charge; it answers `deny` when the check cannot run
-- **Claude**: `src/platforms/claude/policy-enforcer.js`, run on Bash tool use through the `claude/scripts/policy-enforcer.js` shim (repo `src/` first, bundled `claude/src/` fallback)
-- **Qwen**: the TOML policy pack `policies/maestro.toml`, rendered from those rules by `src/platforms/qwen/policy-pack.js` for the Qwen builder in `src/platforms/metadata.js`
+**Deny**:
+- `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
+- `git reset --hard`, `git checkout --`
+- `git clean -fd`, `git clean -df`, `git clean -xfd`, `git clean -xdf`
+- Heredocs (`<<EOF`, `<< 'EOF'`, `<<-EOF`; not here-strings `<<<` or arithmetic shifts such as `1<<4`)
 
-Both JavaScript enforcers run `checkCommand()` from `src/core/policy-rules.js`, which splits compound commands and checks `$(...)` and backtick subshells, through the shared runner `src/platforms/shared/policy-enforcer.js`, which reads stdin with the bounded collector in `src/core/stdin-reader.js` and formats every decision; they differ only in where they read the command and what they name each decision.
+**Ask**:
+- `tee` commands
+- Output redirection written with surrounding whitespace (`cmd > file`, `cmd >> file`, `2> file`)
+
+The Antigravity and Claude launchers (`antigravity/hooks/policy-enforcer.js`, `claude/scripts/policy-enforcer.js`; repo `src/` first, bundled copy as fallback) call `main('<runtime>')` in the shared enforcer `src/platforms/shared/policy-enforcer.js`. It reads stdin with the bounded collector in `src/core/stdin-reader.js`, runs `checkCommand()` from `src/core/policy-rules.js` (which splits compound commands on `;`, `&&`, `||`, and `|` and checks `$(...)` and backtick subshells recursively), and formats every decision. The runtimes differ only in the `shellPolicy` their `src/platforms/<runtime>/hook-adapter.js` exports: the shell tool the hook matches, where the command is read, and what each decision is called. Qwen runs no enforcer: its policy engine reads `policies/maestro.toml`, which `src/platforms/qwen/policy-pack.js` renders from the same rules. Each runtime's decisions and failure behavior are in [runtime-antigravity.md](runtime-antigravity.md#policies), [runtime-claude.md](runtime-claude.md#policies), and [runtime-qwen.md](runtime-qwen.md#policies).
 
 ### Hook State
 
@@ -259,20 +281,14 @@ Ephemeral state is stored in `os.tmpdir()/maestro-hooks-<uid>/` (override with `
 
 Settings resolve with precedence: environment variable → workspace `.env` → extension `.env` → default. Each setting, its default, and its allowed values are listed in [docs/usage.md](usage.md#settings); `src/config/settings-catalog.js` is the canonical list.
 
+Each `resolve_settings` request creates a lazy resolver that reads each reached `.env` path once, including missing or unreadable files. Logical consultations replay parser warnings in their original order and multiplicity. Environment variables remain live, scalar `resolveSetting` calls remain fresh, and parsed files are snapshots only for the current request. Agent and resource reads likewise remain fresh between requests.
+
 ## CI and Testing
 
-For detailed documentation of all seven GitHub Actions workflows, the release pipeline chain, and Mermaid flow diagrams, see [docs/cicd.md](cicd.md).
+CI runs `node scripts/generate.js --check`, which fails when generated output differs from the committed state, and then runs the `node:test` suites in `tests/unit/`, `tests/transforms/`, and `tests/integration/` with `npm test`. [docs/cicd.md](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md) documents all seven GitHub Actions workflows, starting with their [shared validation core](https://github.com/josstei/maestro-orchestrate/blob/main/docs/cicd.md#shared-validation-core), and [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#key-commands) lists the local commands.
 
-### Test Suite
+## Design Decisions (Retained Compatibility Surfaces)
 
-Tests use the Node.js built-in `node:test` runner and live in `tests/unit/`, `tests/transforms/`, and `tests/integration/`, with shared fixtures and helpers under `tests/support/`.
-
-`npm test` (and `just test`) run the globs `tests/unit/*.test.js`, `tests/transforms/*.test.js`, and `tests/integration/*.test.js`, so every test file in those directories is picked up automatically.
-
-### Zero-Drift Guarantee
-
-CI validates that generated output matches committed state:
-
-1. Run `node scripts/generate.js`
-2. Check `git diff --exit-code --name-only`
-3. Fail if any generated file differs from source
+- Required and denied artifact paths stay hand-written in `scripts/release-artifact-manifest.js`, so generator mistakes cannot validate themselves.
+- Legacy YAML summaries, raw-Markdown state readers and existing state CLI invocations are preserved, and coordinator failure stays distinct from absence.
+- `validate_plan` keeps its separate DAG passes and diagnostic order.

@@ -1,6 +1,6 @@
 # Antigravity Runtime
 
-The Antigravity plugin lives in `antigravity/`, the output directory declared in `src/platforms/antigravity/runtime-config.js`. The Antigravity CLI (`agy`) and the Antigravity app share one plugin format. `agy plugin install` copies the directory that holds `plugin.json`, so the plugin is self-contained: it carries its own agent stubs, skills, hook and MCP registrations, thin shims, and a detached copy of `src/`.
+The Antigravity plugin lives in `antigravity/`, the output directory declared in `src/platforms/antigravity/runtime-config.js`. The Antigravity CLI (`agy`) and the Antigravity app share one plugin format. `agy plugin install` copies the directory that holds `plugin.json`, so the plugin is self-contained: it carries its own agent stubs, skills, hook and MCP registrations, thin launchers, and a detached runtime subset of `src/` (its dependency closure plus served content).
 
 ## Configuration
 
@@ -24,7 +24,7 @@ The manifest holds only `name` (`maestro`), `displayName`, `version`, `descripti
 }
 ```
 
-Antigravity substitutes `${PLUGIN_ROOT}` in `args` and starts the server with the plugin root as its `cwd`. The public server at `antigravity/mcp/maestro-server.js` is a thin adapter. It prefers canonical repo `src/mcp/maestro-server.js` when the plugin is loaded from a checkout, and falls back to bundled `antigravity/src/mcp/maestro-server.js` for installed copies. Content tools read from the filesystem only. The server identifies the Antigravity runtime from the `clientInfo.name` Antigravity sends in `initialize` (`antigravity-client`); setting `MAESTRO_RUNTIME` overrides that.
+Antigravity substitutes `${PLUGIN_ROOT}` in `args` and starts the server with the plugin root as its `cwd`. The launcher `antigravity/mcp/maestro-server.js` loads the shared server (see [MCP Server Packaging](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#mcp-server-packaging)), which identifies Antigravity by its `clientInfo.name`, `antigravity-client`.
 
 ### MCP Tool Naming
 
@@ -43,15 +43,7 @@ Antigravity sends `notifications/roots/list_changed` repeatedly, sometimes right
 
 ## Installation
 
-Requires Node.js 20+ on `PATH`. Maestro is tested against Antigravity CLI 1.4.2.
-
-```bash
-agy plugin install https://github.com/josstei/maestro-orchestrate/tree/main/antigravity
-```
-
-Restart `agy` afterwards: Antigravity discovers a newly installed plugin directory only on startup. The plugin is copied to `~/.gemini/config/plugins/maestro/`, named after the manifest `name`. Check it with `agy plugin list`, update it by running the install command again, and remove it with `agy plugin uninstall maestro`. Plugins installed in the Antigravity app also appear in the CLI.
-
-For local development, symlink the checkout's `antigravity/` directory to `~/.gemini/config/plugins/maestro` and restart `agy`. A linked plugin loads at startup but is not listed by `agy plugin list`. `agy plugin validate antigravity --strict --json` reports the components Antigravity finds and any findings.
+Installing, updating, and linking a checkout for local development are covered in [antigravity/README.md](../antigravity/README.md#installation). `agy plugin validate antigravity --strict --json` reports the components Antigravity finds and any findings.
 
 ## Agent Naming
 
@@ -73,26 +65,7 @@ A parallel batch is one `invoke_subagent` call whose `Subagents` array holds the
 
 ## Skills
 
-19 Markdown skills in `antigravity/skills/`. Antigravity turns plugin skills into slash commands under the plugin namespace, `/maestro:<skill>`; the 7 infrastructure skills opt out.
-
-Antigravity has a built-in `/resume`, so `review`, `debug`, and `resume` are remapped to `review-code`, `debug-workflow`, and `resume-session`, as in Claude Code and Codex (see `src/generator/entry-point-expander.js` `HOST_RESERVED_NAMES`).
-
-**Core (3)** — generated public entry points from the core command registry, invoked as `/maestro:<name>`:
-- `orchestrate/SKILL.md`
-- `execute/SKILL.md`
-- `resume-session/SKILL.md`
-
-**Entry-point (9)** — from registry, invoked as `/maestro:<name>`:
-- `review-code/SKILL.md`, `debug-workflow/SKILL.md`, `archive/SKILL.md`, `status/SKILL.md`
-- `security-audit/SKILL.md`, `perf-check/SKILL.md`, `seo-audit/SKILL.md`
-- `a11y-audit/SKILL.md`, `compliance-check/SKILL.md`
-
-**Infrastructure (7)** — discovery stubs for shared skills:
-- `code-review/SKILL.md`, `delegation/SKILL.md`, `design-dialogue/SKILL.md`
-- `execution/SKILL.md`, `implementation-planning/SKILL.md`
-- `session-management/SKILL.md`, `validation/SKILL.md`
-
-Infrastructure skills set `disable-slash-command: true`: they stay out of the `/` menu but remain available to the model, and their bodies point at MCP `get_skill_content` for the content.
+`antigravity/skills/` holds a public skill for each core command and entry point (see [Entry-Point Registry](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#entry-point-registry)), which Antigravity turns into a slash command under the plugin namespace, `/maestro:<skill>`. Each shared skill gets a discovery stub that sets `disable-slash-command: true`: the model can load it, but it stays out of the `/` menu. Antigravity has a built-in `/resume`, so `review`, `debug`, and `resume` are remapped to `review-code`, `debug-workflow`, and `resume-session`, as in Claude Code and Codex (`HOST_RESERVED_NAMES` in `src/generator/entry-point-expander.js`).
 
 Antigravity lists each plugin skill to the model with the absolute path of its `SKILL.md`, which the model reads with `view_file`. Skills get no argument substitution: the user's request is the text that came with the invocation. The 3 core skills carry a `## Runtime: Antigravity` preamble that maps step references to Antigravity syntax: the `mcp_maestro_maestro_<tool>` names with the `call_mcp_tool` fallback, `view_file` to load skills, `invoke_subagent` delegation and its notified results, one `send_message` retry for a malformed handoff, and `ask_question` for choices and approvals. The entry-point skills carry the MCP tool note and, when they delegate, the same `invoke_subagent` instructions.
 
@@ -131,21 +104,13 @@ Output format: `{}`, or `{ injectSteps: [{ systemMessage: { systemMessage: strin
 
 ## Policies
 
-`src/platforms/antigravity/policy-enforcer.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` shim (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` with `checkCommand()` from `src/core/policy-rules.js`, the same rules the Claude policy enforcer and `policies/maestro.toml` apply:
+`src/platforms/shared/policy-enforcer.js`, with the `shellPolicy` from `src/platforms/antigravity/hook-adapter.js` — a `PreToolUse` hook on `run_command`, run through the `antigravity/hooks/policy-enforcer.js` launcher (repo `src/` first, bundled `antigravity/src/` fallback). It checks `toolCall.args.CommandLine` against the shared rules in `src/core/policy-rules.js` (listed in [Policy Enforcement](https://github.com/josstei/maestro-orchestrate/blob/main/docs/architecture.md#policy-enforcement)): it denies recursive force deletes, `git reset --hard`, `git checkout --`, `git clean -fd` and its variants, and heredocs, and asks before `tee` and output redirects.
 
-**Deny** (`deny`, which blocks in every permission mode, including `--dangerously-skip-permissions`):
-- `rm -rf`, `rm -fr`, `sudo rm -rf`, `sudo rm -fr`
-- `git reset --hard`, `git checkout --`
-- `git clean -fd`, `git clean -df`, `git clean -xfd`, `git clean -xdf`
-- Heredocs (`<<EOF`, `<< 'EOF'`, `<<-EOF`; not here-strings `<<<` or arithmetic shifts such as `1<<4`)
+- **Deny** (`deny`): blocks in every permission mode, including `--dangerously-skip-permissions`
+- **Ask** (`force_ask`): prompts even when `permissions.allow` covers the command; headless runs deny it and `--dangerously-skip-permissions` approves it
+- **Any other command** (`ask`): Antigravity applies the user's own permission settings and "Always Allow" choices, exactly as without the hook
 
-**Ask User** (`force_ask`, which prompts even when `permissions.allow` covers the command; headless runs deny it and `--dangerously-skip-permissions` approves it):
-- `tee` commands
-- Output redirection written with surrounding whitespace (`cmd > file`, `cmd >> file`, `2> file`)
-
-**Any other command** (`ask`): Antigravity applies the user's own permission settings and "Always Allow" choices, exactly as without the hook.
-
-Compound commands (`;`, `&&`, `||`, `|`) are split, and `$(...)` and backtick subshells are checked recursively. Antigravity denies a tool call whose `PreToolUse` hook fails or prints anything but a known decision, and it has no "no opinion" decision, so the enforcer answers `deny` when it cannot run the check (unparseable input, an unterminated command substitution, or a payload over 1 MiB).
+Antigravity denies a tool call whose `PreToolUse` hook fails or prints anything but a known decision, and it has no "no opinion" decision, so the enforcer answers `deny` when it cannot run the check (unparseable input, an unterminated command substitution, or a payload over 1 MiB).
 
 Output format: `{ decision: "deny"|"force_ask"|"ask", reason?: string }`.
 
@@ -173,19 +138,6 @@ Antigravity maps the canonical tool names to Antigravity tools in `src/platforms
 | `codebase_investigator` | `invoke_subagent (TypeName: "research")` |
 
 `read_file`, `read_many_files`, and `activate_skill` all map to `view_file`, which each stub lists once. `list_dir`, `find_by_name`, and `grep_search` exist only for subagents that list them in `tools`, as every stub that declares them does; the orchestrator's own tool set lacks them, so the Antigravity skills tell it to search with `run_command` (`ls`, `find`, `rg`) or the built-in `research` subagent. Antigravity has no todo or plan-mode tools: Maestro session state (`update_session`, `transition_phase`) is the progress record, and with `planModeNative: false` the server-side design gate and `ask_question` approvals carry the design approval.
-
-## Feature Flags
-
-The canonical feature set (same 4 flags across all runtimes, values per runtime):
-
-```
-exampleBlocks:             false
-claudeStateContract:       false
-scriptBasedStateContract:  true
-codexStateContract:        false
-```
-
-See `src/platforms/antigravity/runtime-config.js` for the authoritative values.
 
 ## Agent Frontmatter
 
@@ -218,8 +170,8 @@ Fields: `subagent` (always true), `mainAgent` (always false), `model` (always "i
 antigravity/
 ├── agents/                [generated] 39 agent stubs (kebab-case, Antigravity tool names)
 ├── skills/                [generated] 19 skill directories
-├── hooks/                 hook-runner.js and policy-enforcer.js shims (hand-maintained)
-├── mcp/                   maestro-server.js shim (hand-maintained)
+├── hooks/                 [generated] hook-runner.js and policy-enforcer.js launchers
+├── mcp/                   [generated] maestro-server.js launcher
 ├── src/                   [generated] detached runtime payload, stamped with version.json
 ├── plugin.json            [generated] plugin manifest
 ├── mcp_config.json        [generated] MCP server registration

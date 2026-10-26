@@ -25,6 +25,8 @@ const { handleBeforeAgent } = require('../../src/hooks/logic/before-agent-logic'
 const { handleSessionStart } = require('../../src/hooks/logic/session-start-logic');
 const { handleSessionEnd } = require('../../src/hooks/logic/session-end-logic');
 const { activeSessionPath, writeSessionState } = require('../support/session-file');
+const { acquireStateLock } = require('../../src/state/state-lock');
+const { controlDir, leaveCommitted } = require('../support/state');
 
 const SESSION_ID = 'test-session-abc123';
 
@@ -37,85 +39,41 @@ function makeGitWorkspace(prefix) {
 }
 
 const VALID_RESULT = '## Task Report\nDone.\n\n## Downstream Context\nContext info.';
+const ALLOW = { action: 'allow', message: null, reason: null };
+const ADVISORY = { action: 'advisory', message: null, reason: null };
 
 describe('handleAfterAgent', () => {
   after(() => {
     hookState.removeSessionDir(SESSION_ID);
   });
 
-  function seedActiveAgent(agentName = 'coder') {
-    hookState.setActiveAgent(SESSION_ID, agentName);
+  function runWithAgent(agentResult, stopHookActive = false) {
+    hookState.setActiveAgent(SESSION_ID, 'coder');
+    return handleAfterAgent({ sessionId: SESSION_ID, agentResult, stopHookActive });
   }
 
   it('returns allow with null message/reason when no active agent is set', () => {
     hookState.clearActiveAgent(SESSION_ID);
-    const result = handleAfterAgent({ sessionId: SESSION_ID, agentResult: '', stopHookActive: false });
-    assert.equal(result.action, 'allow');
-    assert.equal(result.message, null);
-    assert.equal(result.reason, null);
+    assert.deepEqual(handleAfterAgent({ sessionId: SESSION_ID, agentResult: '', stopHookActive: false }), ALLOW);
   });
 
-  it('returns deny when agentResult is missing ## Task Report', () => {
-    seedActiveAgent();
-    const result = handleAfterAgent({
-      sessionId: SESSION_ID,
-      agentResult: '## Downstream Context\nContext info.',
-      stopHookActive: false,
-    });
-    assert.equal(result.action, 'deny');
-    assert.ok(result.reason.includes('Task Report'));
+  it('returns deny naming exactly the missing sections, in order', () => {
+    for (const [agentResult, ...missing] of [
+      ['## Downstream Context\nContext info.', 'Task Report'],
+      ['## Task Report\nDone.', 'Downstream Context'],
+      ['No structured output here.', 'Task Report', 'Downstream Context'],
+    ]) {
+      const result = runWithAgent(agentResult);
+      assert.equal(result.action, 'deny');
+      const warnings = missing.map((name) => `Missing ${name} section (expected ## ${name} heading)`).join('; ');
+      assert.ok(result.reason.startsWith(`Handoff report validation failed: ${warnings}. `), result.reason);
+    }
   });
 
-  it('returns deny when agentResult is missing ## Downstream Context', () => {
-    seedActiveAgent();
-    const result = handleAfterAgent({
-      sessionId: SESSION_ID,
-      agentResult: '## Task Report\nDone.',
-      stopHookActive: false,
-    });
-    assert.equal(result.action, 'deny');
-    assert.ok(result.reason.includes('Downstream Context'));
-  });
-
-  it('returns deny when both sections are missing', () => {
-    seedActiveAgent();
-    const result = handleAfterAgent({
-      sessionId: SESSION_ID,
-      agentResult: 'No structured output here.',
-      stopHookActive: false,
-    });
-    assert.equal(result.action, 'deny');
-    assert.ok(result.reason.includes('Task Report'));
-    assert.ok(result.reason.includes('Downstream Context'));
-  });
-
-  it('returns allow when both sections are present', () => {
-    seedActiveAgent();
-    const result = handleAfterAgent({
-      sessionId: SESSION_ID,
-      agentResult: VALID_RESULT,
-      stopHookActive: false,
-    });
-    assert.equal(result.action, 'allow');
-    assert.equal(result.message, null);
-    assert.equal(result.reason, null);
-  });
-
-  it('returns allow (not deny) when stopHookActive is true even if sections missing', () => {
-    seedActiveAgent();
-    const result = handleAfterAgent({
-      sessionId: SESSION_ID,
-      agentResult: 'No structured output.',
-      stopHookActive: true,
-    });
-    assert.equal(result.action, 'allow');
-  });
-
-  it('clears active agent after processing', () => {
-    seedActiveAgent();
-    handleAfterAgent({ sessionId: SESSION_ID, agentResult: VALID_RESULT, stopHookActive: false });
-    const agent = hookState.getActiveAgent(SESSION_ID);
-    assert.equal(agent, '');
+  it('returns allow for a complete report or a stopHookActive retry, clearing the active agent', () => {
+    assert.deepEqual(runWithAgent(VALID_RESULT), ALLOW);
+    assert.equal(hookState.getActiveAgent(SESSION_ID), '');
+    assert.deepEqual(runWithAgent('No structured output.', true), ALLOW);
   });
 });
 
@@ -130,33 +88,21 @@ describe('handleBeforeAgent', () => {
     hookState.removeSessionDir(SESSION_ID);
   });
 
-  it('returns allow with null message when no session file exists', () => {
-    const cwdWithNoSession = makeTempDir('maestro-nosession-');
-    const result = handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: cwdWithNoSession,
-      agentInput: null,
-    });
-    assert.equal(result.action, 'allow');
-    assert.equal(result.message, null);
+  function runBeforeAgent(cwd, fields) {
+    return handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null, ...fields });
+  }
+
+  it('returns allow with null message when no session file exists', async () => {
+    assert.deepEqual(await runBeforeAgent(makeTempDir('maestro-nosession-')), ALLOW);
   });
 
-  it('returns allow with context message when session file has phase/status info', () => {
+  it('returns allow with context message when session file has phase/status info', async () => {
     writeFile(activeSessionPath(fakeCwd), '---\ncurrent_phase: implementation\nstatus: active\n---\n');
-
-    const result = handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentInput: null,
-    });
-
-    assert.equal(result.action, 'allow');
-    assert.ok(typeof result.message === 'string' && result.message.length > 0);
-    assert.ok(result.message.includes('implementation'));
-    assert.ok(result.message.includes('active'));
+    const result = await runBeforeAgent(fakeCwd);
+    assert.deepEqual(result, { ...ALLOW, message: 'Active session: current_phase=implementation, status=active' });
   });
 
-  it('reads phase/status from the JSON frontmatter that create_session writes', () => {
+  it('reads phase/status from the JSON frontmatter that create_session writes', async () => {
     const cwd = makeTempDir('maestro-json-session-');
     writeSessionState(cwd, {
       session_id: 's1',
@@ -164,164 +110,131 @@ describe('handleBeforeAgent', () => {
       current_phase: 1,
       phases: [{ id: 1, status: 'pending' }],
     });
-    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
-    assert.equal(result.action, 'allow');
-    assert.equal(result.message, 'Active session: current_phase=1, status=in_progress');
+    const result = await runBeforeAgent(cwd);
+    assert.deepEqual(result, { ...ALLOW, message: 'Active session: current_phase=1, status=in_progress' });
   });
 
-  it('omits a null current_phase from JSON frontmatter', () => {
+  it('omits a null current_phase from JSON frontmatter', async () => {
     const cwd = makeTempDir('maestro-json-null-');
     writeSessionState(cwd, { status: 'in_progress', current_phase: null });
-    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentInput: null });
+    const result = await runBeforeAgent(cwd);
     assert.equal(result.message, 'Active session: status=in_progress');
   });
 
-  it('finds the session at the git root when fired from a subdirectory', () => {
+  it('finds the session at the git root when fired from a subdirectory', async () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-subdir-');
     writeSessionState(root, { status: 'in_progress', current_phase: 2 });
-    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null });
+    const result = await runBeforeAgent(subdir);
     assert.equal(result.message, 'Active session: current_phase=2, status=in_progress');
   });
 
-  it('resolves an absolute MAESTRO_STATE_DIR from a subdirectory without throwing', () => {
+  it('resolves an absolute MAESTRO_STATE_DIR from a subdirectory without throwing', async () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-absstate-');
     writeSessionState(root, { status: 'in_progress', current_phase: 3 }, '.maestro');
-    const result = withEnv({ MAESTRO_STATE_DIR: path.join(root, '.maestro') }, () =>
-      handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
-    );
-    assert.equal(result.action, 'allow');
-    assert.equal(result.message, 'Active session: current_phase=3, status=in_progress');
+    const result = await withEnv({ MAESTRO_STATE_DIR: path.join(root, '.maestro') }, () => runBeforeAgent(subdir));
+    assert.deepEqual(result, { ...ALLOW, message: 'Active session: current_phase=3, status=in_progress' });
   });
 
-  it('reads the session under the state dir named in the workspace .env', () => {
+  it('reads the session under the state dir named in the workspace .env', async () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-envstate-');
     fs.writeFileSync(path.join(root, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
     writeSessionState(root, { status: 'in_progress', current_phase: 5 }, '.maestro');
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () =>
-      handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
-    );
+    const result = await withEnv({ MAESTRO_STATE_DIR: null }, () => runBeforeAgent(subdir));
     assert.equal(result.message, 'Active session: current_phase=5, status=in_progress');
   });
 
-  it('resolves the git root from the process cwd when the payload has no cwd', () => {
+  it('resolves the git root from the process cwd when the payload has no cwd', async () => {
     const { root, subdir } = makeGitWorkspace('maestro-git-nocwd-');
     writeSessionState(root, { status: 'in_progress', current_phase: 4 });
-    const result = withCwd(subdir, () =>
-      handleBeforeAgent({ sessionId: SESSION_ID, cwd: '', agentInput: null })
-    );
+    const result = await withCwd(subdir, () => runBeforeAgent(''));
     assert.equal(result.message, 'Active session: current_phase=4, status=in_progress');
   });
 
-  it('allows with no context for a non-string cwd instead of throwing', () => {
-    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd: 42, agentInput: null });
-    assert.deepEqual(result, { action: 'allow', message: null, reason: null });
+  it('allows with no context for a non-string cwd instead of throwing', async () => {
+    assert.deepEqual(await runBeforeAgent(42), ALLOW);
   });
 
-  it('allows with no context when the state dir cannot be resolved', () => {
+  it('allows with no context when the state dir cannot be resolved', async () => {
     const { subdir } = makeGitWorkspace('maestro-git-badstate-');
     const outside = makeTempDir('maestro-outside-');
-    const result = withEnv({ MAESTRO_STATE_DIR: outside }, () =>
-      handleBeforeAgent({ sessionId: SESSION_ID, cwd: subdir, agentInput: null })
-    );
-    assert.deepEqual(result, { action: 'allow', message: null, reason: null });
+    const result = await withEnv({ MAESTRO_STATE_DIR: outside }, () => runBeforeAgent(subdir));
+    assert.deepEqual(result, ALLOW);
   });
 
-  it('detects agent from prompt and sets active agent', () => {
+  it('detects agent from prompt and sets active agent', async () => {
     hookState.clearActiveAgent(SESSION_ID);
-
-    handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentInput: 'agent: coder\nPlease implement the feature.',
-    });
-
-    const activeAgent = hookState.getActiveAgent(SESSION_ID);
-    assert.equal(activeAgent, 'coder');
+    await runBeforeAgent(fakeCwd, { agentInput: 'agent: coder\nPlease implement the feature.' });
+    assert.equal(hookState.getActiveAgent(SESSION_ID), 'coder');
   });
 
-  it('returns the session context without recording an agent when the payload names none', () => {
+  it('returns the session context without recording an agent when the payload names none', async () => {
     // Antigravity runs before-agent on SessionStart, whose payload has no agent name or prompt.
     hookState.clearActiveAgent(SESSION_ID);
     const cwd = makeTempDir('maestro-json-noagent-');
     writeSessionState(cwd, { status: 'in_progress', current_phase: 2 });
 
-    const result = handleBeforeAgent({ sessionId: SESSION_ID, cwd, agentName: null, agentInput: null });
+    const result = await runBeforeAgent(cwd, { agentName: null });
 
-    assert.deepEqual(result, {
-      action: 'allow',
-      message: 'Active session: current_phase=2, status=in_progress',
-      reason: null,
-    });
+    assert.deepEqual(result, { ...ALLOW, message: 'Active session: current_phase=2, status=in_progress' });
     assert.equal(hookState.getActiveAgent(SESSION_ID), '');
   });
 
-  it('uses normalized agentName when no prompt is available', () => {
+  it('uses normalized agentName when no prompt is available', async () => {
     hookState.clearActiveAgent(SESSION_ID);
+    await runBeforeAgent(fakeCwd, { agentName: 'code-reviewer' });
+    assert.equal(hookState.getActiveAgent(SESSION_ID), 'code_reviewer');
+  });
 
-    handleBeforeAgent({
-      sessionId: SESSION_ID,
-      cwd: fakeCwd,
-      agentName: 'code-reviewer',
-      agentInput: null,
-    });
+  it('recovers an interrupted session update before summarizing it', async () => {
+    const cwd = makeTempDir('maestro-hook-recovery-');
+    writeSessionState(cwd, { status: 'in_progress', current_phase: 1 });
+    await leaveCommitted(path.join(cwd, 'docs/maestro'), (tx) => tx.writeFile(activeSessionPath(cwd), '---\ncurrent_phase: recovered\nstatus: active\n---\n'));
+    const result = await runBeforeAgent(cwd);
+    assert.equal(result.message, 'Active session: current_phase=recovered, status=active');
+  });
 
-    const activeAgent = hookState.getActiveAgent(SESSION_ID);
-    assert.equal(activeAgent, 'code_reviewer');
+  it('warns and omits context within the hook budget when committed state is busy', { timeout: 2000 }, async (t) => {
+    const cwd = makeTempDir('maestro-hook-busy-');
+    writeSessionState(cwd, { status: 'in_progress', current_phase: 1 });
+    const base = path.join(cwd, 'docs/maestro');
+    const release = await acquireStateLock(controlDir(base));
+    await leaveCommitted(base, (tx) => tx.writeFile(activeSessionPath(cwd), '---\nstatus: complete\n---\n'), { operation: 'pending_test_write' });
+    const stderr = t.mock.method(process.stderr, 'write', () => true);
+    try {
+      assert.deepEqual(await runBeforeAgent(cwd), ALLOW);
+      assert.ok(stderr.mock.calls.some(({ arguments: args }) => /\[WARN\].*busy/.test(args[0])));
+    } finally {
+      release();
+    }
   });
 });
 
 describe('handleSessionStart', () => {
-  let fakeCwd;
-
-  before(() => {
-    fakeCwd = makeTempDir('maestro-sessionstart-');
-  });
-
-  after(() => {
-    hookState.removeSessionDir(SESSION_ID);
-  });
-
-  it('returns advisory with null message/reason', () => {
-    const result = handleSessionStart({ sessionId: SESSION_ID, cwd: fakeCwd });
-    assert.equal(result.action, 'advisory');
-    assert.equal(result.message, null);
-    assert.equal(result.reason, null);
-  });
-
   it('prunes stale session dirs without creating one for the starting session', () => {
     // before-agent creates the session dir when it records the active agent;
     // session-start leaves none behind, even with an active session (Antigravity
     // runs it for every conversation and has no session-end to remove one).
-    writeFile(activeSessionPath(fakeCwd), '---\nstatus: active\n---\n');
+    const cwd = makeTempDir('maestro-sessionstart-');
+    writeFile(activeSessionPath(cwd), '---\nstatus: active\n---\n');
     hookState.removeSessionDir(SESSION_ID);
     const staleDir = path.join(hooksDir, 'stale-session');
     fs.mkdirSync(staleDir, { recursive: true });
     const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
     fs.utimesSync(staleDir, threeHoursAgo, threeHoursAgo);
 
-    handleSessionStart({ sessionId: SESSION_ID, cwd: fakeCwd });
-
+    assert.deepEqual(handleSessionStart({ sessionId: SESSION_ID, cwd }), ADVISORY);
     assert.equal(fs.existsSync(staleDir), false);
     assert.equal(fs.existsSync(path.join(hooksDir, SESSION_ID)), false);
   });
-
 });
 
 describe('handleSessionEnd', () => {
-  it('returns advisory with null message/reason', () => {
-    const result = handleSessionEnd({ sessionId: SESSION_ID });
-    assert.equal(result.action, 'advisory');
-    assert.equal(result.message, null);
-    assert.equal(result.reason, null);
-  });
-
   it('removes session directory', () => {
     hookState.setActiveAgent(SESSION_ID, 'coder');
     const sessionDir = path.join(hooksDir, SESSION_ID);
     assert.ok(fs.existsSync(sessionDir));
 
-    handleSessionEnd({ sessionId: SESSION_ID });
-
+    assert.deepEqual(handleSessionEnd({ sessionId: SESSION_ID }), ADVISORY);
     assert.ok(!fs.existsSync(sessionDir));
   });
 });

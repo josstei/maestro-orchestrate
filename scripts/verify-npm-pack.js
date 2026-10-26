@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   REQUIRED_PACKAGE_FILES,
   isDeniedPath,
 } = require('./release-artifact-manifest');
+const { isBuildOnly } = require('../src/generator/build-only');
 const { runCli } = require('./lib/cli');
+const { withTempDir } = require('./lib/temp-dir');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -25,18 +25,14 @@ function parsePackJson(stdout) {
 }
 
 function runNpmPackDryRun() {
-  const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-npm-pack-cache-'));
-
-  try {
+  return withTempDir('maestro-npm-pack-cache-', (cacheDir) => {
     const stdout = execFileSync('npm', ['pack', '--dry-run', '--json', '--cache', cacheDir], {
       cwd: ROOT,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     return parsePackJson(stdout);
-  } finally {
-    fs.rmSync(cacheDir, { recursive: true, force: true });
-  }
+  });
 }
 
 function verifyPackageEntries(packages) {
@@ -55,6 +51,11 @@ function verifyPackageEntries(packages) {
   for (const entry of entries) {
     if (isDeniedPath(entry)) {
       throw new Error(`npm package contains forbidden path: ${entry}`);
+    }
+    // scripts/ and build-only src/ ship only the REQUIRED_PACKAGE_FILES entries.
+    const buildOnly = entry.startsWith('scripts/') || (entry.startsWith('src/') && isBuildOnly(entry.slice(4)));
+    if (buildOnly && !REQUIRED_PACKAGE_FILES.includes(entry)) {
+      throw new Error(`npm package contains build-only path: ${entry}`);
     }
   }
 

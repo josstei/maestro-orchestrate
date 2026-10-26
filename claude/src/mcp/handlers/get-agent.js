@@ -1,6 +1,7 @@
 'use strict';
 
-const { AGENT_ALLOWLIST, readAgentFromFilesystem } = require('../content/runtime-content');
+const { AGENT_NAMES } = require('../../core/agent-registry');
+const { readAgentFromFilesystem } = require('../content/runtime-content');
 const { ValidationError } = require('../../lib/errors');
 const { toKebabCase, toNamingConvention } = require('../../lib/naming');
 
@@ -18,9 +19,9 @@ function createHandler(runtimeConfig, srcRoot) {
       const inputName = String(rawName || '').trim();
       const canonicalName = toKebabCase(inputName);
 
-      if (!AGENT_ALLOWLIST.includes(canonicalName)) {
+      if (!AGENT_NAMES.includes(canonicalName)) {
         errors[inputName || '(empty)'] =
-          `Unknown agent identifier: "${inputName}". Known identifiers: ${AGENT_ALLOWLIST.join(', ')}`;
+          `Unknown agent identifier: "${inputName}". Known identifiers: ${AGENT_NAMES.join(', ')}`;
         continue;
       }
 

@@ -30,4 +30,11 @@ function errorFallback() {
   return { continue: false, decision: 'block' };
 }
 
-module.exports = { normalizeInput, formatOutput, errorFallback };
+/** PreToolUse shell policy on Bash (shared/policy-enforcer.js): reads tool_input.command. */
+const shellPolicy = {
+  tool: 'Bash',
+  readCommand: (input) => input.tool_input && input.tool_input.command,
+  decisions: { deny: 'block', ask: 'ask', allow: 'approve' },
+};
+
+module.exports = { normalizeInput, formatOutput, errorFallback, shellPolicy };

@@ -3,11 +3,12 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const skillDiscoveryStub = require('../../src/transforms/skill-discovery-stub');
+const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 
 describe('skill-discovery-stub transform', () => {
-  const antigravityRuntime = { name: 'antigravity' };
-  const claudeRuntime = { name: 'claude' };
-  const codexRuntime = { name: 'codex' };
+  const antigravityRuntime = getRuntimeConfig('antigravity');
+  const claudeRuntime = getRuntimeConfig('claude');
+  const codexRuntime = getRuntimeConfig('codex');
 
   const skillContent = [
     '---',

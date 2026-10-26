@@ -27,21 +27,16 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Generate runtime adapters
-        run: node scripts/generate.js
+      - name: Install build dependencies
+        run: npm ci
 
-      - name: Check adapter drift
-        run: |
-          if ! git diff --exit-code --name-only; then
-            echo "::error::RC drift detected"
-            git diff --stat
-            exit 1
-          fi
+      - name: Check generated output drift
+        run: node scripts/generate.js --check
 
       - name: Run full test suite
         run: npm test
@@ -51,7 +46,8 @@ jobs:
         id: rc
         run: |
           BASE=$(node -p "require('./package.json').version")
-          EXISTING=$(npm view "@josstei/maestro" versions --json 2>/dev/null || echo '[]')
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          EXISTING=$(npm view "$PACKAGE_NAME" versions --json 2>/dev/null || echo '[]')
           RC_NUM=1
 
           while echo "$EXISTING" | grep -q "\"${BASE}-rc.${RC_NUM}\""; do
@@ -85,8 +81,9 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           VERSION: ${{ steps.rc.outputs.version }}
         run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
           SHORT_SHA="${HEAD_SHA:0:7}"
-          BODY="Release candidate published: \`npm install @josstei/maestro@${VERSION}\`
+          BODY="Release candidate published: \`npm install ${PACKAGE_NAME}@${VERSION}\`
 
           Built from \`${SHORT_SHA}\`"
 

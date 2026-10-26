@@ -1,25 +1,21 @@
 'use strict';
 
+const path = require('node:path');
 const { checkCommand } = require('../../core/policy-rules');
 const { collectStdin } = require('../../core/stdin-reader');
 
 /**
- * Run a host's PreToolUse shell-policy hook: read the hook payload from stdin,
- * check the shell command it carries against the canonical policy rules
- * (src/core/policy-rules.js), and write the host's decision to stdout as
- * `{ decision, reason }`, leaving out `reason` when the result has none.
+ * Run `runtime`'s PreToolUse shell-policy hook: check the stdin payload's command
+ * against src/core/policy-rules.js and print `{ decision, reason? }` named by the
+ * adapter's shellPolicy.decisions. A payload over the 1 MiB stdin cap, unparseable
+ * JSON or an unterminated command substitution gets the host's `deny` (fail closed).
  *
- * A payload over the shared 1 MiB stdin cap (src/core/stdin-reader.js),
- * unparseable JSON, or an unterminated command substitution yields the host's
- * `deny` decision (fail closed).
- *
- * @param {object} host
- * @param {(input: object) => string} host.readCommand - shell command in the payload
- * @param {{ deny: string, ask: string, allow: string }} host.decisions - the host's
- *   decision name for each policy action; `deny` is also answered when the check cannot run
+ * @param {string} runtime - runtime name, e.g. 'claude'
  * @returns {Promise<void>}
  */
-function runPolicyEnforcer({ readCommand, decisions }) {
+function main(runtime) {
+  // maestro-dependencies: hook-adapters
+  const { readCommand, decisions } = require(path.join(__dirname, '..', runtime, 'hook-adapter.js')).shellPolicy;
   const emit = (action, reason) => {
     const decision = reason ? { decision: decisions[action], reason } : { decision: decisions[action] };
     process.stdout.write(JSON.stringify(decision) + '\n');
@@ -42,4 +38,4 @@ function runPolicyEnforcer({ readCommand, decisions }) {
   });
 }
 
-module.exports = { runPolicyEnforcer };
+module.exports = { main };

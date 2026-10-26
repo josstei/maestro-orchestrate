@@ -41,6 +41,17 @@ function readFileSafe(filePath, fallback = '') {
 }
 
 /**
+ * Reads a UTF-8 text file with CRLF line endings normalized to LF, so a
+ * CRLF checkout parses like an LF one.
+ *
+ * @param {string} filePath - Absolute or relative path to the file
+ * @returns {string} File contents with LF line endings
+ */
+function readTextSync(filePath) {
+  return fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
+}
+
+/**
  * Reads a file and parses its contents as JSON.
  * Returns the fallback value on any error (missing file, invalid JSON, etc.).
  *
@@ -54,28 +65,6 @@ function readJsonSafe(filePath, fallback = null) {
   } catch {
     return fallback;
   }
-}
-
-/**
- * Writes content to a file only when it differs from existing content.
- * Creates parent directories if they do not exist.
- *
- * @param {string} filePath - Absolute path to the target file
- * @param {string} content - Content to write
- * @returns {boolean} True if the file was written, false if content was identical
- */
-function writeIfChanged(filePath, content) {
-  const existing = fs.existsSync(filePath)
-    ? fs.readFileSync(filePath, 'utf8')
-    : null;
-
-  if (existing === content) {
-    return false;
-  }
-
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content, 'utf8');
-  return true;
 }
 
 /**
@@ -109,5 +98,5 @@ module.exports = {
   formatJson,
   readFileSafe,
   readJsonSafe,
-  writeIfChanged,
+  readTextSync,
 };

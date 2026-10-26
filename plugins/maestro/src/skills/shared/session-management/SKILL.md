@@ -10,11 +10,23 @@ Activate this skill for all session state operations during Maestro orchestratio
 ## State Access Protocol
 
 When MCP state tools are available, prefer them for state operations:
-- **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, atomic operations.
-- **Fallback**: `write_file`/`replace` directly on state files — when MCP tools are not in the available tool list.
+- **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, coordinated updates and crash recovery.
+- **Script fallback**: when MCP tools are unavailable and the installed state scripts can run, read with `read-state.js <relative-path> --with-digest`, then pass the returned `sha256` to `write-state.js <relative-path> --expected-sha256 <digest>` with the replacement content on stdin. The path must be inside the configured state directory. A conflict requires reading fresh content and reapplying the intended change.
+- **Direct-file fallback**: `write_file`/`replace` directly on state files when neither MCP nor the scripts are available. These writes do not participate in coordination; avoid simultaneous writers.
 - **Legacy**: `node <runtime-script-root>/read-active-session.js` (used by command shell blocks to inject state before the first turn) / `read-state.js <relative-path>` — not the recommended path.
 
-Detection: check whether MCP state tools appear in your available tools. If they do, use them. If they do not, use `write_file`/`replace`.
+Detection: check whether MCP state tools appear in your available tools. If they do, use them. Otherwise prefer the installed state scripts and use direct file operations only when those are unavailable. Existing plain script invocations remain supported; whole-file writes without an expected digest use last-write-wins behavior.
+
+### State contention and recovery
+
+| Code | Required response |
+|------|-------------------|
+| `STATE_BUSY` | Another operation owns the state directory. Wait, read current state, and retry only if the intended change is still needed. |
+| `STATE_RECOVERED` | An interrupted operation was completed. Read current state before deciding whether any further mutation is needed; do not blindly repeat token increments or transitions. |
+| `STATE_RECOVERY_REQUIRED` | Recovery stopped on a filesystem problem or unexpected edit. Preserve the journal, inspect the reported transaction/path, and resolve the cause before retrying access. |
+| `STATE_CONFLICT` | The file changed after it was read. Read it again and reapply the intended edit to the new content. |
+
+State access finishes committed interrupted operations before returning a consistent snapshot. Do not delete `<state_dir>/state/.maestro/` or downgrade to a version without recovery support while a transaction is pending. This private directory is separate from the session file format and needs no manual initialization.
 
 ## Hook-Level Session State
 

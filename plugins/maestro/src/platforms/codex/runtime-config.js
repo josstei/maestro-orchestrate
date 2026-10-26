@@ -37,6 +37,9 @@ module.exports = {
     codebase_investigator: 'local inspection or spawn_agent',
   },
 
+  entrySurface: 'skill',
+  entryAgentRefs: true,
+
   delegation: {
     pattern: 'spawn_agent(...)',
     constraints: {
@@ -48,13 +51,16 @@ module.exports = {
 
   features: {
     exampleBlocks: false,
-    claudeStateContract: false,
     scriptBasedStateContract: false,
     codexStateContract: true,
   },
 
   paths: {
     skills: './skills/',
-    hooks: './scripts/',
+  },
+
+  // npm bin at the package root; plugins/maestro/.mcp.json starts it through npx.
+  launchers: {
+    npmBin: 'bin/maestro-mcp-server.js',
   },
 };

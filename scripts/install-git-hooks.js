@@ -6,9 +6,8 @@
  * `npm run install-hooks`).
  *
  * Activation conditions (all must hold):
- *   1. Current directory contains .githooks/ — i.e. we are in the maestro
- *      source tree, not a downstream npm consumer's node_modules entry
- *      (.githooks is intentionally excluded from the published `files:` list).
+ *   1. Current directory contains .githooks/ — i.e. the script runs from
+ *      the root of a maestro checkout.
  *   2. `git rev-parse --show-toplevel` resolves to the current directory —
  *      this is true in the main checkout AND in any git worktree pointing
  *      at it. False outside a git checkout entirely.
@@ -41,4 +40,4 @@ if (path.resolve(topLevel) !== path.resolve('.')) {
 }
 
 execFileSync('git', ['config', 'core.hooksPath', HOOKS_DIR], { stdio: 'inherit' });
-console.log(`postinstall: git hooks activated (${HOOKS_DIR}/)`);
+console.log(`install-hooks: git hooks activated (${HOOKS_DIR}/)`);

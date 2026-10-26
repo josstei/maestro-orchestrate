@@ -28,7 +28,11 @@ describe('verify npm pack', () => {
       'claude/.claude-plugin/plugin.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'qwen-extension.json',
+      'scripts/install-codex-plugin.js',
+      'scripts/lib/cli.js',
       'src/mcp/maestro-server.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
     ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
   });
@@ -46,6 +50,27 @@ describe('verify npm pack', () => {
     }
   });
 
+  it('rejects build and release tooling that only a repository checkout uses', () => {
+    for (const buildPath of [
+      'scripts/generate.js',
+      'scripts/lib/temp-dir.js',
+      'src/entry-points/templates/qwen-command.toml.tmpl',
+      'src/generator/dependency-graph.js',
+      'src/transforms/agent-stub.js',
+      'src/lib/discovery/index.js',
+      'src/lib/yaml-emit.js',
+    ]) {
+      assert.throws(
+        () => verifyPackageEntries(packWith(buildPath)),
+        { message: `npm package contains build-only path: ${buildPath}` }
+      );
+    }
+    assert.doesNotThrow(() => verifyPackageEntries(packWith(
+      'src/generated/agent-registry.json',
+      'src/lib/io/index.js',
+    )));
+  });
+
   it('rejects test-only package content', () => {
     assert.throws(
       () => verifyPackageEntries(packWith('tests/unit/example.test.js')),
@@ -58,6 +83,11 @@ describe('verify npm pack', () => {
       'claude/scripts/policy-enforcer.test.js',
       'plugins/maestro/src/mcp/server.spec.js',
       'claude/scripts/__tests__/fixture.js',
+      'claude/tests/fixtures/helper.js',
+      'antigravity/.cache/probe.json',
+      'src/tmp/probe.txt',
+      'src/scratch/notes.md',
+      'plugins/maestro/node_modules/acorn/index.js',
     ]) {
       assert.throws(
         () => verifyPackageEntries(packWith(forbiddenPath)),

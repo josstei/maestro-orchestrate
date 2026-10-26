@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { isBuildOnly } = require('../src/generator/build-only');
 
 const RELEASE_ARTIFACT_PATHS = [
   '.agents/plugins/marketplace.json',
@@ -41,6 +42,7 @@ const DENIED_ARTIFACT_PATHS = [
   '.worktrees',
   '.serena',
   '.superpowers',
+  '.cache',
   'coverage',
   'dist',
   'docs/maestro',
@@ -49,6 +51,7 @@ const DENIED_ARTIFACT_PATHS = [
   'tests',
   'tmp',
   'temp',
+  'scratch',
 ];
 
 const DENIED_ARTIFACT_PATTERNS = [
@@ -63,7 +66,38 @@ const REQUIRED_PACKAGE_FILES = [
   'claude/.claude-plugin/plugin.json',
   'plugins/maestro/.codex-plugin/plugin.json',
   'qwen-extension.json',
+  'scripts/install-codex-plugin.js',
+  'scripts/lib/cli.js',
   'src/mcp/maestro-server.js',
+  'src/platforms/metadata.js',
+  'src/platforms/qwen/policy-pack.js',
+];
+
+const REQUIRED_RUNTIME_FILES = [
+  'antigravity/hooks/hook-runner.js',
+  'antigravity/hooks/policy-enforcer.js',
+  'antigravity/hooks.json',
+  'antigravity/mcp/maestro-server.js',
+  'antigravity/src/mcp/maestro-server.js',
+  'bin/maestro-mcp-server.js',
+  'claude/hooks/claude-hooks.json',
+  'claude/mcp/maestro-server.js',
+  'claude/scripts/hook-runner.js',
+  'claude/scripts/policy-enforcer.js',
+  'claude/src/mcp/maestro-server.js',
+  'hooks/hook-runner.js',
+  'mcp/maestro-server.js',
+  'plugins/maestro/.app.json',
+  'plugins/maestro/src/mcp/maestro-server.js',
+  'qwen/hooks.json',
+  'src/mcp/maestro-server.js',
+];
+
+// Manifests that launch the bundled server with node, by their root variable.
+const NODE_LAUNCHERS = [
+  ['antigravity/mcp_config.json', '${PLUGIN_ROOT}'],
+  ['claude/.mcp.json', '${CLAUDE_PLUGIN_ROOT}'],
+  ['qwen-extension.json', '${extensionPath}'],
 ];
 
 const RELEASE_OUT_DIR = 'dist/release';
@@ -84,7 +118,8 @@ function normalizeArtifactPath(relativePath) {
 function isDeniedPath(relativePath) {
   const normalized = normalizeArtifactPath(relativePath);
   const deniedByPath = DENIED_ARTIFACT_PATHS.some((denied) => {
-    return normalized === denied || normalized.startsWith(`${denied}/`);
+    return normalized === denied || normalized.startsWith(`${denied}/`)
+      || normalized.endsWith(`/${denied}`) || normalized.includes(`/${denied}/`);
   });
 
   return deniedByPath || DENIED_ARTIFACT_PATTERNS.some((pattern) => pattern.test(normalized));
@@ -97,6 +132,11 @@ function isReleaseArtifactPathAllowed(relativePath) {
     return true;
   }
 
+  // The extension archive has no build CLI or Codex installer.
+  if (normalized.startsWith('src/') && isBuildOnly(normalized.slice(4))) {
+    return false;
+  }
+
   return RELEASE_ARTIFACT_PATHS.some((allowed) => {
     return (
       normalized === allowed ||
@@ -107,17 +147,7 @@ function isReleaseArtifactPathAllowed(relativePath) {
 }
 
 function assertRequiredArtifactPaths(root) {
-  const missing = [];
-
-  for (const relativePath of RELEASE_ARTIFACT_PATHS) {
-    if (isDeniedPath(relativePath)) {
-      throw new Error(`Release artifact allowlist contains denied path: ${relativePath}`);
-    }
-
-    if (!fs.existsSync(path.join(root, relativePath))) {
-      missing.push(relativePath);
-    }
-  }
+  const missing = RELEASE_ARTIFACT_PATHS.filter((relativePath) => !fs.existsSync(path.join(root, relativePath)));
 
   if (missing.length > 0) {
     throw new Error(`Required release artifact paths are missing: ${missing.join(', ')}`);
@@ -134,6 +164,9 @@ function walkArtifactFiles(root) {
 
     for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
       const relativePath = normalizeArtifactPath(path.posix.join(relativeDir, entry.name));
+      if (entry.isSymbolicLink()) {
+        throw new Error(`Release artifact contains symbolic link: ${relativePath}`);
+      }
       files.push(relativePath);
 
       if (entry.isDirectory()) {
@@ -217,9 +250,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
-  const antigravitySrcVersion = readJson(root, 'antigravity/src/version.json');
-  const claudeSrcVersion = readJson(root, 'claude/src/version.json');
-  const codexSrcVersion = readJson(root, 'plugins/maestro/src/version.json');
   const claudeMarketplacePlugin = findNamedPlugin(
     claudeMarketplace,
     'maestro',
@@ -234,9 +264,9 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     ['plugins/maestro/.codex-plugin/plugin.json', requireNonEmpty(codexPlugin.version, 'Codex plugin')],
     ['.claude-plugin/marketplace.json metadata.version', requireNonEmpty(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
     ['.claude-plugin/marketplace.json plugins.maestro.version', requireNonEmpty(claudeMarketplacePlugin.version, 'Claude marketplace plugin')],
-    ['antigravity/src/version.json', requireNonEmpty(antigravitySrcVersion.version, 'Antigravity detached payload')],
-    ['claude/src/version.json', requireNonEmpty(claudeSrcVersion.version, 'Claude detached payload')],
-    ['plugins/maestro/src/version.json', requireNonEmpty(codexSrcVersion.version, 'Codex detached payload')],
+    ['antigravity/src/version.json', requireNonEmpty(readJson(root, 'antigravity/src/version.json').version, 'Antigravity detached payload')],
+    ['claude/src/version.json', requireNonEmpty(readJson(root, 'claude/src/version.json').version, 'Claude detached payload')],
+    ['plugins/maestro/src/version.json', requireNonEmpty(readJson(root, 'plugins/maestro/src/version.json').version, 'Codex detached payload')],
   ];
   const version = expectedVersion || versionEntries[0][1];
   const mismatches = versionEntries.filter(([, entryVersion]) => entryVersion !== version);
@@ -247,8 +277,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   }
 
   const codexMarketplace = readJson(root, '.agents/plugins/marketplace.json');
-  const antigravityMcp = readJson(root, 'antigravity/mcp_config.json');
-  const claudeMcp = readJson(root, 'claude/.mcp.json');
   const codexMcp = readJson(root, 'plugins/maestro/.mcp.json');
 
   const packageName = requireNonEmpty(pkg.name, 'package.json name', 'string');
@@ -290,19 +318,14 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     throw new Error('antigravity/plugin.json must name the plugin maestro');
   }
 
-  assertLaunchesMaestroServer(
-    antigravityMcp,
-    'node',
-    ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
-    'antigravity/mcp_config.json must launch the bundled Maestro MCP server'
-  );
-
-  assertLaunchesMaestroServer(
-    claudeMcp,
-    'node',
-    ['${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js'],
-    'claude/.mcp.json must launch the bundled Maestro MCP server'
-  );
+  for (const [relativePath, rootVariable] of NODE_LAUNCHERS) {
+    assertLaunchesMaestroServer(
+      readJson(root, relativePath),
+      'node',
+      [`${rootVariable}/mcp/maestro-server.js`],
+      `${relativePath} must launch the bundled Maestro MCP server`
+    );
+  }
 
   const expectedPackageSpec = `${packageName}@${version}`;
   assertLaunchesMaestroServer(
@@ -312,17 +335,13 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     `plugins/maestro/.mcp.json must launch ${expectedPackageSpec}`
   );
 
-  const requiredRuntimeFiles = [
-    'antigravity/hooks.json',
-    'antigravity/src/mcp/maestro-server.js',
-    'bin/maestro-mcp-server.js',
-    'claude/src/mcp/maestro-server.js',
-    'plugins/maestro/src/mcp/maestro-server.js',
-  ];
-
-  for (const relativePath of requiredRuntimeFiles) {
-    if (!fs.existsSync(path.join(root, relativePath))) {
+  for (const relativePath of REQUIRED_RUNTIME_FILES) {
+    const absolutePath = path.join(root, relativePath);
+    if (!fs.existsSync(absolutePath)) {
       throw new Error(`Required runtime file missing: ${relativePath}`);
+    }
+    if (!fs.statSync(absolutePath).isFile()) {
+      throw new Error(`Required runtime file must be a regular file: ${relativePath}`);
     }
   }
 
@@ -346,4 +365,5 @@ module.exports = {
   isReleaseArtifactPathAllowed,
   readJson,
   releaseArchiveName,
+  requireNonEmpty,
 };

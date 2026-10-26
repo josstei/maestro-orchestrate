@@ -2,6 +2,8 @@
 
 const { MAESTRO_SETTINGS } = require('../config/settings-catalog');
 const { formatJson } = require('../lib/io');
+const antigravityHookAdapter = require('./antigravity/hook-adapter');
+const claudeHookAdapter = require('./claude/hook-adapter');
 const { buildPolicyPackToml } = require('./qwen/policy-pack');
 
 const RUNTIME_DESCRIPTION = 'Multi-agent development orchestration platform — 39 specialists, 4-phase orchestration, native parallel subagents, persistent sessions, and standalone review/debug/security/perf/seo/a11y/compliance commands';
@@ -22,11 +24,15 @@ const DEFAULT_PROMPTS = [
 ];
 
 const HOOK_DESCRIPTIONS = {
-  'session-start': 'Initialize hook state and prune stale sessions',
+  'session-start': 'Prune stale hook state',
   'before-agent': 'Inject session context into agent turns',
   'after-agent': 'Validate handoff report format with retry on malformed output',
   'session-end': 'Clean up hook state for ended session',
 };
+
+// Hook timeouts in seconds; Qwen Code reads them in milliseconds.
+const HOOK_TIMEOUT_SECONDS = 10;
+const POLICY_TIMEOUT_SECONDS = 5;
 
 const QWEN_HOOK_EVENTS = {
   SessionStart: 'session-start',
@@ -106,47 +112,60 @@ function codexMarketplace(plugins) {
   };
 }
 
-// Qwen Code reads hook timeouts in milliseconds.
-function buildQwenHooks() {
+// The runtime's variable for its installed plugin or extension root.
+function rootVar(runtime) {
+  return `\${${runtime.env.extensionPath}}`;
+}
+
+function nodeMcpServers(runtime, extra = {}) {
+  return {
+    maestro: {
+      command: 'node',
+      args: [`${rootVar(runtime)}/${runtime.launchers.mcpServer}`],
+      ...extra,
+    },
+  };
+}
+
+function hookCommand(command, timeout) {
+  return { type: 'command', command, timeout };
+}
+
+// `root` prefixes the launcher path, which is relative to the runtime's outputDir.
+function hookRunnerCommand(runtime, root, hookName) {
+  return `node ${root}${runtime.launchers.hookRunner} ${runtime.name} ${hookName}`;
+}
+
+function buildQwenHooks(runtime) {
   return {
     hooks: Object.fromEntries(Object.entries(QWEN_HOOK_EVENTS).map(([event, hookName]) => [event, [{
       hooks: [{
         type: 'command',
-        command: `node \${extensionPath}/hooks/hook-runner.js qwen ${hookName}`,
+        command: hookRunnerCommand(runtime, `${rootVar(runtime)}/`, hookName),
         name: `maestro-${hookName}-qwen`,
         description: `${HOOK_DESCRIPTIONS[hookName]} (Qwen Code)`,
-        timeout: 10000,
+        timeout: HOOK_TIMEOUT_SECONDS * 1000,
       }],
     }]])),
   };
 }
 
-// Claude Code reads hook timeouts in seconds.
-function claudeHookCommand(script, timeout) {
-  return {
-    type: 'command',
-    command: `node \${CLAUDE_PLUGIN_ROOT}/scripts/${script}`,
-    timeout,
-  };
-}
-
-function buildClaudeHooks() {
+function buildClaudeHooks(runtime) {
+  const root = `${rootVar(runtime)}/`;
+  const runHook = (hookName) => hookCommand(hookRunnerCommand(runtime, root, hookName), HOOK_TIMEOUT_SECONDS);
   return {
     hooks: {
-      SessionEnd: [{ hooks: [claudeHookCommand('hook-runner.js claude session-end', 10)] }],
-      SessionStart: [{ hooks: [claudeHookCommand('hook-runner.js claude session-start', 10)] }],
+      SessionEnd: [{ hooks: [runHook('session-end')] }],
+      SessionStart: [{ hooks: [runHook('session-start')] }],
       PreToolUse: [
-        { hooks: [claudeHookCommand('hook-runner.js claude before-agent', 10)], matcher: 'Agent' },
-        { hooks: [claudeHookCommand('policy-enforcer.js', 5)], matcher: 'Bash' },
+        { hooks: [runHook('before-agent')], matcher: 'Agent' },
+        {
+          hooks: [hookCommand(`node ${root}${runtime.launchers.policyEnforcer}`, POLICY_TIMEOUT_SECONDS)],
+          matcher: claudeHookAdapter.shellPolicy.tool,
+        },
       ],
     },
   };
-}
-
-// Antigravity reads hook timeouts in seconds and runs each command from the
-// directory holding hooks.json (the plugin root), so script paths are relative.
-function antigravityHookCommand(script, timeout) {
-  return { type: 'command', command: `node hooks/${script}`, timeout };
 }
 
 /**
@@ -155,30 +174,35 @@ function antigravityHookCommand(script, timeout) {
  * and every subagent conversation, so it carries both the session-start and
  * the session-context (before-agent) handlers. PreToolUse groups handlers
  * under an anchored tool-name matcher. Antigravity has no session-end or
- * post-delegation event.
+ * post-delegation event. Antigravity runs each command from the directory
+ * holding hooks.json (the plugin root), so launcher paths are relative.
  */
-function buildAntigravityHooks() {
+function buildAntigravityHooks(runtime) {
   return {
     'maestro-session': {
       SessionStart: [
-        antigravityHookCommand('hook-runner.js antigravity session-start', 10),
-        antigravityHookCommand('hook-runner.js antigravity before-agent', 10),
+        hookCommand(hookRunnerCommand(runtime, '', 'session-start'), HOOK_TIMEOUT_SECONDS),
+        hookCommand(hookRunnerCommand(runtime, '', 'before-agent'), HOOK_TIMEOUT_SECONDS),
       ],
     },
     'maestro-shell-policy': {
       PreToolUse: [
-        { matcher: 'run_command', hooks: [antigravityHookCommand('policy-enforcer.js', 5)] },
+        {
+          matcher: antigravityHookAdapter.shellPolicy.tool,
+          hooks: [hookCommand(`node ${runtime.launchers.policyEnforcer}`, POLICY_TIMEOUT_SECONDS)],
+        },
       ],
     },
   };
 }
 
-// Per-runtime metadata files, as ordered [outputPath, value] pairs. String
-// values are written as-is; anything else is written as JSON.
+// Per-runtime metadata files, as ordered [outputPath, value] pairs. Each
+// builder receives the package context and its runtime config. String values
+// are written as-is; anything else is written as JSON.
 const METADATA_BUILDERS = {
   // Antigravity loads only plugin.json's own fields; MCP servers and hooks are
   // read from mcp_config.json and hooks.json at the plugin root.
-  antigravity: (context) => [
+  antigravity: (context, runtime) => [
     ['antigravity/plugin.json', {
       name: 'maestro',
       displayName: 'Maestro',
@@ -186,17 +210,10 @@ const METADATA_BUILDERS = {
       description: ANTIGRAVITY_DESCRIPTION,
       suggestedPrompts: DEFAULT_PROMPTS,
     }],
-    ['antigravity/mcp_config.json', {
-      mcpServers: {
-        maestro: {
-          command: 'node',
-          args: ['${PLUGIN_ROOT}/mcp/maestro-server.js'],
-        },
-      },
-    }],
-    ['antigravity/hooks.json', buildAntigravityHooks()],
+    ['antigravity/mcp_config.json', { mcpServers: nodeMcpServers(runtime) }],
+    ['antigravity/hooks.json', buildAntigravityHooks(runtime)],
   ],
-  claude: (context) => [
+  claude: (context, runtime) => [
     ['.claude-plugin/marketplace.json', {
       name: 'maestro-orchestrator',
       owner: {
@@ -233,16 +250,8 @@ const METADATA_BUILDERS = {
       repository: context.repository,
       keywords: BASE_KEYWORDS,
     }],
-    [`claude/${CLAUDE_HOOKS_PATH}`, buildClaudeHooks()],
-    ['claude/.mcp.json', {
-      mcpServers: {
-        maestro: {
-          command: 'node',
-          args: ['${CLAUDE_PLUGIN_ROOT}/mcp/maestro-server.js'],
-          cwd: '${CLAUDE_PLUGIN_ROOT}',
-        },
-      },
-    }],
+    [`claude/${CLAUDE_HOOKS_PATH}`, buildClaudeHooks(runtime)],
+    ['claude/.mcp.json', { mcpServers: nodeMcpServers(runtime, { cwd: rootVar(runtime) }) }],
   ],
   codex: (context) => [
     ['.agents/plugins/marketplace.json', codexMarketplace([codexMarketplacePlugin('./plugins/maestro')])],
@@ -283,25 +292,21 @@ const METADATA_BUILDERS = {
     }],
     [`plugins/maestro/${CODEX_APPS_PATH}`, { apps: {} }],
   ],
-  qwen: (context) => [
+  qwen: (context, runtime) => [
     ['qwen-extension.json', {
       name: 'maestro',
       version: context.version,
       description: RUNTIME_DESCRIPTION,
       contextFileName: 'QWEN.md',
       settings: MAESTRO_SETTINGS,
-      mcpServers: {
-        maestro: {
-          command: 'node',
-          args: ['${extensionPath}/mcp/maestro-server.js'],
-          cwd: '${extensionPath}',
-          env: {
-            MAESTRO_WORKSPACE_PATH: '${workspacePath}',
-          },
+      mcpServers: nodeMcpServers(runtime, {
+        cwd: rootVar(runtime),
+        env: {
+          [runtime.env.workspacePath]: '${workspacePath}',
         },
-      },
+      }),
     }],
-    ['qwen/hooks.json', buildQwenHooks()],
+    ['qwen/hooks.json', buildQwenHooks(runtime)],
     // The repo root is Qwen Code's extension dir.
     ['policies/maestro.toml', buildPolicyPackToml()],
   ],
@@ -311,7 +316,7 @@ function buildPlatformMetadataOutputs(runtimes, pkg) {
   const context = buildMetadataContext(pkg);
 
   return Object.keys(runtimes).sort().flatMap((runtimeName) =>
-    METADATA_BUILDERS[runtimeName](context).map(([outputPath, value]) => ({
+    METADATA_BUILDERS[runtimeName](context, runtimes[runtimeName]).map(([outputPath, value]) => ({
       outputPath,
       content: typeof value === 'string' ? value : formatJson(value),
     }))

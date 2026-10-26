@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { formatJson } = require('../src/lib/io');
 const { codexMarketplace, codexMarketplacePlugin } = require('../src/platforms/metadata');
-const { runCli } = require('./lib/cli');
+const { parseFlagArgs, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE_PLUGIN_DIR = path.join(ROOT, 'plugins', 'maestro');
@@ -24,25 +24,6 @@ Options:
   --dry-run   Show planned changes without writing files
   --help      Show this help text
 `);
-}
-
-function parseArgs(argv) {
-  const args = new Set(argv);
-
-  if (args.has('--help') || args.has('-h')) {
-    printHelp();
-    process.exit(0);
-  }
-
-  for (const arg of args) {
-    if (arg !== '--dry-run') {
-      throw new Error(`Unknown argument: ${arg}`);
-    }
-  }
-
-  return {
-    dryRun: args.has('--dry-run'),
-  };
 }
 
 function assertSourcePlugin() {
@@ -133,7 +114,7 @@ function printSummary({ dryRun, marketplaceExisted, pluginAction }) {
 }
 
 function main() {
-  const { dryRun } = parseArgs(process.argv.slice(2));
+  const { dryRun } = parseFlagArgs(process.argv.slice(2), { booleans: { '--dry-run': 'dryRun' }, printHelp });
 
   assertSourcePlugin();
 

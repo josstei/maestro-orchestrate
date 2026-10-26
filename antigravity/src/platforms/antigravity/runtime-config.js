@@ -58,6 +58,10 @@ module.exports = {
     fields: ['name', 'description', 'subagent', 'mainAgent', 'model', 'tools'],
   },
 
+  entrySurface: 'skill',
+  entryAgentRefs: true,
+  skillStubFrontmatter: ['disable-slash-command: true'],
+
   delegation: {
     pattern: 'invoke_subagent(Subagents: [{ TypeName: "{{agent}}", Role: "...", Prompt: "..." }])',
     constraints: {
@@ -68,7 +72,6 @@ module.exports = {
 
   features: {
     exampleBlocks: false,
-    claudeStateContract: false,
     scriptBasedStateContract: true,
     codexStateContract: false,
   },
@@ -76,5 +79,11 @@ module.exports = {
   paths: {
     skills: '${PLUGIN_ROOT}/skills/',
     hooks: '${PLUGIN_ROOT}/hooks/',
+  },
+
+  launchers: {
+    mcpServer: 'mcp/maestro-server.js',
+    hookRunner: 'hooks/hook-runner.js',
+    policyEnforcer: 'hooks/policy-enforcer.js',
   },
 };

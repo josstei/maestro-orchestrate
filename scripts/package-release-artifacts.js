@@ -2,7 +2,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
@@ -11,10 +10,12 @@ const {
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
   isDeniedPath,
+  isReleaseArtifactPathAllowed,
   readJson,
   releaseArchiveName,
 } = require('./release-artifact-manifest');
 const { parseFlagArgs, runCli } = require('./lib/cli');
+const { withTempDir } = require('./lib/temp-dir');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -51,9 +52,26 @@ function resolveVersion(root, requestedVersion) {
 }
 
 function copyPath(root, stagingRoot, relativePath) {
+  const assertNoSymlink = (source) => {
+    if (fs.lstatSync(source).isSymbolicLink()) {
+      throw new Error(`Release artifact contains symbolic link: ${path.relative(root, source).split(path.sep).join('/')}`);
+    }
+  };
+  // Some allowlisted files have parents that are not copied as roots (docs/
+  // and marketplace directories). Validate those ancestors as well.
+  let source = root;
+  for (const segment of relativePath.split('/')) {
+    source = path.join(source, segment);
+    assertNoSymlink(source);
+  }
   fs.cpSync(path.join(root, relativePath), path.join(stagingRoot, relativePath), {
     recursive: true,
-    filter: (source) => !isDeniedPath(path.relative(root, source)),
+    filter: (source) => {
+      const relative = path.relative(root, source);
+      if (!isReleaseArtifactPathAllowed(relative) || isDeniedPath(relative)) return false;
+      assertNoSymlink(source);
+      return true;
+    },
   });
 }
 
@@ -71,10 +89,8 @@ function packageReleaseArtifacts(options = {}) {
   const version = resolveVersion(root, options.version);
   const outDir = path.resolve(root, options.outDir || RELEASE_OUT_DIR);
   const archivePath = path.join(outDir, releaseArchiveName(version));
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-artifact-'));
-  const stagingRoot = path.join(tempRoot, 'maestro');
-
-  try {
+  return withTempDir('maestro-release-artifact-', (tempRoot) => {
+    const stagingRoot = path.join(tempRoot, 'maestro');
     assertRequiredArtifactPaths(root);
     assertRuntimeManifestShape(root, version);
     fs.mkdirSync(stagingRoot, { recursive: true });
@@ -90,9 +106,7 @@ function packageReleaseArtifacts(options = {}) {
       archivePath,
       version,
     };
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
+  });
 }
 
 if (require.main === module) {

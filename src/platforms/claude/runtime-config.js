@@ -38,11 +38,20 @@ module.exports = {
     codebase_investigator: 'Agent (Explore) / Grep / Glob',
   },
 
+  agentTools: {
+    exclude: ['AskUserQuestion'],
+    order: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'TaskCreate', 'TaskUpdate', 'TaskList', 'Skill'],
+  },
+
   agentFrontmatter: {
     model: 'inherit',
     turnsField: 'maxTurns',
     fields: ['name', 'description', 'model', 'color', 'turns', 'tools'],
   },
+
+  entrySurface: 'skill',
+  skillStubFrontmatter: ['user-invocable: false'],
+  servedSkillFrontmatter: ['user-invocable: false'],
 
   delegation: {
     pattern: 'Agent(subagent_type: "maestro:{{agent}}", prompt: "...")',
@@ -54,13 +63,18 @@ module.exports = {
 
   features: {
     exampleBlocks: true,
-    claudeStateContract: true,
-    scriptBasedStateContract: false,
+    scriptBasedStateContract: true,
     codexStateContract: false,
   },
 
   paths: {
     skills: '${CLAUDE_PLUGIN_ROOT}/skills/',
     hooks: '${CLAUDE_PLUGIN_ROOT}/scripts/',
+  },
+
+  launchers: {
+    mcpServer: 'mcp/maestro-server.js',
+    hookRunner: 'scripts/hook-runner.js',
+    policyEnforcer: 'scripts/policy-enforcer.js',
   },
 };

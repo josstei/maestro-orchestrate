@@ -1,5 +1,6 @@
 'use strict';
 
+const { defineTool } = require('../../core/create-server');
 const {
   handleInitializeWorkspace,
 } = require('../../handlers/initialize-workspace');
@@ -14,82 +15,66 @@ function createToolPack({ services }) {
   return {
     name: 'workspace',
     tools: [
-      {
-        name: 'initialize_workspace',
-        description:
-          'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            workspace_path: {
-              type: 'string',
-              description:
-                'Absolute path to the user workspace. Required. Must not be inside an extension cache directory.',
-            },
-            state_dir: {
-              type: 'string',
-              description:
-                'State directory relative to workspace_path. Defaults to docs/maestro.',
-            },
+      defineTool(
+        'initialize_workspace',
+        'Initialize Maestro workspace directories (state, plans, archives). Requires explicit workspace_path — no cwd or env fallback.',
+        {
+          workspace_path: {
+            type: 'string',
+            description:
+              'Absolute path to the user workspace. Required. Must not be inside an extension cache directory.',
           },
-          required: ['workspace_path'],
+          state_dir: {
+            type: 'string',
+            description:
+              'State directory relative to workspace_path. Defaults to docs/maestro.',
+          },
         },
-        async handler(params, projectRoot) {
+        async (params, projectRoot) => {
           const result = await handleInitializeWorkspace(params, projectRoot);
           if (typeof services.setWorkspacePath === 'function') {
             services.setWorkspacePath(result.workspace_path);
           }
           return result;
         },
-      },
-      {
-        name: 'assess_task_complexity',
-        description:
-          'Analyze repo structure and return factual signals for complexity classification. Does NOT classify — returns signals for the model to interpret.',
-        requiresWorkspace: true,
-        inputSchema: {
-          type: 'object',
-          properties: {
-            task_description: {
-              type: 'string',
-              description:
-                'The task description (reserved for future keyword analysis).',
-            },
+        { required: ['workspace_path'] }
+      ),
+      defineTool(
+        'assess_task_complexity',
+        'Analyze repo structure and return factual signals for complexity classification. Does NOT classify — returns signals for the model to interpret.',
+        {
+          task_description: {
+            type: 'string',
+            description:
+              'The task description (reserved for future keyword analysis).',
           },
         },
-        handler: handleAssessTaskComplexity,
-      },
-      {
-        name: 'validate_plan',
-        description:
-          'Validate an implementation plan against complexity constraints, file ownership, dependency cycles, and agent registry.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            plan: { type: 'object' },
-            task_complexity: TASK_COMPLEXITY_SCHEMA,
-          },
-          required: ['plan', 'task_complexity'],
+        handleAssessTaskComplexity,
+        { requiresWorkspace: true }
+      ),
+      defineTool(
+        'validate_plan',
+        'Validate an implementation plan against complexity constraints, file ownership, dependency cycles, and agent registry.',
+        {
+          plan: { type: 'object' },
+          task_complexity: TASK_COMPLEXITY_SCHEMA,
         },
-        handler: handleValidatePlan,
-      },
-      {
-        name: 'resolve_settings',
-        description:
-          'Resolve Maestro settings using script-accurate precedence (env var > workspace .env > extension .env). Returns resolved values for requested or all known settings.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            settings: {
-              type: 'array',
-              items: { type: 'string' },
-              description:
-                'Setting names to resolve (e.g., ["MAESTRO_DISABLED_AGENTS"]). If empty or omitted, resolves all known settings.',
-            },
+        handleValidatePlan,
+        { required: ['plan', 'task_complexity'] }
+      ),
+      defineTool(
+        'resolve_settings',
+        'Resolve Maestro settings using script-accurate precedence (env var > workspace .env > extension .env). Returns resolved values for requested or all known settings.',
+        {
+          settings: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Setting names to resolve (e.g., ["MAESTRO_DISABLED_AGENTS"]). If empty or omitted, resolves all known settings.',
           },
         },
-        handler: handleResolveSettings,
-      },
+        handleResolveSettings
+      ),
     ],
   };
 }

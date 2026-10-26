@@ -8,7 +8,7 @@ const path = require('node:path');
 const { AGENT_COUNT, PUBLIC_SKILL_COUNT, listCanonicalAgents, publicSkillNames } = require('../support/catalog');
 const { readJson } = require('../support/fs');
 const { readStubFrontmatter } = require('../support/generated-files');
-const { ROOT } = require('./helpers');
+const { ROOT } = require('../support/paths');
 const qwenRuntime = require('../../src/platforms/qwen/runtime-config');
 const { toSnakeCase } = require('../../src/lib/naming');
 

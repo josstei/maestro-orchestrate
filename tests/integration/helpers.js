@@ -1,104 +1,33 @@
 'use strict';
 
+const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { execFileSync, spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const { makeTempDir, removeDir } = require('../support/fs');
 const { ROOT } = require('../support/paths');
+const { runNode, runNodeOk } = require('../support/process');
 
-const DRY_RUN_MARKER = '(dry-run — no files written)';
-const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED)\] /;
-
-function runGenerator(args = [], options = {}) {
-  const cwd = options.cwd || ROOT;
-
-  return execFileSync(process.execPath, ['scripts/generate.js', ...args], {
-    cwd,
-    encoding: 'utf8',
-  });
+function generatorEnv() {
+  return {
+    ...process.env,
+    NODE_PATH: [path.join(ROOT, 'node_modules'), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+  };
 }
 
-function runGeneratorExpectFailure(args = [], options = {}) {
-  const result = spawnSync(process.execPath, ['scripts/generate.js', ...args], {
-    cwd: options.cwd || ROOT,
-    encoding: 'utf8',
-  });
+function runGenerator(args = [], { cwd } = {}) {
+  return runNodeOk('scripts/generate.js', args, { cwd, env: generatorEnv() });
+}
+
+function runGeneratorExpectFailure(args = [], { cwd } = {}) {
+  const result = runNode('scripts/generate.js', args, { cwd, env: generatorEnv() });
 
   if (result.error) {
     throw result.error;
   }
 
-  if (result.status === 0) {
-    throw new Error('Expected generator command to fail');
-  }
-
-  return {
-    status: result.status,
-    stdout: result.stdout,
-    stderr: result.stderr,
-  };
-}
-
-function getGitStatus() {
-  return execFileSync('git', ['status', '--short', '--untracked-files=all'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  }).trimEnd();
-}
-
-function parseDryRunReport(output) {
-  const lines = output.trimEnd().split('\n').filter(Boolean);
-  const marker = lines.at(-1);
-  const statusLines = lines.filter((line) => STATUS_LINE.test(line));
-  const outputPaths = statusLines.map((line) => line.replace(STATUS_LINE, ''));
-  const driftLines = statusLines.filter((line) => !line.startsWith('[UNCHANGED] '));
-  const nonStatusLines = lines.filter((line) => line !== DRY_RUN_MARKER && !STATUS_LINE.test(line));
-
-  return {
-    marker,
-    statusLines,
-    outputPaths,
-    driftLines,
-    nonStatusLines,
-  };
-}
-
-/**
- * Copies the repo's `sourceDir` to `installSegments` under a fresh temp dir,
- * runs `fn` against the copy and removes the temp dir afterwards, even when
- * `fn` throws or rejects.
- */
-async function withPluginCopy(prefix, sourceDir, installSegments, fn) {
-  const tempRoot = makeTempDir(prefix);
-  const pluginRoot = path.join(tempRoot, ...installSegments);
-
-  fs.cpSync(path.join(ROOT, sourceDir), pluginRoot, { recursive: true });
-
-  try {
-    return await fn(pluginRoot);
-  } finally {
-    removeDir(tempRoot);
-  }
-}
-
-/** Runs `fn` against a copy of claude/ installed as a standalone plugin. */
-function withIsolatedClaudePlugin(fn) {
-  return withPluginCopy('maestro-claude-plugin-', 'claude', ['maestro'], fn);
-}
-
-/**
- * Runs `fn` against a copy of antigravity/ at the path `agy plugin install`
- * uses (~/.gemini/config/plugins/maestro/ under a temp home), where the shim
- * cannot reach the repo src/ and must run the bundled antigravity/src/.
- */
-function withIsolatedAntigravityPlugin(fn) {
-  return withPluginCopy(
-    'maestro-antigravity-home-',
-    'antigravity',
-    ['.gemini', 'config', 'plugins', 'maestro'],
-    fn
-  );
+  assert.notEqual(result.status, 0, 'Expected generator command to fail');
+  return result;
 }
 
 function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
@@ -108,13 +37,9 @@ function createTempRepoCopy(prefix = 'maestro-repo-copy-') {
   fs.cpSync(ROOT, repoRoot, {
     recursive: true,
     filter: (source) => {
-      const relativePath = path.relative(ROOT, source);
-
-      if (!relativePath) {
-        return true;
-      }
-
-      return !relativePath.split(path.sep).includes('.git');
+      const parts = path.relative(ROOT, source).split(path.sep);
+      // A repository fixture must not inherit archives from a local release build.
+      return parts[0] !== 'dist' && !parts.some((part) => part === '.git' || part === 'node_modules');
     },
   });
 
@@ -142,14 +67,8 @@ function withTempRepoCopy(prefix, fn) {
 }
 
 module.exports = {
-  DRY_RUN_MARKER,
-  ROOT,
   createTempRepoCopy,
-  getGitStatus,
-  parseDryRunReport,
   runGenerator,
   runGeneratorExpectFailure,
-  withIsolatedAntigravityPlugin,
-  withIsolatedClaudePlugin,
   withTempRepoCopy,
 };

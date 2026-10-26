@@ -34,7 +34,6 @@ Before running orchestration commands:
 
 - Extension settings from `qwen-extension.json` are exposed as `MAESTRO_*` env vars via Qwen Code extension settings; honor them as runtime source of truth.
 - Maestro slash commands are file commands loaded from `commands/maestro/*.toml`; they are expected to resolve as `/maestro:*`.
-- Hook entries must remain `type: "command"` in `qwen/hooks.json` for compatibility with current Qwen Code hook validation.
 - Extension workflows run only when the extension is linked/enabled and workspace trust allows extension assets.
 - Keep `ask_user_question` header fields short (aim for 16 characters or fewer) to fit the UI chip display. Short headers like `Database`, `Auth`, `Approach` work best.
 - The extension contributes deny/ask policy rules from `policies/maestro.toml`. Treat these as safety rails that complement, but do not replace, prompt-level instructions.
@@ -116,8 +115,7 @@ Skip domains where the answer is clearly "no." For relevant domains, include app
 Apply domain analysis proportional to `task_complexity`:
 - `simple`: Engineering domain only. Skip other domains unless explicitly requested.
 - `medium`: Engineering + domains with clear signals from the task description.
-- `complex`: Full domain sweep (current behavior).
-
+- `complex`: Full domain sweep.
 
 ## Native Parallel Contract
 
@@ -263,12 +261,11 @@ Maestro uses Qwen Code hooks from `qwen/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
-| SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale sessions, initialize hook state |
-| SubagentStart | `hooks/hook-runner.js qwen before-agent` | Prune stale sessions, track active agent, inject compact session context |
+| SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale hook state |
+| SubagentStart | `hooks/hook-runner.js qwen before-agent` | Prune stale hook state, track active agent, inject compact session context |
 | SubagentStop | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
 | SessionEnd | `hooks/hook-runner.js qwen session-end` | Clean up hook state for ended session |
 
-## Alignment Notes
+## MCP Server
 
-- Maestro is aligned with Qwen Code extension, agents, skills, hooks, and policy-engine-compatible arg forwarding.
-- Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, session state management, and skill/reference content delivery.
+Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, session state management, and skill/reference content delivery.

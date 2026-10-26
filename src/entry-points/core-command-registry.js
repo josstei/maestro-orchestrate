@@ -20,11 +20,11 @@ module.exports = [
       'Execute an existing implementation plan directly, skipping the design dialogue and planning phases.',
     requestType: 'file path',
     executeInstructions:
-      'Read the approved implementation plan at the user-provided path (or check `docs/maestro/plans/` for the most recent plan). Resolve the execution mode gate, create or resume session state, then execute phases through child agents following the loaded methodology.',
+      'Read the approved implementation plan at the user-provided path (or check `<state_dir>/plans/` for the most recent plan). Resolve the execution mode gate, create or resume session state, then execute phases through child agents following the loaded methodology.',
   },
   {
     name: 'resume',
-    runtimeNames: { antigravity: 'resume-session', codex: 'resume-session', claude: 'resume-session' },
+    skillName: 'resume-session',
     description:
       'Resume an interrupted Maestro session using the existing active-session file and shared phase tracking',
     preload: ['session-management', 'execution', 'delegation', 'validation'],
@@ -32,6 +32,6 @@ module.exports = [
     requestType: 'additional context',
     executeInstructions:
       'Read the active session state, summarize completed and pending phases, then resume from the first pending or failed phase following the loaded methodology.',
-    qwenSessionStateInjection: true,
+    injectSessionState: true,
   },
 ];

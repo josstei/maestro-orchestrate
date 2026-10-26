@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { HOST_CLIENTS } = require('../support/host-clients');
+const { HOST_CLIENTS } = require('../support/catalog');
 const {
   RUNTIME_NAMES,
   getRuntimeConfig,
@@ -18,13 +18,6 @@ describe('runtime-config-map', () => {
     }
   });
 
-  it('no longer discovers a gemini runtime', () => {
-    assert.throws(
-      () => getRuntimeConfig('gemini'),
-      /Unknown runtime config: gemini/
-    );
-  });
-
   it('getRuntimeConfig returns the platform runtime-config module', () => {
     assert.equal(
       getRuntimeConfig('codex'),
@@ -32,18 +25,10 @@ describe('runtime-config-map', () => {
     );
   });
 
-  it('throws for unknown runtime names', () => {
-    assert.throws(
-      () => getRuntimeConfig('nonexistent'),
-      /Unknown runtime config/
-    );
-  });
-
-  it('throws for a missing runtime name', () => {
-    assert.throws(
-      () => getRuntimeConfig(undefined),
-      /Unknown runtime config: undefined/
-    );
+  it('throws for unknown and missing runtime names, gemini among them', () => {
+    for (const name of ['gemini', 'nonexistent', undefined]) {
+      assert.throws(() => getRuntimeConfig(name), { message: new RegExp(`^Unknown runtime config: ${name}`) });
+    }
   });
 });
 

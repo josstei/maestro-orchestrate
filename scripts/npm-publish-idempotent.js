@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { parseFlagArgs, runCli } = require('./lib/cli');
+const { readJson, requireNonEmpty } = require('./release-artifact-manifest');
 
 const ROOT = path.resolve(__dirname, '..');
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
@@ -29,20 +29,6 @@ function parseArgs(argv) {
   }
 
   return options;
-}
-
-function readPackage(root) {
-  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-
-  if (typeof pkg.name !== 'string' || pkg.name.length === 0) {
-    throw new Error('package.json missing package name');
-  }
-
-  if (typeof pkg.version !== 'string' || pkg.version.length === 0) {
-    throw new Error('package.json missing package version');
-  }
-
-  return pkg;
 }
 
 function isNpmNotFoundError(error) {
@@ -77,10 +63,11 @@ function compareStableVersions(left, right) {
 }
 
 function highestStableVersion(versions) {
-  return versions
-    .filter(isStableVersion)
-    .sort(compareStableVersions)
-    .at(-1) || null;
+  return versions.reduce((highest, version) => {
+    return isStableVersion(version) && (highest === null || compareStableVersions(version, highest) >= 0)
+      ? version
+      : highest;
+  }, null);
 }
 
 function parseDistTagOutput(output) {
@@ -211,7 +198,9 @@ function publishIfNeeded(options = {}) {
   const root = options.root || ROOT;
   const runner = options.execFileSync || execFileSync;
   const logger = options.logger || console;
-  const pkg = readPackage(root);
+  const pkg = readJson(root, 'package.json');
+  requireNonEmpty(pkg.name, 'package.json name', 'string');
+  requireNonEmpty(pkg.version, 'package.json');
   const packageSpec = `${pkg.name}@${pkg.version}`;
   validatePublishTag(pkg, options.tag);
 

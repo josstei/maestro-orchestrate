@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { runCli } = require('./lib/cli');
+const { parseFlagArgs, runCli } = require('./lib/cli');
 
 const STABLE_SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const BADGE_FILES = [
@@ -95,14 +95,13 @@ function updateVersions(version, options = {}) {
 }
 
 if (require.main === module) {
-  const version = process.argv[2];
-
-  if (!version) {
-    console.error('Usage: node scripts/update-versions.js <version>');
-    process.exit(1);
-  }
-
   runCli('version update failed', () => {
+    const { positionals: [version] } = parseFlagArgs(process.argv.slice(2), {
+      positional: 'version',
+      printHelp: () => console.log('Usage: node scripts/update-versions.js <version>'),
+    });
+    if (!version) throw new Error('Missing <version> argument');
+
     updateVersions(version);
     console.log(`Updated canonical release inputs to ${version}`);
   });

@@ -2,7 +2,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
@@ -13,7 +12,8 @@ const {
   readJson,
   releaseArchiveName,
 } = require('./release-artifact-manifest');
-const { runCli } = require('./lib/cli');
+const { parseFlagArgs, runCli } = require('./lib/cli');
+const { withTempDir } = require('./lib/temp-dir');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -26,21 +26,6 @@ Usage:
 If archive is omitted, the verifier checks:
   dist/release/maestro-v<package.json version>-extension.tar.gz
 `);
-}
-
-function parseArgs(argv) {
-  if (argv.includes('--help') || argv.includes('-h')) {
-    printHelp();
-    process.exit(0);
-  }
-
-  if (argv.length > 1) {
-    throw new Error('Expected at most one archive path');
-  }
-
-  return {
-    archivePath: argv[0] || null,
-  };
 }
 
 function defaultArchivePath(root) {
@@ -62,9 +47,7 @@ function verifyReleaseArtifact(archivePath, options = {}) {
     throw new Error(`Release artifact not found: ${resolvedArchivePath}`);
   }
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-verify-'));
-
-  try {
+  return withTempDir('maestro-release-verify-', (tempRoot) => {
     extractArchive(resolvedArchivePath, tempRoot);
     assertRequiredArtifactPaths(tempRoot);
     assertReleaseArtifactContents(tempRoot);
@@ -74,15 +57,13 @@ function verifyReleaseArtifact(archivePath, options = {}) {
       archivePath: resolvedArchivePath,
       version,
     };
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
+  });
 }
 
 if (require.main === module) {
   runCli('release artifact verification failed', () => {
-    const args = parseArgs(process.argv.slice(2));
-    const result = verifyReleaseArtifact(args.archivePath);
+    const { positionals: [archivePath] } = parseFlagArgs(process.argv.slice(2), { positional: 'archive path', printHelp });
+    const result = verifyReleaseArtifact(archivePath);
     console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
   });
 }

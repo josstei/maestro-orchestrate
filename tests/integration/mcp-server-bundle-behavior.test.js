@@ -6,43 +6,29 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { HOST_CLIENTS } = require('../support/catalog');
 const { makeTempDir } = require('../support/fs');
-const { HOST_CLIENTS } = require('../support/host-clients');
-const { ROOT, withIsolatedAntigravityPlugin } = require('./helpers');
-const { MCP_ENTRYPOINTS, withEntrypointCwd } = require('./mcp-entrypoints');
-const { spawnMcpServer } = require('./mcp-stdio-client');
-
-async function withServer(options, fn) {
-  const client = spawnMcpServer(options);
-  try {
-    await client.ready;
-    await client.initialize();
-    return await fn(client);
-  } finally {
-    await client.close();
-  }
-}
+const { ROOT } = require('../support/paths');
+const { expectExit, runNode } = require('../support/process');
+const { sessionParams } = require('../support/session-server');
+const { withMcpClient } = require('./mcp-stdio-client');
 
 /**
- * Runs `fn` against a server booted from every MCP_ENTRYPOINTS entry, each
- * isolated plugin from a fresh copy. Each bundle is driven by the host that
- * launches it, named by `runtime` and identified from that host's clientInfo,
- * and `fn` receives the entry with the `cwd` it was launched from.
+ * Each host's MCP server launcher at its repo path, which starts the repo's
+ * src/ server with no external SDK installed.
+ * `expectSkill` is text that host's delegation skill content must contain.
+ * detached-payload.test.js covers the installed payloads' bundled src/.
  */
-async function forEachRuntimeBundle(fn) {
-  for (const entry of MCP_ENTRYPOINTS) {
-    await withEntrypointCwd(entry, (cwd) =>
-      withServer(
-        { cwd, relativePath: entry.relativePath, clientInfo: HOST_CLIENTS[entry.runtime] },
-        (client) => fn(client, { ...entry, cwd })
-      )
-    );
-  }
-}
+const REPO_LAUNCHERS = [
+  { runtime: 'qwen', relativePath: 'mcp/maestro-server.js', expectSkill: '# Delegation Skill' },
+  { runtime: 'claude', relativePath: 'claude/mcp/maestro-server.js', expectSkill: 'user-invocable: false' },
+  { runtime: 'codex', relativePath: 'bin/maestro-mcp-server.js', expectSkill: '# Delegation Skill' },
+  { runtime: 'antigravity', relativePath: 'antigravity/mcp/maestro-server.js', expectSkill: '# Delegation Skill' },
+];
 
 describe('mcp server bundle behavior', () => {
   it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
-    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.qwen }, async (client) => {
+    await withMcpClient({ relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.qwen }, async (client) => {
       const result = await client.callTool('get_agent', { agents: [] });
 
       assert.equal(result.raw.isError, true);
@@ -56,7 +42,7 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('assumes no runtime for a client it does not recognize and fails every tool call', async () => {
-    await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+    await withMcpClient({ relativePath: 'mcp/maestro-server.js' }, async (client) => {
       assert.ok((await client.listTools()).length > 0);
 
       for (const name of ['get_runtime_context', 'get_skill_content']) {
@@ -75,9 +61,7 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('says the client has not sent initialize when a tool is called before it', async () => {
-    const client = spawnMcpServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' });
-    try {
-      await client.ready;
+    await withMcpClient({ relativePath: 'mcp/maestro-server.js' }, async (client) => {
       const result = await client.callTool('get_runtime_context');
 
       assert.equal(result.parsed.code, 'RUNTIME_UNIDENTIFIED');
@@ -85,15 +69,12 @@ describe('mcp server bundle behavior', () => {
         result.parsed.error,
         'Maestro could not identify its host runtime: MAESTRO_RUNTIME is not set and the MCP client has not sent initialize yet.'
       );
-    } finally {
-      await client.close();
-    }
+    }, { initialize: false });
   });
 
   it('serves the runtime MAESTRO_RUNTIME names over the one the client identifies', async () => {
-    await withServer(
+    await withMcpClient(
       {
-        cwd: ROOT,
         relativePath: 'mcp/maestro-server.js',
         env: { MAESTRO_RUNTIME: 'codex' },
         clientInfo: HOST_CLIENTS.claude,
@@ -107,80 +88,73 @@ describe('mcp server bundle behavior', () => {
 
   it('serves the runtime of whichever host connects, whatever bundle it launches', async () => {
     for (const [runtime, clientInfo] of Object.entries(HOST_CLIENTS)) {
-      await withServer({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
+      await withMcpClient({ relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
         assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, runtime);
         assert.match(client.stderr, new RegExp(`Runtime ${runtime}, identified from MCP client "${clientInfo.name}"`));
       });
     }
   });
 
-  it('serves the runtime of the host that launches each bundle', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const result = await client.callTool('get_runtime_context');
+  for (const { runtime, relativePath, expectSkill } of REPO_LAUNCHERS) {
+    it(`serves the ${runtime} runtime, tool metadata and canonical src content from ${relativePath}`, async () => {
+      await withMcpClient({ relativePath, clientInfo: HOST_CLIENTS[runtime] }, async (client) => {
+        // withMcpClient has already waited for 'MCP server connected'.
+        assert.match(client.stderr, /\[info\] maestro: MCP server starting/);
+        assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, runtime);
 
-      assert.equal(
-        result.parsed.runtime,
-        bundle.runtime,
-        `Expected ${path.join(bundle.cwd, bundle.relativePath)} to serve the ${bundle.runtime} runtime`
-      );
+        const tools = await client.listTools();
+        assert.ok(tools.length > 0);
+        const meta = runtime === 'antigravity' ? { 'antigravity/alwaysLoad': true } : undefined;
+        for (const tool of tools) assert.deepEqual(tool._meta, meta, tool.name);
+        assert.match(tools.find((tool) => tool.name === 'get_skill_content').description,
+          /runtime-configured Maestro content source/);
+
+        const skills = (await client.callTool('get_skill_content', { resources: ['delegation', 'architecture'] })).parsed;
+        assert.ok(skills.contents.delegation.includes(expectSkill));
+        assert.ok(skills.contents.architecture.includes('## State Contract'));
+        assert.deepEqual(skills.errors, {});
+        const agents = (await client.callTool('get_agent', { agents: ['coder'] })).parsed;
+        assert.ok(agents.agents.coder.body.includes('Senior Software Engineer'));
+        assert.ok(agents.agents.coder.body.includes('## Output Contract'));
+        assert.deepEqual(agents.errors, {});
+      });
     });
+  }
+
+  it('refuses to start for the removed gemini runtime', () => {
+    const result = runNode('mcp/maestro-server.js', [], {
+      env: { ...process.env, MAESTRO_RUNTIME: 'gemini' },
+      input: '',
+    });
+
+    expectExit(result, { status: 1, stdout: '' });
+    assert.match(result.stderr, /Error: Unknown runtime config: gemini/);
   });
 
-  it('serves updated get_skill_content metadata from every runtime bundle', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const tools = await client.listTools();
-      const skillTool = tools.find((tool) => tool.name === 'get_skill_content');
+  it('serves content from its own src/ tree when MAESTRO_EXTENSION_PATH names an unrelated directory', async () => {
+    // MAESTRO_EXTENSION_PATH only locates the extension .env; content must not
+    // be looked up there.
+    const extensionPath = makeTempDir('maestro-extension-path-');
 
-      assert.ok(
-        skillTool,
-        `Expected get_skill_content for ${path.join(bundle.cwd, bundle.relativePath)}`
-      );
-      assert.match(
-        skillTool.description,
-        /runtime-configured Maestro content source/
-      );
-    });
-  });
+    await withMcpClient(
+      {
+        relativePath: 'mcp/maestro-server.js',
+        env: { MAESTRO_RUNTIME: 'qwen', MAESTRO_EXTENSION_PATH: extensionPath },
+      },
+      async (client) => {
+        const result = await client.callTool('get_skill_content', { resources: ['delegation'] });
 
-  it('marks every listed tool always-loaded on the antigravity bundles only', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const tools = await client.listTools();
-      const label = path.join(bundle.cwd, bundle.relativePath);
-
-      assert.ok(tools.length > 0, label);
-      for (const tool of tools) {
-        if (bundle.runtime === 'antigravity') {
-          assert.deepEqual(tool._meta, { 'antigravity/alwaysLoad': true }, `${label}: ${tool.name}`);
-        } else {
-          assert.equal('_meta' in tool, false, `${label}: ${tool.name}`);
-        }
+        assert.ok(result.parsed.contents.delegation.includes('# Delegation Skill'));
+        assert.deepEqual(result.parsed.errors, {});
       }
-    });
-  });
-
-  it('serves canonical src content from every runtime bundle', async () => {
-    await forEachRuntimeBundle(async (client, bundle) => {
-      const skillResult = await client.callTool('get_skill_content', {
-        resources: ['delegation', 'architecture'],
-      });
-      const agentResult = await client.callTool('get_agent', {
-        agents: ['coder'],
-      });
-
-      assert.ok(skillResult.parsed.contents.delegation.includes(bundle.expectSkill));
-      assert.ok(skillResult.parsed.contents.architecture.includes('## State Contract'));
-      assert.deepEqual(skillResult.parsed.errors, {});
-      assert.ok(agentResult.parsed.agents.coder.body.includes('Senior Software Engineer'));
-      assert.ok(agentResult.parsed.agents.coder.body.includes('## Output Contract'));
-      assert.deepEqual(agentResult.parsed.errors, {});
-    });
+    );
   });
 
   it('keeps Codex session state in the explicit workspace_path when launched from a cwd outside it', async () => {
     const workspaceRoot = makeTempDir('maestro-codex-workspace-');
     const spawnCwd = makeTempDir('maestro-codex-spawn-');
 
-    await withServer(
+    await withMcpClient(
       {
         cwd: spawnCwd,
         // Absolute, because the server is spawned from a cwd outside the repo.
@@ -205,21 +179,11 @@ describe('mcp server bundle behavior', () => {
         fs.writeFileSync(designDocument, '# Design\n');
         fs.writeFileSync(implementationPlan, '# Plan\n');
 
-        const sessionResult = await client.callTool('create_session', {
-          session_id: 'codex-roots-workspace',
+        const sessionResult = await client.callTool('create_session', sessionParams('codex-roots-workspace', {
           task: 'Validate Codex root resolution',
           design_document: path.relative(workspaceRoot, designDocument),
           implementation_plan: path.relative(workspaceRoot, implementationPlan),
-          phases: [
-            {
-              id: 1,
-              name: 'Implement',
-              agent: 'coder',
-              parallel: false,
-              blocked_by: [],
-            },
-          ],
-        });
+        }));
 
         const expectedSessionPath = path.join(stateRoot, 'state', 'active-session.md');
         assert.equal(sessionResult.parsed.success, true);
@@ -230,28 +194,15 @@ describe('mcp server bundle behavior', () => {
           session_id: 'codex-roots-workspace',
         });
 
-        const archivedSession = path.join(
-          stateRoot,
-          'state',
-          'archive',
-          'codex-roots-workspace.md'
-        );
-        const archivedDesign = path.join(stateRoot, 'plans', 'archive', 'codex-design.md');
-        const archivedImplementation = path.join(
-          stateRoot,
-          'plans',
-          'archive',
-          'codex-impl.md'
-        );
+        const archived = [
+          path.join(stateRoot, 'plans', 'archive', 'codex-design.md'),
+          path.join(stateRoot, 'plans', 'archive', 'codex-impl.md'),
+          path.join(stateRoot, 'state', 'archive', 'codex-roots-workspace.md'),
+        ];
 
         assert.equal(archiveResult.parsed.success, true);
-        assert.deepEqual(
-          archiveResult.parsed.archived_files.sort(),
-          [archivedDesign, archivedImplementation, archivedSession].sort()
-        );
-        assert.equal(fs.existsSync(archivedSession), true);
-        assert.equal(fs.existsSync(archivedDesign), true);
-        assert.equal(fs.existsSync(archivedImplementation), true);
+        assert.deepEqual(archiveResult.parsed.archived_files.sort(), archived.sort());
+        for (const file of archived) assert.equal(fs.existsSync(file), true, file);
         assert.equal(fs.existsSync(designDocument), false);
         assert.equal(fs.existsSync(implementationPlan), false);
         assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
@@ -263,54 +214,51 @@ describe('mcp server bundle behavior', () => {
     const firstWorkspace = makeTempDir('maestro-antigravity-first-');
     const secondWorkspace = makeTempDir('maestro-antigravity-second-');
 
-    // The installed plugin directory is the server cwd and is never
-    // suggested, so without client roots there is no suggestion at all.
-    await withIsolatedAntigravityPlugin(async (pluginRoot) => {
-      // Drive the server the way the Antigravity CLI (agy 1.4.2) does:
-      // requests numbered from 0, `server/discover` before `initialize`, the
-      // roots capability, and `notifications/roots/list_changed` even after
-      // roots/list was answered. MAESTRO_WORKSPACE_PATH is cleared so an
-      // inherited value cannot supply the suggestion.
-      const client = spawnMcpServer({
-        cwd: pluginRoot,
-        relativePath: 'mcp/maestro-server.js',
-        env: { MAESTRO_WORKSPACE_PATH: '' },
-        roots: [{ uri: pathToFileURL(firstWorkspace).href, name: 'first' }],
-        firstRequestId: 0,
-        requestTimeoutMs: 5000,
+    // A copy of antigravity/ where `agy plugin install` puts it, out of reach of the repo
+    // src/, so its shim runs the bundled antigravity/src/. That directory is the server cwd
+    // and is never suggested, so without client roots there is no suggestion at all.
+    const pluginRoot = path.join(makeTempDir('maestro-antigravity-home-'), '.gemini', 'config', 'plugins', 'maestro');
+    fs.cpSync(path.join(ROOT, 'antigravity'), pluginRoot, { recursive: true });
+    // Drive the server the way the Antigravity CLI (agy 1.4.2) does:
+    // requests numbered from 0, `server/discover` before `initialize`, the
+    // roots capability, and `notifications/roots/list_changed` even after
+    // roots/list was answered. MAESTRO_WORKSPACE_PATH is cleared so an
+    // inherited value cannot supply the suggestion.
+    await withMcpClient({
+      cwd: pluginRoot,
+      relativePath: 'mcp/maestro-server.js',
+      env: { MAESTRO_WORKSPACE_PATH: '' },
+      roots: [{ uri: pathToFileURL(firstWorkspace).href, name: 'first' }],
+      firstRequestId: 0,
+      requestTimeoutMs: 5000,
+    }, async (client) => {
+      await assert.rejects(client.request('server/discover'), (error) => {
+        assert.equal(JSON.parse(error.message).code, -32601);
+        return true;
       });
-      try {
-        await client.ready;
-        await assert.rejects(client.request('server/discover'), (error) => {
-          assert.equal(JSON.parse(error.message).code, -32601);
-          return true;
-        });
 
-        await client.request('initialize', {
-          protocolVersion: '2025-06-18',
-          capabilities: { roots: { listChanged: true } },
-          clientInfo: HOST_CLIENTS.antigravity,
-        });
-        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, null);
+      await client.request('initialize', {
+        protocolVersion: '2025-06-18',
+        capabilities: { roots: { listChanged: true } },
+        clientInfo: HOST_CLIENTS.antigravity,
+      });
+      assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, null);
 
-        client.notify('notifications/initialized');
-        await client.rootsAnswered(1);
-        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
+      client.notify('notifications/initialized');
+      await client.rootsAnswered(1);
+      assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
 
-        // Antigravity repeats list_changed after its roots/list reply.
-        client.notify('notifications/roots/list_changed');
-        await client.rootsAnswered(2);
-        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
+      // Antigravity repeats list_changed after its roots/list reply.
+      client.notify('notifications/roots/list_changed');
+      await client.rootsAnswered(2);
+      assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
 
-        client.roots = [{ uri: pathToFileURL(secondWorkspace).href, name: 'second' }];
-        client.notify('notifications/roots/list_changed');
-        await client.rootsAnswered(3);
-        const context = (await client.callTool('get_runtime_context')).parsed;
-        assert.equal(context.runtime, 'antigravity');
-        assert.equal(context.workspace_suggestion, secondWorkspace);
-      } finally {
-        await client.close();
-      }
-    });
+      client.roots = [{ uri: pathToFileURL(secondWorkspace).href, name: 'second' }];
+      client.notify('notifications/roots/list_changed');
+      await client.rootsAnswered(3);
+      const context = (await client.callTool('get_runtime_context')).parsed;
+      assert.equal(context.runtime, 'antigravity');
+      assert.equal(context.workspace_suggestion, secondWorkspace);
+    }, { initialize: false });
   });
 });

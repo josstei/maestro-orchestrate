@@ -21,7 +21,10 @@ const { ROOT } = require('../support/paths');
 const RUNTIME_MANIFEST_FILES = [
   '.agents/plugins/marketplace.json',
   '.claude-plugin/marketplace.json',
+  'antigravity/hooks/hook-runner.js',
+  'antigravity/hooks/policy-enforcer.js',
   'antigravity/hooks.json',
+  'antigravity/mcp/maestro-server.js',
   'antigravity/mcp_config.json',
   'antigravity/plugin.json',
   'antigravity/src/mcp/maestro-server.js',
@@ -29,14 +32,23 @@ const RUNTIME_MANIFEST_FILES = [
   'bin/maestro-mcp-server.js',
   'claude/.claude-plugin/plugin.json',
   'claude/.mcp.json',
+  'claude/hooks/claude-hooks.json',
+  'claude/mcp/maestro-server.js',
+  'claude/scripts/hook-runner.js',
+  'claude/scripts/policy-enforcer.js',
   'claude/src/mcp/maestro-server.js',
   'claude/src/version.json',
+  'hooks/hook-runner.js',
+  'mcp/maestro-server.js',
   'package.json',
+  'plugins/maestro/.app.json',
   'plugins/maestro/.codex-plugin/plugin.json',
   'plugins/maestro/.mcp.json',
   'plugins/maestro/src/mcp/maestro-server.js',
   'plugins/maestro/src/version.json',
   'qwen-extension.json',
+  'qwen/hooks.json',
+  'src/mcp/maestro-server.js',
 ];
 
 function copyRuntimeManifests() {
@@ -49,6 +61,34 @@ function copyRuntimeManifests() {
 }
 
 describe('release artifact manifest', () => {
+  it('denies nested development, test, cache and scratch paths without matching runtime names', () => {
+    for (const forbidden of [
+      'claude/tests/fixtures/helper.js', 'antigravity/.cache/probe.json',
+      'src/tmp/probe.txt', 'plugins/maestro/node_modules/acorn/index.js',
+      'src/scratch/notes.md', 'src/coverage/report.html', 'src/.git/config',
+    ]) {
+      assert.equal(isDeniedPath(forbidden), true, forbidden);
+      const root = makeTempDir('maestro-artifact-nested-');
+      writeTree(root, forbidden, 'fixture\n');
+      assert.throws(() => assertReleaseArtifactContents(root), /Release artifact contains denied paths:/);
+    }
+    for (const runtimeFile of [
+      'claude/.claude-plugin/plugin.json', 'src/mcp/core/project-root-cache.js',
+      'src/scripts/read-state.js', 'src/templates/session-state.md',
+    ]) assert.equal(isDeniedPath(runtimeFile), false, runtimeFile);
+  });
+
+  it('rejects extracted symlinks to files, directories and missing targets', () => {
+    const external = makeTempDir('maestro-artifact-link-target-');
+    fs.writeFileSync(path.join(external, 'file.md'), 'external fixture\n');
+    for (const [target, type] of [[external, 'dir'], [path.join(external, 'file.md'), 'file'], [path.join(external, 'missing'), 'file']]) {
+      const root = makeTempDir('maestro-artifact-link-');
+      fs.mkdirSync(path.join(root, 'src'));
+      fs.symlinkSync(target, path.join(root, 'src/linked'), type);
+      assert.throws(() => assertReleaseArtifactContents(root), /Release artifact contains symbolic link: src\/linked/);
+    }
+  });
+
   it('uses an explicit allowlist for required release surfaces', () => {
     const expectedPaths = [
       'qwen-extension.json',
@@ -98,6 +138,36 @@ describe('release artifact manifest', () => {
     }
     for (const releasePath of RELEASE_ARTIFACT_PATHS) {
       assert.doesNotMatch(releasePath, /gemini/i);
+    }
+  });
+
+  it('excludes build sources from archives without listing them as denied paths', () => {
+    for (const buildPath of [
+      'src/entry-points',
+      'src/entry-points/templates/qwen-command.toml.tmpl',
+      'src/generator',
+      'src/generator/dependency-graph.js',
+      'src/transforms',
+      'src/transforms/agent-stub.js',
+      'src/generator/stub-outputs.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
+      'src/lib/discovery',
+      'src/lib/discovery/index.js',
+      'src/lib/yaml-emit.js',
+    ]) {
+      assert.equal(isReleaseArtifactPathAllowed(buildPath), false, buildPath);
+      assert.equal(isDeniedPath(buildPath), false, buildPath);
+    }
+    for (const runtimePath of [
+      'src/mcp/maestro-server.js',
+      'src/platforms/qwen/runtime-config.js',
+      'src/platforms/shared/hook-runner.js',
+      'src/scripts/ensure-workspace.js',
+      'src/lib/io/index.js',
+      'src/templates/session-state.md',
+    ]) {
+      assert.equal(isReleaseArtifactPathAllowed(runtimePath), true, runtimePath);
     }
   });
 
@@ -224,8 +294,42 @@ describe('release artifact manifest', () => {
     }
   });
 
-  it('requires the antigravity hooks config and bundled MCP server', () => {
-    for (const relativePath of ['antigravity/hooks.json', 'antigravity/src/mcp/maestro-server.js']) {
+  it('requires the Qwen MCP configuration to launch its public server', () => {
+    for (const server of [
+      { command: 'npx', args: ['${extensionPath}/mcp/maestro-server.js'] },
+      { command: 'node', args: ['does-not-exist.js'] },
+      { command: 'node', args: [] },
+    ]) {
+      const tempRoot = copyRuntimeManifests();
+      editJson(path.join(tempRoot, 'qwen-extension.json'), (manifest) => {
+        manifest.mcpServers.maestro = server;
+      });
+      assert.throws(() => assertRuntimeManifestShape(tempRoot), {
+        message: 'qwen-extension.json must launch the bundled Maestro MCP server',
+      });
+    }
+  });
+
+  it('requires all public launchers, server modules, and referenced hook/app files', () => {
+    for (const relativePath of [
+      'antigravity/hooks/hook-runner.js',
+      'antigravity/hooks/policy-enforcer.js',
+      'antigravity/hooks.json',
+      'antigravity/mcp/maestro-server.js',
+      'antigravity/src/mcp/maestro-server.js',
+      'bin/maestro-mcp-server.js',
+      'claude/hooks/claude-hooks.json',
+      'claude/mcp/maestro-server.js',
+      'claude/scripts/hook-runner.js',
+      'claude/scripts/policy-enforcer.js',
+      'claude/src/mcp/maestro-server.js',
+      'hooks/hook-runner.js',
+      'mcp/maestro-server.js',
+      'plugins/maestro/.app.json',
+      'plugins/maestro/src/mcp/maestro-server.js',
+      'qwen/hooks.json',
+      'src/mcp/maestro-server.js',
+    ]) {
       const tempRoot = copyRuntimeManifests();
       fs.rmSync(path.join(tempRoot, relativePath));
 
@@ -233,6 +337,17 @@ describe('release artifact manifest', () => {
         () => assertRuntimeManifestShape(tempRoot),
         { message: `Required runtime file missing: ${relativePath}` }
       );
+    }
+  });
+
+  it('rejects directories in place of required runtime files', () => {
+    for (const relativePath of ['bin/maestro-mcp-server.js', 'mcp/maestro-server.js', 'plugins/maestro/.app.json']) {
+      const tempRoot = copyRuntimeManifests();
+      fs.rmSync(path.join(tempRoot, relativePath));
+      fs.mkdirSync(path.join(tempRoot, relativePath));
+      assert.throws(() => assertRuntimeManifestShape(tempRoot), {
+        message: `Required runtime file must be a regular file: ${relativePath}`,
+      });
     }
   });
 });

@@ -1,18 +1,16 @@
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 const { parse } = require('../../lib/frontmatter');
+const { readTextSync } = require('../../lib/io');
 const { replaceInContent } = require('../../lib/naming');
-const { stripFeatureBlocks } = require('../../core/feature-blocks');
+const { stripExamples, stripFeatureBlocks } = require('../../core/feature-blocks');
 const { mapTools } = require('../../core/agent-tools');
 const { AGENT_NAMES } = require('../../core/agent-registry');
 
 const RESOURCE_ALLOWLIST = Object.freeze(require('../../generated/resource-registry.json'));
 
-const AGENT_ALLOWLIST = AGENT_NAMES;
-
-const HYPHENATED_AGENT_NAMES = AGENT_ALLOWLIST.filter((name) => name.includes('-'));
+const HYPHENATED_AGENT_NAMES = AGENT_NAMES.filter((name) => name.includes('-'));
 
 /**
  * Rewrite `${extensionPath}` in served markdown to the runtime's extension-root
@@ -30,36 +28,25 @@ function applyReplacePaths(content, runtimeConfig) {
   return result;
 }
 
+/**
+ * Append the runtime's servedSkillFrontmatter lines to a served SKILL.md's
+ * frontmatter.
+ */
 function applySkillMetadata(content, runtimeConfig, resourcePath) {
-  if (runtimeConfig.name !== 'claude' || !resourcePath.endsWith('SKILL.md')) {
+  const lines = runtimeConfig.servedSkillFrontmatter || [];
+  if (lines.length === 0 || !resourcePath.endsWith('SKILL.md')) {
     return content;
   }
 
   return content.replace(
     /^(---\n[\s\S]*?)(^---)/m,
-    '$1user-invocable: false\n$2'
+    (_match, frontmatter, closing) => `${frontmatter}${lines.join('\n')}\n${closing}`
   );
 }
 
-const AGENT_NAME_RESOURCES = new Set([
-  'references/architecture.md',
-  'skills/shared/delegation/SKILL.md',
-  'skills/shared/execution/SKILL.md',
-  'skills/shared/validation/SKILL.md',
-  'skills/shared/code-review/SKILL.md',
-]);
-
 function applyRuntimeTransforms(content, runtimeConfig, resourcePath) {
-  let result = content;
-
-  if (resourcePath === 'references/architecture.md') {
-    result = stripFeatureBlocks(result, runtimeConfig.features || {});
-  }
-
-  if (AGENT_NAME_RESOURCES.has(resourcePath)) {
-    result = replaceInContent(result, HYPHENATED_AGENT_NAMES, runtimeConfig.agentNaming);
-  }
-
+  let result = stripFeatureBlocks(content, runtimeConfig.features || {});
+  result = replaceInContent(result, HYPHENATED_AGENT_NAMES, runtimeConfig.agentNaming);
   result = applyReplacePaths(result, runtimeConfig);
   result = applySkillMetadata(result, runtimeConfig, resourcePath);
 
@@ -76,7 +63,7 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
 
   const absolutePath = path.join(srcRoot, relativePath);
   try {
-    const content = fs.readFileSync(absolutePath, 'utf8');
+    const content = readTextSync(absolutePath);
     return {
       content: applyRuntimeTransforms(content, runtimeConfig, relativePath),
     };
@@ -89,27 +76,29 @@ function readResourceFromFilesystem(id, runtimeConfig, srcRoot) {
 
 /**
  * Read an agent definition and serve its methodology body with the shared
- * Output Contract (agents/shared/handoff-report.md) appended.
+ * Output Contract (agents/shared/handoff-report.md) appended. Agent names in
+ * the served body follow the runtime's agentNaming, as in served resources.
  *
- * Callers must pass a name from AGENT_ALLOWLIST; get_agent enforces this
+ * Callers must pass a name from AGENT_NAMES; get_agent enforces this
  * before reading.
  */
 function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
   const agentsDir = path.join(srcRoot, 'agents');
   try {
-    const content = fs.readFileSync(path.join(agentsDir, `${agentName}.md`), 'utf8');
-    const outputContract = fs.readFileSync(
-      path.join(agentsDir, 'shared', 'handoff-report.md'),
-      'utf8'
-    );
-    // Strip feature blocks before splitting off the frontmatter, so blank-line
-    // collapsing also applies across the frontmatter boundary.
-    const { frontmatter, body } = parse(
-      stripFeatureBlocks(content, runtimeConfig.features || {}, { mode: 'lenient' })
-    );
+    const content = readTextSync(path.join(agentsDir, `${agentName}.md`));
+    const outputContract = readTextSync(path.join(agentsDir, 'shared', 'handoff-report.md'));
+    // Strip examples and feature blocks before splitting off the frontmatter,
+    // so blank-line collapsing also applies across the frontmatter boundary.
+    const features = runtimeConfig.features || {};
+    const served = features.exampleBlocks ? content : stripExamples(content);
+    const { frontmatter, body } = parse(stripFeatureBlocks(served, features));
     return {
       agent: {
-        body: `${body}\n${outputContract}`,
+        body: replaceInContent(
+          `${body}\n${outputContract}`,
+          HYPHENATED_AGENT_NAMES,
+          runtimeConfig.agentNaming
+        ),
         tools: mapTools(frontmatter, runtimeConfig),
       },
     };
@@ -121,10 +110,6 @@ function readAgentFromFilesystem(agentName, runtimeConfig, srcRoot) {
 }
 
 module.exports = {
-  RESOURCE_ALLOWLIST,
-  AGENT_ALLOWLIST,
-  applyReplacePaths,
-  applySkillMetadata,
   readResourceFromFilesystem,
   readAgentFromFilesystem,
 };
