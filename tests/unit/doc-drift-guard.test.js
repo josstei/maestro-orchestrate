@@ -284,7 +284,7 @@ test('doc-drift: settings tables list exactly the MAESTRO_SETTINGS env vars', ()
 });
 
 test('doc-drift: agent tier catalogs match agent-registry capabilities', () => {
-  // docs/usage.md has one table per tier under these headings; docs/overview.md one row per tier.
+  // docs/usage.md has one table per tier under these headings.
   const tiers = {
     read_only: 'Read-Only Agents',
     read_shell: 'Read + Shell Agents',
@@ -297,7 +297,6 @@ test('doc-drift: agent tier catalogs match agent-registry capabilities', () => {
     'every agent-registry capability needs a catalog tier'
   );
   const catalog = markdownSection('docs/usage.md', '## Agent Catalog').split(/^### /m);
-  const overview = markdownSection('docs/overview.md', '### Agents');
   for (const [capability, title] of Object.entries(tiers)) {
     const table = catalog.find((section) => section.startsWith(title));
     assert.ok(table, `docs/usage.md Agent Catalog: missing the "${title}" tier`);
@@ -305,13 +304,6 @@ test('doc-drift: agent tier catalogs match agent-registry capabilities', () => {
       [...table.matchAll(/^\| ([a-z0-9-]+) \|/gm)].map((match) => match[1]).sort(),
       agentsWithCapabilities(capability),
       `docs/usage.md Agent Catalog "${title}": must list exactly the ${capability} agents`
-    );
-    const row = overview.match(new RegExp(`^\\| \`${capability}\` \\|[^|\\n]*\\| ([^|\\n]+) \\|$`, 'm'));
-    assert.ok(row, `docs/overview.md Agents: missing the \`${capability}\` row`);
-    assert.deepEqual(
-      row[1].split(',').map((name) => name.trim()).sort(),
-      agentsWithCapabilities(capability),
-      `docs/overview.md Agents: the \`${capability}\` row must list exactly the ${capability} agents`
     );
   }
 });

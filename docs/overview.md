@@ -108,14 +108,7 @@ maestro-orchestrate/
 
 ### Agents
 
-39 specialized agents, each with a defined methodology, tool restrictions, and capability tier:
-
-| Tier | Capability | Agents |
-|------|-----------|--------|
-| `read_only` | Read, search, analyze | architect, api-designer, code-reviewer, content-strategist, compliance-reviewer, cloud-architect, solutions-architect |
-| `read_shell` | Read + shell execution | debugger, performance-engineer, security-engineer, seo-specialist, accessibility-specialist, database-administrator, site-reliability-engineer, db2-dba, zos-sysprog |
-| `read_write` | Read + create/modify files | technical-writer, product-manager, ux-designer, copywriter, release-manager, prompt-engineer |
-| `full` | All tools | coder, data-engineer, devops-engineer, tester, refactor, design-system-engineer, i18n-specialist, analytics-engineer, ml-engineer, mlops-engineer, mobile-engineer, cobol-engineer, observability-engineer, platform-engineer, integration-engineer, hlasm-assembler-specialist, ibm-i-specialist |
+39 specialized agents in four capability tiers (`read_only`, `read_shell`, `read_write`, `full`), each with a defined methodology and tool restrictions; the [Agent Catalog](usage.md#agent-catalog) lists them.
 
 ### MCP Server
 

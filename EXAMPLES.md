@@ -158,42 +158,6 @@ Use this for GDPR, CCPA, cookie consent, retention, licensing, and third-party d
 
 Expected outcome: Maestro reviews data handling, disclosures, consent flows, retention policies, and third-party integrations, then reports findings with regulatory reference, severity, compliance risk, and recommended actions.
 
-## Contributor Examples
+## Contributing
 
-Use these when changing Maestro itself.
-
-### Edit Canonical Source
-
-```bash
-# edit source files under src/
-node scripts/generate.js --diff
-npm run build
-git add -A && git commit
-just check
-```
-
-Expected outcome: generated runtime surfaces match canonical `src/` output with no drift. `just check` fails on any unstaged change, so it runs after the commit.
-
-### Run Tests
-
-```bash
-npm test
-```
-
-For the local CI equivalent:
-
-```bash
-just ci
-```
-
-Expected outcome: generator drift, the Node test suite (including layer boundaries), and the npm package and release archive checks pass once the changes are committed.
-
-### Add or Update Documentation
-
-```bash
-# edit README.md, EXAMPLES.md, docs/*.md, or canonical src/ docs as appropriate
-node --test tests/unit/doc-drift-guard.test.js
-node scripts/generate.js --diff
-```
-
-Expected outcome: user-facing docs remain aligned with command names, runtime counts, MCP tool names, and generated-output rules, and the generator reports no additional pending runtime output. In a clean worktree, `just check` covers the same drift check with `git diff --exit-code`; CI runs `node scripts/generate.js --check`.
+To change Maestro itself, follow [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md).

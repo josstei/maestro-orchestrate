@@ -39,9 +39,7 @@ All commands are available via `just`:
 | `just test-integration` | Run only integration tests | — |
 | `just check` | Generate, then fail if `git diff --exit-code` shows drift | All 6 source-of-truth workflows run `node scripts/generate.js --check` |
 | `just check-layers` | Parse the production graph; verify layer boundaries, dependency containment, and absence of cycles | Covered by `npm test`, which runs `scripts/check-layer-boundaries.js` against the repository's `src/` |
-| `just pack-verify` | Verify the npm package contents | Source Of Truth Check, Release, and every prerelease publish |
-| `just release-verify` | Package the release archive and verify its contents | Source Of Truth Check and Release |
-| `just ci` | Full CI equivalent: check + test + pack-verify + release-verify | The `source-of-truth-check` job after `npm ci` |
+| `just ci` | Full CI equivalent: check + test + npm package and release archive verification | The `source-of-truth-check` job after `npm ci` |
 | `just dry-run` | Preview changes without writing | — |
 | `just diff` | Show unified diff of pending changes | — |
 | `just clean` | Delete the generated agent and shared-skill stubs, then regenerate | — |

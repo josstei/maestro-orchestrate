@@ -521,18 +521,6 @@ graph LR
     F --> |"RC validated<br/>PR merged to main"| G["Release<br/>publishes X.Y.Z"]
 ```
 
-### Step-by-Step Release Flow
-
-1. A maintainer manually triggers **Prepare Release** from the `main` branch (optionally specifying a version).
-2. The workflow validates `main` (drift check and tests), creates a `release/vX.Y.Z` branch, bumps version files (failing if the CHANGELOG has no unreleased content), and pushes the branch.
-3. One PR is opened:
-   - **PR to `main`**: the release PR, labeled with `release` and `rc`, containing the CHANGELOG excerpt.
-4. The release PR triggers **Source Of Truth Check** (standard CI on PRs to `main`).
-5. The `release` + `rc` labels on a PR from `release/v*` to `main` trigger the **Release Candidate** workflow, which publishes an RC to npm.
-6. If additional commits are pushed to the release branch, both Source Of Truth Check and Release Candidate re-run (RC number auto-increments).
-7. When the release PR is merged to `main`, the push event triggers **Release**.
-8. Release detects the merged release PR via the GitHub API, validates version consistency, runs final checks, creates a Git tag, publishes to npm, and creates a GitHub Release with the generic extension archive attached.
-
 ### Branch Strategy
 
 ```mermaid
@@ -548,20 +536,6 @@ graph LR
 | `<namespace>/<type>/<slug>` | Namespaced contributor/tool work branches, such as `codex/chore/enforce-git-conventions` | PR check required |
 | `release/vX.Y.Z` | Short-lived release branches created by Prepare Release | Transient |
 
-### Permissions and Secrets Summary
-
-| Workflow | Permissions | Secrets |
-|----------|-------------|---------|
-| Source Of Truth Check | `contents: read` | None |
-| Commit Message Check | `contents: read` | None |
-| Nightly Build | `contents: read` | `NPM_TOKEN` |
-| Preview Build | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
-| Prepare Release | `contents: write`, `pull-requests: write` | `RELEASE_TOKEN` |
-| Release Candidate | `contents: read`, `pull-requests: write` | `NPM_TOKEN` |
-| Release | `contents: write`, `pull-requests: write` | `NPM_TOKEN` |
-
-The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elevated permissions. The default `GITHUB_TOKEN` does not trigger downstream workflow runs, so `RELEASE_TOKEN` is required for branch pushes and PR creation that need to activate Source Of Truth Check and Release Candidate on the newly created PR.
-
 ### npm Dist-Tags
 
 | Tag | Source | Version Pattern | Workflow |
@@ -570,5 +544,3 @@ The `RELEASE_TOKEN` used by Prepare Release is a personal access token with elev
 | `rc` | Release candidate from release PR | `X.Y.Z-rc.N` | Release Candidate |
 | `preview` | PR preview build | `X.Y.Z-preview.SHORT_SHA` | Preview Build |
 | `nightly` | Daily main snapshot | `X.Y.Z-nightly.YYYYMMDD` | Nightly Build |
-
-`latest` must never intentionally point at `rc`, `preview`, or `nightly`. If a prerelease publish or idempotent skip sees `latest` pointing to a prerelease and at least one stable version exists, the helper repairs it by moving `latest` back to the highest published stable version. If no stable version exists yet, the helper logs a warning and defers repair until the stable Release workflow publishes `X.Y.Z`; it does not delete `latest`.

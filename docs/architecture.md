@@ -267,13 +267,7 @@ Antigravity, Claude, and Qwen apply the same rules from `src/core/policy-rules.j
 - `tee` commands
 - Output redirection written with surrounding whitespace (`cmd > file`, `cmd >> file`, `2> file`)
 
-Each runtime applies them its own way:
-
-- **Antigravity**: run on `run_command` through the `antigravity/hooks/policy-enforcer.js` launcher (repo `src/` first, bundled `antigravity/src/` fallback)
-- **Claude**: run on Bash tool use through the `claude/scripts/policy-enforcer.js` launcher (repo `src/` first, bundled `claude/src/` fallback)
-- **Qwen**: the TOML policy pack `policies/maestro.toml`, rendered from those rules by `src/platforms/qwen/policy-pack.js` for the Qwen builder in `src/platforms/metadata.js`
-
-Both launchers call `main('<runtime>')` in the shared enforcer `src/platforms/shared/policy-enforcer.js`. It reads stdin with the bounded collector in `src/core/stdin-reader.js`, runs `checkCommand()` from `src/core/policy-rules.js` (which splits compound commands on `;`, `&&`, `||`, and `|` and checks `$(...)` and backtick subshells recursively), and formats every decision. The runtimes differ only in the `shellPolicy` their `src/platforms/<runtime>/hook-adapter.js` exports: the shell tool the hook matches, where the command is read, and what each decision is called. Each runtime's decisions and failure behavior are in [runtime-antigravity.md](runtime-antigravity.md#policies), [runtime-claude.md](runtime-claude.md#policies), and [runtime-qwen.md](runtime-qwen.md#policies).
+The Antigravity and Claude launchers (`antigravity/hooks/policy-enforcer.js`, `claude/scripts/policy-enforcer.js`; repo `src/` first, bundled copy as fallback) call `main('<runtime>')` in the shared enforcer `src/platforms/shared/policy-enforcer.js`. It reads stdin with the bounded collector in `src/core/stdin-reader.js`, runs `checkCommand()` from `src/core/policy-rules.js` (which splits compound commands on `;`, `&&`, `||`, and `|` and checks `$(...)` and backtick subshells recursively), and formats every decision. The runtimes differ only in the `shellPolicy` their `src/platforms/<runtime>/hook-adapter.js` exports: the shell tool the hook matches, where the command is read, and what each decision is called. Qwen runs no enforcer: its policy engine reads `policies/maestro.toml`, which `src/platforms/qwen/policy-pack.js` renders from the same rules. Each runtime's decisions and failure behavior are in [runtime-antigravity.md](runtime-antigravity.md#policies), [runtime-claude.md](runtime-claude.md#policies), and [runtime-qwen.md](runtime-qwen.md#policies).
 
 ### Hook State
 
@@ -295,12 +289,6 @@ CI runs `node scripts/generate.js --check`, which fails when generated output di
 
 ## Design Decisions (Retained Compatibility Surfaces)
 
-| Surface | Preservation decision | Focused coverage |
-|---------|-----------------------|------------------|
-| Public launcher paths and repository-first/bundled resolution | Keep the nine launchers at their existing paths, generated from each runtime config's `launchers` | Generator, hook-entrypoint, MCP-bundle tests (repository-first); detached-payload tests (bundled) |
-| Legacy YAML summaries, raw Markdown, existing state CLI invocations | Preserve readers/output; distinguish coordinator failure from absence | Hook logic, state scripts, Markdown-state tests |
-| Runtime-specific adapters, config fields, command templates | Preserve differences in tools, delegation, hooks, and native plan mode as runtime-config data ([Runtime Definitions](#runtime-definitions)) and hook adapters; shell-policy differences are each adapter's `shellPolicy` over the shared enforcer, and hook registrations (events, matchers, timeout units) stay in the per-host builders in `src/platforms/metadata.js` | Platform adapter/config/metadata, transform and entry-point template tests |
-| Independently authored artifact expectations | Keep the hand-written required and denied paths in `scripts/release-artifact-manifest.js` so generator mistakes cannot validate themselves | npm-pack and release-artifact tests/verifiers |
-| Local tooling and cache exclusions | Retain packaging and workspace exclusions; npm ships runtime code plus the Codex installer, and the release archive omits build-only modules | Install/packaging and cache-path tests |
-| Separate DAG passes and diagnostic order | Preserve existing validation passes | Plan schema and validate-plan tests |
-| Fresh agent/resource reads between requests | Keep filesystem reads without a process-wide content cache | Runtime-content and MCP content tests |
+- Required and denied artifact paths stay hand-written in `scripts/release-artifact-manifest.js`, so generator mistakes cannot validate themselves.
+- Legacy YAML summaries, raw-Markdown state readers and existing state CLI invocations are preserved, and coordinator failure stays distinct from absence.
+- `validate_plan` keeps its separate DAG passes and diagnostic order.

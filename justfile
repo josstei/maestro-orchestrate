@@ -55,17 +55,11 @@ check: generate
 check-layers:
     node scripts/check-layer-boundaries.js
 
-# Verify the npm package contents
-pack-verify:
+# Check drift, test, and verify the npm package and release archive — full CI equivalent
+ci: check test
     npm run pack:verify
-
-# Package the release archive and verify its contents
-release-verify:
     npm run release:artifacts
     npm run release:verify-artifacts
-
-# Check drift, test, and verify the package and release archive — full CI equivalent
-ci: check test pack-verify release-verify
 
 # Delete local branches whose remote tracking ref is gone
 cleanup-branches:
