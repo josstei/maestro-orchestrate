@@ -44,16 +44,10 @@ function errorFallback() {
 }
 
 /**
- * The PreToolUse shell-policy hook on run_command, run by
- * src/platforms/shared/policy-enforcer.js, checks toolCall.args.CommandLine.
- *
- * Antigravity denies the tool call when a PreToolUse hook fails or prints
- * anything but a known decision, and has no "no opinion" decision, so:
- *   - a deny rule match is `deny` (blocks in every permission mode)
- *   - an ask rule match is `force_ask` (prompts even when the user's
- *     permissions.allow covers the command)
- *   - any other command is `ask`, which leaves the user's permission settings
- *     and "Always Allow" choices in charge, exactly as without this hook
+ * PreToolUse shell policy on run_command (shared/policy-enforcer.js), reading
+ * toolCall.args.CommandLine. Antigravity has no "no opinion" decision, so an `allow`
+ * result becomes the host's `ask`, which leaves the user's own permission settings
+ * in charge. See docs/runtime-antigravity.md#policies.
  */
 const shellPolicy = {
   tool: 'run_command',

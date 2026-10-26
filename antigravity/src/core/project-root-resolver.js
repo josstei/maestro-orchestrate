@@ -12,11 +12,8 @@ const WorkspaceResolutionError = defineErrorType(
   'WORKSPACE_RESOLUTION_FAILED'
 );
 
-/**
- * Variables consulted, in order, for the project root before the cwd. Every
- * runtime config's `env.workspacePath` must be one of them; core cannot read
- * the runtime configs, so a constraint test keeps the two in step.
- */
+// Checked in order before the cwd. Core cannot read runtime configs, so a constraint
+// test ties each runtime's env.workspacePath to this list.
 const WORKSPACE_ENV_VARS = ['MAESTRO_WORKSPACE_PATH', 'CLAUDE_PROJECT_DIR', 'PWD', 'INIT_CWD'];
 
 /** A non-empty string that is not an unexpanded `${...}` host placeholder. */

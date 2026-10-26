@@ -51,12 +51,7 @@ function normalizeToolError(toolName, error) {
   return toolFailure(sanitized, 'INTERNAL_TOOL_ERROR', getRecoveryHint(toolName, sanitized));
 }
 
-/**
- * Build a pack tool: its listed schema plus its `handler(args, projectRoot)`.
- * The input schema is an object schema over `properties` that declares
- * `required` only when it names properties; `requiresWorkspace` is listed
- * only when set.
- */
+/** Build a pack tool (schema plus handler), setting `required` and `requiresWorkspace` if given. */
 function defineTool(name, description, properties, handler, options = {}) {
   const { required = [], requiresWorkspace = false } = options;
   const inputSchema = { type: 'object', properties };

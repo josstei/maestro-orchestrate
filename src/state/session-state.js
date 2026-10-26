@@ -9,12 +9,7 @@ const {
   WORKSPACE_SUBDIRS, resolveStateDirUnder, resolveStateDirPath, activeSessionFile,
 } = require('./paths');
 
-/**
- * Parse the active session file under `ctx.basePath`. `ctx` is either a
- * withStateMutation transaction or the view withStateRead passes its reader.
- * @param {object} ctx
- * @returns {{ state: object, body: string }}
- */
+/** Parse ctx.basePath's active session; ctx is a withStateMutation tx or a withStateRead view. */
 function readActiveSession(ctx) {
   const { data, body } = markdownState.parse(ctx.readFile(activeSessionFile(ctx.basePath), 'utf8'));
   return { state: data, body };
@@ -87,12 +82,8 @@ function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found
   return phase;
 }
 
-/**
- * Create the state and plans trees under `stateDir`, resolved against `basePath`.
- * @param {string} stateDir
- * @param {string} basePath - Workspace root
- * @returns {Promise<{ alreadyExisted: boolean }>} whether `<state_dir>/state` existed beforehand
- */
+// Create the state and plans trees under `stateDir` (resolved against basePath);
+// resolves { alreadyExisted } for `<state_dir>/state`.
 async function ensureWorkspace(stateDir, basePath) {
   const fullBase = resolveStateDirUnder(basePath, stateDir);
   // lstat, unlike existsSync, also sees a dangling symlink. Other lstat

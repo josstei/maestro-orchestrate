@@ -4,10 +4,10 @@
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
-  EXCLUDED_PACKAGE_PATHS,
   REQUIRED_PACKAGE_FILES,
   isDeniedPath,
 } = require('./release-artifact-manifest');
+const { isBuildOnly } = require('../src/generator/build-only');
 const { runCli } = require('./lib/cli');
 const { withTempDir } = require('./lib/temp-dir');
 
@@ -52,9 +52,9 @@ function verifyPackageEntries(packages) {
     if (isDeniedPath(entry)) {
       throw new Error(`npm package contains forbidden path: ${entry}`);
     }
-    // scripts/ ships only the required installer files.
-    if ((entry.startsWith('scripts/') && !REQUIRED_PACKAGE_FILES.includes(entry)) ||
-      EXCLUDED_PACKAGE_PATHS.some((excluded) => entry === excluded || entry.startsWith(`${excluded}/`))) {
+    // scripts/ and build-only src/ ship only the REQUIRED_PACKAGE_FILES entries.
+    const buildOnly = entry.startsWith('scripts/') || (entry.startsWith('src/') && isBuildOnly(entry.slice(4)));
+    if (buildOnly && !REQUIRED_PACKAGE_FILES.includes(entry)) {
       throw new Error(`npm package contains build-only path: ${entry}`);
     }
   }

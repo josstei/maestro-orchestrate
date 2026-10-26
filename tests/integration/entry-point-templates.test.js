@@ -183,13 +183,6 @@ describe('expandEntryPoints', () => {
     }
   });
 
-  it('rejects a runtime without a known entry surface', () => {
-    const config = { ...getRuntimeConfig('claude'), entrySurface: 'menu' };
-    for (const expand of [expandEntryPoints, expandCoreCommands]) {
-      assert.throws(() => expand(config), { message: 'Unknown entry surface for claude: "menu"' });
-    }
-  });
-
   it('renders CRLF templates exactly like the committed outputs', (t) => {
     const read = fs.readFileSync;
     t.mock.method(fs, 'readFileSync', (file, ...args) => (

@@ -11,14 +11,6 @@ const BADGE_FILES = [
   'claude/README.md',
 ];
 
-function printHelp() {
-  console.log(`Stamp a stable release version into package.json, the README badges and CHANGELOG.md.
-
-Usage:
-  node scripts/update-versions.js <version>
-`);
-}
-
 function requireFile(root, relativePath) {
   const filePath = path.join(root, relativePath);
   if (!fs.existsSync(filePath)) {
@@ -105,13 +97,10 @@ function updateVersions(version, options = {}) {
 if (require.main === module) {
   runCli('version update failed', () => {
     const { positionals: [version] } = parseFlagArgs(process.argv.slice(2), {
-      maxPositionals: 1,
-      positionalName: 'version',
-      printHelp,
+      positional: 'version',
+      printHelp: () => console.log('Usage: node scripts/update-versions.js <version>'),
     });
-    if (!version) {
-      throw new Error('Missing <version> argument');
-    }
+    if (!version) throw new Error('Missing <version> argument');
 
     updateVersions(version);
     console.log(`Updated canonical release inputs to ${version}`);

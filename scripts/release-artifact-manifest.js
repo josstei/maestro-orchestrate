@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { BUILD_ONLY_PATHS } = require('../src/generator/build-only');
+const { isBuildOnly } = require('../src/generator/build-only');
 
 const RELEASE_ARTIFACT_PATHS = [
   '.agents/plugins/marketplace.json',
@@ -32,9 +32,6 @@ const RELEASE_ARTIFACT_PATHS = [
   'qwen-extension.json',
   'src',
 ];
-
-// The extension archive has no build CLI or Codex installer.
-const RELEASE_BUILD_EXCLUSIONS = BUILD_ONLY_PATHS.map((buildPath) => `src/${buildPath}`);
 
 const DENIED_ARTIFACT_PATHS = [
   '.git',
@@ -76,16 +73,6 @@ const REQUIRED_PACKAGE_FILES = [
   'src/platforms/qwen/policy-pack.js',
 ];
 
-// Build-only source trees the npm package must not ship. Under scripts/ it
-// ships only the REQUIRED_PACKAGE_FILES entries (the Codex installer).
-const EXCLUDED_PACKAGE_PATHS = [
-  'src/entry-points',
-  'src/generator',
-  'src/lib/discovery',
-  'src/lib/yaml-emit.js',
-  'src/transforms',
-];
-
 const REQUIRED_RUNTIME_FILES = [
   'antigravity/hooks/hook-runner.js',
   'antigravity/hooks/policy-enforcer.js',
@@ -104,13 +91,6 @@ const REQUIRED_RUNTIME_FILES = [
   'plugins/maestro/src/mcp/maestro-server.js',
   'qwen/hooks.json',
   'src/mcp/maestro-server.js',
-];
-
-// Runtime roots whose detached src/ payload carries its own version.json.
-const DETACHED_PAYLOADS = [
-  ['antigravity', 'Antigravity'],
-  ['claude', 'Claude'],
-  ['plugins/maestro', 'Codex'],
 ];
 
 // Manifests that launch the bundled server with node, by their root variable.
@@ -152,8 +132,8 @@ function isReleaseArtifactPathAllowed(relativePath) {
     return true;
   }
 
-  if (RELEASE_BUILD_EXCLUSIONS.some((excluded) =>
-    normalized === excluded || normalized.startsWith(`${excluded}/`))) {
+  // The extension archive has no build CLI or Codex installer.
+  if (normalized.startsWith('src/') && isBuildOnly(normalized.slice(4))) {
     return false;
   }
 
@@ -284,10 +264,9 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
     ['plugins/maestro/.codex-plugin/plugin.json', requireNonEmpty(codexPlugin.version, 'Codex plugin')],
     ['.claude-plugin/marketplace.json metadata.version', requireNonEmpty(claudeMarketplace.metadata && claudeMarketplace.metadata.version, 'Claude marketplace metadata')],
     ['.claude-plugin/marketplace.json plugins.maestro.version', requireNonEmpty(claudeMarketplacePlugin.version, 'Claude marketplace plugin')],
-    ...DETACHED_PAYLOADS.map(([runtimeRoot, runtime]) => {
-      const relativePath = `${runtimeRoot}/src/version.json`;
-      return [relativePath, requireNonEmpty(readJson(root, relativePath).version, `${runtime} detached payload`)];
-    }),
+    ['antigravity/src/version.json', requireNonEmpty(readJson(root, 'antigravity/src/version.json').version, 'Antigravity detached payload')],
+    ['claude/src/version.json', requireNonEmpty(readJson(root, 'claude/src/version.json').version, 'Claude detached payload')],
+    ['plugins/maestro/src/version.json', requireNonEmpty(readJson(root, 'plugins/maestro/src/version.json').version, 'Codex detached payload')],
   ];
   const version = expectedVersion || versionEntries[0][1];
   const mismatches = versionEntries.filter(([, entryVersion]) => entryVersion !== version);
@@ -376,7 +355,6 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
 module.exports = {
   DENIED_ARTIFACT_PATHS,
-  EXCLUDED_PACKAGE_PATHS,
   RELEASE_ARTIFACT_PATHS,
   RELEASE_OUT_DIR,
   REQUIRED_PACKAGE_FILES,

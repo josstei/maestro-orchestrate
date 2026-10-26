@@ -58,8 +58,6 @@ module.exports = {
     fields: ['name', 'description', 'subagent', 'mainAgent', 'model', 'tools'],
   },
 
-  // Entry points are skills whose preambles name the agents they delegate to.
-  // Shared-skill stubs stay out of the slash-command menu.
   entrySurface: 'skill',
   entryAgentRefs: true,
   skillStubFrontmatter: ['disable-slash-command: true'],
@@ -83,7 +81,6 @@ module.exports = {
     hooks: '${PLUGIN_ROOT}/hooks/',
   },
 
-  // Generated launchers, relative to outputDir.
   launchers: {
     mcpServer: 'mcp/maestro-server.js',
     hookRunner: 'hooks/hook-runner.js',

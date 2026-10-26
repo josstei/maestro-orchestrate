@@ -19,4 +19,4 @@ function isBuildOnly(relativePath) {
     relativePath === buildPath || relativePath.startsWith(`${buildPath}/`));
 }
 
-module.exports = { BUILD_ONLY_PATHS, isBuildOnly };
+module.exports = { isBuildOnly };

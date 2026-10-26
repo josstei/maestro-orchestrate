@@ -21,17 +21,9 @@ const VALID_RUNTIMES = new Set(
 const HOOK_MAP = require('../../generated/hook-registry.json');
 
 /**
- * Run the registered hook `hookName` for `runtime`; the generated hook-runner
- * launchers call this with the hook command's arguments. Missing arguments, an
- * unknown runtime, or an unknown hook print usage or `Unknown runtime/hook:
- * <name>` to stderr and exit 1. The payload is read from stdin under the
- * shared 1 MiB cap (src/core/stdin-reader.js) and parsed as JSON; an oversize
- * or unparseable payload, like a failing handler, logs `Hook error: <message>`
- * to stderr and answers the adapter's `errorFallback()`.
- *
- * @param {string} runtime - runtime name, e.g. 'claude'
- * @param {string} hookName - hook registry name, e.g. 'session-start'
- * @returns {Promise<void>}
+ * Run hook `hookName` for `runtime` (generated launchers pass argv[2..3]). Bad
+ * arguments exit 1; a bad payload or a failing handler logs `Hook error:` and
+ * prints the adapter's errorFallback().
  */
 function main(runtime, hookName) {
   if (!runtime || !hookName) {

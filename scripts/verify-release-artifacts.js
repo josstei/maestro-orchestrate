@@ -62,11 +62,7 @@ function verifyReleaseArtifact(archivePath, options = {}) {
 
 if (require.main === module) {
   runCli('release artifact verification failed', () => {
-    const { positionals: [archivePath] } = parseFlagArgs(process.argv.slice(2), {
-      maxPositionals: 1,
-      positionalName: 'archive path',
-      printHelp,
-    });
+    const { positionals: [archivePath] } = parseFlagArgs(process.argv.slice(2), { positional: 'archive path', printHelp });
     const result = verifyReleaseArtifact(archivePath);
     console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
   });

@@ -6,12 +6,11 @@
  */
 
 /**
- * Parses `flags` (`--name value`) and `booleans` (switches, default false),
- * each mapping an argument to its option name, plus up to `maxPositionals`
- * bare arguments collected into `options.positionals` (`positionalName` names
- * them in the too-many error). -h/--help anywhere prints help and exits.
+ * Parses `flags` (`--name value`) and `booleans` (switches, default false) into
+ * their option names, plus at most one bare argument, named `positional`, into
+ * `options.positionals`. -h/--help prints help and exits.
  */
-function parseFlagArgs(argv, { defaults, flags = {}, booleans = {}, maxPositionals = 0, positionalName, printHelp }) {
+function parseFlagArgs(argv, { defaults, flags = {}, booleans = {}, positional, printHelp }) {
   if (argv.includes('--help') || argv.includes('-h')) {
     printHelp();
     process.exit(0);
@@ -19,7 +18,7 @@ function parseFlagArgs(argv, { defaults, flags = {}, booleans = {}, maxPositiona
 
   const options = { ...defaults };
   for (const name of Object.values(booleans)) options[name] = false;
-  if (maxPositionals > 0) options.positionals = [];
+  if (positional) options.positionals = [];
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -33,10 +32,10 @@ function parseFlagArgs(argv, { defaults, flags = {}, booleans = {}, maxPositiona
 
       options[flags[arg]] = argv[index + 1];
       index += 1;
-    } else if (arg.startsWith('-') || maxPositionals === 0) {
+    } else if (arg.startsWith('-') || !positional) {
       throw new Error(`Unknown argument: ${arg}`);
-    } else if (options.positionals.length === maxPositionals) {
-      throw new Error(`Expected at most ${maxPositionals === 1 ? 'one' : maxPositionals} ${positionalName}`);
+    } else if (options.positionals.length > 0) {
+      throw new Error(`Expected at most one ${positional}`);
     } else {
       options.positionals.push(arg);
     }

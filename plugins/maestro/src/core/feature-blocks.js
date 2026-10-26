@@ -27,13 +27,7 @@ function stripFeatureBlocks(content, features) {
   return replaced.replace(COLLAPSED_NEWLINE_REGEX, '\n\n');
 }
 
-/**
- * Remove `<example>...</example>` blocks for runtimes without
- * `features.exampleBlocks`. An unclosed `<example>` is left in place.
- *
- * @param {string} content - Markdown content potentially containing example blocks
- * @returns {string} Content with example blocks removed and excess newlines collapsed
- */
+/** Remove <example> blocks for runtimes without features.exampleBlocks; an unclosed one stays. */
 function stripExamples(content) {
   return content.replace(EXAMPLE_BLOCK_REGEX, '').replace(COLLAPSED_NEWLINE_REGEX, '\n\n');
 }

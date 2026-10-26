@@ -30,10 +30,7 @@ function errorFallback() {
   return { continue: false, decision: 'block' };
 }
 
-/**
- * The PreToolUse shell-policy hook on Bash, run by
- * src/platforms/shared/policy-enforcer.js, checks tool_input.command.
- */
+/** PreToolUse shell policy on Bash (shared/policy-enforcer.js): reads tool_input.command. */
 const shellPolicy = {
   tool: 'Bash',
   readCommand: (input) => input.tool_input && input.tool_input.command,

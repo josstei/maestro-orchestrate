@@ -18,14 +18,8 @@ const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
  */
 const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
 
-/**
- * The entry surfaces a runtime config's `entrySurface` may name. Each gives
- * its templates' format, the template each expansion kind renders
- * (`<runtime>-<template>.<ext>.tmpl`), and where its outputs go under
- * outputDir. Skills share the host's command namespace, so they take an
- * entry's `skillName` and must avoid HOST_RESERVED_NAMES; commands are
- * namespaced as /maestro:<name>.
- */
+// Entry surfaces a runtime's entrySurface may name. Skills share the host command namespace, so
+// they take skillName and must avoid HOST_RESERVED_NAMES.
 const SURFACES = {
   skill: {
     ext: 'md',
@@ -42,10 +36,7 @@ const SURFACES = {
   },
 };
 
-/**
- * The skill-content line, then, for an entry with agents, the get_agent line
- * on runtimes with `entryAgentRefs` and the runtime's delegation note.
- */
+/** The get_skill_content line; entries with agents add the get_agent line and delegation note. */
 function buildPreamble(entry, runtime, delegationNote) {
   const hasAgents = entry.agents.length > 0;
   const resources = ['architecture', ...(hasAgents ? ['delegation'] : []), ...(entry.skills || [])];
@@ -57,11 +48,7 @@ function buildPreamble(entry, runtime, delegationNote) {
   return lines.join('\n');
 }
 
-/**
- * Expansion kinds: the registry each renders and the template placeholder
- * values for one registry entry, given its runtime-resolved name and the
- * runtime's partials.
- */
+/** Each expansion kind's registry and its template placeholder values for one entry. */
 const KINDS = {
   'entry-point': {
     registry: entryPointRegistry,
@@ -107,14 +94,12 @@ function applySubstitutions(template, substitutions) {
  * @param {'entry-point'|'core-command'} kind
  * @param {object} runtime - Runtime config
  * @returns {Array<{ outputPath: string, content: string }>}
- * @throws {Error} For an unknown entry surface, a runtime without templates,
- *   or a resolved name that collides with a reserved host command
+ * @throws {Error} For a runtime without templates or a name colliding with a reserved host command
  */
 function expand(kind, runtime) {
   const runtimeName = runtime.name;
   const { registry, substitutions } = KINDS[kind];
   const surface = SURFACES[runtime.entrySurface];
-  if (!surface) throw new Error(`Unknown entry surface for ${runtimeName}: "${runtime.entrySurface}"`);
   const template = readTemplate(runtimeName, surface, surface.templates[kind]);
   if (template === null) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);

@@ -37,7 +37,6 @@ module.exports = {
     codebase_investigator: 'local inspection or spawn_agent',
   },
 
-  // Entry points are skills whose preambles name the agents they delegate to.
   entrySurface: 'skill',
   entryAgentRefs: true,
 
@@ -60,8 +59,7 @@ module.exports = {
     skills: './skills/',
   },
 
-  // Generated launchers. Codex has only the package's npm bin (relative to the
-  // package root), which plugins/maestro/.mcp.json starts through npx.
+  // npm bin at the package root; plugins/maestro/.mcp.json starts it through npx.
   launchers: {
     npmBin: 'bin/maestro-mcp-server.js',
   },

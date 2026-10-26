@@ -31,15 +31,7 @@ function emitInlineQuotedList(items) {
   return items.map((item) => `"${item}"`).join(', ');
 }
 
-/**
- * Escape special characters in a YAML string value.
- *
- * Escapes backslashes and double quotes for safe embedding inside a
- * double-quoted YAML scalar. Non-string inputs are coerced via String().
- *
- * @param {string} value - Value to escape.
- * @returns {string} Escaped value safe for double-quoted YAML context.
- */
+/** Escape \ and " for a double-quoted YAML scalar; a non-string is returned as String(value). */
 function escapeYaml(value) {
   if (typeof value !== 'string') return String(value);
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');

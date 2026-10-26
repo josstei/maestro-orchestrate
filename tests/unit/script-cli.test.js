@@ -14,8 +14,8 @@ describe('script argument parsing', () => {
     assert.deepEqual(parseFlagArgs(['--dry-run', '--tag', 'rc'], spec), { tag: 'rc', dryRun: true });
   });
 
-  it('collects up to maxPositionals bare arguments', () => {
-    const spec = { maxPositionals: 1, positionalName: 'archive path', printHelp };
+  it('collects at most one bare argument', () => {
+    const spec = { positional: 'archive path', printHelp };
 
     assert.deepEqual(parseFlagArgs([], spec), { positionals: [] });
     assert.deepEqual(parseFlagArgs(['release.tar.gz'], spec), { positionals: ['release.tar.gz'] });
@@ -23,7 +23,7 @@ describe('script argument parsing', () => {
   });
 
   it('rejects unknown flags and unexpected positionals', () => {
-    assert.throws(() => parseFlagArgs(['--foo'], { maxPositionals: 1, printHelp }), { message: 'Unknown argument: --foo' });
+    assert.throws(() => parseFlagArgs(['--foo'], { positional: 'archive path', printHelp }), { message: 'Unknown argument: --foo' });
     assert.throws(
       () => parseFlagArgs(['extra'], { booleans: { '--dry-run': 'dryRun' }, printHelp }),
       { message: 'Unknown argument: extra' }

@@ -46,7 +46,6 @@ module.exports = {
     fields: ['name', 'kind', 'description', 'turns', 'tools'],
   },
 
-  // Entry points are TOML commands, invoked as /maestro:<name>.
   entrySurface: 'command',
 
   delegation: {
@@ -67,7 +66,6 @@ module.exports = {
     hooks: '${extensionPath}/hooks/',
   },
 
-  // Generated launchers, relative to outputDir.
   launchers: {
     mcpServer: 'mcp/maestro-server.js',
     hookRunner: 'hooks/hook-runner.js',
