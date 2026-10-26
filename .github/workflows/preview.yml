@@ -37,23 +37,54 @@ jobs:
       - name: Run full test suite
         run: npm test
 
-      - name: Determine preview version
+      - name: Set preview version
         if: env.NPM_TOKEN != ''
-        id: preview
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           BASE=$(node -p "require('./package.json').version")
           SHORT_SHA="${HEAD_SHA:0:7}"
           PREVIEW="${BASE}-preview.${SHORT_SHA}"
-          echo "version=$PREVIEW" >> "$GITHUB_OUTPUT"
+          npm version "$PREVIEW" --no-git-tag-version
+
+      - name: Regenerate runtime metadata
+        if: env.NPM_TOKEN != ''
+        run: node scripts/generate.js
+
+      - name: Verify npm package contents
+        if: env.NPM_TOKEN != ''
+        run: npm run pack:verify
 
       - name: Publish preview
         if: env.NPM_TOKEN != ''
-        uses: ./.github/actions/publish-prerelease
-        with:
-          version: ${{ steps.preview.outputs.version }}
-          tag: preview
-          comment-prefix: 'Preview published:'
+        run: node scripts/npm-publish-idempotent.js --tag preview --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+
+      - name: Upsert PR comment
+        if: env.NPM_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          BODY="Preview published: \`npm install ${PACKAGE_NAME}@${VERSION}\`
+
+          Built from \`${SHORT_SHA}\`"
+
+          EXISTING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq 'map(select(.body | startswith("Preview published:"))) | .[0].id')
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh api "repos/$REPOSITORY/issues/comments/$EXISTING" \
+              -X PATCH \
+              -f body="$BODY"
+          else
+            gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+              -X POST \
+              -f body="$BODY"
+          fi
