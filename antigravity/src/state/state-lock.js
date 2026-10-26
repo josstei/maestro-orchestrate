@@ -72,9 +72,14 @@ function ownerIsDead(owner) {
   }
 }
 
+// Windows briefly refuses rmdir while another process holds or deletes the directory. An empty
+// lock is never owned, so leaving it is safe: the next acquirer reclaims it.
 function removeDirIfEmpty(directory) {
   try { fs.rmdirSync(directory); }
-  catch (error) { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error; }
+  catch (error) {
+    if (process.platform === 'win32' && ['EPERM', 'EBUSY'].includes(error.code)) return;
+    if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+  }
 }
 
 function removeOwnedLock(lockPath, ownerName) {

@@ -132,6 +132,24 @@ describe('state coordinator', () => {
     assert.equal(fs.existsSync(lockPath), false);
   });
 
+  it('releases without error when Windows refuses to remove the emptied lock, which the next owner reclaims', async (t) => {
+    const base = workspace(t);
+    const control = privatePath(base, '');
+    const lockPath = path.join(control, 'lock');
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+    const rmdir = fs.rmdirSync;
+    Object.defineProperty(process, 'platform', { ...platform, value: 'win32' });
+    fs.rmdirSync = function (directory) {
+      if (directory === lockPath) throw Object.assign(new Error('lock directory in use'), { code: 'EPERM' });
+      return rmdir.apply(this, arguments);
+    };
+    try { (await acquireStateLock(control))(); }
+    finally { fs.rmdirSync = rmdir; Object.defineProperty(process, 'platform', platform); }
+    assert.deepEqual(fs.readdirSync(lockPath), []);
+    (await acquireStateLock(control))();
+    assert.equal(fs.existsSync(lockPath), false);
+  });
+
   it('bounds no-owner permission retries, yields between attempts, and preserves the permission failure', async (t) => {
     for (const code of ['EPERM', 'EACCES']) {
       const base = workspace(t);
