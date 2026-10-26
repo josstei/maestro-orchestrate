@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { buildDependencyGraph, getDependencyClosure } = require('../../src/generator/dependency-graph');
+const { buildDependencyGraph } = require('../../src/generator/dependency-graph');
 const { makeTempDir, writeTree } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
 
@@ -14,10 +14,11 @@ function fixture(files) {
   return rootDir;
 }
 const codes = (graph) => graph.issues.map((issue) => issue.code);
+const graphOf = (files, options = {}) => buildDependencyGraph({ rootDir: fixture(files), ...options });
 
 describe('dependency graph', () => {
   it('finds static CommonJS, require.resolve, ESM, reexports, and literal imports', () => {
-    const rootDir = fixture({
+    const graph = graphOf({
       'mcp/main.js': [
         "require('./plain'); require.resolve('./config');",
         "import x from './esm.js'; export { x } from './esm.js';",
@@ -26,8 +27,7 @@ describe('dependency graph', () => {
       ].join('\n'),
       'mcp/plain.js': '', 'mcp/config.json': '{}', 'mcp/esm.js': 'export const x = 1;',
       'mcp/other.js': '', 'mcp/late.js': '', 'mcp/folder/index.js': '',
-    });
-    const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
+    }, { roots: ['mcp/main.js'] });
     assert.deepEqual(graph.issues, []);
     assert.deepEqual(graph.nodes, [
       'mcp/config.json', 'mcp/esm.js', 'mcp/folder/index.js', 'mcp/late.js',
@@ -37,33 +37,48 @@ describe('dependency graph', () => {
   });
 
   it('ignores pretend imports inside comments, strings, regexes, and template text', () => {
-    const rootDir = fixture({ 'lib/main.js': [
+    const graph = graphOf({ 'lib/main.js': [
       '// require("./missing")',
       'const text = "require(\'./missing\')";',
       'const template = `import("./missing")`;',
       'const pattern = /require\("missing"\)/;',
     ].join('\n') });
-    const graph = buildDependencyGraph({ rootDir });
     assert.deepEqual(graph.issues, []);
     assert.deepEqual(graph.edges, []);
   });
 
   it('still visits actual imports inside template expressions', () => {
-    const rootDir = fixture({ 'lib/main.js': 'const text = `${require("./actual")}`;', 'lib/actual.js': '' });
-    const graph = buildDependencyGraph({ rootDir });
+    const graph = graphOf({ 'lib/main.js': 'const text = `${require("./actual")}`;', 'lib/actual.js': '' });
     assert.deepEqual(graph.issues, []);
     assert.equal(graph.edges[0].to, 'lib/actual.js');
   });
 
-  it('rejects missing modules, computed imports, and malformed JavaScript', () => {
-    const rootDir = fixture({
+  for (const [name, files, expected] of [
+    ['rejects missing modules, computed imports, and malformed JavaScript', {
       'lib/missing.js': "require('./absent');",
       'lib/computed.js': 'require(name); import(name);',
       'lib/malformed.js': 'function {',
-    });
-    const graph = buildDependencyGraph({ rootDir });
-    assert.deepEqual(codes(graph).sort(), ['DYNAMIC_DEPENDENCY', 'DYNAMIC_DEPENDENCY', 'MISSING_DEPENDENCY', 'PARSE_ERROR']);
-  });
+    }, ['DYNAMIC_DEPENDENCY', 'DYNAMIC_DEPENDENCY', 'MISSING_DEPENDENCY', 'PARSE_ERROR']],
+    ['rejects nonexistent Node builtins', {
+      'core/main.js': "require('node:definitely-not-real');",
+    }, ['INVALID_BUILTIN']],
+    ['permits build dependencies but rejects runtime imports of parser/build modules', {
+      'generator/compiler.js': "require('acorn');",
+      'mcp/runtime.js': "require('../generator/compiler'); require('acorn');",
+    }, ['EXTERNAL_DEPENDENCY', 'RUNTIME_BUILD_DEPENDENCY']],
+    ['rejects runtime imports of build helpers excluded from extension archives', {
+      'mcp/main.js': [
+        "require('../platforms/qwen/policy-pack');",
+        "require('../lib/discovery');",
+        "require('../lib/yaml-emit');",
+      ].join('\n'),
+      'platforms/qwen/policy-pack.js': '',
+      'lib/discovery/index.js': '',
+      'lib/yaml-emit.js': '',
+    }, Array(3).fill('RUNTIME_BUILD_DEPENDENCY')],
+  ]) {
+    it(name, () => assert.deepEqual(codes(graphOf(files)).sort(), expected));
+  }
 
   for (const [name, source] of Object.entries({
     alias: "const load = require; load('./missing');",
@@ -88,8 +103,7 @@ describe('dependency graph', () => {
     mainModuleComputed: "require.main['require']('./missing');",
   })) {
     it(`rejects unsupported ${name} require usage`, () => {
-      const rootDir = fixture({ 'lib/main.js': source, 'lib/actual.js': '' });
-      const graph = buildDependencyGraph({ rootDir });
+      const graph = graphOf({ 'lib/main.js': source, 'lib/actual.js': '' });
       assert.ok(codes(graph).includes('UNSUPPORTED_REQUIRE'), JSON.stringify(graph));
       if (name === 'shadow' || name === 'declaration') assert.deepEqual(graph.edges, []);
     });
@@ -131,11 +145,10 @@ describe('dependency graph', () => {
   }
 
   it('keeps require.resolve data files without interpreting them as executable imports', () => {
-    const rootDir = fixture({
+    const graph = graphOf({
       'mcp/main.js': "require.resolve('./guide.md');",
       'mcp/guide.md': '# A guide containing require("./not-a-dependency")',
-    });
-    const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js'] });
+    }, { roots: ['mcp/main.js'] });
     assert.deepEqual(graph.issues, []);
     assert.deepEqual(graph.nodes, ['mcp/guide.md', 'mcp/main.js']);
   });
@@ -164,41 +177,12 @@ describe('dependency graph', () => {
     assert.deepEqual(codes(graph), ['OUTSIDE_ROOT']);
   });
 
-  it('rejects nonexistent Node builtins', () => {
-    const rootDir = fixture({ 'core/main.js': "require('node:definitely-not-real');" });
-    assert.deepEqual(codes(buildDependencyGraph({ rootDir })), ['INVALID_BUILTIN']);
-  });
-
   it('reports cycles with a deterministic concrete path', () => {
     const rootDir = fixture({ 'lib/a.js': "require('./b');", 'lib/b.js': "require('./a');" });
     const first = buildDependencyGraph({ rootDir });
     assert.deepEqual(first, buildDependencyGraph({ rootDir }));
     assert.deepEqual(codes(first), ['DEPENDENCY_CYCLE']);
     assert.match(first.issues[0].message, /lib\/a.js -> lib\/b.js -> lib\/a.js/);
-  });
-
-  it('permits build dependencies but rejects runtime imports of parser/build modules', () => {
-    const rootDir = fixture({
-      'generator/compiler.js': "require('acorn');",
-      'mcp/runtime.js': "require('../generator/compiler'); require('acorn');",
-    });
-    const graph = buildDependencyGraph({ rootDir });
-    assert.deepEqual(codes(graph).sort(), ['EXTERNAL_DEPENDENCY', 'RUNTIME_BUILD_DEPENDENCY']);
-  });
-
-  it('rejects runtime imports of build helpers excluded from extension archives', () => {
-    const rootDir = fixture({
-      'mcp/main.js': [
-        "require('../platforms/qwen/policy-pack');",
-        "require('../lib/discovery');",
-        "require('../lib/yaml-emit');",
-      ].join('\n'),
-      'platforms/qwen/policy-pack.js': '',
-      'lib/discovery/index.js': '',
-      'lib/yaml-emit.js': '',
-    });
-    const graph = buildDependencyGraph({ rootDir });
-    assert.deepEqual(codes(graph), Array(3).fill('RUNTIME_BUILD_DEPENDENCY'));
   });
 
   it('expands finite dynamic targets with a runtime filter and fresh registry overrides', () => {
@@ -225,24 +209,21 @@ describe('dependency graph', () => {
   });
 
   it('rejects unknown, stale and targetless dynamic annotations', () => {
-    const rootDir = fixture({
+    const graph = graphOf({
       'mcp/unknown.js': '// maestro-dependencies: magic\nrequire(value);',
       'mcp/stale.js': '// maestro-dependencies: runtime-configs\nrequire("node:fs");',
       'mcp/empty.js': '// maestro-dependencies: runtime-configs\nrequire(value);',
     });
-    const graph = buildDependencyGraph({ rootDir });
     assert.ok(codes(graph).includes('UNKNOWN_ANNOTATION'));
     assert.ok(codes(graph).includes('STALE_ANNOTATION'));
     assert.ok(codes(graph).includes('INVALID_ANNOTATION_TARGETS'));
   });
 
   it('keeps content roots and reports only reachable dependencies for payload requests', () => {
-    const rootDir = fixture({ 'mcp/main.js': "require('./helper');", 'mcp/helper.js': '',
-      'agents/coder.md': '# Coder', 'unused.js': 'require(missing);' });
-    const graph = buildDependencyGraph({ rootDir, roots: ['mcp/main.js', 'agents/coder.md'] });
+    const graph = graphOf({ 'mcp/main.js': "require('./helper');", 'mcp/helper.js': '',
+      'agents/coder.md': '# Coder', 'unused.js': 'require(missing);' }, { roots: ['mcp/main.js', 'agents/coder.md'] });
     assert.deepEqual(graph.issues, []);
     assert.deepEqual(graph.nodes, ['agents/coder.md', 'mcp/helper.js', 'mcp/main.js']);
-    assert.deepEqual(getDependencyClosure(graph, ['mcp/main.js']), ['mcp/helper.js', 'mcp/main.js']);
   });
 
   it('validates the canonical graph without runtime parser dependencies', () => {

@@ -19,6 +19,13 @@ const DYNAMIC_KINDS = new Set(['runtime-configs', 'hook-adapters', 'hook-handler
 const posix = (value) => value.split(path.sep).join('/');
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const isWithin = (root, file) => file === root || file.startsWith(root + path.sep);
+const isCallTo = (node, callee) => node?.type === 'CallExpression' && node.callee === callee;
+const isRequireMember = (node, property) => node?.type === 'MemberExpression' && node.object.name === 'require'
+  && !node.computed && node.property.name === property;
+// `require.main === module`, `module != require.main` and the like.
+const isMainGuard = (node) => ['===', '!==', '==', '!='].includes(node?.operator)
+  && [node.left, node.right].some((side) => isRequireMember(side, 'main'))
+  && [node.left, node.right].some((side) => side.type === 'Identifier' && side.name === 'module');
 
 function collectModules(dir, prefix = '') {
   if (!fs.existsSync(dir)) return [];
@@ -116,50 +123,27 @@ function parseDependencies(source, file, addIssue) {
   }
   walk.fullAncestor(ast, (node, _state, ancestors) => {
     const parent = ancestors[ancestors.length - 2];
+    const grandparent = ancestors[ancestors.length - 3];
     if (node.type === 'MemberExpression' && node.object.type === 'Identifier' && node.object.name === 'module') {
       const property = node.computed ? literalSpecifier(node.property) : node.property.name;
       if (!['exports', 'filename', 'id', 'loaded', 'paths'].includes(property)) {
         addIssue('UNSUPPORTED_REQUIRE', file, node.loc.start.line, 'Indirect module.require is unsupported; use a direct require');
       }
     }
-    if (node.type === 'Identifier' && node.name === 'module') {
-      const member = parent?.type === 'MemberExpression' && parent.object === node;
-      const other = parent?.type === 'BinaryExpression'
-        ? (parent.left === node ? parent.right : parent.left) : null;
-      const mainGuard = ['===', '!==', '==', '!='].includes(parent?.operator)
-        && other?.type === 'MemberExpression' && other.object.name === 'require'
-        && !other.computed && other.property.name === 'main';
-      if (!member && !mainGuard) {
-        addIssue('UNSUPPORTED_REQUIRE', file, node.loc.start.line, 'Escaped or aliased module loader is unsupported');
-      }
+    if (node.type === 'Identifier' && node.name === 'module' && !isMainGuard(parent)
+      && !(parent?.type === 'MemberExpression' && parent.object === node)) {
+      addIssue('UNSUPPORTED_REQUIRE', file, node.loc.start.line, 'Escaped or aliased module loader is unsupported');
     }
-    if (node.type === 'Identifier' && node.name === 'require') {
-      const isCall = parent?.type === 'CallExpression' && parent.callee === node;
-      const isResolve = parent?.type === 'MemberExpression' && parent.object === node
-        && !parent.computed && parent.property.name === 'resolve'
-        && ancestors[ancestors.length - 3]?.type === 'CallExpression'
-        && ancestors[ancestors.length - 3].callee === parent;
-      const comparison = ancestors[ancestors.length - 3];
-      const comparedTo = comparison?.type === 'BinaryExpression'
-        ? (comparison.left === parent ? comparison.right : comparison.left) : null;
-      const isMain = parent?.type === 'MemberExpression' && parent.object === node
-        && !parent.computed && parent.property.name === 'main'
-        && ['===', '!==', '==', '!='].includes(comparison?.operator)
-        && comparedTo?.type === 'Identifier' && comparedTo.name === 'module';
-      if (!isCall && !isResolve && !isMain) {
-        addIssue('UNSUPPORTED_REQUIRE', file, node.loc.start.line, 'Aliased, reassigned or indirect require is unsupported');
-      }
+    if (node.type === 'Identifier' && node.name === 'require' && !isCallTo(parent, node)
+      && !(isRequireMember(parent, 'resolve') && isCallTo(grandparent, parent))
+      && !(isRequireMember(parent, 'main') && isMainGuard(grandparent))) {
+      addIssue('UNSUPPORTED_REQUIRE', file, node.loc.start.line, 'Aliased, reassigned or indirect require is unsupported');
     }
     if (node.type === 'CallExpression') {
-      if (node.callee.type === 'Identifier' && node.callee.name === 'require') {
-        if (!shadowsRequire) add(node, node.arguments.length === 1 ? node.arguments[0] : null, 'require', parent);
-      } else if (node.callee.type === 'MemberExpression' && node.callee.object.name === 'require'
-        && !node.callee.computed && node.callee.property.name === 'resolve') {
-        if (!shadowsRequire) add(node, node.arguments.length === 1 ? node.arguments[0] : null, 'require.resolve', parent);
-      }
-    } else if (node.type === 'ImportExpression') {
-      add(node, node.source, 'import');
-    } else if (node.type === 'ImportDeclaration' || node.type === 'ExportAllDeclaration'
+      const kind = node.callee.type === 'Identifier' && node.callee.name === 'require' ? 'require'
+        : isRequireMember(node.callee, 'resolve') ? 'require.resolve' : null;
+      if (kind && !shadowsRequire) add(node, node.arguments.length === 1 ? node.arguments[0] : null, kind, parent);
+    } else if (['ImportExpression', 'ImportDeclaration', 'ExportAllDeclaration'].includes(node.type)
       || (node.type === 'ExportNamedDeclaration' && node.source)) {
       add(node, node.source, 'import');
     }
@@ -170,22 +154,6 @@ function parseDependencies(source, file, addIssue) {
     }
   }
   return dependencies;
-}
-
-function getDependencyClosure(graph, roots) {
-  const outgoing = new Map();
-  for (const edge of graph.edges) {
-    if (!outgoing.has(edge.from)) outgoing.set(edge.from, []);
-    outgoing.get(edge.from).push(edge.to);
-  }
-  const reachable = new Set();
-  const visit = (file) => {
-    if (reachable.has(file)) return;
-    reachable.add(file);
-    for (const dependency of outgoing.get(file) || []) visit(dependency);
-  };
-  for (const root of roots) visit(root);
-  return [...reachable].sort(compare);
 }
 
 /**
@@ -362,4 +330,4 @@ function buildDependencyGraph({ rootDir, roots, runtime, sourceOverrides = new M
   return graph;
 }
 
-module.exports = { buildDependencyGraph, getDependencyClosure };
+module.exports = { buildDependencyGraph };

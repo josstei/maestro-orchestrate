@@ -57,7 +57,7 @@ describe('check-layer-boundaries (fixture cases)', () => {
     ['allows relative imports that stay inside src/lib', {
       'src/lib/index.js': "const x = require('./helper');\nmodule.exports = x;\n",
       'src/lib/helper.js': 'module.exports = 1;\n',
-    }, 0, [/4 files scanned, 0 violations/]],
+    }, 0, [/4 files scanned, 0 violations/, /public\/build roots: lib\/helper\.js, lib\/index\.js\n/]],
     ['allows node: built-in imports', {
       'src/lib/fs-user.js': "const fs = require('node:fs');\nmodule.exports = fs;\n",
     }, 0],

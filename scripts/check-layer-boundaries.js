@@ -3,7 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { buildDependencyGraph, getDependencyClosure } = require('../src/generator/dependency-graph');
+const { buildDependencyGraph } = require('../src/generator/dependency-graph');
 
 const SRC_DIR = path.resolve(__dirname, '..', 'src');
 // Runtime entrypoints are deliberately roots, even when only a host invokes
@@ -43,7 +43,9 @@ if (graph.issues.length > 0) {
 } else {
   const files = graph.nodes.filter((file) => /\.[cm]?js$/.test(file));
   console.log(`Layer boundaries clean: ${files.length} files scanned, 0 violations.`);
-  const reachable = new Set(getDependencyClosure(graph, PUBLIC_ROOTS.filter((file) => graph.nodes.includes(file))));
+  // Iterating a Set also visits entries added mid-loop, so this follows edges transitively.
+  const reachable = new Set(PUBLIC_ROOTS);
+  for (const file of reachable) for (const edge of graph.edges) if (edge.from === file) reachable.add(edge.to);
   const unreachable = files.filter((file) => !reachable.has(file));
   if (unreachable.length > 0) {
     console.log(`Advisory: modules not reached from declared public/build roots: ${unreachable.join(', ')}`);

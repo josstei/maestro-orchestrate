@@ -26,10 +26,8 @@ function buildAgentRegistry(srcDir) {
     .sort((a, b) => path.basename(a, '.md').localeCompare(path.basename(b, '.md')))
     .map((filepath) => {
       const { frontmatter } = parse(readFileSafe(filepath));
-      const name = frontmatter.name || path.basename(filepath, '.md');
-      const rawTools = frontmatter.tools || [];
-      const tools = Array.isArray(rawTools) ? rawTools : [rawTools];
-      return { name, capabilities: capabilityTier(tools) };
+      const tools = [].concat(frontmatter.tools || []);
+      return { name: frontmatter.name || path.basename(filepath, '.md'), capabilities: capabilityTier(tools) };
     });
 }
 
@@ -65,16 +63,13 @@ function buildHookRegistry(srcDir) {
   );
 }
 
-function collectRegistryOutputs(srcDir, rootDir = path.dirname(srcDir)) {
-  const generatedDir = path.join(srcDir, 'generated');
-  const registries = [
-    { fileName: 'agent-registry.json', data: buildAgentRegistry(srcDir) },
-    { fileName: 'resource-registry.json', data: buildResourceRegistry(srcDir) },
-    { fileName: 'hook-registry.json', data: buildHookRegistry(srcDir) },
-  ];
-
-  return registries.map(({ fileName, data }) => ({
-    outputPath: path.relative(rootDir, path.join(generatedDir, fileName)),
+function collectRegistryOutputs(srcDir, rootDir) {
+  return Object.entries({
+    'agent-registry.json': buildAgentRegistry(srcDir),
+    'resource-registry.json': buildResourceRegistry(srcDir),
+    'hook-registry.json': buildHookRegistry(srcDir),
+  }).map(([fileName, data]) => ({
+    outputPath: path.relative(rootDir, path.join(srcDir, 'generated', fileName)),
     content: formatJson(data),
   }));
 }

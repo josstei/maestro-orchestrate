@@ -63,21 +63,12 @@ ${load}`;
 // These paths are public host/package entrypoints. Keep their bootstrap code
 // generated, without adding a runtime resolver that each install must ship.
 function buildRuntimeEntrypointOutputs(runtimes) {
-  const outputs = [];
-  function add(outputPath, content, executable = false) {
-    outputs.push({
-      outputPath,
-      content: `${executable ? '#!/usr/bin/env node\n' : ''}'use strict';\n${GENERATED_HEADER}\n${content}`,
-      ...(executable ? { mode: 0o755 } : {}),
-    });
-  }
-
-  for (const runtimeName of Object.keys(runtimes).sort()) {
-    for (const launcher of resolveLaunchers(runtimes[runtimeName])) {
-      add(launcher.outputPath, renderLauncher(runtimes[runtimeName], launcher), launcher.packageBin);
-    }
-  }
-  return outputs;
+  return Object.keys(runtimes).sort().flatMap((name) => resolveLaunchers(runtimes[name]).map((launcher) => ({
+    outputPath: launcher.outputPath,
+    content: `${launcher.packageBin ? '#!/usr/bin/env node\n' : ''}'use strict';\n${GENERATED_HEADER}\n`
+      + renderLauncher(runtimes[name], launcher),
+    ...(launcher.packageBin ? { mode: 0o755 } : {}),
+  })));
 }
 
 module.exports = { buildRuntimeEntrypointOutputs, hasDetachedPayload, launcherTargets };
