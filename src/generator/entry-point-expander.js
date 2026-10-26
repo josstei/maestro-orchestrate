@@ -18,22 +18,12 @@ const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
  */
 const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
 
-// Entry surfaces a runtime's entrySurface may name. Skills share the host command namespace, so
-// they take skillName and must avoid HOST_RESERVED_NAMES.
+// Entry surfaces a runtime's entrySurface may name. An entry point renders `<runtime>-<surface>`
+// and a core command `<runtime>-core-command`. Skills share the host command namespace, so they
+// take skillName and must avoid HOST_RESERVED_NAMES.
 const SURFACES = {
-  skill: {
-    ext: 'md',
-    templates: { 'entry-point': 'skill', 'core-command': 'core-command' },
-    dir: 'skills',
-    file: (name) => `${name}/SKILL.md`,
-    hostNamespace: true,
-  },
-  command: {
-    ext: 'toml',
-    templates: { 'entry-point': 'command', 'core-command': 'core-command' },
-    dir: 'commands',
-    file: (name) => `maestro/${name}.toml`,
-  },
+  skill: { ext: 'md', dir: 'skills', file: (name) => `${name}/SKILL.md`, hostNamespace: true },
+  command: { ext: 'toml', dir: 'commands', file: (name) => `maestro/${name}.toml` },
 };
 
 /** The get_skill_content line; entries with agents add the get_agent line and delegation note. */
@@ -75,39 +65,27 @@ const KINDS = {
   },
 };
 
-/** The runtime's `<runtime>-<name>.<ext>.tmpl`, or null when it has none. */
-function readTemplate(runtimeName, surface, name) {
-  const templatePath = path.join(TEMPLATES_DIR, `${runtimeName}-${name}.${surface.ext}.tmpl`);
-  return fs.existsSync(templatePath) ? readTextSync(templatePath) : null;
-}
-
-function applySubstitutions(template, substitutions) {
-  let content = template;
-  for (const [key, value] of Object.entries(substitutions)) {
-    content = content.replaceAll(`{{${key}}}`, value);
-  }
-  return content;
-}
-
 /**
  * Render every registry entry of one kind for one runtime.
- * @param {'entry-point'|'core-command'} kind
- * @param {object} runtime - Runtime config
- * @returns {Array<{ outputPath: string, content: string }>}
  * @throws {Error} For a runtime without templates or a name colliding with a reserved host command
  */
 function expand(kind, runtime) {
   const runtimeName = runtime.name;
   const { registry, substitutions } = KINDS[kind];
   const surface = SURFACES[runtime.entrySurface];
-  const template = readTemplate(runtimeName, surface, surface.templates[kind]);
+  // The runtime's `<runtime>-<name>.<ext>.tmpl`, or null when it has none.
+  const readTemplate = (name) => {
+    const templatePath = path.join(TEMPLATES_DIR, `${runtimeName}-${name}.${surface.ext}.tmpl`);
+    return fs.existsSync(templatePath) ? readTextSync(templatePath) : null;
+  };
+  const template = readTemplate(kind === 'entry-point' ? runtime.entrySurface : kind);
   if (template === null) {
     throw new Error(`Unknown runtime for ${kind} expansion: "${runtimeName}"`);
   }
   // Optional partials, stored with a final newline that the output omits.
   const partials = {
-    delegationNote: readTemplate(runtimeName, surface, 'delegation-note')?.trimEnd(),
-    sessionState: readTemplate(runtimeName, surface, 'session-state')?.trimEnd(),
+    delegationNote: readTemplate('delegation-note')?.trimEnd(),
+    sessionState: readTemplate('session-state')?.trimEnd(),
   };
   // Runtime-config values every template of the runtime may render.
   const runtimeSubstitutions = {
@@ -115,10 +93,7 @@ function expand(kind, runtime) {
     agentDispatch: runtime.delegation.pattern.replace('{{agent}}', '<name>'),
   };
   return registry.map((entry) => {
-    const runtimeEntry = {
-      ...entry,
-      name: (surface.hostNamespace && entry.skillName) || entry.name,
-    };
+    const runtimeEntry = { ...entry, name: (surface.hostNamespace && entry.skillName) || entry.name };
     if (surface.hostNamespace && HOST_RESERVED_NAMES.has(runtimeEntry.name)) {
       throw new Error(
         `Reserved ${runtimeName} host command name "${runtimeEntry.name}" conflicts with a built-in — ` +
@@ -127,37 +102,19 @@ function expand(kind, runtime) {
     }
     return {
       outputPath: path.posix.join(runtime.outputDir, surface.dir, surface.file(runtimeEntry.name)),
-      content: applySubstitutions(template, {
-        ...runtimeSubstitutions,
-        ...substitutions(runtimeEntry, runtime, partials),
-      }),
+      content: Object.entries({ ...runtimeSubstitutions, ...substitutions(runtimeEntry, runtime, partials) })
+        .reduce((content, [key, value]) => content.replaceAll(`{{${key}}}`, value), template),
     };
   });
 }
 
-/**
- * @param {object} runtime - Runtime config
- * @returns {string} The directory, relative to the repo root, that holds the
- *   runtime's entry-point and core-command outputs
- */
+/** The repo-relative directory that holds the runtime's entry-point and core-command outputs. */
 function entrySurfaceDir(runtime) {
   return path.posix.join(runtime.outputDir, SURFACES[runtime.entrySurface].dir);
 }
 
-/**
- * @param {object} runtime - Runtime config
- * @returns {Array<{ outputPath: string, content: string }>}
- */
-function expandEntryPoints(runtime) {
-  return expand('entry-point', runtime);
-}
-
-/**
- * @param {object} runtime - Runtime config
- * @returns {Array<{ outputPath: string, content: string }>}
- */
-function expandCoreCommands(runtime) {
-  return expand('core-command', runtime);
-}
-
-module.exports = { entrySurfaceDir, expandEntryPoints, expandCoreCommands };
+module.exports = {
+  entrySurfaceDir,
+  expandEntryPoints: (runtime) => expand('entry-point', runtime),
+  expandCoreCommands: (runtime) => expand('core-command', runtime),
+};
