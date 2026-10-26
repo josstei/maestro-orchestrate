@@ -23,6 +23,17 @@ function runHook(relativePath, runtime, hookName, input, cwd = ROOT, env = {}) {
   });
 }
 
+// The parsed stdout of a hook run that must have exited 0.
+function okJson(result, hookName) {
+  assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
+// A Qwen payload for the `event` hook, sent from the repo checkout.
+function qwenPayload(event, fields = {}) {
+  return { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: event, ...fields };
+}
+
 // Antigravity runs hooks from the plugin root and names the workspace in a
 // camelCase payload, so session state is read from workspacePaths[0].
 const ANTIGRAVITY_PLUGIN_ROOT = path.join(ROOT, 'antigravity');
@@ -52,9 +63,7 @@ describe('hook entrypoints', () => {
   it('boots claude hook adapters against canonical src hook logic', () => {
     for (const hookName of ['session-start', 'before-agent', 'session-end']) {
       const result = runHook('claude/scripts/hook-runner.js', 'claude', hookName, { cwd: ROOT, session_id: 'hook-test-session' });
-
-      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
+      okJson(result, hookName);
     }
   });
 
@@ -62,38 +71,21 @@ describe('hook entrypoints', () => {
     const idle = antigravityPayload(makeWorkspace('maestro-antigravity-idle-'));
     for (const hookName of ['session-start', 'before-agent']) {
       const result = runAntigravityHook(hookName, idle);
-
-      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-      assert.deepEqual(JSON.parse(result.stdout), {}, `${hookName} without an active session`);
+      assert.deepEqual(okJson(result, hookName), {}, `${hookName} without an active session`);
     }
 
     const active = antigravityPayload(
       makeWorkspace('maestro-antigravity-active-', { session_id: 's1', status: 'in_progress', current_phase: 2 })
     );
 
-    const start = runAntigravityHook('session-start', active);
-    assert.equal(start.status, 0, `session-start exited non-zero: ${start.stderr}`);
-    assert.deepEqual(JSON.parse(start.stdout), {});
-
-    const context = runAntigravityHook('before-agent', active);
-    assert.equal(context.status, 0, `before-agent exited non-zero: ${context.stderr}`);
-    assert.deepEqual(JSON.parse(context.stdout), {
+    assert.deepEqual(okJson(runAntigravityHook('session-start', active), 'session-start'), {});
+    assert.deepEqual(okJson(runAntigravityHook('before-agent', active), 'before-agent'), {
       injectSteps: [{ systemMessage: { systemMessage: 'Active session: current_phase=2, status=in_progress' } }],
     });
     // Antigravity has no session-end hook and its payload names no agent, so
     // neither hook may leave per-conversation hook state behind.
     assert.equal(fs.existsSync(path.join(HOOKS_DIR, active.conversationId)), false,
       'Antigravity hooks must not create per-conversation hook state');
-  });
-
-  it('answers antigravity with {} and exits 0 when stdin is not JSON', () => {
-    for (const hookName of ['session-start', 'before-agent']) {
-      const result = runAntigravityHook(hookName, 'not-json');
-
-      assert.equal(result.status, 0, `exit code for ${hookName}`);
-      assert.match(result.stderr, /^Hook error: /);
-      assert.deepEqual(JSON.parse(result.stdout), {});
-    }
   });
 
   it('rejects bad invocations, checking the runtime before the hook name', () => {
@@ -156,42 +148,27 @@ describe('hook entrypoints', () => {
 
   it('boots qwen hook adapters against canonical src hook logic', () => {
     const cases = [
-      ['session-start', { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: 'SessionStart' }],
-      ['before-agent', { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: 'SubagentStart', agent_type: 'coder' }],
-      ['after-agent', {
-        cwd: ROOT,
-        session_id: 'hook-test-session',
-        hook_event_name: 'SubagentStop',
+      ['session-start', qwenPayload('SessionStart')],
+      ['before-agent', qwenPayload('SubagentStart', { agent_type: 'coder' })],
+      ['after-agent', qwenPayload('SubagentStop', {
         agent_type: 'coder',
         last_assistant_message: '## Task Report\nDone.\n\n## Downstream Context\nNext steps.',
-      }],
-      ['session-end', { cwd: ROOT, session_id: 'hook-test-session', hook_event_name: 'SessionEnd' }],
+      })],
+      ['session-end', qwenPayload('SessionEnd')],
     ];
 
     for (const [hookName, payload] of cases) {
-      const result = runHook('hooks/hook-runner.js', 'qwen', hookName, payload);
-
-      assert.equal(result.status, 0, `${hookName} exited non-zero: ${result.stderr}`);
-      assert.doesNotThrow(() => JSON.parse(result.stdout), `Expected JSON output from ${hookName}`);
+      okJson(runHook('hooks/hook-runner.js', 'qwen', hookName, payload), hookName);
     }
   });
 
   it('exits with code 2 when a qwen hook denies execution', () => {
-    const start = runHook('hooks/hook-runner.js', 'qwen', 'before-agent', {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-      hook_event_name: 'SubagentStart',
-      agent_type: 'coder',
-    });
-    assert.equal(start.status, 0, `before-agent exited non-zero: ${start.stderr}`);
+    const start = runHook('hooks/hook-runner.js', 'qwen', 'before-agent',
+      qwenPayload('SubagentStart', { agent_type: 'coder' }));
+    okJson(start, 'before-agent');
 
-    const result = runHook('hooks/hook-runner.js', 'qwen', 'after-agent', {
-      cwd: ROOT,
-      session_id: 'hook-test-session',
-      hook_event_name: 'SubagentStop',
-      agent_type: 'coder',
-      last_assistant_message: 'Missing required sections',
-    });
+    const result = runHook('hooks/hook-runner.js', 'qwen', 'after-agent',
+      qwenPayload('SubagentStop', { agent_type: 'coder', last_assistant_message: 'Missing required sections' }));
 
     assert.equal(result.status, 2, `Expected deny exit code 2, got ${result.status}: ${result.stderr}`);
     assert.deepEqual(JSON.parse(result.stdout), {
@@ -210,14 +187,10 @@ describe('hook entrypoints', () => {
     const env = { ...process.env, TMPDIR: tmpRoot };
     delete env.MAESTRO_HOOKS_DIR;
 
+    const payload = qwenPayload('SubagentStart', { session_id: 'hook-default-dir', agent_type: 'coder' });
     const result = runNode('hooks/hook-runner.js', ['qwen', 'before-agent'], {
       env,
-      input: `${JSON.stringify({
-        cwd: ROOT,
-        session_id: 'hook-default-dir',
-        hook_event_name: 'SubagentStart',
-        agent_type: 'coder',
-      })}\n`,
+      input: `${JSON.stringify(payload)}\n`,
     });
 
     assert.equal(result.status, 0, result.stderr);

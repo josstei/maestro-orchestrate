@@ -149,6 +149,28 @@ describe('generator CLI', () => {
     const failure = runGeneratorExpectFailure(['--dry-run', '--bogus']);
     expectExit(failure, { stdout: '', stderr: 'Generator failed: Unknown argument: --bogus\n' });
   });
+
+  it('fails before writing when a stub renderer throws or a required content source is missing', () => {
+    withTempRepoCopy('maestro-generator-failure-', (repoRoot) => {
+      const broken = writeTree(repoRoot, 'src/agents/broken-transform.md',
+        '---\nname: broken-transform\n---\n<example>\nMissing closing example tag\n');
+      const generated = writeTree(repoRoot, 'claude/agents/coder.md', 'must not be cleaned or replaced\n');
+      const transformFailure = runGeneratorExpectFailure(['--clean'], { cwd: repoRoot });
+
+      assert.equal(transformFailure.status, 1);
+      assert.match(transformFailure.stderr, /ERROR: processing agents\/broken-transform\.md -> claude\/agents\/broken-transform\.md: Unclosed <example> tag in agent body/);
+      assert.equal(fs.readFileSync(generated, 'utf8'), 'must not be cleaned or replaced\n');
+
+      fs.unlinkSync(broken);
+      fs.unlinkSync(path.join(repoRoot, 'src/agents/shared/handoff-report.md'));
+
+      const missingSourceFailure = runGeneratorExpectFailure(['--clean'], { cwd: repoRoot });
+
+      assert.equal(missingSourceFailure.status, 1);
+      assert.match(missingSourceFailure.stderr, /Generator failed: ENOENT.*handoff-report\.md/);
+      assert.equal(fs.readFileSync(generated, 'utf8'), 'must not be cleaned or replaced\n');
+    });
+  });
 });
 
 describe('payload preflight', () => {

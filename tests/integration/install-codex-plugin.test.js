@@ -14,41 +14,35 @@ function inHome(homeDir) {
   return { env: { ...process.env, HOME: homeDir } };
 }
 
+const MAESTRO_ENTRY = {
+  name: 'maestro',
+  source: { source: 'local', path: './.codex/plugins/maestro' },
+  policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+  category: 'Coding',
+};
+
 describe('codex installer integration', () => {
   it('installs the plugin into the personal Codex marketplace', () => {
     const homeDir = makeTempDir('maestro-codex-home-');
 
     const output = runNodeOk(INSTALLER, [], inHome(homeDir));
-    const pluginManifest = path.join(homeDir, '.codex', 'plugins', 'maestro', '.codex-plugin', 'plugin.json');
-    const pluginSrcEntry = path.join(
-      homeDir,
-      '.codex',
-      'plugins',
-      'maestro',
-      'src',
-      'mcp',
-      'maestro-server.js'
-    );
+    const pluginRoot = path.join(homeDir, '.codex', 'plugins', 'maestro');
     const marketplaceFile = path.join(homeDir, '.agents', 'plugins', 'marketplace.json');
 
-    assert.ok(fs.existsSync(pluginManifest), 'Expected installer to copy the Codex plugin bundle');
     assert.ok(
-      fs.existsSync(pluginSrcEntry),
+      fs.existsSync(path.join(pluginRoot, '.codex-plugin', 'plugin.json')),
+      'Expected installer to copy the Codex plugin bundle'
+    );
+    assert.ok(
+      fs.existsSync(path.join(pluginRoot, 'src', 'mcp', 'maestro-server.js')),
       'Expected installer to copy the detached Codex src payload'
     );
     assert.ok(fs.existsSync(marketplaceFile), 'Expected installer to create the personal marketplace file');
 
     const marketplace = readJson(marketplaceFile);
-    const plugin = marketplace.plugins.find((entry) => entry.name === 'maestro');
-
     assert.equal(marketplace.name, 'maestro-orchestrator');
     assert.equal(marketplace.interface.displayName, 'Maestro Orchestrator');
-    assert.deepEqual(plugin, {
-      name: 'maestro',
-      source: { source: 'local', path: './.codex/plugins/maestro' },
-      policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
-      category: 'Coding',
-    });
+    assert.deepEqual(marketplace.plugins.find((entry) => entry.name === 'maestro'), MAESTRO_ENTRY);
     assert.match(output, /Maestro installed for Codex\./);
     assert.match(output, /Run `\/plugins`\./);
   });
@@ -84,15 +78,7 @@ describe('codex installer integration', () => {
     assert.equal(marketplace.interface.displayName, 'Personal Plugins');
     assert.equal(marketplace.plugins.length, 2);
     assert.ok(marketplace.plugins.some((entry) => entry.name === 'existing-plugin'));
-    assert.deepEqual(
-      marketplace.plugins.find((entry) => entry.name === 'maestro'),
-      {
-        name: 'maestro',
-        source: { source: 'local', path: './.codex/plugins/maestro' },
-        policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
-        category: 'Coding',
-      }
-    );
+    assert.deepEqual(marketplace.plugins.find((entry) => entry.name === 'maestro'), MAESTRO_ENTRY);
   });
 
   it('supports a dry run without writing files', () => {

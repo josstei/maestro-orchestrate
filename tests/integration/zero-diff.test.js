@@ -2,7 +2,14 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { DRY_RUN_MARKER, getGitStatus, parseDryRunReport, runGenerator } = require('./helpers');
+const { execFileSync } = require('node:child_process');
+const { runGenerator } = require('./helpers');
+const { ROOT } = require('../support/paths');
+
+const DRY_RUN_MARKER = '(dry-run — no files written)';
+const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED|REMOVE)\] /;
+const gitStatus = () =>
+  execFileSync('git', ['status', '--short', '--untracked-files=all'], { cwd: ROOT, encoding: 'utf8' });
 
 // A sample of each surface the generator owns: stubs, metadata, entrypoints and payloads.
 const GENERATOR_OWNED = [
@@ -39,12 +46,14 @@ const GENERATOR_OWNED = [
 
 describe('zero-diff validation', () => {
   it('generator output matches committed files exactly', () => {
-    const beforeStatus = getGitStatus();
-    const report = parseDryRunReport(runGenerator(['--dry-run']));
+    const beforeStatus = gitStatus();
+    const lines = runGenerator(['--dry-run']).trimEnd().split('\n').filter(Boolean);
 
-    assert.equal(getGitStatus(), beforeStatus, 'Expected --dry-run to leave the worktree unchanged');
-    assert.equal(report.marker, DRY_RUN_MARKER);
-    const { outputPaths } = report;
+    assert.equal(gitStatus(), beforeStatus, 'Expected --dry-run to leave the worktree unchanged');
+    assert.equal(lines.at(-1), DRY_RUN_MARKER);
+    const statusLines = lines.filter((line) => STATUS_LINE.test(line));
+    // Payload [CREATE] lines end with ` — <inclusion reason>`.
+    const outputPaths = statusLines.map((line) => line.replace(STATUS_LINE, '').replace(/ — .*$/, ''));
     for (const owned of GENERATOR_OWNED) {
       assert.ok(outputPaths.includes(owned), `Expected ${owned} in generator output`);
     }
@@ -68,11 +77,8 @@ describe('zero-diff validation', () => {
       [],
       'Did not expect qwen/agents/, mirrored lib/, canonical-source or Gemini outputs'
     );
-    assert.deepEqual(
-      report.driftLines,
-      [],
-      `Generator output drift detected:\n${report.driftLines.join('\n')}`
-    );
-    assert.deepEqual(report.nonStatusLines, []);
+    const driftLines = statusLines.filter((line) => !line.startsWith('[UNCHANGED] '));
+    assert.deepEqual(driftLines, [], `Generator output drift detected:\n${driftLines.join('\n')}`);
+    assert.deepEqual(lines.filter((line) => line !== DRY_RUN_MARKER && !STATUS_LINE.test(line)), []);
   });
 });

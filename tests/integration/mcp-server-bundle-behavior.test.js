@@ -10,7 +10,7 @@ const { HOST_CLIENTS } = require('../support/catalog');
 const { makeTempDir } = require('../support/fs');
 const { ROOT } = require('../support/paths');
 const { expectExit, runNode } = require('../support/process');
-const { withIsolatedAntigravityPlugin } = require('./helpers');
+const { sessionParams } = require('../support/session-server');
 const { withMcpClient } = require('./mcp-stdio-client');
 
 /**
@@ -28,7 +28,7 @@ const REPO_LAUNCHERS = [
 
 describe('mcp server bundle behavior', () => {
   it('serializes typed tool failures through the MCP protocol without losing error details', async () => {
-    await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.qwen }, async (client) => {
+    await withMcpClient({ relativePath: 'mcp/maestro-server.js', clientInfo: HOST_CLIENTS.qwen }, async (client) => {
       const result = await client.callTool('get_agent', { agents: [] });
 
       assert.equal(result.raw.isError, true);
@@ -42,7 +42,7 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('assumes no runtime for a client it does not recognize and fails every tool call', async () => {
-    await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+    await withMcpClient({ relativePath: 'mcp/maestro-server.js' }, async (client) => {
       assert.ok((await client.listTools()).length > 0);
 
       for (const name of ['get_runtime_context', 'get_skill_content']) {
@@ -61,7 +61,7 @@ describe('mcp server bundle behavior', () => {
   });
 
   it('says the client has not sent initialize when a tool is called before it', async () => {
-    await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js' }, async (client) => {
+    await withMcpClient({ relativePath: 'mcp/maestro-server.js' }, async (client) => {
       const result = await client.callTool('get_runtime_context');
 
       assert.equal(result.parsed.code, 'RUNTIME_UNIDENTIFIED');
@@ -75,7 +75,6 @@ describe('mcp server bundle behavior', () => {
   it('serves the runtime MAESTRO_RUNTIME names over the one the client identifies', async () => {
     await withMcpClient(
       {
-        cwd: ROOT,
         relativePath: 'mcp/maestro-server.js',
         env: { MAESTRO_RUNTIME: 'codex' },
         clientInfo: HOST_CLIENTS.claude,
@@ -89,7 +88,7 @@ describe('mcp server bundle behavior', () => {
 
   it('serves the runtime of whichever host connects, whatever bundle it launches', async () => {
     for (const [runtime, clientInfo] of Object.entries(HOST_CLIENTS)) {
-      await withMcpClient({ cwd: ROOT, relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
+      await withMcpClient({ relativePath: 'mcp/maestro-server.js', clientInfo }, async (client) => {
         assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, runtime);
         assert.match(client.stderr, new RegExp(`Runtime ${runtime}, identified from MCP client "${clientInfo.name}"`));
       });
@@ -98,7 +97,7 @@ describe('mcp server bundle behavior', () => {
 
   for (const { runtime, relativePath, expectSkill } of REPO_LAUNCHERS) {
     it(`serves the ${runtime} runtime, tool metadata and canonical src content from ${relativePath}`, async () => {
-      await withMcpClient({ cwd: ROOT, relativePath, clientInfo: HOST_CLIENTS[runtime] }, async (client) => {
+      await withMcpClient({ relativePath, clientInfo: HOST_CLIENTS[runtime] }, async (client) => {
         // withMcpClient has already waited for 'MCP server connected'.
         assert.match(client.stderr, /\[info\] maestro: MCP server starting/);
         assert.equal((await client.callTool('get_runtime_context')).parsed.runtime, runtime);
@@ -139,7 +138,6 @@ describe('mcp server bundle behavior', () => {
 
     await withMcpClient(
       {
-        cwd: ROOT,
         relativePath: 'mcp/maestro-server.js',
         env: { MAESTRO_RUNTIME: 'qwen', MAESTRO_EXTENSION_PATH: extensionPath },
       },
@@ -181,21 +179,11 @@ describe('mcp server bundle behavior', () => {
         fs.writeFileSync(designDocument, '# Design\n');
         fs.writeFileSync(implementationPlan, '# Plan\n');
 
-        const sessionResult = await client.callTool('create_session', {
-          session_id: 'codex-roots-workspace',
+        const sessionResult = await client.callTool('create_session', sessionParams('codex-roots-workspace', {
           task: 'Validate Codex root resolution',
           design_document: path.relative(workspaceRoot, designDocument),
           implementation_plan: path.relative(workspaceRoot, implementationPlan),
-          phases: [
-            {
-              id: 1,
-              name: 'Implement',
-              agent: 'coder',
-              parallel: false,
-              blocked_by: [],
-            },
-          ],
-        });
+        }));
 
         const expectedSessionPath = path.join(stateRoot, 'state', 'active-session.md');
         assert.equal(sessionResult.parsed.success, true);
@@ -206,28 +194,15 @@ describe('mcp server bundle behavior', () => {
           session_id: 'codex-roots-workspace',
         });
 
-        const archivedSession = path.join(
-          stateRoot,
-          'state',
-          'archive',
-          'codex-roots-workspace.md'
-        );
-        const archivedDesign = path.join(stateRoot, 'plans', 'archive', 'codex-design.md');
-        const archivedImplementation = path.join(
-          stateRoot,
-          'plans',
-          'archive',
-          'codex-impl.md'
-        );
+        const archived = [
+          path.join(stateRoot, 'plans', 'archive', 'codex-design.md'),
+          path.join(stateRoot, 'plans', 'archive', 'codex-impl.md'),
+          path.join(stateRoot, 'state', 'archive', 'codex-roots-workspace.md'),
+        ];
 
         assert.equal(archiveResult.parsed.success, true);
-        assert.deepEqual(
-          archiveResult.parsed.archived_files.sort(),
-          [archivedDesign, archivedImplementation, archivedSession].sort()
-        );
-        assert.equal(fs.existsSync(archivedSession), true);
-        assert.equal(fs.existsSync(archivedDesign), true);
-        assert.equal(fs.existsSync(archivedImplementation), true);
+        assert.deepEqual(archiveResult.parsed.archived_files.sort(), archived.sort());
+        for (const file of archived) assert.equal(fs.existsSync(file), true, file);
         assert.equal(fs.existsSync(designDocument), false);
         assert.equal(fs.existsSync(implementationPlan), false);
         assert.equal(fs.existsSync(path.join(spawnCwd, 'docs', 'maestro')), false);
@@ -239,50 +214,51 @@ describe('mcp server bundle behavior', () => {
     const firstWorkspace = makeTempDir('maestro-antigravity-first-');
     const secondWorkspace = makeTempDir('maestro-antigravity-second-');
 
-    // The installed plugin directory is the server cwd and is never
-    // suggested, so without client roots there is no suggestion at all.
-    await withIsolatedAntigravityPlugin(async (pluginRoot) => {
-      // Drive the server the way the Antigravity CLI (agy 1.4.2) does:
-      // requests numbered from 0, `server/discover` before `initialize`, the
-      // roots capability, and `notifications/roots/list_changed` even after
-      // roots/list was answered. MAESTRO_WORKSPACE_PATH is cleared so an
-      // inherited value cannot supply the suggestion.
-      await withMcpClient({
-        cwd: pluginRoot,
-        relativePath: 'mcp/maestro-server.js',
-        env: { MAESTRO_WORKSPACE_PATH: '' },
-        roots: [{ uri: pathToFileURL(firstWorkspace).href, name: 'first' }],
-        firstRequestId: 0,
-        requestTimeoutMs: 5000,
-      }, async (client) => {
-        await assert.rejects(client.request('server/discover'), (error) => {
-          assert.equal(JSON.parse(error.message).code, -32601);
-          return true;
-        });
+    // A copy of antigravity/ where `agy plugin install` puts it, out of reach of the repo
+    // src/, so its shim runs the bundled antigravity/src/. That directory is the server cwd
+    // and is never suggested, so without client roots there is no suggestion at all.
+    const pluginRoot = path.join(makeTempDir('maestro-antigravity-home-'), '.gemini', 'config', 'plugins', 'maestro');
+    fs.cpSync(path.join(ROOT, 'antigravity'), pluginRoot, { recursive: true });
+    // Drive the server the way the Antigravity CLI (agy 1.4.2) does:
+    // requests numbered from 0, `server/discover` before `initialize`, the
+    // roots capability, and `notifications/roots/list_changed` even after
+    // roots/list was answered. MAESTRO_WORKSPACE_PATH is cleared so an
+    // inherited value cannot supply the suggestion.
+    await withMcpClient({
+      cwd: pluginRoot,
+      relativePath: 'mcp/maestro-server.js',
+      env: { MAESTRO_WORKSPACE_PATH: '' },
+      roots: [{ uri: pathToFileURL(firstWorkspace).href, name: 'first' }],
+      firstRequestId: 0,
+      requestTimeoutMs: 5000,
+    }, async (client) => {
+      await assert.rejects(client.request('server/discover'), (error) => {
+        assert.equal(JSON.parse(error.message).code, -32601);
+        return true;
+      });
 
-        await client.request('initialize', {
-          protocolVersion: '2025-06-18',
-          capabilities: { roots: { listChanged: true } },
-          clientInfo: HOST_CLIENTS.antigravity,
-        });
-        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, null);
+      await client.request('initialize', {
+        protocolVersion: '2025-06-18',
+        capabilities: { roots: { listChanged: true } },
+        clientInfo: HOST_CLIENTS.antigravity,
+      });
+      assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, null);
 
-        client.notify('notifications/initialized');
-        await client.rootsAnswered(1);
-        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
+      client.notify('notifications/initialized');
+      await client.rootsAnswered(1);
+      assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
 
-        // Antigravity repeats list_changed after its roots/list reply.
-        client.notify('notifications/roots/list_changed');
-        await client.rootsAnswered(2);
-        assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
+      // Antigravity repeats list_changed after its roots/list reply.
+      client.notify('notifications/roots/list_changed');
+      await client.rootsAnswered(2);
+      assert.equal((await client.callTool('get_runtime_context')).parsed.workspace_suggestion, firstWorkspace);
 
-        client.roots = [{ uri: pathToFileURL(secondWorkspace).href, name: 'second' }];
-        client.notify('notifications/roots/list_changed');
-        await client.rootsAnswered(3);
-        const context = (await client.callTool('get_runtime_context')).parsed;
-        assert.equal(context.runtime, 'antigravity');
-        assert.equal(context.workspace_suggestion, secondWorkspace);
-      }, { initialize: false });
-    });
+      client.roots = [{ uri: pathToFileURL(secondWorkspace).href, name: 'second' }];
+      client.notify('notifications/roots/list_changed');
+      await client.rootsAnswered(3);
+      const context = (await client.callTool('get_runtime_context')).parsed;
+      assert.equal(context.runtime, 'antigravity');
+      assert.equal(context.workspace_suggestion, secondWorkspace);
+    }, { initialize: false });
   });
 });

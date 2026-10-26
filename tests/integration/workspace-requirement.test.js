@@ -103,9 +103,7 @@ describe('initialize_workspace contract', () => {
       const cache = path.join(cacheParent, ...segments);
       fs.mkdirSync(cache, { recursive: true });
 
-      const server = packServer(DEFAULT_TOOL_PACKS, 'qwen');
-
-      const outcome = await server.callTool(
+      const outcome = await packServer(DEFAULT_TOOL_PACKS, 'qwen').callTool(
         'initialize_workspace',
         { workspace_path: cache },
         cache
@@ -116,9 +114,7 @@ describe('initialize_workspace contract', () => {
   }
 
   it('rejects initialize_workspace with a missing workspace_path', async () => {
-    const server = packServer(DEFAULT_TOOL_PACKS, 'qwen');
-
-    const outcome = await server.callTool(
+    const outcome = await packServer(DEFAULT_TOOL_PACKS, 'qwen').callTool(
       'initialize_workspace',
       {},
       null
