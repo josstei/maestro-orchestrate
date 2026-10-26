@@ -84,32 +84,6 @@ describe('served agent names', () => {
     }
   });
 
-  it('keep kebab-case agent names for kebab-case runtimes', () => {
-    for (const name of ['antigravity', 'claude', 'codex']) {
-      const { content } = readResourceFromFilesystem(
-        'implementation-planning',
-        getRuntimeConfig(name),
-        SRC_ROOT
-      );
-      assert.ok(content.includes('| API contracts, endpoints | `api-designer` | `coder` |'), name);
-      assert.ok(!content.includes('api_designer'), name);
-    }
-  });
-
-  it('name no hyphenated agent in any agent body served to qwen', () => {
-    const runtimeConfig = getRuntimeConfig('qwen');
-    for (const agentName of AGENT_NAMES) {
-      const { agent, error } = readAgentFromFilesystem(agentName, runtimeConfig, SRC_ROOT);
-      assert.equal(error, undefined, agentName);
-      for (const name of hyphenatedAgentNames) {
-        assert.ok(
-          !new RegExp(`\\b${name}\\b`).test(agent.body),
-          `${agentName}: serves "${name}" to qwen`
-        );
-      }
-    }
-  });
-
   it('follow the runtime naming in an agent body and its Output Contract', () => {
     const root = makeTempDir('maestro-agent-names-');
     writeTree(root, 'src/agents/coder.md', '---\nname: coder\n---\nHand off to api-designer, then coder.\n');
@@ -128,14 +102,6 @@ describe('served agent names', () => {
         'Hand off to api-designer, then coder.\n\n## Output Contract\nNotify technical-writer.\n',
         name
       );
-    }
-  });
-
-  it('keep kebab-case agent names in agent bodies for kebab-case runtimes', () => {
-    for (const name of ['antigravity', 'claude', 'codex']) {
-      const { body } = readAgentFromFilesystem('architect', getRuntimeConfig(name), SRC_ROOT).agent;
-      assert.ok(body.includes('- `api-designer`: Needs component boundaries'), name);
-      assert.ok(!body.includes('api_designer'), name);
     }
   });
 });

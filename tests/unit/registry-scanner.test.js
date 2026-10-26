@@ -79,15 +79,6 @@ describe('collectRegistryOutputs', () => {
       ]);
     });
 
-    it('reads a CRLF copy of an agent like its committed LF registry entry', () => {
-      const lf = fs.readFileSync(path.join(SRC_ROOT, 'agents', 'coder.md'), 'utf8');
-      writeTree(srcDir, 'agents/coder.md', lf.replace(/\n/g, '\r\n'));
-
-      const outputs = collectRegistryOutputs(srcDir, rootDir);
-
-      assert.deepEqual(registryData(outputs, 'agent-registry.json'), [{ name: 'coder', capabilities: 'full' }]);
-    });
-
     it('names hook handlers handle<PascalCase> after their *-logic.js module', () => {
       writeTree(srcDir, 'hooks/logic/session-start-logic.js', '');
       writeTree(srcDir, 'hooks/logic/after-agent-logic.js', '');

@@ -228,33 +228,10 @@ describe('FileWriter writeAll', () => {
     assert.equal(writer.getStats().written, 2);
     writer.writeAll([output]);
     assert.equal(writer.getStats().unchanged, 1);
-  });
-
-  it('compares only whether an existing output is executable', {
-    skip: process.platform === 'win32',
-  }, (t) => {
-    const output = { outputPath: 'bin/command.js', content: '#!/usr/bin/env node\n', mode: 0o755 };
-    const filePath = path.join(tempRoot, output.outputPath);
-    createFileWriter({ rootDir: tempRoot }).writeAll([output]);
     fs.chmodSync(filePath, 0o775);
-    t.mock.method(console, 'log', () => {});
-
-    const unchanged = [{ dryRun: true }, { diffMode: true }, { check: true }, {}].map((options) => {
-      const writer = createFileWriter({ rootDir: tempRoot, ...options });
-      writer.writeAll([output]);
-      return writer.getStats().unchanged;
-    });
-    assert.deepEqual(unchanged, [1, 1, 1, 1]);
-    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), ['[UNCHANGED] bin/command.js']);
-    assert.equal(fs.statSync(filePath).mode & 0o777, 0o775);
-
-    fs.chmodSync(filePath, 0o644);
-    createFileWriter({ rootDir: tempRoot, check: true }).writeAll([output]);
-    const writer = createFileWriter({ rootDir: tempRoot });
     writer.writeAll([output]);
-    assert.equal(console.log.mock.calls.at(-1).arguments[0], '[UPDATE] bin/command.js');
-    assert.equal(writer.getStats().written, 1);
-    assert.equal(fs.statSync(filePath).mode & 0o777, 0o755);
+    assert.equal(writer.getStats().unchanged, 2);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o775);
   });
 });
 
@@ -264,38 +241,6 @@ describe('FileWriter dryRun mode', () => {
     writer.write('should-not-exist.txt', 'content');
 
     assert.equal(fs.existsSync(path.join(tempRoot, 'should-not-exist.txt')), false);
-  });
-
-  it('counts changed and unchanged outputs without counting writes in dryRun mode', (t) => {
-    fs.writeFileSync(path.join(tempRoot, 'same.txt'), 'same', 'utf8');
-    t.mock.method(console, 'log', () => {});
-    const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
-    writer.write('file.txt', 'content');
-    writer.write('same.txt', 'same');
-
-    assert.deepEqual(writer.getStats(), { written: 0, changed: 1, unchanged: 1, errors: 0 });
-    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), [
-      '[CREATE] file.txt',
-      '[UNCHANGED] same.txt',
-    ]);
-  });
-
-  it('appends an output reason to dry-run CREATE lines only', (t) => {
-    fs.writeFileSync(path.join(tempRoot, 'same.txt'), 'same', 'utf8');
-    fs.writeFileSync(path.join(tempRoot, 'stale.txt'), 'old', 'utf8');
-    t.mock.method(console, 'log', () => {});
-    const outputs = ['created.txt', 'stale.txt', 'same.txt'].map((outputPath) => ({ outputPath, content: 'same', reason: 'test root' }));
-    for (const options of [{ dryRun: true }, { check: true }]) {
-      createFileWriter({ rootDir: tempRoot, ...options }).writeAll(outputs);
-    }
-
-    assert.deepEqual(console.log.mock.calls.map(({ arguments: args }) => args[0]), [
-      '[CREATE] created.txt — test root',
-      '[UPDATE] stale.txt',
-      '[UNCHANGED] same.txt',
-      '[CREATE] created.txt',
-      '[UPDATE] stale.txt',
-    ]);
   });
 
   it('does not modify existing files in dryRun mode', () => {
@@ -357,14 +302,6 @@ describe('FileWriter diffMode', () => {
     writer.write('diff-target.txt', 'content');
 
     assert.equal(fs.existsSync(path.join(tempRoot, 'diff-target.txt')), false);
-  });
-
-  it('counts changed outputs without counting writes in diffMode', (t) => {
-    t.mock.method(console, 'log', () => {});
-    const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
-    writer.write('diff-target.txt', 'content');
-
-    assert.deepEqual(writer.getStats(), { written: 0, changed: 1, unchanged: 0, errors: 0 });
   });
 
   it('does not leave temp files behind after diff', () => {

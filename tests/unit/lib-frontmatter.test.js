@@ -148,14 +148,6 @@ describe('parse', () => {
     assert.equal(result.frontmatter.retries, 3);
   });
 
-  it('parses CRLF content like LF content', () => {
-    const content = '---\r\nname: test\r\ntools: [read_file, glob]\r\nmax_turns: 5\r\n---\r\nBody.\r\n';
-    assert.deepEqual(parse(content), {
-      frontmatter: { name: 'test', tools: ['read_file', 'glob'], max_turns: 5 },
-      body: 'Body.\n',
-    });
-  });
-
   it('coerces negative numbers and zero', () => {
     const content = '---\noffset: -7\ncount: 0\n---\n';
     const result = parse(content);

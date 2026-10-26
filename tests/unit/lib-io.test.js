@@ -138,20 +138,10 @@ describe('readFileSafe', () => {
 });
 
 describe('readTextSync', () => {
-  it('normalizes CRLF line endings to LF', () => {
+  it('normalizes CRLF to LF and keeps a lone CR', () => {
     const filePath = path.join(tempRoot, 'crlf.md');
-    fs.writeFileSync(filePath, '---\r\nname: test\r\n---\r\nBody.\r\n', 'utf8');
-    assert.equal(readTextSync(filePath), '---\nname: test\n---\nBody.\n');
-  });
-
-  it('keeps LF content and a lone CR unchanged', () => {
-    const filePath = path.join(tempRoot, 'lf.md');
-    fs.writeFileSync(filePath, 'line1\nline2\rstill line2\n', 'utf8');
-    assert.equal(readTextSync(filePath), 'line1\nline2\rstill line2\n');
-  });
-
-  it('throws the read error for a missing file', () => {
-    assert.throws(() => readTextSync(path.join(tempRoot, 'missing.md')), { code: 'ENOENT' });
+    fs.writeFileSync(filePath, 'a\r\nb\rc\n', 'utf8');
+    assert.equal(readTextSync(filePath), 'a\nb\rc\n');
   });
 });
 

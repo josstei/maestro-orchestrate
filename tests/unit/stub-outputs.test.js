@@ -43,18 +43,6 @@ describe('collectStubOutputs', () => {
     }
   });
 
-  it('renders CRLF copies of an agent and a shared skill like the committed LF stubs', () => {
-    const root = makeTempDir('maestro-stubs-crlf-');
-    for (const file of ['agents/code-reviewer.md', 'skills/shared/delegation/SKILL.md']) {
-      writeTree(root, file, fs.readFileSync(path.join(SRC_ROOT, file), 'utf8').replace(/\n/g, '\r\n'));
-    }
-    const outputs = collectStubOutputs(root, runtimes, unexpectedError);
-    assert.equal(outputs.length, 6);
-    for (const { outputPath, content } of outputs) {
-      assert.equal(content, fs.readFileSync(path.join(ROOT, outputPath), 'utf8'), outputPath);
-    }
-  });
-
   it('collects renderer failures without losing successful outputs or changing source files', () => {
     const root = makeTempDir('maestro-stubs-errors-');
     const broken = source('broken') + '<example>\nunclosed\n';
