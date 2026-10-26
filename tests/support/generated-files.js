@@ -4,12 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 /**
- * Splits a document that opens with a `---` fenced frontmatter block.
- *
- * @param {string} content - Full document content
- * @param {string} [label] - Names the document in failure messages
- * @returns {{ lines: string[], body: string }} The frontmatter lines (fences
- *   excluded) and the body after the closing fence
+ * Splits `---`-fenced frontmatter lines (fences excluded) from the body; `label` names the
+ * document in failure messages.
  */
 function splitFrontmatter(content, label = 'content') {
   const lines = content.split('\n');
@@ -24,13 +20,8 @@ function splitFrontmatter(content, label = 'content') {
 }
 
 /**
- * Reads the scalar keys (raw, quotes kept) and block lists of a generated
- * frontmatter block.
- *
- * @param {string} filePath - Absolute path of the generated file
- * @param {{ keyPattern?: RegExp }} [options] - keyPattern matches a `key: value`
- *   line, capturing the key and the raw value
- * @returns {Record<string, string | string[]>}
+ * Reads the scalar keys (raw, quotes kept) and block lists of a generated frontmatter
+ * block; `keyPattern` captures a `key: value` line's key and raw value.
  */
 function readStubFrontmatter(filePath, { keyPattern = /^([A-Za-z_-]+):\s*(.*)$/ } = {}) {
   const { lines } = splitFrontmatter(fs.readFileSync(filePath, 'utf8'), filePath);

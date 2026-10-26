@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { HOST_CLIENTS } = require('../support/host-clients');
+const { HOST_CLIENTS } = require('../support/catalog');
 const {
   RUNTIME_NAMES,
   getRuntimeConfig,

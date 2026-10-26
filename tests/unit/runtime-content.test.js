@@ -12,8 +12,8 @@ const {
 const RESOURCE_REGISTRY = require('../../src/generated/resource-registry.json');
 const { AGENT_NAMES } = require('../../src/core/agent-registry');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
-const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const { writeAgentFixture } = require('../support/agent-fixtures');
+const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/catalog');
 const { makeTempDir, writeTree } = require('../support/fs');
 const { SRC_ROOT } = require('../support/paths');
 

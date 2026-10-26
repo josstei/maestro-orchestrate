@@ -5,9 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { ANTIGRAVITY_SUBAGENT_TOOLS } = require('../support/antigravity-tools');
 const {
   AGENT_COUNT,
+  ANTIGRAVITY_SUBAGENT_TOOLS,
   PUBLIC_SKILL_COUNT,
   SHARED_SKILL_COUNT,
   listCanonicalAgents,

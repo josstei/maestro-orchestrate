@@ -6,8 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const { HOST_CLIENTS } = require('../support/catalog');
 const { makeTempDir } = require('../support/fs');
-const { HOST_CLIENTS } = require('../support/host-clients');
 const { ROOT } = require('../support/paths');
 const { expectExit, runNode } = require('../support/process');
 const { withIsolatedAntigravityPlugin } = require('./helpers');
