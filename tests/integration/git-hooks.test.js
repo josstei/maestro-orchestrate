@@ -6,149 +6,86 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
-const { makeTempDir } = require('../support/fs');
+const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT } = require('../support/paths');
-
-const ZERO_SHA = '0000000000000000000000000000000000000000';
 
 function hookPath(name) {
   return path.join(ROOT, '.githooks', name);
 }
 
-function runHook(name, args = [], options = {}) {
-  return spawnSync('bash', [hookPath(name), ...args], {
-    cwd: options.cwd || ROOT,
-    input: options.input,
-    env: options.env,
-    encoding: 'utf8',
-  });
+function runHook(name, args, { cwd = ROOT, input, env } = {}) {
+  return spawnSync('bash', [hookPath(name), ...args], { cwd, input, env, encoding: 'utf8' });
 }
 
-function writeMessage(subject) {
-  const file = path.join(makeTempDir('maestro-commit-msg-'), 'message');
-  fs.writeFileSync(file, `${subject}\n\nBody\n`, 'utf8');
-  return file;
+function expectHook(result, status, stderr) {
+  assert.equal(result.status, status, result.stderr);
+  if (stderr) assert.match(result.stderr, stderr);
+}
+
+function git(repo, ...args) {
+  return execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 }
 
 function createRepo(branchName) {
   const repo = makeTempDir('maestro-git-hook-repo-');
-
-  execFileSync('git', ['init'], { cwd: repo, stdio: 'ignore' });
-  execFileSync('git', ['checkout', '-b', branchName], { cwd: repo, stdio: 'ignore' });
-  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: repo, stdio: 'ignore' });
-  execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: repo, stdio: 'ignore' });
-
+  git(repo, 'init');
+  git(repo, 'checkout', '-b', branchName);
+  git(repo, 'config', 'user.email', 'test@example.com');
+  git(repo, 'config', 'user.name', 'Test User');
   return repo;
 }
 
-function commitFile(repo, message) {
-  const file = path.join(repo, 'file.txt');
-  fs.writeFileSync(file, `${message}\n`, 'utf8');
-  execFileSync('git', ['add', 'file.txt'], { cwd: repo, stdio: 'ignore' });
-  execFileSync('git', ['commit', '-m', message], { cwd: repo, stdio: 'ignore' });
-  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
-}
-
-function writeFile(repo, relativePath, content) {
-  const file = path.join(repo, relativePath);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, content, 'utf8');
-}
-
-function pushInput(branch, sha) {
-  return `refs/heads/${branch} ${sha} refs/heads/${branch} ${ZERO_SHA}\n`;
+// Commits everything in the repo and returns pre-push stdin that pushes the branch as a new ref.
+function commitForPush(repo, branch, subject) {
+  writeTree(repo, 'file.txt', `${subject}\n`);
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-m', subject);
+  return `refs/heads/${branch} ${git(repo, 'rev-parse', 'HEAD').trim()} refs/heads/${branch} ${'0'.repeat(40)}\n`;
 }
 
 describe('repo git hooks', () => {
-  it('commit-msg accepts Conventional Commit subjects', () => {
-    const result = runHook('commit-msg', [writeMessage('feat(core): add semantic hook validation')]);
-
-    assert.equal(result.status, 0, result.stderr);
-  });
-
-  it('commit-msg accepts git-generated subjects', () => {
-    const result = runHook('commit-msg', [writeMessage("Merge branch 'main'")]);
-
-    assert.equal(result.status, 0, result.stderr);
-  });
-
-  it('commit-msg rejects non-semantic subjects', () => {
-    const result = runHook('commit-msg', [writeMessage('update hook stuff')]);
-
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /Conventional Commits/);
-  });
-
-  it('pre-commit accepts semantic branch names', () => {
-    const repo = createRepo('codex/chore/enforce-git-conventions');
-    const result = runHook('pre-commit', [], { cwd: repo });
-
-    assert.equal(result.status, 0, result.stderr);
-  });
-
-  it('pre-commit accepts release branch names', () => {
-    const repo = createRepo('release/v1.7.0');
-    const result = runHook('pre-commit', [], { cwd: repo });
-
-    assert.equal(result.status, 0, result.stderr);
-  });
-
-  it('pre-commit rejects non-semantic branch names', () => {
-    const repo = createRepo('feature/hook-validation');
-    const result = runHook('pre-commit', [], { cwd: repo });
-
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /semantic branch convention/);
-  });
-
-  it('pre-push rejects invalid pushed branch names', () => {
-    const repo = createRepo('feature/hook-validation');
-    const sha = commitFile(repo, 'feat(test): seed commit');
-    const result = runHook('pre-push', ['origin', 'unused'], {
-      cwd: repo,
-      input: pushInput('feature/hook-validation', sha),
+  for (const [name, subject, status, stderr] of [
+    ['accepts Conventional Commit subjects', 'feat(core): add semantic hook validation', 0],
+    ['accepts git-generated subjects', "Merge branch 'main'", 0],
+    ['rejects non-semantic subjects', 'update hook stuff', 1, /Conventional Commits/],
+  ]) {
+    it(`commit-msg ${name}`, () => {
+      const message = writeTree(makeTempDir('maestro-commit-msg-'), 'message', `${subject}\n\nBody\n`);
+      expectHook(runHook('commit-msg', [message]), status, stderr);
     });
+  }
 
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /semantic branch convention/);
-  });
+  for (const [name, branch, status, stderr] of [
+    ['accepts semantic branch names', 'codex/chore/enforce-git-conventions', 0],
+    ['accepts release branch names', 'release/v1.7.0', 0],
+    ['rejects non-semantic branch names', 'feature/hook-validation', 1, /semantic branch convention/],
+  ]) {
+    it(`pre-commit ${name}`, () => expectHook(runHook('pre-commit', [], { cwd: createRepo(branch) }), status, stderr));
+  }
 
-  it('pre-push rejects invalid pushed commit subjects', () => {
-    const repo = createRepo('feat/hook-validation');
-    const sha = commitFile(repo, 'update hook stuff');
-    const result = runHook('pre-push', ['origin', 'unused'], {
-      cwd: repo,
-      input: pushInput('feat/hook-validation', sha),
+  for (const [name, branch, subject, status, stderr] of [
+    ['rejects invalid pushed branch names', 'feature/hook-validation', 'feat(test): seed commit', 1,
+      /semantic branch convention/],
+    ['rejects invalid pushed commit subjects', 'feat/hook-validation', 'update hook stuff', 1, /Conventional Commits/],
+    ['accepts semantic branches with semantic commits', 'feat/hook-validation', 'feat(test): seed commit', 0],
+  ]) {
+    it(`pre-push ${name}`, () => {
+      const repo = createRepo(branch);
+      const input = commitForPush(repo, branch, subject);
+      expectHook(runHook('pre-push', ['origin', 'unused'], { cwd: repo, input }), status, stderr);
     });
-
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /Conventional Commits/);
-  });
-
-  it('pre-push accepts semantic branches with semantic commits', () => {
-    const repo = createRepo('feat/hook-validation');
-    const sha = commitFile(repo, 'feat(test): seed commit');
-    const result = runHook('pre-push', ['origin', 'unused'], {
-      cwd: repo,
-      input: pushInput('feat/hook-validation', sha),
-    });
-
-    assert.equal(result.status, 0, result.stderr);
-  });
+  }
 
   it('pre-push skips the source-of-truth check only while dev dependencies are missing', () => {
     const repo = createRepo('chore/hook-validation');
-    writeFile(repo, 'scripts/generate.js', "require('acorn');\nrequire('acorn-walk');\n");
-    execFileSync('git', ['add', 'scripts/generate.js'], { cwd: repo, stdio: 'ignore' });
-    const input = pushInput('chore/hook-validation', commitFile(repo, 'chore(test): seed generator'));
+    writeTree(repo, 'scripts/generate.js', "require('acorn');\nrequire('acorn-walk');\n");
+    const input = commitForPush(repo, 'chore/hook-validation', 'chore(test): seed generator');
     const push = (env) => runHook('pre-push', ['origin', 'unused'], { cwd: repo, input, env });
 
-    const skipped = push({ ...process.env, NODE_PATH: '' });
-    assert.equal(skipped.status, 0, skipped.stderr);
-    assert.match(skipped.stderr, /dev dependencies missing; run npm ci/);
+    expectHook(push({ ...process.env, NODE_PATH: '' }), 0, /dev dependencies missing; run npm ci/);
 
-    writeFile(repo, 'node_modules/acorn/index.js', '');
-    writeFile(repo, 'node_modules/acorn-walk/index.js', '');
+    writeTree(repo, 'node_modules/acorn/index.js', '');
+    writeTree(repo, 'node_modules/acorn-walk/index.js', '');
     const checked = push();
     assert.equal(checked.status, 0, checked.stderr);
     assert.match(checked.stdout, /source-of-truth clean/);
@@ -161,15 +98,14 @@ describe('repo git hooks', () => {
       { encoding: 'utf8' },
     ).split('|');
     const commitTypes = [...branchTypes, 'release'];
+    const read = (relPath) => fs.readFileSync(path.join(ROOT, relPath), 'utf8');
 
-    const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'commit-message-check.yml'), 'utf8');
+    const workflow = read('.github/workflows/commit-message-check.yml');
     assert.doesNotMatch(workflow, /Allowed types/, 'commit-message-check.yml should print type lists through semantic-git.sh');
 
-    const commitMsg = fs.readFileSync(hookPath('commit-msg'), 'utf8');
-    const hookBlock = commitMsg.split('echo "Allowed types:"')[1].split('echo ""')[0];
+    const hookBlock = read('.githooks/commit-msg').split('echo "Allowed types:"')[1].split('echo ""')[0];
     assert.deepEqual([...hookBlock.matchAll(/echo " {4}([a-z]+) /g)].map((m) => m[1]), commitTypes);
 
-    const contributing = fs.readFileSync(path.join(ROOT, 'CONTRIBUTING.md'), 'utf8');
-    assert.deepEqual([...contributing.matchAll(/^\| `([a-z]+)` \|/gm)].map((m) => m[1]), commitTypes);
+    assert.deepEqual([...read('CONTRIBUTING.md').matchAll(/^\| `([a-z]+)` \|/gm)].map((m) => m[1]), commitTypes);
   });
 });

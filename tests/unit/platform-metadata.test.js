@@ -39,6 +39,11 @@ function runtimeConfigs(...names) {
 
 const ALL_RUNTIMES = runtimeConfigs('antigravity', 'claude', 'codex', 'qwen');
 
+function metadataFor(...names) {
+  const runtimes = names.length ? runtimeConfigs(...names) : ALL_RUNTIMES;
+  return outputsByPath(buildPlatformMetadataOutputs(runtimes, PACKAGE_FIXTURE));
+}
+
 // policies/maestro.toml holds patterns as TOML basic strings, so backslashes are doubled.
 function tomlEscaped(text) {
   return text.replace(/\\/g, '\\\\');
@@ -50,9 +55,9 @@ describe('platform metadata generation', () => {
   });
 
   it('generates all runtime metadata from package identity', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
+    const outputs = metadataFor();
 
-    const expectedPaths = [
+    assert.deepEqual([...outputs.keys()].sort(), [
       '.agents/plugins/marketplace.json',
       '.claude-plugin/marketplace.json',
       'antigravity/hooks.json',
@@ -67,9 +72,7 @@ describe('platform metadata generation', () => {
       'policies/maestro.toml',
       'qwen-extension.json',
       'qwen/hooks.json',
-    ];
-
-    assert.deepEqual([...outputs.keys()].sort(), expectedPaths);
+    ]);
     assert.equal(outputs.get('qwen-extension.json').version, PACKAGE_FIXTURE.version);
     assert.deepEqual(outputs.get('qwen-extension.json').mcpServers.maestro.env, {
       MAESTRO_WORKSPACE_PATH: '${workspacePath}',
@@ -98,7 +101,7 @@ describe('platform metadata generation', () => {
   });
 
   it('makes the qwen runtime own the repo-root extension manifest and policy pack', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('qwen'), PACKAGE_FIXTURE));
+    const outputs = metadataFor('qwen');
 
     assert.deepEqual([...outputs.keys()].sort(), [
       'policies/maestro.toml',
@@ -114,8 +117,7 @@ describe('platform metadata generation', () => {
   });
 
   it('registers the qwen lifecycle hooks with millisecond timeouts', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('qwen'), PACKAGE_FIXTURE));
-    const { hooks } = outputs.get('qwen/hooks.json');
+    const { hooks } = metadataFor('qwen').get('qwen/hooks.json');
 
     assert.deepEqual(Object.keys(hooks), ['SessionStart', 'SubagentStart', 'SubagentStop', 'SessionEnd']);
     for (const [event, entries] of Object.entries(hooks)) {
@@ -126,7 +128,7 @@ describe('platform metadata generation', () => {
   });
 
   it('makes the antigravity runtime own its plugin manifest, MCP config and hooks at the plugin root', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('antigravity'), PACKAGE_FIXTURE));
+    const outputs = metadataFor('antigravity');
 
     assert.deepEqual([...outputs.keys()].sort(), [
       'antigravity/hooks.json',
@@ -158,9 +160,7 @@ describe('platform metadata generation', () => {
   });
 
   it('registers the antigravity session-context and shell-policy hooks with second timeouts', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(runtimeConfigs('antigravity'), PACKAGE_FIXTURE));
-
-    assert.deepEqual(outputs.get('antigravity/hooks.json'), {
+    assert.deepEqual(metadataFor('antigravity').get('antigravity/hooks.json'), {
       'maestro-session': {
         SessionStart: [
           { type: 'command', command: 'node hooks/hook-runner.js antigravity session-start', timeout: 10 },
@@ -179,17 +179,15 @@ describe('platform metadata generation', () => {
   });
 
   it('leaves the runtime to the MCP server, which identifies its host', () => {
-    const outputs = buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE);
-
-    for (const output of outputs.filter((entry) => entry.outputPath.endsWith('.json'))) {
-      for (const server of Object.values(JSON.parse(output.content).mcpServers || {})) {
-        assert.ok(!(server.env && 'MAESTRO_RUNTIME' in server.env), `${output.outputPath} names a runtime`);
+    for (const [outputPath, content] of metadataFor()) {
+      for (const server of Object.values(content.mcpServers || {})) {
+        assert.ok(!(server.env && 'MAESTRO_RUNTIME' in server.env), `${outputPath} names a runtime`);
       }
     }
   });
 
   it('points the plugin manifests at the generated hook and app configs', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
+    const outputs = metadataFor();
 
     assert.equal(outputs.get('claude/.claude-plugin/plugin.json').hooks, './hooks/claude-hooks.json');
     assert.equal(outputs.get('plugins/maestro/.codex-plugin/plugin.json').apps, './.app.json');
@@ -197,7 +195,7 @@ describe('platform metadata generation', () => {
   });
 
   it('runs only registered hooks from every hook config', () => {
-    const outputs = outputsByPath(buildPlatformMetadataOutputs(ALL_RUNTIMES, PACKAGE_FIXTURE));
+    const outputs = metadataFor();
     const expectedRuntimes = {
       'antigravity/hooks.json': 'antigravity',
       'qwen/hooks.json': 'qwen',
