@@ -4,10 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { isValidSessionId } = require('../../lib/validation');
-const { atomicWriteSync, ensurePrivateDir, readFileSafe } = require('../../lib/io');
+const { atomicWriteSync, readFileSafe } = require('../../lib/io');
 
 const HOOK_STATE_TTL_MS = 2 * 60 * 60 * 1000;
-const BASE_DIR_SYMLINK_MESSAGE = 'Hook state directory must not be a symlink';
 
 const uid = process.getuid ? process.getuid() : 'default';
 const DEFAULT_BASE_DIR = process.env.MAESTRO_HOOKS_DIR
@@ -17,7 +16,10 @@ function createHookState(baseDir = DEFAULT_BASE_DIR) {
   const activeAgentFile = (sessionId) => path.join(baseDir, sessionId, 'active-agent');
 
   function pruneStale() {
-    ensurePrivateDir(baseDir, BASE_DIR_SYMLINK_MESSAGE);
+    fs.mkdirSync(baseDir, { recursive: true, mode: 0o700 });
+    if (fs.lstatSync(baseDir).isSymbolicLink()) {
+      throw new Error('Hook state directory must not be a symlink');
+    }
 
     const now = Date.now();
     let entries;

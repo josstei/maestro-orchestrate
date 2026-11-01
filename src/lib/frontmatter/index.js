@@ -1,37 +1,11 @@
 'use strict';
 
-/**
- * Frontmatter parsing (boundary splitting, key-value parsing, scalar
- * coercion) shared by the generator, transforms, and MCP content tools.
- *
- * @module lib/frontmatter
- */
+// Frontmatter parsing shared by the generator and the MCP content tools.
 
 const DOUBLE_QUOTED_ESCAPES = { '"': '"', '\\': '\\', n: '\n', r: '\r', t: '\t' };
 
-/**
- * Parse a double-quoted string value with escape sequence support.
- *
- * Handles \n, \r, \t, \\, and \" escape sequences. Unknown escape sequences
- * preserve the backslash character.
- *
- * @param {string} raw - The inner content of a double-quoted string (without outer quotes).
- * @returns {string} The unescaped string value.
- */
-function parseDoubleQuotedValue(raw) {
-  return raw.replace(/\\(["\\nrt])/g, (_, c) => DOUBLE_QUOTED_ESCAPES[c]);
-}
-
-/**
- * Parse a YAML-like scalar value with type coercion.
- *
- * Supports inline arrays ([a, b, c]), double-quoted strings with escape
- * sequences, single-quoted strings with '' escaping, numeric literals, and
- * bare string values.
- *
- * @param {string} raw - The raw value string to parse.
- * @returns {string|number|string[]} The parsed value.
- */
+// Coerces [a, b] arrays, "double-quoted" strings with \n \r \t \\ \" escapes (others keep the
+// backslash), 'single-quoted' strings with '' escapes, and numbers; anything else stays a string.
 function parseValue(raw) {
   if (raw.startsWith('[') && raw.endsWith(']')) {
     const inner = raw.slice(1, -1);
@@ -40,7 +14,7 @@ function parseValue(raw) {
   }
 
   if (raw.startsWith('"') && raw.endsWith('"')) {
-    return parseDoubleQuotedValue(raw.slice(1, -1));
+    return raw.slice(1, -1).replace(/\\(["\\nrt])/g, (_, c) => DOUBLE_QUOTED_ESCAPES[c]);
   }
 
   if (raw.startsWith("'") && raw.endsWith("'")) {
@@ -55,80 +29,27 @@ function parseValue(raw) {
   return raw;
 }
 
-/**
- * Split content at the frontmatter boundary using line iteration.
- *
- * The opening `---` must be the first line; the block ends at the next line
- * that is exactly `---`, with or without a trailing newline after it. CRLF
- * line endings are normalized to LF first.
- *
- * @param {string} content - The full content string with optional frontmatter.
- * @returns {{ raw: string, body: string }} The raw frontmatter text (between
- *   delimiters, excluding them) and the remaining body. When no valid
- *   frontmatter block is found, raw is '' and body is the whole content.
- */
-function splitAtBoundary(content) {
+// The block runs from a first-line `---` to the next `---` line, after CRLF is normalized to
+// LF. Without a closed block the frontmatter is empty and the body is the whole content.
+function parse(content) {
   const text = content.replace(/\r\n/g, '\n');
   const lines = text.split('\n');
-
-  if (lines[0] !== '---') {
-    return { raw: '', body: text };
+  const end = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
+  if (end === -1) {
+    return { frontmatter: {}, body: text };
   }
 
-  const endIndex = lines.indexOf('---', 1);
-  if (endIndex === -1) {
-    return { raw: '', body: text };
-  }
-
-  const raw = lines.slice(1, endIndex).join('\n');
-  const body = lines.slice(endIndex + 1).join('\n');
-
-  return { raw, body };
-}
-
-/**
- * Parse frontmatter key-value lines into an object, coercing each value via
- * {@link parseValue}.
- *
- * @param {string[]} lines - Lines between frontmatter delimiters.
- * @returns {Object} Parsed frontmatter object.
- */
-function parseLines(lines) {
   const frontmatter = {};
-
-  for (const line of lines) {
+  for (const line of lines.slice(1, end)) {
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) continue;
 
     const key = line.substring(0, colonIndex).trim();
     const rawValue = line.substring(colonIndex + 1).trim();
-
     frontmatter[key] = parseValue(rawValue);
   }
 
-  return frontmatter;
+  return { frontmatter, body: lines.slice(end + 1).join('\n') };
 }
 
-/**
- * Parse frontmatter with type coercion.
- *
- * Splits content on `---` delimiters and parses key-value pairs with type
- * coercion via {@link parseValue}. Arrays, numbers, and quoted strings are
- * converted to their native types.
- *
- * Returns empty frontmatter and the full content as body when no valid
- * frontmatter block is found (missing opening or closing `---`). The body
- * has LF line endings either way.
- *
- * @param {string} content - The full content string with optional frontmatter.
- * @returns {{ frontmatter: Object, body: string }} Parsed frontmatter object and remaining body.
- */
-function parse(content) {
-  const { raw, body } = splitAtBoundary(content);
-  return { frontmatter: parseLines(raw.split('\n')), body };
-}
-
-module.exports = {
-  parse,
-  splitAtBoundary,
-};
+module.exports = { parse };
