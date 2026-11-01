@@ -3,130 +3,46 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const {
-  MaestroError,
-  ValidationError,
-  NotFoundError,
-  StateError,
-} = require('../../src/lib/errors');
+const errors = require('../../src/lib/errors');
 
-const SUBCLASS_SPECS = [
-  { Class: ValidationError, code: 'VALIDATION_ERROR', name: 'ValidationError' },
-  { Class: NotFoundError, code: 'NOT_FOUND', name: 'NotFoundError' },
-  { Class: StateError, code: 'STATE_ERROR', name: 'StateError' },
+// [exported class name, default code]; the base class meets the same contract as every subclass.
+const ERROR_SPECS = [
+  ['MaestroError', 'MAESTRO_ERROR'],
+  ['ValidationError', 'VALIDATION_ERROR'],
+  ['NotFoundError', 'NOT_FOUND'],
+  ['StateError', 'STATE_ERROR'],
 ];
 
-describe('MaestroError', () => {
-  it('extends Error', () => {
-    const err = new MaestroError('base');
-    assert.ok(err instanceof Error);
-    assert.ok(err instanceof MaestroError);
-  });
-
-  it('sets name to constructor name', () => {
-    const err = new MaestroError('base');
-    assert.equal(err.name, 'MaestroError');
-  });
-
-  it('assigns default code when no options provided', () => {
-    const err = new MaestroError('base');
-    assert.equal(err.code, 'MAESTRO_ERROR');
-  });
-
-  it('defaults details to null', () => {
-    const err = new MaestroError('base');
-    assert.equal(err.details, null);
-  });
-
-  it('preserves message', () => {
-    const err = new MaestroError('something broke');
-    assert.equal(err.message, 'something broke');
-  });
-
-  it('captures stack trace', () => {
-    const err = new MaestroError('trace');
-    assert.ok(typeof err.stack === 'string');
-    assert.ok(err.stack.includes('MaestroError'));
-    assert.ok(err.stack.includes('lib-errors.test.js'));
-  });
-
-  it('accepts custom code and details', () => {
-    const details = { field: 'name', constraint: 'required' };
-    const err = new MaestroError('custom', {
-      code: 'CUSTOM_CODE',
-      details,
+for (const [name, code] of ERROR_SPECS) {
+  const Class = errors[name];
+  describe(name, () => {
+    it('extends MaestroError and Error and is distinguishable from sibling classes via instanceof', () => {
+      const err = new Class('sibling check');
+      assert.ok(err instanceof Error);
+      for (const [other] of ERROR_SPECS) {
+        assert.equal(err instanceof errors[other], other === name || other === 'MaestroError', other);
+      }
     });
-    assert.equal(err.code, 'CUSTOM_CODE');
-    assert.deepEqual(err.details, details);
-  });
 
-  it('is not instanceof any subclass', () => {
-    const err = new MaestroError('base only');
-    for (const { Class } of SUBCLASS_SPECS) {
-      assert.ok(!(err instanceof Class));
-    }
-  });
-});
+    it(`has name "${name}", preserves message, defaults code and details and captures a stack trace`, () => {
+      const err = new Class('specific message');
+      assert.equal(err.name, name);
+      assert.equal(err.message, 'specific message');
+      assert.equal(err.code, code);
+      assert.equal(err.details, null);
+      assert.ok(err.stack.includes(name));
+      assert.ok(err.stack.includes('lib-errors.test.js'));
+    });
 
-describe('Subclass contracts', () => {
-  for (const { Class, code, name } of SUBCLASS_SPECS) {
-    describe(name, () => {
-      it('extends both MaestroError and Error', () => {
-        const err = new Class('test');
-        assert.ok(err instanceof Error);
-        assert.ok(err instanceof MaestroError);
-        assert.ok(err instanceof Class);
-      });
-
-      it(`has name "${name}"`, () => {
-        const err = new Class('test');
-        assert.equal(err.name, name);
-      });
-
-      it('defaults details to null', () => {
-        const err = new Class('test');
-        assert.equal(err.details, null);
-      });
-
-      it('preserves message', () => {
-        const err = new Class('specific message');
-        assert.equal(err.message, 'specific message');
-      });
-
-      it('captures stack trace referencing the test file', () => {
-        const err = new Class('trace');
-        assert.ok(typeof err.stack === 'string');
-        assert.ok(err.stack.includes('lib-errors.test.js'));
-      });
-
-      it('accepts the details option', () => {
-        const details = { reason: 'missing field' };
-        const err = new Class('opts', { details });
+    it('keeps details with the default code or a more specific one', () => {
+      const details = { field: 'name', constraint: 'required' };
+      const cases = [[{ details }, code], [{ code: 'MORE_SPECIFIC_SUBTYPE', details }, 'MORE_SPECIFIC_SUBTYPE']];
+      for (const [opts, expected] of cases) {
+        const err = new Class('opts', opts);
+        assert.equal(err.code, expected);
         assert.deepEqual(err.details, details);
-      });
-
-      it(`defaults to code "${code}" and allows caller to set a more specific subtype code`, () => {
-        const defaultErr = new Class('default code');
-        assert.equal(defaultErr.code, code);
-
-        const overridden = new Class('specific subtype', { code: 'MORE_SPECIFIC_SUBTYPE' });
-        assert.equal(overridden.code, 'MORE_SPECIFIC_SUBTYPE');
-        assert.ok(
-          overridden instanceof Class,
-          'instanceof relationship must survive code override'
-        );
-      });
-
-      it('is distinguishable from sibling subclasses via instanceof', () => {
-        const err = new Class('sibling check');
-        for (const { Class: Sibling } of SUBCLASS_SPECS) {
-          if (Sibling === Class) {
-            assert.ok(err instanceof Sibling);
-          } else {
-            assert.ok(!(err instanceof Sibling));
-          }
-        }
-      });
+        assert.ok(err instanceof Class, 'instanceof relationship must survive code override');
+      }
     });
-  }
-});
+  });
+}

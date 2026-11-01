@@ -10,200 +10,71 @@ const {
   normalizeAgentName,
   detectAgentFromPrompt,
   getAgentCapability,
-  canCreateFiles,
 } = require('../../src/core/agent-registry');
 const { AGENT_COUNT } = require('../support/catalog');
 const { withEnv } = require('../support/env');
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
 
-describe('KNOWN_AGENTS', () => {
-  it('is frozen', () => {
-    assert.equal(Object.isFrozen(KNOWN_AGENTS), true);
+describe('registry constants', () => {
+  it('are frozen', () => {
+    for (const constant of [AGENT_NAMES, KNOWN_AGENTS, AGENT_CAPABILITIES]) {
+      assert.equal(Object.isFrozen(constant), true);
+    }
   });
 
-  it(`has exactly ${AGENT_COUNT} entries`, () => {
+  // match() and replace() also throw on a non-string entry.
+  it(`list ${AGENT_COUNT} kebab-case AGENT_NAMES, and KNOWN_AGENTS as the same names in snake_case`, () => {
     assert.equal(KNOWN_AGENTS.length, AGENT_COUNT);
+    for (const name of AGENT_NAMES) assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+    assert.deepEqual(AGENT_NAMES, KNOWN_AGENTS.map((name) => name.replace(/_/g, '-')));
   });
 
-  it('contains only strings', () => {
-    for (const entry of KNOWN_AGENTS) {
-      assert.equal(typeof entry, 'string');
+  it('map every known agent, and nothing else, to a valid capability level', () => {
+    assert.deepEqual(Object.keys(AGENT_CAPABILITIES), [...KNOWN_AGENTS]);
+    for (const level of Object.values(AGENT_CAPABILITIES)) assert.ok(VALID_CAPABILITY_LEVELS.includes(level), level);
+  });
+});
+
+const detect = (prompt, env = null) => withEnv({ MAESTRO_CURRENT_AGENT: env }, () => detectAgentFromPrompt(prompt));
+
+// [describe, lookup, [[it title, [[input, expected, MAESTRO_CURRENT_AGENT for detect], ...]], ...]]
+const LOOKUP_CASES = [
+  ['normalizeAgentName', normalizeAgentName, [
+    ['converts kebab-case to snake_case', [['code-reviewer', 'code_reviewer'], ['devops-engineer', 'devops_engineer'],
+      ['design-system-engineer', 'design_system_engineer']]],
+    ['lowercases input', [['CODER', 'coder'], ['Code-Reviewer', 'code_reviewer'], ['Architect', 'architect']]],
+    ['returns empty string for non-string inputs', [[null, ''], [undefined, ''], [42, ''], [{}, '']]],
+  ]],
+  ['detectAgentFromPrompt', detect, [
+    ['finds agent from "agent: coder" header', [['agent: coder\n\nDo some work.', 'coder']]],
+    ['finds agent from "agent: code-reviewer" header and normalizes to snake_case',
+      [['agent: code-reviewer\n\nReview this PR.', 'code_reviewer']]],
+    ['matches @code_reviewer mention', [['Please ask @code_reviewer to check this.', 'code_reviewer']]],
+    ['matches "delegate to coder" pattern', [['delegate to coder for implementation', 'coder']]],
+    ['matches "hand off to debugger" pattern', [['hand off to debugger for investigation', 'debugger']]],
+    ['returns empty string for empty prompt, null prompt, and prompts with no agent',
+      [['', ''], [null, ''], ['Just a normal message with no agent.', '']]],
+    ['falls back to MAESTRO_CURRENT_AGENT env when no header is present',
+      [['Run all tests please.', 'tester', 'tester']]],
+    ['prefers header agent over MAESTRO_CURRENT_AGENT env',
+      [['agent: coder\n\nImplement the feature.', 'coder', 'tester']]],
+  ]],
+  ['getAgentCapability', getAgentCapability, [
+    ['returns correct capability level for known agents', [['architect', 'read_only'], ['debugger', 'read_shell'],
+      ['technical_writer', 'read_write'], ['coder', 'full']]],
+    ['accepts kebab-case agent names and normalizes before lookup', [['code-reviewer', 'read_only'],
+      ['devops-engineer', 'full'], ['performance-engineer', 'read_shell']]],
+    ['returns null for unknown agent names', [['unknown_agent', null], ['', null], ['fake-agent', null]]],
+  ]],
+];
+
+for (const [suite, lookup, cases] of LOOKUP_CASES) {
+  describe(suite, () => {
+    for (const [title, pairs] of cases) {
+      it(title, () => {
+        for (const [input, expected, env] of pairs) assert.equal(lookup(input, env), expected, String(input));
+      });
     }
   });
-});
-
-describe('AGENT_NAMES', () => {
-  it('is frozen and lists the canonical kebab-case names', () => {
-    assert.equal(Object.isFrozen(AGENT_NAMES), true);
-    for (const name of AGENT_NAMES) {
-      assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
-    }
-  });
-
-  it('is KNOWN_AGENTS in kebab-case, in the same order', () => {
-    assert.deepEqual(
-      AGENT_NAMES,
-      KNOWN_AGENTS.map((name) => name.replace(/_/g, '-'))
-    );
-  });
-});
-
-describe('AGENT_CAPABILITIES', () => {
-  it('is frozen', () => {
-    assert.equal(Object.isFrozen(AGENT_CAPABILITIES), true);
-  });
-
-  it('has a capability entry for every known agent', () => {
-    for (const agent of KNOWN_AGENTS) {
-      assert.ok(
-        Object.prototype.hasOwnProperty.call(AGENT_CAPABILITIES, agent),
-        `Missing capability for agent: ${agent}`
-      );
-    }
-  });
-
-  it('has only valid capability levels as values', () => {
-    for (const [agent, level] of Object.entries(AGENT_CAPABILITIES)) {
-      assert.ok(
-        VALID_CAPABILITY_LEVELS.includes(level),
-        `Invalid capability level '${level}' for agent: ${agent}`
-      );
-    }
-  });
-});
-
-describe('normalizeAgentName', () => {
-  it('converts kebab-case to snake_case', () => {
-    assert.equal(normalizeAgentName('code-reviewer'), 'code_reviewer');
-    assert.equal(normalizeAgentName('devops-engineer'), 'devops_engineer');
-    assert.equal(normalizeAgentName('design-system-engineer'), 'design_system_engineer');
-  });
-
-  it('lowercases input', () => {
-    assert.equal(normalizeAgentName('CODER'), 'coder');
-    assert.equal(normalizeAgentName('Code-Reviewer'), 'code_reviewer');
-    assert.equal(normalizeAgentName('Architect'), 'architect');
-  });
-
-  it('returns empty string for non-string inputs', () => {
-    assert.equal(normalizeAgentName(null), '');
-    assert.equal(normalizeAgentName(undefined), '');
-    assert.equal(normalizeAgentName(42), '');
-    assert.equal(normalizeAgentName({}), '');
-  });
-});
-
-describe('detectAgentFromPrompt', () => {
-  it('finds agent from "agent: coder" header', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('agent: coder\n\nDo some work.')
-    );
-    assert.equal(result, 'coder');
-  });
-
-  it('finds agent from "agent: code-reviewer" header and normalizes to snake_case', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('agent: code-reviewer\n\nReview this PR.')
-    );
-    assert.equal(result, 'code_reviewer');
-  });
-
-  it('matches @code_reviewer mention', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('Please ask @code_reviewer to check this.')
-    );
-    assert.equal(result, 'code_reviewer');
-  });
-
-  it('matches "delegate to coder" pattern', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('delegate to coder for implementation')
-    );
-    assert.equal(result, 'coder');
-  });
-
-  it('matches "hand off to debugger" pattern', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: null }, () =>
-      detectAgentFromPrompt('hand off to debugger for investigation')
-    );
-    assert.equal(result, 'debugger');
-  });
-
-  it('returns empty string for empty prompt, null prompt, and prompts with no agent', () => {
-    withEnv({ MAESTRO_CURRENT_AGENT: null }, () => {
-      assert.equal(detectAgentFromPrompt(''), '');
-      assert.equal(detectAgentFromPrompt(null), '');
-      assert.equal(detectAgentFromPrompt('Just a normal message with no agent.'), '');
-    });
-  });
-
-  it('falls back to MAESTRO_CURRENT_AGENT env when no header is present', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
-      detectAgentFromPrompt('Run all tests please.')
-    );
-    assert.equal(result, 'tester');
-  });
-
-  it('prefers header agent over MAESTRO_CURRENT_AGENT env', () => {
-    const result = withEnv({ MAESTRO_CURRENT_AGENT: 'tester' }, () =>
-      detectAgentFromPrompt('agent: coder\n\nImplement the feature.')
-    );
-    assert.equal(result, 'coder');
-  });
-});
-
-describe('getAgentCapability', () => {
-  it('returns correct capability level for known agents', () => {
-    assert.equal(getAgentCapability('architect'), 'read_only');
-    assert.equal(getAgentCapability('debugger'), 'read_shell');
-    assert.equal(getAgentCapability('technical_writer'), 'read_write');
-    assert.equal(getAgentCapability('coder'), 'full');
-  });
-
-  it('accepts kebab-case agent names and normalizes before lookup', () => {
-    assert.equal(getAgentCapability('code-reviewer'), 'read_only');
-    assert.equal(getAgentCapability('devops-engineer'), 'full');
-    assert.equal(getAgentCapability('performance-engineer'), 'read_shell');
-  });
-
-  it('returns null for unknown agent names', () => {
-    assert.equal(getAgentCapability('unknown_agent'), null);
-    assert.equal(getAgentCapability(''), null);
-    assert.equal(getAgentCapability('fake-agent'), null);
-  });
-});
-
-describe('canCreateFiles', () => {
-  it('returns true for read_write agents', () => {
-    assert.equal(canCreateFiles('technical_writer'), true);
-    assert.equal(canCreateFiles('product_manager'), true);
-    assert.equal(canCreateFiles('ux_designer'), true);
-    assert.equal(canCreateFiles('copywriter'), true);
-  });
-
-  it('returns true for full agents', () => {
-    assert.equal(canCreateFiles('coder'), true);
-    assert.equal(canCreateFiles('data_engineer'), true);
-    assert.equal(canCreateFiles('devops_engineer'), true);
-    assert.equal(canCreateFiles('tester'), true);
-    assert.equal(canCreateFiles('refactor'), true);
-  });
-
-  it('returns false for read_only agents', () => {
-    assert.equal(canCreateFiles('architect'), false);
-    assert.equal(canCreateFiles('code_reviewer'), false);
-    assert.equal(canCreateFiles('api_designer'), false);
-  });
-
-  it('returns false for read_shell agents', () => {
-    assert.equal(canCreateFiles('debugger'), false);
-    assert.equal(canCreateFiles('security_engineer'), false);
-    assert.equal(canCreateFiles('performance_engineer'), false);
-  });
-
-  it('returns false for unknown agents', () => {
-    assert.equal(canCreateFiles('nonexistent_agent'), false);
-    assert.equal(canCreateFiles(''), false);
-  });
-});
+}

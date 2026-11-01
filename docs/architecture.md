@@ -129,11 +129,10 @@ src/mcp/
 │   ├── session-state-tools.js  # Session CRUD (create/get/update/transition/archive)
 │   ├── design-gate.js          # Design-gate lifecycle (3 tools)
 │   └── reconciliation.js       # Phase reconciliation (2 tools)
-├── tool-packs/
-│   ├── workspace/index.js      # 4 tools
-│   ├── session/index.js        # 10 tools
-│   └── content/index.js        # 3 tools
-└── validation/                 # validate_plan checkers (schema, DAG, file overlap, agents)
+└── tool-packs/
+    ├── workspace/index.js      # 4 tools
+    ├── session/index.js        # 10 tools
+    └── content/index.js        # 3 tools
 ```
 
 The runtime config registry the server and the generator share, `src/platforms/runtime-config-map.js`, sits with the platform configs it discovers, outside `src/mcp/`.
