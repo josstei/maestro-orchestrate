@@ -6,7 +6,7 @@
  * src/platforms/metadata.js, which scripts/generate.js runs.
  */
 
-const { DENY_RULES, ASK_RULES } = require('../../core/policy-rules');
+const { DENY_RULES, ASK_RULES, MATCH_TYPES } = require('../../core/policy-rules');
 
 const POLICY_PACK_HEADER = [
   '# Maestro extension policy pack.',
@@ -23,14 +23,9 @@ const DESTRUCTIVE_DENY_MESSAGE =
   'Maestro blocks destructive shell commands. Use safer targeted tools or handle the cleanup manually.';
 
 function policyCommandRegex(rule) {
-  switch (rule.matchType) {
-    case 'word':
-      return `.*\\b${rule.pattern}\\b.*`;
-    case 'regex':
-      return `.*(?:${rule.pattern}).*$`;
-    default:
-      throw new Error(`Cannot render a ${rule.matchType} policy rule as a commandRegex: ${rule.pattern}`);
-  }
+  const render = Object.hasOwn(MATCH_TYPES, rule.matchType) && MATCH_TYPES[rule.matchType].commandRegex;
+  if (!render) throw new Error(`Cannot render a ${rule.matchType} policy rule as a commandRegex: ${rule.pattern}`);
+  return render(rule.pattern);
 }
 
 // JSON string escapes are valid TOML basic-string escapes, so values are quoted with JSON.stringify.
