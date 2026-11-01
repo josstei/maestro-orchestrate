@@ -74,19 +74,15 @@ describe('updateVersions', () => {
   it('updates only canonical stable release inputs', () => {
     updateVersions('1.7.0', { root: tempRoot, dateString: '2026-04-12' });
 
-    const pkg = readProjectJson(tempRoot, 'package.json');
-    const antigravityPlugin = readProjectJson(tempRoot, 'antigravity/plugin.json');
-    const qwen = readProjectJson(tempRoot, 'qwen-extension.json');
-    const claudePlugin = readProjectJson(tempRoot, 'claude/.claude-plugin/plugin.json');
-    const codexPlugin = readProjectJson(tempRoot, 'plugins/maestro/.codex-plugin/plugin.json');
+    const untouchedManifests = ['antigravity/plugin.json', 'qwen-extension.json', 'claude/.claude-plugin/plugin.json',
+      'plugins/maestro/.codex-plugin/plugin.json'];
     const codexMcp = readProjectJson(tempRoot, 'plugins/maestro/.mcp.json');
     const marketplace = readProjectJson(tempRoot, '.claude-plugin/marketplace.json');
 
-    assert.equal(pkg.version, '1.7.0');
-    assert.equal(antigravityPlugin.version, '1.6.1');
-    assert.equal(qwen.version, '1.6.1');
-    assert.equal(claudePlugin.version, '1.6.1');
-    assert.equal(codexPlugin.version, '1.6.1');
+    assert.equal(readProjectJson(tempRoot, 'package.json').version, '1.7.0');
+    for (const manifest of untouchedManifests) {
+      assert.equal(readProjectJson(tempRoot, manifest).version, '1.6.1', manifest);
+    }
     assert.ok(codexMcp.mcpServers.maestro.args.includes('@josstei/maestro@1.6.1'));
     assert.equal(marketplace.metadata.version, '1.6.1');
     assert.equal(marketplace.plugins[0].version, '1.6.1');

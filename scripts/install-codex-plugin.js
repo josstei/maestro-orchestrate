@@ -26,20 +26,9 @@ Options:
 `);
 }
 
-function assertSourcePlugin() {
-  const manifestPath = path.join(SOURCE_PLUGIN_DIR, '.codex-plugin', 'plugin.json');
-  if (!fs.existsSync(manifestPath)) {
-    throw new Error(`Source plugin manifest not found: ${manifestPath}`);
-  }
-}
-
-function readMarketplace() {
-  const defaults = codexMarketplace([]);
+function readMarketplace(defaults) {
   if (!fs.existsSync(MARKETPLACE_FILE)) {
-    return {
-      marketplace: defaults,
-      existed: false,
-    };
+    return null;
   }
 
   const raw = fs.readFileSync(MARKETPLACE_FILE, 'utf8');
@@ -68,65 +57,40 @@ function readMarketplace() {
     marketplace.interface.displayName = defaults.interface.displayName;
   }
 
-  return {
-    marketplace,
-    existed: true,
-  };
-}
-
-function upsertPluginEntry(marketplace) {
-  const nextEntry = codexMarketplacePlugin(PLUGIN_SOURCE_PATH);
-  const existingIndex = marketplace.plugins.findIndex((plugin) => plugin && plugin.name === 'maestro');
-
-  if (existingIndex >= 0) {
-    marketplace.plugins[existingIndex] = nextEntry;
-  } else {
-    marketplace.plugins.push(nextEntry);
-  }
-
-  return existingIndex >= 0 ? 'updated' : 'added';
-}
-
-function writeMarketplace(marketplace) {
-  fs.mkdirSync(path.dirname(MARKETPLACE_FILE), { recursive: true });
-  fs.writeFileSync(MARKETPLACE_FILE, formatJson(marketplace));
-}
-
-function installPluginCopy() {
-  fs.mkdirSync(path.dirname(TARGET_PLUGIN_DIR), { recursive: true });
-  fs.rmSync(TARGET_PLUGIN_DIR, { recursive: true, force: true });
-  fs.cpSync(SOURCE_PLUGIN_DIR, TARGET_PLUGIN_DIR, { recursive: true });
-}
-
-function printSummary({ dryRun, marketplaceExisted, pluginAction }) {
-  const mode = dryRun ? 'Dry run complete.' : 'Maestro installed for Codex.';
-  const marketplaceStatus = marketplaceExisted ? 'updated' : 'created';
-
-  console.log(mode);
-  console.log(`Plugin source: ${SOURCE_PLUGIN_DIR}`);
-  console.log(`Plugin target: ${TARGET_PLUGIN_DIR}`);
-  console.log(`Marketplace: ${MARKETPLACE_FILE} (${marketplaceStatus}, plugin ${pluginAction})`);
-  console.log('');
-  console.log('Next steps:');
-  console.log('1. Start Codex or restart it if already open.');
-  console.log('2. Run `/plugins`.');
-  console.log('3. Search for `Maestro` and select `Install plugin`.');
+  return marketplace;
 }
 
 function main() {
   const { dryRun } = parseFlagArgs(process.argv.slice(2), { booleans: { '--dry-run': 'dryRun' }, printHelp });
 
-  assertSourcePlugin();
-
-  const { marketplace, existed: marketplaceExisted } = readMarketplace();
-  const pluginAction = upsertPluginEntry(marketplace);
-
-  if (!dryRun) {
-    installPluginCopy();
-    writeMarketplace(marketplace);
+  const manifestPath = path.join(SOURCE_PLUGIN_DIR, '.codex-plugin', 'plugin.json');
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(`Source plugin manifest not found: ${manifestPath}`);
   }
 
-  printSummary({ dryRun, marketplaceExisted, pluginAction });
+  const defaults = codexMarketplace([]);
+  const existing = readMarketplace(defaults);
+  const marketplace = existing || defaults;
+  const index = marketplace.plugins.findIndex((plugin) => plugin && plugin.name === 'maestro');
+  marketplace.plugins[index >= 0 ? index : marketplace.plugins.length] = codexMarketplacePlugin(PLUGIN_SOURCE_PATH);
+
+  if (!dryRun) {
+    fs.mkdirSync(path.dirname(TARGET_PLUGIN_DIR), { recursive: true });
+    fs.rmSync(TARGET_PLUGIN_DIR, { recursive: true, force: true });
+    fs.cpSync(SOURCE_PLUGIN_DIR, TARGET_PLUGIN_DIR, { recursive: true });
+    fs.mkdirSync(path.dirname(MARKETPLACE_FILE), { recursive: true });
+    fs.writeFileSync(MARKETPLACE_FILE, formatJson(marketplace));
+  }
+
+  console.log(`${dryRun ? 'Dry run complete.' : 'Maestro installed for Codex.'}
+Plugin source: ${SOURCE_PLUGIN_DIR}
+Plugin target: ${TARGET_PLUGIN_DIR}
+Marketplace: ${MARKETPLACE_FILE} (${existing ? 'updated' : 'created'}, plugin ${index >= 0 ? 'updated' : 'added'})
+
+Next steps:
+1. Start Codex or restart it if already open.
+2. Run \`/plugins\`.
+3. Search for \`Maestro\` and select \`Install plugin\`.`);
 }
 
 runCli('codex plugin install failed', main);
