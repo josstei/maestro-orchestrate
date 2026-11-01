@@ -15,30 +15,9 @@ const {
   releaseArchivePath,
   withTempDir,
 } = require('./release-artifact-manifest');
-const { parseFlagArgs, runCli } = require('./lib/cli');
+const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
-
-function printHelp() {
-  console.log(`Package Maestro release artifacts.
-
-Usage:
-  node scripts/package-release-artifacts.js [--version X.Y.Z] [--out-dir dist/release]
-
-Options:
-  --version  Version to package. Defaults to package.json version.
-  --out-dir  Directory for the generated archive. Defaults to dist/release.
-  --help     Show this help text.
-`);
-}
-
-function parseArgs(argv) {
-  return parseFlagArgs(argv, {
-    defaults: { version: null, outDir: null },
-    flags: { '--version': 'version', '--out-dir': 'outDir' },
-    printHelp,
-  });
-}
 
 // Refuses symlinks before copying, including the ancestors of allowlisted files that are
 // not copied as roots (docs/ and the marketplace directories).
@@ -86,12 +65,23 @@ function packageReleaseArtifacts(options = {}) {
   });
 }
 
-if (require.main === module) {
-  runCli('release artifact packaging failed', () => {
-    const result = packageReleaseArtifacts(parseArgs(process.argv.slice(2)));
-    console.log(`Created release artifact: ${path.relative(ROOT, result.archivePath)}`);
-  });
-}
+runCli(module, {
+  failure: 'release artifact packaging failed',
+  flags: { '--version': 'version', '--out-dir': 'outDir' },
+  usage: `Package Maestro release artifacts.
+
+Usage:
+  node scripts/package-release-artifacts.js [--version X.Y.Z] [--out-dir dist/release]
+
+Options:
+  --version  Version to package. Defaults to package.json version.
+  --out-dir  Directory for the generated archive. Defaults to dist/release.
+  --help     Show this help text.
+`,
+}, (options) => {
+  const result = packageReleaseArtifacts(options);
+  console.log(`Created release artifact: ${path.relative(ROOT, result.archivePath)}`);
+});
 
 module.exports = {
   packageReleaseArtifacts,

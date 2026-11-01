@@ -3,33 +3,11 @@
 
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { parseFlagArgs, runCli } = require('./lib/cli');
+const { runCli } = require('./lib/cli');
 const { readJson, requireNonEmpty } = require('./release-artifact-manifest');
 
 const ROOT = path.resolve(__dirname, '..');
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
-
-function printHelp() {
-  console.log(`Publish a Maestro npm package if the exact version is absent.
-
-Usage:
-  node scripts/npm-publish-idempotent.js [--tag TAG] [--access public]
-`);
-}
-
-function parseArgs(argv) {
-  const options = parseFlagArgs(argv, {
-    defaults: { access: 'public', tag: null },
-    flags: { '--access': 'access', '--tag': 'tag' },
-    printHelp,
-  });
-
-  if (!options.access) {
-    throw new Error('Missing value for --access');
-  }
-
-  return options;
-}
 
 function isNpmNotFoundError(error) {
   // join() decodes the Buffer stdout/stderr that execFileSync attaches.
@@ -162,22 +140,27 @@ function publishIfNeeded(options = {}) {
   };
 }
 
-if (require.main === module) {
-  runCli('npm publish failed', () => {
-    const result = publishIfNeeded(parseArgs(process.argv.slice(2)));
+runCli(module, {
+  failure: 'npm publish failed',
+  flags: { '--access': 'access', '--tag': 'tag' },
+  usage: `Publish a Maestro npm package if the exact version is absent.
 
-    if (result.published) {
-      console.log(`Published ${result.packageSpec}`);
-    } else {
-      console.log(`Skipping npm publish; ${result.packageSpec} already exists`);
-    }
-  });
-}
+Usage:
+  node scripts/npm-publish-idempotent.js [--tag TAG] [--access public]
+`,
+}, (options) => {
+  const result = publishIfNeeded(options);
+
+  if (result.published) {
+    console.log(`Published ${result.packageSpec}`);
+  } else {
+    console.log(`Skipping npm publish; ${result.packageSpec} already exists`);
+  }
+});
 
 module.exports = {
   highestStableVersion,
   isNpmNotFoundError,
   parseDistTagOutput,
-  parseArgs,
   publishIfNeeded,
 };

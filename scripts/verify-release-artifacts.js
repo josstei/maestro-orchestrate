@@ -11,20 +11,9 @@ const {
   releaseArchivePath,
   withTempDir,
 } = require('./release-artifact-manifest');
-const { parseFlagArgs, runCli } = require('./lib/cli');
+const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
-
-function printHelp() {
-  console.log(`Verify a Maestro release artifact.
-
-Usage:
-  node scripts/verify-release-artifacts.js [archive]
-
-If archive is omitted, the verifier checks:
-  dist/release/maestro-v<package.json version>-extension.tar.gz
-`);
-}
 
 function verifyReleaseArtifact(archivePath, options = {}) {
   const root = options.root || ROOT;
@@ -45,13 +34,21 @@ function verifyReleaseArtifact(archivePath, options = {}) {
   });
 }
 
-if (require.main === module) {
-  runCli('release artifact verification failed', () => {
-    const { positionals: [archivePath] } = parseFlagArgs(process.argv.slice(2), { positional: 'archive path', printHelp });
-    const result = verifyReleaseArtifact(archivePath);
-    console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
-  });
-}
+runCli(module, {
+  failure: 'release artifact verification failed',
+  positional: 'archive path',
+  usage: `Verify a Maestro release artifact.
+
+Usage:
+  node scripts/verify-release-artifacts.js [archive]
+
+If archive is omitted, the verifier checks:
+  dist/release/maestro-v<package.json version>-extension.tar.gz
+`,
+}, ({ positionals: [archivePath] }) => {
+  const result = verifyReleaseArtifact(archivePath);
+  console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
+});
 
 module.exports = {
   verifyReleaseArtifact,

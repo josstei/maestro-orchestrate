@@ -10,13 +10,12 @@ const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { buildRuntimeEntrypointOutputs, hasDetachedPayload } = require('../src/generator/runtime-entrypoints');
 const { buildPlatformMetadataOutputs } = require('../src/platforms/metadata');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../src/platforms/runtime-config-map');
-const { parseFlagArgs, runCli } = require('./lib/cli');
+const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
-function printHelp() {
-  console.log(`Generate the runtime outputs and detached payloads from src/.
+const USAGE = `Generate the runtime outputs and detached payloads from src/.
 
 Usage:
   node scripts/generate.js [--dry-run | --diff | --check] [--clean]
@@ -27,14 +26,9 @@ Options:
   --check    List only pending changes, and exit 1 if there are any
   --clean    Delete the generated agent and shared-skill stubs, then regenerate
   --help     Show this help text
-`);
-}
+`;
 
-function main() {
-  const { dryRun, diffMode, check, cleanMode } = parseFlagArgs(process.argv.slice(2), {
-    booleans: { '--dry-run': 'dryRun', '--diff': 'diffMode', '--check': 'check', '--clean': 'cleanMode' },
-    printHelp,
-  });
+function main({ dryRun, diffMode, check, cleanMode }) {
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const writer = new FileWriter({ rootDir: ROOT, dryRun, diffMode, check });
@@ -101,4 +95,8 @@ function main() {
   console.log(`\nDetached payloads: ${payloadSummary.join(', ')}`);
 }
 
-runCli('Generator failed', main);
+runCli(module, {
+  failure: 'Generator failed',
+  booleans: { '--dry-run': 'dryRun', '--diff': 'diffMode', '--check': 'check', '--clean': 'cleanMode' },
+  usage: USAGE,
+}, main);

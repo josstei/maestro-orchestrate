@@ -8,7 +8,6 @@ const path = require('node:path');
 const {
   highestStableVersion,
   isNpmNotFoundError,
-  parseArgs,
   parseDistTagOutput,
   publishIfNeeded,
 } = require('../../scripts/npm-publish-idempotent');
@@ -189,19 +188,6 @@ describe('idempotent npm publish', () => {
       }),
       /Command failed/
     );
-  });
-
-  it('parses optional tag and access arguments', () => {
-    assert.deepEqual(parseArgs(['--tag', 'nightly', '--access', 'public']), {
-      access: 'public',
-      tag: 'nightly',
-    });
-  });
-
-  it('rejects a flag without a value and an explicitly empty access', () => {
-    assert.throws(() => parseArgs(['--tag']), { message: 'Missing value for --tag' });
-    assert.throws(() => parseArgs(['--tag', 'rc', '--access']), { message: 'Missing value for --access' });
-    assert.throws(() => parseArgs(['--access', '']), { message: 'Missing value for --access' });
   });
 
   it('detects npm not-found errors', () => {

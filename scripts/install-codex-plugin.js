@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { formatJson } = require('../src/lib/io');
 const { codexMarketplace, codexMarketplacePlugin } = require('../src/platforms/metadata');
-const { parseFlagArgs, runCli } = require('./lib/cli');
+const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE_PLUGIN_DIR = path.join(ROOT, 'plugins', 'maestro');
@@ -14,8 +14,7 @@ const TARGET_PLUGIN_DIR = path.join(os.homedir(), '.codex', 'plugins', 'maestro'
 const MARKETPLACE_FILE = path.join(os.homedir(), '.agents', 'plugins', 'marketplace.json');
 const PLUGIN_SOURCE_PATH = './.codex/plugins/maestro';
 
-function printHelp() {
-  console.log(`Install Maestro into Codex's personal plugin marketplace.
+const USAGE = `Install Maestro into Codex's personal plugin marketplace.
 
 Usage:
   node scripts/install-codex-plugin.js [--dry-run]
@@ -23,8 +22,7 @@ Usage:
 Options:
   --dry-run   Show planned changes without writing files
   --help      Show this help text
-`);
-}
+`;
 
 function readMarketplace(defaults) {
   if (!fs.existsSync(MARKETPLACE_FILE)) {
@@ -60,9 +58,7 @@ function readMarketplace(defaults) {
   return marketplace;
 }
 
-function main() {
-  const { dryRun } = parseFlagArgs(process.argv.slice(2), { booleans: { '--dry-run': 'dryRun' }, printHelp });
-
+function main({ dryRun }) {
   const manifestPath = path.join(SOURCE_PLUGIN_DIR, '.codex-plugin', 'plugin.json');
   if (!fs.existsSync(manifestPath)) {
     throw new Error(`Source plugin manifest not found: ${manifestPath}`);
@@ -93,4 +89,4 @@ Next steps:
 3. Search for \`Maestro\` and select \`Install plugin\`.`);
 }
 
-runCli('codex plugin install failed', main);
+runCli(module, { failure: 'codex plugin install failed', booleans: { '--dry-run': 'dryRun' }, usage: USAGE }, main);

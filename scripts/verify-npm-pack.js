@@ -54,12 +54,10 @@ function verifyPackageEntries(packages) {
   };
 }
 
-if (require.main === module) {
-  runCli('npm pack verification failed', () => {
-    const result = verifyPackageEntries(runNpmPackDryRun());
-    console.log(`Verified npm pack contents: ${result.filename} (${result.entryCount} files)`);
-  });
-}
+runCli(module, { failure: 'npm pack verification failed', usage: 'Usage: node scripts/verify-npm-pack.js' }, () => {
+  const result = verifyPackageEntries(runNpmPackDryRun());
+  console.log(`Verified npm pack contents: ${result.filename} (${result.entryCount} files)`);
+});
 
 module.exports = {
   parsePackJson,
