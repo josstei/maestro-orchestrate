@@ -3,9 +3,8 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { createFileWriter, safeResolve } = require('../src/generator/file-writer');
+const { FileWriter } = require('../src/generator/file-writer');
 const { collectStubOutputs } = require('../src/generator/stub-outputs');
-const { pruneStaleFiles } = require('../src/generator/stale-pruner');
 const { planDetachedPayload } = require('../src/generator/payload-builder');
 const { collectRegistryOutputs } = require('../src/generator/registry-scanner');
 const { buildRuntimeEntrypointOutputs, hasDetachedPayload } = require('../src/generator/runtime-entrypoints');
@@ -36,10 +35,9 @@ function main() {
     booleans: { '--dry-run': 'dryRun', '--diff': 'diffMode', '--check': 'check', '--clean': 'cleanMode' },
     printHelp,
   });
-  const readOnlyMode = dryRun || diffMode || check;
   const runtimes = Object.fromEntries(RUNTIME_NAMES.map((name) => [name, getRuntimeConfig(name)]));
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const writer = createFileWriter({ rootDir: ROOT, dryRun, diffMode, check });
+  const writer = new FileWriter({ rootDir: ROOT, dryRun, diffMode, check });
   const registryOutputs = collectRegistryOutputs(SRC, ROOT);
   const stubOutputs = collectStubOutputs(SRC, runtimes, writer.reportError);
   const stubOutputPaths = stubOutputs.map(({ outputPath }) => outputPath);
@@ -52,7 +50,7 @@ function main() {
   }
   outputs.push(...buildPlatformMetadataOutputs(runtimes, packageMetadata));
   outputs.push(...buildRuntimeEntrypointOutputs(runtimes));
-  if (writer.getStats().errors > 0) process.exit(1);
+  if (writer.stats.errors > 0) process.exit(1);
 
   const sourceOverrides = new Map(registryOutputs.map(({ outputPath, content }) => [
     path.relative(SRC, path.join(ROOT, outputPath)).split(path.sep).join('/'), content,
@@ -75,38 +73,31 @@ function main() {
     ]),
     ...payloads.map(({ label }) => label),
   ];
-  const outputPaths = new Set(outputs.map(({ outputPath }) => outputPath));
-  for (const { outputPath } of outputs) safeResolve(outputPath, ROOT, { requireFile: true });
-  for (const ownedDir of ownedDirs) safeResolve(ownedDir, ROOT);
-  const removedPaths = pruneStaleFiles({ rootDir: ROOT, outputPaths, ownedDirs, dryRun: true }).pruned.sort();
+  const stale = writer.findStale(outputs, ownedDirs);
 
   if (cleanMode) {
     writer.clean(stubOutputPaths);
-    if (!readOnlyMode) console.log('Cleaned generated agent and shared-skill stubs.');
+    if (!writer.readOnly) console.log('Cleaned generated agent and shared-skill stubs.');
   }
   writer.writeAll(outputs);
-  if (writer.getStats().errors > 0) process.exit(1);
+  if (writer.stats.errors > 0) process.exit(1);
 
-  if (readOnlyMode) {
-    for (const file of removedPaths) console.log(dryRun || check ? `[REMOVE] ${file}` : `--- REMOVED: ${file}`);
-    if (dryRun) console.log('\n(dry-run — no files written)');
-    if (check) {
-      if (writer.getStats().changed > 0 || removedPaths.length > 0) {
-        console.error("Generated files are out of sync with src/. Run 'node scripts/generate.js' and commit the changes.");
-        process.exitCode = 1;
-      } else {
-        console.log('Generated files are in sync with src/.');
-      }
+  writer.prune(stale);
+  if (dryRun) console.log('\n(dry-run — no files written)');
+  if (check) {
+    if (writer.stats.changed > 0 || stale.files.length > 0) {
+      console.error("Generated files are out of sync with src/. Run 'node scripts/generate.js' and commit the changes.");
+      process.exitCode = 1;
+    } else {
+      console.log('Generated files are in sync with src/.');
     }
-    return;
   }
+  if (writer.readOnly) return;
 
-  pruneStaleFiles({ rootDir: ROOT, outputPaths, ownedDirs });
-  for (const file of removedPaths) console.log(`  PRUNED: ${file}`);
-  const stats = writer.getStats();
-  console.log(`\nGeneration complete: ${stats.written} written, ${stats.unchanged} unchanged, ${stats.errors} errors`);
+  const { stats } = writer;
+  console.log(`\nGeneration complete: ${stats.changed} written, ${stats.unchanged} unchanged, ${stats.errors} errors`);
   const payloadSummary = payloads.map(({ label, fileCount }) =>
-    `${label} (${fileCount} files, ${removedPaths.filter((file) => file.startsWith(`${label}/`)).length} removed)`);
+    `${label} (${fileCount} files, ${stale.files.filter((file) => file.startsWith(`${label}/`)).length} removed)`);
   console.log(`\nDetached payloads: ${payloadSummary.join(', ')}`);
 }
 

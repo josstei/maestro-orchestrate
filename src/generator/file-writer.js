@@ -13,10 +13,7 @@ function modeDiffers(filePath, mode) {
 }
 
 /**
- * @param {string} relativePath
- * @param {string} rootDir
  * @param {{ requireFile?: boolean }} [options] - Reject existing non-file destinations
- * @returns {string}
  * @throws {Error} If the resolved path escapes the root directory
  */
 function safeResolve(relativePath, rootDir, { requireFile = false } = {}) {
@@ -47,11 +44,6 @@ function safeResolve(relativePath, rootDir, { requireFile = false } = {}) {
   return resolved;
 }
 
-/**
- * @param {string} absOutputPath
- * @param {string} content
- * @param {string} displayPath
- */
 function printDiff(absOutputPath, content, displayPath) {
   try {
     execFileSync('diff', ['-u', absOutputPath, '-'], { encoding: 'utf8', input: content });
@@ -63,62 +55,32 @@ function printDiff(absOutputPath, content, displayPath) {
 }
 
 /**
- * @typedef {Object} FileWriterOptions
- * @property {string} rootDir - Absolute path to the project root directory
- * @property {boolean} [dryRun=false] - Log intended actions without writing files
- * @property {boolean} [diffMode=false] - Show unified diffs against existing files
- * @property {boolean} [check=false] - Log only outputs that would change, without writing files
+ * Writes generated outputs under rootDir and prunes stale files from owned
+ * directories. Read-only modes only preview: dry-run logs every status, check
+ * logs changes and diff prints unified diffs.
  */
+class FileWriter {
+  constructor({ rootDir, dryRun = false, diffMode = false, check = false }) {
+    Object.assign(this, { rootDir, dryRun, diffMode, check, readOnly: dryRun || diffMode || check });
+    this.stats = { changed: 0, unchanged: 0, errors: 0 };
+  }
 
-/**
- * @typedef {Object} FileWriterStats
- * @property {number} written - Number of files written (new or changed); 0 in read-only modes
- * @property {number} changed - Number of outputs that are new or differ in content or executable bit
- * @property {number} unchanged - Number of outputs whose content and executable bit already match
- * @property {number} errors - Number of failed writes plus reported errors
- */
-
-/**
- * @typedef {Object} FileWriter
- * @property {(outputPath: string, content: string, mode?: number, reason?: string) => void} write
- * @property {(outputs: Iterable<{ outputPath: string, content: string, mode?: number, reason?: string }>) => void} writeAll
- * @property {(outputPaths: string[]) => void} clean
- * @property {(message: string, error?: Error) => void} reportError
- * @property {() => FileWriterStats} getStats
- */
-
-/**
- * Creates a file writer that handles write, diff, dry-run, check, and clean operations.
- *
- * @param {FileWriterOptions} opts
- * @returns {FileWriter}
- */
-function createFileWriter(opts) {
-  const { rootDir, dryRun = false, diffMode = false, check = false } = opts;
-  const stats = { changed: 0, unchanged: 0, errors: 0 };
-  const readOnlyMode = dryRun || diffMode || check;
-
-  /**
-   * @param {string} outputPath - Relative path from rootDir
-   * @param {string} content - File content to write
-   * @param {number} [mode] - POSIX permissions for a generated executable
-   * @param {string} [reason] - Why the output exists, appended to a dry-run CREATE line
-   */
-  function write(outputPath, content, mode, reason) {
+  /** `mode` is a generated executable's permissions; `reason` follows a dry-run CREATE line. */
+  write(outputPath, content, mode, reason) {
     try {
-      const absOutputPath = safeResolve(outputPath, rootDir, { requireFile: true });
+      const absOutputPath = safeResolve(outputPath, this.rootDir, { requireFile: true });
       const exists = fs.existsSync(absOutputPath);
       const current = exists ? fs.readFileSync(absOutputPath, 'utf8') : null;
       const modeChanged = exists && modeDiffers(absOutputPath, mode);
       const status = !exists ? 'CREATE' : current === content && !modeChanged ? 'UNCHANGED' : 'UPDATE';
 
-      if (diffMode) {
+      if (this.diffMode) {
         if (!exists) console.log(`+++ NEW: ${outputPath}`);
         if (modeChanged) console.log(`MODE: ${outputPath} -> ${mode.toString(8)}`);
         if (exists && current !== content) printDiff(absOutputPath, content, outputPath);
-      } else if (readOnlyMode) {
-        const suffix = dryRun && status === 'CREATE' && reason ? ` — ${reason}` : '';
-        if (dryRun || status !== 'UNCHANGED') console.log(`[${status}] ${outputPath}${suffix}`);
+      } else if (this.readOnly) {
+        const suffix = this.dryRun && status === 'CREATE' && reason ? ` — ${reason}` : '';
+        if (this.dryRun || status !== 'UNCHANGED') console.log(`[${status}] ${outputPath}${suffix}`);
       } else if (status !== 'UNCHANGED') {
         if (current !== content) {
           fs.mkdirSync(path.dirname(absOutputPath), { recursive: true });
@@ -129,66 +91,78 @@ function createFileWriter(opts) {
       }
 
       if (status === 'UNCHANGED') {
-        stats.unchanged++;
+        this.stats.unchanged++;
       } else {
-        stats.changed++;
+        this.stats.changed++;
       }
     } catch (err) {
       console.error(`ERROR writing ${outputPath}: ${err.message}`);
-      stats.errors++;
+      this.stats.errors++;
     }
   }
 
-  /**
-   * @param {Iterable<{ outputPath: string, content: string, mode?: number, reason?: string }>} outputs
-   */
-  function writeAll(outputs) {
+  writeAll(outputs) {
     for (const output of outputs) {
-      write(output.outputPath, output.content, output.mode, output.reason);
+      this.write(output.outputPath, output.content, output.mode, output.reason);
     }
   }
 
-  /**
-   * @param {string[]} outputPaths - Relative paths from rootDir to delete
-   */
-  function clean(outputPaths) {
-    if (readOnlyMode) {
+  clean(outputPaths) {
+    if (this.readOnly) {
       return;
     }
 
     for (const outputPath of outputPaths) {
-      const absPath = safeResolve(outputPath, rootDir, { requireFile: true });
+      const absPath = safeResolve(outputPath, this.rootDir, { requireFile: true });
       if (fs.existsSync(absPath)) {
         fs.unlinkSync(absPath);
       }
     }
   }
 
-  /**
-   * Log a non-write failure and count it toward the error total.
-   * @param {string} message
-   * @param {Error} [error]
-   */
-  function reportError(message, error) {
+  // Logs a non-write failure as an error. An arrow field, as generate.js passes it as a callback.
+  reportError = (message, error) => {
     const formatted =
       error && error.message ? `${message}: ${error.message}` : message;
     console.error(`ERROR: ${formatted}`);
-    stats.errors++;
-  }
+    this.stats.errors++;
+  };
 
   /**
-   * @returns {FileWriterStats}
+   * Rejects outputs and owned directories that escape the root, so call it before writing.
+   * Returns the owned files that are not outputs, and every owned subdirectory.
    */
-  function getStats() {
-    return {
-      written: readOnlyMode ? 0 : stats.changed,
-      changed: stats.changed,
-      unchanged: stats.unchanged,
-      errors: stats.errors,
+  findStale(outputs, ownedDirs) {
+    for (const { outputPath } of outputs) safeResolve(outputPath, this.rootDir, { requireFile: true });
+    const outputPaths = new Set(outputs.map(({ outputPath }) => outputPath));
+    const stale = { files: [], dirs: [] };
+    // A subdirectory follows its contents, so prune empties children before their parents.
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(path.join(this.rootDir, dir), { withFileTypes: true })) {
+        const relPath = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) {
+          walk(relPath);
+          stale.dirs.push(path.join(this.rootDir, relPath));
+        } else if (!outputPaths.has(relPath)) {
+          stale.files.push(relPath);
+        }
+      }
     };
+    ownedDirs.filter((dir) => fs.existsSync(safeResolve(dir, this.rootDir))).forEach(walk);
+    return { files: stale.files.sort(), dirs: stale.dirs };
   }
 
-  return { write, writeAll, clean, reportError, getStats };
+  /** Delete stale files and the owned subdirectories left empty, then report each file. */
+  prune({ files, dirs }) {
+    if (!this.readOnly) {
+      for (const file of files) fs.unlinkSync(path.join(this.rootDir, file));
+      for (const dir of dirs) {
+        if (fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
+      }
+    }
+    const label = this.dryRun || this.check ? '[REMOVE]' : this.diffMode ? '--- REMOVED:' : '  PRUNED:';
+    for (const file of files) console.log(`${label} ${file}`);
+  }
 }
 
-module.exports = { createFileWriter, safeResolve };
+module.exports = { FileWriter, safeResolve };
