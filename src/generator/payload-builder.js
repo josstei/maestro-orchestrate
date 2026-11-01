@@ -5,7 +5,7 @@ const { VERSION_JSON_FILENAME } = require('../core/version');
 const { formatJson } = require('../lib/io');
 const { buildDependencyGraph } = require('./dependency-graph');
 const { safeResolve } = require('./file-writer');
-const { hasDetachedPayload, launcherTargets } = require('./runtime-entrypoints');
+const { launcherTargets } = require('./runtime-entrypoints');
 
 const STATE_SCRIPTS = Object.freeze([
   'ensure-workspace.js',
@@ -24,9 +24,6 @@ const STATE_SCRIPTS = Object.freeze([
  * @returns {{ outputs: Array<{ outputPath: string, content: string, reason: string }> }}
  */
 function planDetachedPayload(srcDir, runtime, version, { sourceOverrides = new Map() } = {}) {
-  if (!hasDetachedPayload(runtime)) {
-    throw new Error(`Unknown detached payload runtime: ${runtime.name}`);
-  }
   const root = fs.realpathSync(srcDir);
   function read(relativePath) {
     const absolute = safeResolve(relativePath, root, { requireFile: true });

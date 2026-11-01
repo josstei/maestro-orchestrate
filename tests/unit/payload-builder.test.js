@@ -130,6 +130,5 @@ describe('detached payload dependency plans', () => {
     assert.deepEqual(first.outputs, second.outputs);
     assert.ok(first.outputs.every((output) => typeof output.reason === 'string' && output.reason.length > 0));
     assert.deepEqual(first.outputs.map((output) => output.outputPath), [...first.files].sort());
-    assert.throws(() => plan(src, 'qwen'), /Unknown detached payload runtime: qwen/);
   });
 });

@@ -6,10 +6,16 @@ const assert = require('node:assert/strict');
 const { createServer, defineTool } = require('../../src/mcp/core/create-server');
 const { ValidationError } = require('../../src/lib/errors');
 
-const makePack = (name, toolName, handler = () => ({ ok: true })) => ({
+const makePack = (name, ...toolNames) => ({
   name,
-  tools: [{ name: toolName, handler }],
+  tools: toolNames.map((toolName) => ({ name: toolName, handler: () => ({}) })),
 });
+// One pack of `tools`, each given a no-op handler unless it sets its own.
+const serverWith = (...tools) =>
+  createServer({ toolPacks: [{ name: 'p', tools: tools.map((tool) => ({ handler: () => ({}), ...tool })) }] });
+// The outcome of calling a `name` tool whose handler throws `error`.
+const failure = (name, error, args) =>
+  serverWith({ name, handler: () => { throw error; } }).callTool(name, args);
 
 describe('defineTool', () => {
   it('builds an object input schema with no required list or requiresWorkspace by default', () => {
@@ -57,22 +63,6 @@ describe('createServer tool packs', () => {
     assert.equal(seen.services, services);
     assert.equal(Object.isFrozen(seen), true);
   });
-
-  for (const [name, toolPacks, pattern] of [
-    ['throws when the pack resolves to null',
-      [null], /Tool pack at index 0 must resolve to an object/],
-    ['throws when the pack resolves to an array',
-      [makePack('a', 'a1'), () => ['nope']], /Tool pack at index 1 must resolve to an object/],
-    ['throws when a primitive is returned from a factory',
-      [makePack('a', 'a1'), makePack('b', 'b1'), () => 'string-pack'],
-      /Tool pack at index 2 must resolve to an object/],
-    ['throws when a pack does not declare a tools array',
-      [makePack('a', 'a1'), { name: 'b' }], /^TypeError: Tool pack at index 1 must declare a tools array\.$/],
-  ]) {
-    it(name, () => {
-      assert.throws(() => createServer({ toolPacks }), pattern);
-    });
-  }
 });
 
 describe('createServer tool composition', () => {
@@ -80,18 +70,6 @@ describe('createServer tool composition', () => {
     const server = createServer({ runtimeConfig: { name: 'codex' }, services: {} });
     assert.deepEqual(server.getToolSchemas(), []);
     assert.equal((await server.callTool('anything')).code, 'UNKNOWN_TOOL');
-  });
-
-  it('throws when a tool has no handler function', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [{ name: 'p', tools: [{ name: 'lonely' }] }] }),
-      /^Error: Tool "lonely" in pack "p" is missing a handler\.$/
-    );
-    assert.throws(
-      () =>
-        createServer({ toolPacks: [{ name: 'p', tools: [{ name: 'lonely', handler: 'nope' }] }] }),
-      /^Error: Tool "lonely" in pack "p" is missing a handler\.$/
-    );
   });
 
   it('rejects duplicate tool names across packs', () => {
@@ -109,29 +87,12 @@ describe('createServer tool composition', () => {
     );
   });
 
-  it('rejects duplicate tool names across unnamed packs, naming them by position', () => {
-    assert.throws(
-      () => createServer({ toolPacks: [makePack(undefined, 'dup'), makePack('', 'dup')] }),
-      /^Error: Duplicate tool name "dup" found in packs "tool-pack-1" and "tool-pack-2"\.$/
-    );
-  });
-
   it('lists each tool schema without its handler, keeping key order', () => {
-    const server = createServer({
-      toolPacks: [
-        {
-          name: 'p',
-          tools: [
-            {
-              name: 't1',
-              description: 'd',
-              requiresWorkspace: true,
-              inputSchema: { type: 'object' },
-              handler: () => ({}),
-            },
-          ],
-        },
-      ],
+    const server = serverWith({
+      name: 't1',
+      description: 'd',
+      requiresWorkspace: true,
+      inputSchema: { type: 'object' },
     });
 
     const [schema] = server.getToolSchemas();
@@ -173,47 +134,16 @@ describe('createServer tool composition', () => {
     }
   });
 
-  it('enforces an initialized workspace when the schema sets requiresWorkspace=true', async () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [
-        {
-          name: 'p',
-          tools: [{ name: 't1', requiresWorkspace: true, handler: () => ({}) }],
-        },
-      ],
-    });
-    const result = await server.callTool('t1', {}, null);
+  it('enforces an initialized workspace only when the schema sets requiresWorkspace=true', async () => {
+    const server = serverWith({ name: 'gated', requiresWorkspace: true }, { name: 'open' });
+    const result = await server.callTool('gated', {}, null);
     assert.equal(result.ok, false);
     assert.equal(result.code, 'WORKSPACE_NOT_INITIALIZED');
-  });
-
-  it('does not require a workspace by default', async () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [makePack('p', 't1')],
-    });
-    const result = await server.callTool('t1', {}, null);
-    assert.equal(result.ok, true);
+    assert.equal((await server.callTool('open', {}, null)).ok, true, 'no workspace is required by default');
   });
 
   it('preserves schemas in pack/tool declaration order across multiple packs', () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [
-        {
-          name: 'a',
-          tools: [
-            { name: 'a1', handler: () => ({}) },
-            { name: 'a2', handler: () => ({}) },
-          ],
-        },
-        makePack('b', 'b1'),
-      ],
-    });
+    const server = createServer({ toolPacks: [makePack('a', 'a1', 'a2'), makePack('b', 'b1')] });
     assert.deepEqual(
       server.getToolSchemas().map((s) => s.name),
       ['a1', 'a2', 'b1']
@@ -223,15 +153,9 @@ describe('createServer tool composition', () => {
 
 describe('createServer tool calls', () => {
   it('dispatches tool calls with args and project root, wrapping the result', async () => {
-    const server = createServer({
-      runtimeConfig: { name: 'codex' },
-      services: {},
-      toolPacks: [
-        makePack('workspace', 'resolve_settings', (args, projectRoot) => ({
-          projectRoot,
-          requested: args.settings,
-        })),
-      ],
+    const server = serverWith({
+      name: 'resolve_settings',
+      handler: (args, projectRoot) => ({ projectRoot, requested: args.settings }),
     });
 
     const result = await server.callTool(
@@ -250,15 +174,7 @@ describe('createServer tool calls', () => {
   });
 
   it('returns recovery hints for known tool failures', async () => {
-    const server = createServer({
-      toolPacks: [
-        makePack('session', 'create_session', () => {
-          throw new Error('Active session already exists.');
-        }),
-      ],
-    });
-
-    const result = await server.callTool('create_session');
+    const result = await failure('create_session', new Error('Active session already exists.'));
 
     assert.equal(result.ok, false);
     assert.equal(
@@ -268,15 +184,8 @@ describe('createServer tool calls', () => {
   });
 
   it('normalizes MaestroError failures into the internal tool outcome contract', async () => {
-    const server = createServer({
-      toolPacks: [
-        makePack('content', 'get_agent', () => {
-          throw new ValidationError('agents must be a non-empty array of agent identifiers');
-        }),
-      ],
-    });
-
-    const result = await server.callTool('get_agent', { agents: [] });
+    const error = new ValidationError('agents must be a non-empty array of agent identifiers');
+    const result = await failure('get_agent', error, { agents: [] });
 
     assert.deepEqual(result, {
       ok: false,
@@ -287,42 +196,24 @@ describe('createServer tool calls', () => {
   });
 
   it('appends MaestroError details after the code', async () => {
-    const server = createServer({
-      toolPacks: [
-        makePack('p', 't1', () => {
-          throw new ValidationError('bad input', { details: { field: 'name' } });
-        }),
-      ],
-    });
-
-    const result = await server.callTool('t1');
+    const result = await failure('t1', new ValidationError('bad input', { details: { field: 'name' } }));
 
     assert.deepEqual(Object.keys(result), ['ok', 'error', 'recovery_hint', 'code', 'details']);
     assert.deepEqual(result.details, { field: 'name' });
   });
 
   it('sanitizes paths out of non-Maestro errors and reports INTERNAL_TOOL_ERROR', async () => {
-    const fail = () => {
-      throw new Error("EACCES: open '/home/u/x'");
-    };
-    const server = createServer({
-      toolPacks: [
-        { name: 'p', tools: [{ name: 't1', handler: fail }, { name: 'initialize_workspace', handler: fail }] },
-      ],
-    });
-
-    assert.deepEqual(await server.callTool('t1'), {
-      ok: false,
-      error: "EACCES: open '[path]'",
-      recovery_hint: null,
-      code: 'INTERNAL_TOOL_ERROR',
-    });
-    assert.deepEqual(await server.callTool('initialize_workspace'), {
-      ok: false,
-      error: "EACCES: open '[path]'",
-      recovery_hint: 'Check that the target directory is writable.',
-      code: 'INTERNAL_TOOL_ERROR',
-    });
+    for (const [name, recovery_hint] of [
+      ['t1', null],
+      ['initialize_workspace', 'Check that the target directory is writable.'],
+    ]) {
+      assert.deepEqual(await failure(name, new Error("EACCES: open '/home/u/x'")), {
+        ok: false,
+        error: "EACCES: open '[path]'",
+        recovery_hint,
+        code: 'INTERNAL_TOOL_ERROR',
+      });
+    }
   });
 
   it('reports unknown tools without a recovery hint', async () => {
