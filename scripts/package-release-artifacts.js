@@ -6,16 +6,16 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   RELEASE_ARTIFACT_PATHS,
-  RELEASE_OUT_DIR,
+  assertReleaseArtifact,
   assertRequiredArtifactPaths,
-  assertRuntimeManifestShape,
+  ensure,
   isDeniedPath,
   isReleaseArtifactPathAllowed,
   readJson,
-  releaseArchiveName,
+  releaseArchivePath,
+  withTempDir,
 } = require('./release-artifact-manifest');
 const { parseFlagArgs, runCli } = require('./lib/cli');
-const { withTempDir } = require('./lib/temp-dir');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -34,73 +34,50 @@ Options:
 
 function parseArgs(argv) {
   return parseFlagArgs(argv, {
-    defaults: { version: null, outDir: RELEASE_OUT_DIR },
+    defaults: { version: null, outDir: null },
     flags: { '--version': 'version', '--out-dir': 'outDir' },
     printHelp,
   });
 }
 
-function resolveVersion(root, requestedVersion) {
-  const packageVersion = readJson(root, 'package.json').version;
-  const version = requestedVersion || packageVersion;
-
-  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new Error(`Invalid release artifact version: ${version}`);
-  }
-
-  return version;
-}
-
+// Refuses symlinks before copying, including the ancestors of allowlisted files that are
+// not copied as roots (docs/ and the marketplace directories).
 function copyPath(root, stagingRoot, relativePath) {
-  const assertNoSymlink = (source) => {
-    if (fs.lstatSync(source).isSymbolicLink()) {
-      throw new Error(`Release artifact contains symbolic link: ${path.relative(root, source).split(path.sep).join('/')}`);
-    }
-  };
-  // Some allowlisted files have parents that are not copied as roots (docs/
-  // and marketplace directories). Validate those ancestors as well.
-  let source = root;
-  for (const segment of relativePath.split('/')) {
-    source = path.join(source, segment);
-    assertNoSymlink(source);
-  }
+  const ensureNoSymlink = (relative) => ensure(!fs.lstatSync(path.join(root, relative)).isSymbolicLink(),
+    `Release artifact contains symbolic link: ${relative.split(path.sep).join('/')}`);
+  const segments = relativePath.split('/');
+  segments.forEach((_, index) => ensureNoSymlink(segments.slice(0, index + 1).join('/')));
   fs.cpSync(path.join(root, relativePath), path.join(stagingRoot, relativePath), {
     recursive: true,
     filter: (source) => {
       const relative = path.relative(root, source);
-      if (!isReleaseArtifactPathAllowed(relative) || isDeniedPath(relative)) return false;
-      assertNoSymlink(source);
-      return true;
+      return isReleaseArtifactPathAllowed(relative) && !isDeniedPath(relative) && ensureNoSymlink(relative);
     },
-  });
-}
-
-function createTarball(stagingRoot, archivePath) {
-  fs.mkdirSync(path.dirname(archivePath), { recursive: true });
-  fs.rmSync(archivePath, { force: true });
-
-  execFileSync('tar', ['-czf', archivePath, '-C', stagingRoot, '.'], {
-    stdio: 'inherit',
   });
 }
 
 function packageReleaseArtifacts(options = {}) {
   const root = options.root || ROOT;
-  const version = resolveVersion(root, options.version);
-  const outDir = path.resolve(root, options.outDir || RELEASE_OUT_DIR);
-  const archivePath = path.join(outDir, releaseArchiveName(version));
+  const packageVersion = readJson(root, 'package.json').version;
+  const version = options.version || packageVersion;
+  ensure(typeof version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version),
+    `Invalid release artifact version: ${version}`);
+  const archivePath = releaseArchivePath(root, version, options.outDir);
   return withTempDir('maestro-release-artifact-', (tempRoot) => {
     const stagingRoot = path.join(tempRoot, 'maestro');
     assertRequiredArtifactPaths(root);
-    assertRuntimeManifestShape(root, version);
     fs.mkdirSync(stagingRoot, { recursive: true });
 
     for (const relativePath of RELEASE_ARTIFACT_PATHS) {
       copyPath(root, stagingRoot, relativePath);
     }
 
-    assertRuntimeManifestShape(stagingRoot, version);
-    createTarball(stagingRoot, archivePath);
+    assertReleaseArtifact(stagingRoot, version);
+    fs.mkdirSync(path.dirname(archivePath), { recursive: true });
+    fs.rmSync(archivePath, { force: true });
+    execFileSync('tar', ['-czf', archivePath, '-C', stagingRoot, '.'], {
+      stdio: 'inherit',
+    });
 
     return {
       archivePath,

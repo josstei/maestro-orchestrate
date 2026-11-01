@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { isBuildOnly } = require('../src/generator/build-only');
 
@@ -100,27 +101,37 @@ const NODE_LAUNCHERS = [
   ['qwen-extension.json', '${extensionPath}'],
 ];
 
-const RELEASE_OUT_DIR = 'dist/release';
-
-function releaseArchiveName(version) {
-  return `maestro-v${version}-extension.tar.gz`;
+// Returns `value`, so a check can also bind what it checked.
+function ensure(value, message) {
+  if (!value) throw new Error(message);
+  return value;
 }
 
-function toPosixPath(filePath) {
-  return filePath.split(path.sep).join('/');
+function ensureNone(offenders, message) {
+  ensure(offenders.length === 0, `${message}: ${offenders.join(', ')}`);
+}
+
+/** Run a synchronous operation in a scratch directory, cleaning up on every exit. */
+function withTempDir(prefix, operation) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  try {
+    return operation(directory);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+function releaseArchivePath(root, version, outDir) {
+  return path.resolve(root, outDir || 'dist/release', `maestro-v${version}-extension.tar.gz`);
 }
 
 function normalizeArtifactPath(relativePath) {
-  const normalized = toPosixPath(relativePath).replace(/\/+$/, '');
-  return normalized === '.' ? '' : normalized.replace(/^\.\//, '');
+  return relativePath.split(path.sep).join('/').replace(/\/+$/, '');
 }
 
 function isDeniedPath(relativePath) {
   const normalized = normalizeArtifactPath(relativePath);
-  const deniedByPath = DENIED_ARTIFACT_PATHS.some((denied) => {
-    return normalized === denied || normalized.startsWith(`${denied}/`)
-      || normalized.endsWith(`/${denied}`) || normalized.includes(`/${denied}/`);
-  });
+  const deniedByPath = DENIED_ARTIFACT_PATHS.some((denied) => `/${normalized}/`.includes(`/${denied}/`));
 
   return deniedByPath || DENIED_ARTIFACT_PATTERNS.some((pattern) => pattern.test(normalized));
 }
@@ -128,78 +139,34 @@ function isDeniedPath(relativePath) {
 function isReleaseArtifactPathAllowed(relativePath) {
   const normalized = normalizeArtifactPath(relativePath);
 
-  if (!normalized) {
-    return true;
-  }
-
   // The extension archive has no build CLI or Codex installer.
   if (normalized.startsWith('src/') && isBuildOnly(normalized.slice(4))) {
     return false;
   }
 
-  return RELEASE_ARTIFACT_PATHS.some((allowed) => {
-    return (
-      normalized === allowed ||
-      normalized.startsWith(`${allowed}/`) ||
-      allowed.startsWith(`${normalized}/`)
-    );
-  });
+  return RELEASE_ARTIFACT_PATHS.some((allowed) => `${normalized}/`.startsWith(`${allowed}/`)
+    || allowed.startsWith(`${normalized}/`));
 }
 
 function assertRequiredArtifactPaths(root) {
   const missing = RELEASE_ARTIFACT_PATHS.filter((relativePath) => !fs.existsSync(path.join(root, relativePath)));
-
-  if (missing.length > 0) {
-    throw new Error(`Required release artifact paths are missing: ${missing.join(', ')}`);
-  }
+  ensureNone(missing, 'Required release artifact paths are missing');
 }
 
-function walkArtifactFiles(root) {
-  const files = [];
-  const queue = ['.'];
-
-  while (queue.length > 0) {
-    const relativeDir = queue.pop();
-    const absoluteDir = path.join(root, relativeDir);
-
-    for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
-      const relativePath = normalizeArtifactPath(path.posix.join(relativeDir, entry.name));
-      if (entry.isSymbolicLink()) {
-        throw new Error(`Release artifact contains symbolic link: ${relativePath}`);
-      }
-      files.push(relativePath);
-
-      if (entry.isDirectory()) {
-        queue.push(relativePath);
-      }
-    }
-  }
-
-  return files.sort();
+function walkArtifactFiles(root, relativeDir = '') {
+  return fs.readdirSync(path.join(root, relativeDir), { withFileTypes: true }).flatMap((entry) => {
+    const relativePath = path.posix.join(relativeDir, entry.name);
+    ensure(!entry.isSymbolicLink(), `Release artifact contains symbolic link: ${relativePath}`);
+    return entry.isDirectory() ? [relativePath, ...walkArtifactFiles(root, relativePath)] : [relativePath];
+  });
 }
 
 function assertReleaseArtifactContents(root) {
-  const denied = [];
-  const unexpected = [];
-
-  for (const relativePath of walkArtifactFiles(root)) {
-    if (isDeniedPath(relativePath)) {
-      denied.push(relativePath);
-      continue;
-    }
-
-    if (!isReleaseArtifactPathAllowed(relativePath)) {
-      unexpected.push(relativePath);
-    }
-  }
-
-  if (denied.length > 0) {
-    throw new Error(`Release artifact contains denied paths: ${denied.join(', ')}`);
-  }
-
-  if (unexpected.length > 0) {
-    throw new Error(`Release artifact contains unallowlisted paths: ${unexpected.join(', ')}`);
-  }
+  const files = walkArtifactFiles(root).sort();
+  ensureNone(files.filter(isDeniedPath), 'Release artifact contains denied paths');
+  // Denied paths already failed, so every remaining offender is merely unallowlisted.
+  const unexpected = files.filter((relativePath) => !isReleaseArtifactPathAllowed(relativePath));
+  ensureNone(unexpected, 'Release artifact contains unallowlisted paths');
 }
 
 function readJson(root, relativePath) {
@@ -211,36 +178,19 @@ function readJson(root, relativePath) {
 }
 
 function requireNonEmpty(value, label, kind = 'version') {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`Missing ${kind} value for ${label}`);
-  }
-
-  return value;
+  return ensure(typeof value === 'string' && value, `Missing ${kind} value for ${label}`);
 }
 
-function findNamedPlugin(marketplace, name, relativePath) {
-  if (!Array.isArray(marketplace.plugins)) {
-    throw new Error(`${relativePath} must contain a plugins array`);
-  }
-
-  const plugin = marketplace.plugins.find((entry) => entry && entry.name === name);
-  if (!plugin) {
-    throw new Error(`${relativePath} missing plugin entry "${name}"`);
-  }
-
-  return plugin;
+function findMaestroPlugin(marketplace, relativePath) {
+  ensure(Array.isArray(marketplace.plugins), `${relativePath} must contain a plugins array`);
+  return ensure(marketplace.plugins.find((entry) => entry && entry.name === 'maestro'),
+    `${relativePath} missing plugin entry "maestro"`);
 }
 
 function assertLaunchesMaestroServer(mcpConfig, command, requiredArgs, message) {
-  const server = mcpConfig.mcpServers && mcpConfig.mcpServers.maestro;
-  if (
-    !server ||
-    server.command !== command ||
-    !Array.isArray(server.args) ||
-    !requiredArgs.every((arg) => server.args.includes(arg))
-  ) {
-    throw new Error(message);
-  }
+  const server = (mcpConfig.mcpServers && mcpConfig.mcpServers.maestro) || {};
+  ensure(server.command === command && Array.isArray(server.args)
+    && requiredArgs.every((arg) => server.args.includes(arg)), message);
 }
 
 function assertRuntimeManifestShape(root, expectedVersion = null) {
@@ -250,11 +200,7 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   const claudePlugin = readJson(root, 'claude/.claude-plugin/plugin.json');
   const codexPlugin = readJson(root, 'plugins/maestro/.codex-plugin/plugin.json');
   const claudeMarketplace = readJson(root, '.claude-plugin/marketplace.json');
-  const claudeMarketplacePlugin = findNamedPlugin(
-    claudeMarketplace,
-    'maestro',
-    '.claude-plugin/marketplace.json'
-  );
+  const claudeMarketplacePlugin = findMaestroPlugin(claudeMarketplace, '.claude-plugin/marketplace.json');
 
   const versionEntries = [
     ['package.json', requireNonEmpty(pkg.version, 'package.json')],
@@ -270,53 +216,27 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
   ];
   const version = expectedVersion || versionEntries[0][1];
   const mismatches = versionEntries.filter(([, entryVersion]) => entryVersion !== version);
-
-  if (mismatches.length > 0) {
-    const details = mismatches.map(([label, entryVersion]) => `${label}=${entryVersion}`).join(', ');
-    throw new Error(`Release manifest version mismatch; expected ${version}: ${details}`);
-  }
+  ensureNone(mismatches.map(([label, entryVersion]) => `${label}=${entryVersion}`),
+    `Release manifest version mismatch; expected ${version}`);
 
   const codexMarketplace = readJson(root, '.agents/plugins/marketplace.json');
   const codexMcp = readJson(root, 'plugins/maestro/.mcp.json');
 
   const packageName = requireNonEmpty(pkg.name, 'package.json name', 'string');
 
-  if (claudeMarketplacePlugin.source !== './claude') {
-    throw new Error('.claude-plugin/marketplace.json maestro source must be ./claude');
-  }
-
-  const codexMarketplacePlugin = findNamedPlugin(
-    codexMarketplace,
-    'maestro',
-    '.agents/plugins/marketplace.json'
-  );
-  if (
-    !codexMarketplacePlugin.source ||
-    codexMarketplacePlugin.source.source !== 'local' ||
-    codexMarketplacePlugin.source.path !== './plugins/maestro'
-  ) {
-    throw new Error('.agents/plugins/marketplace.json maestro source must be local ./plugins/maestro');
-  }
-
-  if (qwen.contextFileName !== 'QWEN.md' || !qwen.mcpServers || !qwen.mcpServers.maestro) {
-    throw new Error('qwen-extension.json must define QWEN.md and maestro MCP server');
-  }
-
-  if (claudePlugin.hooks !== './hooks/claude-hooks.json') {
-    throw new Error('claude plugin manifest must reference ./hooks/claude-hooks.json');
-  }
-
-  if (
-    codexPlugin.skills !== './skills/' ||
-    codexPlugin.mcpServers !== './.mcp.json' ||
-    codexPlugin.apps !== './.app.json'
-  ) {
-    throw new Error('Codex plugin manifest must reference skills, MCP, and app config files');
-  }
-
-  if (antigravityPlugin.name !== 'maestro') {
-    throw new Error('antigravity/plugin.json must name the plugin maestro');
-  }
+  ensure(claudeMarketplacePlugin.source === './claude',
+    '.claude-plugin/marketplace.json maestro source must be ./claude');
+  const codexSource = findMaestroPlugin(codexMarketplace, '.agents/plugins/marketplace.json').source || {};
+  ensure(codexSource.source === 'local' && codexSource.path === './plugins/maestro',
+    '.agents/plugins/marketplace.json maestro source must be local ./plugins/maestro');
+  ensure(qwen.contextFileName === 'QWEN.md' && qwen.mcpServers && qwen.mcpServers.maestro,
+    'qwen-extension.json must define QWEN.md and maestro MCP server');
+  ensure(claudePlugin.hooks === './hooks/claude-hooks.json',
+    'claude plugin manifest must reference ./hooks/claude-hooks.json');
+  const { skills, mcpServers, apps } = codexPlugin;
+  ensure(skills === './skills/' && mcpServers === './.mcp.json' && apps === './.app.json',
+    'Codex plugin manifest must reference skills, MCP, and app config files');
+  ensure(antigravityPlugin.name === 'maestro', 'antigravity/plugin.json must name the plugin maestro');
 
   for (const [relativePath, rootVariable] of NODE_LAUNCHERS) {
     assertLaunchesMaestroServer(
@@ -337,33 +257,37 @@ function assertRuntimeManifestShape(root, expectedVersion = null) {
 
   for (const relativePath of REQUIRED_RUNTIME_FILES) {
     const absolutePath = path.join(root, relativePath);
-    if (!fs.existsSync(absolutePath)) {
-      throw new Error(`Required runtime file missing: ${relativePath}`);
-    }
-    if (!fs.statSync(absolutePath).isFile()) {
-      throw new Error(`Required runtime file must be a regular file: ${relativePath}`);
-    }
+    ensure(fs.existsSync(absolutePath), `Required runtime file missing: ${relativePath}`);
+    ensure(fs.statSync(absolutePath).isFile(), `Required runtime file must be a regular file: ${relativePath}`);
   }
 
   const binMode = fs.statSync(path.join(root, 'bin/maestro-mcp-server.js')).mode;
-  if ((binMode & 0o111) === 0) {
-    throw new Error('bin/maestro-mcp-server.js must be executable');
-  }
+  ensure(binMode & 0o111, 'bin/maestro-mcp-server.js must be executable');
 
   return version;
+}
+
+// Packaging checks its staged tree, and verification its extracted archive, by the same rules.
+function assertReleaseArtifact(root, expectedVersion = null) {
+  assertRequiredArtifactPaths(root);
+  assertReleaseArtifactContents(root);
+  return assertRuntimeManifestShape(root, expectedVersion);
 }
 
 module.exports = {
   DENIED_ARTIFACT_PATHS,
   RELEASE_ARTIFACT_PATHS,
-  RELEASE_OUT_DIR,
   REQUIRED_PACKAGE_FILES,
+  assertReleaseArtifact,
   assertReleaseArtifactContents,
   assertRequiredArtifactPaths,
   assertRuntimeManifestShape,
+  ensure,
+  ensureNone,
   isDeniedPath,
   isReleaseArtifactPathAllowed,
   readJson,
-  releaseArchiveName,
+  releaseArchivePath,
   requireNonEmpty,
+  withTempDir,
 };

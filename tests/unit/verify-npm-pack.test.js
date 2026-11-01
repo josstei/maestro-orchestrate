@@ -35,6 +35,10 @@ describe('verify npm pack', () => {
       'src/platforms/qwen/policy-pack.js',
     ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
+    assert.doesNotThrow(() => verifyPackageEntries(packWith(
+      'src/generated/agent-registry.json',
+      'src/lib/io/index.js',
+    )));
   });
 
   it('rejects a package that is missing a runtime manifest', () => {
@@ -50,34 +54,18 @@ describe('verify npm pack', () => {
     }
   });
 
-  it('rejects build and release tooling that only a repository checkout uses', () => {
-    for (const buildPath of [
+  // Build and release tooling that only a repository checkout uses, and test-only, cache and
+  // scratch files anywhere, including inside runtime package roots.
+  for (const [kind, paths] of [
+    ['build-only', [
       'scripts/generate.js',
-      'scripts/lib/temp-dir.js',
+      'scripts/lib/helper.js',
       'src/entry-points/templates/qwen-command.toml.tmpl',
       'src/generator/dependency-graph.js',
       'src/lib/discovery/index.js',
-    ]) {
-      assert.throws(
-        () => verifyPackageEntries(packWith(buildPath)),
-        { message: `npm package contains build-only path: ${buildPath}` }
-      );
-    }
-    assert.doesNotThrow(() => verifyPackageEntries(packWith(
-      'src/generated/agent-registry.json',
-      'src/lib/io/index.js',
-    )));
-  });
-
-  it('rejects test-only package content', () => {
-    assert.throws(
-      () => verifyPackageEntries(packWith('tests/unit/example.test.js')),
-      { message: 'npm package contains forbidden path: tests/unit/example.test.js' }
-    );
-  });
-
-  it('rejects nested test-only files inside runtime package roots', () => {
-    for (const forbiddenPath of [
+    ]],
+    ['forbidden', [
+      'tests/unit/example.test.js',
       'claude/scripts/policy-enforcer.test.js',
       'plugins/maestro/src/mcp/server.spec.js',
       'claude/scripts/__tests__/fixture.js',
@@ -86,11 +74,15 @@ describe('verify npm pack', () => {
       'src/tmp/probe.txt',
       'src/scratch/notes.md',
       'plugins/maestro/node_modules/acorn/index.js',
-    ]) {
-      assert.throws(
-        () => verifyPackageEntries(packWith(forbiddenPath)),
-        { message: `npm package contains forbidden path: ${forbiddenPath}` }
-      );
-    }
-  });
+    ]],
+  ]) {
+    it(`rejects ${kind} package content`, () => {
+      for (const extraPath of paths) {
+        assert.throws(
+          () => verifyPackageEntries(packWith(extraPath)),
+          { message: `npm package contains ${kind} path: ${extraPath}` }
+        );
+      }
+    });
+  }
 });
