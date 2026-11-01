@@ -1,95 +1,40 @@
 'use strict';
 
-const { describe, it, before, afterEach } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createSettingResolver, resolveSetting } = require('../../src/config/setting-resolver');
+const { createSettingResolver, parseEnvFile, resolveSetting } = require('../../src/config/setting-resolver');
 const { withEnv } = require('../support/env');
 const { makeTempDir, writeTree } = require('../support/fs');
 
 describe('resolveSetting', () => {
-  let projectDir;
-  let extensionDir;
-
-  before(() => {
-    const tmpDir = makeTempDir('setting-resolver-');
-    projectDir = path.join(tmpDir, 'project');
-    extensionDir = path.join(tmpDir, 'extension');
-    fs.mkdirSync(projectDir);
-    fs.mkdirSync(extensionDir);
-  });
-
-  function writeProjectEnv(content) {
-    fs.writeFileSync(path.join(projectDir, '.env'), content, 'utf8');
+  // Each case writes MY_VAR into the project and extension .env files it names,
+  // sets MY_VAR and the variable that points at the extension dir (the other
+  // extension variable is unset), then resolves MY_VAR for the project.
+  for (const [name, projectValue, extensionValue, extensionVar, envValue, expected] of [
+    ['returns process.env value when set', null, null, null, 'from-env', 'from-env'],
+    ['returns project .env value when env var is not set', 'from-project', null, null, null, 'from-project'],
+    ['returns extension .env value when env var and project .env are not set',
+      null, 'from-extension', 'MAESTRO_EXTENSION_PATH', null, 'from-extension'],
+    ['returns undefined when setting is nowhere', null, null, null, null, undefined],
+    ['process.env takes precedence over project .env', 'from-project', null, null, 'from-env', 'from-env'],
+    ['project .env takes precedence over extension .env',
+      'from-project', 'from-extension', 'MAESTRO_EXTENSION_PATH', null, 'from-project'],
+    ['ignores empty string values in env vars', 'from-project', null, null, '', 'from-project'],
+    ['uses CLAUDE_PLUGIN_ROOT as fallback when MAESTRO_EXTENSION_PATH is absent',
+      null, 'via-plugin-root', 'CLAUDE_PLUGIN_ROOT', null, 'via-plugin-root'],
+  ]) {
+    it(name, () => {
+      const [project, extension] = [makeTempDir('setting-project-'), makeTempDir('setting-extension-')];
+      if (projectValue) writeTree(project, '.env', `MY_VAR=${projectValue}\n`);
+      if (extensionValue) writeTree(extension, '.env', `MY_VAR=${extensionValue}\n`);
+      const env = { MY_VAR: envValue, MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: null };
+      if (extensionVar) env[extensionVar] = extension;
+      assert.equal(withEnv(env, () => resolveSetting('MY_VAR', project)), expected);
+    });
   }
-
-  function writeExtensionEnv(content) {
-    fs.writeFileSync(path.join(extensionDir, '.env'), content, 'utf8');
-  }
-
-  function clearEnvFiles() {
-    fs.rmSync(path.join(projectDir, '.env'), { force: true });
-    fs.rmSync(path.join(extensionDir, '.env'), { force: true });
-  }
-
-  // Resolves MY_VAR for projectDir with MY_VAR, MAESTRO_EXTENSION_PATH and
-  // CLAUDE_PLUGIN_ROOT overridden; an omitted one is unset for the call.
-  const resolveWith = ({ value = null, extensionPath = null, pluginRoot = null } = {}) =>
-    withEnv(
-      { MY_VAR: value, MAESTRO_EXTENSION_PATH: extensionPath, CLAUDE_PLUGIN_ROOT: pluginRoot },
-      () => resolveSetting('MY_VAR', projectDir)
-    );
-
-  afterEach(clearEnvFiles);
-
-  it('returns process.env value when set', () => {
-    const result = resolveWith({ value: 'from-env' });
-    assert.equal(result, 'from-env');
-  });
-
-  it('returns project .env value when env var is not set', () => {
-    writeProjectEnv('MY_VAR=from-project\n');
-    const result = resolveWith();
-    assert.equal(result, 'from-project');
-  });
-
-  it('returns extension .env value when env var and project .env are not set', () => {
-    writeExtensionEnv('MY_VAR=from-extension\n');
-    const result = resolveWith({ extensionPath: extensionDir });
-    assert.equal(result, 'from-extension');
-  });
-
-  it('returns undefined when setting is nowhere', () => {
-    const result = resolveWith();
-    assert.equal(result, undefined);
-  });
-
-  it('process.env takes precedence over project .env', () => {
-    writeProjectEnv('MY_VAR=from-project\n');
-    const result = resolveWith({ value: 'from-env' });
-    assert.equal(result, 'from-env');
-  });
-
-  it('project .env takes precedence over extension .env', () => {
-    writeProjectEnv('MY_VAR=from-project\n');
-    writeExtensionEnv('MY_VAR=from-extension\n');
-    const result = resolveWith({ extensionPath: extensionDir });
-    assert.equal(result, 'from-project');
-  });
-
-  it('ignores empty string values in env vars', () => {
-    writeProjectEnv('MY_VAR=from-project\n');
-    const result = resolveWith({ value: '' });
-    assert.equal(result, 'from-project');
-  });
-
-  it('uses CLAUDE_PLUGIN_ROOT as fallback when MAESTRO_EXTENSION_PATH is absent', () => {
-    writeExtensionEnv('MY_VAR=via-plugin-root\n');
-    const result = resolveWith({ pluginRoot: extensionDir });
-    assert.equal(result, 'via-plugin-root');
-  });
 });
 
 describe('request-scoped setting resolver', () => {
@@ -229,5 +174,44 @@ describe('request-scoped setting resolver', () => {
         'env-file-parser: unclosed quote for key "UNFINISHED", treating accumulated content as value'
       ));
     });
+  });
+});
+
+describe('parseEnvFile', () => {
+  const parse = (content) => parseEnvFile(writeTree(makeTempDir('env-file-parser-'), '.env', content));
+  for (const [title, content, values] of [
+    ['parses a simple KEY=VALUE pair', 'FOO=bar\n', { FOO: 'bar' }],
+    ['parses multiple KEY=VALUE pairs', 'A=1\nB=2\nC=3\n', { A: '1', B: '2', C: '3' }],
+    ['ignores comment lines starting with #', '# This is a comment\nKEY=value\n', { KEY: 'value' }],
+    ['strips inline comments after whitespace', 'KEY=value # this is a comment\n', { KEY: 'value' }],
+    ['preserves # inside double-quoted values', 'KEY="value#not-a-comment"\n', { KEY: 'value#not-a-comment' }],
+    ['preserves # inside single-quoted values', "KEY='value#not-a-comment'\n", { KEY: 'value#not-a-comment' }],
+    ['trims matching double quotes from values', 'KEY="hello world"\n', { KEY: 'hello world' }],
+    ['trims matching single quotes from values', "KEY='hello world'\n", { KEY: 'hello world' }],
+    ['does not trim mismatched quotes', "KEY='value\"\n", { KEY: "'value\"" }],
+    ['handles export prefix', 'export KEY=value\n', { KEY: 'value' }],
+    ['parses multi-line double-quoted values',
+      'KEY="line one\nline two\nline three"\n', { KEY: 'line one\nline two\nline three' }],
+    ['handles empty file', '', {}],
+    ['skips blank lines', '\n\nKEY=value\n\n', { KEY: 'value' }],
+    ['skips lines without an = sign', 'NOTAVALIDLINE\nKEY=value\n', { KEY: 'value' }],
+    ['handles KEY= with empty value', 'KEY=\n', { KEY: '' }],
+    ['handles values with = in them using only the first = as separator', 'KEY=a=b=c\n', { KEY: 'a=b=c' }],
+  ]) {
+    it(title, () => assert.deepEqual(parse(content), { values, warnings: [] }));
+  }
+
+  it('returns the accumulated value and a warning for an unclosed multi-line quote without logging it', (t) => {
+    const warn = t.mock.method(console, 'warn', () => {});
+    assert.deepEqual(parse('KEY="line one\nline two\n'), {
+      values: { KEY: 'line one\nline two\n' },
+      warnings: ['env-file-parser: unclosed quote for key "KEY", treating accumulated content as value'],
+    });
+    assert.equal(warn.mock.calls.length, 0);
+  });
+
+  it('returns no values or warnings for a non-existent file path', () => {
+    const missing = path.join(makeTempDir('env-file-parser-'), 'does-not-exist.env');
+    assert.deepEqual(parseEnvFile(missing), { values: {}, warnings: [] });
   });
 });
