@@ -2,9 +2,10 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const { once } = require('node:events');
 const { PassThrough } = require('node:stream');
 
-const { createProtocolHandlers } = require('../../src/mcp/core/protocol-dispatcher');
+const { McpConnection } = require('../../src/mcp/core/protocol-dispatcher');
 const { createServer } = require('../../src/mcp/core/create-server');
 
 function captureWrites(stream) {
@@ -18,28 +19,23 @@ function captureWrites(stream) {
   return frames;
 }
 
-function makeServerStub(overrides = {}) {
-  return {
-    getToolSchemas: () => [{ name: 'echo', description: 'echoes' }],
-    callTool: async () => ({ ok: true, result: { ok: true } }),
-    ...overrides,
-  };
-}
-
-function makeHandlers(serverOverrides = {}, dispatcherOverrides = {}) {
+/** A connection with an `echo` tool surface, `overrides` replacing any of its methods. */
+function makeHandlers(overrides = {}, options = {}) {
   const stdout = new PassThrough();
   const frames = captureWrites(stdout);
-  const server = makeServerStub(serverOverrides);
-  const getProjectRoot = dispatcherOverrides.getProjectRoot || (async () => '/tmp/ws');
-  const options = {
-    serverInfo: { name: 'maestro-test', version: '0.0.0' },
-    ...dispatcherOverrides.options,
-  };
-  const handlers = createProtocolHandlers(server, getProjectRoot, stdout, options);
-  return { handlers, frames, stdout, server };
+  const handlers = Object.assign(
+    new McpConnection(stdout, { serverInfo: { name: 'maestro-test', version: '0.0.0' }, ...options }),
+    {
+      getToolSchemas: () => [{ name: 'echo', description: 'echoes' }],
+      callTool: async () => ({ ok: true, result: { ok: true } }),
+      getProjectRoot: async () => '/tmp/ws',
+    },
+    overrides
+  );
+  return { handlers, frames };
 }
 
-describe('createProtocolHandlers.respond', () => {
+describe('McpConnection.respond', () => {
   it('ignores non-object messages', async () => {
     const { handlers, frames } = makeHandlers();
     await handlers.respond(null);
@@ -52,6 +48,7 @@ describe('createProtocolHandlers.respond', () => {
     const { handlers, frames } = makeHandlers();
     await handlers.respond({ id: 'unknown', result: {} });
     await handlers.respond({ method: 123 });
+    await handlers.respond({ id: 1, method: 123 });
     assert.equal(frames.length, 0);
   });
 
@@ -59,8 +56,7 @@ describe('createProtocolHandlers.respond', () => {
     const stdout = new PassThrough();
     const chunks = [];
     stdout.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
-    const handlers = createProtocolHandlers(makeServerStub(), async () => null, stdout, {});
-    await handlers.respond({ jsonrpc: '2.0', id: 1, method: 'ping' });
+    await new McpConnection(stdout).respond({ jsonrpc: '2.0', id: 1, method: 'ping' });
     assert.equal(chunks.join(''), '{"jsonrpc":"2.0","id":1,"result":{}}\n');
   });
 
@@ -85,12 +81,9 @@ describe('createProtocolHandlers.respond', () => {
     assert.equal(frames[0].result.protocolVersion, '2025-06-01');
   });
 
-  it('invokes onInitialize callback with params', async () => {
+  it('invokes onInitialize with params', async () => {
     const seen = [];
-    const { handlers } = makeHandlers(
-      {},
-      { options: { serverInfo: { name: 's', version: '1' }, callbacks: { onInitialize: (p) => seen.push(p) } } }
-    );
+    const { handlers } = makeHandlers({ onInitialize: (p) => seen.push(p) });
     await handlers.respond({ id: 1, method: 'initialize', params: { clientInfo: 'test' } });
     assert.deepEqual(seen, [{ clientInfo: 'test' }]);
   });
@@ -164,14 +157,7 @@ describe('createProtocolHandlers.respond', () => {
   });
 
   it('frames an unknown-tool failure from a real server with a null recovery_hint', async () => {
-    const stdout = new PassThrough();
-    const frames = captureWrites(stdout);
-    const handlers = createProtocolHandlers(
-      createServer({ toolPacks: [] }),
-      async () => null,
-      stdout,
-      {}
-    );
+    const { handlers, frames } = makeHandlers(createServer({ toolPacks: [] }));
     await handlers.respond({ id: 10, method: 'tools/call', params: { name: 'missing' } });
     assert.deepEqual(Object.keys(frames[0].result), ['content', 'isError']);
     assert.equal(frames[0].result.isError, true);
@@ -199,35 +185,20 @@ describe('createProtocolHandlers.respond', () => {
     assert.deepEqual(captured, {});
   });
 
-  it('passes the project root from getProjectRoot to callTool', async () => {
-    let sawRoot;
-    const { handlers } = makeHandlers(
-      {
-        callTool: async (_n, _a, root) => {
-          sawRoot = root;
+  for (const root of ['/ws/alpha', null]) {
+    it(`passes the project root ${root} from getProjectRoot to callTool`, async () => {
+      let sawRoot = 'sentinel';
+      const { handlers } = makeHandlers({
+        callTool: async (_n, _a, projectRoot) => {
+          sawRoot = projectRoot;
           return { ok: true, result: {} };
         },
-      },
-      { getProjectRoot: async () => '/ws/alpha' }
-    );
-    await handlers.respond({ id: 8, method: 'tools/call', params: { name: 'echo' } });
-    assert.equal(sawRoot, '/ws/alpha');
-  });
-
-  it('passes a null project root through when no workspace is initialized', async () => {
-    let sawRoot = 'sentinel';
-    const { handlers } = makeHandlers(
-      {
-        callTool: async (_n, _a, root) => {
-          sawRoot = root;
-          return { ok: true, result: {} };
-        },
-      },
-      { getProjectRoot: async () => null }
-    );
-    await handlers.respond({ id: 9, method: 'tools/call', params: { name: 'echo' } });
-    assert.equal(sawRoot, null);
-  });
+        getProjectRoot: async () => root,
+      });
+      await handlers.respond({ id: 8, method: 'tools/call', params: { name: 'echo' } });
+      assert.equal(sawRoot, root);
+    });
+  }
 
   it('silently consumes notifications/initialized, cancelled, and $/cancelRequest', async () => {
     const { handlers, frames } = makeHandlers();
@@ -237,31 +208,20 @@ describe('createProtocolHandlers.respond', () => {
     assert.equal(frames.length, 0);
   });
 
-  it('invokes onRootsListChanged callback for notifications/roots/list_changed', async () => {
+  it('invokes onRootsListChanged for notifications/roots/list_changed', async () => {
     let called = 0;
-    const { handlers } = makeHandlers(
-      {},
-      { options: { serverInfo: { name: 's', version: '1' }, callbacks: { onRootsListChanged: () => { called++; } } } }
-    );
+    const { handlers } = makeHandlers({ onRootsListChanged: () => { called++; } });
     await handlers.respond({ method: 'notifications/roots/list_changed' });
     assert.equal(called, 1);
   });
 
   it('lets onRootsListChanged re-request roots while the notification is still being handled', async () => {
     let roots;
-    const { handlers, frames } = makeHandlers(
-      {},
-      {
-        options: {
-          serverInfo: { name: 's', version: '1' },
-          callbacks: {
-            async onRootsListChanged() {
-              roots = (await handlers.requestFromClient('roots/list')).roots;
-            },
-          },
-        },
-      }
-    );
+    const { handlers, frames } = makeHandlers({
+      async onRootsListChanged() {
+        roots = (await this.requestFromClient('roots/list')).roots;
+      },
+    });
 
     const notification = handlers.respond({ method: 'notifications/roots/list_changed' });
     assert.equal(frames.length, 1);
@@ -297,7 +257,7 @@ describe('createProtocolHandlers.respond', () => {
   });
 });
 
-describe('createProtocolHandlers.requestFromClient', () => {
+describe('McpConnection.requestFromClient', () => {
   it('writes a request frame and resolves when a matching response arrives', async () => {
     const { handlers, frames } = makeHandlers();
     const pending = handlers.requestFromClient('roots/list', { foo: 'bar' });
@@ -321,45 +281,80 @@ describe('createProtocolHandlers.requestFromClient', () => {
   });
 
   it('times out if no response arrives within the configured window', async () => {
-    const { handlers } = makeHandlers(
-      {},
-      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 100 } }
-    );
+    const { handlers } = makeHandlers({}, { clientRequestTimeoutMs: 100 });
     await assert.rejects(
       handlers.requestFromClient('roots/list'),
       /Timed out waiting for client response to roots\/list/
     );
   });
 
-  it('ignores a late success response after the request times out', async () => {
-    const { handlers, frames } = makeHandlers(
-      {},
-      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 10 } }
-    );
-    const pending = handlers.requestFromClient('roots/list');
-    const id = frames[0].id;
+  for (const late of [{ result: { roots: [] } }, { error: { message: 'too late' } }]) {
+    it(`ignores a late ${Object.keys(late)[0]} response after the request times out`, async () => {
+      const { handlers, frames } = makeHandlers({}, { clientRequestTimeoutMs: 10 });
+      const pending = handlers.requestFromClient('roots/list');
+      const id = frames[0].id;
 
-    await assert.rejects(pending, /Timed out waiting for client response to roots\/list/);
-    const frameCountAfterTimeout = frames.length;
+      await assert.rejects(pending, /Timed out waiting for client response to roots\/list/);
+      const frameCountAfterTimeout = frames.length;
 
-    await handlers.respond({ jsonrpc: '2.0', id, result: { roots: [] } });
+      await handlers.respond({ jsonrpc: '2.0', id, ...late });
 
-    assert.equal(frames.length, frameCountAfterTimeout);
+      assert.equal(frames.length, frameCountAfterTimeout);
+    });
+  }
+});
+
+describe('McpConnection.listen', () => {
+  // A connection listening on a fresh input, recording the messages it responds to.
+  function listening() {
+    const input = new PassThrough();
+    const received = [];
+    const connection = Object.assign(new McpConnection(new PassThrough()), {
+      respond: async (message) => received.push(message),
+    });
+    return { input, received, reader: connection.listen(input) };
+  }
+
+  // Writes each chunk to a fresh connection's input, ends it, and returns the
+  // messages it responded to once the reader closes.
+  async function dispatch(...chunks) {
+    const { input, received, reader } = listening();
+    for (const chunk of chunks) input.write(chunk);
+    input.end();
+    await once(reader, 'close');
+    return received;
+  }
+
+  it('parses newline-delimited JSON messages in order', async () => {
+    assert.deepEqual(await dispatch('{"jsonrpc":"2.0","id":1,"method":"ping"}\n{"id":2}\n{"id":3}\n'), [
+      { jsonrpc: '2.0', id: 1, method: 'ping' },
+      { id: 2 },
+      { id: 3 },
+    ]);
   });
 
-  it('ignores a late error response after the request times out', async () => {
-    const { handlers, frames } = makeHandlers(
-      {},
-      { options: { serverInfo: { name: 's', version: '1' }, clientRequestTimeoutMs: 10 } }
-    );
-    const pending = handlers.requestFromClient('roots/list');
-    const id = frames[0].id;
+  it('skips blank lines and drops malformed JSON, then keeps dispatching', async () => {
+    assert.deepEqual(await dispatch('\n   \n{not json}\n{"id":7}\n\n'), [{ id: 7 }]);
+  });
 
-    await assert.rejects(pending, /Timed out waiting for client response to roots\/list/);
-    const frameCountAfterTimeout = frames.length;
+  it('handles CRLF line endings', async () => {
+    assert.deepEqual(await dispatch('{"id":1}\r\n{"id":2}\r\n'), [{ id: 1 }, { id: 2 }]);
+  });
 
-    await handlers.respond({ jsonrpc: '2.0', id, error: { message: 'too late' } });
+  it('buffers a partial line until the newline arrives', async () => {
+    const { input, received, reader } = listening();
+    input.write('{"id":');
+    input.write('99}');
+    assert.equal(received.length, 0, 'must not fire before newline');
+    input.end('\n');
+    await once(reader, 'close');
+    assert.deepEqual(received, [{ id: 99 }]);
+  });
 
-    assert.equal(frames.length, frameCountAfterTimeout);
+  it('returns the underlying readline interface', () => {
+    const { reader } = listening();
+    assert.equal(typeof reader.on, 'function');
+    assert.equal(typeof reader.close, 'function');
+    reader.close();
   });
 });

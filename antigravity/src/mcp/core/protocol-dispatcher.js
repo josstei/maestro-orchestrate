@@ -1,146 +1,125 @@
 'use strict';
 
+const readline = require('node:readline');
+
 const { log } = require('../../core/logger');
 
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26';
-const DEFAULT_CLIENT_REQUEST_TIMEOUT_MS = 5000;
 
-function writeMessage(output, message) {
-  output.write(JSON.stringify(message) + '\n');
-}
-
-function toolResult(payload, isError = false) {
-  const result = {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(payload),
-      },
-    ],
-  };
-
-  if (isError) {
-    result.isError = true;
-  }
-
-  return result;
-}
+const toolResult = (payload) => ({ content: [{ type: 'text', text: JSON.stringify(payload) }] });
 
 /**
- * Create a JSON-RPC 2.0 dispatcher for the MCP wire protocol.
- *
- * Handles `initialize`, `tools/list`, `tools/call`, `ping`, notification
- * methods, and outbound server-to-client requests (via `requestFromClient`).
- * Unknown methods get a -32601 response.
- *
- * @returns {{
- *   requestFromClient: (method: string, params?: object) => Promise<any>,
- *   respond: (message: object) => Promise<void>
- * }}
+ * A JSON-RPC 2.0 connection speaking the MCP wire protocol as newline-delimited
+ * JSON: `initialize`, `ping`, `tools/list`, `tools/call`, the lifecycle
+ * notifications, and server-to-client requests (`requestFromClient`). Unknown
+ * methods with an id get -32601. Subclasses supply the tool surface
+ * (`getToolSchemas`, `callTool(name, args, projectRoot)`) and may override the
+ * project root and the lifecycle hooks.
  */
-function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
-  const {
-    serverInfo,
-    callbacks = {},
-    clientRequestTimeoutMs = DEFAULT_CLIENT_REQUEST_TIMEOUT_MS,
-  } = options;
-
-  const pendingClientRequests = new Map();
-  let nextClientRequestId = 1;
-
-  async function callIfDefined(callback, ...args) {
-    if (typeof callback === 'function') {
-      await callback(...args);
-    }
+class McpConnection {
+  constructor(output, { serverInfo, clientRequestTimeoutMs = 5000 } = {}) {
+    this.output = output;
+    this.serverInfo = serverInfo;
+    this.clientRequestTimeoutMs = clientRequestTimeoutMs;
+    this.pendingClientRequests = new Map();
+    this.nextClientRequestId = 1;
   }
 
-  function settleClientRequest(message) {
-    if (!message || message.id == null) {
-      return false;
-    }
+  getProjectRoot() {
+    return null;
+  }
 
-    const entry = pendingClientRequests.get(message.id);
+  onInitialize() {}
+
+  onInitialized() {}
+
+  onRootsListChanged() {}
+
+  write(message) {
+    this.output.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\n');
+  }
+
+  /** Respond to each non-empty JSON line of `input`; unparseable lines are logged and dropped. */
+  listen(input) {
+    return readline.createInterface({ input, crlfDelay: Infinity }).on('line', (line) => {
+      if (!line.trim()) {
+        return;
+      }
+
+      try {
+        this.respond(JSON.parse(line)).catch((error) => {
+          log('error', `Failed to handle MCP message: ${error.message}`);
+        });
+      } catch (error) {
+        log('error', `Failed to parse MCP message: ${error.message}`);
+      }
+    });
+  }
+
+  requestFromClient(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      const id = `server-${this.nextClientRequestId++}`;
+      const timeout = setTimeout(() => {
+        this.pendingClientRequests.delete(id);
+        reject(new Error(`Timed out waiting for client response to ${method}`));
+      }, this.clientRequestTimeoutMs);
+
+      this.pendingClientRequests.set(id, { resolve, reject, timeout });
+      this.write({ id, method, params });
+    });
+  }
+
+  /** Settle the pending client request `message` answers; false when it answers none. */
+  settleClientRequest({ id, result, error }) {
+    const entry = id != null && this.pendingClientRequests.get(id);
     if (!entry) {
       return false;
     }
 
-    pendingClientRequests.delete(message.id);
+    this.pendingClientRequests.delete(id);
     clearTimeout(entry.timeout);
-
-    if (message.error) {
-      entry.reject(new Error(message.error.message || JSON.stringify(message.error)));
-      return true;
+    if (error) {
+      entry.reject(new Error(error.message || JSON.stringify(error)));
+    } else {
+      entry.resolve(result);
     }
-
-    entry.resolve(message.result);
     return true;
   }
 
-  function requestFromClient(method, params = {}) {
-    return new Promise((resolve, reject) => {
-      const id = `server-${nextClientRequestId++}`;
-      const timeout = setTimeout(() => {
-        pendingClientRequests.delete(id);
-        reject(new Error(`Timed out waiting for client response to ${method}`));
-      }, clientRequestTimeoutMs);
-
-      pendingClientRequests.set(id, { resolve, reject, timeout });
-      writeMessage(stdout, {
-        jsonrpc: '2.0',
-        id,
-        method,
-        params,
-      });
-    });
-  }
-
-  async function respond(message) {
-    if (!message || typeof message !== 'object') {
-      return;
-    }
-
-    if (settleClientRequest(message)) {
+  async respond(message) {
+    if (!message || typeof message !== 'object' || this.settleClientRequest(message)) {
       return;
     }
 
     const { id, method, params } = message;
-    if (typeof method !== 'string') {
-      return;
-    }
-
-    const reply = (result) => writeMessage(stdout, { jsonrpc: '2.0', id, result });
+    const reply = (result) => this.write({ id, result });
 
     switch (method) {
       case 'initialize':
-        await callIfDefined(callbacks.onInitialize, params || {});
-        reply({
+        await this.onInitialize(params || {});
+        return reply({
           protocolVersion: (params && params.protocolVersion) || DEFAULT_PROTOCOL_VERSION,
           capabilities: {
             tools: {},
           },
-          serverInfo,
+          serverInfo: this.serverInfo,
         });
-        return;
 
       case 'notifications/initialized':
-        await callIfDefined(callbacks.onInitialized);
-        return;
+        return this.onInitialized();
 
       case 'notifications/roots/list_changed':
-        await callIfDefined(callbacks.onRootsListChanged);
-        return;
+        return this.onRootsListChanged();
 
       case 'notifications/cancelled':
       case '$/cancelRequest':
         return;
 
       case 'ping':
-        reply({});
-        return;
+        return reply({});
 
       case 'tools/list':
-        reply({ tools: server.getToolSchemas() });
-        return;
+        return reply({ tools: this.getToolSchemas() });
 
       case 'tools/call': {
         const name = params && params.name;
@@ -148,34 +127,24 @@ function createProtocolHandlers(server, getProjectRoot, stdout, options = {}) {
           params && params.arguments && typeof params.arguments === 'object'
             ? params.arguments
             : {};
-        const projectRoot = await getProjectRoot();
+        const projectRoot = await this.getProjectRoot();
         // A failure outcome is already the wire payload plus `ok`.
-        const { ok, result, ...failure } = await server.callTool(name, args, projectRoot);
+        const { ok, result, ...failure } = await this.callTool(name, args, projectRoot);
 
         if (!ok) {
           log('error', `Tool ${name || '(unknown)'} failed: ${failure.error}`);
         }
-        reply(ok ? toolResult(result) : toolResult(failure, true));
-        return;
+        return reply(ok ? toolResult(result) : { ...toolResult(failure), isError: true });
       }
 
       default:
-        if (id != null) {
-          writeMessage(stdout, {
-            jsonrpc: '2.0',
-            id,
-            error: {
-              code: -32601,
-              message: `Method not found: ${method}`,
-            },
-          });
+        if (typeof method === 'string' && id != null) {
+          this.write({ id, error: { code: -32601, message: `Method not found: ${method}` } });
         }
     }
   }
-
-  return { requestFromClient, respond };
 }
 
 module.exports = {
-  createProtocolHandlers,
+  McpConnection,
 };
