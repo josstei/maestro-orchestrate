@@ -56,9 +56,7 @@ describe('verify npm pack', () => {
       'scripts/lib/temp-dir.js',
       'src/entry-points/templates/qwen-command.toml.tmpl',
       'src/generator/dependency-graph.js',
-      'src/transforms/agent-stub.js',
       'src/lib/discovery/index.js',
-      'src/lib/yaml-emit.js',
     ]) {
       assert.throws(
         () => verifyPackageEntries(packWith(buildPath)),

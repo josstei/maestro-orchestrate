@@ -86,9 +86,9 @@ describe('release artifact packaging', () => {
       assert.ok(archiveEntries.includes(entry), `Expected the archive to include ${entry}`);
     }
     for (const buildPath of [
-      'src/entry-points', 'src/generator', 'src/transforms',
+      'src/entry-points', 'src/generator',
       'src/platforms/metadata.js', 'src/platforms/qwen/policy-pack.js',
-      'src/lib/discovery', 'src/lib/yaml-emit.js',
+      'src/lib/discovery',
     ]) {
       assert.equal(fs.existsSync(path.join(extractedRoot, buildPath)), false, buildPath);
     }

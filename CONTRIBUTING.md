@@ -75,7 +75,7 @@ Launchers are rendered by `src/generator/runtime-entrypoints.js`. Their public p
 | `QWEN.md` | Qwen Code context file |
 | `README.md`, `antigravity/README.md`, `claude/README.md`, `plugins/maestro/README.md` | READMEs; `scripts/update-versions.js` stamps the version badge in `README.md` and `claude/README.md` |
 
-The generator collects agent and shared-skill stubs through `src/generator/stub-outputs.js` and the renderers in `src/transforms/`, expands the entry-point registries, and builds the manifests and hook registrations in `src/platforms/metadata.js` and the Qwen policy pack in `src/platforms/qwen/policy-pack.js`. [docs/architecture.md](docs/architecture.md#generator-pipeline) lists every step.
+The generator collects agent and shared-skill stubs through `src/generator/stub-outputs.js`, expands the entry-point registries, and builds the manifests and hook registrations in `src/platforms/metadata.js` and the Qwen policy pack in `src/platforms/qwen/policy-pack.js`. [docs/architecture.md](docs/architecture.md#generator-pipeline) lists every step.
 
 ## Making Changes
 

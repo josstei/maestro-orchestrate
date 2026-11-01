@@ -147,14 +147,11 @@ describe('release artifact manifest', () => {
       'src/entry-points/templates/qwen-command.toml.tmpl',
       'src/generator',
       'src/generator/dependency-graph.js',
-      'src/transforms',
-      'src/transforms/agent-stub.js',
       'src/generator/stub-outputs.js',
       'src/platforms/metadata.js',
       'src/platforms/qwen/policy-pack.js',
       'src/lib/discovery',
       'src/lib/discovery/index.js',
-      'src/lib/yaml-emit.js',
     ]) {
       assert.equal(isReleaseArtifactPathAllowed(buildPath), false, buildPath);
       assert.equal(isDeniedPath(buildPath), false, buildPath);

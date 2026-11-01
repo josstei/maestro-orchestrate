@@ -4,182 +4,86 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const agentStub = require('../../src/transforms/agent-stub');
+const { agentStub } = require('../../src/generator/stub-outputs');
 const { parse } = require('../../src/lib/frontmatter');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { AGENT_COUNT, listCanonicalAgents } = require('../support/catalog');
 const { splitFrontmatter } = require('../support/generated-files');
 const { SRC_ROOT } = require('../support/paths');
 
-const SRC_AGENTS_DIR = path.join(SRC_ROOT, 'agents');
+const antigravityRuntime = getRuntimeConfig('antigravity');
+const claudeRuntime = getRuntimeConfig('claude');
+const qwenRuntime = getRuntimeConfig('qwen');
 
-// One `key: value` frontmatter line per field, then a blank line and the body.
+// One `key: value` frontmatter line per defined field, then a blank line and the body.
 function agentDoc(fields, body = 'Body.') {
-  return ['---', ...Object.entries(fields).map(([key, value]) => `${key}: ${value}`), '---', '', body].join('\n');
+  const lines = Object.entries(fields).filter(([, value]) => value !== undefined);
+  return ['---', ...lines.map(([key, value]) => `${key}: ${value}`), '---', '', body].join('\n');
 }
+const tester = (fields) =>
+  agentDoc({ name: 'tester', description: '"Tester."', tools: '[read_file]', max_turns: 10, ...fields });
+const stub = (content, runtime = claudeRuntime) => splitFrontmatter(agentStub(content, runtime));
+const toolLines = (content, runtime) =>
+  stub(content, runtime).lines.filter((line) => line === 'tools:' || line.startsWith('  - '));
+const stubBody = (name) => '\nAgent methodology loaded via MCP tool `get_agent`. ' +
+  `Call \`get_agent(agents: ["${name}"])\` to read the full methodology at delegation time.\n`;
+
+const codeReviewer = {
+  name: 'code-reviewer',
+  description: '"Code review specialist."',
+  color: 'blue',
+  tools: '[read_file, glob, grep_search]',
+  max_turns: 15,
+};
+const canonicalAgent = agentDoc(codeReviewer, '## Methodology\nReview code carefully.');
+const agentWithExamples = agentDoc(
+  codeReviewer,
+  '<example>\nContext: User wants a review.\n</example>\n\n## Methodology\nReview code carefully.'
+);
+const CODE_REVIEWER_FRONTMATTER = {
+  claude: ['name: code-reviewer', 'description: "Code review specialist."', 'model: inherit', 'color: blue',
+    'maxTurns: 15', 'tools:', '  - Read', '  - Glob', '  - Grep'],
+  qwen: ['name: code_reviewer', 'kind: local', 'description: "Code review specialist."', 'max_turns: 15',
+    'tools:', '  - read_file', '  - glob', '  - grep_search'],
+  antigravity: ['name: code-reviewer', 'description: "Code review specialist."', 'subagent: true', 'mainAgent: false',
+    'model: inherit', 'tools:', '  - view_file', '  - find_by_name', '  - grep_search'],
+};
 
 describe('agent-stub transform', () => {
-  const codeReviewer = {
-    name: 'code-reviewer',
-    description: '"Code review specialist."',
-    color: 'blue',
-    tools: '[read_file, glob, grep_search]',
-    max_turns: 15,
-  };
-  const canonicalAgent = agentDoc(codeReviewer, '## Methodology\nReview code carefully.');
-  const agentWithExamples = agentDoc(
-    codeReviewer,
-    '<example>\nContext: User wants a review.\n</example>\n\n## Methodology\nReview code carefully.'
-  );
-
-  const antigravityRuntime = getRuntimeConfig('antigravity');
-  const claudeRuntime = getRuntimeConfig('claude');
-  const qwenRuntime = getRuntimeConfig('qwen');
-
-  function stubBody(name) {
-    return (
-      '\nAgent methodology loaded via MCP tool `get_agent`. ' +
-      `Call \`get_agent(agents: ["${name}"])\` to read the full methodology at delegation time.\n`
-    );
+  for (const [runtime, lines] of Object.entries(CODE_REVIEWER_FRONTMATTER)) {
+    it(`renders the ${runtime} frontmatter and get_agent body`, () => {
+      assert.deepEqual(stub(canonicalAgent, getRuntimeConfig(runtime)), { lines, body: stubBody('code-reviewer') });
+    });
   }
 
-  function parseDocument(result) {
-    const { lines, body } = splitFrontmatter(result);
-    return { frontmatter: lines, body };
-  }
-
-  function assertDocument(result, expectedFrontmatter, expectedBody) {
-    const { frontmatter, body } = parseDocument(result);
-    assert.deepEqual(frontmatter, expectedFrontmatter);
-    assert.equal(body, expectedBody);
-  }
-
-  it('produces claude frontmatter with model, color, maxTurns', () => {
-    const result = agentStub(canonicalAgent, claudeRuntime);
-    assertDocument(
-      result,
-      [
-        'name: code-reviewer',
-        'description: "Code review specialist."',
-        'model: inherit',
-        'color: blue',
-        'maxTurns: 15',
-        'tools:',
-        '  - Read',
-        '  - Glob',
-        '  - Grep',
-      ],
-      stubBody('code-reviewer')
-    );
+  it('embeds example blocks into the claude description only', () => {
+    const claude = ['name: code-reviewer', 'description: |', '  Code review specialist.', '  ', '  <example>',
+      '  Context: User wants a review.', '  </example>', ...CODE_REVIEWER_FRONTMATTER.claude.slice(2)];
+    for (const [runtime, lines] of Object.entries({ ...CODE_REVIEWER_FRONTMATTER, claude })) {
+      const expected = { lines, body: stubBody('code-reviewer') };
+      assert.deepEqual(stub(agentWithExamples, getRuntimeConfig(runtime)), expected, runtime);
+    }
   });
 
-  it('produces qwen frontmatter with kind, max_turns before tools and a snake_case stub name', () => {
-    const result = agentStub(canonicalAgent, qwenRuntime);
-    assertDocument(
-      result,
-      [
-        'name: code_reviewer',
-        'kind: local',
-        'description: "Code review specialist."',
-        'max_turns: 15',
-        'tools:',
-        '  - read_file',
-        '  - glob',
-        '  - grep_search',
-      ],
-      stubBody('code-reviewer')
+  it('embeds multiple example blocks into the claude description', () => {
+    const content = agentDoc(
+      { name: 'coder', description: '"A coder."', color: 'green', tools: '[read_file]', max_turns: 10 },
+      '<example>\nFirst example.\n</example>\n\n<example>\nSecond example.\n</example>\n\n## Body content'
     );
-  });
-
-  it('produces antigravity frontmatter with subagent, mainAgent, model and mapped tools, without color or turns', () => {
-    const result = agentStub(canonicalAgent, antigravityRuntime);
-    assertDocument(
-      result,
-      [
-        'name: code-reviewer',
-        'description: "Code review specialist."',
-        'subagent: true',
-        'mainAgent: false',
-        'model: inherit',
-        'tools:',
-        '  - view_file',
-        '  - find_by_name',
-        '  - grep_search',
-      ],
-      stubBody('code-reviewer')
-    );
+    assert.deepEqual(stub(content), {
+      lines: ['name: coder', 'description: |', '  A coder.', '  ', '  <example>', '  First example.', '  </example>',
+        '  <example>', '  Second example.', '  </example>', 'model: inherit', 'color: green', 'maxTurns: 10',
+        'tools:', '  - Read'],
+      body: stubBody('coder'),
+    });
   });
 
   it('throws for a listed frontmatter field that is neither computed nor configured', () => {
-    const runtime = {
-      ...claudeRuntime,
-      agentFrontmatter: { ...claudeRuntime.agentFrontmatter, fields: ['name', 'modle'] },
-    };
+    const agentFrontmatter = { ...claudeRuntime.agentFrontmatter, fields: ['name', 'modle'] };
+    const runtime = { ...claudeRuntime, agentFrontmatter };
     assert.throws(() => agentStub(canonicalAgent, runtime), {
       message: 'Unknown agent frontmatter field "modle" for claude',
     });
-  });
-
-  it('uses tools.<runtime> override when present', () => {
-    const agentWithOverride = agentDoc({
-      name: 'architect',
-      description: '"Architect."',
-      color: 'blue',
-      tools: '[read_file, glob]',
-      'tools.claude': '[Read, Glob, Grep, WebSearch, WebFetch]',
-      max_turns: 15,
-    });
-    const result = agentStub(agentWithOverride, claudeRuntime);
-    assert.ok(result.includes('- Read'));
-    assert.ok(result.includes('- WebFetch'));
-  });
-
-  it('embeds example blocks into claude description field', () => {
-    const result = agentStub(agentWithExamples, claudeRuntime);
-    assertDocument(
-      result,
-      [
-        'name: code-reviewer',
-        'description: |',
-        '  Code review specialist.',
-        '  ',
-        '  <example>',
-        '  Context: User wants a review.',
-        '  </example>',
-        'model: inherit',
-        'color: blue',
-        'maxTurns: 15',
-        'tools:',
-        '  - Read',
-        '  - Glob',
-        '  - Grep',
-      ],
-      stubBody('code-reviewer')
-    );
-  });
-
-  it('does not embed example blocks for qwen', () => {
-    const result = agentStub(agentWithExamples, qwenRuntime);
-    assertDocument(
-      result,
-      [
-        'name: code_reviewer',
-        'kind: local',
-        'description: "Code review specialist."',
-        'max_turns: 15',
-        'tools:',
-        '  - read_file',
-        '  - glob',
-        '  - grep_search',
-      ],
-      stubBody('code-reviewer')
-    );
-  });
-
-  it('does not embed example blocks for antigravity', () => {
-    const { frontmatter } = parseDocument(agentStub(agentWithExamples, antigravityRuntime));
-    assert.ok(frontmatter.includes('description: "Code review specialist."'));
-    assert.ok(!frontmatter.some((line) => line.includes('<example>')));
   });
 
   it('throws on an unclosed <example> tag only when the runtime embeds examples', () => {
@@ -199,103 +103,40 @@ describe('agent-stub transform', () => {
     assert.doesNotThrow(() => agentStub(unclosedExample, antigravityRuntime));
   });
 
-  it('flattens array tool mappings when no per-runtime override', () => {
-    const agentWithArrayTools = agentDoc({
-      name: 'coder',
-      description: '"Coder."',
-      color: 'green',
-      tools: '[read_file, write_todos]',
-      max_turns: 25,
+  for (const [title, content] of [
+    ['treats content with no frontmatter as an agent with no fields', 'Just body content.\nNo frontmatter here.'],
+    ['treats unclosed frontmatter (no closing ---) as no frontmatter', '---\nname: test\nno closing fence'],
+  ]) {
+    it(title, () => {
+      assert.deepEqual(stub(content), { lines: ['description: ""', 'model: inherit'], body: stubBody('') });
     });
-    const result = agentStub(agentWithArrayTools, claudeRuntime);
-    assert.ok(result.includes('- Read'));
-    assert.ok(result.includes('- TaskCreate'));
-    assert.ok(result.includes('- TaskUpdate'));
-    assert.ok(result.includes('- TaskList'));
-  });
+  }
 
-  it('should handle agent with no tools', () => {
-    const noToolsAgent = agentDoc({
-      name: 'product-manager',
-      description: '"Product manager."',
-      color: 'purple',
-      tools: '[]',
-      max_turns: 10,
+  for (const [title, content, present, absent = [], runtime = claudeRuntime] of [
+    ['uses tools.<runtime> override when present',
+      tester({ tools: '[read_file, glob]', 'tools.claude': '[Read, Glob, Grep, WebSearch, WebFetch]' }),
+      ['- Read', '- WebFetch']],
+    ['flattens array tool mappings when no per-runtime override',
+      tester({ tools: '[read_file, write_todos]' }), ['- Read', '- TaskCreate', '- TaskUpdate', '- TaskList']],
+    ['keeps a tool that runtime.tools does not map',
+      tester({ tools: '[read_file, unknown_tool]' }), ['- unknown_tool', '- Read']],
+    ['omits tools for an agent with none', tester({ tools: '[]' }), ['name: tester'], ['tools:']],
+    ['omits color when the source declares none', tester(), ['name: tester'], ['color:']],
+    ['omits maxTurns when the source declares none', tester({ max_turns: undefined }), [], ['maxTurns:']],
+    ['writes an empty description when the source declares none',
+      tester({ description: undefined }), ['\ndescription: ""\n']],
+    ['quotes a numeric description as its string form',
+      tester({ description: 42 }), ['\ndescription: "42"\n'], [], qwenRuntime],
+    ['round-trips escaped quotes and literal backslashes in quoted descriptions',
+      tester({ description: '"Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"' }),
+      ['description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"'], [], qwenRuntime],
+  ]) {
+    it(title, () => {
+      const result = agentStub(content, runtime);
+      for (const text of present) assert.ok(result.includes(text), text);
+      for (const text of absent) assert.ok(!result.includes(text), text);
     });
-    const result = agentStub(noToolsAgent, claudeRuntime);
-    assert.ok(!result.includes('tools:'));
-    assert.ok(result.includes('name: product-manager'));
-  });
-
-  it('should handle agent with no color field', () => {
-    const noColorAgent = agentDoc({
-      name: 'tester',
-      description: '"Tester."',
-      tools: '[read_file]',
-      max_turns: 10,
-    });
-    const result = agentStub(noColorAgent, claudeRuntime);
-    assert.ok(!result.includes('color:'));
-    assert.ok(result.includes('name: tester'));
-  });
-
-  it('should handle agent with no description', () => {
-    const noDescAgent = agentDoc({ name: 'tester', tools: '[read_file]', max_turns: 10 });
-    const result = agentStub(noDescAgent, claudeRuntime);
-    const { frontmatter } = parseDocument(result);
-    assert.ok(frontmatter.includes('description: ""'));
-  });
-
-  it('should handle content with no frontmatter', () => {
-    const noFrontmatter = 'Just body content.\nNo frontmatter here.';
-    const result = agentStub(noFrontmatter, claudeRuntime);
-    assertDocument(
-      result,
-      [
-        'description: ""',
-        'model: inherit',
-      ],
-      stubBody('')
-    );
-  });
-
-  it('should treat unclosed frontmatter (no closing ---) as no frontmatter', () => {
-    const badFrontmatter = '---\nname: test\nno closing fence';
-    const result = agentStub(badFrontmatter, claudeRuntime);
-    assertDocument(
-      result,
-      [
-        'description: ""',
-        'model: inherit',
-      ],
-      stubBody('')
-    );
-  });
-
-  it('should handle multiple example blocks in body for claude', () => {
-    const multiExamples = agentDoc(
-      { name: 'coder', description: '"A coder."', color: 'green', tools: '[read_file]', max_turns: 10 },
-      '<example>\nFirst example.\n</example>\n\n<example>\nSecond example.\n</example>\n\n## Body content'
-    );
-    const result = agentStub(multiExamples, claudeRuntime);
-    const { frontmatter, body } = parseDocument(result);
-    assert.ok(frontmatter.includes('description: |'));
-    assert.ok(frontmatter.includes('  <example>'));
-    assert.ok(frontmatter.includes('  First example.'));
-    assert.ok(frontmatter.includes('  Second example.'));
-    assert.equal(body, stubBody('coder'));
-  });
-
-  it('should handle agent with no max_turns', () => {
-    const noTurnsAgent = agentDoc({
-      name: 'tester',
-      description: '"Tester."',
-      color: 'green',
-      tools: '[read_file]',
-    });
-    const result = agentStub(noTurnsAgent, claudeRuntime);
-    assert.ok(!result.includes('maxTurns:'));
-  });
+  }
 
   describe('legacy temperature and timeout_mins frontmatter', () => {
     const STUB_RUNTIME_NAMES = RUNTIME_NAMES.filter(
@@ -307,19 +148,12 @@ describe('agent-stub transform', () => {
     });
 
     it('is never emitted into a stub, even when the source still declares it', () => {
-      const legacyAgent = agentDoc({
-        name: 'tester',
-        description: '"Tester."',
-        tools: '[read_file]',
-        max_turns: 10,
-        temperature: 0.3,
-        timeout_mins: 5,
-      });
+      const legacyAgent = tester({ temperature: 0.3, timeout_mins: 5 });
 
       for (const runtimeName of STUB_RUNTIME_NAMES) {
-        const { frontmatter } = parseDocument(agentStub(legacyAgent, getRuntimeConfig(runtimeName)));
+        const { lines } = stub(legacyAgent, getRuntimeConfig(runtimeName));
         assert.deepEqual(
-          frontmatter.filter((line) => /^(temperature|timeout_mins|timeout):/.test(line)),
+          lines.filter((line) => /^(temperature|timeout_mins|timeout):/.test(line)),
           [],
           runtimeName
         );
@@ -331,108 +165,38 @@ describe('agent-stub transform', () => {
       assert.equal(agentFiles.length, AGENT_COUNT);
 
       for (const file of agentFiles) {
-        const content = fs.readFileSync(path.join(SRC_AGENTS_DIR, file), 'utf8');
+        const content = fs.readFileSync(path.join(SRC_ROOT, 'agents', file), 'utf8');
         const { frontmatter } = parse(content);
         assert.equal(frontmatter.temperature, undefined, `${file}: temperature`);
         assert.equal(frontmatter.timeout_mins, undefined, `${file}: timeout_mins`);
 
         for (const runtimeName of STUB_RUNTIME_NAMES) {
-          const stub = agentStub(content, getRuntimeConfig(runtimeName));
-          assert.doesNotMatch(stub, /^(temperature|timeout_mins):/m, `${runtimeName} ${file}`);
+          const result = agentStub(content, getRuntimeConfig(runtimeName));
+          assert.doesNotMatch(result, /^(temperature|timeout_mins):/m, `${runtimeName} ${file}`);
         }
       }
     });
   });
 
-  it('should handle tool that is not in runtime.tools mapping', () => {
-    const agentWithUnknownTool = agentDoc({
-      name: 'tester',
-      description: '"Tester."',
-      tools: '[read_file, unknown_tool]',
-      max_turns: 10,
+  for (const [title, tools, runtime, expected] of [
+    ['maps canonical tools through runtime.tools for qwen',
+      { tools: '[read_file, read_many_files, replace, write_todos, google_web_search, ask_user, activate_skill]' },
+      qwenRuntime,
+      ['read_file', 'read_many_files', 'edit', 'todo_write', 'web_search', 'ask_user_question', 'skill']],
+    // read_many_files and activate_skill both map to view_file; Antigravity has no write_todos.
+    ['maps canonical tools to Antigravity tool names, each listed once',
+      { tools: '[read_file, list_directory, glob, grep_search, google_web_search, web_fetch, write_file, replace, ' +
+        'run_shell_command, ask_user, read_many_files, write_todos, activate_skill]' },
+      antigravityRuntime,
+      ['view_file', 'list_dir', 'find_by_name', 'grep_search', 'search_web', 'read_url_content', 'write_to_file',
+        'replace_file_content', 'run_command', 'ask_question']],
+    ['explicit tools.<runtime> override replaces the mapped canonical list',
+      { tools: '[read_file, replace]', 'tools.qwen': '[read_file, glob, grep_search, web_search]' },
+      qwenRuntime,
+      ['read_file', 'glob', 'grep_search', 'web_search']],
+  ]) {
+    it(title, () => {
+      assert.deepEqual(toolLines(tester(tools), runtime), ['tools:', ...expected.map((tool) => `  - ${tool}`)]);
     });
-    const result = agentStub(agentWithUnknownTool, claudeRuntime);
-    // unknown_tool should be kept as-is since runtime.tools[unknown_tool] is undefined
-    assert.ok(result.includes('- unknown_tool'));
-    assert.ok(result.includes('- Read'));
-  });
-
-  it('should round-trip escaped quotes and literal backslashes in quoted descriptions', () => {
-    const escapedDesc = agentDoc({
-      name: 'tester',
-      description: '"Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"',
-      tools: '[read_file]',
-      max_turns: 10,
-    });
-    const result = agentStub(escapedDesc, qwenRuntime);
-    assert.ok(result.includes('description: "Tests things \\"carefully\\". Path: C:\\\\temp\\\\agent"'));
-  });
-
-  it('maps canonical tools through runtime.tools for qwen', () => {
-    const agentWithMappedTools = agentDoc({
-      name: 'planner',
-      description: '"Planner."',
-      tools: '[read_file, read_many_files, replace, write_todos, google_web_search, ask_user, activate_skill]',
-      max_turns: 10,
-    });
-
-    const { frontmatter } = parseDocument(agentStub(agentWithMappedTools, qwenRuntime));
-    assert.deepEqual(
-      frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
-      [
-        'tools:',
-        '  - read_file',
-        '  - read_many_files',
-        '  - edit',
-        '  - todo_write',
-        '  - web_search',
-        '  - ask_user_question',
-        '  - skill',
-      ]
-    );
-  });
-
-  it('maps canonical tools to Antigravity tool names, each listed once', () => {
-    const agentWithEveryTool = agentDoc({
-      name: 'builder',
-      description: '"Builder."',
-      tools: '[read_file, list_directory, glob, grep_search, google_web_search, web_fetch, write_file, replace, run_shell_command, ask_user, read_many_files, write_todos, activate_skill]',
-      max_turns: 25,
-    });
-
-    // read_many_files and activate_skill both map to view_file; write_todos
-    // has no Antigravity equivalent.
-    const { frontmatter } = parseDocument(agentStub(agentWithEveryTool, antigravityRuntime));
-    assert.deepEqual(
-      frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
-      [
-        'tools:',
-        '  - view_file',
-        '  - list_dir',
-        '  - find_by_name',
-        '  - grep_search',
-        '  - search_web',
-        '  - read_url_content',
-        '  - write_to_file',
-        '  - replace_file_content',
-        '  - run_command',
-        '  - ask_question',
-      ]
-    );
-  });
-
-  it('explicit tools.<runtime> override replaces the mapped canonical list', () => {
-    const agentWithQwenOverride = agentDoc({
-      name: 'architect',
-      description: '"Architect."',
-      tools: '[read_file, replace]',
-      'tools.qwen': '[read_file, glob, grep_search, web_search]',
-      max_turns: 15,
-    });
-    const { frontmatter } = parseDocument(agentStub(agentWithQwenOverride, qwenRuntime));
-    assert.deepEqual(
-      frontmatter.filter((line) => line === 'tools:' || line.startsWith('  - ')),
-      ['tools:', '  - read_file', '  - glob', '  - grep_search', '  - web_search']
-    );
-  });
+  }
 });

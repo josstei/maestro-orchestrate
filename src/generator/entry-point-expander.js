@@ -4,11 +4,12 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { readTextSync } = require('../lib/io');
 const { toTitleCase } = require('../lib/naming');
-const { emitInlineQuotedList } = require('../lib/yaml-emit');
 const entryPointRegistry = require('../entry-points/registry');
 const coreCommandRegistry = require('../entry-points/core-command-registry');
 
 const TEMPLATES_DIR = path.join(__dirname, '..', 'entry-points', 'templates');
+// Names are controlled identifiers, so they are quoted without escaping.
+const quotedList = (items) => items.map((item) => `"${item}"`).join(', ');
 
 /**
  * Host command names that must never appear as public skill names. Claude
@@ -22,17 +23,26 @@ const HOST_RESERVED_NAMES = new Set(['review', 'debug', 'resume']);
 // and a core command `<runtime>-core-command`. Skills share the host command namespace, so they
 // take skillName and must avoid HOST_RESERVED_NAMES.
 const SURFACES = {
-  skill: { ext: 'md', dir: 'skills', file: (name) => `${name}/SKILL.md`, hostNamespace: true },
-  command: { ext: 'toml', dir: 'commands', file: (name) => `maestro/${name}.toml` },
+  skill: {
+    ext: 'md',
+    dir: 'skills',
+    file: (name) => `${name}/SKILL.md`,
+    hostNamespace: true,
+  },
+  command: {
+    ext: 'toml',
+    dir: 'commands',
+    file: (name) => `maestro/${name}.toml`,
+  },
 };
 
 /** The get_skill_content line; entries with agents add the get_agent line and delegation note. */
 function buildPreamble(entry, runtime, delegationNote) {
   const hasAgents = entry.agents.length > 0;
   const resources = ['architecture', ...(hasAgents ? ['delegation'] : []), ...(entry.skills || [])];
-  const lines = [`Call \`get_skill_content\` with resources: [${emitInlineQuotedList(resources)}].`];
+  const lines = [`Call \`get_skill_content\` with resources: [${quotedList(resources)}].`];
   if (hasAgents && runtime.entryAgentRefs) {
-    lines.push(`Call \`get_agent\` with agents: [${emitInlineQuotedList(entry.agents)}].`);
+    lines.push(`Call \`get_agent\` with agents: [${quotedList(entry.agents)}].`);
   }
   if (hasAgents && delegationNote) lines.push(delegationNote);
   return lines.join('\n');
@@ -59,7 +69,7 @@ const KINDS = {
       firstLine: entry.firstLine,
       requestType: entry.requestType,
       executeInstructions: entry.executeInstructions,
-      preloadList: emitInlineQuotedList(entry.preload),
+      preloadList: quotedList(entry.preload),
       sessionStateBlock: entry.injectSessionState && partials.sessionState ? `${partials.sessionState}\n\n` : '',
     }),
   },
@@ -93,7 +103,10 @@ function expand(kind, runtime) {
     agentDispatch: runtime.delegation.pattern.replace('{{agent}}', '<name>'),
   };
   return registry.map((entry) => {
-    const runtimeEntry = { ...entry, name: (surface.hostNamespace && entry.skillName) || entry.name };
+    const runtimeEntry = {
+      ...entry,
+      name: (surface.hostNamespace && entry.skillName) || entry.name,
+    };
     if (surface.hostNamespace && HOST_RESERVED_NAMES.has(runtimeEntry.name)) {
       throw new Error(
         `Reserved ${runtimeName} host command name "${runtimeEntry.name}" conflicts with a built-in — ` +

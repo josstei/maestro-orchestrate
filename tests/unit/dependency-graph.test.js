@@ -70,12 +70,10 @@ describe('dependency graph', () => {
       'mcp/main.js': [
         "require('../platforms/qwen/policy-pack');",
         "require('../lib/discovery');",
-        "require('../lib/yaml-emit');",
       ].join('\n'),
       'platforms/qwen/policy-pack.js': '',
       'lib/discovery/index.js': '',
-      'lib/yaml-emit.js': '',
-    }, Array(3).fill('RUNTIME_BUILD_DEPENDENCY')],
+    }, Array(2).fill('RUNTIME_BUILD_DEPENDENCY')],
   ]) {
     it(name, () => assert.deepEqual(codes(graphOf(files)).sort(), expected));
   }

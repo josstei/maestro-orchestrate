@@ -68,8 +68,6 @@
     "!src/entry-points/",
     "!src/generator/",
     "!src/lib/discovery/",
-    "!src/lib/yaml-emit.js",
-    "!src/transforms/",
     "scripts/install-codex-plugin.js",
     "scripts/lib/cli.js",
     "bin/",

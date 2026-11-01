@@ -7,10 +7,8 @@ const BUILD_ONLY_PATHS = Object.freeze([
   'entry-points',
   'generator',
   'lib/discovery',
-  'lib/yaml-emit.js',
   'platforms/metadata.js',
   'platforms/qwen/policy-pack.js',
-  'transforms',
 ]);
 
 /** Whether a POSIX path relative to src/ is, or lies under, a build-only path. */

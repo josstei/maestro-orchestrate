@@ -46,12 +46,12 @@ Detached roots include the MCP server, selected runtime config, all five state s
 
 ### Discovery Stubs
 
-`src/generator/stub-outputs.js` scans agent Markdown files and shared `SKILL.md` files and invokes their renderers directly. Agent filenames use each runtime's naming convention; shared-skill paths flatten `skills/shared/` to `skills/`. Both use the runtime's `outputDir`.
+`src/generator/stub-outputs.js` scans agent Markdown files and shared `SKILL.md` files and renders each with one of its two renderers. Agent filenames use each runtime's naming convention; shared-skill paths flatten `skills/shared/` to `skills/`. Both use the runtime's `outputDir`.
 
 | Renderer | Purpose |
 |----------|---------|
-| `src/transforms/agent-stub.js` | Emit ordered runtime frontmatter and mapped tools, folding example blocks into descriptions when enabled, followed by a pointer to `get_agent()` |
-| `src/transforms/skill-discovery-stub.js` | Point to `get_skill_content()` with the host's discovery metadata |
+| `agentStub` | Emit ordered runtime frontmatter and mapped tools, folding example blocks into descriptions when enabled, followed by a pointer to `get_agent()` |
+| `skillDiscoveryStub` | Point to `get_skill_content()` with the host's discovery metadata |
 
 ### Runtime Definitions
 
@@ -221,7 +221,7 @@ All agents share one Output Contract (the Handoff Report format). It lives once 
 
 ### Stub Generation
 
-The `agent-stub` transform writes a thin stub for each runtime that has agent stubs (all but Codex): the frontmatter fields that runtime's `agentFrontmatter.fields` lists, then a single body line. Full methodology is served via MCP at delegation time:
+The `agentStub` renderer in `src/generator/stub-outputs.js` writes a thin stub for each runtime that has agent stubs (all but Codex): the frontmatter fields that runtime's `agentFrontmatter.fields` lists, then a single body line. Full methodology is served via MCP at delegation time:
 
 ```markdown
 Agent methodology loaded via MCP tool `get_agent`. Call `get_agent(agents: ["architect"])` to read the full methodology at delegation time.

@@ -56,7 +56,7 @@ describe('detached payload dependency plans', () => {
       const agents = JSON.parse(fs.readFileSync(path.join(SRC_ROOT, 'generated/agent-registry.json')));
       for (const agent of agents) assert.ok(files.has(`agents/${agent.name}.md`));
       assert.ok(files.has('agents/shared/handoff-report.md'));
-      for (const file of ['lib/discovery/index.js', 'lib/yaml-emit.js', 'generator/dependency-graph.js']) {
+      for (const file of ['lib/discovery/index.js', 'generator/dependency-graph.js']) {
         assert.ok(!files.has(file), `${runtime} must not ship build-only ${file}`);
       }
       assert.equal(files.has('core/policy-rules.js'), runtime !== 'codex');

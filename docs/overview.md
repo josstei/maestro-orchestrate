@@ -43,7 +43,6 @@ maestro-orchestrate/
 │   ├── skills/shared/            # 7 shared methodology modules + protocols
 │   ├── templates/                # Session state, design doc, impl plan
 │   ├── references/               # Architecture ref, orchestration steps
-│   ├── transforms/               # Generator transforms (agent-stub, skill-discovery-stub)
 │   ├── generator/                # Stub and entry-point generation, registries, pruning, payloads
 │   ├── generated/                # [generated] Agent, resource, and hook registries
 │   ├── entry-points/             # Entry-point (9) and core-command (3) registries, 8 templates, 2 partials
