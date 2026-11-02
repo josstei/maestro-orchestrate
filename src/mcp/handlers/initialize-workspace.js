@@ -15,9 +15,7 @@ async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
   const workspacePath =
     params.workspace_path || cachedProjectRoot || null;
 
-  const resolvedWorkspace = requireExplicitWorkspaceRoot({
-    workspacePath,
-  });
+  const resolvedWorkspace = requireExplicitWorkspaceRoot(workspacePath);
 
   const stateDir = resolveStateDirSetting(resolvedWorkspace, params.state_dir);
   const { alreadyExisted } = await ensureWorkspace(stateDir, resolvedWorkspace);

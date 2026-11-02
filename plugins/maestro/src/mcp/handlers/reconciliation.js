@@ -13,7 +13,7 @@ const {
   assertSessionMatch,
   findPhaseOrThrow,
 } = require('../../state/session-state');
-const { isExtensionCachePath } = require('../../core/cache-path-rejector');
+const { isExtensionCachePath } = require('../../core/project-root-resolver');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
   HANDOFF_FILE_FIELDS,

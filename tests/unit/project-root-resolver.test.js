@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
+  isExtensionCachePath,
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,
   WorkspaceResolutionError,
@@ -49,20 +50,20 @@ describe('project root resolver', () => {
 
   it('requireExplicitWorkspaceRoot returns the explicit path when it exists', () => {
     const workspaceRoot = makeTempDir('maestro-explicit-');
-    const result = requireExplicitWorkspaceRoot({ workspacePath: workspaceRoot });
+    const result = requireExplicitWorkspaceRoot(workspaceRoot);
     assert.equal(result, workspaceRoot);
   });
 
   it('requireExplicitWorkspaceRoot throws WorkspaceResolutionError when no explicit path is given', () => {
     assert.throws(
-      () => requireExplicitWorkspaceRoot({}),
+      () => requireExplicitWorkspaceRoot(),
       (err) => err instanceof WorkspaceResolutionError
     );
   });
 
   it('requireExplicitWorkspaceRoot throws when the explicit path does not exist', () => {
     assert.throws(
-      () => requireExplicitWorkspaceRoot({ workspacePath: '/nonexistent/path/abc123' }),
+      () => requireExplicitWorkspaceRoot('/nonexistent/path/abc123'),
       (err) => err instanceof WorkspaceResolutionError
     );
   });
@@ -72,8 +73,41 @@ describe('project root resolver', () => {
     const nested = path.join(cacheParent, '.codex', 'plugins', 'maestro');
     fs.mkdirSync(nested, { recursive: true });
     assert.throws(
-      () => requireExplicitWorkspaceRoot({ workspacePath: nested }),
+      () => requireExplicitWorkspaceRoot(nested),
       (err) => err instanceof WorkspaceResolutionError && /extension cache/i.test(err.message)
     );
+  });
+
+  it('isExtensionCachePath matches host cache directories and paths below them', () => {
+    for (const candidate of [
+      '/Users/me/.codex/plugins/cache/foo/bar',
+      '/Users/me/.claude/plugins/cache/foo',
+      '/Users/me/.gemini/config/plugins/maestro',
+      '/Users/me/.gemini/antigravity-cli/plugins/maestro/mcp',
+      '/Users/me/.codex/plugins',
+      '/Users/me/.claude/plugins',
+      '/Users/me/.gemini/config/plugins',
+      '/Users/me/.gemini/antigravity-cli/plugins',
+    ]) {
+      assert.equal(isExtensionCachePath(candidate), true, candidate);
+    }
+  });
+
+  it('isExtensionCachePath requires whole contiguous segments and ignores Gemini CLI extensions', () => {
+    for (const candidate of [
+      '/a/config/plugins',
+      '/Users/me/.gemini/config',
+      '/Users/me/.gemini/plugins',
+      '/Users/me/.gemini/antigravity-cli',
+      '/Users/me/.gemini/x/config/plugins',
+      '/Users/me/config/plugins/.gemini',
+      '/Users/me/.gemini/config/plugins-research',
+      '/Users/me/dev/.gemini-config/plugins',
+      '/Users/me/.gemini/extensions/foo',
+      '/Users/me/dev/my-project/.codex-plugins-research',
+      '/Users/me/Development/maestro-orchestrate',
+    ]) {
+      assert.equal(isExtensionCachePath(candidate), false, candidate);
+    }
   });
 });

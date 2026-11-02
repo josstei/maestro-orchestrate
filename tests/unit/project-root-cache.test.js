@@ -93,6 +93,21 @@ describe('createProjectRootCache workspaceSuggestion', () => {
     });
   });
 
+  it('does not read the cwd when the env var or a client root applies', async () => {
+    const envDir = makeDir('env');
+    const rootDir = makeDir('root');
+    const cache = await createCacheWithRoots([pathToFileURL(rootDir).href]);
+    const { cwd } = process;
+    // A plugin update can delete the server's cwd, after which process.cwd() throws.
+    process.cwd = () => assert.fail('process.cwd() was read');
+    try {
+      withEnv({ [ENV_VAR]: envDir }, () => assert.equal(cache.workspaceSuggestion(), envDir));
+      withEnv({ [ENV_VAR]: null }, () => assert.equal(cache.workspaceSuggestion(), rootDir));
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
   it('ignores env values that are unexpanded placeholders or missing directories', async () => {
     const rootDir = makeDir('root');
     const cache = await createCacheWithRoots([{ uri: pathToFileURL(rootDir).href }]);

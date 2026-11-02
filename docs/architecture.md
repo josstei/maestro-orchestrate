@@ -197,7 +197,7 @@ To help the orchestrator choose that path, `get_runtime_context` returns a `work
 2. the first existing `file://` root in the MCP client's `roots/list` response
 3. the server's `cwd`
 
-When the client supports roots, the server requests them after `notifications/initialized` and again on every `notifications/roots/list_changed` (Antigravity sends these repeatedly, sometimes right after answering `roots/list`). Candidates inside an extension cache (`.codex/plugins`, `.claude/plugins`, and Antigravity's `~/.gemini/config/plugins` and `~/.gemini/antigravity-cli/plugins`; `src/core/cache-path-rejector.js`) are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/core/project-root-cache.js`).
+When the client supports roots, the server requests them after `notifications/initialized` and again on every `notifications/roots/list_changed` (Antigravity sends these repeatedly, sometimes right after answering `roots/list`). Candidates inside an extension cache (`.codex/plugins`, `.claude/plugins`, and Antigravity's `~/.gemini/config/plugins` and `~/.gemini/antigravity-cli/plugins`; `src/core/project-root-resolver.js`) are skipped at every step, and no other tool falls back to the suggestion (`src/mcp/core/project-root-cache.js`).
 
 ### Tool Catalog
 
