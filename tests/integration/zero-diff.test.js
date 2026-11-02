@@ -2,89 +2,83 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { DRY_RUN_MARKER, getGitStatus, parseDryRunReport, runGenerator } = require('./helpers');
+const { execFileSync } = require('node:child_process');
+const { runGenerator } = require('./helpers');
+const { ROOT } = require('../support/paths');
+
+const DRY_RUN_MARKER = '(dry-run — no files written)';
+const STATUS_LINE = /^\[(CREATE|UPDATE|UNCHANGED|REMOVE)\] /;
+const gitStatus = () =>
+  execFileSync('git', ['status', '--short', '--untracked-files=all'], { cwd: ROOT, encoding: 'utf8' });
+
+// A sample of each surface the generator owns: stubs, metadata, entrypoints and payloads.
+const GENERATOR_OWNED = [
+  'agents/architect.md',
+  'claude/agents/architect.md',
+  'qwen-extension.json',
+  'qwen/hooks.json',
+  'policies/maestro.toml',
+  'commands/maestro/orchestrate.toml',
+  'commands/maestro/review.toml',
+  'mcp/maestro-server.js',
+  'hooks/hook-runner.js',
+  'plugins/maestro/.mcp.json',
+  'antigravity/plugin.json',
+  'antigravity/mcp_config.json',
+  'antigravity/hooks.json',
+  'antigravity/agents/architect.md',
+  'antigravity/skills/orchestrate/SKILL.md',
+  'antigravity/skills/delegation/SKILL.md',
+  'antigravity/mcp/maestro-server.js',
+  'antigravity/hooks/hook-runner.js',
+  'antigravity/hooks/policy-enforcer.js',
+  'claude/mcp/maestro-server.js',
+  'claude/scripts/hook-runner.js',
+  'claude/scripts/policy-enforcer.js',
+  'bin/maestro-mcp-server.js',
+  'antigravity/src/mcp/maestro-server.js',
+  'antigravity/src/scripts/write-state.js',
+  'claude/src/mcp/maestro-server.js',
+  'claude/src/scripts/write-state.js',
+  'plugins/maestro/src/mcp/maestro-server.js',
+  'plugins/maestro/src/scripts/write-state.js',
+];
 
 describe('zero-diff validation', () => {
   it('generator output matches committed files exactly', () => {
-    const beforeStatus = getGitStatus();
-    const report = parseDryRunReport(runGenerator(['--dry-run']));
+    const beforeStatus = gitStatus();
+    const lines = runGenerator(['--dry-run']).trimEnd().split('\n').filter(Boolean);
 
-    assert.equal(getGitStatus(), beforeStatus, 'Expected --dry-run to leave the worktree unchanged');
-    assert.equal(report.marker, DRY_RUN_MARKER);
-    assert.ok(report.statusLines.length > 0, 'Expected generator to inspect manifest outputs');
-    const { outputPaths } = report;
-    assert.ok(
-      outputPaths.includes('agents/architect.md'),
-      'Expected qwen agent stubs (repo-root agents/) in generator output'
-    );
-    assert.deepEqual(
-      outputPaths.filter((outputPath) => outputPath.startsWith('qwen/agents/')),
-      [],
-      'Did not expect qwen agent stubs under qwen/agents/ (Qwen Code never reads it)'
-    );
-    assert.ok(
-      outputPaths.includes('claude/agents/architect.md'),
-      'Expected claude agent stubs in generator output'
-    );
-    assert.ok(
-      outputPaths.includes('qwen-extension.json'),
-      'Expected platform metadata in generator output'
-    );
-    for (const qwenOwned of [
-      'qwen/hooks.json',
-      'policies/maestro.toml',
-      'commands/maestro/orchestrate.toml',
-      'commands/maestro/review.toml',
-    ]) {
-      assert.ok(outputPaths.includes(qwenOwned), `Expected ${qwenOwned} in generator output`);
-    }
-    assert.ok(
-      report.statusLines.some((line) => line.includes('plugins/maestro/.mcp.json')),
-      'Expected Codex MCP metadata in generator output'
-    );
-    for (const antigravityOwned of [
-      'antigravity/plugin.json',
-      'antigravity/mcp_config.json',
-      'antigravity/hooks.json',
-      'antigravity/agents/architect.md',
-      'antigravity/skills/orchestrate/SKILL.md',
-      'antigravity/skills/delegation/SKILL.md',
-    ]) {
-      assert.ok(outputPaths.includes(antigravityOwned), `Expected ${antigravityOwned} in generator output`);
+    assert.equal(gitStatus(), beforeStatus, 'Expected --dry-run to leave the worktree unchanged');
+    assert.equal(lines.at(-1), DRY_RUN_MARKER);
+    const statusLines = lines.filter((line) => STATUS_LINE.test(line));
+    // Payload [CREATE] lines end with ` — <inclusion reason>`.
+    const outputPaths = statusLines.map((line) => line.replace(STATUS_LINE, '').replace(/ — .*$/, ''));
+    for (const owned of GENERATOR_OWNED) {
+      assert.ok(outputPaths.includes(owned), `Expected ${owned} in generator output`);
     }
     assert.deepEqual(
       outputPaths.filter(
         (outputPath) =>
-          outputPath.startsWith('antigravity/') &&
-          !/^antigravity\/(plugin\.json|mcp_config\.json|hooks\.json|agents\/[a-z0-9-]+\.md|skills\/[a-z0-9-]+\/SKILL\.md)$/.test(outputPath)
+          outputPath.startsWith('antigravity/') && !outputPath.startsWith('antigravity/src/') &&
+          !/^antigravity\/(plugin\.json|mcp_config\.json|hooks\.json|agents\/[a-z0-9-]+\.md|skills\/[a-z0-9-]+\/SKILL\.md|mcp\/maestro-server\.js|hooks\/(hook-runner|policy-enforcer)\.js)$/.test(outputPath)
       ),
       [],
-      'Did not expect generated Antigravity outputs beyond the metadata, agents/ and skills/ (README.md and the shims are hand-maintained)'
+      'Did not expect generated Antigravity outputs beyond metadata, agents, skills and entrypoints'
     );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('canonical-source.js')),
-      'Did not expect canonical-source copies in generator output'
-    );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('hooks/hook-runner.js')),
-      'Did not expect generated hook-runner in generator output'
-    );
-    assert.ok(
-      report.statusLines.every((line) => !line.includes('/lib/')),
-      'Did not expect mirrored lib outputs in dry-run status'
-    );
+    // Qwen Code never reads qwen/agents/; the rest are removed layouts.
     assert.deepEqual(
       outputPaths.filter(
-        (outputPath) => /gemini/i.test(outputPath) || outputPath === 'hooks/hooks.json'
+        (outputPath) =>
+          /gemini|canonical-source\.js/i.test(outputPath) ||
+          /^qwen\/agents\/|^(?:antigravity|claude|plugins\/maestro)\/lib\//.test(outputPath) ||
+          outputPath === 'hooks/hooks.json'
       ),
       [],
-      'Did not expect removed Gemini outputs (gemini-extension.json, GEMINI.md, hooks/hooks.json) in generator output'
+      'Did not expect qwen/agents/, mirrored lib/, canonical-source or Gemini outputs'
     );
-    assert.deepEqual(
-      report.driftLines,
-      [],
-      `Generator output drift detected:\n${report.driftLines.join('\n')}`
-    );
-    assert.deepEqual(report.nonStatusLines, []);
+    const driftLines = statusLines.filter((line) => !line.startsWith('[UNCHANGED] '));
+    assert.deepEqual(driftLines, [], `Generator output drift detected:\n${driftLines.join('\n')}`);
+    assert.deepEqual(lines.filter((line) => line !== DRY_RUN_MARKER && !STATUS_LINE.test(line)), []);
   });
 });

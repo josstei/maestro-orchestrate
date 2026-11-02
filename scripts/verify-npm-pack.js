@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
   REQUIRED_PACKAGE_FILES,
+  ensure,
+  ensureNone,
   isDeniedPath,
+  withTempDir,
 } = require('./release-artifact-manifest');
+const { isBuildOnly } = require('../src/generator/build-only');
 const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -17,46 +19,32 @@ function parsePackJson(stdout) {
   const start = stdout.indexOf('[');
   const end = stdout.lastIndexOf(']');
 
-  if (start === -1 || end === -1 || end < start) {
-    throw new Error(`npm pack did not emit JSON output:\n${stdout}`);
-  }
+  ensure(start !== -1 && end > start, `npm pack did not emit JSON output:\n${stdout}`);
 
   return JSON.parse(stdout.slice(start, end + 1));
 }
 
 function runNpmPackDryRun() {
-  const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-npm-pack-cache-'));
-
-  try {
+  return withTempDir('maestro-npm-pack-cache-', (cacheDir) => {
     const stdout = execFileSync('npm', ['pack', '--dry-run', '--json', '--cache', cacheDir], {
       cwd: ROOT,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     return parsePackJson(stdout);
-  } finally {
-    fs.rmSync(cacheDir, { recursive: true, force: true });
-  }
+  });
 }
 
 function verifyPackageEntries(packages) {
-  if (!Array.isArray(packages) || packages.length !== 1) {
-    throw new Error('Expected npm pack to report exactly one package');
-  }
+  ensure(Array.isArray(packages) && packages.length === 1, 'Expected npm pack to report exactly one package');
 
   const entries = packages[0].files.map((file) => file.path);
+  const isBuildPath = (entry) => entry.startsWith('scripts/')
+    || (entry.startsWith('src/') && isBuildOnly(entry.slice(4)));
 
-  for (const requiredPath of REQUIRED_PACKAGE_FILES) {
-    if (!entries.includes(requiredPath)) {
-      throw new Error(`npm package missing required file: ${requiredPath}`);
-    }
-  }
-
-  for (const entry of entries) {
-    if (isDeniedPath(entry)) {
-      throw new Error(`npm package contains forbidden path: ${entry}`);
-    }
-  }
+  ensureNone(REQUIRED_PACKAGE_FILES.filter((file) => !entries.includes(file)), 'npm package missing required file');
+  ensureNone(entries.filter(isDeniedPath), 'npm package contains forbidden path');
+  ensureNone(entries.filter(isBuildPath), 'npm package contains build-only path');
 
   return {
     entryCount: entries.length,
@@ -64,12 +52,10 @@ function verifyPackageEntries(packages) {
   };
 }
 
-if (require.main === module) {
-  runCli('npm pack verification failed', () => {
-    const result = verifyPackageEntries(runNpmPackDryRun());
-    console.log(`Verified npm pack contents: ${result.filename} (${result.entryCount} files)`);
-  });
-}
+runCli(module, { failure: 'npm pack verification failed', usage: 'Usage: node scripts/verify-npm-pack.js' }, () => {
+  const result = verifyPackageEntries(runNpmPackDryRun());
+  console.log(`Verified npm pack contents: ${result.filename} (${result.entryCount} files)`);
+});
 
 module.exports = {
   parsePackJson,

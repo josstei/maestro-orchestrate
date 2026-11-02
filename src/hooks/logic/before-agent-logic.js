@@ -6,13 +6,12 @@ const { readFileSafe } = require('../../lib/io');
 const markdownState = require('../../core/markdown-state');
 const { resolveHookWorkspaceRoot } = require('../../core/project-root-resolver');
 const hookState = require('./hook-state');
-const state = require('../../state/session-state');
+const { resolveStateDirPath, activeSessionFile } = require('../../state/paths');
+const { withStateRead } = require('../../state/coordinator');
 
 /**
  * Builds the `key=value` context parts from active-session.md. Sessions created
  * through MCP use JSON frontmatter; legacy hand-written files use YAML-style lines.
- * @param {string} content
- * @returns {string[]}
  */
 function summarizeSession(content) {
   try {
@@ -34,14 +33,15 @@ function summarizeSession(content) {
  * Reads the active session summary for the workspace containing `cwd` (see
  * resolveHookWorkspaceRoot). A state-dir resolution error yields no context
  * rather than failing the hook (which would block the agent).
- * @param {string|undefined} cwd
- * @returns {string[]}
  */
-function readSessionSummary(cwd) {
+async function readSessionSummary(cwd) {
   let content;
   try {
     const root = resolveHookWorkspaceRoot(cwd);
-    content = readFileSafe(state.resolveActiveSessionPath(root), '');
+    const basePath = resolveStateDirPath(root);
+    content = await withStateRead(basePath,
+      () => readFileSafe(activeSessionFile(basePath), ''),
+      { timeoutMs: 250 });
   } catch (err) {
     log('WARN', `BeforeAgent: could not resolve session state: ${err.message}`);
     return [];
@@ -58,15 +58,8 @@ function readSessionSummary(cwd) {
  * tool_input.prompt and tool_input.subagent_type; Qwen: agent_type only;
  * Antigravity, which runs it at SessionStart: neither, so only the session
  * context line is produced).
- *
- * @param {object} ctx - Internal context contract
- * @param {string} ctx.sessionId
- * @param {string} ctx.cwd
- * @param {string|null} ctx.agentInput  - the agent prompt text
- * @param {string|null} ctx.agentName   - the dispatched agent's name
- * @returns {{ action: string, message: string|null, reason: null }}
  */
-function handleBeforeAgent(ctx) {
+async function handleBeforeAgent(ctx) {
   hookState.pruneStale();
 
   const agentName = detectAgentFromPrompt(ctx.agentInput) || normalizeAgentName(ctx.agentName);
@@ -75,7 +68,7 @@ function handleBeforeAgent(ctx) {
     log('INFO', `BeforeAgent: Detected agent '${agentName}' — set active agent [session=${ctx.sessionId}]`);
   }
 
-  const parts = readSessionSummary(ctx.cwd);
+  const parts = await readSessionSummary(ctx.cwd);
   const message = parts.length > 0 ? `Active session: ${parts.join(', ')}` : null;
   return { action: 'allow', message, reason: null };
 }

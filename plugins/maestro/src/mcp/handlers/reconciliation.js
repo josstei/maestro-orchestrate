@@ -5,16 +5,17 @@ const path = require('node:path');
 
 const { assertSessionId } = require('../../lib/validation');
 const { ValidationError, StateError } = require('../../lib/errors');
+const { withStateRead } = require('../../state/coordinator');
+const { DEFAULT_STATE_DIR } = require('../../state/paths');
 const {
-  DEFAULT_STATE_DIR,
   readActiveSession,
-  withSessionState,
   assertSessionMatch,
   findPhaseOrThrow,
 } = require('../../state/session-state');
-const { isExtensionCachePath } = require('../../core/cache-path-rejector');
+const { isExtensionCachePath } = require('../../core/project-root-resolver');
 const { isValidPhaseId } = require('../contracts/plan-schema');
 const {
+  HANDOFF_FILE_FIELDS,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
 } = require('../contracts/downstream-context');
@@ -27,34 +28,6 @@ const DEFAULT_IGNORE_DIRS = new Set([
 ]);
 // path.join normalizes the separator so it compares equal to walk() relPaths.
 const DOCS_MAESTRO = path.join(DEFAULT_STATE_DIR);
-
-/**
- * @returns {string[]}
- */
-function parseIgnoreEnv() {
-  const raw = process.env.MAESTRO_SCAN_IGNORE;
-  if (!raw) return [];
-  return raw
-    .split(':')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-/**
- * @param {string} relPath - Workspace-relative path, used for workspace-anchored rules.
- * @param {string} name
- * @param {string} absPath - Absolute path. The cache check must not use relPath:
- *   isExtensionCachePath resolves relative paths against process.cwd(), which for
- *   Claude is the plugin install dir, itself a cache path.
- * @param {string|null} stateDir - Workspace-relative path of the resolved Maestro state dir.
- * @returns {boolean}
- */
-function shouldSkipDir(relPath, name, absPath, stateDir) {
-  if (DEFAULT_IGNORE_DIRS.has(name)) return true;
-  if (relPath === DOCS_MAESTRO || relPath === stateDir) return true;
-  if (isExtensionCachePath(absPath)) return true;
-  return false;
-}
 
 /**
  * Workspace-relative path of the state dir, compared on realpaths so a symlinked
@@ -74,26 +47,41 @@ function workspaceRelativeStateDir(workspace, stateDir) {
 }
 
 /**
- * @param {string} workspace
- * @param {string} startedAt
- * @param {number} maxFiles
- * @param {string[]} extraIgnore
- * @param {string|null} stateDir - Workspace-relative path of the resolved Maestro state dir.
- * @returns {{ created: string[], modified: string[], ignoredCount: number, truncated: boolean }}
+ * @param {{ session_id: string, phase_id: number | string }} params
+ * @throws {ValidationError} when session_id or phase_id is malformed
  */
-function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
-  const startedMs = Date.parse(startedAt);
-  let ignoredCount = 0;
+function assertPhaseRequest(params) {
+  assertSessionId(params.session_id);
+  if (!isValidPhaseId(params.phase_id)) {
+    throw new ValidationError(
+      'phase_id must be a positive integer or a non-empty string'
+    );
+  }
+}
+
+// No access mode, so the workspace scan runs after the state read releases the lock.
+async function scanPhaseChanges({ params, projectRoot, basePath }) {
+  const { state } = await withStateRead(basePath, readActiveSession);
+  assertSessionMatch(state, params.session_id);
+
+  const phase = findPhaseOrThrow(state.phases || [], params.phase_id);
+  if (!phase.started) {
+    throw new StateError(
+      `Phase ${params.phase_id} has not started; nothing to scan`
+    );
+  }
+  const maxFiles = Number(process.env.MAESTRO_SCAN_MAX_FILES || 5000);
+  const extraIgnore = (process.env.MAESTRO_SCAN_IGNORE || '').split(':').map((entry) => entry.trim()).filter(Boolean);
+  const stateDir = workspaceRelativeStateDir(projectRoot, basePath);
+  const startedMs = Date.parse(phase.started);
   const created = [];
   const modified = [];
-  let truncated = false;
+  let ignoredCount = 0;
+  // A non-positive budget is spent before the root is read, even an empty or unreadable root.
+  let truncated = maxFiles <= 0;
   let seen = 0;
 
   function walk(dir, relDir) {
-    if (seen >= maxFiles) {
-      truncated = true;
-      return;
-    }
     let entries;
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -108,7 +96,10 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
       const absPath = path.join(dir, entry.name);
       const relPath = relDir ? path.join(relDir, entry.name) : entry.name;
       if (entry.isDirectory()) {
-        if (shouldSkipDir(relPath, entry.name, absPath, stateDir) || extraIgnore.some((i) => relPath.startsWith(i))) {
+        // The cache check takes absPath: isExtensionCachePath resolves a relative path against
+        // process.cwd(), which for Claude is the plugin install dir, itself a cache path.
+        if (DEFAULT_IGNORE_DIRS.has(entry.name) || relPath === DOCS_MAESTRO || relPath === stateDir
+          || isExtensionCachePath(absPath) || extraIgnore.some((prefix) => relPath.startsWith(prefix))) {
           ignoredCount += 1;
           continue;
         }
@@ -124,10 +115,8 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
         continue;
       }
       const mtimeMs = stat.mtimeMs || 0;
-      const birthtimeMs = stat.birthtimeMs || 0;
-      const isNewByBirthtime = birthtimeMs > 0 && birthtimeMs >= startedMs;
-      const isNewByMtime = birthtimeMs === 0 && mtimeMs >= startedMs;
-      if (isNewByBirthtime || isNewByMtime) {
+      // A zero birthtime is unreported, so mtime decides whether the file is new.
+      if ((stat.birthtimeMs || mtimeMs) >= startedMs) {
         created.push(relPath);
       } else if (mtimeMs >= startedMs) {
         modified.push(relPath);
@@ -135,71 +124,28 @@ function scanWorkspace(workspace, startedAt, maxFiles, extraIgnore, stateDir) {
     }
   }
 
-  walk(workspace, '');
-  return { created, modified, ignoredCount, truncated };
-}
-
-/**
- * @param {{ session_id: string, phase_id: number | string }} params
- * @throws {ValidationError} when session_id or phase_id is malformed
- */
-function assertPhaseRequest(params) {
-  assertSessionId(params.session_id);
-  if (!isValidPhaseId(params.phase_id)) {
-    throw new ValidationError(
-      'phase_id must be a positive integer or a non-empty string'
-    );
-  }
-}
-
-/**
- * @param {{ session_id: string, phase_id: number }} params
- * @param {string} projectRoot
- */
-function handleScanPhaseChanges(params, projectRoot) {
-  assertPhaseRequest(params);
-  const { state, basePath } = readActiveSession(projectRoot);
-  assertSessionMatch(state, params.session_id);
-
-  const phase = findPhaseOrThrow(state.phases || [], params.phase_id);
-  if (!phase.started) {
-    throw new StateError(
-      `Phase ${params.phase_id} has not started; nothing to scan`
-    );
-  }
-  const maxFiles = Number(process.env.MAESTRO_SCAN_MAX_FILES || 5000);
-  const extraIgnore = parseIgnoreEnv();
-  const result = scanWorkspace(
-    projectRoot,
-    phase.started,
-    maxFiles,
-    extraIgnore,
-    workspaceRelativeStateDir(projectRoot, basePath)
-  );
-
+  walk(projectRoot, '');
   return {
     phase_id: phase.id,
     started_at: phase.started,
     scanned_at: new Date().toISOString(),
-    candidates: { created: result.created.sort(), modified: result.modified.sort() },
-    ignored_count: result.ignoredCount,
-    truncated: result.truncated,
+    candidates: { created: created.sort(), modified: modified.sort() },
+    ignored_count: ignoredCount,
+    truncated,
     max_files: maxFiles,
   };
 }
 
 /**
  * @param {{ session_id: string, phase_id: number, files_created?: string[], files_modified?: string[], files_deleted?: string[], downstream_context?: object, reason?: string }} params
- * @param {string} projectRoot
  */
-function handleReconcilePhase(params, projectRoot) {
+function prepareReconciliation(params) {
   assertPhaseRequest(params);
 
-  const filesCreated = Array.isArray(params.files_created) ? params.files_created : [];
-  const filesModified = Array.isArray(params.files_modified) ? params.files_modified : [];
-  const filesDeleted = Array.isArray(params.files_deleted) ? params.files_deleted : [];
-  const hasFilesPayload =
-    filesCreated.length + filesModified.length + filesDeleted.length > 0;
+  const files = Object.fromEntries(
+    HANDOFF_FILE_FIELDS.map((field) => [field, Array.isArray(params[field]) ? params[field] : []])
+  );
+  const hasFilesPayload = HANDOFF_FILE_FIELDS.some((field) => files[field].length > 0);
   const normalizedContext = normalizeDownstreamContext(params.downstream_context);
   const hasContextPayload = isDownstreamContextPopulated(normalizedContext);
 
@@ -209,38 +155,36 @@ function handleReconcilePhase(params, projectRoot) {
       { code: 'RECONCILIATION_EMPTY_PAYLOAD' }
     );
   }
-
-  return withSessionState(projectRoot, ({ state }) => {
-    assertSessionMatch(state, params.session_id);
-
-    const phase = findPhaseOrThrow(
-      state.phases || [],
-      params.phase_id,
-      `Phase ${params.phase_id} not found`
-    );
-    if (params.files_created !== undefined) {
-      phase.files_created = filesCreated;
-    }
-    if (params.files_modified !== undefined) {
-      phase.files_modified = filesModified;
-    }
-    if (params.files_deleted !== undefined) {
-      phase.files_deleted = filesDeleted;
-    }
-    if (hasContextPayload) {
-      phase.downstream_context = normalizedContext;
-    }
-    phase.requires_reconciliation = false;
-    if (params.reason) {
-      phase.reconciliation_reason = params.reason;
-    }
-    return {
-      success: true,
-      phase_id: phase.id,
-      files_created: phase.files_created,
-      files_modified: phase.files_modified,
-    };
-  });
+  return { files, normalizedContext, hasContextPayload };
 }
 
-module.exports = { handleScanPhaseChanges, handleReconcilePhase };
+function reconcilePhase({ params, input: { files, normalizedContext, hasContextPayload } }, { state }) {
+  const phase = findPhaseOrThrow(
+    state.phases || [],
+    params.phase_id,
+    `Phase ${params.phase_id} not found`
+  );
+  for (const field of HANDOFF_FILE_FIELDS) {
+    if (params[field] !== undefined) {
+      phase[field] = files[field];
+    }
+  }
+  if (hasContextPayload) {
+    phase.downstream_context = normalizedContext;
+  }
+  phase.requires_reconciliation = false;
+  if (params.reason) {
+    phase.reconciliation_reason = params.reason;
+  }
+  return {
+    success: true,
+    phase_id: phase.id,
+    files_created: phase.files_created,
+    files_modified: phase.files_modified,
+  };
+}
+
+module.exports = {
+  scan_phase_changes: { run: scanPhaseChanges, prepare: assertPhaseRequest },
+  reconcile_phase: { access: 'session', run: reconcilePhase, prepare: prepareReconciliation },
+};

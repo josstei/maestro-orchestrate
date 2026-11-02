@@ -22,7 +22,7 @@ This gate MUST resolve before ANY delegation proceeds. Do not skip it. Do not de
 
 ### Recording the mode
 
-If no session exists yet (orchestrate step 21, or `/maestro:execute` before session creation), pass `execution_mode` to `create_session`, which sets `execution_backend: 'native'` itself. If a session already exists (resume), call `update_session` with `{ execution_mode, execution_backend: 'native' }`.
+If no session exists yet (orchestrate step 21, or `/maestro:execute` before session creation), pass `execution_mode` to `create_session`. If a session already exists (resume), call `update_session` with `{ execution_mode }`.
 
 ### Step 1 — Read the configured mode
 
@@ -134,7 +134,6 @@ Use native parallel execution only for sibling phases at the same dependency dep
 ### Native Constraints
 
 - The runtime only parallelizes contiguous agent calls in one turn
-- Native subagents currently run without user approval gates
 - `ask_user` remains available; a batch may pause while waiting for user input
 - If execution is interrupted, restart unfinished `in_progress` phases on resume instead of attempting to restore in-flight subagent interactions
 

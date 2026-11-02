@@ -22,6 +22,9 @@ const CANONICAL_FIELDS = Object.freeze([
   'warnings',
 ]);
 
+/** The file lists a phase handoff reports next to its downstream context. */
+const HANDOFF_FILE_FIELDS = Object.freeze(['files_created', 'files_modified', 'files_deleted']);
+
 const EMPTY_VALUE_TOKENS = new Set(['', 'none', 'n/a', 'not applicable']);
 
 function normalizeFieldValue(value) {
@@ -32,18 +35,8 @@ function normalizeFieldValue(value) {
 }
 
 /**
- * @returns {Object<string, string[]>} a fresh empty canonical context.
- */
-function createEmptyDownstreamContext() {
-  return normalizeDownstreamContext(null);
-}
-
-/**
  * Normalize any input to the canonical `{ field: string[] }` shape.
  * Accepts null, arrays-of-strings, strings, and unknown keys are dropped.
- *
- * @param {unknown} input
- * @returns {Object<string, string[]>}
  */
 function normalizeDownstreamContext(input) {
   const source =
@@ -53,20 +46,14 @@ function normalizeDownstreamContext(input) {
   );
 }
 
-/**
- * True when the normalized context has at least one non-empty field.
- * @param {unknown} input
- * @returns {boolean}
- */
-function isDownstreamContextPopulated(input) {
-  const normalized = normalizeDownstreamContext(input);
+/** True when the normalized context has at least one non-empty field. */
+function isDownstreamContextPopulated(normalized) {
   return CANONICAL_FIELDS.some((field) => normalized[field].length > 0);
 }
 
 /**
  * Human-readable description of the contract, suitable for embedding in error
  * messages so callers can adapt without reading source.
- * @returns {string}
  */
 function describeShape() {
   return (
@@ -78,8 +65,7 @@ function describeShape() {
 }
 
 module.exports = {
-  CANONICAL_FIELDS,
-  createEmptyDownstreamContext,
+  HANDOFF_FILE_FIELDS,
   normalizeDownstreamContext,
   isDownstreamContextPopulated,
   describeShape,

@@ -80,7 +80,4 @@ Execution Profile:
 - Sequential-only phases: [S]
 - Estimated parallel wall time: [time estimate based on batch execution]
 - Estimated sequential wall time: [time estimate based on serial execution]
-
-Note: Native subagents currently run without user approval gates.
-All tool calls are auto-approved without user confirmation.
 ```

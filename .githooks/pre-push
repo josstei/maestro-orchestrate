@@ -5,7 +5,9 @@
 # First validates the pushed branch names and new commit subjects against
 # the semantic conventions, then regenerates runtime outputs from src/ and
 # aborts the push if any committed file disagrees with what the generator
-# produced.
+# produced. Comparing with git rather than `generate.js --check` (which CI
+# runs) ignores checkout line endings, non-executable mode bits, and
+# untracked files.
 
 set -euo pipefail
 
@@ -28,6 +30,11 @@ fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-push: node not on PATH; skipping source-of-truth check" >&2
+  exit 0
+fi
+
+if ! node -e "require.resolve('acorn'); require.resolve('acorn-walk')" >/dev/null 2>&1; then
+  echo "pre-push: dev dependencies missing; run npm ci (skipping source-of-truth check)" >&2
   exit 0
 fi
 

@@ -4,8 +4,24 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { fileURLToPath } = require('node:url');
 
-const { isExtensionCachePath } = require('../../core/cache-path-rejector');
-const { isConcretePath } = require('../../core/project-root-resolver');
+const { isConcretePath, isExtensionCachePath } = require('../../core/project-root-resolver');
+
+// A suggestion must exist and must not be inside an extension cache.
+function usableDir(candidate) {
+  return fs.existsSync(candidate) && !isExtensionCachePath(candidate);
+}
+
+/** The path of a `file://` MCP client root (a URI string or `{ uri }`), else null. */
+function clientRootPath(root) {
+  const uri = typeof root === 'string' ? root : root && root.uri;
+  if (typeof uri !== 'string') return null;
+  try {
+    const parsed = new URL(uri);
+    return parsed.protocol === 'file:' ? fileURLToPath(parsed) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Project-root cache for the MCP session.
@@ -21,82 +37,37 @@ const { isConcretePath } = require('../../core/project-root-resolver');
  * orchestrator can pass it into `initialize_workspace`. It is never used as a
  * fallback for other tools.
  */
-function createProjectRootCache(options) {
-  const { runtimeConfig, requestClientRoots } = options;
-
+function createProjectRootCache({ runtimeConfig, requestClientRoots }) {
+  const envVarName = runtimeConfig?.env?.workspacePath;
   let explicitWorkspacePath = null;
   let clientRoots = [];
   let clientSupportsRoots = false;
 
-  // A suggestion must exist and must not be inside an extension cache.
-  function usableDir(candidate) {
-    return fs.existsSync(candidate) && !isExtensionCachePath(candidate) ? candidate : null;
-  }
-
-  function envSuggestion() {
-    const envVarName =
-      runtimeConfig && runtimeConfig.env ? runtimeConfig.env.workspacePath : null;
-    if (!envVarName) return null;
-    const value = process.env[envVarName];
-    if (!isConcretePath(value)) return null;
-    return usableDir(path.resolve(value));
-  }
-
-  function rootsSuggestion() {
-    for (const root of clientRoots) {
-      const uri = typeof root === 'string' ? root : root && root.uri;
-      if (typeof uri !== 'string') continue;
-      try {
-        const parsed = new URL(uri);
-        if (parsed.protocol !== 'file:') continue;
-        const resolved = usableDir(fileURLToPath(parsed));
-        if (resolved) return resolved;
-      } catch {
-        continue;
-      }
-    }
-    return null;
-  }
-
-  function cwdSuggestion() {
-    const cwd = path.resolve(process.cwd());
-    if (isExtensionCachePath(cwd)) return null;
-    return cwd;
-  }
-
-  async function refreshClientRoots() {
-    if (!clientSupportsRoots) {
-      clientRoots = [];
-      return;
-    }
-    try {
-      const result = await requestClientRoots();
-      clientRoots = result && Array.isArray(result.roots) ? result.roots : [];
-    } catch {
-      clientRoots = [];
-    }
-  }
-
-  function workspaceSuggestion() {
-    return envSuggestion() || rootsSuggestion() || cwdSuggestion();
-  }
-
-  function setExplicitWorkspacePath(value) {
-    explicitWorkspacePath = value || null;
-  }
-
-  function getProjectRoot() {
-    return explicitWorkspacePath;
-  }
-
   return {
-    getProjectRoot,
-    setExplicitWorkspacePath,
-    workspaceSuggestion,
+    getProjectRoot: () => explicitWorkspacePath,
+    setExplicitWorkspacePath(value) {
+      explicitWorkspacePath = value || null;
+    },
+    workspaceSuggestion() {
+      const value = envVarName ? process.env[envVarName] : null;
+      const env = isConcretePath(value) ? path.resolve(value) : null;
+      const found = [env, ...clientRoots.map(clientRootPath)].find(usableDir);
+      if (found) return found;
+      // Read the cwd only now: a plugin update can delete the server's install-dir cwd.
+      const cwd = path.resolve(process.cwd());
+      return isExtensionCachePath(cwd) ? null : cwd;
+    },
     setClientSupportsRoots(supports) {
       clientSupportsRoots = Boolean(supports);
     },
-    refreshClientRoots,
+    async refreshClientRoots() {
+      try {
+        const result = clientSupportsRoots ? await requestClientRoots() : null;
+        clientRoots = result && Array.isArray(result.roots) ? result.roots : [];
+      } catch {
+        clientRoots = [];
+      }
+    },
   };
 }
 

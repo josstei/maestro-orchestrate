@@ -1,6 +1,6 @@
 'use strict';
 
-const { resolveSetting } = require('../../config/setting-resolver');
+const { createSettingResolver } = require('../../config/setting-resolver');
 const { MAESTRO_SETTINGS } = require('../../config/settings-catalog');
 
 const KNOWN_SETTINGS = MAESTRO_SETTINGS.map((setting) => setting.envVar);
@@ -12,8 +12,9 @@ function handleResolveSettings(params, projectRoot) {
       : KNOWN_SETTINGS;
 
   const settings = {};
+  const resolveSetting = createSettingResolver(projectRoot);
   for (const name of requested) {
-    settings[name] = resolveSetting(name, projectRoot) ?? null;
+    settings[name] = resolveSetting(name) ?? null;
   }
 
   return {

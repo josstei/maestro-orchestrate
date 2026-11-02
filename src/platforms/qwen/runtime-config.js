@@ -17,7 +17,8 @@ module.exports = {
 
   env: {
     extensionPath: 'extensionPath',
-    workspacePath: 'workspacePath',
+    // qwen-extension.json exports Qwen's ${workspacePath} under this name.
+    workspacePath: 'MAESTRO_WORKSPACE_PATH',
   },
 
   tools: {
@@ -45,6 +46,8 @@ module.exports = {
     fields: ['name', 'kind', 'description', 'turns', 'tools'],
   },
 
+  entrySurface: 'command',
+
   delegation: {
     pattern: '{{agent}}(query: "...")',
     constraints: {
@@ -55,13 +58,16 @@ module.exports = {
 
   features: {
     exampleBlocks: false,
-    claudeStateContract: false,
     scriptBasedStateContract: true,
     codexStateContract: false,
   },
 
   paths: {
-    skills: '${extensionPath}/skills/',
     hooks: '${extensionPath}/hooks/',
+  },
+
+  launchers: {
+    mcpServer: 'mcp/maestro-server.js',
+    hookRunner: 'hooks/hook-runner.js',
   },
 };

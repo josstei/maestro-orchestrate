@@ -1,44 +1,19 @@
 #!/usr/bin/env node
 'use strict';
 
-/**
- * Activates the repo-local git hooks under .githooks/ (run explicitly via
- * `npm run install-hooks`).
- *
- * Activation conditions (all must hold):
- *   1. Current directory contains .githooks/ — i.e. we are in the maestro
- *      source tree, not a downstream npm consumer's node_modules entry
- *      (.githooks is intentionally excluded from the published `files:` list).
- *   2. `git rev-parse --show-toplevel` resolves to the current directory —
- *      this is true in the main checkout AND in any git worktree pointing
- *      at it. False outside a git checkout entirely.
- *
- * If either condition fails, the script exits 0 with no side effect.
- */
+// Points core.hooksPath at the repo-local .githooks/ (`npm run install-hooks`), but only from
+// the top level of a maestro checkout or one of its git worktrees; elsewhere it is a no-op.
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 const HOOKS_DIR = '.githooks';
 
-if (!fs.existsSync(HOOKS_DIR)) {
-  process.exit(0);
+// spawnSync never throws, so a missing git or a non-repo cwd simply fails the status check.
+const probe = fs.existsSync(HOOKS_DIR)
+  && spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+if (probe && probe.status === 0 && path.resolve(probe.stdout.trim()) === path.resolve('.')) {
+  execFileSync('git', ['config', 'core.hooksPath', HOOKS_DIR], { stdio: 'inherit' });
+  console.log(`install-hooks: git hooks activated (${HOOKS_DIR}/)`);
 }
-
-let topLevel;
-try {
-  topLevel = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  }).trim();
-} catch {
-  process.exit(0);
-}
-
-if (path.resolve(topLevel) !== path.resolve('.')) {
-  process.exit(0);
-}
-
-execFileSync('git', ['config', 'core.hooksPath', HOOKS_DIR], { stdio: 'inherit' });
-console.log(`postinstall: git hooks activated (${HOOKS_DIR}/)`);

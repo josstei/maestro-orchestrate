@@ -13,7 +13,7 @@ This preamble maps generic step references to Antigravity tool syntax.
 
 | Action | How |
 |--------|-----|
-| MCP tools | Maestro's MCP tools are native tools named `mcp_maestro_maestro_<tool>` (for example `mcp_maestro_maestro_get_runtime_context`). If they are missing, read the tool's schema file listed for the `maestro_maestro` MCP server and call it through `call_mcp_tool` with `ServerName: "maestro_maestro"` |
+| MCP tools | Maestro's MCP tools are native tools named `{{mcpPrefix}}<tool>` (for example `{{mcpPrefix}}get_runtime_context`). If they are missing, read the tool's schema file listed for the `maestro_maestro` MCP server and call it through `call_mcp_tool` with `ServerName: "maestro_maestro"` |
 | Load skill | Read the skill's `SKILL.md` with `view_file` at the path listed under Available skills |
 | Find files and search code | Your own tools have no `list_dir`, `find_by_name` or `grep_search` (Antigravity keeps those for subagents that list them): use `run_command` with `ls`, `find` or `rg`, or delegate exploration to the built-in `research` subagent |
 | Load template/reference/protocol | `get_skill_content(resources: ["<name>"])` |

@@ -31,9 +31,9 @@ Include as much of the following as possible:
 The following areas are in scope for security reports:
 
 - **MCP server** (`src/mcp/`) — tool handler input validation, path traversal, unauthorized data access
-- **Hook scripts** (`src/hooks/`) — command injection, privilege escalation, state tampering
+- **Hook scripts and shell policy** (`src/hooks/`, `src/platforms/`, `src/core/policy-rules.js`) — command injection, policy bypass, privilege escalation, state tampering
 - **Generated code execution** — any scenario where the generator pipeline or transforms produce unsafe output
-- **Session state** — unauthorized reads or writes to session data
+- **Session state** (`src/state/`, `src/scripts/`) — unauthorized reads or writes to session data, path escapes, lock or journal tampering
 - **Settings resolution** — environment variable injection or override bypass
 
 Out of scope:

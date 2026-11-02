@@ -5,284 +5,242 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createFileWriter, safeResolve } = require('../../src/generator/file-writer');
-const { makeTempDir } = require('../support/fs');
+const { FileWriter, safeResolve } = require('../../src/generator/file-writer');
+const { withEnv } = require('../support/env');
+const { makeTempDir, writeTree } = require('../support/fs');
 
 let tempRoot;
+const read = (file) => fs.readFileSync(path.join(tempRoot, file), 'utf8');
+const exists = (file) => fs.existsSync(path.join(tempRoot, file));
+const logged = (method) => method.mock.calls.map(({ arguments: args }) => args[0]);
 
 beforeEach(() => {
   tempRoot = makeTempDir('maestro-fw-');
 });
 
 describe('safeResolve', () => {
-  it('resolves a relative path within the root directory', () => {
-    const resolved = safeResolve('sub/file.txt', tempRoot);
-    assert.equal(resolved, path.join(tempRoot, 'sub', 'file.txt'));
+  it('resolves in-root paths, including the root itself, and rejects relative and absolute escapes', () => {
+    assert.equal(safeResolve('sub/file.txt', tempRoot), path.join(tempRoot, 'sub', 'file.txt'));
+    assert.equal(safeResolve('.', tempRoot), tempRoot);
+    for (const escape of ['../../../etc/passwd', '/etc/passwd']) {
+      assert.throws(() => safeResolve(escape, tempRoot), /Path traversal detected/);
+    }
   });
 
-  it('throws on path traversal attempting to escape root', () => {
-    assert.throws(
-      () => safeResolve('../../../etc/passwd', tempRoot),
-      /Path traversal detected/
-    );
+  it('requires file destinations to be absent or regular files', () => {
+    fs.mkdirSync(path.join(tempRoot, 'blocked.js'));
+    assert.throws(() => safeResolve('blocked.js', tempRoot, { requireFile: true }), /Expected a regular file/);
+    fs.writeFileSync(path.join(tempRoot, 'existing.js'), 'content');
+    for (const file of ['existing.js', 'new/created.js']) {
+      assert.equal(safeResolve(file, tempRoot, { requireFile: true }), path.join(tempRoot, file));
+    }
+    assert.equal(safeResolve('blocked.js', tempRoot), path.join(tempRoot, 'blocked.js'));
   });
 
-  it('throws on absolute path that escapes root', () => {
-    assert.throws(
-      () => safeResolve('/etc/passwd', tempRoot),
-      /Path traversal detected/
-    );
-  });
-
-  it('allows resolving to the root directory itself', () => {
-    const resolved = safeResolve('.', tempRoot);
-    assert.equal(resolved, tempRoot);
+  it('rejects existing and broken symlink outputs and symlink parents', () => {
+    const external = makeTempDir('maestro-fw-external-');
+    fs.symlinkSync(external, path.join(tempRoot, 'linked-dir'), 'dir');
+    assert.throws(() => safeResolve('linked-dir/new.js', tempRoot), /Symlink path is not allowed/);
+    fs.symlinkSync(path.join(external, 'missing.js'), path.join(tempRoot, 'broken.js'));
+    assert.throws(() => safeResolve('broken.js', tempRoot), /Symlink path is not allowed/);
+    fs.writeFileSync(path.join(external, 'existing.js'), 'original');
+    fs.symlinkSync(path.join(external, 'existing.js'), path.join(tempRoot, 'linked.js'));
+    assert.throws(() => safeResolve('linked.js', tempRoot), /Symlink path is not allowed/);
+    assert.equal(fs.readFileSync(path.join(external, 'existing.js'), 'utf8'), 'original');
   });
 });
 
 describe('FileWriter write', () => {
-  it('creates a new file in the correct directory', () => {
-    const writer = createFileWriter({ rootDir: tempRoot });
-
-    writer.write('output/test.txt', 'new content');
-
-    const written = fs.readFileSync(path.join(tempRoot, 'output', 'test.txt'), 'utf8');
-    assert.equal(written, 'new content');
+  it('creates files and parent directories, updates changed content and leaves unchanged files untouched', () => {
+    for (const [file, content] of [['same.txt', 'same'], ['update.txt', 'old'], ['both-empty.txt', '']]) {
+      fs.writeFileSync(path.join(tempRoot, file), content);
+    }
+    const mtime = fs.statSync(path.join(tempRoot, 'same.txt')).mtimeMs;
+    const writer = new FileWriter({ rootDir: tempRoot });
+    writer.writeAll([
+      { outputPath: 'deep/nested/dir/file.txt', content: 'deep' },
+      { outputPath: 'same.txt', content: 'same' },
+      { outputPath: 'update.txt', content: 'new' },
+      { outputPath: 'empty.txt', content: '' },
+      { outputPath: 'both-empty.txt', content: '' },
+    ]);
+    assert.deepEqual(['deep/nested/dir/file.txt', 'update.txt', 'empty.txt'].map(read), ['deep', 'new', '']);
+    assert.equal(fs.statSync(path.join(tempRoot, 'same.txt')).mtimeMs, mtime);
+    assert.deepEqual(writer.stats, { changed: 3, unchanged: 2, errors: 0 });
   });
 
-  it('creates parent directories recursively', () => {
-    const writer = createFileWriter({ rootDir: tempRoot });
-
-    writer.write('deep/nested/dir/file.txt', 'deep content');
-
-    const written = fs.readFileSync(
-      path.join(tempRoot, 'deep', 'nested', 'dir', 'file.txt'),
-      'utf8'
-    );
-    assert.equal(written, 'deep content');
-  });
-
-  it('detects unchanged content and skips writing', () => {
-    const filePath = path.join(tempRoot, 'unchanged.txt');
-    fs.writeFileSync(filePath, 'same content', 'utf8');
-    const mtimeBefore = fs.statSync(filePath).mtimeMs;
-
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.write('unchanged.txt', 'same content');
-
-    const mtimeAfter = fs.statSync(filePath).mtimeMs;
-    assert.equal(mtimeBefore, mtimeAfter);
-
-    const stats = writer.getStats();
-    assert.equal(stats.unchanged, 1);
-    assert.equal(stats.written, 0);
-  });
-
-  it('updates changed content', () => {
-    const filePath = path.join(tempRoot, 'update.txt');
-    fs.writeFileSync(filePath, 'old content', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.write('update.txt', 'new content');
-
-    const written = fs.readFileSync(filePath, 'utf8');
-    assert.equal(written, 'new content');
-
-    const stats = writer.getStats();
-    assert.equal(stats.written, 1);
-    assert.equal(stats.unchanged, 0);
-  });
-
-  it('tracks errors when path traversal is detected', () => {
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.write('../../../etc/passwd', 'malicious');
-
-    const stats = writer.getStats();
-    assert.equal(stats.errors, 1);
-    assert.equal(stats.written, 0);
-  });
-});
-
-describe('FileWriter getStats', () => {
-  it('tracks written and unchanged counts across multiple writes', () => {
-    const existingPath = path.join(tempRoot, 'existing.txt');
-    fs.writeFileSync(existingPath, 'unchanged', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.write('new-file.txt', 'created');
-    writer.write('existing.txt', 'unchanged');
-    writer.write('another-new.txt', 'also created');
-
-    const stats = writer.getStats();
-    assert.equal(stats.written, 2);
-    assert.equal(stats.unchanged, 1);
-    assert.equal(stats.errors, 0);
-  });
-
-  it('returns a snapshot that does not mutate with subsequent writes', () => {
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.write('first.txt', 'content');
-
-    const snapshot = writer.getStats();
-    assert.equal(snapshot.written, 1);
-
-    writer.write('second.txt', 'content');
-
-    assert.equal(snapshot.written, 1);
-
-    const latest = writer.getStats();
-    assert.equal(latest.written, 2);
-  });
-});
-
-describe('FileWriter reportError', () => {
-  it('aggregates reported errors with write errors', (t) => {
-    const writer = createFileWriter({ rootDir: tempRoot });
+  it('counts failed writes and reported errors together', (t) => {
+    const writer = new FileWriter({ rootDir: tempRoot });
     t.mock.method(console, 'error', () => {});
     writer.write('../../../etc/passwd', 'malicious');
     writer.reportError('Source not found: missing.md');
     writer.reportError('processing a.md -> b.md', new Error('boom'));
-    const logged = console.error.mock.calls.map((c) => c.arguments[0]);
 
-    assert.equal(writer.getStats().errors, 3);
-    assert.deepEqual(logged.slice(1), [
+    assert.deepEqual(writer.stats, { changed: 0, unchanged: 0, errors: 3 });
+    assert.deepEqual(logged(console.error).slice(1), [
       'ERROR: Source not found: missing.md',
       'ERROR: processing a.md -> b.md: boom',
     ]);
   });
+
+  it('restores executable output permissions and reports mode-only drift without writing in previews', {
+    skip: process.platform === 'win32',
+  }, (t) => {
+    const output = { outputPath: 'bin/command.js', content: '#!/usr/bin/env node\n', mode: 0o755 };
+    const filePath = path.join(tempRoot, output.outputPath);
+    const writer = new FileWriter({ rootDir: tempRoot });
+    writer.writeAll([output]);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o755);
+    fs.chmodSync(filePath, 0o644);
+    const mtime = fs.statSync(filePath).mtimeMs;
+    t.mock.method(console, 'log', () => {});
+
+    for (const options of [{ dryRun: true }, { diffMode: true }]) {
+      new FileWriter({ rootDir: tempRoot, ...options }).writeAll([output]);
+      assert.equal(fs.statSync(filePath).mode & 0o777, 0o644);
+      assert.equal(fs.statSync(filePath).mtimeMs, mtime);
+    }
+    assert.deepEqual(logged(console.log), ['[UPDATE] bin/command.js', 'MODE: bin/command.js -> 755']);
+
+    writer.writeAll([output]);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o755);
+    assert.equal(fs.statSync(filePath).mtimeMs, mtime);
+    assert.equal(writer.stats.changed, 2);
+    writer.writeAll([output]);
+    assert.equal(writer.stats.unchanged, 1);
+    fs.chmodSync(filePath, 0o775);
+    writer.writeAll([output]);
+    assert.equal(writer.stats.unchanged, 2);
+    assert.equal(fs.statSync(filePath).mode & 0o777, 0o775);
+  });
 });
 
-describe('FileWriter writeAll', () => {
-  it('writes every output in order', () => {
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.writeAll([
-      { outputPath: 'a.txt', content: 'a' },
-      { outputPath: 'nested/b.txt', content: 'b' },
+describe('FileWriter previews', () => {
+  it('neither creates nor modifies files in dryRun mode', (t) => {
+    fs.writeFileSync(path.join(tempRoot, 'preserved.txt'), 'original');
+    t.mock.method(console, 'log', () => {});
+    new FileWriter({ rootDir: tempRoot, dryRun: true }).writeAll([
+      { outputPath: 'should-not-exist.txt', content: 'content' },
+      { outputPath: 'preserved.txt', content: 'modified' },
     ]);
-
-    assert.equal(fs.readFileSync(path.join(tempRoot, 'a.txt'), 'utf8'), 'a');
-    assert.equal(fs.readFileSync(path.join(tempRoot, 'nested', 'b.txt'), 'utf8'), 'b');
-    assert.equal(writer.getStats().written, 2);
-  });
-});
-
-describe('FileWriter dryRun mode', () => {
-  it('does not write files in dryRun mode', () => {
-    const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
-    writer.write('should-not-exist.txt', 'content');
-
-    assert.equal(fs.existsSync(path.join(tempRoot, 'should-not-exist.txt')), false);
+    assert.equal(exists('should-not-exist.txt'), false);
+    assert.equal(read('preserved.txt'), 'original');
   });
 
-  it('does not update stats in dryRun mode', () => {
-    const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
-    writer.write('file.txt', 'content');
-
-    const stats = writer.getStats();
-    assert.equal(stats.written, 0);
-    assert.equal(stats.unchanged, 0);
+  it('counts a missing or failing diff executable as a preview failure without changing files', (t) => {
+    fs.writeFileSync(path.join(tempRoot, 'existing.txt'), 'old\n');
+    const cases = [[/ENOENT/], [/Command failed/, '#!/bin/sh\nwhile IFS= read -r line; do :; done\nexit 2\n']];
+    // Mock once: mocking a method twice in one test leaves it unrestored afterwards.
+    const error = t.mock.method(console, 'error', () => {});
+    const log = t.mock.method(console, 'log', () => {});
+    // No diff is on PATH at first, then one that exits 2; that one needs a POSIX shell.
+    for (const [message, diffScript] of process.platform === 'win32' ? cases.slice(0, 1) : cases) {
+      if (diffScript) fs.writeFileSync(path.join(tempRoot, 'diff'), diffScript, { mode: 0o755 });
+      const writer = new FileWriter({ rootDir: tempRoot, diffMode: true });
+      withEnv({ PATH: tempRoot }, () => writer.write('existing.txt', 'new\n'));
+      assert.equal(writer.stats.errors, 1);
+      assert.equal(log.mock.calls.length, 0);
+      assert.match(error.mock.calls.at(-1).arguments[0], message);
+      assert.equal(read('existing.txt'), 'old\n');
+    }
   });
 
-  it('does not modify existing files in dryRun mode', () => {
-    const filePath = path.join(tempRoot, 'preserved.txt');
-    fs.writeFileSync(filePath, 'original', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
-    writer.write('preserved.txt', 'modified');
-
-    const content = fs.readFileSync(filePath, 'utf8');
-    assert.equal(content, 'original');
-  });
-});
-
-describe('FileWriter diffMode', () => {
-  it('does not write to the actual output path in diffMode', () => {
-    const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
-    writer.write('diff-target.txt', 'content');
-
-    assert.equal(fs.existsSync(path.join(tempRoot, 'diff-target.txt')), false);
+  it('renders diffs for existing files and marks new ones without writing anything', (t) => {
+    fs.writeFileSync(path.join(tempRoot, 'existing.txt'), 'old\n');
+    t.mock.method(fs, 'writeFileSync', () => { throw new Error('Diff must not write files'); });
+    t.mock.method(console, 'log', () => {});
+    const writer = new FileWriter({ rootDir: tempRoot, diffMode: true });
+    writer.writeAll([
+      { outputPath: 'existing.txt', content: 'new\n' },
+      { outputPath: 'diff-target.txt', content: 'content' },
+    ]);
+    assert.equal(writer.stats.errors, 0);
+    assert.ok(logged(console.log).some((line) => String(line).includes('+new')));
+    assert.ok(logged(console.log).includes('+++ NEW: diff-target.txt'));
+    assert.deepEqual(fs.readdirSync(tempRoot), ['existing.txt']);
   });
 
-  it('does not update stats in diffMode', () => {
-    const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
-    writer.write('diff-target.txt', 'content');
+  it('logs and counts only outputs that would change in check mode, without writing or cleaning', (t) => {
+    fs.writeFileSync(path.join(tempRoot, 'same.txt'), 'same', 'utf8');
+    fs.writeFileSync(path.join(tempRoot, 'stale.txt'), 'old', 'utf8');
+    t.mock.method(console, 'log', () => {});
+    const writer = new FileWriter({ rootDir: tempRoot, check: true });
+    writer.writeAll([
+      { outputPath: 'same.txt', content: 'same' },
+      { outputPath: 'stale.txt', content: 'new' },
+      { outputPath: 'created.txt', content: 'new' },
+    ]);
+    writer.clean(['same.txt']);
 
-    const stats = writer.getStats();
-    assert.equal(stats.written, 0);
-    assert.equal(stats.unchanged, 0);
-  });
-
-  it('does not leave temp files behind after diff', () => {
-    const filePath = path.join(tempRoot, 'existing-diff.txt');
-    fs.writeFileSync(filePath, 'old content', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
-    writer.write('existing-diff.txt', 'new content');
-
-    const dirContents = fs.readdirSync(tempRoot);
-    const tmpFiles = dirContents.filter((f) => f.endsWith('.gen-tmp'));
-    assert.equal(tmpFiles.length, 0);
+    assert.deepEqual(logged(console.log), ['[UPDATE] stale.txt', '[CREATE] created.txt']);
+    assert.deepEqual(writer.stats, { changed: 2, unchanged: 1, errors: 0 });
+    assert.equal(read('stale.txt'), 'old');
+    assert.equal(exists('created.txt'), false);
+    assert.equal(exists('same.txt'), true);
   });
 });
 
 describe('FileWriter clean', () => {
-  it('removes specified files that exist', () => {
-    const filePath = path.join(tempRoot, 'to-delete.txt');
-    fs.writeFileSync(filePath, 'doomed', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.clean(['to-delete.txt']);
-
-    assert.equal(fs.existsSync(filePath), false);
+  it('removes existing files, ignores missing ones and rejects paths outside the root', () => {
+    for (const file of ['a.txt', 'b.txt']) fs.writeFileSync(path.join(tempRoot, file), file);
+    new FileWriter({ rootDir: tempRoot }).clean(['a.txt', 'b.txt', 'nonexistent.txt']);
+    assert.equal(exists('a.txt') || exists('b.txt'), false);
+    assert.throws(() => new FileWriter({ rootDir: tempRoot }).clean(['../../../etc/passwd']),
+      /Path traversal detected/);
   });
 
-  it('silently ignores files that do not exist', () => {
-    const writer = createFileWriter({ rootDir: tempRoot });
+  it('keeps files in dryRun and diff modes', () => {
+    fs.writeFileSync(path.join(tempRoot, 'keep.txt'), 'keep');
+    for (const options of [{ dryRun: true }, { diffMode: true }]) {
+      new FileWriter({ rootDir: tempRoot, ...options }).clean(['keep.txt']);
+    }
+    assert.equal(exists('keep.txt'), true);
+  });
+});
 
-    assert.doesNotThrow(() => {
-      writer.clean(['nonexistent.txt']);
-    });
+describe('FileWriter findStale and prune', () => {
+  const outputs = ['agents/kept.md', 'agents/sub/keep.md', 'antigravity/skills/orchestrate/SKILL.md']
+    .map((outputPath) => ({ outputPath, content: '' }));
+  const ownedDirs = ['agents', 'antigravity/skills', 'commands', 'missing/dir'];
+  const STALE = [
+    'agents/nested/deep/stale.md', 'agents/stale.md', 'agents/sub/stale.md',
+    'antigravity/skills/retired/SKILL.md', 'commands/stale.toml',
+  ];
+  const UNOWNED = ['antigravity/README.md', 'claude/agents/legacy.md'];
+
+  beforeEach(() => {
+    for (const file of [...outputs.map(({ outputPath }) => outputPath), ...STALE, ...UNOWNED]) {
+      writeTree(tempRoot, file, 'content');
+    }
   });
 
-  it('removes multiple files in a single call', () => {
-    const fileA = path.join(tempRoot, 'a.txt');
-    const fileB = path.join(tempRoot, 'b.txt');
-    fs.writeFileSync(fileA, 'a', 'utf8');
-    fs.writeFileSync(fileB, 'b', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot });
-    writer.clean(['a.txt', 'b.txt']);
-
-    assert.equal(fs.existsSync(fileA), false);
-    assert.equal(fs.existsSync(fileB), false);
+  it('deletes only unproduced files in owned directories and the subdirectories they empty', (t) => {
+    t.mock.method(console, 'log', () => {});
+    const writer = new FileWriter({ rootDir: tempRoot });
+    const stale = writer.findStale(outputs, ownedDirs);
+    assert.deepEqual(stale.files, STALE);
+    writer.prune(stale);
+    for (const file of [...STALE, 'agents/nested', 'antigravity/skills/retired']) {
+      assert.equal(exists(file), false, file);
+    }
+    // An emptied owned directory itself stays.
+    for (const file of [...outputs.map(({ outputPath }) => outputPath), ...UNOWNED, 'commands']) {
+      assert.equal(exists(file), true, file);
+    }
+    assert.deepEqual(logged(console.log), STALE.map((file) => `  PRUNED: ${file}`));
+    assert.deepEqual(writer.findStale(outputs, ownedDirs).files, []);
   });
 
-  it('does not delete files in dryRun mode', () => {
-    const filePath = path.join(tempRoot, 'dry-run-clean.txt');
-    fs.writeFileSync(filePath, 'keep', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot, dryRun: true });
-    writer.clean(['dry-run-clean.txt']);
-
-    assert.equal(fs.existsSync(filePath), true);
-  });
-
-  it('does not delete files in diffMode', () => {
-    const filePath = path.join(tempRoot, 'diff-clean.txt');
-    fs.writeFileSync(filePath, 'keep', 'utf8');
-
-    const writer = createFileWriter({ rootDir: tempRoot, diffMode: true });
-    writer.clean(['diff-clean.txt']);
-
-    assert.equal(fs.existsSync(filePath), true);
-  });
-
-  it('validates paths through safeResolve', () => {
-    const writer = createFileWriter({ rootDir: tempRoot });
-
-    assert.throws(
-      () => writer.clean(['../../../etc/passwd']),
-      /Path traversal detected/
-    );
+  it('only reports stale files in previews, as [REMOVE] whenever dry-run or check is set', (t) => {
+    t.mock.method(console, 'log', () => {});
+    for (const options of [{ check: true, diffMode: true }, { diffMode: true }]) {
+      const writer = new FileWriter({ rootDir: tempRoot, ...options });
+      writer.prune(writer.findStale(outputs, ownedDirs));
+    }
+    for (const file of STALE) assert.equal(exists(file), true, file);
+    assert.deepEqual(logged(console.log), [
+      ...STALE.map((file) => `[REMOVE] ${file}`),
+      ...STALE.map((file) => `--- REMOVED: ${file}`),
+    ]);
   });
 });

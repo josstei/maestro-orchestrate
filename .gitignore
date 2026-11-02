@@ -39,9 +39,6 @@ AGENTS.md
 *.log
 npm-debug.log*
 
-# Coverage
-coverage/
-
 # Temporary files
 tmp/
 temp/

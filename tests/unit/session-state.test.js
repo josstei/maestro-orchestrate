@@ -5,14 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const {
-  DEFAULT_STATE_DIR,
-  resolveStateDirPath,
-  resolveActiveSessionPath,
-  readState,
-  writeState,
-  ensureWorkspace,
-} = require('../../src/state/session-state');
+const { resolveStateDirPath, activeSessionFile } = require('../../src/state/paths');
+const { ensureWorkspace, archiveActiveSession } = require('../../src/state/session-state');
+const { archivePlansDocuments } = require('../../src/state/session-documents');
+const { withStateMutation } = require('../../src/state/coordinator');
+const { readStateFile, writeStateFile } = require('../../src/scripts/state-access');
 const { withEnv } = require('../support/env');
 const { makeTempDir } = require('../support/fs');
 
@@ -23,142 +20,66 @@ describe('session-state', () => {
     tmpRoot = makeTempDir('maestro-test-');
   });
 
-  it('DEFAULT_STATE_DIR equals docs/maestro', () => {
-    assert.equal(DEFAULT_STATE_DIR, 'docs/maestro');
-  });
-
-  it('resolveStateDirPath returns the resolved path of an absolute state dir within root', () => {
+  it('resolveStateDirPath resolves absolute state dirs only within root', () => {
     const subDir = path.join(tmpRoot, 'sub');
     fs.mkdirSync(subDir);
-    const result = resolveStateDirPath(tmpRoot, subDir);
-    assert.equal(result, fs.realpathSync(subDir));
+    assert.equal(resolveStateDirPath(tmpRoot, subDir), fs.realpathSync(subDir));
+    for (const outside of [path.join(tmpRoot, '..', 'outside'), makeTempDir('maestro-abs-outside-')]) {
+      assert.throws(() => resolveStateDirPath(tmpRoot, outside), /state_dir must be within the project root/);
+    }
   });
 
-  it('resolveStateDirPath rejects absolute state dirs that traverse out of root', () => {
-    const traversalPath = path.join(tmpRoot, '..', 'outside');
-    assert.throws(
-      () => resolveStateDirPath(tmpRoot, traversalPath),
-      /state_dir must be within the project root/
-    );
-  });
-
-  it('resolveStateDirPath uses override when provided', () => {
-    const result = resolveStateDirPath(tmpRoot, 'custom/state');
-    assert.equal(result, path.join(tmpRoot, 'custom/state'));
-  });
-
-  it('resolveStateDirPath uses MAESTRO_STATE_DIR env when no override', () => {
-    const result = withEnv({ MAESTRO_STATE_DIR: 'env/state' }, () =>
-      resolveStateDirPath(tmpRoot, undefined)
-    );
-    assert.equal(result, path.join(tmpRoot, 'env/state'));
-  });
-
-  it('resolveStateDirPath uses DEFAULT_STATE_DIR as final fallback', () => {
-    const result = withEnv({ MAESTRO_STATE_DIR: null, MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: null }, () =>
-      resolveStateDirPath(tmpRoot, undefined)
-    );
-    assert.equal(result, path.join(tmpRoot, DEFAULT_STATE_DIR));
-  });
-
-  it('resolveStateDirPath reads MAESTRO_STATE_DIR from the workspace .env when the env var is unset', () => {
+  it('resolveStateDirPath prefers override, MAESTRO_STATE_DIR, workspace .env, then docs/maestro', () => {
     // initialize_workspace already honors the workspace .env; session tools and
     // hooks must resolve the same directory.
+    const resolve = (stateDir, override) => withEnv(
+      { MAESTRO_STATE_DIR: stateDir, MAESTRO_EXTENSION_PATH: null, CLAUDE_PLUGIN_ROOT: null },
+      () => resolveStateDirPath(tmpRoot, override));
+    assert.equal(resolve(null), path.join(tmpRoot, 'docs/maestro'));
     fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () =>
-      resolveStateDirPath(tmpRoot, undefined)
-    );
-    assert.equal(result, path.join(tmpRoot, '.maestro'));
+    assert.equal(resolve(null), path.join(tmpRoot, '.maestro'));
+    assert.equal(resolve('env/state'), path.join(tmpRoot, 'env/state'));
+    assert.equal(resolve('env/state', 'custom/state'), path.join(tmpRoot, 'custom/state'));
+    assert.equal(activeSessionFile(resolve(null)), path.join(tmpRoot, '.maestro', 'state', 'active-session.md'));
   });
 
-  it('resolveStateDirPath prefers the MAESTRO_STATE_DIR env var over the workspace .env', () => {
-    fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
-    const result = withEnv({ MAESTRO_STATE_DIR: 'env/state' }, () =>
-      resolveStateDirPath(tmpRoot, undefined)
-    );
-    assert.equal(result, path.join(tmpRoot, 'env/state'));
+  it('reads and writes generic workspace files and rejects absolute or traversing paths', async () => {
+    await writeStateFile('output.md', 'written content', tmpRoot);
+    assert.equal(fs.readFileSync(path.join(tmpRoot, 'output.md'), 'utf8'), 'written content');
+    assert.equal(await readStateFile('output.md', tmpRoot), 'written content');
+    for (const [file, message] of [
+      ['/etc/passwd', /Path must be relative/],
+      ['foo/../bar', /Path traversal not allowed/],
+    ]) {
+      await assert.rejects(readStateFile(file, tmpRoot), message);
+      await assert.rejects(writeStateFile(file, 'content', tmpRoot), message);
+    }
   });
 
-  it('resolveActiveSessionPath finds the session under the state dir named in the workspace .env', () => {
-    fs.writeFileSync(path.join(tmpRoot, '.env'), 'MAESTRO_STATE_DIR=.maestro\n');
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => resolveActiveSessionPath(tmpRoot));
-    assert.equal(result, path.join(tmpRoot, '.maestro', 'state', 'active-session.md'));
-  });
-
-  it('resolveStateDirPath rejects absolute paths outside root via validateContainment', () => {
-    const outsideDir = makeTempDir('maestro-abs-outside-');
-    assert.throws(
-      () => resolveStateDirPath(tmpRoot, outsideDir),
-      /state_dir must be within the project root/
-    );
-  });
-
-  it('resolveActiveSessionPath returns correct path', () => {
-    const result = withEnv({ MAESTRO_STATE_DIR: null }, () => resolveActiveSessionPath(tmpRoot));
-    assert.equal(result, path.join(tmpRoot, DEFAULT_STATE_DIR, 'state', 'active-session.md'));
-  });
-
-  it('readState reads file content from basePath', () => {
-    const content = 'session content';
-    const filePath = path.join(tmpRoot, 'state.md');
-    fs.writeFileSync(filePath, content);
-    const result = readState('state.md', tmpRoot);
-    assert.equal(result, content);
-  });
-
-  it('readState throws for absolute paths', () => {
-    assert.throws(
-      () => readState('/etc/passwd', tmpRoot),
-      /Path must be relative/
-    );
-  });
-
-  it('readState throws for paths with ..', () => {
-    assert.throws(
-      () => readState('foo/../bar', tmpRoot),
-      /Path traversal not allowed/
-    );
-  });
-
-  it('writeState writes content to basePath atomically', () => {
-    const content = 'written content';
-    writeState('output.md', content, tmpRoot);
-    const written = fs.readFileSync(path.join(tmpRoot, 'output.md'), 'utf8');
-    assert.equal(written, content);
-  });
-
-  it('writeState throws for absolute paths', () => {
-    assert.throws(
-      () => writeState('/etc/passwd', 'content', tmpRoot),
-      /Path must be relative/
-    );
-  });
-
-  it('writeState throws for paths with ..', () => {
-    assert.throws(
-      () => writeState('foo/../bar', 'content', tmpRoot),
-      /Path traversal not allowed/
-    );
-  });
-
-  it('ensureWorkspace creates required directories', () => {
-    ensureWorkspace('workspace', tmpRoot);
-    const base = path.join(tmpRoot, 'workspace');
-    assert.ok(fs.statSync(path.join(base, 'state')).isDirectory());
-    assert.ok(fs.statSync(path.join(base, 'state', 'archive')).isDirectory());
-    assert.ok(fs.statSync(path.join(base, 'plans')).isDirectory());
-    assert.ok(fs.statSync(path.join(base, 'plans', 'archive')).isDirectory());
-  });
-
-  it('ensureWorkspace is idempotent', () => {
-    ensureWorkspace('workspace', tmpRoot);
-    assert.doesNotThrow(() => ensureWorkspace('workspace', tmpRoot));
-  });
-
-  it('ensureWorkspace creates .gitignore in state/ dir', () => {
-    ensureWorkspace('workspace', tmpRoot);
+  it('ensureWorkspace appends the private-state ignore once and preserves user additions', async () => {
+    await ensureWorkspace('workspace', tmpRoot);
     const gitignorePath = path.join(tmpRoot, 'workspace', 'state', '.gitignore');
-    const content = fs.readFileSync(gitignorePath, 'utf8');
-    assert.equal(content, 'active-session.md\narchive/\n');
+    fs.writeFileSync(gitignorePath, 'active-session.md\r\narchive/\r\n# user rule\r\ncustom/');
+    await ensureWorkspace('workspace', tmpRoot);
+    await ensureWorkspace('workspace', tmpRoot);
+    assert.equal(fs.readFileSync(gitignorePath, 'utf8'), 'active-session.md\r\narchive/\r\n# user rule\r\ncustom/\n.maestro/\n');
+  });
+
+  it('creates archive directories missing from an uninitialized workspace as private (0o700)', {
+    skip: process.platform === 'win32' && 'Windows does not report POSIX modes',
+  }, async () => {
+    const base = path.join(tmpRoot, 'workspace');
+    fs.mkdirSync(path.join(base, 'state'), { recursive: true });
+    fs.writeFileSync(activeSessionFile(base), '---\nsession_id: s1\n---\n');
+    const priorUmask = process.umask(0o022);
+    try {
+      await withStateMutation(base, { operation: 'archive_session' }, (tx) => {
+        archiveActiveSession(tx, 's1');
+        archivePlansDocuments(tmpRoot, [], tx);
+      });
+    } finally { process.umask(priorUmask); }
+    for (const dir of ['state/archive', 'plans', 'plans/archive']) {
+      assert.equal(fs.statSync(path.join(base, dir)).mode & 0o777, 0o700, dir);
+    }
   });
 });

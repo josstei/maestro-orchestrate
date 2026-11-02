@@ -7,8 +7,6 @@ const hookState = require('./hook-state');
  * state, so it needs nothing from the hook context: the per-session directory
  * is created by before-agent when it records the active agent, and removed by
  * session-end.
- *
- * @returns {{ action: string, message: null, reason: null }}
  */
 function handleSessionStart() {
   hookState.pruneStale();

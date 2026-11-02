@@ -3,58 +3,28 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { makeTempDir } = require('../support/fs');
 const { readSessionState } = require('../support/session-file');
-const { createInitializedSessionServer } = require('../support/session-server');
+const { SessionWorkspace, phase } = require('../support/session-server');
 
 describe('plan contract round-trip', () => {
   it('validate_plan output is accepted verbatim by create_session', async () => {
-    const workspace = makeTempDir('maestro-plan-rt-');
-
-    const server = await createInitializedSessionServer(workspace);
+    const workspace = await SessionWorkspace.create();
 
     const plan = {
       phases: [
-        {
-          id: 1,
-          name: 'Scaffold',
-          agent: 'coder',
-          parallel: false,
-          blocked_by: [],
-          files: ['src/foo.js'],
-        },
-        {
-          id: 2,
-          name: 'Test',
-          agent: 'tester',
-          parallel: true,
-          blocked_by: [1],
-          files: ['tests/foo.test.js'],
-        },
+        phase(1, { name: 'Scaffold', files: ['src/foo.js'] }),
+        phase(2, { name: 'Test', agent: 'tester', parallel: true, blocked_by: [1], files: ['tests/foo.test.js'] }),
       ],
     };
 
-    const valid = await server.callTool(
-      'validate_plan',
-      { plan, task_complexity: 'simple' },
-      workspace
-    );
+    const valid = await workspace.call('validate_plan', { plan, task_complexity: 'simple' });
     assert.equal(valid.ok, true);
     assert.equal(valid.result.valid, true);
 
-    const created = await server.callTool(
-      'create_session',
-      {
-        session_id: 'rt-1',
-        task: 'round-trip test',
-        task_complexity: 'simple',
-        phases: plan.phases,
-      },
-      workspace
-    );
+    const created = await workspace.createSession('rt-1', { task_complexity: 'simple', phases: plan.phases });
     assert.equal(created.ok, true);
 
-    const frontmatter = readSessionState(workspace);
+    const frontmatter = readSessionState(workspace.dir);
     assert.deepEqual(frontmatter.phases[0].planned_files, ['src/foo.js']);
     assert.deepEqual(frontmatter.phases[1].blocked_by, [1]);
     assert.equal(frontmatter.phases[1].parallel, true);

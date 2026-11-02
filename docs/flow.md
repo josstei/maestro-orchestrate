@@ -41,9 +41,11 @@ The orchestration workflow is defined by 41 steps (numbered 0 through 40) in `sr
                         ▼
 ┌─────────────────────────────────────────────────┐
 │            PHASE 3: EXECUTION                   │
-│  Load execution + delegation skills             │
+│  Load execution skill                           │
 │  Execution Mode Gate: parallel / sequential     │
+│  Load session-management + session-state        │
 │  Create session via MCP                         │
+│  Load delegation, validation + protocols        │
 │  For each phase:                                │
 │    → get_agent for methodology                  │
 │    → Delegate with protocols + context chain    │
@@ -216,6 +218,7 @@ Non-negotiable checkpoints that block progression:
 
 | Gate | Location | Condition |
 |------|----------|-----------|
+| Skill pre-load | Step 7 | The pre-load batch must complete before any `enter_plan_mode` call |
 | Tech recommendations | Step 11 | Must recommend vanilla HTML/CSS/JS for static delivery unless framework explicitly required |
 | Session ID | Step 9a | One finalized session ID must be reused for design approval, session creation, transitions, reconciliation, and archive |
 | Design gate | Steps 9a/14a/21 | Standard workflow cannot create a session until approved design is recorded for the same session ID |
@@ -224,7 +227,7 @@ Non-negotiable checkpoints that block progression:
 | validate_plan | Step 16 | Plan must pass validation before user sees it |
 | Implementation plan variant | Step 21 | Use content variant for plans written to a Plan Mode location the MCP server cannot reach; use path variant for Antigravity, Claude, Codex, and Qwen direct writes; never provide both |
 | Execution mode | Step 19 | Must present only Parallel and Sequential options |
-| Agent dispatch | Step 23 | Must dispatch by agent's registered tool directly |
+| Agent dispatch | Step 23 | Dispatch through `agent_dispatch.pattern` from `get_runtime_context`, naming the agent by the `tool_name` from `get_agent`; never the runtime's generalist agent |
 | Blockers | Step 24 | Non-empty `## Blockers` must be answered and re-delegated before `transition_phase` |
 | transition_phase | Step 25 | Must be called individually for EVERY completed phase |
 | Reconciliation | Step 25 | Empty file manifests plus empty downstream context require `scan_phase_changes` → user confirmation → `reconcile_phase` |
@@ -232,7 +235,7 @@ Non-negotiable checkpoints that block progression:
 | Express 1-phase | Step 31 | Express sessions must have exactly one phase |
 | Express questions | Step 32 | Each question must use user prompt tool |
 | Express brief | Step 33 | Must present as plain text + separate approval prompt |
-| Express agent | Step 36 | Must delegate by specific agent tool, not generalist |
+| Express agent | Step 36 | Same dispatch rule as step 23 (never the generalist) |
 | Express transition_phase | Step 37 | Must call transition_phase after implementing agent returns |
 | Express review | Step 38 | Re-delegate on Critical/Major findings (1 retry) |
 

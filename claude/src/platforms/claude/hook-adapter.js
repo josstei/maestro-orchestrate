@@ -1,10 +1,6 @@
 'use strict';
 
-/**
- * Claude Code hook I/O adapter.
- * Normalizes Claude Code stdin JSON to the internal context contract
- * and formats internal responses for Claude Code stdout.
- */
+/** Claude Code hook I/O adapter (field mappings: docs/runtime-claude.md#hook-adapter). */
 
 function normalizeInput(raw) {
   return {
@@ -26,8 +22,11 @@ function formatOutput(result) {
   };
 }
 
-function errorFallback() {
-  return { continue: false, decision: 'block' };
-}
+/** PreToolUse shell policy on Bash (shared/policy-enforcer.js): reads tool_input.command. */
+const shellPolicy = {
+  tool: 'Bash',
+  readCommand: (input) => input.tool_input && input.tool_input.command,
+  decisions: { deny: 'block', ask: 'ask', allow: 'approve' },
+};
 
-module.exports = { normalizeInput, formatOutput, errorFallback };
+module.exports = { normalizeInput, formatOutput, errorFallback: { continue: false, decision: 'block' }, shellPolicy };

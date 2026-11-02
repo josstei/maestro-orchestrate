@@ -277,7 +277,6 @@ Maestro hooks fire at agent boundaries during delegation, providing context inje
 Before each agent dispatch, a hook tracks which agent is currently executing:
 
 - Preferred signal: the required `Agent: <agent_name>` header in the delegation prompt
-- Legacy fallbacks: `MAESTRO_CURRENT_AGENT` from the environment, then regex-based detection of patterns like `delegate to <agent>` or `@<agent>`
 
 ### Session Context Injection
 

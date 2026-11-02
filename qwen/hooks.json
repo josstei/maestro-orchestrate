@@ -7,7 +7,7 @@
             "type": "command",
             "command": "node ${extensionPath}/hooks/hook-runner.js qwen session-start",
             "name": "maestro-session-start-qwen",
-            "description": "Initialize hook state and prune stale sessions (Qwen Code)",
+            "description": "Prune stale hook state (Qwen Code)",
             "timeout": 10000
           }
         ]

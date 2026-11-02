@@ -7,22 +7,28 @@ const path = require('node:path');
 
 const { makeTempDir, writeFile } = require('../support/fs');
 const { readSessionState } = require('../support/session-file');
-const {
-  approveDesignGate,
-  createInitializedSessionServer,
-  singlePhase,
-} = require('../support/session-server');
+const { SessionWorkspace, singlePhase } = require('../support/session-server');
+
+// Plan Mode hosts write documents to a temp dir outside the workspace.
+function planModePath(name) {
+  return path.join(makeTempDir('maestro-ddl-tmp-'), 'plans', name);
+}
+
+function createSimpleSession(workspace, sessionId, file, overrides = {}) {
+  return workspace.createSession(sessionId, { task_complexity: 'simple', phases: singlePhase([file]), ...overrides });
+}
+
+async function completeAndArchive(workspace, sessionId, file) {
+  await workspace.transition(sessionId, 1, { files_created: [file], downstream_context: { integration_points: file } });
+  return workspace.call('archive_session', { session_id: sessionId });
+}
 
 describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive', () => {
   it('record_design_approval records the path without requiring the file to exist (Plan Mode parallel-dispatch tolerance)', async () => {
-    const workspace = makeTempDir('maestro-ddl-ws-');
-    const planModeTmp = makeTempDir('maestro-ddl-tmp-');
-    const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
+    const workspace = await SessionWorkspace.create();
+    const tmpDesignPath = planModePath('design.md');
 
-    const server = await createInitializedSessionServer(workspace);
-    const approval = await approveDesignGate(server, workspace, 'ddl-1', {
-      design_document_path: tmpDesignPath,
-    });
+    const approval = await workspace.approve('ddl-1', { design_document_path: tmpDesignPath });
 
     assert.equal(
       approval.ok,
@@ -31,60 +37,35 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
     assert.equal(approval.result.design_document_path, tmpDesignPath);
     assert.equal(
-      fs.existsSync(path.join(workspace, 'docs', 'maestro', 'plans', 'design.md')),
+      fs.existsSync(path.join(workspace.dir, 'docs', 'maestro', 'plans', 'design.md')),
       false,
       'no copy should occur at approval time'
     );
   });
 
   it('create_session materializes the design doc from the gate path once it exists on disk', async () => {
-    const workspace = makeTempDir('maestro-ddl-latewrite-');
-    const planModeTmp = makeTempDir('maestro-ddl-latewrite-tmp-');
-    const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
+    const workspace = await SessionWorkspace.create();
+    const tmpDesignPath = planModePath('design.md');
 
-    const server = await createInitializedSessionServer(workspace);
-    await approveDesignGate(server, workspace, 'ddl-late', { design_document_path: tmpDesignPath });
+    await workspace.approve('ddl-late', { design_document_path: tmpDesignPath });
 
     writeFile(tmpDesignPath, '# Design (written after approval)\n');
 
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-late',
-        task: 'late materialize',
-        task_complexity: 'simple',
-        phases: singlePhase(['index.html']),
-      },
-      workspace
-    );
+    const create = await createSimpleSession(workspace, 'ddl-late', 'index.html');
     assert.equal(create.ok, true);
 
-    const canonicalPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
+    const canonicalPath = path.join(workspace.dir, 'docs', 'maestro', 'plans', 'design.md');
     assert.equal(fs.existsSync(canonicalPath), true, 'create_session should copy the design doc into plans/');
     assert.equal(fs.existsSync(tmpDesignPath), true, 'Plan Mode tmp copy must remain intact');
   });
 
   it('create_session surfaces a sequenced NOT_FOUND error when the approved design doc never materialized', async () => {
-    const workspace = makeTempDir('maestro-ddl-missing-');
-    const phantomPath = path.join(
-      makeTempDir('maestro-ddl-missing-tmp-'),
-      'plans',
-      'never-written.md'
-    );
+    const workspace = await SessionWorkspace.create();
+    const phantomPath = planModePath('never-written.md');
 
-    const server = await createInitializedSessionServer(workspace);
-    await approveDesignGate(server, workspace, 'ddl-missing', { design_document_path: phantomPath });
+    await workspace.approve('ddl-missing', { design_document_path: phantomPath });
 
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-missing',
-        task: 'phantom design',
-        task_complexity: 'simple',
-        phases: singlePhase(['index.html']),
-      },
-      workspace
-    );
+    const create = await createSimpleSession(workspace, 'ddl-missing', 'index.html');
 
     assert.equal(create.ok, false);
     assert.equal(create.code, 'NOT_FOUND');
@@ -97,30 +78,19 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session auto-populates state.design_document from the design gate when the param is omitted', async () => {
-    const workspace = makeTempDir('maestro-ddl-auto-');
-    const planModeTmp = makeTempDir('maestro-ddl-auto-tmp-');
-    const tmpDesignPath = path.join(planModeTmp, 'plans', 'auto-design.md');
+    const workspace = await SessionWorkspace.create();
+    const tmpDesignPath = planModePath('auto-design.md');
     writeFile(tmpDesignPath, '# Auto Design\n');
 
-    const server = await createInitializedSessionServer(workspace);
-    await approveDesignGate(server, workspace, 'ddl-auto', { design_document_path: tmpDesignPath });
+    await workspace.approve('ddl-auto', { design_document_path: tmpDesignPath });
 
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-auto',
-        task: 'auto lifecycle',
-        task_complexity: 'simple',
-        phases: singlePhase(['index.html']),
-      },
-      workspace
-    );
+    const create = await createSimpleSession(workspace, 'ddl-auto', 'index.html');
     assert.equal(create.ok, true);
 
-    const state = readSessionState(workspace);
+    const state = readSessionState(workspace.dir);
     assert.equal(
       state.design_document,
-      path.join(workspace, 'docs', 'maestro', 'plans', 'auto-design.md')
+      path.join(workspace.dir, 'docs', 'maestro', 'plans', 'auto-design.md')
     );
     assert.equal(
       fs.existsSync(state.design_document),
@@ -130,44 +100,19 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('archive_session moves both the auto-populated design doc and the implementation plan to plans/archive/', async () => {
-    const workspace = makeTempDir('maestro-ddl-archive-');
+    const workspace = await SessionWorkspace.create();
     const planModeTmp = makeTempDir('maestro-ddl-archive-tmp-');
     const tmpDesignPath = path.join(planModeTmp, 'plans', 'design.md');
     const tmpPlanPath = path.join(planModeTmp, 'plans', 'impl-plan.md');
     writeFile(tmpDesignPath, '# Design\n');
     writeFile(tmpPlanPath, '# Plan\n');
 
-    const server = await createInitializedSessionServer(workspace);
-    await approveDesignGate(server, workspace, 'ddl-arc', { design_document_path: tmpDesignPath });
-    await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-arc',
-        task: 'archive lifecycle',
-        task_complexity: 'simple',
-        implementation_plan: tmpPlanPath,
-        phases: singlePhase(['index.html']),
-      },
-      workspace
-    );
-    await server.callTool(
-      'transition_phase',
-      {
-        session_id: 'ddl-arc',
-        completed_phase_id: 1,
-        files_created: ['index.html'],
-        downstream_context: { integration_points: 'index.html created' },
-      },
-      workspace
-    );
+    await workspace.approve('ddl-arc', { design_document_path: tmpDesignPath });
+    await createSimpleSession(workspace, 'ddl-arc', 'index.html', { implementation_plan: tmpPlanPath });
 
-    const archive = await server.callTool(
-      'archive_session',
-      { session_id: 'ddl-arc' },
-      workspace
-    );
+    const archive = await completeAndArchive(workspace, 'ddl-arc', 'index.html');
     assert.equal(archive.ok, true);
-    const archiveRoot = path.join(workspace, 'docs', 'maestro');
+    const archiveRoot = path.join(workspace.dir, 'docs', 'maestro');
     const archivedSession = path.join(archiveRoot, 'state', 'archive', 'ddl-arc.md');
     const archivedDesign = path.join(archiveRoot, 'plans', 'archive', 'design.md');
     const archivedPlan = path.join(archiveRoot, 'plans', 'archive', 'impl-plan.md');
@@ -182,15 +127,14 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('archive_session removes the design-gate artifact so reused session IDs start with a fresh gate', async () => {
-    const workspace = makeTempDir('maestro-ddl-gate-cleanup-');
-    const designPath = path.join(workspace, 'docs', 'maestro', 'plans', 'design.md');
+    const workspace = await SessionWorkspace.create();
+    const designPath = path.join(workspace.dir, 'docs', 'maestro', 'plans', 'design.md');
     writeFile(designPath, '# Design\n');
 
-    const server = await createInitializedSessionServer(workspace);
-    await approveDesignGate(server, workspace, 'ddl-cleanup', { design_document_path: designPath });
+    await workspace.approve('ddl-cleanup', { design_document_path: designPath });
 
     const gatePath = path.join(
-      workspace,
+      workspace.dir,
       'docs',
       'maestro',
       'state',
@@ -198,31 +142,8 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
     assert.equal(fs.existsSync(gatePath), true, 'gate file exists during session');
 
-    await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-cleanup',
-        task: 'gate cleanup',
-        task_complexity: 'simple',
-        phases: singlePhase(['f.txt']),
-      },
-      workspace
-    );
-    await server.callTool(
-      'transition_phase',
-      {
-        session_id: 'ddl-cleanup',
-        completed_phase_id: 1,
-        files_created: ['f.txt'],
-        downstream_context: { integration_points: 'f.txt' },
-      },
-      workspace
-    );
-    const archive = await server.callTool(
-      'archive_session',
-      { session_id: 'ddl-cleanup' },
-      workspace
-    );
+    await createSimpleSession(workspace, 'ddl-cleanup', 'f.txt');
+    const archive = await completeAndArchive(workspace, 'ddl-cleanup', 'f.txt');
     assert.equal(archive.ok, true);
     assert.equal(
       fs.existsSync(gatePath),
@@ -230,53 +151,37 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
       'archive_session must remove the design-gate artifact'
     );
 
-    const resumedGate = await server.callTool(
-      'get_design_gate_status',
-      { session_id: 'ddl-cleanup' },
-      workspace
-    );
+    const resumedGate = await workspace.call('get_design_gate_status', { session_id: 'ddl-cleanup' });
     assert.equal(resumedGate.ok, true);
     assert.equal(resumedGate.result.entered_at, null, 'reused session id starts with a fresh gate');
     assert.equal(resumedGate.result.approved_at, null);
   });
 
   it('persists explicit implementation_plan params that already live in plans/ without copying', async () => {
-    const workspace = makeTempDir('maestro-ddl-inplace-');
-    const plansDir = path.join(workspace, 'docs', 'maestro', 'plans');
+    const workspace = await SessionWorkspace.create();
+    const plansDir = path.join(workspace.dir, 'docs', 'maestro', 'plans');
     const planPath = path.join(plansDir, 'inplace-plan.md');
     writeFile(planPath, '# Inplace Plan\n');
 
-    const server = await createInitializedSessionServer(workspace);
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-inplace',
-        task: 'in-place plan',
-        task_complexity: 'simple',
-        implementation_plan: planPath,
-        phases: singlePhase(['foo.txt']),
-      },
-      workspace
-    );
+    const create = await createSimpleSession(workspace, 'ddl-inplace', 'foo.txt', { implementation_plan: planPath });
     assert.equal(create.ok, true);
 
-    const state = readSessionState(workspace);
+    const state = readSessionState(workspace.dir);
     assert.equal(state.implementation_plan, planPath);
   });
 
   it('content variant: record_design_approval + create_session materialize both docs without path resolution (Plan Mode host tmp-dir flow)', async () => {
-    const workspace = makeTempDir('maestro-ddl-content-');
+    const workspace = await SessionWorkspace.create();
     const designBody = '# Design (inline)\n\nPassed as content.\n';
     const planBody = '# Plan (inline)\n\nPassed as content.\n';
 
-    const server = await createInitializedSessionServer(workspace);
-    const approval = await approveDesignGate(server, workspace, 'ddl-content', {
+    const approval = await workspace.approve('ddl-content', {
       design_document_content: designBody,
       design_document_filename: 'design-content.md',
     });
     assert.equal(approval.ok, true);
     const canonicalDesign = path.join(
-      workspace,
+      workspace.dir,
       'docs',
       'maestro',
       'plans',
@@ -285,22 +190,14 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     assert.equal(approval.result.design_document_path, canonicalDesign);
     assert.equal(fs.readFileSync(canonicalDesign, 'utf8'), designBody);
 
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-content',
-        task: 'content lifecycle',
-        task_complexity: 'simple',
-        implementation_plan_content: planBody,
-        implementation_plan_filename: 'plan-content.md',
-        phases: singlePhase(['x.txt']),
-      },
-      workspace
-    );
+    const create = await createSimpleSession(workspace, 'ddl-content', 'x.txt', {
+      implementation_plan_content: planBody,
+      implementation_plan_filename: 'plan-content.md',
+    });
     assert.equal(create.ok, true);
 
     const canonicalPlan = path.join(
-      workspace,
+      workspace.dir,
       'docs',
       'maestro',
       'plans',
@@ -308,27 +205,13 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
     );
     assert.equal(fs.readFileSync(canonicalPlan, 'utf8'), planBody);
 
-    const state = readSessionState(workspace);
+    const state = readSessionState(workspace.dir);
     assert.equal(state.design_document, canonicalDesign);
     assert.equal(state.implementation_plan, canonicalPlan);
 
-    await server.callTool(
-      'transition_phase',
-      {
-        session_id: 'ddl-content',
-        completed_phase_id: 1,
-        files_created: ['x.txt'],
-        downstream_context: { integration_points: 'x.txt' },
-      },
-      workspace
-    );
-    const archive = await server.callTool(
-      'archive_session',
-      { session_id: 'ddl-content' },
-      workspace
-    );
+    const archive = await completeAndArchive(workspace, 'ddl-content', 'x.txt');
     assert.equal(archive.ok, true);
-    const archiveRoot = path.join(workspace, 'docs', 'maestro');
+    const archiveRoot = path.join(workspace.dir, 'docs', 'maestro');
     assert.deepEqual(
       archive.result.archived_files.sort(),
       [
@@ -340,66 +223,27 @@ describe('design document lifecycle: plan-mode tmp -> state_dir/plans -> archive
   });
 
   it('create_session rejects both implementation_plan variants supplied together', async () => {
-    const workspace = makeTempDir('maestro-ddl-planmutex-');
-    const plansDir = path.join(workspace, 'docs', 'maestro', 'plans');
+    const workspace = await SessionWorkspace.create();
+    const plansDir = path.join(workspace.dir, 'docs', 'maestro', 'plans');
     const planPath = path.join(plansDir, 'plan.md');
     writeFile(planPath, '# Plan\n');
 
-    const server = await createInitializedSessionServer(workspace);
-
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-planmutex',
-        task: 'plan mutex',
-        task_complexity: 'simple',
-        implementation_plan: planPath,
-        implementation_plan_content: '# Plan\n',
-        implementation_plan_filename: 'plan.md',
-        phases: singlePhase(['x.txt']),
-      },
-      workspace
-    );
+    const create = await createSimpleSession(workspace, 'ddl-planmutex', 'x.txt', {
+      implementation_plan: planPath,
+      implementation_plan_content: '# Plan\n',
+      implementation_plan_filename: 'plan.md',
+    });
     assert.equal(create.ok, false);
     assert.match(create.error || '', /mutually exclusive/i);
   });
 
-  it('create_session rejects incomplete implementation_plan content variant (missing filename)', async () => {
-    const workspace = makeTempDir('maestro-ddl-planincomplete-');
-    const server = await createInitializedSessionServer(workspace);
-
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-planincomplete',
-        task: 'plan partial',
-        task_complexity: 'simple',
-        implementation_plan_content: '# Plan\n',
-        phases: singlePhase(['x.txt']),
-      },
-      workspace
-    );
-    assert.equal(create.ok, false);
-    assert.match(create.error || '', /implementation_plan_filename is required/i);
-  });
-
   it('create_session accepts no implementation plan (at-most-one-of semantics permits neither)', async () => {
-    const workspace = makeTempDir('maestro-ddl-noplan-');
-    const server = await createInitializedSessionServer(workspace);
+    const workspace = await SessionWorkspace.create();
 
-    const create = await server.callTool(
-      'create_session',
-      {
-        session_id: 'ddl-noplan',
-        task: 'no plan',
-        task_complexity: 'simple',
-        phases: singlePhase(['x.txt']),
-      },
-      workspace
-    );
+    const create = await createSimpleSession(workspace, 'ddl-noplan', 'x.txt');
     assert.equal(create.ok, true);
 
-    const state = readSessionState(workspace);
+    const state = readSessionState(workspace.dir);
     assert.equal(state.implementation_plan, null);
   });
 });

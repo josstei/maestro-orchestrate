@@ -3,91 +3,49 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { stripFeatureBlocks } = require('../../src/core/feature-blocks');
+const { stripExamples, stripFeatureBlocks } = require('../../src/core/feature-blocks');
+
+const block = (flag, body) => `<!-- @feature ${flag} -->\n${body}<!-- @end-feature -->\n`;
+const NESTED = '## Heading\n\n- item 1\n- item 2\n\n```js\nconst x = 1;\n```\n';
+const PLAIN = '# Title\n\nSome regular markdown content.\n';
+const UNCLOSED = 'before\n<example>\nunclosed\n';
 
 describe('stripFeatureBlocks', () => {
-  it('keeps body content when flag is truthy', () => {
-    const content = '<!-- @feature alpha -->\nalpha content\n<!-- @end-feature -->\n';
-    const result = stripFeatureBlocks(content, { alpha: true });
-    assert.equal(result, 'alpha content\n');
+  for (const [name, content, flags, expected] of [
+    ['keeps body content when flag is truthy', block('alpha', 'alpha content\n'), { alpha: true }, 'alpha content\n'],
+    ['removes body content when flag is falsy',
+      `before\n${block('alpha', 'alpha content\n')}after\n`, { alpha: false }, 'before\nafter\n'],
+    ['handles multiple feature blocks in same content',
+      `header\n${block('alpha', 'alpha body\n')}${block('beta', 'beta body\n')}footer\n`,
+      { alpha: true, beta: false }, 'header\nalpha body\nfooter\n'],
+    ['preserves nested content within feature blocks', block('docs', NESTED), { docs: true }, NESTED],
+    ['collapses triple+ newlines to double after stripping',
+      `before\n${block('removed', 'body\n')}\n\nafter\n`, { removed: false }, 'before\n\nafter\n'],
+    ['passes through content with no feature blocks unchanged', PLAIN, { anything: true }, PLAIN],
+  ]) {
+    it(name, () => {
+      assert.equal(stripFeatureBlocks(content, flags), expected);
+    });
+  }
+
+  it('throws on unknown flag', () => {
+    assert.throws(() => stripFeatureBlocks(block('unknown', 'body\n'), {}), {
+      message: 'Unknown feature flag: "unknown"',
+    });
   });
+});
 
-  it('removes body content when flag is falsy', () => {
-    const content = 'before\n<!-- @feature alpha -->\nalpha content\n<!-- @end-feature -->\nafter\n';
-    const result = stripFeatureBlocks(content, { alpha: false });
-    assert.equal(result, 'before\nafter\n');
-  });
-
-  it('throws on unknown flag in strict mode', () => {
-    const content = '<!-- @feature unknown -->\nbody\n<!-- @end-feature -->\n';
-    assert.throws(
-      () => stripFeatureBlocks(content, {}, { mode: 'strict' }),
-      { message: 'Unknown feature flag: "unknown"' }
-    );
-  });
-
-  it('silently removes content for unknown flag in lenient mode', () => {
-    const content = 'before\n<!-- @feature unknown -->\nbody\n<!-- @end-feature -->\nafter\n';
-    const result = stripFeatureBlocks(content, {}, { mode: 'lenient' });
-    assert.equal(result, 'before\nafter\n');
-  });
-
-  it('defaults to strict mode when opts is omitted', () => {
-    const content = '<!-- @feature missing -->\nbody\n<!-- @end-feature -->\n';
-    assert.throws(
-      () => stripFeatureBlocks(content, {}),
-      { message: 'Unknown feature flag: "missing"' }
-    );
-  });
-
-  it('handles multiple feature blocks in same content', () => {
-    const content = [
-      'header',
-      '<!-- @feature alpha -->',
-      'alpha body',
-      '<!-- @end-feature -->',
-      '<!-- @feature beta -->',
-      'beta body',
-      '<!-- @end-feature -->',
-      'footer',
-      '',
-    ].join('\n');
-
-    const result = stripFeatureBlocks(content, { alpha: true, beta: false });
-    assert.equal(result, 'header\nalpha body\nfooter\n');
-  });
-
-  it('preserves nested content within feature blocks', () => {
-    const body = '## Heading\n\n- item 1\n- item 2\n\n```js\nconst x = 1;\n```\n';
-    const content = '<!-- @feature docs -->\n' + body + '<!-- @end-feature -->\n';
-    const result = stripFeatureBlocks(content, { docs: true });
-    assert.equal(result, body);
-  });
-
-  it('collapses triple+ newlines to double after stripping', () => {
-    const content = 'before\n<!-- @feature removed -->\nbody\n<!-- @end-feature -->\n\n\nafter\n';
-    const result = stripFeatureBlocks(content, { removed: false });
-    assert.equal(result, 'before\n\nafter\n');
-  });
-
-  it('passes through content with no feature blocks unchanged', () => {
-    const content = '# Title\n\nSome regular markdown content.\n';
-    const result = stripFeatureBlocks(content, { anything: true });
-    assert.equal(result, content);
-  });
-
-  it('strips all flags when features object is empty in lenient mode', () => {
-    const content = [
-      '<!-- @feature a -->',
-      'a content',
-      '<!-- @end-feature -->',
-      '<!-- @feature b -->',
-      'b content',
-      '<!-- @end-feature -->',
-      '',
-    ].join('\n');
-
-    const result = stripFeatureBlocks(content, {}, { mode: 'lenient' });
-    assert.equal(result, '');
-  });
+describe('stripExamples', () => {
+  for (const [name, content, expected] of [
+    ['removes every example block and collapses blank lines across the frontmatter boundary',
+      '---\nname: coder\n---\n<example>\nfirst\n</example>\n\n<example>\nsecond\n</example>\n\nMethodology body.\n',
+      '---\nname: coder\n---\n\nMethodology body.\n'],
+    ['accepts trailing whitespace on the example tags, as the stub scanner does',
+      'before\n<example> \nbody\n</example>\t\nafter\n', 'before\nafter\n'],
+    ['leaves an unclosed example in place instead of throwing', UNCLOSED, UNCLOSED],
+  ]) {
+    it(name, () => {
+      assert.equal(stripExamples(content), expected);
+    });
+  }
 });

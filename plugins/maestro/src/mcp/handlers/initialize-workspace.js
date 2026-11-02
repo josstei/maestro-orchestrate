@@ -1,31 +1,21 @@
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 
 const {
   WORKSPACE_SUBDIRS,
-  ensureWorkspace,
   resolveStateDirSetting,
-  resolveStateDirPath,
-} = require('../../state/session-state');
+} = require('../../state/paths');
+const { ensureWorkspace } = require('../../state/session-state');
 const {
   requireExplicitWorkspaceRoot,
 } = require('../../core/project-root-resolver');
 
-async function handleInitializeWorkspace(params = {}, cachedProjectRoot) {
-  const workspacePath =
-    params.workspace_path || cachedProjectRoot || null;
-
-  const resolvedWorkspace = requireExplicitWorkspaceRoot({
-    workspacePath,
-  });
+async function handleInitializeWorkspace(params = {}) {
+  const resolvedWorkspace = requireExplicitWorkspaceRoot(params.workspace_path);
 
   const stateDir = resolveStateDirSetting(resolvedWorkspace, params.state_dir);
-  const fullStatePath = resolveStateDirPath(resolvedWorkspace, stateDir);
-  const alreadyExisted = fs.existsSync(path.join(fullStatePath, 'state'));
-
-  ensureWorkspace(stateDir, resolvedWorkspace);
+  const { alreadyExisted } = await ensureWorkspace(stateDir, resolvedWorkspace);
 
   return {
     success: true,

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { collectRegistryOutputs } = require('../../src/generator/registry-scanner');
-const { makeTempDir, readJson, writeTree } = require('../support/fs');
+const { makeTempDir, writeTree } = require('../support/fs');
 const { ROOT, SRC_ROOT } = require('../support/paths');
 
 const REGISTRY_PATHS = [
@@ -34,26 +34,6 @@ describe('collectRegistryOutputs', () => {
     }
   });
 
-  it('registers every committed hook handler with a remaining runtime hook config', () => {
-    const hookRegistry = readJson(path.join(ROOT, 'src', 'generated', 'hook-registry.json'));
-    const hookConfigs = [
-      path.join('antigravity', 'hooks.json'),
-      path.join('qwen', 'hooks.json'),
-      path.join('claude', 'hooks', 'claude-hooks.json'),
-    ];
-
-    const registered = new Set();
-    for (const configPath of hookConfigs) {
-      const config = fs.readFileSync(path.join(ROOT, configPath), 'utf8');
-      for (const [, runtime, hookName] of config.matchAll(/hook-runner\.js (\w+) ([a-z-]+)/g)) {
-        assert.ok(['antigravity', 'claude', 'qwen'].includes(runtime), `${configPath}: ${runtime}`);
-        registered.add(hookName);
-      }
-    }
-
-    assert.deepEqual([...registered].sort(), Object.keys(hookRegistry).sort());
-  });
-
   describe('on a fixture src tree', () => {
     let rootDir;
     let srcDir;
@@ -61,6 +41,22 @@ describe('collectRegistryOutputs', () => {
     beforeEach(() => {
       rootDir = makeTempDir('maestro-registry-scanner-');
       srcDir = path.join(rootDir, 'src');
+    });
+
+    it('preserves stable resource-ID ties and later category precedence without reading resource bodies', (t) => {
+      writeTree(srcDir, 'skills/shared/a/SKILL.md', 'first a');
+      writeTree(srcDir, 'skills/shared/a.md', 'later a');
+      writeTree(srcDir, 'skills/shared/shared.md', 'skill');
+      writeTree(srcDir, 'templates/shared.md', 'template');
+      writeTree(srcDir, 'references/shared.md', 'reference');
+      const agent = writeTree(srcDir, 'agents/only.md', agentSource('only', ['read_file']));
+      const read = fs.readFileSync;
+      const reads = [];
+      t.mock.method(fs, 'readFileSync', (file, ...args) => { reads.push(file); return read(file, ...args); });
+      const resources = registryData(collectRegistryOutputs(srcDir, rootDir), 'resource-registry.json');
+      assert.deepEqual(resources, { a: 'skills/shared/a.md', shared: 'references/shared.md' });
+      assert.deepEqual(Object.keys(resources), ['a', 'shared']);
+      assert.deepEqual(reads, [agent]);
     });
 
     it('derives each agent tool tier from its tools, ignoring any declared capabilities', () => {

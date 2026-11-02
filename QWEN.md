@@ -34,7 +34,6 @@ Before running orchestration commands:
 
 - Extension settings from `qwen-extension.json` are exposed as `MAESTRO_*` env vars via Qwen Code extension settings; honor them as runtime source of truth.
 - Maestro slash commands are file commands loaded from `commands/maestro/*.toml`; they are expected to resolve as `/maestro:*`.
-- Hook entries must remain `type: "command"` in `qwen/hooks.json` for compatibility with current Qwen Code hook validation.
 - Extension workflows run only when the extension is linked/enabled and workspace trust allows extension assets.
 - Keep `ask_user_question` header fields short (aim for 16 characters or fewer) to fit the UI chip display. Short headers like `Database`, `Auth`, `Approach` work best.
 - The extension contributes deny/ask policy rules from `policies/maestro.toml`. Treat these as safety rails that complement, but do not replace, prompt-level instructions.
@@ -64,7 +63,7 @@ This extension was authored for Qwen Code. When following agent methodology file
 
 ## Context Budget
 
-- Minimize simultaneous skill activations — deactivate skills you are no longer using.
+- Minimize skill activations — Qwen Code has no tool to deactivate a skill once loaded.
 - Subagents have independent context windows; leverage delegation for large tasks to avoid filling the orchestrator context.
 - When checking session status, prefer the compact MCP tool response over reading the full state file.
 - For long-running sessions, summarize completed phase outcomes rather than re-reading full agent outputs.
@@ -81,12 +80,11 @@ This extension was authored for Qwen Code. When following agent methodology file
 | Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Native parallel batch chunk size (`0` means dispatch the entire ready batch) |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
 
-**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent tuning comes from agent frontmatter (`max_turns`) and Qwen Code `agents.overrides`, not Maestro process flags.
+**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent tuning comes from agent frontmatter (`max_turns`).
 
 Additional controls:
 
 - `MAESTRO_EXTENSION_PATH`: override extension root for setting resolution (defaults to ~/.qwen/extensions/maestro)
-- `MAESTRO_CURRENT_AGENT`: legacy fallback for hook correlation only; primary identity now comes from the required `Agent:` delegation header
 
 ## Orchestration Workflow
 
@@ -116,8 +114,7 @@ Skip domains where the answer is clearly "no." For relevant domains, include app
 Apply domain analysis proportional to `task_complexity`:
 - `simple`: Engineering domain only. Skip other domains unless explicitly requested.
 - `medium`: Engineering + domains with clear signals from the task description.
-- `complex`: Full domain sweep (current behavior).
-
+- `complex`: Full domain sweep.
 
 ## Native Parallel Contract
 
@@ -141,7 +138,7 @@ Workflow:
 
 Constraints:
 
-- Native subagents currently run in YOLO mode.
+- Native subagents run in the session's approval mode, except that a `default` session in a trusted folder runs them in `auto-edit`.
 - Avoid overlapping file ownership across agents in the same batch.
 - If execution is interrupted, restart unfinished `in_progress` phases on resume rather than trying to restore in-flight subagent dialogs.
 
@@ -150,14 +147,14 @@ Constraints:
 <HARD-GATE>
 Dispatch every Maestro subagent by calling its registered tool name directly — for example, `coder(query: "...")`, `design_system_engineer(query: "...")`, `tester(query: "...")`. Each Maestro agent in the Agent Roster is registered as its own tool with its own methodology, tool restrictions, and turn limits from its frontmatter.
 
-Do NOT use the built-in `generalist` tool for Maestro phase delegations. The `generalist` agent ignores Maestro agent frontmatter (methodology, tool restrictions, turn limits) and produces unspecialized output.
+Do NOT use the built-in `general-purpose` agent for Maestro phase delegations. The `general-purpose` agent ignores Maestro agent frontmatter (methodology, tool restrictions, turn limits) and produces unspecialized output.
 </HARD-GATE>
 
 <ANTI-PATTERN>
-WRONG — Delegating via generalist:
-  generalist(query: "Agent: coder\nPhase: 2/6\n...")
-  The generalist ignores the coder's frontmatter. It has no turn limit,
-  no tool restrictions, and no specialized methodology.
+WRONG — Delegating via general-purpose:
+  general-purpose(query: "Agent: coder\nPhase: 2/6\n...")
+  The general-purpose agent ignores the coder's frontmatter. It has no
+  turn limit, no tool restrictions, and no specialized methodology.
 
 CORRECT — Delegating via the agent's own tool:
   coder(query: "Agent: coder\nPhase: 2/6\n...")
@@ -191,7 +188,7 @@ Resolve `<state_dir>` from `MAESTRO_STATE_DIR`:
 - Plans: `<state_dir>/plans/`
 - Archives: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
-When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`edit` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
+When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`edit` for writes directly on state paths.
 
 `/maestro:resume` injects state before the model's first turn through a TOML shell block that runs `src/scripts/read-active-session.js` from `${MAESTRO_EXTENSION_PATH:-$HOME/.qwen/extensions/maestro}` (or reports `No active session` when that script is missing). `/maestro:status` has no shell block; it reads the active session through the MCP state tools when available, falling back to scripts or a direct file read, and does not mutate state.
 
@@ -263,12 +260,11 @@ Maestro uses Qwen Code hooks from `qwen/hooks.json`:
 
 | Hook | Script | Purpose |
 | --- | --- | --- |
-| SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale sessions, initialize hook state |
-| SubagentStart | `hooks/hook-runner.js qwen before-agent` | Prune stale sessions, track active agent, inject compact session context |
-| SubagentStop | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
+| SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale hook state |
+| SubagentStart | `hooks/hook-runner.js qwen before-agent` | Prune stale hook state, track active agent, inject compact session context |
+| SubagentStop | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent is recorded |
 | SessionEnd | `hooks/hook-runner.js qwen session-end` | Clean up hook state for ended session |
 
-## Alignment Notes
+## MCP Server
 
-- Maestro is aligned with Qwen Code extension, agents, skills, hooks, and policy-engine-compatible arg forwarding.
-- Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, session state management, and skill/reference content delivery.
+Maestro provides an MCP server (`maestro`) with tools for workspace initialization, complexity analysis, plan validation, session state management, and skill/reference content delivery.

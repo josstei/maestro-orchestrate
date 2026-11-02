@@ -7,31 +7,13 @@ const path = require('node:path');
 
 const { withCwd, withEnv } = require('../support/env');
 const { makeTempDir, writeTree } = require('../support/fs');
-const { createInitializedSessionServer } = require('../support/session-server');
+const { SessionWorkspace, singlePhase } = require('../support/session-server');
 
-// An initialized workspace holding the one-phase 'recon-test' session.
-async function bootstrap(workspace) {
-  const server = await createInitializedSessionServer(workspace);
-  await server.callTool(
-    'create_session',
-    {
-      session_id: 'recon-test',
-      task: 'reconciliation',
-      task_complexity: 'simple',
-      phases: [
-        {
-          id: 1,
-          name: 'Phase 1',
-          agent: 'coder',
-          parallel: false,
-          blocked_by: [],
-          files: ['src/foo.js'],
-        },
-      ],
-    },
-    workspace
-  );
-  return server;
+// An initialized workspace (fresh temp dir by default) holding the one-phase 'recon-test' session.
+async function bootstrap(dir) {
+  const workspace = await SessionWorkspace.create(dir);
+  await workspace.createSession('recon-test', { phases: singlePhase(['src/foo.js']) });
+  return workspace;
 }
 
 // Lets the clock move past the phase start so files written next count as changes.
@@ -39,60 +21,35 @@ function waitForMtime() {
   return new Promise((r) => setTimeout(r, 50));
 }
 
-function scan(server, workspace) {
-  return server.callTool(
-    'scan_phase_changes',
-    { session_id: 'recon-test', phase_id: 1 },
-    workspace
-  );
-}
-
-// Completes phase 1 with no files and an empty downstream_context, which leaves
-// the phase awaiting reconciliation.
-function completePhaseWithoutHandoff(server, workspace) {
-  return server.callTool(
-    'transition_phase',
-    {
-      session_id: 'recon-test',
-      completed_phase_id: 1,
-      files_created: [],
-      files_modified: [],
-      files_deleted: [],
-      downstream_context: {},
-    },
-    workspace
-  );
+function scan(workspace) {
+  return workspace.call('scan_phase_changes', { session_id: 'recon-test', phase_id: 1 });
 }
 
 describe('scan_phase_changes', () => {
   it('returns files created after the phase started', async () => {
-    const workspace = makeTempDir('maestro-recon-');
-    const server = await bootstrap(workspace);
+    const workspace = await bootstrap();
 
     await waitForMtime();
-    writeTree(workspace, 'src/foo.js', '// hi\n');
-    writeTree(workspace, 'src/bar.js', '// hi\n');
+    const createdPaths = [path.join('src', 'foo.js'), path.join('src', 'bar.js')];
+    for (const filePath of createdPaths) writeTree(workspace.dir, filePath, '// hi\n');
 
-    const outcome = await scan(server, workspace);
+    const outcome = await scan(workspace);
     assert.equal(outcome.ok, true);
     const created = outcome.result.candidates.created;
-    assert.ok(created.includes('src/foo.js'));
-    assert.ok(created.includes('src/bar.js'));
+    assert.deepEqual(created, createdPaths.sort());
   });
 
   it('excludes docs/maestro and .git paths', async () => {
-    const workspace = makeTempDir('maestro-recon-exc-');
-    const server = await bootstrap(workspace);
+    const workspace = await bootstrap();
 
     await waitForMtime();
-    writeTree(workspace, '.git/HEAD', '...');
-    writeTree(workspace, 'docs/maestro/notes.md', '...');
+    const ignoredPaths = [path.join('.git', 'HEAD'), path.join('docs', 'maestro', 'notes.md')];
+    for (const filePath of ignoredPaths) writeTree(workspace.dir, filePath, '...');
 
-    const outcome = await scan(server, workspace);
+    const outcome = await scan(workspace);
     assert.equal(outcome.ok, true);
     const created = outcome.result.candidates.created;
-    assert.equal(created.includes('.git/HEAD'), false);
-    assert.equal(created.includes('docs/maestro/notes.md'), false);
+    for (const filePath of ignoredPaths) assert.equal(created.includes(filePath), false);
   });
 
   it('scans nested directories when the server cwd is inside an extension cache', async () => {
@@ -100,80 +57,62 @@ describe('scan_phase_changes', () => {
     // (e.g. ~/.claude/plugins/...), which is itself a cache path.
     const root = makeTempDir('maestro-recon-cwd-');
     const pluginCwd = path.join(root, 'home', '.claude', 'plugins', 'cache', 'maestro');
-    const workspace = path.join(root, 'workspace');
     fs.mkdirSync(pluginCwd, { recursive: true });
-    fs.mkdirSync(workspace);
-    const server = await bootstrap(workspace);
+    fs.mkdirSync(path.join(root, 'workspace'));
+    const workspace = await bootstrap(path.join(root, 'workspace'));
 
     await waitForMtime();
-    writeTree(workspace, 'src/lib/nested.js', '// hi\n');
-    writeTree(workspace, 'top.js', '// hi\n');
+    writeTree(workspace.dir, 'src/lib/nested.js', '// hi\n');
+    writeTree(workspace.dir, 'top.js', '// hi\n');
 
-    const outcome = await withCwd(pluginCwd, () => scan(server, workspace));
+    const outcome = await withCwd(pluginCwd, () => scan(workspace));
     assert.equal(outcome.ok, true);
     const created = outcome.result.candidates.created;
     assert.ok(created.includes(path.join('src', 'lib', 'nested.js')));
     assert.ok(created.includes('top.js'));
   });
 
-  it('excludes a custom MAESTRO_STATE_DIR', async () => {
-    const workspace = makeTempDir('maestro-recon-statedir-');
-    const outcome = await withEnv({ MAESTRO_STATE_DIR: '.maestro' }, async () => {
-      const server = await bootstrap(workspace);
-
-      await waitForMtime();
-      writeTree(workspace, '.maestro/state/notes.md', '...');
-      writeTree(workspace, 'top.js', '// hi\n');
-
-      return scan(server, workspace);
-    });
-    assert.equal(outcome.ok, true);
-    const { created, modified } = outcome.result.candidates;
-    assert.deepEqual(
-      [...created, ...modified].filter((p) => p.startsWith('.maestro')),
-      []
-    );
-    assert.ok(created.includes('top.js'));
-  });
-
-  it('excludes an absolute MAESTRO_STATE_DIR when the workspace is opened through a symlink', async () => {
-    const root = fs.realpathSync(makeTempDir('maestro-recon-link-'));
-    const realWorkspace = path.join(root, 'real');
-    const workspace = path.join(root, 'alias');
-    fs.mkdirSync(path.join(realWorkspace, '.maestro'), { recursive: true });
-    fs.symlinkSync(realWorkspace, workspace, 'dir');
-    const outcome = await withEnv(
-      { MAESTRO_STATE_DIR: path.join(workspace, '.maestro') },
-      async () => {
-        const server = await bootstrap(workspace);
+  for (const [name, arrange] of [
+    ['excludes a custom MAESTRO_STATE_DIR',
+      () => ({ dir: makeTempDir('maestro-recon-statedir-'), stateDir: '.maestro' })],
+    ['excludes an absolute MAESTRO_STATE_DIR when the workspace is opened through a symlink', () => {
+      const root = fs.realpathSync(makeTempDir('maestro-recon-link-'));
+      fs.mkdirSync(path.join(root, 'real', '.maestro'), { recursive: true });
+      fs.symlinkSync(path.join(root, 'real'), path.join(root, 'alias'), 'dir');
+      return { dir: path.join(root, 'alias'), stateDir: path.join(root, 'alias', '.maestro') };
+    }],
+  ]) {
+    it(name, async () => {
+      const { dir, stateDir } = arrange();
+      const outcome = await withEnv({ MAESTRO_STATE_DIR: stateDir }, async () => {
+        const workspace = await bootstrap(dir);
 
         await waitForMtime();
-        writeTree(workspace, '.maestro/state/notes.md', '...');
-        writeTree(workspace, 'top.js', '// hi\n');
+        writeTree(dir, '.maestro/state/notes.md', '...');
+        writeTree(dir, 'top.js', '// hi\n');
 
-        return scan(server, workspace);
-      }
-    );
-    assert.equal(outcome.ok, true);
-    const { created, modified } = outcome.result.candidates;
-    assert.deepEqual(
-      [...created, ...modified].filter((p) => p.startsWith('.maestro')),
-      []
-    );
-    assert.ok(created.includes('top.js'));
-  });
+        return scan(workspace);
+      });
+      assert.equal(outcome.ok, true);
+      const { created, modified } = outcome.result.candidates;
+      assert.deepEqual(
+        [...created, ...modified].filter((p) => p.startsWith('.maestro')),
+        []
+      );
+      assert.ok(created.includes('top.js'));
+    });
+  }
 
   it('excludes extension cache directories inside the workspace', async () => {
-    const workspace = makeTempDir('maestro-recon-cache-');
-    const server = await bootstrap(workspace);
+    const workspace = await bootstrap();
 
     await waitForMtime();
     for (const cacheDir of [['.codex', 'plugins'], ['.claude', 'plugins']]) {
-      writeTree(workspace, path.join(...cacheDir, 'x', 'cached.js'), '// hi\n');
+      writeTree(workspace.dir, path.join(...cacheDir, 'x', 'cached.js'), '// hi\n');
     }
-    writeTree(workspace, '.codex/config/kept.toml', '# hi\n');
+    writeTree(workspace.dir, '.codex/config/kept.toml', '# hi\n');
 
-    const outcome = await scan(server, workspace);
+    const outcome = await scan(workspace);
     assert.equal(outcome.ok, true);
     const created = outcome.result.candidates.created;
     assert.equal(created.includes(path.join('.codex', 'plugins', 'x', 'cached.js')), false);
@@ -182,60 +121,56 @@ describe('scan_phase_changes', () => {
   });
 });
 
-describe('reconcile_phase — empty payload', () => {
+describe('reconcile_phase', () => {
   it('rejects a call with no files and no downstream_context, or with only empty arrays and an unpopulated downstream_context', async () => {
     const emptyPayloads = [
       {},
       { files_created: [], files_modified: [], files_deleted: [], downstream_context: {} },
     ];
     for (const payload of emptyPayloads) {
-      const workspace = makeTempDir('maestro-recon-empty-');
-      const server = await bootstrap(workspace);
+      const workspace = await bootstrap();
 
-      await completePhaseWithoutHandoff(server, workspace);
+      // A transition with no files and an empty handoff leaves the phase awaiting reconciliation.
+      await workspace.transition('recon-test', 1);
 
-      const outcome = await server.callTool(
-        'reconcile_phase',
-        { session_id: 'recon-test', phase_id: 1, ...payload },
-        workspace
-      );
+      const outcome = await workspace.call('reconcile_phase', { session_id: 'recon-test', phase_id: 1, ...payload });
       assert.equal(outcome.ok, false, JSON.stringify(payload));
       assert.match(outcome.error || '', /reconcile_phase requires at least one/i);
     }
   });
-});
 
-describe('reconcile_phase', () => {
-  it('clears requires_reconciliation and writes file manifests', async () => {
-    const workspace = makeTempDir('maestro-recon-e2e-');
-    const server = await bootstrap(workspace);
+  it('clears requires_reconciliation and writes file manifests in the hung-worker postmortem scenario', async () => {
+    const workspace = await bootstrap();
 
-    await completePhaseWithoutHandoff(server, workspace);
+    // The worker writes its files but hands off nothing, so a scan recovers them.
+    await waitForMtime();
+    writeTree(workspace.dir, 'index.html', '<html/>');
+    writeTree(workspace.dir, 'assets/css/styles.css', 'body{}');
+    await workspace.transition('recon-test', 1);
 
-    const outcome = await server.callTool(
-      'reconcile_phase',
-      {
-        session_id: 'recon-test',
-        phase_id: 1,
-        files_created: ['src/foo.js'],
-        downstream_context: {
-          key_interfaces_introduced: [],
-          patterns_established: [],
-          integration_points: ['src/foo.js'],
-          assumptions: [],
-          warnings: [],
-        },
+    const scanned = await scan(workspace);
+    assert.equal(scanned.ok, true);
+    assert.deepEqual(scanned.result.candidates.created, [
+      path.join('assets', 'css', 'styles.css'),
+      'index.html',
+    ]);
+
+    const outcome = await workspace.call('reconcile_phase', {
+      session_id: 'recon-test',
+      phase_id: 1,
+      files_created: ['index.html', 'assets/css/styles.css'],
+      downstream_context: {
+        key_interfaces_introduced: [],
+        patterns_established: [],
+        integration_points: ['index.html'],
+        assumptions: [],
+        warnings: [],
       },
-      workspace
-    );
+    });
     assert.equal(outcome.ok, true);
-    assert.deepEqual(outcome.result.files_created, ['src/foo.js']);
+    assert.deepEqual(outcome.result.files_created, ['index.html', 'assets/css/styles.css']);
 
-    const archive = await server.callTool(
-      'archive_session',
-      { session_id: 'recon-test' },
-      workspace
-    );
+    const archive = await workspace.call('archive_session', { session_id: 'recon-test' });
     assert.equal(archive.ok, true);
   });
 });

@@ -2,90 +2,53 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
-  RELEASE_OUT_DIR,
-  assertReleaseArtifactContents,
-  assertRequiredArtifactPaths,
-  assertRuntimeManifestShape,
+  assertReleaseArtifact,
+  ensure,
   readJson,
-  releaseArchiveName,
+  releaseArchivePath,
+  withTempDir,
 } = require('./release-artifact-manifest');
 const { runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
-function printHelp() {
-  console.log(`Verify a Maestro release artifact.
+function verifyReleaseArtifact(archivePath, options = {}) {
+  const root = options.root || ROOT;
+  const resolvedArchivePath = archivePath
+    ? path.resolve(root, archivePath)
+    : releaseArchivePath(root, readJson(root, 'package.json').version);
+  ensure(fs.existsSync(resolvedArchivePath), `Release artifact not found: ${resolvedArchivePath}`);
+
+  return withTempDir('maestro-release-verify-', (tempRoot) => {
+    execFileSync('tar', ['-xzf', resolvedArchivePath, '-C', tempRoot], {
+      stdio: 'inherit',
+    });
+
+    return {
+      archivePath: resolvedArchivePath,
+      version: assertReleaseArtifact(tempRoot),
+    };
+  });
+}
+
+runCli(module, {
+  failure: 'release artifact verification failed',
+  positional: 'archive path',
+  usage: `Verify a Maestro release artifact.
 
 Usage:
   node scripts/verify-release-artifacts.js [archive]
 
 If archive is omitted, the verifier checks:
   dist/release/maestro-v<package.json version>-extension.tar.gz
-`);
-}
-
-function parseArgs(argv) {
-  if (argv.includes('--help') || argv.includes('-h')) {
-    printHelp();
-    process.exit(0);
-  }
-
-  if (argv.length > 1) {
-    throw new Error('Expected at most one archive path');
-  }
-
-  return {
-    archivePath: argv[0] || null,
-  };
-}
-
-function defaultArchivePath(root) {
-  const version = readJson(root, 'package.json').version;
-  return path.join(root, RELEASE_OUT_DIR, releaseArchiveName(version));
-}
-
-function extractArchive(archivePath, targetRoot) {
-  execFileSync('tar', ['-xzf', archivePath, '-C', targetRoot], {
-    stdio: 'inherit',
-  });
-}
-
-function verifyReleaseArtifact(archivePath, options = {}) {
-  const root = options.root || ROOT;
-  const resolvedArchivePath = path.resolve(root, archivePath || defaultArchivePath(root));
-
-  if (!fs.existsSync(resolvedArchivePath)) {
-    throw new Error(`Release artifact not found: ${resolvedArchivePath}`);
-  }
-
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-release-verify-'));
-
-  try {
-    extractArchive(resolvedArchivePath, tempRoot);
-    assertRequiredArtifactPaths(tempRoot);
-    assertReleaseArtifactContents(tempRoot);
-    const version = assertRuntimeManifestShape(tempRoot);
-
-    return {
-      archivePath: resolvedArchivePath,
-      version,
-    };
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
-}
-
-if (require.main === module) {
-  runCli('release artifact verification failed', () => {
-    const args = parseArgs(process.argv.slice(2));
-    const result = verifyReleaseArtifact(args.archivePath);
-    console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
-  });
-}
+`,
+}, ({ positionals: [archivePath] }) => {
+  const result = verifyReleaseArtifact(archivePath);
+  console.log(`Verified release artifact: ${path.relative(ROOT, result.archivePath)} (${result.version})`);
+});
 
 module.exports = {
   verifyReleaseArtifact,

@@ -18,21 +18,16 @@ jobs:
         with:
           ref: refs/heads/main
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Generate runtime adapters
-        run: node scripts/generate.js
+      - name: Install build dependencies
+        run: npm ci
 
-      - name: Check adapter drift
-        run: |
-          if ! git diff --exit-code --name-only; then
-            echo "::error::Nightly drift detected on main"
-            git diff --stat
-            exit 1
-          fi
+      - name: Check generated output drift
+        run: node scripts/generate.js --check
 
       - name: Run full test suite
         run: npm test

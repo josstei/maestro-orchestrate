@@ -31,6 +31,10 @@ describe('verify npm pack', () => {
       'src/mcp/maestro-server.js',
     ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
+    assert.doesNotThrow(() => verifyPackageEntries(packWith(
+      'src/generated/agent-registry.json',
+      'src/lib/io/index.js',
+    )));
   });
 
   it('rejects a package that is missing a runtime manifest', () => {
@@ -46,23 +50,37 @@ describe('verify npm pack', () => {
     }
   });
 
-  it('rejects test-only package content', () => {
-    assert.throws(
-      () => verifyPackageEntries(packWith('tests/unit/example.test.js')),
-      { message: 'npm package contains forbidden path: tests/unit/example.test.js' }
-    );
-  });
-
-  it('rejects nested test-only files inside runtime package roots', () => {
-    for (const forbiddenPath of [
+  // Build and release tooling that only a repository checkout uses, and test-only, cache and
+  // scratch files anywhere, including inside runtime package roots.
+  for (const [kind, paths] of [
+    ['build-only', [
+      'scripts/generate.js',
+      'scripts/lib/cli.js',
+      'src/entry-points/templates/qwen-command.toml.tmpl',
+      'src/generator/dependency-graph.js',
+      'src/lib/discovery/index.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
+    ]],
+    ['forbidden', [
+      'tests/unit/example.test.js',
       'claude/scripts/policy-enforcer.test.js',
       'plugins/maestro/src/mcp/server.spec.js',
       'claude/scripts/__tests__/fixture.js',
-    ]) {
-      assert.throws(
-        () => verifyPackageEntries(packWith(forbiddenPath)),
-        { message: `npm package contains forbidden path: ${forbiddenPath}` }
-      );
-    }
-  });
+      'claude/tests/fixtures/helper.js',
+      'antigravity/.cache/probe.json',
+      'src/tmp/probe.txt',
+      'src/scratch/notes.md',
+      'plugins/maestro/node_modules/acorn/index.js',
+    ]],
+  ]) {
+    it(`rejects ${kind} package content`, () => {
+      for (const extraPath of paths) {
+        assert.throws(
+          () => verifyPackageEntries(packWith(extraPath)),
+          { message: `npm package contains ${kind} path: ${extraPath}` }
+        );
+      }
+    });
+  }
 });

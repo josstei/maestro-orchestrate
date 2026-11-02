@@ -10,7 +10,6 @@ implementation_plan: "<state_dir>/plans/<YYYY-MM-DD-topic-slug>-impl-plan.md"
 current_phase: 1
 total_phases: <integer>
 execution_mode: null
-execution_backend: null
 current_batch: null
 task_complexity: null
 

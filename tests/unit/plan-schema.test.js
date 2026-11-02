@@ -4,13 +4,18 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  PHASE_REQUIRED_FIELDS,
+  PHASE_ITEM_SCHEMA,
   validatePhases,
 } = require('../../src/mcp/contracts/plan-schema');
 
+/** A well-formed sequential coder phase. */
+const phase = (id, overrides = {}) => ({
+  id, name: 'A', agent: 'coder', parallel: false, blocked_by: [], ...overrides,
+});
+
 describe('plan-schema', () => {
-  it('exposes the required field list in declaration order', () => {
-    assert.deepEqual(PHASE_REQUIRED_FIELDS, [
+  it('declares required fields in schema order', () => {
+    assert.deepEqual(PHASE_ITEM_SCHEMA.required, [
       'id',
       'name',
       'agent',
@@ -19,92 +24,34 @@ describe('plan-schema', () => {
     ]);
   });
 
-  it('accepts a well-formed phase with integer id', () => {
-    const result = validatePhases([
-      {
-        id: 1,
-        name: 'Scaffold',
-        agent: 'coder',
-        parallel: false,
-        blocked_by: [],
-      },
-    ]);
-    assert.deepEqual(result, { valid: true, violations: [] });
-  });
-
-  it('accepts a well-formed phase with string id and string blocked_by references', () => {
-    const result = validatePhases([
-      { id: 'p1', name: 'A', agent: 'coder', parallel: false, blocked_by: [] },
-      { id: 'p2', name: 'B', agent: 'coder', parallel: false, blocked_by: ['p1'] },
-    ]);
-    assert.deepEqual(result, { valid: true, violations: [] });
-  });
-
-  it('reports missing required fields with the offending phase id', () => {
-    const result = validatePhases([
-      { id: 'p1', name: 'A', agent: 'coder', parallel: false, blocked_by: [] },
-      { id: 'p2', name: 'B', parallel: false, blocked_by: [] },
-    ]);
-    assert.equal(result.valid, false);
-    assert.equal(result.violations.length, 1);
-    assert.equal(result.violations[0].rule, 'missing_required_field');
-    assert.equal(result.violations[0].phase_id, 'p2');
-    assert.equal(result.violations[0].field, 'agent');
-  });
-
-  it('rejects non-string agent values', () => {
-    const result = validatePhases([
-      { id: 'p1', name: 'A', agent: 42, parallel: false, blocked_by: [] },
-    ]);
-    assert.equal(result.valid, false);
-    assert.equal(result.violations[0].rule, 'invalid_field_type');
-    assert.equal(result.violations[0].field, 'agent');
-  });
-
-  it('rejects phase ids that are neither string nor positive integer', () => {
-    const result = validatePhases([
-      { id: {}, name: 'A', agent: 'coder', parallel: false, blocked_by: [] },
-    ]);
-    assert.equal(result.valid, false);
-    assert.equal(result.violations[0].rule, 'invalid_field_type');
-    assert.equal(result.violations[0].field, 'id');
-  });
-
-  it('rejects blocked_by items that are neither string nor integer', () => {
-    const result = validatePhases([
-      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [null] },
-    ]);
-    assert.equal(result.valid, false);
-    assert.equal(result.violations[0].rule, 'invalid_field_type');
-    assert.equal(result.violations[0].field, 'blocked_by');
-  });
-
-  it('rejects blocked_by items that are non-positive integers', () => {
-    const zero = validatePhases([
-      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [0] },
-    ]);
-    assert.equal(zero.valid, false);
-    assert.equal(zero.violations[0].rule, 'invalid_field_type');
-    assert.equal(zero.violations[0].field, 'blocked_by');
-
-    const negative = validatePhases([
-      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [-1] },
-    ]);
-    assert.equal(negative.valid, false);
-    assert.equal(negative.violations[0].field, 'blocked_by');
-  });
-
-  it('treats files as optional but validates its shape when present', () => {
-    const withEmpty = validatePhases([
-      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [], files: [''] },
-    ]);
-    assert.equal(withEmpty.valid, false);
-    assert.equal(withEmpty.violations[0].rule, 'invalid_field_value');
-    assert.equal(withEmpty.violations[0].field, 'files');
-
-    const withoutFiles = validatePhases([
-      { id: 1, name: 'A', agent: 'coder', parallel: false, blocked_by: [] },
-    ]);
-    assert.equal(withoutFiles.valid, true);
-  });
+  // Each row lists the expected violations as [rule, phase_id, field]; none means valid.
+  for (const [name, phases, expected = []] of [
+    ['accepts a well-formed phase with integer id and no files', [phase(1)]],
+    ['accepts a well-formed phase with string id and string blocked_by references',
+      [phase('p1'), phase('p2', { blocked_by: ['p1'] })]],
+    ['reports missing required fields with the offending phase id',
+      [phase('p1'), { id: 'p2', name: 'B', parallel: false, blocked_by: [] }],
+      [['missing_required_field', 'p2', 'agent']]],
+    ['reports missing fields before invalid values in contract order',
+      [{ id: 0, name: '', parallel: null, files: [false] }], [
+        ['missing_required_field', 0, 'agent'],
+        ['missing_required_field', 0, 'blocked_by'],
+        ['invalid_field_type', 0, 'id'],
+        ['invalid_field_type', 0, 'name'],
+        ['invalid_field_type', 0, 'parallel'],
+        ['invalid_field_value', 0, 'files'],
+      ]],
+    ['rejects non-string agent values', [phase(1, { agent: 42 })], [['invalid_field_type', 1, 'agent']]],
+    ['rejects phase ids that are neither string nor positive integer', [phase({})], [['invalid_field_type', {}, 'id']]],
+    ['rejects blocked_by items that are neither string nor integer',
+      [phase(1, { blocked_by: [null] })], [['invalid_field_type', 1, 'blocked_by']]],
+    ['rejects zero blocked_by items', [phase(1, { blocked_by: [0] })], [['invalid_field_type', 1, 'blocked_by']]],
+    ['rejects negative blocked_by items', [phase(1, { blocked_by: [-1] })], [['invalid_field_type', 1, 'blocked_by']]],
+    ['validates the shape of files when present', [phase(1, { files: [''] })], [['invalid_field_value', 1, 'files']]],
+  ]) {
+    it(name, () => {
+      const violations = expected.map(([rule, phase_id, field]) => ({ rule, phase_id, field, severity: 'error' }));
+      assert.deepEqual(validatePhases(phases), { valid: violations.length === 0, violations });
+    });
+  }
 });

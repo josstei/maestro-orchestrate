@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-const { readState } = require('../state/session-state');
-const { fatal } = require('../core/logger');
+const { readStateFile, runStateCommand } = require('./state-access');
 
-const stateFile = process.argv[2];
-if (!stateFile) {
-  fatal('Usage: read-state.js <relative-path>');
-}
-
-try {
-  const content = readState(stateFile, process.cwd());
+runStateCommand(async () => {
+  const args = process.argv.slice(2);
+  const withDigest = args.includes('--with-digest');
+  const stateFile = args.find((arg) => arg !== '--with-digest');
+  if (!stateFile) throw new Error('Usage: read-state.js <relative-path>');
+  const content = await readStateFile(stateFile, process.cwd(), { withDigest });
   process.stdout.write(content);
-} catch (err) {
-  fatal(err.message);
-}
+});

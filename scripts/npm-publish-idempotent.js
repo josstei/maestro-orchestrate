@@ -1,57 +1,17 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { parseFlagArgs, runCli } = require('./lib/cli');
+const { runCli } = require('./lib/cli');
+const { readJson, requireNonEmpty } = require('./release-artifact-manifest');
 
 const ROOT = path.resolve(__dirname, '..');
 const PRERELEASE_TAGS = new Set(['rc', 'preview', 'nightly']);
 
-function printHelp() {
-  console.log(`Publish a Maestro npm package if the exact version is absent.
-
-Usage:
-  node scripts/npm-publish-idempotent.js [--tag TAG] [--access public]
-`);
-}
-
-function parseArgs(argv) {
-  const options = parseFlagArgs(argv, {
-    defaults: { access: 'public', tag: null },
-    flags: { '--access': 'access', '--tag': 'tag' },
-    printHelp,
-  });
-
-  if (!options.access) {
-    throw new Error('Missing value for --access');
-  }
-
-  return options;
-}
-
-function readPackage(root) {
-  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-
-  if (typeof pkg.name !== 'string' || pkg.name.length === 0) {
-    throw new Error('package.json missing package name');
-  }
-
-  if (typeof pkg.version !== 'string' || pkg.version.length === 0) {
-    throw new Error('package.json missing package version');
-  }
-
-  return pkg;
-}
-
 function isNpmNotFoundError(error) {
-  const text = [
-    error && error.message,
-    error && error.stdout && error.stdout.toString(),
-    error && error.stderr && error.stderr.toString(),
-  ].filter(Boolean).join('\n');
-
+  // join() decodes the Buffer stdout/stderr that execFileSync attaches.
+  const text = [error?.message, error?.stdout, error?.stderr].filter(Boolean).join('\n');
   return /\bE404\b|404 Not Found|is not in this registry/i.test(text);
 }
 
@@ -63,57 +23,24 @@ function isStableVersion(version) {
   return /^[0-9]+\.[0-9]+\.[0-9]+$/.test(version);
 }
 
-function compareStableVersions(left, right) {
-  const leftParts = left.split('.').map((part) => Number.parseInt(part, 10));
-  const rightParts = right.split('.').map((part) => Number.parseInt(part, 10));
-
-  for (let index = 0; index < 3; index += 1) {
-    if (leftParts[index] !== rightParts[index]) {
-      return leftParts[index] - rightParts[index];
-    }
-  }
-
-  return 0;
-}
-
+// Of two equal versions (2.0.0, 02.0.0) the later entry wins.
 function highestStableVersion(versions) {
-  return versions
-    .filter(isStableVersion)
-    .sort(compareStableVersions)
-    .at(-1) || null;
+  return versions.filter(isStableVersion).reduce((highest, version) => {
+    if (highest === null) return version;
+    const [a, b] = [version, highest].map((stable) => stable.split('.').map(Number));
+    return (a[0] - b[0] || a[1] - b[1] || a[2] - b[2]) >= 0 ? version : highest;
+  }, null);
 }
 
 function parseDistTagOutput(output) {
-  const tags = {};
-  const text = String(output || '');
-
-  for (const line of text.split(/\r?\n/)) {
-    const match = line.match(/^([^:\s]+):\s*(\S+)\s*$/);
-    if (match) {
-      tags[match[1]] = match[2];
-    }
-  }
-
-  return tags;
+  const matches = String(output || '').split(/\r?\n/).map((line) => line.match(/^([^:\s]+):\s*(\S+)\s*$/));
+  return Object.fromEntries(matches.filter(Boolean).map(([, tag, version]) => [tag, version]));
 }
 
+// `npm view --json` prints an array, or a bare string for a single version.
 function parseVersionsOutput(output) {
-  const trimmed = String(output || '').trim();
-
-  if (!trimmed) {
-    return [];
-  }
-
-  const parsed = JSON.parse(trimmed);
-  if (Array.isArray(parsed)) {
-    return parsed;
-  }
-
-  if (typeof parsed === 'string') {
-    return [parsed];
-  }
-
-  return [];
+  const text = String(output || '').trim();
+  return text ? [JSON.parse(text)].flat() : [];
 }
 
 function queryNpm(runner, args, parse, notFoundValue) {
@@ -147,71 +74,47 @@ function validatePublishTag(pkg, tag) {
   }
 }
 
-function moveLatest(pkg, runner, logger, latest, target, reason) {
-  runner('npm', ['dist-tag', 'add', `${pkg.name}@${target}`, 'latest'], {
-    stdio: 'inherit',
-  });
-  logger.log(`Moved npm latest dist-tag from ${latest || '<unset>'} to stable ${target}.`);
-  return {
-    latest,
-    reason,
-    status: 'moved',
-    target,
-  };
-}
-
 function ensureLatestTagPolicy(pkg, runner, logger) {
   const tags = queryNpm(runner, ['dist-tag', 'ls', pkg.name], parseDistTagOutput, {});
   const latest = tags.latest || null;
-
-  if (isPrereleaseVersion(pkg.version)) {
-    if (!latest || !isPrereleaseVersion(latest)) {
-      return {
-        latest,
-        reason: latest
-          ? `latest already points to stable version ${latest}.`
-          : 'latest dist-tag is not set.',
-        status: 'ok',
-        target: null,
-      };
-    }
-
-    const stableVersion = highestStableVersion(
-      queryNpm(runner, ['view', pkg.name, 'versions', '--json'], parseVersionsOutput, [])
-    );
-    if (stableVersion) {
-      const reason = `latest pointed to prerelease ${latest}; moved it back to stable ${stableVersion}.`;
-      return moveLatest(pkg, runner, logger, latest, stableVersion, reason);
-    }
-
-    const reason = `latest points to prerelease ${latest}, but no stable versions are published; stable release must move latest.`;
-    logger.warn(`Warning: ${reason}`);
-    return {
-      latest,
-      reason,
-      status: 'deferred',
-      target: null,
-    };
-  }
-
-  if (latest !== pkg.version) {
-    const reason = `latest pointed to ${latest || '<unset>'}; moved it to stable ${pkg.version}.`;
-    return moveLatest(pkg, runner, logger, latest, pkg.version, reason);
-  }
-
-  return {
-    latest,
-    reason: `latest already points to stable version ${pkg.version}.`,
-    status: 'ok',
-    target: pkg.version,
+  const policy = (status, reason, target = null) => ({ latest, reason, status, target });
+  const moveLatest = (target, reason) => {
+    runner('npm', ['dist-tag', 'add', `${pkg.name}@${target}`, 'latest'], {
+      stdio: 'inherit',
+    });
+    logger.log(`Moved npm latest dist-tag from ${latest || '<unset>'} to stable ${target}.`);
+    return policy('moved', reason, target);
   };
+
+  if (!isPrereleaseVersion(pkg.version)) {
+    return latest === pkg.version
+      ? policy('ok', `latest already points to stable version ${pkg.version}.`, pkg.version)
+      : moveLatest(pkg.version, `latest pointed to ${latest || '<unset>'}; moved it to stable ${pkg.version}.`);
+  }
+
+  if (!latest || !isPrereleaseVersion(latest)) {
+    return policy('ok', latest ? `latest already points to stable version ${latest}.` : 'latest dist-tag is not set.');
+  }
+
+  const stable = highestStableVersion(
+    queryNpm(runner, ['view', pkg.name, 'versions', '--json'], parseVersionsOutput, [])
+  );
+  if (stable) {
+    return moveLatest(stable, `latest pointed to prerelease ${latest}; moved it back to stable ${stable}.`);
+  }
+
+  const reason = `latest points to prerelease ${latest}, but no stable versions are published; stable release must move latest.`;
+  logger.warn(`Warning: ${reason}`);
+  return policy('deferred', reason);
 }
 
 function publishIfNeeded(options = {}) {
   const root = options.root || ROOT;
   const runner = options.execFileSync || execFileSync;
   const logger = options.logger || console;
-  const pkg = readPackage(root);
+  const pkg = readJson(root, 'package.json');
+  requireNonEmpty(pkg.name, 'package.json name', 'string');
+  requireNonEmpty(pkg.version, 'package.json');
   const packageSpec = `${pkg.name}@${pkg.version}`;
   validatePublishTag(pkg, options.tag);
 
@@ -223,13 +126,8 @@ function publishIfNeeded(options = {}) {
   );
 
   if (!alreadyPublished) {
-    const publishArgs = ['publish'];
-    if (options.tag) {
-      publishArgs.push('--tag', options.tag);
-    }
-    publishArgs.push('--access', options.access || 'public');
-
-    runner('npm', publishArgs, {
+    const tagArgs = options.tag ? ['--tag', options.tag] : [];
+    runner('npm', ['publish', ...tagArgs, '--access', options.access || 'public'], {
       cwd: root,
       stdio: 'inherit',
     });
@@ -242,22 +140,27 @@ function publishIfNeeded(options = {}) {
   };
 }
 
-if (require.main === module) {
-  runCli('npm publish failed', () => {
-    const result = publishIfNeeded(parseArgs(process.argv.slice(2)));
+runCli(module, {
+  failure: 'npm publish failed',
+  flags: { '--access': 'access', '--tag': 'tag' },
+  usage: `Publish a Maestro npm package if the exact version is absent.
 
-    if (result.published) {
-      console.log(`Published ${result.packageSpec}`);
-    } else {
-      console.log(`Skipping npm publish; ${result.packageSpec} already exists`);
-    }
-  });
-}
+Usage:
+  node scripts/npm-publish-idempotent.js [--tag TAG] [--access public]
+`,
+}, (options) => {
+  const result = publishIfNeeded(options);
+
+  if (result.published) {
+    console.log(`Published ${result.packageSpec}`);
+  } else {
+    console.log(`Skipping npm publish; ${result.packageSpec} already exists`);
+  }
+});
 
 module.exports = {
   highestStableVersion,
   isNpmNotFoundError,
   parseDistTagOutput,
-  parseArgs,
   publishIfNeeded,
 };

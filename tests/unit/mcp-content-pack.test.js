@@ -9,24 +9,8 @@ const { createToolPack } = require('../../src/mcp/tool-packs/content');
 const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { writeAgentFixture } = require('../support/agent-fixtures');
 const { makeTempDir, writeTree } = require('../support/fs');
-const { SRC_ROOT } = require('../support/paths');
 
 describe('content tool pack', () => {
-  it('registers the content and runtime metadata tools', () => {
-    const server = createServer({
-      runtimeConfig: getRuntimeConfig('claude'),
-      services: {
-        canonicalSrcRoot: SRC_ROOT,
-      },
-      toolPacks: [createToolPack],
-    });
-
-    assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
-      ['get_skill_content', 'get_agent', 'get_runtime_context']
-    );
-  });
-
   it('serves skill content, agent content, and runtime context through the pack', async () => {
     const root = makeTempDir('maestro-content-pack-');
     writeTree(

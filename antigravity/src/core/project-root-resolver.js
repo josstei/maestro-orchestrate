@@ -4,13 +4,32 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execSync } = require('node:child_process');
 
-const { isExtensionCachePath } = require('./cache-path-rejector');
 const { defineErrorType } = require('../lib/errors');
 
 const WorkspaceResolutionError = defineErrorType(
   'WorkspaceResolutionError',
   'WORKSPACE_RESOLUTION_FAILED'
 );
+
+// Checked in order before the cwd. Core cannot read runtime configs, so a constraint
+// test ties each runtime's env.workspacePath to this list.
+const WORKSPACE_ENV_VARS = ['MAESTRO_WORKSPACE_PATH', 'CLAUDE_PROJECT_DIR', 'PWD', 'INIT_CWD'];
+
+const CACHE_PATH_SEGMENTS = [
+  path.join('.codex', 'plugins'),
+  path.join('.claude', 'plugins'),
+  // Antigravity installs plugins to ~/.gemini/config/plugins/<name>/ and
+  // links its older ~/.gemini/antigravity-cli/plugins/ location there.
+  path.join('.gemini', 'config', 'plugins'),
+  path.join('.gemini', 'antigravity-cli', 'plugins'),
+];
+
+// Whether a path lies inside a host extension cache. Padding with separators matches
+// whole segments only, so `.codex-plugins-research` is not a cache.
+function isExtensionCachePath(candidate) {
+  const resolved = path.resolve(candidate) + path.sep;
+  return CACHE_PATH_SEGMENTS.some((segment) => resolved.includes(path.sep + segment + path.sep));
+}
 
 /** A non-empty string that is not an unexpanded `${...}` host placeholder. */
 function isConcretePath(value) {
@@ -43,16 +62,14 @@ function resolveExistingRoot(candidate) {
 }
 
 function resolveProjectRoot() {
-  const env = process.env;
-  const cwd = process.cwd();
-  for (const candidate of [env.MAESTRO_WORKSPACE_PATH, env.CLAUDE_PROJECT_DIR, env.PWD, env.INIT_CWD]) {
+  for (const candidate of [...WORKSPACE_ENV_VARS.map((name) => process.env[name]), process.cwd()]) {
     const resolvedRoot = resolveExistingRoot(candidate);
     if (resolvedRoot) {
       return resolvedRoot;
     }
   }
 
-  return resolveExistingRoot(cwd) || path.resolve(cwd);
+  return path.resolve(process.cwd());
 }
 
 /**
@@ -60,9 +77,6 @@ function resolveProjectRoot() {
  * state at the git toplevel of the workspace, so a hook fired from a
  * subdirectory must resolve the same root. Falls back to `process.cwd()` when
  * the payload has no cwd, and to the raw cwd when it cannot be resolved.
- *
- * @param {string|undefined} cwd - hook payload cwd
- * @returns {string|undefined}
  */
 function resolveHookWorkspaceRoot(cwd) {
   return resolveExistingRoot(cwd || process.cwd()) || cwd;
@@ -75,8 +89,6 @@ function resolveHookWorkspaceRoot(cwd) {
  * when `requiresWorkspace` is declared on the tool schema; handlers may also
  * call it directly for defense in depth.
  *
- * @param {string|null|undefined} projectRoot - resolved project root or nullish
- * @param {string} toolName - tool name for the error message
  * @throws {WorkspaceResolutionError} when projectRoot is absent
  */
 function requireWorkspaceRoot(projectRoot, toolName) {
@@ -89,24 +101,26 @@ function requireWorkspaceRoot(projectRoot, toolName) {
   );
 }
 
-function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
+function requireExplicitWorkspaceRoot(workspacePath) {
+  const fail = (message, code, details) => {
+    throw new WorkspaceResolutionError(message, { code, details });
+  };
   if (!isConcretePath(workspacePath)) {
-    throw new WorkspaceResolutionError(
+    fail(
       'initialize_workspace requires an explicit workspace_path. No implicit cwd or env fallback is used.',
-      { code: 'WORKSPACE_REQUIRED' }
+      'WORKSPACE_REQUIRED'
     );
   }
   const resolved = path.resolve(workspacePath);
+  const details = { workspace_path: resolved };
   if (!fs.existsSync(resolved)) {
-    throw new WorkspaceResolutionError(
-      `workspace_path does not exist: ${resolved}`,
-      { code: 'WORKSPACE_NOT_FOUND', details: { workspace_path: resolved } }
-    );
+    fail(`workspace_path does not exist: ${resolved}`, 'WORKSPACE_NOT_FOUND', details);
   }
   if (isExtensionCachePath(resolved)) {
-    throw new WorkspaceResolutionError(
+    fail(
       `workspace_path resolves inside an extension cache directory: ${resolved}. Provide the user workspace path instead.`,
-      { code: 'WORKSPACE_IN_EXTENSION_CACHE', details: { workspace_path: resolved } }
+      'WORKSPACE_IN_EXTENSION_CACHE',
+      details
     );
   }
   return gitRootOrSelf(resolved);
@@ -114,9 +128,11 @@ function requireExplicitWorkspaceRoot({ workspacePath } = {}) {
 
 module.exports = {
   isConcretePath,
+  isExtensionCachePath,
   resolveHookWorkspaceRoot,
   resolveProjectRoot,
   requireExplicitWorkspaceRoot,
   requireWorkspaceRoot,
+  WORKSPACE_ENV_VARS,
   WorkspaceResolutionError,
 };

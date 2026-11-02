@@ -18,6 +18,7 @@ function getRuntimeConfig(name) {
     throw new Error(`Unknown runtime config: ${name}`);
   }
 
+  // maestro-dependencies: runtime-configs
   return require(path.join(PLATFORMS_DIR, name, 'runtime-config.js'));
 }
 

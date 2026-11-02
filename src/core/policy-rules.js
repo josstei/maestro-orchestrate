@@ -35,197 +35,94 @@ const ASK_RULES = Object.freeze([
   { matchType: 'regex', pattern: '\\s>>?\\s|\\s>>?$|^>>?\\s|\\d>>?\\s', reason: 'Shell output redirection' },
 ]);
 
-/**
- * Test one command segment against a rule, ignoring leading whitespace.
- * @param {{ matchType: string, pattern: string }} rule
- * @param {string} command
- * @returns {boolean}
- */
+// How each rule matchType tests a command segment and renders as a Qwen policy-pack
+// commandRegex; the pack lists prefix rules as one commandPrefix instead.
+const MATCH_TYPES = Object.freeze({
+  prefix: { test: (pattern, command) => command.startsWith(pattern) },
+  regex: {
+    test: (pattern, command) => new RegExp(pattern).test(command),
+    commandRegex: (pattern) => `.*(?:${pattern}).*$`,
+  },
+  word: {
+    test: (pattern, command) => new RegExp('\\b' + pattern + '\\b').test(command),
+    commandRegex: (pattern) => `.*\\b${pattern}\\b.*`,
+  },
+});
+
+/** Test a command segment, ignoring leading whitespace; an unknown matchType never matches. */
 function matchRule(rule, command) {
   const trimmed = command.trimStart();
-  switch (rule.matchType) {
-    case 'prefix':
-      return trimmed.startsWith(rule.pattern);
-    case 'regex':
-      return new RegExp(rule.pattern).test(trimmed);
-    case 'word':
-      return new RegExp('\\b' + rule.pattern + '\\b').test(trimmed);
-    default:
-      return false;
-  }
+  return Object.hasOwn(MATCH_TYPES, rule.matchType) && MATCH_TYPES[rule.matchType].test(rule.pattern, trimmed);
 }
 
 /**
- * Split a command line into its top-level segments on `;`, `|`, `&&` and `||`.
- * Quoted text, `(...)`/`{...}` groups and command substitutions stay inside
- * their segment.
- * @param {string} command
- * @param {(body: string) => void} [onSubshell] - called, as the scan reaches
- *   it, with the trimmed, non-empty body of each top-level `$(...)` or
- *   backtick substitution
- * @returns {string[]} The trimmed, non-empty segments
+ * Scan `command` from `start`, keeping quoted text, escapes and nested
+ * substitutions inside the current part. At top level (`onSubshell` given) it
+ * returns the trimmed, non-empty segments split on `;`, `|`, `&&` and `||`
+ * outside quotes and `(...)`/`{...}` groups, calling `onSubshell` with each
+ * substitution's trimmed, non-empty body as the scan reaches it. Inside a
+ * `$(...)` body it returns `{ content, end }` at the first `)` outside single
+ * quotes, where `\`` is a literal backtick.
  * @throws {Error} When a command substitution is never closed
  */
-function splitCommands(command, onSubshell = () => {}) {
+function scanShell(command, start, onSubshell) {
+  const topLevel = onSubshell !== undefined;
   const parts = [];
-  let depth = 0;
   let current = '';
+  let depth = 0;
   let inSingle = false;
   let inDouble = false;
-  let escaped = false;
-
-  for (let i = 0; i < command.length; i++) {
+  for (let i = start; i < command.length; i++) {
     const ch = command[i];
-
-    if (escaped) {
-      current += ch;
-      escaped = false;
-      continue;
-    }
     if (ch === '\\' && !inSingle) {
-      current += ch;
-      escaped = true;
+      // Length-guarded rather than `??`, so a null element of an array payload is kept as text.
+      current += !topLevel && command[i + 1] === '`' ? '`' : ch + (i + 1 < command.length ? command[i + 1] : '');
+      i++;
       continue;
     }
-    if (ch === "'" && !inDouble) { inSingle = !inSingle; current += ch; continue; }
-    if (ch === '"' && !inSingle) { inDouble = !inDouble; current += ch; continue; }
-
-    const subshell = inSingle ? null : readSubshellAt(command, i);
-    if (subshell) {
-      const body = subshell.content.trim();
-      if (body) onSubshell(body);
-      current += subshell.text;
-      i = subshell.end;
-      continue;
-    }
-
-    if (inSingle || inDouble) {
-      current += ch;
-      continue;
-    }
-
-    if (ch === '(' || ch === '{') { depth++; current += ch; continue; }
-    if (ch === ')') {
-      if (depth > 0) {
-        depth--;
-      }
-      current += ch;
-      continue;
-    }
-    if (ch === '}') { depth--; current += ch; continue; }
-
-    if (depth === 0) {
-      const isDoubled = (ch === '&' || ch === '|') && command[i + 1] === ch;
-      if (ch === ';' || ch === '|' || isDoubled) {
-        parts.push(current);
-        current = '';
-        if (isDoubled) i++;
+    if (ch === "'" && !inDouble) inSingle = !inSingle;
+    else if (ch === '"' && !inSingle) inDouble = !inDouble;
+    else if (!inSingle) {
+      const subshell = readSubshellAt(command, i);
+      if (subshell) {
+        const body = subshell.content.trim();
+        if (topLevel && body) onSubshell(body);
+        current += subshell.text;
+        i = subshell.end;
         continue;
+      }
+      if (!topLevel && ch === ')') return { content: current, end: i };
+      if (topLevel && !inDouble) {
+        if (ch === '(' || ch === '{') depth++;
+        else if ((ch === ')' && depth > 0) || ch === '}') depth--;
+        else if (depth === 0 && (ch === ';' || ch === '|' || (ch === '&' && command[i + 1] === '&'))) {
+          parts.push(current);
+          current = '';
+          if (ch !== ';' && command[i + 1] === ch) i++;
+          continue;
+        }
       }
     }
     current += ch;
   }
-  if (current) parts.push(current);
-  return parts.map((p) => p.trim()).filter(Boolean);
+  if (!topLevel) throw new Error('Unterminated $(...) command substitution');
+  return [...parts, current].map((p) => p.trim()).filter(Boolean);
 }
 
-/**
- * Read the `$(...)` or backtick command substitution that opens at index `i`.
- * @param {string} command
- * @param {number} i
- * @returns {{ content: string, end: number, text: string } | null} The
- *   substitution's body, the index of its closing character, and the body
- *   re-wrapped in its delimiters; null when no substitution opens at `i`
- * @throws {Error} When the substitution is never closed
- */
+/** The `$(...)` or backtick substitution opening at `i` (body, closing index, text), or null. */
 function readSubshellAt(command, i) {
   if (command[i] === '$' && command[i + 1] === '(') {
-    const parsed = readDollarSubshell(command, i + 2);
+    const parsed = scanShell(command, i + 2);
     return { ...parsed, text: '$(' + parsed.content + ')' };
   }
-  if (command[i] === '`') {
-    const parsed = readBacktickSubshell(command, i + 1);
-    return { ...parsed, text: '`' + parsed.content + '`' };
-  }
-  return null;
-}
-
-function readBacktickSubshell(command, startIndex) {
+  if (command[i] !== '`') return null;
   let content = '';
-
-  for (let i = startIndex; i < command.length; i++) {
-    const ch = command[i];
-    if (ch === '\\') {
-      const next = command[i + 1];
-      if (next === '`') {
-        content += '`';
-        i++;
-        continue;
-      }
-      content += ch;
-      continue;
-    }
-    if (ch === '`') {
-      return { content, end: i };
-    }
-    content += ch;
+  for (let j = i + 1; j < command.length; j++) {
+    if (command[j] === '`') return { content, end: j, text: '`' + content + '`' };
+    if (command[j] === '\\' && command[j + 1] === '`') j++;
+    content += command[j];
   }
-
   throw new Error('Unterminated backtick command substitution');
-}
-
-function readDollarSubshell(command, startIndex) {
-  let content = '';
-  let inSingle = false;
-  let inDouble = false;
-  let escaped = false;
-
-  for (let i = startIndex; i < command.length; i++) {
-    const ch = command[i];
-
-    if (escaped) {
-      content += ch;
-      escaped = false;
-      continue;
-    }
-    if (ch === '\\' && !inSingle) {
-      if (command[i + 1] === '`') {
-        content += '`';
-        i++;
-        continue;
-      }
-      content += ch;
-      escaped = true;
-      continue;
-    }
-    if (ch === "'" && !inDouble) {
-      inSingle = !inSingle;
-      content += ch;
-      continue;
-    }
-    if (ch === '"' && !inSingle) {
-      inDouble = !inDouble;
-      content += ch;
-      continue;
-    }
-    if (inSingle) {
-      content += ch;
-      continue;
-    }
-    const subshell = readSubshellAt(command, i);
-    if (subshell) {
-      content += subshell.text;
-      i = subshell.end;
-      continue;
-    }
-    if (ch === ')') {
-      return { content, end: i };
-    }
-
-    content += ch;
-  }
-
-  throw new Error('Unterminated $(...) command substitution');
 }
 
 /**
@@ -239,7 +136,7 @@ function readDollarSubshell(command, startIndex) {
  */
 function checkCommand(command) {
   const topLevel = [];
-  const segments = splitCommands(command, (body) => topLevel.push(body));
+  const segments = scanShell(command, 0, (body) => topLevel.push(body));
   // Every substitution body is split once, as the scan of its enclosing body
   // reaches it, so nested bodies are visited in pre-order. The top-level scan
   // finishes first, so its unterminated-substitution error takes precedence.
@@ -247,7 +144,7 @@ function checkCommand(command) {
   const subshellSegments = [];
   const visit = (body) => {
     const index = subshells.push(body) - 1;
-    subshellSegments[index] = splitCommands(body, visit);
+    subshellSegments[index] = scanShell(body, 0, visit);
   };
   topLevel.forEach(visit);
   const allParts = [...new Set([...segments, ...subshells, ...subshellSegments.flat()])];
@@ -263,4 +160,4 @@ function checkCommand(command) {
   return { action: 'allow' };
 }
 
-module.exports = { DENY_RULES, ASK_RULES, matchRule, checkCommand };
+module.exports = { DENY_RULES, ASK_RULES, MATCH_TYPES, matchRule, checkCommand };

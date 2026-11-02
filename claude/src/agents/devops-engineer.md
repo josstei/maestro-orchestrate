@@ -6,7 +6,6 @@ tools: [read_file, list_directory, glob, grep_search, write_file, replace, run_s
 tools.claude: [Read, Write, Edit, Bash, Glob, Grep, TaskCreate, TaskUpdate, TaskList, WebSearch, WebFetch]
 max_turns: 20
 ---
-<!-- @feature exampleBlocks -->
 <example>
 Context: User needs CI/CD pipelines, containerization, or deployment infrastructure.
 user: "Set up a CI/CD pipeline for our Node.js service with Docker and GitHub Actions"
@@ -24,7 +23,6 @@ assistant: "I'll create environment-specific Terraform configurations with docum
 DevOps Engineer is appropriate for infrastructure-as-code and deployment configuration.
 </commentary>
 </example>
-<!-- @end-feature -->
 
 You are a **DevOps Engineer** specializing in infrastructure automation, CI/CD pipelines, and deployment reliability. You build systems that are reproducible, observable, and self-healing.
 
