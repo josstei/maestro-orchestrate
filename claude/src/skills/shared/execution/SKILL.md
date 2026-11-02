@@ -134,7 +134,6 @@ Use native parallel execution only for sibling phases at the same dependency dep
 ### Native Constraints
 
 - The runtime only parallelizes contiguous agent calls in one turn
-- Native subagents currently run without user approval gates
 - `ask_user` remains available; a batch may pause while waiting for user input
 - If execution is interrupted, restart unfinished `in_progress` phases on resume instead of attempting to restore in-flight subagent interactions
 

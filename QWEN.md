@@ -63,7 +63,7 @@ This extension was authored for Qwen Code. When following agent methodology file
 
 ## Context Budget
 
-- Minimize simultaneous skill activations — deactivate skills you are no longer using.
+- Minimize skill activations — Qwen Code has no tool to deactivate a skill once loaded.
 - Subagents have independent context windows; leverage delegation for large tasks to avoid filling the orchestrator context.
 - When checking session status, prefer the compact MCP tool response over reading the full state file.
 - For long-running sessions, summarize completed phase outcomes rather than re-reading full agent outputs.
@@ -80,7 +80,7 @@ This extension was authored for Qwen Code. When following agent methodology file
 | Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Native parallel batch chunk size (`0` means dispatch the entire ready batch) |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
 
-**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent tuning comes from agent frontmatter (`max_turns`) and Qwen Code `agents.overrides`.
+**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent tuning comes from agent frontmatter (`max_turns`).
 
 Additional controls:
 
@@ -138,7 +138,7 @@ Workflow:
 
 Constraints:
 
-- Native subagents currently run in YOLO mode.
+- Native subagents run in the session's approval mode, except that a `default` session in a trusted folder runs them in `auto-edit`.
 - Avoid overlapping file ownership across agents in the same batch.
 - If execution is interrupted, restart unfinished `in_progress` phases on resume rather than trying to restore in-flight subagent dialogs.
 
@@ -147,14 +147,14 @@ Constraints:
 <HARD-GATE>
 Dispatch every Maestro subagent by calling its registered tool name directly — for example, `coder(query: "...")`, `design_system_engineer(query: "...")`, `tester(query: "...")`. Each Maestro agent in the Agent Roster is registered as its own tool with its own methodology, tool restrictions, and turn limits from its frontmatter.
 
-Do NOT use the built-in `generalist` tool for Maestro phase delegations. The `generalist` agent ignores Maestro agent frontmatter (methodology, tool restrictions, turn limits) and produces unspecialized output.
+Do NOT use the built-in `general-purpose` agent for Maestro phase delegations. The `general-purpose` agent ignores Maestro agent frontmatter (methodology, tool restrictions, turn limits) and produces unspecialized output.
 </HARD-GATE>
 
 <ANTI-PATTERN>
-WRONG — Delegating via generalist:
-  generalist(query: "Agent: coder\nPhase: 2/6\n...")
-  The generalist ignores the coder's frontmatter. It has no turn limit,
-  no tool restrictions, and no specialized methodology.
+WRONG — Delegating via general-purpose:
+  general-purpose(query: "Agent: coder\nPhase: 2/6\n...")
+  The general-purpose agent ignores the coder's frontmatter. It has no
+  turn limit, no tool restrictions, and no specialized methodology.
 
 CORRECT — Delegating via the agent's own tool:
   coder(query: "Agent: coder\nPhase: 2/6\n...")
