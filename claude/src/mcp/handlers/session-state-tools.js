@@ -25,7 +25,7 @@ const {
 } = require('../../state/session-documents');
 const { parseDocumentInput } = require('../contracts/document-input');
 
-const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
+const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'current_batch'];
 
 /** Mark `phase` in_progress, started at `now`. */
 function startPhase(phase, now) {
@@ -124,7 +124,6 @@ function createSession({ params, projectRoot }, tx) {
     current_phase: params.phases.length > 0 ? params.phases[0].id : null,
     total_phases: params.phases.length,
     execution_mode: params.execution_mode || null,
-    execution_backend: 'native',
     current_batch: null,
     task_complexity: params.task_complexity || null,
     token_usage: {

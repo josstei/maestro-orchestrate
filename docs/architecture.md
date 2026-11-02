@@ -186,7 +186,7 @@ When a runtime config sets `mcpToolMeta`, `src/mcp/core/create-server.js` lists 
 
 ### Workspace Resolution
 
-The MCP server does not guess the workspace. Its project root is `null` until the orchestrator calls `initialize_workspace(workspace_path)`, which rejects a nonexistent path and any path inside an extension cache, then records the path's git toplevel (or the path itself outside a git repository). An absent `workspace_path` is rejected until a workspace has been initialized; after that, the call re-initializes the current root. Until then, every tool that needs a workspace fails with `WORKSPACE_NOT_INITIALIZED`.
+The MCP server does not guess the workspace. Its project root is `null` until the orchestrator calls `initialize_workspace(workspace_path)`, which rejects a nonexistent path and any path inside an extension cache, then records the path's git toplevel (or the path itself outside a git repository). Until then, every tool that needs a workspace fails with `WORKSPACE_NOT_INITIALIZED`. A call without `workspace_path` fails with `WORKSPACE_REQUIRED`, even after a workspace has been initialized.
 
 To help the orchestrator choose that path, `get_runtime_context` returns a `workspace_suggestion` taken from, in order:
 

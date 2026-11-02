@@ -30,8 +30,8 @@ function createToolPack({ services }) {
               'State directory relative to workspace_path. Defaults to docs/maestro.',
           },
         },
-        async (params, projectRoot) => {
-          const result = await handleInitializeWorkspace(params, projectRoot);
+        async (params) => {
+          const result = await handleInitializeWorkspace(params);
           services.setWorkspacePath?.(result.workspace_path);
           return result;
         },
@@ -40,13 +40,7 @@ function createToolPack({ services }) {
       defineTool(
         'assess_task_complexity',
         'Analyze repo structure and return factual signals for complexity classification. Does NOT classify — returns signals for the model to interpret.',
-        {
-          task_description: {
-            type: 'string',
-            description:
-              'The task description (reserved for future keyword analysis).',
-          },
-        },
+        {},
         handleAssessTaskComplexity,
         { requiresWorkspace: true }
       ),

@@ -68,7 +68,7 @@ docs/maestro/
 
 ### Concurrent updates and recovery
 
-MCP state operations and the installed state scripts coordinate access to the configured state directory. Committed operations interrupted by a process crash are completed on the next access. Existing session Markdown and gate JSON formats do not change, and no workspace migration is required. Ordinary reads do not create state directories.
+MCP state operations and the installed state scripts coordinate access to the configured state directory. Committed operations interrupted by a process crash are completed on the next access. Existing session Markdown and gate JSON files stay readable, and no workspace migration is required. Ordinary reads do not create state directories.
 
 | Error code | Action |
 |------------|--------|
@@ -98,7 +98,6 @@ implementation_plan: "docs/maestro/plans/2024-03-15-auth-system-impl-plan.md"
 current_phase: 2
 total_phases: 4
 execution_mode: "sequential"
-execution_backend: null
 current_batch: null
 task_complexity: "medium"
 
@@ -226,7 +225,7 @@ phases:
 | `resolve_settings` | Workspace | — | Resolve `MAESTRO_*` settings with precedence |
 | `create_session` | Session | `session_id`, `task`, `phases` | Create the active session document |
 | `get_session_status` | Session | — | Read session state |
-| `update_session` | Session | `session_id` | Update execution metadata (mode, backend, batch) |
+| `update_session` | Session | `session_id` | Update execution metadata (mode, batch) |
 | `transition_phase` | Session | `session_id` | Atomically complete a phase and start the next |
 | `archive_session` | Session | `session_id` | Move the session and its plans to archive |
 | `enter_design_gate` | Session | `session_id` | Mark the session as entering the design phase (idempotent); blocks `create_session` until approval |

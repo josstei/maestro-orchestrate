@@ -26,7 +26,6 @@ describe('session tool pack', () => {
     const updateResult = await workspace.call('update_session', {
       session_id: 'test-session',
       execution_mode: 'sequential',
-      execution_backend: 'native',
     });
 
     assert.equal(updateResult.ok, true);

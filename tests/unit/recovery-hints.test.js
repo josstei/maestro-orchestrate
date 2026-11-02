@@ -34,7 +34,7 @@ describe('getRecoveryHint', () => {
       'archive_session', "ENOENT: no such file or directory, open '[path]'", null],
     ['returns hint for update_session "updatable field" error',
       'update_session', 'must provide at least one updatable field',
-      'Provide at least one of: execution_mode, execution_backend, current_batch.'],
+      'Provide at least one of: execution_mode, current_batch.'],
     ['returns hint for initialize_workspace "EACCES" error',
       'initialize_workspace', 'EACCES: permission denied', WRITABLE_HINT],
     ['returns hint for initialize_workspace "EPERM" error',

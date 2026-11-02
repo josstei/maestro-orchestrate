@@ -19,7 +19,7 @@ const RECOVERY_TABLE = [
   {
     tool: 'update_session',
     pattern: /updatable field/i,
-    hint: 'Provide at least one of: execution_mode, execution_backend, current_batch.',
+    hint: 'Provide at least one of: execution_mode, current_batch.',
   },
   {
     tool: 'initialize_workspace',

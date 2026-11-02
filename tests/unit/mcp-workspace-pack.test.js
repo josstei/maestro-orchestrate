@@ -37,15 +37,14 @@ describe('workspace tool pack', () => {
     assert.deepEqual(result.result.disabled_agents, ['architect', 'tester']);
   });
 
-  it('initializes the workspace directories under the provided project root', async () => {
+  it('initializes the workspace directories under the provided workspace_path', async () => {
     const projectRoot = makeTempDir('maestro-workspace-');
 
     const server = packServer([createToolPack]);
 
     const result = await server.callTool(
       'initialize_workspace',
-      { state_dir: 'docs/maestro' },
-      projectRoot
+      { workspace_path: projectRoot, state_dir: 'docs/maestro' }
     );
 
     assert.equal(result.ok, true);

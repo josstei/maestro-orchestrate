@@ -78,7 +78,7 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
 
         assert.equal((await call('get_runtime_context')).runtime, runtime);
         assert.equal((await call('initialize_workspace', { workspace_path: workspace })).workspace_path, workspace);
-        assert.equal((await call('assess_task_complexity', { task_description: 'Detached install acceptance' })).has_package_json, false);
+        assert.equal((await call('assess_task_complexity')).has_package_json, false);
         assert.equal((await call('resolve_settings', { settings: ['MAESTRO_EXECUTION_MODE'] })).settings.MAESTRO_EXECUTION_MODE, 'parallel');
         const phases = [{ id: 1, name: 'Build', agent: 'coder', parallel: false, blocked_by: [], files: ['result.txt'] }];
         assert.equal((await call('validate_plan', { plan: { phases }, task_complexity: 'simple' })).valid, true);

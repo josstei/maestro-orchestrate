@@ -101,7 +101,6 @@ function createToolPack() {
             type: 'string',
             enum: ['parallel', 'sequential'],
           },
-          execution_backend: { type: 'string' },
           current_batch: { type: ['string', 'null'] },
         }
       ),
