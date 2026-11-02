@@ -3,13 +3,8 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { makeTempDir } = require('../support/fs');
 const { readSessionState } = require('../support/session-file');
-const {
-  createInitializedSessionServer,
-  sessionParams,
-  singlePhase,
-} = require('../support/session-server');
+const { SessionWorkspace, singlePhase } = require('../support/session-server');
 
 // Each row completes phase 1 of a fresh 'hv-1' session with its
 // downstream_context; `check` runs the row's extra assertions.
@@ -79,19 +74,16 @@ const cases = [
 describe('handoff validation', () => {
   for (const { name, downstream_context, ok, code, check } of cases) {
     it(name, async () => {
-      const workspace = makeTempDir('maestro-hv-');
-      const server = await createInitializedSessionServer(workspace);
-      await server.callTool('create_session', sessionParams('hv-1', { phases: singlePhase(['x']) }), workspace);
-      const complete = (context) => server.callTool(
-        'transition_phase',
-        { session_id: 'hv-1', completed_phase_id: 1, files_created: ['src/foo.js'], downstream_context: context },
-        workspace
-      );
+      const workspace = await SessionWorkspace.create();
+      await workspace.createSession('hv-1', { phases: singlePhase(['x']) });
+      const complete = (context) => workspace.transition('hv-1', 1, {
+        files_created: ['src/foo.js'], downstream_context: context,
+      });
 
       const outcome = await complete(downstream_context);
       assert.equal(outcome.ok, ok, outcome.error);
       if (code) assert.equal(outcome.code, code);
-      await check?.(outcome, { complete, workspace });
+      await check?.(outcome, { complete, workspace: workspace.dir });
     });
   }
 });

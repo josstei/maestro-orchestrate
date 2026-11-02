@@ -58,16 +58,6 @@ class SessionWorkspace {
   }
 }
 
-/** The server of SessionWorkspace.create(workspace). */
-async function createInitializedSessionServer(workspace) {
-  return (await SessionWorkspace.create(workspace)).server;
-}
-
-/** SessionWorkspace#approve for a bare server and workspace. */
-function approveDesignGate(server, workspace, sessionId, design) {
-  return new SessionWorkspace(workspace, server).approve(sessionId, design);
-}
-
 /**
  * Builds a sequential coder phase with no dependencies. Each call returns a
  * fresh phase object.
@@ -98,8 +88,6 @@ function sessionParams(sessionId, overrides = {}) {
 
 module.exports = {
   SessionWorkspace,
-  approveDesignGate,
-  createInitializedSessionServer,
   packServer,
   phase,
   sessionParams,
