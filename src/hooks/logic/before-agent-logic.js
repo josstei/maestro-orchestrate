@@ -12,8 +12,6 @@ const { withStateRead } = require('../../state/coordinator');
 /**
  * Builds the `key=value` context parts from active-session.md. Sessions created
  * through MCP use JSON frontmatter; legacy hand-written files use YAML-style lines.
- * @param {string} content
- * @returns {string[]}
  */
 function summarizeSession(content) {
   try {
@@ -35,8 +33,6 @@ function summarizeSession(content) {
  * Reads the active session summary for the workspace containing `cwd` (see
  * resolveHookWorkspaceRoot). A state-dir resolution error yields no context
  * rather than failing the hook (which would block the agent).
- * @param {string|undefined} cwd
- * @returns {Promise<string[]>}
  */
 async function readSessionSummary(cwd) {
   let content;
@@ -62,13 +58,6 @@ async function readSessionSummary(cwd) {
  * tool_input.prompt and tool_input.subagent_type; Qwen: agent_type only;
  * Antigravity, which runs it at SessionStart: neither, so only the session
  * context line is produced).
- *
- * @param {object} ctx - Internal context contract
- * @param {string} ctx.sessionId
- * @param {string} ctx.cwd
- * @param {string|null} ctx.agentInput  - the agent prompt text
- * @param {string|null} ctx.agentName   - the dispatched agent's name
- * @returns {Promise<{ action: string, message: string|null, reason: null }>}
  */
 async function handleBeforeAgent(ctx) {
   hookState.pruneStale();

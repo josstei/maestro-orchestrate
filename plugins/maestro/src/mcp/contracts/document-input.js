@@ -13,9 +13,6 @@ const { ValidationError } = require('../../lib/errors');
  * server's workspace (e.g. a Plan Mode that writes to a host tmp directory)
  * and so cannot pass a path the server can find.
  *
- * @param {object} params - tool params holding the document keys
- * @param {{ pathKey: string, prefix: string }} keys
- * @returns {{ path: string } | { filename: string, content: string } | null}
  * @throws {ValidationError} when both variants are supplied, the content variant is incomplete, or the filename is not a pure basename
  */
 function parseDocumentInput(params, { pathKey, prefix }) {

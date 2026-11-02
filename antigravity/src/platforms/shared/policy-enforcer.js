@@ -9,9 +9,6 @@ const { collectStdin } = require('../../core/stdin-reader');
  * against src/core/policy-rules.js and print `{ decision, reason? }` named by the
  * adapter's shellPolicy.decisions. A payload over the 1 MiB stdin cap, unparseable
  * JSON or an unterminated command substitution gets the host's `deny` (fail closed).
- *
- * @param {string} runtime - runtime name, e.g. 'claude'
- * @returns {Promise<void>}
  */
 function main(runtime) {
   // maestro-dependencies: hook-adapters

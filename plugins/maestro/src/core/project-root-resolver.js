@@ -77,9 +77,6 @@ function resolveProjectRoot() {
  * state at the git toplevel of the workspace, so a hook fired from a
  * subdirectory must resolve the same root. Falls back to `process.cwd()` when
  * the payload has no cwd, and to the raw cwd when it cannot be resolved.
- *
- * @param {string|undefined} cwd - hook payload cwd
- * @returns {string|undefined}
  */
 function resolveHookWorkspaceRoot(cwd) {
   return resolveExistingRoot(cwd || process.cwd()) || cwd;
@@ -92,8 +89,6 @@ function resolveHookWorkspaceRoot(cwd) {
  * when `requiresWorkspace` is declared on the tool schema; handlers may also
  * call it directly for defense in depth.
  *
- * @param {string|null|undefined} projectRoot - resolved project root or nullish
- * @param {string} toolName - tool name for the error message
  * @throws {WorkspaceResolutionError} when projectRoot is absent
  */
 function requireWorkspaceRoot(projectRoot, toolName) {

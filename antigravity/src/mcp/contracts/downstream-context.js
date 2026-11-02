@@ -37,9 +37,6 @@ function normalizeFieldValue(value) {
 /**
  * Normalize any input to the canonical `{ field: string[] }` shape.
  * Accepts null, arrays-of-strings, strings, and unknown keys are dropped.
- *
- * @param {unknown} input
- * @returns {Object<string, string[]>}
  */
 function normalizeDownstreamContext(input) {
   const source =
@@ -49,11 +46,7 @@ function normalizeDownstreamContext(input) {
   );
 }
 
-/**
- * True when the normalized context has at least one non-empty field.
- * @param {Object<string, string[]>} normalized - Output of normalizeDownstreamContext
- * @returns {boolean}
- */
+/** True when the normalized context has at least one non-empty field. */
 function isDownstreamContextPopulated(normalized) {
   return CANONICAL_FIELDS.some((field) => normalized[field].length > 0);
 }
@@ -61,7 +54,6 @@ function isDownstreamContextPopulated(normalized) {
 /**
  * Human-readable description of the contract, suitable for embedding in error
  * messages so callers can adapt without reading source.
- * @returns {string}
  */
 function describeShape() {
   return (

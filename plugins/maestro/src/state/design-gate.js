@@ -7,30 +7,17 @@ const { ValidationError, StateError } = require('../lib/errors');
 
 const GATE_FILENAME = '.design-gate.json';
 
-/**
- * Directory holding every session's gate file: `<state_dir>/state`.
- * @param {string} basePath
- * @returns {string}
- */
+/** Directory holding every session's gate file: `<state_dir>/state`. */
 function gateDir(basePath) {
   return path.join(basePath, 'state');
 }
 
-/**
- * Resolves the filesystem path for the gate file for a given session.
- * @param {string} basePath
- * @param {string} sessionId
- * @returns {string}
- */
+/** Resolves the filesystem path for the gate file for a given session. */
 function gatePath(basePath, sessionId) {
   return path.join(gateDir(basePath), `${sessionId}${GATE_FILENAME}`);
 }
 
-/**
- * @param {object} ctx - State transaction or withStateRead view
- * @param {string} sessionId
- * @returns {{ session_id: string, entered_at: string | null, approved_at: string | null, design_document_path: string | null } | null}
- */
+/** ctx is a withStateMutation tx or a withStateRead view. */
 function readGate(ctx, sessionId) {
   try { return JSON.parse(ctx.readFile(gatePath(ctx.basePath, sessionId), 'utf8')); } catch { return null; }
 }
@@ -44,11 +31,6 @@ function createGate(sessionId, enteredAt = null) {
   };
 }
 
-/**
- * @param {object} tx - State transaction
- * @param {string} sessionId
- * @param {object} data
- */
 function writeGate(tx, sessionId, data) {
   tx.writeFile(gatePath(tx.basePath, sessionId), JSON.stringify(data, null, 2));
 }
@@ -64,8 +46,6 @@ function writeGate(tx, sessionId, data) {
  * Reads the `state/` directory once and parses each `<session_id>.design-gate.json`
  * artifact. Corrupt or unapproved gate files are skipped silently.
  *
- * @param {object} tx - State transaction
- * @param {string} currentSessionId
  * @throws {ValidationError} when an orphaned approved gate is detected
  */
 function assertNoOrphanedApprovedGate(tx, currentSessionId) {
@@ -104,9 +84,6 @@ function assertNoOrphanedApprovedGate(tx, currentSessionId) {
  * approve-then-create flow, and any leftover gate from a prior workflow in the
  * same workspace is benign alongside the valid one.
  *
- * @param {object} tx - State transaction
- * @param {string} sessionId
- * @returns {ReturnType<typeof readGate>} the current session's gate, or null when none exists
  * @throws {ValidationError} DESIGN_GATE_SESSION_MISMATCH when an orphaned approved gate is detected
  * @throws {StateError} DESIGN_GATE_UNAPPROVED when the gate was entered but not approved
  */
@@ -131,8 +108,6 @@ function readGateForCreateSession(tx, sessionId) {
  * the gate doesn't linger in state/ after the session is archived — otherwise
  * a future session reusing the same id would inherit a stale "already approved"
  * gate from the prior run.
- * @param {object} tx - State transaction
- * @param {string} sessionId
  */
 function removeDesignGate(tx, sessionId) {
   const filePath = gatePath(tx.basePath, sessionId);

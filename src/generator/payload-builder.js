@@ -21,7 +21,6 @@ const STATE_SCRIPTS = Object.freeze([
  * Every filesystem-served asset and public CLI is an explicit root; imports
  * determine the remaining implementation files, including finite dynamic loads.
  * Output paths are relative to the runtime's `${outputDir}src/`.
- * @returns {{ outputs: Array<{ outputPath: string, content: string, reason: string }> }}
  */
 function planDetachedPayload(srcDir, runtime, version, { sourceOverrides = new Map() } = {}) {
   const root = fs.realpathSync(srcDir);

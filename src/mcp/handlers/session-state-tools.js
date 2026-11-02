@@ -27,12 +27,7 @@ const { parseDocumentInput } = require('../contracts/document-input');
 
 const UPDATABLE_SESSION_FIELDS = ['execution_mode', 'execution_backend', 'current_batch'];
 
-/**
- * Mark `phase` in_progress, started at `now`.
- *
- * @param {object} phase - mutated in place
- * @param {string} now - ISO timestamp recorded as `started`
- */
+/** Mark `phase` in_progress, started at `now`. */
 function startPhase(phase, now) {
   phase.status = 'in_progress';
   phase.started = now;
@@ -43,9 +38,6 @@ function startPhase(phase, now) {
  * carried by transition_phase `params`. Flags the phase for reconciliation
  * when the handoff is entirely empty.
  *
- * @param {object} phase - mutated in place
- * @param {object} params - transition_phase params
- * @param {string} now - ISO timestamp recorded as `completed`
  * @throws {ValidationError} HANDOFF_INCOMPLETE when files were reported but downstream_context is empty after normalization
  */
 function completePhase(phase, params, now) {
@@ -80,13 +72,7 @@ function completePhase(phase, params, now) {
   phase.requires_reconciliation = !hasFiles && !contextProvided;
 }
 
-/**
- * Ids of the phases whose status is `status`, in phase order.
- *
- * @param {Array<{ id: number | string, status: string }>} phases
- * @param {string} status
- * @returns {Array<number | string>}
- */
+/** Ids of the phases whose status is `status`, in phase order. */
 function phaseIdsWithStatus(phases, status) {
   return phases.filter((phase) => phase.status === status).map((phase) => phase.id);
 }

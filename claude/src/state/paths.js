@@ -70,9 +70,6 @@ function resolveStateDirUnder(base, stateDir) {
  * absolute, not yet resolved against the workspace): the override when given,
  * else MAESTRO_STATE_DIR (environment, then the workspace .env, then the
  * extension .env), else DEFAULT_STATE_DIR.
- * @param {string} [cwd] - Workspace root; defaults to process.cwd()
- * @param {string} [stateDirOverride]
- * @returns {string}
  */
 function resolveStateDirSetting(cwd, stateDirOverride) {
   return (
@@ -85,9 +82,6 @@ function resolveStateDirSetting(cwd, stateDirOverride) {
 /**
  * Resolve the absolute state dir for a workspace from the setting chosen by
  * resolveStateDirSetting.
- * @param {string} [cwd] - Workspace root; defaults to process.cwd()
- * @param {string} [stateDirOverride]
- * @returns {string}
  */
 function resolveStateDirPath(cwd, stateDirOverride) {
   const root = cwd || process.cwd();

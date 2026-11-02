@@ -12,10 +12,6 @@
  *
  * Shared by the agent-stub transform (the stub's `tools:` list) and get_agent
  * (the served `tools`), so both report the same list for an agent.
- *
- * @param {object} frontmatter - Parsed agent frontmatter
- * @param {object} runtimeConfig - Runtime config (name, tools)
- * @returns {string[]} Runtime tool names in the default policy's order, or first-seen order
  */
 function mapTools(frontmatter, runtimeConfig) {
   const override = frontmatter[`tools.${runtimeConfig.name}`];

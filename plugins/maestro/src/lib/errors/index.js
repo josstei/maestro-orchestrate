@@ -1,18 +1,7 @@
 'use strict';
 
-/**
- * Base error class for the Maestro platform.
- * Provides structured error metadata via `code` and `details` properties.
- *
- * @extends Error
- */
+/** Base Maestro error: a machine-readable `code` and structured `details`. */
 class MaestroError extends Error {
-  /**
-   * @param {string} message - Human-readable error description
-   * @param {object} [opts]
-   * @param {string} [opts.code='MAESTRO_ERROR'] - Machine-readable error code
-   * @param {*} [opts.details=null] - Structured payload describing the failure
-   */
   constructor(message, { code = 'MAESTRO_ERROR', details = null } = {}) {
     super(message);
     this.name = this.constructor.name;
@@ -24,12 +13,7 @@ class MaestroError extends Error {
 /**
  * Define a MaestroError subclass named `name` whose `code` defaults to
  * `defaultCode`. Callers may pass a more specific subtype code via `opts.code`
- * (e.g. HANDOFF_INCOMPLETE, DESIGN_GATE_UNAPPROVED, RECONCILIATION_PENDING);
- * `opts.details` is passed through to MaestroError.
- *
- * @param {string} name - Class name (also used as `err.name`)
- * @param {string} defaultCode - Code used when `opts.code` is not provided
- * @returns {typeof MaestroError}
+ * (e.g. HANDOFF_INCOMPLETE, DESIGN_GATE_UNAPPROVED, RECONCILIATION_PENDING).
  */
 function defineErrorType(name, defaultCode) {
   return {
@@ -44,10 +28,7 @@ function defineErrorType(name, defaultCode) {
 module.exports = {
   MaestroError,
   defineErrorType,
-  /** Raised when input data or arguments fail validation constraints. */
   ValidationError: defineErrorType('ValidationError', 'VALIDATION_ERROR'),
-  /** Raised when a requested resource (agent, session, file, etc.) does not exist. */
   NotFoundError: defineErrorType('NotFoundError', 'NOT_FOUND'),
-  /** Raised when an operation is invalid for the current session or workflow state. */
   StateError: defineErrorType('StateError', 'STATE_ERROR'),
 };

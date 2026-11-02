@@ -9,9 +9,6 @@ const { NotFoundError } = require('../lib/errors');
  * Plan Mode) may write design docs to arbitrary temporary locations; this
  * function is the single source of truth for the post-approval location so the
  * archive flow can reliably find and move the document.
- *
- * @param {object} tx
- * @returns {string}
  */
 function plansDirPath(tx) {
   return path.join(tx.basePath, 'plans');
@@ -20,10 +17,6 @@ function plansDirPath(tx) {
 /**
  * Resolve a caller-supplied document path: absolute paths pass through,
  * relative paths are joined onto the workspace root.
- *
- * @param {string} projectRoot
- * @param {string} documentPath
- * @returns {string}
  */
 function toWorkspacePath(projectRoot, documentPath) {
   return path.isAbsolute(documentPath)
@@ -31,11 +24,7 @@ function toWorkspacePath(projectRoot, documentPath) {
     : path.join(projectRoot, documentPath);
 }
 
-/**
- * @param {string} plansDir - the plans directory
- * @param {string} resolvedPath - absolute, already `path.resolve`d path
- * @returns {boolean} true when the path lies inside `plansDir`
- */
+/** True when `resolvedPath` (already `path.resolve`d) lies inside `plansDir`. */
 function isInsidePlansDir(plansDir, resolvedPath) {
   return resolvedPath.startsWith(path.resolve(plansDir) + path.sep);
 }
@@ -49,11 +38,6 @@ function isInsidePlansDir(plansDir, resolvedPath) {
  * a runtime's parallel dispatch can fire a write and an MCP tool in the same
  * turn; the write isn't yet visible when the MCP handler runs. Deferring the
  * copy to `create_session` guarantees the file has settled on disk.
- *
- * @param {string} projectRoot
- * @param {string} documentPath - absolute or workspace-relative path
- * @param {'design_document' | 'implementation_plan'} documentKind
- * @returns {string | null} absolute path to the canonical location inside plans/, or null if documentPath was absent
  */
 function materializeSessionDocument(projectRoot, documentPath, documentKind, tx) {
   if (typeof documentPath !== 'string' || documentPath.length === 0) {
@@ -83,11 +67,6 @@ function materializeSessionDocument(projectRoot, documentPath, documentKind, tx)
 /**
  * Materialize a validated document input. Path inputs use the caller's path
  * handling; inline content is staged in `<state_dir>/plans/<filename>`.
- *
- * @param {{ path: string } | { filename: string, content: string } | null} document
- * @param {(documentPath: string) => string} fromPath
- * @param {object} tx
- * @returns {string | null} absolute document path, or null for absent input
  */
 function materializeDocumentInput(document, fromPath, tx) {
   if (!document) return null;
@@ -102,11 +81,6 @@ function materializeDocumentInput(document, fromPath, tx) {
  * `<state_dir>/plans/archive/`. Creates the archive directory even when there
  * is nothing to move. Documents outside the plans directory or missing on disk
  * are left alone.
- *
- * @param {string} projectRoot
- * @param {Array<string | null | undefined>} documentPaths - absolute or workspace-relative paths; falsy entries are skipped
- * @param {object} tx
- * @returns {string[]} archive destinations of the moved documents, in input order
  */
 function archivePlansDocuments(projectRoot, documentPaths, tx) {
   const plansDir = plansDirPath(tx);

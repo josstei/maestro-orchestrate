@@ -9,8 +9,6 @@ const { toPascalCase } = require('../lib/naming');
 /**
  * Derive an agent's tool tier from its canonical `tools` list, so the tier
  * cannot disagree with the tools the agent actually has.
- * @param {string[]} tools - Canonical tool names
- * @returns {'read_only'|'read_shell'|'read_write'|'full'}
  */
 function capabilityTier(tools) {
   const canWrite = tools.includes('write_file') || tools.includes('replace');

@@ -11,12 +11,6 @@ const REQUIRED_SECTIONS = ['Task Report', 'Downstream Context'];
  * Field name mapping: each runtime's hook adapter
  * (src/platforms/<runtime>/hook-adapter.js) fills ctx.agentResult from its
  * host payload before calling this function.
- *
- * @param {object} ctx - Internal context contract
- * @param {string} ctx.sessionId
- * @param {string|null} ctx.agentResult  - the agent response text
- * @param {boolean} ctx.stopHookActive
- * @returns {{ action: string, message: null, reason: string|null }}
  */
 function handleAfterAgent(ctx) {
   const agentName = hookState.getActiveAgent(ctx.sessionId);

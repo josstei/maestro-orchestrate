@@ -25,12 +25,7 @@ function writeActiveSession(tx, state, body) {
   return sessionPath;
 }
 
-/**
- * Move the active session file to `state/archive/<sessionId>.md`.
- * @param {object} tx - State transaction
- * @param {string} sessionId - Already validated by assertSessionId
- * @returns {string} the archive path
- */
+/** Move the active session file to `state/archive/<sessionId>.md`; sessionId is pre-validated. */
 function archiveActiveSession(tx, sessionId) {
   const archivePath = path.join(tx.basePath, 'state', 'archive', `${sessionId}.md`);
   tx.mkdir(path.dirname(archivePath), { recursive: true, mode: 0o700 });
@@ -48,10 +43,6 @@ function assertSessionMatch(state, sessionId, verb = 'got') {
 
 /**
  * Look up a phase by id, throwing NotFoundError with `message` when absent.
- * @param {Array<{ id: number | string }>} phases
- * @param {number | string} phaseId
- * @param {string} [message]
- * @returns {object} the matching phase
  * @throws {NotFoundError} when no phase has id `phaseId`
  */
 function findPhaseOrThrow(phases, phaseId, message = `Phase ${phaseId} not found in session state`) {

@@ -67,9 +67,6 @@ const PHASE_ITEM_SCHEMA = {
  * they are set by `transition_phase` after an agent completes, and they
  * pass through this schema via `additionalProperties: true` without
  * validation. Plan authors should populate `files`, not the runtime fields.
- *
- * @param {unknown} phases - Input value expected to be an array of phase objects.
- * @returns {{ valid: boolean, violations: Array<object> }}
  */
 function validatePhases(phases) {
   if (!Array.isArray(phases)) {
