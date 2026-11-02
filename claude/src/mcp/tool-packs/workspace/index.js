@@ -32,9 +32,7 @@ function createToolPack({ services }) {
         },
         async (params, projectRoot) => {
           const result = await handleInitializeWorkspace(params, projectRoot);
-          if (typeof services.setWorkspacePath === 'function') {
-            services.setWorkspacePath(result.workspace_path);
-          }
+          services.setWorkspacePath?.(result.workspace_path);
           return result;
         },
         { required: ['workspace_path'] }

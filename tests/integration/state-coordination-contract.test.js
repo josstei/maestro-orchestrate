@@ -9,11 +9,10 @@ const { fork } = require('node:child_process');
 const { makeTempDir, writeFile } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
 const { killAtMarker } = require('../support/process');
-const { createInitializedSessionServer, sessionParams } = require('../support/session-server');
+const { createInitializedSessionServer, packServer, sessionParams } = require('../support/session-server');
 const { symlinkOrSkip } = require('../support/state');
 const markdownState = require('../../src/core/markdown-state');
-const { handleGetSessionStatus } = require('../../src/mcp/handlers/session-state-tools');
-const { handleGetDesignGateStatus } = require('../../src/mcp/handlers/design-gate');
+const { createToolPack: createSessionPack } = require('../../src/mcp/tool-packs/session');
 
 const workerPath = path.join(__dirname, '..', 'support', 'mcp-state-worker.js');
 
@@ -167,8 +166,11 @@ describe('coordinated MCP state contracts', { timeout: 30000 }, () => {
 
   it('reads absent state without creating the state directory', async () => {
     const workspace = makeTempDir('maestro-readonly-state-');
-    assert.deepEqual(await handleGetSessionStatus({}, workspace), { exists: false, message: 'No active session found' });
-    assert.deepEqual(await handleGetDesignGateStatus({ session_id: 'absent' }, workspace), {
+    const server = packServer([createSessionPack]);
+    assert.deepEqual((await server.callTool('get_session_status', {}, workspace)).result, {
+      exists: false, message: 'No active session found',
+    });
+    assert.deepEqual((await server.callTool('get_design_gate_status', { session_id: 'absent' }, workspace)).result, {
       session_id: 'absent', entered_at: null, approved_at: null, design_document_path: null,
     });
     assert.deepEqual(fs.readdirSync(workspace), []);

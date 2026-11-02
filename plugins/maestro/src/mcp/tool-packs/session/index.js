@@ -1,32 +1,51 @@
 'use strict';
 
+const { assertSessionId } = require('../../../lib/validation');
+const { withStateMutation, withStateRead } = require('../../../state/coordinator');
+const { resolveStateDirPath } = require('../../../state/paths');
+const { readActiveSession, writeActiveSession, assertSessionMatch } = require('../../../state/session-state');
 const { defineTool } = require('../../core/create-server');
 const { PHASE_ITEM_SCHEMA, TASK_COMPLEXITY_SCHEMA } = require('../../contracts/plan-schema');
 const { HANDOFF_FILE_FIELDS } = require('../../contracts/downstream-context');
-const {
-  handleCreateSession,
-  handleGetSessionStatus,
-  handleTransitionPhase,
-  handleArchiveSession,
-  handleUpdateSession,
-} = require('../../handlers/session-state-tools');
-const {
-  handleEnterDesignGate,
-  handleRecordDesignApproval,
-  handleGetDesignGateStatus,
-} = require('../../handlers/design-gate');
-const {
-  handleScanPhaseChanges,
-  handleReconcilePhase,
-} = require('../../handlers/reconciliation');
+const COMMANDS = {
+  ...require('../../handlers/session-state-tools'),
+  ...require('../../handlers/design-gate'),
+  ...require('../../handlers/reconciliation'),
+};
 
 const SESSION_ID = { type: 'string' };
 const PHASE_ID = { type: ['integer', 'string'] };
 const FILE_LIST = { type: 'array' };
 const HANDOFF_FILE_LISTS = Object.fromEntries(HANDOFF_FILE_FIELDS.map((field) => [field, FILE_LIST]));
 
-function sessionTool(name, description, properties, handler, required = ['session_id']) {
-  return defineTool(name, description, { session_id: SESSION_ID, ...properties }, handler, {
+/**
+ * Mount tool `name`'s command `{ access, run, prepare }`. `prepare(params)` (default: a valid
+ * session_id) runs before any state access, so malformed input never waits on the state lock;
+ * its result is `request.input`. `run(request, store)` gets a state view ('read'), the
+ * transaction journaled as `name` ('mutate'), or the active session ('session'), which must
+ * match a given session_id and is saved with `state.updated = request.now` unless run throws.
+ * Without an access, run reaches state itself.
+ */
+function mountCommand(name, { access, run, prepare = (params) => assertSessionId(params.session_id) }) {
+  return (params, projectRoot) => {
+    const request = { params, projectRoot, input: prepare(params), basePath: resolveStateDirPath(projectRoot) };
+    if (access === 'read') return withStateRead(request.basePath, (view) => run(request, view));
+    if (!access) return run(request);
+    return withStateMutation(request.basePath, { operation: name, sessionId: params.session_id }, (tx) => {
+      if (access === 'mutate') return run(request, tx);
+      const session = readActiveSession(tx);
+      assertSessionMatch(session.state, params.session_id);
+      request.now = new Date().toISOString();
+      const result = run(request, session);
+      session.state.updated = request.now;
+      writeActiveSession(tx, session.state, session.body);
+      return result;
+    });
+  };
+}
+
+function sessionTool(name, description, properties, required = ['session_id']) {
+  return defineTool(name, description, { session_id: SESSION_ID, ...properties }, mountCommand(name, COMMANDS[name]), {
     required,
     requiresWorkspace: true,
   });
@@ -66,14 +85,12 @@ function createToolPack() {
             default: 'standard',
           },
         },
-        handleCreateSession,
         ['session_id', 'task', 'phases']
       ),
       sessionTool(
         'get_session_status',
         'Read current session status including workflow_mode. Returns { exists: false } if no active session, or { exists: true, ...status } if one exists.',
         {},
-        handleGetSessionStatus,
         []
       ),
       sessionTool(
@@ -86,8 +103,7 @@ function createToolPack() {
           },
           execution_backend: { type: 'string' },
           current_batch: { type: ['string', 'null'] },
-        },
-        handleUpdateSession
+        }
       ),
       sessionTool(
         'transition_phase',
@@ -109,20 +125,17 @@ function createToolPack() {
               'Batch identifier for parallel dispatch. Sets current_batch in state.',
           },
           token_usage: { type: 'object' },
-        },
-        handleTransitionPhase
+        }
       ),
       sessionTool(
         'archive_session',
         'Move active session to archive. Also moves associated design document and implementation plan to plans/archive/ if they exist.',
-        {},
-        handleArchiveSession
+        {}
       ),
       sessionTool(
         'enter_design_gate',
         'Mark a session as having entered the design phase. Idempotent. Blocks create_session until record_design_approval is called.',
-        {},
-        handleEnterDesignGate
+        {}
       ),
       sessionTool(
         'record_design_approval',
@@ -143,14 +156,12 @@ function createToolPack() {
             description:
               'Basename-only filename (no separators, no \'..\') used when materializing design_document_content into <state_dir>/plans/.',
           },
-        },
-        handleRecordDesignApproval
+        }
       ),
       sessionTool(
         'get_design_gate_status',
         'Read the design gate status for a session. Returns entered_at, approved_at, and design_document_path (all nullable).',
-        {},
-        handleGetDesignGateStatus
+        {}
       ),
       sessionTool(
         'scan_phase_changes',
@@ -158,7 +169,6 @@ function createToolPack() {
         {
           phase_id: PHASE_ID,
         },
-        handleScanPhaseChanges,
         ['session_id', 'phase_id']
       ),
       sessionTool(
@@ -170,7 +180,6 @@ function createToolPack() {
           downstream_context: { type: 'object' },
           reason: { type: 'string' },
         },
-        handleReconcilePhase,
         ['session_id', 'phase_id']
       ),
     ],

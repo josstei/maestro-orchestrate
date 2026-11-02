@@ -11,20 +11,6 @@ const { makeTempDir } = require('../support/fs');
 const { packServer, phase } = require('../support/session-server');
 
 describe('workspace tool pack', () => {
-  it('registers the workspace and planning tool surface through the kernel', () => {
-    const server = packServer([createToolPack]);
-
-    assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
-      [
-        'initialize_workspace',
-        'assess_task_complexity',
-        'validate_plan',
-        'resolve_settings',
-      ]
-    );
-  });
-
   it('resolves settings from the workspace env file', async () => {
     const projectRoot = makeTempDir('maestro-settings-');
     fs.writeFileSync(

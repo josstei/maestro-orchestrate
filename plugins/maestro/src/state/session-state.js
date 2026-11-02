@@ -6,7 +6,7 @@ const { StateError, NotFoundError } = require('../lib/errors');
 const markdownState = require('../core/markdown-state');
 const { withStateMutation } = require('./coordinator');
 const {
-  WORKSPACE_SUBDIRS, resolveStateDirUnder, resolveStateDirPath, activeSessionFile,
+  WORKSPACE_SUBDIRS, resolveStateDirUnder, activeSessionFile,
 } = require('./paths');
 
 /** Parse ctx.basePath's active session; ctx is a withStateMutation tx or a withStateRead view. */
@@ -23,26 +23,6 @@ function writeActiveSession(tx, state, body) {
   const sessionPath = activeSessionFile(tx.basePath);
   tx.writeFile(sessionPath, markdownState.serialize(state, body));
   return sessionPath;
-}
-
-/**
- * Read the active session, fail with StateError when it is not `sessionId`
- * (a falsy `sessionId` skips the check), run `mutator(session, now)` against
- * it (mutating `session.state` in place), stamp `state.updated = now`, persist
- * the state with the original body, and return whatever the mutator returned.
- * `now` is one ISO timestamp per call, so a mutator can reuse it for other
- * fields. A mismatch or a throwing mutator leaves the session file untouched.
- */
-function withSessionState(cwd, operation, sessionId, mutator) {
-  return withStateMutation(resolveStateDirPath(cwd), { operation, sessionId }, (tx) => {
-    const session = readActiveSession(tx);
-    assertSessionMatch(session.state, sessionId);
-    const now = new Date().toISOString();
-    const result = mutator(session, now);
-    session.state.updated = now;
-    writeActiveSession(tx, session.state, session.body);
-    return result;
-  });
 }
 
 /**
@@ -127,7 +107,6 @@ module.exports = {
   readActiveSession,
   readActiveSessionOrNull,
   writeActiveSession,
-  withSessionState,
   archiveActiveSession,
   assertSessionMatch,
   findPhaseOrThrow,

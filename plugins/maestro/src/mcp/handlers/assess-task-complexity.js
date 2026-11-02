@@ -56,77 +56,45 @@ const SIZE_BANDS = [
   { max: Infinity, size: 'large', loc: 'high' },
 ];
 const TEST_DIRS = ['tests', '__tests__', 'test'];
+const MAX_DEPTH = 10;
 
-function countFiles(directory, depth, depthLimit) {
-  if (depth > depthLimit) {
-    return { count: 0, deepestLevel: depth };
-  }
-
-  let count = 0;
-  let deepestLevel = depth;
-
+function countFiles(directory, depth = 0, totals = { count: 0, deepestLevel: 0 }) {
+  totals.deepestLevel = Math.max(totals.deepestLevel, depth);
+  if (depth > MAX_DEPTH) return totals;
   try {
-    const entries = fs.readdirSync(directory, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (SKIP_DIRS.has(entry.name)) {
-        continue;
-      }
-
-      if (entry.isFile()) {
-        count += 1;
-        continue;
-      }
-
-      if (entry.isDirectory()) {
-        const nested = countFiles(
-          path.join(directory, entry.name),
-          depth + 1,
-          depthLimit
-        );
-        count += nested.count;
-        deepestLevel = Math.max(deepestLevel, nested.deepestLevel);
-      }
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      if (entry.isFile()) totals.count += 1;
+      else if (entry.isDirectory()) countFiles(path.join(directory, entry.name), depth + 1, totals);
     }
   } catch {}
-
-  return { count, deepestLevel };
+  return totals;
 }
 
 function detectFrameworks(directory) {
-  const pkg = readJsonSafe(path.join(directory, 'package.json'));
-  if (!pkg) {
-    return [];
-  }
-
+  const pkg = readJsonSafe(path.join(directory, 'package.json')) || {};
   const allDependencies = {
     ...pkg.dependencies,
     ...pkg.devDependencies,
   };
 
-  return Object.entries(FRAMEWORK_INDICATORS)
-    .filter(([, indicators]) =>
-      indicators.some((indicator) => indicator in allDependencies)
-    )
-    .map(([name]) => name);
+  return Object.keys(FRAMEWORK_INDICATORS).filter((name) =>
+    FRAMEWORK_INDICATORS[name].some((indicator) => indicator in allDependencies)
+  );
 }
 
 function handleAssessTaskComplexity(_params, projectRoot) {
-  const { count: fileCount, deepestLevel } = countFiles(projectRoot, 0, 10);
-  const configFiles = CONFIG_FILES.filter((file) =>
-    fs.existsSync(path.join(projectRoot, file))
-  );
+  const exists = (name) => fs.existsSync(path.join(projectRoot, name));
+  const { count: fileCount, deepestLevel } = countFiles(projectRoot);
   const sizeBand = SIZE_BANDS.find((band) => fileCount <= band.max);
 
   return {
     file_count: fileCount,
     directory_depth: deepestLevel,
-    has_package_json: fs.existsSync(path.join(projectRoot, 'package.json')),
-    has_config_files: configFiles,
+    has_package_json: exists('package.json'),
+    has_config_files: CONFIG_FILES.filter(exists),
     frameworks_detected: detectFrameworks(projectRoot),
-    existing_test_infrastructure: TEST_DIRS.some((dir) =>
-      fs.existsSync(path.join(projectRoot, dir))
-    ),
+    existing_test_infrastructure: TEST_DIRS.some(exists),
     lines_of_code_estimate: sizeBand.loc,
     repo_is_empty: fileCount === 0,
     repo_size_estimate: sizeBand.size,

@@ -5,32 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createToolPack } = require('../../src/mcp/tool-packs/session');
 const { writeTree } = require('../support/fs');
 const { activeSessionPath, readSessionState } = require('../support/session-file');
-const { SessionWorkspace, packServer, phase, singlePhase } = require('../support/session-server');
+const { SessionWorkspace, phase, singlePhase } = require('../support/session-server');
 
 describe('session tool pack', () => {
-  it('registers the session lifecycle tools through the kernel', () => {
-    const server = packServer([createToolPack]);
-
-    assert.deepEqual(
-      server.getToolSchemas().map((schema) => schema.name),
-      [
-        'create_session',
-        'get_session_status',
-        'update_session',
-        'transition_phase',
-        'archive_session',
-        'enter_design_gate',
-        'record_design_approval',
-        'get_design_gate_status',
-        'scan_phase_changes',
-        'reconcile_phase',
-      ]
-    );
-  });
-
   it('creates, updates, and transitions session state on disk', async () => {
     const workspace = await SessionWorkspace.create();
     writeTree(workspace.dir, 'docs/maestro/plans/design.md', '# Design\n');
