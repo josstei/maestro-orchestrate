@@ -8,33 +8,25 @@ const DEFAULT_STATE_DIR = 'docs/maestro';
 const ACTIVE_SESSION_REL = path.join('state', 'active-session.md');
 const WORKSPACE_SUBDIRS = Object.freeze(['state', 'state/archive', 'plans', 'plans/archive']);
 
-function validateRelativePath(filePath) {
-  if (path.isAbsolute(filePath)) {
-    throw new Error('Path must be relative');
-  }
-  const segments = filePath.split(/[/\\]/);
-  if (segments.includes('..')) {
-    throw new Error('Path traversal not allowed');
-  }
-}
-
 function joinRelative(basePath, relativePath) {
-  validateRelativePath(relativePath);
+  if (path.isAbsolute(relativePath)) throw new Error('Path must be relative');
+  if (relativePath.split(/[/\\]/).includes('..')) throw new Error('Path traversal not allowed');
   return path.join(basePath, relativePath);
 }
 
-function resolvePhysicalPath(filename, symlinkDepth = 0) {
+// Containment identities pass native realpath and stop at dangling links.
+function resolvePhysicalPath(filename, realpath = fs.realpathSync, followDangling = true, symlinkDepth = 0) {
   if (symlinkDepth > 40) throw Object.assign(new Error('Too many symbolic links in state path'), { code: 'ELOOP' });
   let existing = path.resolve(filename);
   const missing = [];
   for (;;) {
-    try { return path.join(fs.realpathSync(existing), ...missing); }
+    try { return path.join(realpath(existing), ...missing); }
     catch (error) {
       if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
       try {
-        if (fs.lstatSync(existing).isSymbolicLink()) {
+        if (followDangling && fs.lstatSync(existing).isSymbolicLink()) {
           const destination = path.resolve(path.dirname(existing), fs.readlinkSync(existing));
-          return path.join(resolvePhysicalPath(destination, symlinkDepth + 1), ...missing);
+          return path.join(resolvePhysicalPath(destination, realpath, true, symlinkDepth + 1), ...missing);
         }
       } catch (linkError) {
         if (!['ENOENT', 'ENOTDIR'].includes(linkError.code)) throw linkError;
@@ -53,18 +45,7 @@ function isWithin(root, filename) {
 }
 
 function containmentIdentity(filePath) {
-  let existing = filePath;
-  const suffix = [];
-  for (;;) {
-    try { return path.join(fs.realpathSync.native(existing), ...suffix); }
-    catch (error) {
-      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) return filePath;
-      const parent = path.dirname(existing);
-      if (parent === existing) return filePath;
-      suffix.unshift(path.basename(existing));
-      existing = parent;
-    }
-  }
+  try { return resolvePhysicalPath(filePath, fs.realpathSync.native, false); } catch { return filePath; }
 }
 
 function validateContainment(absolutePath, rootDir) {
@@ -81,11 +62,7 @@ function validateContainment(absolutePath, rootDir) {
 }
 
 function resolveStateDirUnder(base, stateDir) {
-  if (path.isAbsolute(stateDir)) {
-    return validateContainment(stateDir, base);
-  }
-
-  return joinRelative(base, stateDir);
+  return path.isAbsolute(stateDir) ? validateContainment(stateDir, base) : joinRelative(base, stateDir);
 }
 
 /**

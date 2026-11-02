@@ -91,13 +91,8 @@ function removeOwnedLock(lockPath, ownerName) {
 }
 
 function reclaimDeadLock(lockPath) {
-  let names;
-  try {
-    const stat = fs.lstatSync(lockPath);
-    if (!stat.isDirectory() || stat.isSymbolicLink()) throw recoveryError('State lock must be a directory, not a symbolic link.');
-    names = fs.readdirSync(lockPath);
-  }
-  catch (error) { if (error.code === 'ENOENT') return; throw error; }
+  const names = readPrivate(lockPath, 'directory', fs.readdirSync);
+  if (!names) return;
   if (names.length === 0) return removeDirIfEmpty(lockPath);
   if (names.length !== 1 || !OWNER_PATTERN.test(names[0])) {
     throw recoveryError('State lock ownership is malformed; inspect the private state lock before retrying.');
@@ -118,16 +113,21 @@ function assertPrivateMetadata(filename, kind) {
   }
 }
 
-// Returns undefined for an absent file, a value JSON.parse never produces.
-function readPrivateJson(filename, message) {
+// Returns read(filename), or undefined for an absent entry. Any other failure
+// needs recovery, described by message(error) when given.
+function readPrivate(filename, kind, read, message) {
   try {
-    assertPrivateMetadata(filename, 'file');
-    return JSON.parse(fs.readFileSync(filename, 'utf8'));
+    assertPrivateMetadata(filename, kind);
+    return read(filename);
   }
   catch (error) {
     if (error.code === 'ENOENT') return undefined;
-    throw recoveryError(message);
+    throw message ? recoveryError(message(error)) : asRecoveryError(error);
   }
+}
+
+function readPrivateJson(filename, message) {
+  return readPrivate(filename, 'file', () => JSON.parse(fs.readFileSync(filename, 'utf8')), () => message);
 }
 
 function ensurePrivateDirectory(directory) {
@@ -147,67 +147,59 @@ function cleanupDeadCandidates(directory) {
   }
 }
 
-async function acquireStateLockInternal(controlPath, { timeoutMs = 5000 } = {}) {
-  ensurePrivateDirectory(controlPath);
-  ensurePrivateDirectory(path.join(controlPath, 'candidates'));
-  cleanupDeadCandidates(path.join(controlPath, 'candidates'));
-  syncDirectory(path.dirname(controlPath));
-  syncDirectory(controlPath);
-  const token = randomUUID();
-  const candidate = path.join(controlPath, 'candidates', token);
-  const lockPath = path.join(controlPath, 'lock');
-  const ownerName = `owner-${token}.json`;
-  const deadline = Date.now() + timeoutMs;
-  let candidateMoved = false;
+async function acquireStateLock(controlPath, { timeoutMs = 5000 } = {}) {
   try {
-    fs.mkdirSync(candidate, { mode: 0o700 });
-    durableWrite(path.join(candidate, ownerName), JSON.stringify({
-      version: 1, token, pid: process.pid, hostname: os.hostname(), created: new Date().toISOString(),
-    }));
-    for (;;) {
-      try {
-        fs.renameSync(candidate, lockPath);
-      } catch (error) {
-        if (!['EEXIST', 'ENOTEMPTY', 'EPERM', 'EACCES'].includes(error.code)) throw error;
-        // The previous owner can release between a failed rename and this check.
-        reclaimDeadLock(lockPath);
-        if (Date.now() >= deadline) {
-          if (['EPERM', 'EACCES'].includes(error.code) && !fs.existsSync(lockPath)) throw error;
-          throw busyError(timeoutMs);
+    ensurePrivateDirectory(controlPath);
+    ensurePrivateDirectory(path.join(controlPath, 'candidates'));
+    cleanupDeadCandidates(path.join(controlPath, 'candidates'));
+    syncDirectory(path.dirname(controlPath));
+    syncDirectory(controlPath);
+    const token = randomUUID();
+    const candidate = path.join(controlPath, 'candidates', token);
+    const lockPath = path.join(controlPath, 'lock');
+    const ownerName = `owner-${token}.json`;
+    const deadline = Date.now() + timeoutMs;
+    let candidateMoved = false;
+    try {
+      fs.mkdirSync(candidate, { mode: 0o700 });
+      durableWrite(path.join(candidate, ownerName), JSON.stringify({
+        version: 1, token, pid: process.pid, hostname: os.hostname(), created: new Date().toISOString(),
+      }));
+      for (;;) {
+        try {
+          fs.renameSync(candidate, lockPath);
+        } catch (error) {
+          if (!['EEXIST', 'ENOTEMPTY', 'EPERM', 'EACCES'].includes(error.code)) throw error;
+          // The previous owner can release between a failed rename and this check.
+          reclaimDeadLock(lockPath);
+          if (Date.now() >= deadline) {
+            if (['EPERM', 'EACCES'].includes(error.code) && !fs.existsSync(lockPath)) throw error;
+            throw busyError(timeoutMs);
+          }
+          await pollDelay(deadline);
+          continue;
         }
-        await pollDelay(deadline);
-        continue;
-      }
-      candidateMoved = true;
-      try { syncDirectory(controlPath); }
-      catch (error) { removeOwnedLock(lockPath, ownerName); throw error; }
-      let released = false;
-      return () => {
-        if (!released) {
-          removeOwnedLock(lockPath, ownerName);
+        candidateMoved = true;
+        try { syncDirectory(controlPath); }
+        catch (error) { removeOwnedLock(lockPath, ownerName); throw error; }
+        let released = false;
+        return () => {
+          if (released) return;
+          try { removeOwnedLock(lockPath, ownerName); }
+          catch (error) { throw recoveryError(`State lock ownership could not be released: ${error.message}`); }
           released = true;
-        }
-      };
+        };
+      }
+    } finally {
+      // A successful rename consumed the candidate. Its cleanup must not prevent
+      // returning the release callback for the lock we now own.
+      if (!candidateMoved) fs.rmSync(candidate, { recursive: true, force: true });
     }
-  } finally {
-    // A successful rename consumed the candidate. Its cleanup must not prevent
-    // returning the release callback for the lock we now own.
-    if (!candidateMoved) fs.rmSync(candidate, { recursive: true, force: true });
-  }
-}
-
-async function acquireStateLock(controlPath, options) {
-  try {
-    const release = await acquireStateLockInternal(controlPath, options);
-    return () => {
-      try { release(); }
-      catch (error) { throw recoveryError(`State lock ownership could not be released: ${error.message}`); }
-    };
   }
   catch (error) { throw asRecoveryError(error); }
 }
 
 module.exports = {
-  assertPrivateMetadata, ensurePrivateDirectory, readPrivateJson, acquireStateLock, durableWrite, syncDirectory,
-  recoveryError, asRecoveryError, busyError, pollDelay,
+  assertPrivateMetadata, ensurePrivateDirectory, readPrivate, readPrivateJson, acquireStateLock, durableWrite,
+  syncDirectory, recoveryError, asRecoveryError, busyError, pollDelay,
 };

@@ -5,10 +5,9 @@ const fs = require('node:fs');
 const { resolveProjectRoot } = require('../core/project-root-resolver');
 const { activeSessionFile, resolveStateDirPath } = require('../state/paths');
 const { withStateRead } = require('../state/coordinator');
-const { fatal } = require('../core/logger');
-const { isCoordinationError, stateErrorMessage } = require('./state-access');
+const { isCoordinationError, runStateCommand } = require('./state-access');
 
-async function main() {
+runStateCommand(async () => {
   const projectRoot = resolveProjectRoot();
 
   try {
@@ -19,6 +18,4 @@ async function main() {
     if (isCoordinationError(error)) throw error;
     process.stdout.write('No active session\n');
   }
-}
-
-main().catch((error) => fatal(stateErrorMessage(error)));
+});

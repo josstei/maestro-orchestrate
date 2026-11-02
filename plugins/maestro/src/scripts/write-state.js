@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-const { writeStateFile, stateErrorMessage } = require('./state-access');
+const { writeStateFile, runStateCommand } = require('./state-access');
 const { readText } = require('../core/stdin-reader');
-const { fatal } = require('../core/logger');
 
-async function main() {
+runStateCommand(async () => {
   let stateFile;
   let expectedSha256;
   const args = process.argv.slice(2);
@@ -24,6 +23,4 @@ async function main() {
   const content = await readText();
   if (!content) throw new Error('stdin content is empty');
   await writeStateFile(stateFile, content, process.cwd(), { expectedSha256 });
-}
-
-main().catch((err) => fatal(stateErrorMessage(err)));
+});

@@ -5,6 +5,7 @@ const path = require('node:path');
 const { atomicWriteSync } = require('../lib/io');
 const { ValidationError } = require('../lib/errors');
 const { createSettingResolver } = require('../config/setting-resolver');
+const { fatal } = require('../core/logger');
 const { DEFAULT_STATE_DIR, joinRelative, resolveStateDirPath, resolvePhysicalPath } = require('../state/paths');
 const { withStateRead, withStateMutation } = require('../state/coordinator');
 const {
@@ -60,24 +61,16 @@ function resolveAccess(relativePath, workspace) {
   const warnings = [];
   const resolveSetting = createSettingResolver(workspace, { onWarning: (message) => warnings.push(message) });
   const stateDir = resolveSetting('MAESTRO_STATE_DIR') || DEFAULT_STATE_DIR;
-  const reportWarnings = () => { for (const warning of warnings) console.warn(warning); };
+  // Generic raw files historically did not depend on state configuration. An
+  // invalid root only fails access to files it could overlap.
   let stateRoot;
-  try {
-    stateRoot = resolveStateDirPath(workspace, stateDir);
-  } catch (error) {
-    // Generic raw files historically did not depend on state configuration.
-    // Preserve that behavior only when they cannot overlap the invalid root.
-    const candidate = path.resolve(workspace, stateDir);
-    if (isWithin(candidate, filePath) || isWithin(stateRootIdentity(candidate), physicalFile)) {
-      reportWarnings();
-      throw error;
-    }
-    return { filePath, managed: false };
-  }
-  const physicalRoot = stateRootIdentity(stateRoot);
-  const managed = isWithin(stateRoot, filePath) || isWithin(physicalRoot, physicalFile);
+  let invalidRoot;
+  try { stateRoot = resolveStateDirPath(workspace, stateDir); }
+  catch (error) { invalidRoot = error; stateRoot = path.resolve(workspace, stateDir); }
+  const managed = isWithin(stateRoot, filePath) || isWithin(stateRootIdentity(stateRoot), physicalFile);
   if (managed) {
-    reportWarnings();
+    for (const warning of warnings) console.warn(warning);
+    if (invalidRoot) throw invalidRoot;
     assertPublicStatePath(stateRoot, filePath);
   }
   return {
@@ -99,12 +92,11 @@ async function readStateFile(relativePath, workspace, { withDigest = false } = {
 
 async function writeStateFile(relativePath, content, workspace, { expectedSha256 } = {}) {
   const { filePath, stateRoot, managed } = resolveAccess(relativePath, workspace);
-  if (expectedSha256 !== undefined && !managed) {
-    throw new ValidationError('--expected-sha256 requires a path within the configured state directory');
-  }
   if (!managed) {
-    atomicWriteSync(filePath, content);
-    return;
+    if (expectedSha256 !== undefined) {
+      throw new ValidationError('--expected-sha256 requires a path within the configured state directory');
+    }
+    return atomicWriteSync(filePath, content);
   }
   return withStateMutation(stateRoot, { operation: 'write_state' }, (tx) => {
     if (expectedSha256 !== undefined) checkExpectedDigest(tx, filePath, expectedSha256);
@@ -116,13 +108,16 @@ function isCoordinationError(error) {
   return /^STATE_(?:BUSY|RECOVERED|RECOVERY_REQUIRED|CONFLICT)$/.test(error.code);
 }
 
-function stateErrorMessage(error) {
-  if (!isCoordinationError(error)) return error.message;
-  const transactionId = error.details?.transaction_id;
-  const transaction = typeof transactionId === 'string' && transactionId.length > 0
-    ? ` (transaction: ${transactionId})`
-    : '';
-  return `${error.code}: ${error.message}${transaction}`;
+// Coordination failures keep their code and transaction id for recovery.
+function runStateCommand(command) {
+  command().catch((error) => {
+    if (!isCoordinationError(error)) return fatal(error.message);
+    const transactionId = error.details?.transaction_id;
+    const transaction = typeof transactionId === 'string' && transactionId.length > 0
+      ? ` (transaction: ${transactionId})`
+      : '';
+    fatal(`${error.code}: ${error.message}${transaction}`);
+  });
 }
 
-module.exports = { readStateFile, writeStateFile, isCoordinationError, stateErrorMessage };
+module.exports = { readStateFile, writeStateFile, isCoordinationError, runStateCommand };

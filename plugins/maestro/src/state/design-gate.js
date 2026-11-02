@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { ValidationError, StateError } = require('../lib/errors');
-const { readJsonSafe } = require('../lib/io');
 
 const GATE_FILENAME = '.design-gate.json';
 
@@ -65,29 +64,21 @@ function writeGate(tx, sessionId, data) {
  * Reads the `state/` directory once and parses each `<session_id>.design-gate.json`
  * artifact. Corrupt or unapproved gate files are skipped silently.
  *
- * @param {string} basePath
+ * @param {object} tx - State transaction
  * @param {string} currentSessionId
  * @throws {ValidationError} when an orphaned approved gate is detected
  */
-function assertNoOrphanedApprovedGate(basePath, currentSessionId) {
-  const stateDir = gateDir(basePath);
-  let entries;
-  try {
-    entries = fs.readdirSync(stateDir);
-  } catch {
-    return;
-  }
-  const orphanedIds = [];
-  for (const entry of entries) {
-    if (!entry.endsWith(GATE_FILENAME)) continue;
-    const sessionId = entry.slice(0, -GATE_FILENAME.length);
-    if (sessionId.length === 0 || sessionId === currentSessionId) continue;
-    // Unreadable or corrupt gates read as null and are skipped; detection is best-effort.
-    const gate = readJsonSafe(path.join(stateDir, entry));
-    if (gate && typeof gate.approved_at === 'string' && gate.approved_at.length > 0) {
-      orphanedIds.push(sessionId);
-    }
-  }
+function assertNoOrphanedApprovedGate(tx, currentSessionId) {
+  let entries = [];
+  try { entries = fs.readdirSync(gateDir(tx.basePath)); } catch {}
+  // Keep fs order (tx.readdir sorts): the mismatch error lists ids in directory order.
+  const orphanedIds = entries
+    .filter((entry) => entry.endsWith(GATE_FILENAME))
+    .map((entry) => entry.slice(0, -GATE_FILENAME.length))
+    .filter((id) => {
+      const approvedAt = id && id !== currentSessionId && readGate(tx, id)?.approved_at;
+      return typeof approvedAt === 'string' && approvedAt.length > 0;
+    });
   if (orphanedIds.length === 0) return;
 
   const idList = orphanedIds.map((id) => `'${id}'`).join(', ');
@@ -122,7 +113,7 @@ function assertNoOrphanedApprovedGate(basePath, currentSessionId) {
 function readGateForCreateSession(tx, sessionId) {
   const gate = readGate(tx, sessionId);
   if (gate === null) {
-    assertNoOrphanedApprovedGate(tx.basePath, sessionId);
+    assertNoOrphanedApprovedGate(tx, sessionId);
   }
 
   if (gate && gate.entered_at && !gate.approved_at) {

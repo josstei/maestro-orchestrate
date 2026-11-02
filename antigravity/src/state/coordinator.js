@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { StateError } = require('../lib/errors');
 const { resolvePhysicalPath } = require('./paths');
-const { acquireStateLock, asRecoveryError, busyError, pollDelay, recoveryError, assertPrivateMetadata } = require('./state-lock');
+const { acquireStateLock, asRecoveryError, busyError, pollDelay, recoveryError, readPrivate } = require('./state-lock');
 const {
   createTransaction, journalPath, publishTransaction, replayTransaction,
 } = require('./transaction');
@@ -20,28 +20,12 @@ function controlDirectory(basePath) {
   }
 }
 
-function journalExists(filename) {
-  try {
-    const stat = fs.lstatSync(filename);
-    if (!stat.isFile() || stat.isSymbolicLink()) throw recoveryError('The state recovery journal must be a regular file.');
-    return true;
-  } catch (error) {
-    if (error.code === 'ENOENT') return false;
-    throw asRecoveryError(error);
-  }
-}
+const journalExists = (filename) => readPrivate(filename, 'file', () => true);
 
 function cleanupAbandonedTransactions(control) {
   const directory = path.join(control, 'transactions');
-  let entries;
-  try {
-    assertPrivateMetadata(directory, 'directory');
-    entries = fs.readdirSync(directory);
-  }
-  catch (error) {
-    if (error.code === 'ENOENT') return;
-    throw recoveryError(`State staging metadata could not be accessed: ${error.message}`);
-  }
+  const entries = readPrivate(directory, 'directory', fs.readdirSync,
+    (error) => `State staging metadata could not be accessed: ${error.message}`) || [];
   for (const entry of entries) {
     if (/^[a-f0-9-]{36}$/.test(entry)) {
       try { fs.rmSync(path.join(directory, entry), { recursive: true, force: true }); } catch {}
@@ -89,15 +73,8 @@ async function withStateMutation(basePath, metadata, callback, options = {}) {
 }
 
 function revision(control) {
-  try {
-    const filename = path.join(control, 'revision');
-    assertPrivateMetadata(filename, 'file');
-    return fs.readFileSync(filename, 'utf8');
-  }
-  catch (error) {
-    if (error.code === 'ENOENT') return '';
-    throw recoveryError(`The state revision could not be read: ${error.message}`);
-  }
+  return readPrivate(path.join(control, 'revision'), 'file', (filename) => fs.readFileSync(filename, 'utf8'),
+    (error) => `The state revision could not be read: ${error.message}`) ?? '';
 }
 
 async function withStateRead(basePath, reader, { timeoutMs = 5000 } = {}) {
