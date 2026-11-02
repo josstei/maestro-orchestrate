@@ -152,7 +152,7 @@ Examples that pass:
 
 - `feat(api): add idempotency-key header`
 - `fix(core): reject on malformed JSON instead of crashing`
-- `chore(deps): bump c8 to ^10.1.4`
+- `chore(deps): bump acorn to ^8.19.1`
 - `feat(auth)!: drop legacy session-token support`
 - `release: v1.7.0`
 
