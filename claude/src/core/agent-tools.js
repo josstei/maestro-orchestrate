@@ -10,8 +10,8 @@
  * (Antigravity reads single files, many files and skills all with
  * view_file), so deduplication keeps each name's first position.
  *
- * Shared by the agent-stub transform (the stub's `tools:` list) and get_agent
- * (the served `tools`), so both report the same list for an agent.
+ * Shared by agentStub in src/generator/stub-outputs.js (the stub's `tools:`
+ * list) and get_agent (the served `tools`), so both report the same list.
  */
 function mapTools(frontmatter, runtimeConfig) {
   const override = frontmatter[`tools.${runtimeConfig.name}`];

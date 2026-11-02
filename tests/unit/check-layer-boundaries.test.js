@@ -93,12 +93,12 @@ describe('check-layer-boundaries (fixture cases)', () => {
     }, 0, [/4 files scanned, 0 violations/]],
     ['allows lower layers to depend on their declared shared layers', {
       'src/core/agent-registry.js': "require('../lib/naming');\nrequire('../generated/agent-registry.json');",
-      'src/config/setting-resolver.js': "require('../core/env-file-parser');",
+      'src/config/setting-resolver.js': "require('../core/version');",
       'src/state/design-gate.js': "require('../lib/io');\nrequire('../core/markdown-state');\n" +
         "require('../config/setting-resolver');\nrequire('./session-state');",
       'src/hooks/logic/before-agent-logic.js': "require('../../state/session-state');\n" +
         "require('../../core/logger');\nrequire('./hook-state');",
-      ...Object.fromEntries(['lib/naming', 'lib/io', 'core/env-file-parser', 'core/markdown-state', 'core/logger',
+      ...Object.fromEntries(['lib/naming', 'lib/io', 'core/version', 'core/markdown-state', 'core/logger',
         'state/session-state', 'hooks/logic/hook-state'].map((file) => [`src/${file}.js`, ''])),
       'src/generated/agent-registry.json': '[]',
     }, 0, [/13 files scanned, 0 violations/]],

@@ -80,7 +80,7 @@ This extension was authored for Qwen Code. When following agent methodology file
 | Max Concurrent | `MAESTRO_MAX_CONCURRENT` | `0` | Native parallel batch chunk size (`0` means dispatch the entire ready batch) |
 | Execution Mode | `MAESTRO_EXECUTION_MODE` | `ask` | Execute phase mode selection (`ask`, `parallel`, `sequential`) |
 
-**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent tuning comes from agent frontmatter (`max_turns`) and Qwen Code `agents.overrides`, not Maestro process flags.
+**Note:** `MAESTRO_STATE_DIR` is resolved by `read-active-session.js` through exported env, workspace `.env`, extension `.env`, then default `docs/maestro`. The remaining Maestro settings are orchestration inputs. Native agent tuning comes from agent frontmatter (`max_turns`) and Qwen Code `agents.overrides`.
 
 Additional controls:
 
@@ -189,7 +189,7 @@ Resolve `<state_dir>` from `MAESTRO_STATE_DIR`:
 - Plans: `<state_dir>/plans/`
 - Archives: `<state_dir>/state/archive/`, `<state_dir>/plans/archive/`
 
-When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`edit` for writes directly on state paths. Native parallel execution does not create prompt/result artifact directories under state; batch output is recorded directly in session state.
+When MCP state tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) are available, use them for state operations — they provide structured I/O and atomic transitions. When unavailable, use `read_file` for reads and `write_file`/`edit` for writes directly on state paths.
 
 `/maestro:resume` injects state before the model's first turn through a TOML shell block that runs `src/scripts/read-active-session.js` from `${MAESTRO_EXTENSION_PATH:-$HOME/.qwen/extensions/maestro}` (or reports `No active session` when that script is missing). `/maestro:status` has no shell block; it reads the active session through the MCP state tools when available, falling back to scripts or a direct file read, and does not mutate state.
 
@@ -263,7 +263,7 @@ Maestro uses Qwen Code hooks from `qwen/hooks.json`:
 | --- | --- | --- |
 | SessionStart | `hooks/hook-runner.js qwen session-start` | Prune stale hook state |
 | SubagentStart | `hooks/hook-runner.js qwen before-agent` | Prune stale hook state, track active agent, inject compact session context |
-| SubagentStop | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent or for `techlead`/`orchestrator` |
+| SubagentStop | `hooks/hook-runner.js qwen after-agent` | Enforce handoff format (`Task Report` + `Downstream Context`); skips when no active agent is recorded |
 | SessionEnd | `hooks/hook-runner.js qwen session-end` | Clean up hook state for ended session |
 
 ## MCP Server

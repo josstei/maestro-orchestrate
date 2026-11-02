@@ -2,7 +2,7 @@
 
 ## System Design
 
-Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, detached payloads, and launchers that load `src/`. The launchers are rendered by `src/generator/runtime-entrypoints.js`, preserving their public paths and loading behavior. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
+Maestro follows a **src-first, generated-runtime** architecture. Shared behavior and shared content are authored exactly once under `src/`. The runtime roots (`antigravity/`, `claude/`, `plugins/maestro/`, and the repo root, which is Qwen Code's extension directory, plus `qwen/` for Qwen's generated `hooks.json`) hold what each host loads: generated manifests, discovery stubs, commands and skills, hook registrations, detached payloads, and launchers that load `src/`. The launchers are rendered by `src/generator/runtime-entrypoints.js`. [CONTRIBUTING.md](https://github.com/josstei/maestro-orchestrate/blob/main/CONTRIBUTING.md#architecture-canonical-source-and-generated-runtimes) lists which files are generated and which are maintained by hand.
 
 ```
                              ┌─────────────┐
@@ -169,7 +169,7 @@ Mutations validate and stage bytes before publishing a durable current-transacti
 
 Readers compare revision and transaction markers around their snapshots and retry if a commit overlaps. Ordinary reads neither create directories nor require write access; a pending committed operation must acquire ownership and recover first. A mutation that recovers earlier work returns `STATE_RECOVERED` without starting another mutation. Other explicit errors are `STATE_BUSY`, `STATE_RECOVERY_REQUIRED`, and `STATE_CONFLICT`; their hints tell callers how to inspect or retry safely.
 
-Session formats require no migration; workspace initialization adds `.maestro/` to `<state_dir>/state/.gitignore` and keeps its existing entries. Files and directory metadata are flushed where supported; process-crash recovery is guaranteed, while power-loss durability depends on the operating system and filesystem. Direct editor writes and older processes do not participate in this protocol. Do not downgrade while a committed journal remains. See [state usage](usage.md#concurrent-updates-and-recovery) for the optional digest-guarded CLI form.
+Workspace initialization adds `.maestro/` to `<state_dir>/state/.gitignore` and keeps its existing entries. Files and directory metadata are flushed where supported; process-crash recovery is guaranteed, while power-loss durability depends on the operating system and filesystem. Direct editor writes and older processes do not participate in this protocol. Do not downgrade while a committed journal remains. See [state usage](usage.md#concurrent-updates-and-recovery) for the optional digest-guarded CLI form.
 
 ### MCP Server Packaging
 

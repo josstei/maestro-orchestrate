@@ -61,7 +61,7 @@ const PHASE_ITEM_SCHEMA = {
  * Required fields per phase: id, name, agent, parallel, blocked_by.
  *
  * Optional field: `files` — the planning-time file manifest. When supplied,
- * T9 `create_session` maps it to the session state's `planned_files` field
+ * `create_session` maps it to the session state's `planned_files` field
  * for later reconciliation. The runtime-populated manifests
  * (`files_created`, `files_modified`, `files_deleted`) are NOT plan inputs;
  * they are set by `transition_phase` after an agent completes, and they

@@ -61,8 +61,8 @@ function resolveAccess(relativePath, workspace) {
   const warnings = [];
   const resolveSetting = createSettingResolver(workspace, { onWarning: (message) => warnings.push(message) });
   const stateDir = resolveSetting('MAESTRO_STATE_DIR') || DEFAULT_STATE_DIR;
-  // Generic raw files historically did not depend on state configuration. An
-  // invalid root only fails access to files it could overlap.
+  // Only paths the state root could contain are managed and surface the .env
+  // warnings or an invalid-root error; other files are plain reads and writes.
   let stateRoot;
   let invalidRoot;
   try { stateRoot = resolveStateDirPath(workspace, stateDir); }

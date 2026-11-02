@@ -66,7 +66,7 @@ Shared code and content live in `src/`. The generator (`just generate`) builds r
 
 `antigravity/src/`, `claude/src/`, and `plugins/maestro/src/` contain dependency closures and explicit content roots from `src/`, stamped with `version.json`, for installs outside the repo. Install the locked development dependencies with `npm ci` before generation or architecture checks; Acorn and Acorn Walk never enter detached payloads. New dynamic loaders need an explicit supported dependency classification; apparent orphan modules require review rather than automatic deletion.
 
-Launchers are rendered by `src/generator/runtime-entrypoints.js`. Their public paths and repo-first, bundled-fallback loading remain stable. Generation also restores the executable mode of the Codex npm bin.
+Launchers are rendered by `src/generator/runtime-entrypoints.js`; those beside a detached payload load the repository `src/` when present and otherwise the bundled copy. Generation also restores the executable mode of the Codex npm bin.
 
 | Hand-maintained (edit in place) | Purpose |
 |---------------------------------|---------|

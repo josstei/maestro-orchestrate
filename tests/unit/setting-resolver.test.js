@@ -178,7 +178,7 @@ describe('request-scoped setting resolver', () => {
 });
 
 describe('parseEnvFile', () => {
-  const parse = (content) => parseEnvFile(writeTree(makeTempDir('env-file-parser-'), '.env', content));
+  const parse = (content) => parseEnvFile(writeTree(makeTempDir('setting-resolver-env-'), '.env', content));
   for (const [title, content, values] of [
     ['parses a simple KEY=VALUE pair', 'FOO=bar\n', { FOO: 'bar' }],
     ['parses multiple KEY=VALUE pairs', 'A=1\nB=2\nC=3\n', { A: '1', B: '2', C: '3' }],
@@ -211,7 +211,7 @@ describe('parseEnvFile', () => {
   });
 
   it('returns no values or warnings for a non-existent file path', () => {
-    const missing = path.join(makeTempDir('env-file-parser-'), 'does-not-exist.env');
+    const missing = path.join(makeTempDir('setting-resolver-env-'), 'does-not-exist.env');
     assert.deepEqual(parseEnvFile(missing), { values: {}, warnings: [] });
   });
 });

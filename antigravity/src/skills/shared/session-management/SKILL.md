@@ -13,7 +13,7 @@ When MCP state tools are available, prefer them for state operations:
 - **Preferred**: MCP tools (`initialize_workspace`, `create_session`, `update_session`, `transition_phase`, `get_session_status`, `archive_session`) — structured I/O, coordinated updates and crash recovery.
 - **Script fallback**: when MCP tools are unavailable and the installed state scripts can run, read with `read-state.js <relative-path> --with-digest`, then pass the returned `sha256` to `write-state.js <relative-path> --expected-sha256 <digest>` with the replacement content on stdin. The path must be inside the configured state directory. A conflict requires reading fresh content and reapplying the intended change.
 - **Direct-file fallback**: `write_file`/`replace` directly on state files when neither MCP nor the scripts are available. These writes do not participate in coordination; avoid simultaneous writers.
-- **Legacy**: `node <runtime-script-root>/read-active-session.js` (used by command shell blocks to inject state before the first turn) / `read-state.js <relative-path>` — not the recommended path.
+- **Legacy**: `read-active-session.js` (used by command shell blocks to inject state before the first turn) or `read-state.js <relative-path>`, run from the state-scripts directory listed in the architecture reference — not the recommended path.
 
 Detection: check whether MCP state tools appear in your available tools. If they do, use them. Otherwise prefer the installed state scripts and use direct file operations only when those are unavailable. Existing plain script invocations remain supported; whole-file writes without an expected digest use last-write-wins behavior.
 
@@ -179,7 +179,7 @@ Resume is triggered by the `/maestro:resume` command or when `/maestro:orchestra
 
 ### Resume Steps
 
-1. **Read State**: If session state was already injected into the prompt (e.g., via `/maestro:resume`), use that injected content instead of calling `get_session_status`. Otherwise, if `get_session_status` appears in your available tools, call it to read the active session. Otherwise, read state via `run_shell_command`: `node <runtime-script-root>/read-active-session.js` (resolves `MAESTRO_STATE_DIR` internally)
+1. **Read State**: If session state was already injected into the prompt (e.g., via `/maestro:resume`), use that injected content instead of calling `get_session_status`. Otherwise, if `get_session_status` appears in your available tools, call it to read the active session. Otherwise, read state via `run_shell_command` by running `read-active-session.js` from the architecture reference's state-scripts directory (resolves `MAESTRO_STATE_DIR` internally)
 2. **Parse Frontmatter**: Extract YAML frontmatter for session metadata
 3. **Identify Position**: Determine:
    - Last completed phase (highest ID with `status: completed`)

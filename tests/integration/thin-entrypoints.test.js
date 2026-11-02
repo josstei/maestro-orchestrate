@@ -88,17 +88,17 @@ describe('thin entrypoint design', () => {
     );
   });
 
-  it('repo-root hook runner shim backs every qwen hook registration', () => {
-    const shim = fs.readFileSync(path.join(ROOT, 'hooks/hook-runner.js'), 'utf8');
+  it('repo-root hook runner launcher backs every qwen hook registration', () => {
+    const launcher = fs.readFileSync(path.join(ROOT, 'hooks/hook-runner.js'), 'utf8');
     assert.ok(
-      shim.includes("require('../src/platforms/shared/hook-runner').main(process.argv[2], process.argv[3]);"),
+      launcher.includes("require('../src/platforms/shared/hook-runner').main(process.argv[2], process.argv[3]);"),
       'Expected hooks/hook-runner.js to start the shared hook runner from src/ with its arguments'
     );
 
     const commands = hookCommands(readJson(path.join(ROOT, 'qwen/hooks.json')));
     const hookNames = commands.map((command) => {
       const match = command.match(/^node \$\{extensionPath\}\/hooks\/hook-runner\.js qwen ([a-z-]+)$/);
-      assert.ok(match, `Expected qwen hook command to run the repo-root shim: ${command}`);
+      assert.ok(match, `Expected qwen hook command to run the repo-root launcher: ${command}`);
       return match[1];
     });
     assert.deepEqual(

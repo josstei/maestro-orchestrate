@@ -215,7 +215,7 @@ describe('mcp server bundle behavior', () => {
     const secondWorkspace = makeTempDir('maestro-antigravity-second-');
 
     // A copy of antigravity/ where `agy plugin install` puts it, out of reach of the repo
-    // src/, so its shim runs the bundled antigravity/src/. That directory is the server cwd
+    // src/, so its launcher runs the bundled antigravity/src/. That directory is the server cwd
     // and is never suggested, so without client roots there is no suggestion at all.
     const pluginRoot = path.join(makeTempDir('maestro-antigravity-home-'), '.gemini', 'config', 'plugins', 'maestro');
     fs.cpSync(path.join(ROOT, 'antigravity'), pluginRoot, { recursive: true });

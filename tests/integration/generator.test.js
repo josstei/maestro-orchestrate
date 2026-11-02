@@ -152,13 +152,13 @@ describe('generator CLI', () => {
 
   it('fails before writing when a stub renderer throws or a required content source is missing', () => {
     withTempRepoCopy('maestro-generator-failure-', (repoRoot) => {
-      const broken = writeTree(repoRoot, 'src/agents/broken-transform.md',
-        '---\nname: broken-transform\n---\n<example>\nMissing closing example tag\n');
+      const broken = writeTree(repoRoot, 'src/agents/broken-stub.md',
+        '---\nname: broken-stub\n---\n<example>\nMissing closing example tag\n');
       const generated = writeTree(repoRoot, 'claude/agents/coder.md', 'must not be cleaned or replaced\n');
-      const transformFailure = runGeneratorExpectFailure(['--clean'], { cwd: repoRoot });
+      const stubFailure = runGeneratorExpectFailure(['--clean'], { cwd: repoRoot });
 
-      assert.equal(transformFailure.status, 1);
-      assert.match(transformFailure.stderr, /ERROR: processing agents\/broken-transform\.md -> claude\/agents\/broken-transform\.md: Unclosed <example> tag in agent body/);
+      assert.equal(stubFailure.status, 1);
+      assert.match(stubFailure.stderr, /ERROR: processing agents\/broken-stub\.md -> claude\/agents\/broken-stub\.md: Unclosed <example> tag in agent body/);
       assert.equal(fs.readFileSync(generated, 'utf8'), 'must not be cleaned or replaced\n');
 
       fs.unlinkSync(broken);

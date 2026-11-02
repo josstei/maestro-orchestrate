@@ -140,10 +140,7 @@ function createTransaction(basePath, controlPath) {
         return;
       }
       const parent = path.dirname(normalized);
-      if (parent !== root && !image(parent)) {
-        if (options.recursive === false) throw missing(parent);
-        tx.mkdir(parent, options);
-      }
+      if (parent !== root && !image(parent)) tx.mkdir(parent, options);
       const mode = options.mode === undefined ? (0o777 & ~process.umask()) : options.mode;
       operations.push({ type: 'mkdir', path: relative(normalized), before: null, after: { kind: 'directory' }, mode });
       overlay.set(normalized, { image: { kind: 'directory' } });
