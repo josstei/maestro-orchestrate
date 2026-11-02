@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { createHandler } = require('../../src/mcp/handlers/get-runtime-context');
+const { RuntimeContent } = require('../../src/mcp/content/runtime-content');
 const { RUNTIME_NAMES, getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
 const { AGENT_NAMES, KNOWN_AGENTS } = require('../../src/core/agent-registry');
 
@@ -78,7 +78,7 @@ const EXPECTED_CONTEXT = {
 describe('get_runtime_context handler', () => {
   for (const [runtime, expected] of Object.entries(EXPECTED_CONTEXT)) {
     it(`reports the shipped ${runtime} runtime context`, () => {
-      const result = createHandler(getRuntimeConfig(runtime))({});
+      const result = new RuntimeContent(getRuntimeConfig(runtime)).runtimeContext();
 
       assert.equal(result.runtime, runtime);
       assert.equal(result.mcp_prefix, expected.mcp_prefix);
@@ -101,20 +101,20 @@ describe('get_runtime_context handler', () => {
   });
 
   it('reports agent capabilities from the agent registry', () => {
-    const result = createHandler(getRuntimeConfig('claude'))({});
+    const result = new RuntimeContent(getRuntimeConfig('claude')).runtimeContext();
 
     assert.equal(result.agent_capabilities.architect, 'read_only');
     assert.equal(result.agent_capabilities.coder, 'full');
   });
 
   it('passes the workspace suggestion through', () => {
-    const handler = createHandler(getRuntimeConfig('codex'), () => '/workspace/suggestion');
+    const result = new RuntimeContent(getRuntimeConfig('codex')).runtimeContext('/workspace/suggestion');
 
-    assert.equal(handler({}).workspace_suggestion, '/workspace/suggestion');
+    assert.equal(result.workspace_suggestion, '/workspace/suggestion');
   });
 
   it('defaults to kebab-case agents and empty runtime facts for a bare config', () => {
-    const result = createHandler({ name: 'custom' })({});
+    const result = new RuntimeContent({ name: 'custom' }).runtimeContext();
 
     assert.deepEqual(result.agents, AGENT_NAMES);
     assert.deepEqual(result.agent_dispatch, { pattern: '', naming: 'kebab-case', prefix: '' });

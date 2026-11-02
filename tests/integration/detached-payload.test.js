@@ -12,8 +12,7 @@ const { expectExit, runNode } = require('../support/process');
 const { assertStateCliRoundTrip } = require('../support/state');
 const { withMcpClient } = require('./mcp-stdio-client');
 const { getRuntimeConfig } = require('../../src/platforms/runtime-config-map');
-const { createHandler: createGetAgent } = require('../../src/mcp/handlers/get-agent');
-const { createHandler: createGetContent } = require('../../src/mcp/handlers/get-skill-content');
+const { RuntimeContent } = require('../../src/mcp/content/runtime-content');
 const AGENTS = require('../../src/generated/agent-registry.json').map((agent) => agent.name);
 const RESOURCES = Object.keys(require('../../src/generated/resource-registry.json'));
 const HOOKS = Object.keys(require('../../src/generated/hook-registry.json'));
@@ -63,10 +62,10 @@ for (const runtime of ['antigravity', 'claude', 'codex']) {
           invoked.add(name);
           return result.parsed;
         }
-        assert.deepEqual(await call('get_agent', { agents: AGENTS }),
-          createGetAgent(getRuntimeConfig(runtime), sourceRoot)({ agents: AGENTS }));
+        const content = new RuntimeContent(getRuntimeConfig(runtime), sourceRoot);
+        assert.deepEqual(await call('get_agent', { agents: AGENTS }), content.getAgent({ agents: AGENTS }));
         assert.deepEqual(await call('get_skill_content', { resources: RESOURCES }),
-          createGetContent(getRuntimeConfig(runtime), sourceRoot)({ resources: RESOURCES }));
+          content.getSkillContent({ resources: RESOURCES }));
         const local = path.join(plugin, 'src/templates/session-state.md');
         const previous = fs.readFileSync(local, 'utf8');
         try {

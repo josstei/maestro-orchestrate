@@ -59,6 +59,11 @@ async function createCacheWithRoots(roots, options) {
   return cache;
 }
 
+/** `cache`'s suggestion with ENV_VAR set to `env` (null unsets it), run from `cwd`. */
+function suggestionFrom(cache, cwd, env = null) {
+  return withEnv({ [ENV_VAR]: env }, () => withCwd(cwd, () => cache.workspaceSuggestion()));
+}
+
 describe('createProjectRootCache project root', () => {
   it('is null until a workspace path is set explicitly', () => {
     const { cache } = createCache();
@@ -73,11 +78,9 @@ describe('createProjectRootCache project root', () => {
 
   it('is not derived from the workspace suggestion', async () => {
     const workspace = makeDir('workspace');
-    await withEnv({ [ENV_VAR]: workspace }, async () => {
-      const cache = await createCacheWithRoots([pathToFileURL(workspace).href]);
-      assert.equal(cache.workspaceSuggestion(), workspace);
-      assert.equal(cache.getProjectRoot(), null);
-    });
+    const cache = await createCacheWithRoots([pathToFileURL(workspace).href]);
+    assert.equal(suggestionFrom(cache, makeDir('cwd'), workspace), workspace);
+    assert.equal(cache.getProjectRoot(), null);
   });
 });
 
@@ -85,12 +88,9 @@ describe('createProjectRootCache workspaceSuggestion', () => {
   it('prefers the runtime env var over client roots and cwd', async () => {
     const envDir = makeDir('env');
     const rootDir = makeDir('root');
-    const cwdDir = makeDir('cwd');
+    const cache = await createCacheWithRoots([{ uri: pathToFileURL(rootDir).href }]);
 
-    await withEnv({ [ENV_VAR]: envDir }, async () => {
-      const cache = await createCacheWithRoots([{ uri: pathToFileURL(rootDir).href }]);
-      assert.equal(withCwd(cwdDir, () => cache.workspaceSuggestion()), envDir);
-    });
+    assert.equal(suggestionFrom(cache, makeDir('cwd'), envDir), envDir);
   });
 
   it('does not read the cwd when the env var or a client root applies', async () => {
@@ -113,9 +113,7 @@ describe('createProjectRootCache workspaceSuggestion', () => {
     const cache = await createCacheWithRoots([{ uri: pathToFileURL(rootDir).href }]);
 
     for (const value of ['${workspacePath}', path.join(rootDir, 'missing')]) {
-      withEnv({ [ENV_VAR]: value }, () => {
-        assert.equal(cache.workspaceSuggestion(), rootDir, `env value ${value}`);
-      });
+      assert.equal(suggestionFrom(cache, makeDir('cwd'), value), rootDir, `env value ${value}`);
     }
   });
 
@@ -124,46 +122,38 @@ describe('createProjectRootCache workspaceSuggestion', () => {
     const cwdDir = makeDir('cwd');
     const { cache } = createCache({ runtimeConfig: { name: 'test', env: { workspacePath: null } } });
 
-    withEnv({ [ENV_VAR]: envDir }, () => {
-      assert.equal(withCwd(cwdDir, () => cache.workspaceSuggestion()), cwdDir);
-    });
+    assert.equal(suggestionFrom(cache, cwdDir, envDir), cwdDir);
   });
 
   it('uses the first existing, non-cache file:// client root', async () => {
     const rootDir = makeDir('root');
     const laterDir = makeDir('later');
+    const cache = await createCacheWithRoots([
+      'https://example.com/workspace',
+      'not a uri',
+      { name: 'no-uri' },
+      { uri: pathToFileURL(path.join(rootDir, 'missing')).href },
+      { uri: pathToFileURL(makeCacheDir('claude')).href },
+      { uri: pathToFileURL(makeCacheDir('codex')).href },
+      { uri: pathToFileURL(makeCacheDir('antigravity')).href },
+      pathToFileURL(rootDir).href,
+      { uri: pathToFileURL(laterDir).href },
+    ]);
 
-    await withEnv({ [ENV_VAR]: null }, async () => {
-      const cache = await createCacheWithRoots([
-        'https://example.com/workspace',
-        'not a uri',
-        { name: 'no-uri' },
-        { uri: pathToFileURL(path.join(rootDir, 'missing')).href },
-        { uri: pathToFileURL(makeCacheDir('claude')).href },
-        { uri: pathToFileURL(makeCacheDir('codex')).href },
-        { uri: pathToFileURL(makeCacheDir('antigravity')).href },
-        pathToFileURL(rootDir).href,
-        { uri: pathToFileURL(laterDir).href },
-      ]);
-      assert.equal(cache.workspaceSuggestion(), rootDir);
-    });
+    assert.equal(suggestionFrom(cache, makeDir('cwd')), rootDir);
   });
 
   it('falls back to cwd when neither env nor client roots apply', () => {
     const cwdDir = makeDir('cwd');
     const { cache } = createCache();
 
-    withEnv({ [ENV_VAR]: null }, () => {
-      assert.equal(withCwd(cwdDir, () => cache.workspaceSuggestion()), cwdDir);
-    });
+    assert.equal(suggestionFrom(cache, cwdDir), cwdDir);
   });
 
   it('rejects extension-cache paths from env, client roots and cwd', async () => {
     for (const host of Object.keys(HOST_CACHE_DIRS)) {
-      await withEnv({ [ENV_VAR]: makeCacheDir(host) }, async () => {
-        const cache = await createCacheWithRoots([{ uri: pathToFileURL(makeCacheDir(host)).href }]);
-        assert.equal(withCwd(makeCacheDir(host), () => cache.workspaceSuggestion()), null, host);
-      });
+      const cache = await createCacheWithRoots([{ uri: pathToFileURL(makeCacheDir(host)).href }]);
+      assert.equal(suggestionFrom(cache, makeCacheDir(host), makeCacheDir(host)), null, host);
     }
   });
 });
@@ -177,9 +167,7 @@ describe('createProjectRootCache client roots', () => {
     await cache.refreshClientRoots();
 
     assert.equal(requests(), 0);
-    withEnv({ [ENV_VAR]: null }, () => {
-      assert.equal(withCwd(cwdDir, () => cache.workspaceSuggestion()), cwdDir);
-    });
+    assert.equal(suggestionFrom(cache, cwdDir), cwdDir);
   });
 
   it('swallows roots/list failures and treats them as no roots', async () => {
@@ -190,14 +178,13 @@ describe('createProjectRootCache client roots', () => {
     await cache.refreshClientRoots();
 
     assert.equal(requests(), 1);
-    withEnv({ [ENV_VAR]: null }, () => {
-      assert.equal(withCwd(cwdDir, () => cache.workspaceSuggestion()), cwdDir);
-    });
+    assert.equal(suggestionFrom(cache, cwdDir), cwdDir);
   });
 
   it('replaces the cached roots with the latest list on every refresh', async () => {
     const firstDir = makeDir('first');
     const secondDir = makeDir('second');
+    const cwdDir = makeDir('cwd');
     let roots = [pathToFileURL(firstDir).href];
     const cache = createProjectRootCache({
       runtimeConfig: RUNTIME_CONFIG,
@@ -205,13 +192,11 @@ describe('createProjectRootCache client roots', () => {
     });
     cache.setClientSupportsRoots(true);
 
-    await withEnv({ [ENV_VAR]: null }, async () => {
-      await cache.refreshClientRoots();
-      assert.equal(cache.workspaceSuggestion(), firstDir);
+    await cache.refreshClientRoots();
+    assert.equal(suggestionFrom(cache, cwdDir), firstDir);
 
-      roots = [pathToFileURL(secondDir).href];
-      await cache.refreshClientRoots();
-      assert.equal(cache.workspaceSuggestion(), secondDir);
-    });
+    roots = [pathToFileURL(secondDir).href];
+    await cache.refreshClientRoots();
+    assert.equal(suggestionFrom(cache, cwdDir), secondDir);
   });
 });

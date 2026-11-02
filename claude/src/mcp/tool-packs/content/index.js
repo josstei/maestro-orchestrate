@@ -2,15 +2,13 @@
 
 const path = require('node:path');
 const { defineTool } = require('../../core/create-server');
-const { createHandler: createSkillContentHandler } = require('../../handlers/get-skill-content');
-const { createHandler: createAgentHandler } = require('../../handlers/get-agent');
-const { createHandler: createRuntimeContextHandler } = require('../../handlers/get-runtime-context');
+const { RuntimeContent } = require('../../content/runtime-content');
 
 // Content comes from the src/ tree this module runs from, like the registries.
 const CANONICAL_SRC_ROOT = path.resolve(__dirname, '..', '..', '..');
 
 function createToolPack({ runtimeConfig, services }) {
-  const srcRoot = services.canonicalSrcRoot || CANONICAL_SRC_ROOT;
+  const content = new RuntimeContent(runtimeConfig, services.canonicalSrcRoot || CANONICAL_SRC_ROOT);
 
   return {
     name: 'content',
@@ -26,7 +24,7 @@ function createToolPack({ runtimeConfig, services }) {
               'Resource identifiers to read. Skills: "delegation", "execution", "validation", "session-management", "implementation-planning", "code-review", "design-dialogue". Protocols: "agent-base-protocol", "filesystem-safety-protocol". Templates: "design-document", "implementation-plan", "session-state". References: "architecture", "orchestration-steps".',
           },
         },
-        createSkillContentHandler(runtimeConfig, srcRoot),
+        (params) => content.getSkillContent(params),
         { required: ['resources'] }
       ),
       defineTool(
@@ -40,14 +38,14 @@ function createToolPack({ runtimeConfig, services }) {
               'Agent identifiers (kebab-case or snake_case): "coder", "code-reviewer" / "code_reviewer", "ux-designer" / "ux_designer", etc.',
           },
         },
-        createAgentHandler(runtimeConfig, srcRoot),
+        (params) => content.getAgent(params),
         { required: ['agents'] }
       ),
       defineTool(
         'get_runtime_context',
         'Returns tool mappings, agent dispatch syntax, MCP prefixes, and path variables for the current Maestro runtime. Call once at session start (step 0) and carry the returned context through the session.',
         {},
-        createRuntimeContextHandler(runtimeConfig, services.workspaceSuggestion)
+        () => content.runtimeContext(services.workspaceSuggestion && services.workspaceSuggestion())
       ),
     ],
   };

@@ -110,17 +110,14 @@ The MCP server is authored directly in modular source under `src/mcp/`. Each run
 src/mcp/
 ├── maestro-server.js           # Server entry-point (main) + default tool pack order
 ├── content/
-│   └── runtime-content.js      # Runtime-specific content resolution
+│   └── runtime-content.js      # RuntimeContent: skill, agent and runtime-context tools
 ├── contracts/                  # Plan schema + complexity tiers, document input and handoff contracts
 ├── core/
 │   ├── create-server.js        # Tool pack composition, dispatch + error sanitization
 │   ├── protocol-dispatcher.js  # McpConnection: stdin JSON lines, JSON-RPC routing, tool result framing
 │   ├── project-root-cache.js   # Workspace path + workspace_suggestion
 │   └── recovery-hints.js       # Error → recovery guidance mapping
-├── handlers/                   # 10 handler implementations
-│   ├── get-agent.js            # Agent methodology serving
-│   ├── get-skill-content.js    # Skill/template/reference serving
-│   ├── get-runtime-context.js  # Runtime config snapshot
+├── handlers/                   # 7 handler implementations
 │   ├── initialize-workspace.js # Directory setup
 │   ├── assess-task-complexity.js # Repo analysis signals
 │   ├── validate-plan.js        # Plan validation + dependency DAG
