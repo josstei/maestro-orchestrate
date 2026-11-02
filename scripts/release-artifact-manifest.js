@@ -67,11 +67,7 @@ const REQUIRED_PACKAGE_FILES = [
   'claude/.claude-plugin/plugin.json',
   'plugins/maestro/.codex-plugin/plugin.json',
   'qwen-extension.json',
-  'scripts/install-codex-plugin.js',
-  'scripts/lib/cli.js',
   'src/mcp/maestro-server.js',
-  'src/platforms/metadata.js',
-  'src/platforms/qwen/policy-pack.js',
 ];
 
 const REQUIRED_RUNTIME_FILES = [
@@ -139,7 +135,7 @@ function isDeniedPath(relativePath) {
 function isReleaseArtifactPathAllowed(relativePath) {
   const normalized = normalizeArtifactPath(relativePath);
 
-  // The extension archive has no build CLI or Codex installer.
+  // The extension archive omits build-only sources.
   if (normalized.startsWith('src/') && isBuildOnly(normalized.slice(4))) {
     return false;
   }

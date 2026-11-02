@@ -58,31 +58,6 @@ function buildMetadataContext({ name, version, homepage, license, repository, au
 const manifestHead = (context, description) => ({ name: 'maestro', version: context.version, description });
 const publisherFields = ({ author, homepage, repository, license }) => ({ author, homepage, repository, license });
 
-function codexMarketplacePlugin(pluginPath) {
-  return {
-    name: 'maestro',
-    source: {
-      source: 'local',
-      path: pluginPath,
-    },
-    policy: {
-      installation: 'AVAILABLE',
-      authentication: 'ON_INSTALL',
-    },
-    category: 'Coding',
-  };
-}
-
-function codexMarketplace(plugins) {
-  return {
-    name: 'maestro-orchestrator',
-    interface: {
-      displayName: 'Maestro Orchestrator',
-    },
-    plugins,
-  };
-}
-
 // The runtime's variable for its installed plugin or extension root.
 function rootVar(runtime) {
   return `\${${runtime.env.extensionPath}}`;
@@ -212,7 +187,26 @@ const METADATA_BUILDERS = {
     ['claude/.mcp.json', { mcpServers: nodeMcpServers(runtime, { cwd: rootVar(runtime) }) }],
   ],
   codex: (context) => [
-    ['.agents/plugins/marketplace.json', codexMarketplace([codexMarketplacePlugin('./plugins/maestro')])],
+    ['.agents/plugins/marketplace.json', {
+      name: 'maestro-orchestrator',
+      interface: {
+        displayName: 'Maestro Orchestrator',
+      },
+      plugins: [
+        {
+          name: 'maestro',
+          source: {
+            source: 'local',
+            path: './plugins/maestro',
+          },
+          policy: {
+            installation: 'AVAILABLE',
+            authentication: 'ON_INSTALL',
+          },
+          category: 'Coding',
+        },
+      ],
+    }],
     ['plugins/maestro/.codex-plugin/plugin.json', {
       ...manifestHead(context, CODEX_DESCRIPTION),
       ...publisherFields(context),
@@ -274,8 +268,4 @@ function buildPlatformMetadataOutputs(runtimes, pkg) {
   );
 }
 
-module.exports = {
-  buildPlatformMetadataOutputs,
-  codexMarketplace,
-  codexMarketplacePlugin,
-};
+module.exports = { buildPlatformMetadataOutputs };

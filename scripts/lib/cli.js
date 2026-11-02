@@ -2,7 +2,7 @@
 
 /**
  * Shared argv parsing and failure handling for the CLIs under scripts/
- * (the generator, release and installer scripts).
+ * (the generator and release scripts).
  */
 
 /**

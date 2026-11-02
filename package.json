@@ -14,7 +14,6 @@
     "url": "https://github.com/josstei/maestro-orchestrate.git"
   },
   "bin": {
-    "maestro-install-codex": "./scripts/install-codex-plugin.js",
     "maestro-mcp-server": "./bin/maestro-mcp-server.js"
   },
   "scripts": {
@@ -68,8 +67,8 @@
     "!src/entry-points/",
     "!src/generator/",
     "!src/lib/discovery/",
-    "scripts/install-codex-plugin.js",
-    "scripts/lib/cli.js",
+    "!src/platforms/metadata.js",
+    "!src/platforms/qwen/policy-pack.js",
     "bin/",
     "agents/",
     "antigravity/",

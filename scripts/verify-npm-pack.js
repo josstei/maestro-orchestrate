@@ -39,14 +39,12 @@ function verifyPackageEntries(packages) {
   ensure(Array.isArray(packages) && packages.length === 1, 'Expected npm pack to report exactly one package');
 
   const entries = packages[0].files.map((file) => file.path);
-  // scripts/ and build-only src/ ship only the REQUIRED_PACKAGE_FILES entries.
   const isBuildPath = (entry) => entry.startsWith('scripts/')
     || (entry.startsWith('src/') && isBuildOnly(entry.slice(4)));
 
   ensureNone(REQUIRED_PACKAGE_FILES.filter((file) => !entries.includes(file)), 'npm package missing required file');
   ensureNone(entries.filter(isDeniedPath), 'npm package contains forbidden path');
-  ensureNone(entries.filter((entry) => isBuildPath(entry) && !REQUIRED_PACKAGE_FILES.includes(entry)),
-    'npm package contains build-only path');
+  ensureNone(entries.filter(isBuildPath), 'npm package contains build-only path');
 
   return {
     entryCount: entries.length,

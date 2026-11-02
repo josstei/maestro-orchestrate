@@ -28,11 +28,7 @@ describe('verify npm pack', () => {
       'claude/.claude-plugin/plugin.json',
       'plugins/maestro/.codex-plugin/plugin.json',
       'qwen-extension.json',
-      'scripts/install-codex-plugin.js',
-      'scripts/lib/cli.js',
       'src/mcp/maestro-server.js',
-      'src/platforms/metadata.js',
-      'src/platforms/qwen/policy-pack.js',
     ]);
     assert.doesNotThrow(() => verifyPackageEntries(packWith()));
     assert.doesNotThrow(() => verifyPackageEntries(packWith(
@@ -59,10 +55,12 @@ describe('verify npm pack', () => {
   for (const [kind, paths] of [
     ['build-only', [
       'scripts/generate.js',
-      'scripts/lib/helper.js',
+      'scripts/lib/cli.js',
       'src/entry-points/templates/qwen-command.toml.tmpl',
       'src/generator/dependency-graph.js',
       'src/lib/discovery/index.js',
+      'src/platforms/metadata.js',
+      'src/platforms/qwen/policy-pack.js',
     ]],
     ['forbidden', [
       'tests/unit/example.test.js',

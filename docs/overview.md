@@ -55,7 +55,7 @@ maestro-orchestrate/
 │   ├── mcp/                      # Canonical MCP server modules
 │   ├── platforms/                # Runtime configs and their registry (runtime-config-map.js), hook adapters (with each host's shell-policy facts), shared hook and policy-enforcer runners, Qwen policy-pack renderer, metadata.js builders
 │   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
-├── scripts/                      # Generator (generate.js), layer check, release and install tooling
+├── scripts/                      # Generator (generate.js), layer check, release and git-hook tooling
 ├── bin/                          # [generated] maestro-mcp-server.js (Codex npx launcher)
 ├── tests/                        # Unit and integration suites + shared helpers
 │

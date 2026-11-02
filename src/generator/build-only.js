@@ -1,8 +1,7 @@
 'use strict';
 
 // Sources that only generate, analyze or package the runtimes. Runtime code
-// must not depend on them and the extension archive omits them; npm keeps
-// only metadata.js and the Qwen policy pack, which its Codex installer loads.
+// must not depend on them, and neither the extension archive nor npm ships them.
 const BUILD_ONLY_PATHS = Object.freeze([
   'entry-points',
   'generator',
