@@ -11,9 +11,6 @@ process.env.MAESTRO_HOOKS_DIR = hooksDir;
 // Hooks resolve the git toplevel of their cwd; keep fixture dirs from resolving
 // to an enclosing checkout when the temp dir happens to live inside one.
 Object.assign(process.env, ISOLATED_GIT_ENV);
-// Agent detection falls back to MAESTRO_CURRENT_AGENT; keep an inherited value
-// out of the detection tests.
-delete process.env.MAESTRO_CURRENT_AGENT;
 
 const { execFileSync } = require('node:child_process');
 const { describe, it, before, after } = require('node:test');

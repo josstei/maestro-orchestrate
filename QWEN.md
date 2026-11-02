@@ -85,7 +85,6 @@ This extension was authored for Qwen Code. When following agent methodology file
 Additional controls:
 
 - `MAESTRO_EXTENSION_PATH`: override extension root for setting resolution (defaults to ~/.qwen/extensions/maestro)
-- `MAESTRO_CURRENT_AGENT`: legacy fallback for hook correlation only; primary identity now comes from the required `Agent:` delegation header
 
 ## Orchestration Workflow
 

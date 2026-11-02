@@ -12,7 +12,6 @@ const {
   getAgentCapability,
 } = require('../../src/core/agent-registry');
 const { AGENT_COUNT } = require('../support/catalog');
-const { withEnv } = require('../support/env');
 
 const VALID_CAPABILITY_LEVELS = ['read_only', 'read_shell', 'read_write', 'full'];
 
@@ -36,9 +35,7 @@ describe('registry constants', () => {
   });
 });
 
-const detect = (prompt, env = null) => withEnv({ MAESTRO_CURRENT_AGENT: env }, () => detectAgentFromPrompt(prompt));
-
-// [describe, lookup, [[it title, [[input, expected, MAESTRO_CURRENT_AGENT for detect], ...]], ...]]
+// [describe, lookup, [[it title, [[input, expected], ...]], ...]]
 const LOOKUP_CASES = [
   ['normalizeAgentName', normalizeAgentName, [
     ['converts kebab-case to snake_case', [['code-reviewer', 'code_reviewer'], ['devops-engineer', 'devops_engineer'],
@@ -46,19 +43,12 @@ const LOOKUP_CASES = [
     ['lowercases input', [['CODER', 'coder'], ['Code-Reviewer', 'code_reviewer'], ['Architect', 'architect']]],
     ['returns empty string for non-string inputs', [[null, ''], [undefined, ''], [42, ''], [{}, '']]],
   ]],
-  ['detectAgentFromPrompt', detect, [
+  ['detectAgentFromPrompt', detectAgentFromPrompt, [
     ['finds agent from "agent: coder" header', [['agent: coder\n\nDo some work.', 'coder']]],
     ['finds agent from "agent: code-reviewer" header and normalizes to snake_case',
       [['agent: code-reviewer\n\nReview this PR.', 'code_reviewer']]],
-    ['matches @code_reviewer mention', [['Please ask @code_reviewer to check this.', 'code_reviewer']]],
-    ['matches "delegate to coder" pattern', [['delegate to coder for implementation', 'coder']]],
-    ['matches "hand off to debugger" pattern', [['hand off to debugger for investigation', 'debugger']]],
     ['returns empty string for empty prompt, null prompt, and prompts with no agent',
       [['', ''], [null, ''], ['Just a normal message with no agent.', '']]],
-    ['falls back to MAESTRO_CURRENT_AGENT env when no header is present',
-      [['Run all tests please.', 'tester', 'tester']]],
-    ['prefers header agent over MAESTRO_CURRENT_AGENT env',
-      [['agent: coder\n\nImplement the feature.', 'coder', 'tester']]],
   ]],
   ['getAgentCapability', getAgentCapability, [
     ['returns correct capability level for known agents', [['architect', 'read_only'], ['debugger', 'read_shell'],
@@ -73,7 +63,7 @@ for (const [suite, lookup, cases] of LOOKUP_CASES) {
   describe(suite, () => {
     for (const [title, pairs] of cases) {
       it(title, () => {
-        for (const [input, expected, env] of pairs) assert.equal(lookup(input, env), expected, String(input));
+        for (const [input, expected] of pairs) assert.equal(lookup(input), expected, String(input));
       });
     }
   });
