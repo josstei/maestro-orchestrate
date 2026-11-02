@@ -11,25 +11,18 @@ const MAX_STDIN_BYTES = 1024 * 1024;
  * is exceeded, after calling `onOverflow` when provided. Used directly by the
  * shared hook runner and policy enforcer (src/platforms/shared/).
  */
-function collectStdin({ onOverflow } = {}) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let totalBytes = 0;
-    process.stdin.on('data', (chunk) => {
-      totalBytes += chunk.length;
-      if (totalBytes > MAX_STDIN_BYTES) {
-        if (onOverflow) onOverflow();
-        process.stdin.destroy();
-        reject(new Error('Stdin payload too large'));
-        return;
-      }
-      chunks.push(chunk);
-    });
-    process.stdin.on('end', () => {
-      resolve(Buffer.concat(chunks).toString());
-    });
-    process.stdin.resume();
-  });
+async function collectStdin({ onOverflow } = {}) {
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const chunk of process.stdin) {
+    totalBytes += chunk.length;
+    if (totalBytes > MAX_STDIN_BYTES) {
+      if (onOverflow) onOverflow();
+      throw new Error('Stdin payload too large');
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString();
 }
 
 async function readText() {

@@ -1,21 +1,11 @@
 'use strict';
 
 /**
- * Antigravity hook I/O adapter.
- * Normalizes Antigravity stdin JSON to the internal context contract
- * and formats internal responses for Antigravity stdout.
- *
- * Maestro registers only SessionStart hooks through the hook runner (see
- * antigravity/hooks.json). Antigravity fires SessionStart for the main
- * conversation and again for every subagent conversation, so a context
- * message reaches each delegated agent when it starts. Antigravity has no
- * SessionEnd, SubagentStart or SubagentStop event.
- *
- * Input (camelCase protojson): conversationId, workspacePaths[], transcriptPath,
- * artifactDirectoryPath, modelName. The payload carries no agent name.
- *
- * Output: {} or { injectSteps: [{ systemMessage: { systemMessage } }] }. stdout
- * is parsed strictly, so nothing else may be emitted, and the exit code stays 0.
+ * Antigravity hook I/O adapter (field mappings: docs/runtime-antigravity.md#hook-adapter).
+ * Maestro registers only SessionStart hooks, which Antigravity fires for the
+ * main conversation and again for every subagent conversation; the camelCase
+ * payload names no agent. stdout is parsed strictly, so the runner prints only
+ * the formatted object and exits 0.
  */
 
 function normalizeInput(raw) {
@@ -32,15 +22,7 @@ function normalizeInput(raw) {
 }
 
 function formatOutput(result) {
-  if (!result.message) {
-    return {};
-  }
-
-  return { injectSteps: [{ systemMessage: { systemMessage: result.message } }] };
-}
-
-function errorFallback() {
-  return {};
+  return result.message ? { injectSteps: [{ systemMessage: { systemMessage: result.message } }] } : {};
 }
 
 /**
@@ -55,4 +37,4 @@ const shellPolicy = {
   decisions: { deny: 'deny', ask: 'force_ask', allow: 'ask' },
 };
 
-module.exports = { normalizeInput, formatOutput, errorFallback, shellPolicy };
+module.exports = { normalizeInput, formatOutput, errorFallback: {}, shellPolicy };

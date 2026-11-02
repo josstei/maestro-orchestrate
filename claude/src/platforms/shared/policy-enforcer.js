@@ -16,10 +16,8 @@ const { collectStdin } = require('../../core/stdin-reader');
 function main(runtime) {
   // maestro-dependencies: hook-adapters
   const { readCommand, decisions } = require(path.join(__dirname, '..', runtime, 'hook-adapter.js')).shellPolicy;
-  const emit = (action, reason) => {
-    const decision = reason ? { decision: decisions[action], reason } : { decision: decisions[action] };
-    process.stdout.write(JSON.stringify(decision) + '\n');
-  };
+  // JSON.stringify drops an undefined reason.
+  const emit = (action, reason) => process.stdout.write(JSON.stringify({ decision: decisions[action], reason }) + '\n');
 
   return collectStdin({
     onOverflow: () => {
