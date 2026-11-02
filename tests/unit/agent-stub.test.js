@@ -49,7 +49,7 @@ const CODE_REVIEWER_FRONTMATTER = {
     'model: inherit', 'tools:', '  - view_file', '  - find_by_name', '  - grep_search'],
 };
 
-describe('agent-stub transform', () => {
+describe('agentStub renderer', () => {
   for (const [runtime, lines] of Object.entries(CODE_REVIEWER_FRONTMATTER)) {
     it(`renders the ${runtime} frontmatter and get_agent body`, () => {
       assert.deepEqual(stub(canonicalAgent, getRuntimeConfig(runtime)), { lines, body: stubBody('code-reviewer') });

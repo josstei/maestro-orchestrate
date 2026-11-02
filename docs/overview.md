@@ -57,7 +57,7 @@ maestro-orchestrate/
 │   └── scripts/                  # Runtime helper scripts (workspace, session, settings)
 ├── scripts/                      # Generator (generate.js), layer check, release and install tooling
 ├── bin/                          # [generated] maestro-mcp-server.js (Codex npx launcher)
-├── tests/                        # Unit, transform, and integration suites + shared helpers
+├── tests/                        # Unit and integration suites + shared helpers
 │
 ├── agents/                       # [generated] Qwen agent stubs (39, snake_case, Qwen tool names)
 ├── commands/maestro/             # [generated] Qwen TOML commands

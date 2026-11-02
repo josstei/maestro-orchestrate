@@ -33,9 +33,8 @@ All commands are available via `just`:
 | Command | Description | CI equivalent |
 |---------|-------------|---------------|
 | `just generate` | Generate all runtime files from `src/` | Regenerates after a version bump in Prepare Release and the prerelease publish steps |
-| `just test` | Run all tests (unit + transform + integration) | `npm test` in all 6 source-of-truth workflows |
+| `just test` | Run all tests (unit + integration) | `npm test` in all 6 source-of-truth workflows |
 | `just test-unit` | Run only unit tests | — |
-| `just test-transforms` | Run only transform unit tests | — |
 | `just test-integration` | Run only integration tests | — |
 | `just check` | Generate, then fail if `git diff --exit-code` shows drift | All 6 source-of-truth workflows run `node scripts/generate.js --check` |
 | `just check-layers` | Parse the production graph; verify layer boundaries, dependency containment, and absence of cycles | Covered by `npm test`, which runs `scripts/check-layer-boundaries.js` against the repository's `src/` |

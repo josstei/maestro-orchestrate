@@ -20,7 +20,7 @@
   "scripts": {
     "generate": "node scripts/generate.js",
     "build": "npm run generate",
-    "test": "node --test tests/unit/*.test.js tests/transforms/*.test.js tests/integration/*.test.js",
+    "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
     "test:coverage": "c8 npm test",
     "release:artifacts": "node scripts/package-release-artifacts.js",
     "release:verify-artifacts": "node scripts/verify-release-artifacts.js",

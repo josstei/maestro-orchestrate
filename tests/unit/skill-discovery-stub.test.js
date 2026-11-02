@@ -17,7 +17,7 @@ const SKILL = [
 const stubFor = (frontmatter) => ['---', 'name: delegation', 'description: Delegation methodology for agents.',
   ...frontmatter, '---', '', 'Methodology loaded via MCP. Call `get_skill_content(resources: ["delegation"])`.', ''];
 
-describe('skill-discovery-stub transform', () => {
+describe('skillDiscoveryStub renderer', () => {
   for (const [runtime, frontmatter] of [
     ['antigravity', ['disable-slash-command: true']],
     ['claude', ['user-invocable: false']],

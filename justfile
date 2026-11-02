@@ -27,9 +27,6 @@ test:
 # Run only unit tests (core modules, hooks, handlers)
 test-unit: (_node-test "unit test" "tests/unit/*.test.js")
 
-# Run only transform unit tests
-test-transforms: (_node-test "transform test" "tests/transforms/*.test.js")
-
 # Run only integration tests
 test-integration: (_node-test "integration test" "tests/integration/*.test.js")
 

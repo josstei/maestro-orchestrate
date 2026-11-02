@@ -40,7 +40,7 @@ The main job of every source-of-truth workflow runs these steps in this order. A
 | Setup Node.js | Pins `actions/setup-node` to SHA `49933ea5288caeca8642d1e84afbd3f7d6820020` (v4.4.0); Node.js 20 unless the workflow section says otherwise |
 | Install build dependencies | Runs `npm ci`; parser dependencies are needed for generation and graph checks |
 | Check generated output drift | Runs `node scripts/generate.js --check`, which writes nothing, lists each generated file that would be created, updated, or removed, and exits 1 if there are any |
-| Run full test suite | Runs `npm test` (the `node --test` globs over `tests/unit/`, `tests/transforms/`, and `tests/integration/` in `package.json`), which includes the layer-boundary check |
+| Run full test suite | Runs `npm test` (the `node --test` globs over `tests/unit/` and `tests/integration/` in `package.json`), which includes the layer-boundary check |
 
 ### Shared Publish Tail
 
