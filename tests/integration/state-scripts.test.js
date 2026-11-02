@@ -210,7 +210,7 @@ describe('state scripts', () => {
       const write = runScript('write-state.js', [NOTES_PATH], { input: 'notes' });
       expectExit(write, {
         status: 0,
-        stderr: 'env-file-parser: unclosed quote for key "BROKEN", treating accumulated content as value\n',
+        stderr: 'setting-resolver: unclosed quote for key "BROKEN", treating accumulated content as value\n',
       });
     });
 

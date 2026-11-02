@@ -135,7 +135,7 @@ describe('request-scoped setting resolver', () => {
       const resolve = createSettingResolver(project);
       for (const name of ['MY_VAR', 'OTHER_VAR', 'MY_VAR']) assert.equal(resolve(name), undefined);
       assert.equal(read.mock.calls.length, 2);
-      const warning = (key) => `env-file-parser: unclosed quote for key "${key}", treating accumulated content as value`;
+      const warning = (key) => `setting-resolver: unclosed quote for key "${key}", treating accumulated content as value`;
       assert.deepEqual(console.warn.mock.calls.map(({ arguments: args }) => args[0]), [
         warning('WORKSPACE'), warning('EXTENSION'),
         warning('WORKSPACE'), warning('EXTENSION'),
@@ -155,7 +155,7 @@ describe('request-scoped setting resolver', () => {
       assert.equal(resolve('MY_VAR'), undefined);
       assert.equal(read.mock.calls.length, 1);
       assert.deepEqual(console.warn.mock.calls.map(({ arguments: args }) => args[0]), Array(4).fill(
-        'env-file-parser: unclosed quote for key "UNFINISHED", treating accumulated content as value'
+        'setting-resolver: unclosed quote for key "UNFINISHED", treating accumulated content as value'
       ));
     });
   });
@@ -171,7 +171,7 @@ describe('request-scoped setting resolver', () => {
       assert.equal(resolve('MY_VAR'), undefined);
       assert.equal(fallback.mock.calls.length, 0);
       assert.deepEqual(warnings, Array(4).fill(
-        'env-file-parser: unclosed quote for key "UNFINISHED", treating accumulated content as value'
+        'setting-resolver: unclosed quote for key "UNFINISHED", treating accumulated content as value'
       ));
     });
   });
@@ -205,7 +205,7 @@ describe('parseEnvFile', () => {
     const warn = t.mock.method(console, 'warn', () => {});
     assert.deepEqual(parse('KEY="line one\nline two\n'), {
       values: { KEY: 'line one\nline two\n' },
-      warnings: ['env-file-parser: unclosed quote for key "KEY", treating accumulated content as value'],
+      warnings: ['setting-resolver: unclosed quote for key "KEY", treating accumulated content as value'],
     });
     assert.equal(warn.mock.calls.length, 0);
   });

@@ -50,7 +50,7 @@ function parseEnvFile(filePath) {
     const parts = [rawValue.slice(1)];
     while (++i < lines.length && !/(?<!\\)"$/.test(lines[i])) parts.push(lines[i]);
     if (i < lines.length) parts.push(lines[i].slice(0, -1));
-    else warnings.push(`env-file-parser: unclosed quote for key "${key}", treating accumulated content as value`);
+    else warnings.push(`setting-resolver: unclosed quote for key "${key}", treating accumulated content as value`);
     values[key] = parts.join('\n');
   }
   return { values, warnings };

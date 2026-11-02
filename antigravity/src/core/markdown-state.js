@@ -10,7 +10,7 @@ function serialize(data, body) {
 function parse(content) {
   const match = content.match(FRONTMATTER_PATTERN);
   if (!match) {
-    throw new Error('No YAML frontmatter found in session state');
+    throw new Error('No frontmatter found in session state');
   }
 
   return {

@@ -37,7 +37,7 @@ describe('markdown-state', () => {
   it('parse throws with correct message when no frontmatter found', () => {
     assert.throws(
       () => parse('no delimiters here'),
-      { message: 'No YAML frontmatter found in session state' }
+      { message: 'No frontmatter found in session state' }
     );
   });
 

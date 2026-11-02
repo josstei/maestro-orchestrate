@@ -67,7 +67,7 @@ describe('handleResolveSettings', () => {
       }, project), { settings: { MAESTRO_MAX_RETRIES: null }, disabled_agents: [] });
       assert.equal(read.mock.calls.length, 1);
       assert.deepEqual(console.warn.mock.calls.map(({ arguments: args }) => args[0]), Array(4).fill(
-        'env-file-parser: unclosed quote for key "BROKEN", treating accumulated content as value'
+        'setting-resolver: unclosed quote for key "BROKEN", treating accumulated content as value'
       ));
     });
   });
